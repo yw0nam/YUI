@@ -183,6 +183,8 @@ export async function wireTurnCore(
     readingsSettings: settings.readingsSettings,
     vadSettings: settings.vadSettings,
     speakerSelection,
+    refreshVoiceList,
+    checkTtsServer: speaker.checkTtsServer,
     getEndpoints,
     getConfig: () => config.get(),
     getSecret: (name) => config.secrets.get(name),

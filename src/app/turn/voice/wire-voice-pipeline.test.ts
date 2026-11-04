@@ -230,6 +230,8 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs, bargeIn }) },
     speakerSelection: { getActive: () => activeSpeaker },
+    refreshVoiceList: async () => ({ kind: "skipped" }),
+    checkTtsServer: async () => null,
     voiceInputStatus,
     onVoiceSegment,
     onUtteranceStart,
@@ -679,6 +681,8 @@ describe("wireVoicePipeline", () => {
         readingsSettings: { get: () => ({ text: "" }) },
         vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
         speakerSelection: windowB,
+        refreshVoiceList: async () => ({ kind: "skipped" }),
+        checkTtsServer: async () => null,
         voiceInputStatus: { set: vi.fn() },
         onVoiceSegment: vi.fn(),
         onUtteranceStart: vi.fn(),
@@ -787,9 +791,11 @@ describe("wireVoicePipeline", () => {
   });
 
   describe("backend utterance lifecycle", () => {
-    it("hands both utterance callbacks to speech playback unchanged", () => {
+    it("hands both utterance callbacks to speech playback", () => {
       const state = setup();
-      expect(playbackOptions().onUtteranceStart).toBe(state.onUtteranceStart);
+      const identity = { turn_id: "7", event_name: "user.text_submitted" };
+      playbackOptions().onUtteranceStart?.(identity);
+      expect(state.onUtteranceStart).toHaveBeenCalledWith(identity);
       expect(playbackOptions().onUtteranceEnd).toBe(state.onUtteranceEnd);
     });
 

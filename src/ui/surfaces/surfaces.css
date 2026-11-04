@@ -488,6 +488,23 @@
   outline: 2px solid var(--yui-accent-soft);
   outline-offset: 2px;
 }
+/* A busy action — its work runs; the label pulses until the action changes. */
+.yui-bubble__speech-action button:disabled {
+  cursor: default;
+  color: var(--yui-text-mute);
+  text-decoration-color: transparent;
+  animation: yui-speech-action-pulse 1.2s ease-in-out infinite;
+}
+@keyframes yui-speech-action-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yui-bubble__speech-action button:disabled {
+    animation: none;
+  }
+}
 
 /* ── Reasoning disclosure — the backend's reasoning folded above the speech (message window only) ── */
 .yui-bubble__think {

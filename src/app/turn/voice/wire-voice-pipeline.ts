@@ -3,6 +3,7 @@ import type { EndpointsConfig, UtteranceIdentity } from "../../../contract";
 import type { TurnFailure } from "../../../dispatcher/backend/backend-caller";
 import type { TurnLog } from "../../../dispatcher/turn/turn";
 import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
+import type { ServerCheck } from "../../../io/chat/models/server-check";
 import { selectFetch } from "../../../io/chat/stream/chat-client";
 import { createFillerAudioCache } from "../../../io/voice/filler/filler-audio-cache";
 import {
@@ -24,11 +25,13 @@ import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
 import { createVoiceGate } from "../../../io/voice/tts/voice-gate";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
+import type { VoiceListOutcome } from "../../../io/voice/voices/voice-list-refresh";
 import type { Renderer } from "../../../renderer";
 import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import type { ReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
+import { createTtsReach, type TtsReach } from "./tts-reach";
 
 type VoiceRenderer = Pick<
   Renderer,
@@ -58,6 +61,8 @@ interface VoicePipelineDeps {
   };
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
+  refreshVoiceList: () => Promise<VoiceListOutcome>;
+  checkTtsServer: () => Promise<ServerCheck | null>;
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
   onVoiceSegment: (text: string) => void;
   /** A backend utterance opened. */
@@ -85,6 +90,10 @@ export interface VoicePipeline {
   speakFailure: (reason: TurnFailure) => void;
   /** Notifies on a backend utterance sentence's synth rejection that is not a TTS_SKIP. Returns an unsubscribe. */
   onSynthFailure(cb: () => void): () => void;
+  /** Notifies whether the TTS server answered a list request, a synth, or a Reconnect. */
+  onTtsReach(cb: (reach: TtsReach) => void): () => void;
+  /** Checks the TTS server again; resolves whether it answered. */
+  reconnectTts(): Promise<boolean>;
   /** A stroll ended while a turn is still thinking — the thinking loop takes the body back. */
   resumeThinking: () => void;
   createSttEngine: () => Promise<SttVad>;
@@ -109,9 +118,15 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
   const readings = createReadings(() => deps.readingsSettings.get().text);
+  const reach = createTtsReach(deps);
+  const hasTtsUrl = (): boolean => Boolean(deps.getEndpoints().tts_base_url);
 
   const fillerCache = createFillerAudioCache({
-    synth: (input, signal, opts) => provider.synth(readings.apply(input), signal, opts),
+    synth: async (input, signal, opts) => {
+      const wav = await provider.synth(readings.apply(input), signal, opts);
+      reach.report("ok");
+      return wav;
+    },
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough; a tagged
     // response sentence bypasses the cache.
@@ -135,7 +150,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   ): Promise<ArrayBuffer> => {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
-    if (!provider.isReady()) return Promise.reject(TTS_SKIP);
+    if (!(await reach.ensureSpeaker(provider.isReady, hasTtsUrl))) return Promise.reject(TTS_SKIP);
     return fillerCache.synth(input, signal, opts);
   };
 
@@ -196,7 +211,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     isStrolling: deps.isStrolling,
     onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
     reportAudioOwed: (owed) => deps.turnLog.setAudioOwed(owed),
-    onUtteranceStart: deps.onUtteranceStart,
+    onUtteranceStart: (identity) => {
+      reach.clear();
+      deps.onUtteranceStart(identity);
+    },
     onUtteranceEnd: deps.onUtteranceEnd,
     pipeline: {
       sink: createWebAudioSink({ getGain: () => deps.lipsyncSettings.get().gain }),
@@ -205,9 +223,9 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       synth,
       // A dead TTS server would otherwise be retried once per gap for the whole thinking window.
       // Response-speech failures share the signal; the next thinking start clears it either way.
-      onSynthFailure: (tracked) => {
+      onSynthFailure: (tracked, error) => {
         fillerLoop?.onSynthFailure();
-        if (tracked) for (const cb of [...synthFailureListeners]) cb();
+        if (reach.synthFailed(error) && tracked) for (const cb of [...synthFailureListeners]) cb();
       },
     },
   });
@@ -339,6 +357,8 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       synthFailureListeners.add(cb);
       return () => void synthFailureListeners.delete(cb);
     },
+    onTtsReach: reach.onReach,
+    reconnectTts: reach.reconnect,
     dispose() {
       fillerLoop?.stop();
       speechPlayback.dispose();

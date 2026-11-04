@@ -4,11 +4,14 @@
  */
 
 import { createLogger } from "../../../logger";
+import type { ServerFailure } from "../../chat/models/server-check";
 import { createDeadlineSignal, untilAborted } from "../deadline";
 import { fetchReferenceClip } from "./reference-clip";
 import {
   authHeaders,
   clipExtensionOf,
+  httpFailure,
+  thrownFailure,
   type UpsertVoiceOptions,
   VOICE_UPLOAD_TIMEOUT_MS,
   VOICES_REQUEST_TIMEOUT_MS,
@@ -31,14 +34,17 @@ async function errorDetail(res: Response, signal: AbortSignal): Promise<string> 
 
 /**
  * GETs {baseUrl}/model?self=true across every page and returns the account's voice models —
- * `_id` is the synthesizable reference_id, `title` the visible label. A failed request (non-2xx,
- * thrown request, deadline timeout) resolves to null so the caller can tell it from a genuinely
- * empty account, which resolves to [].
+ * `_id` is the synthesizable reference_id, `title` the visible label. A failed request resolves
+ * to its failure kind, so the caller can tell it from a genuinely empty account, which resolves
+ * to an ok empty list.
  */
-export async function listFishVoices(opts: VoicesRequestOptions): Promise<VoiceEntry[] | null> {
+export async function listFishVoices(
+  opts: VoicesRequestOptions,
+): Promise<{ kind: "ok"; voices: VoiceEntry[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("fish-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "Fish voice list timed out");
+  let responded = false;
   try {
     const voices: VoiceEntry[] = [];
     for (let page = 1; ; page++) {
@@ -49,9 +55,10 @@ export async function listFishVoices(opts: VoicesRequestOptions): Promise<VoiceE
         }),
         deadline.signal,
       );
+      responded = true;
       if (!res.ok) {
         log.warn("voice_list_failed", { status: res.status });
-        return null;
+        return httpFailure(res.status);
       }
       const body = (await untilAborted(res.json(), deadline.signal)) as {
         total?: unknown;
@@ -75,10 +82,10 @@ export async function listFishVoices(opts: VoicesRequestOptions): Promise<VoiceE
       // An empty page ends the walk even when has_more claims otherwise — never loop forever.
       if (items.length === 0 || !more) break;
     }
-    return voices;
+    return { kind: "ok", voices };
   } catch (err) {
     log.warn("voice_list_failed", { error: String(err) });
-    return null;
+    return thrownFailure(deadline.signal, responded);
   } finally {
     deadline.clear();
   }

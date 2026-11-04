@@ -565,6 +565,20 @@ describe("speech actions — in-place buttons under the speech text", () => {
     expect(first).not.toHaveBeenCalled();
   });
 
+  it("renders a busy action as a disabled button whose click does nothing", () => {
+    const onClick = vi.fn();
+    s.beginSpeech();
+    s.pushSpeech("hint");
+    s.endSpeech();
+    s.showSpeechActions([{ label: "Connecting…", busy: true, onClick }]);
+    const button = actionButton()!;
+
+    button.dispatchEvent(new MouseEvent("click"));
+
+    expect([button.disabled, button.textContent]).toEqual([true, "Connecting…"]);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("clears the action when new speech replaces it — a click afterwards does nothing", () => {
     const onClick = vi.fn();
     s.beginSpeech();

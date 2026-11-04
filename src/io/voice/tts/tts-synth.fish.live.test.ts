@@ -24,7 +24,7 @@ function isWav(buf: ArrayBuffer): boolean {
 describe.skipIf(!LIVE)("tts-synth — LIVE Fish Audio", () => {
   it("synthesizes one line through the default model into wav bytes", async ({ skip }) => {
     const voices = await listFishVoices({ baseUrl: BASE_URL, getApiKey });
-    const referenceId = voices?.[0]?.id;
+    const referenceId = voices.kind === "ok" ? voices.voices[0]?.id : undefined;
     if (!referenceId) skip("the account has no voice models");
 
     const wav = await createTtsSynth({

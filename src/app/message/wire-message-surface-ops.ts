@@ -71,8 +71,9 @@ export function wireMessageSurfaceOps({
         break;
       case "speech-actions":
         surfaces.showSpeechActions(
-          op.labels.map((label, index) => ({
+          op.actions.map(({ label, busy }, index) => ({
             label,
+            busy,
             onClick: () => bridge.emitControl({ op: "speech-action", index }),
           })),
         );

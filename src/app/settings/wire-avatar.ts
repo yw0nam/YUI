@@ -12,6 +12,7 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "../../io/assets/vrm-selection";
+import type { ServerCheck } from "../../io/chat/models/server-check";
 import { selectFetch } from "../../io/chat/stream/chat-client";
 import {
   createSpeakerSelection,
@@ -20,6 +21,7 @@ import {
   nextRevision,
   type SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createTtsServerCheck } from "../../io/voice/voices/tts-server-check";
 import { VOICE_APIS, type VoiceApi } from "../../io/voice/voices/voice-apis";
 import { migrateUserVoiceIds } from "../../io/voice/voices/voice-id-migration";
 import {
@@ -32,6 +34,7 @@ import {
 } from "../../io/voice/voices/voice-import-flow";
 import {
   createVoiceListRefresh,
+  type VoiceListOutcome,
   wireVoiceListAutoRefresh,
 } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
@@ -139,7 +142,9 @@ export function wireSpeakerSelection(deps: {
   /** Commit step: uploads the staged copy under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   removeVoice: (id: string) => Promise<void>;
-  refreshVoiceList: () => Promise<void>;
+  refreshVoiceList: () => Promise<VoiceListOutcome>;
+  /** Whether the TTS server answers; null when there is no TTS URL or a newer refresh took the answer. */
+  checkTtsServer: () => Promise<ServerCheck | null>;
   /** Whether the current TTS provider takes imported voices — import and delete. */
   canManageVoices: () => boolean;
   /** Whether the current TTS provider can take a clip again under the voice's own id. */
@@ -235,6 +240,11 @@ export function wireSpeakerSelection(deps: {
     reuploadUserVoice: refreshSpeaker,
     log,
   });
+  const checkTtsServer = createTtsServerCheck({
+    getEndpoints,
+    getApiKey: async () => getApiKey?.(),
+    refreshVoiceList,
+  });
   return {
     speakerSelection,
     swapSpeaker,
@@ -243,6 +253,7 @@ export function wireSpeakerSelection(deps: {
     commitVoiceImport,
     removeVoice,
     refreshVoiceList,
+    checkTtsServer,
     canManageVoices,
     canReuploadVoices,
     canPasteVoiceId,

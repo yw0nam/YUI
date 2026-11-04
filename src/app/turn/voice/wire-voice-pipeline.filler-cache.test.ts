@@ -112,6 +112,8 @@ function setup(
     },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: getSpeaker },
+    refreshVoiceList: async () => ({ kind: "skipped" }),
+    checkTtsServer: async () => null,
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
     onUtteranceStart: vi.fn(),

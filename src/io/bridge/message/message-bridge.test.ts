@@ -58,7 +58,10 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "dismiss-input" },
   { op: "busy", busy: true },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
-  { op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] },
+  {
+    op: "speech-actions",
+    actions: [{ label: "Hear the controls" }, { label: "Connecting…", busy: true }],
+  },
   { op: "attachment-limits", limits: LIMITS },
   { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
   { op: "settle-quote" },
@@ -221,7 +224,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("sends only the speech actions' labels, routes a click back by index, and drops the callbacks on replacement", () => {
+  it("sends only the speech actions' labels and busy flags, routes a click back by index, and drops the callbacks on replacement", () => {
     const { pet, message } = pair();
     const remote = createRemoteSurfaces(pet);
     const seen: MessageSurfaceOp[] = [];
@@ -231,10 +234,13 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
 
     remote.showSpeechActions([
       { label: "Hear the controls", onClick: first },
-      { label: "Hear what she can do", onClick: second },
+      { label: "Hear what she can do", busy: true, onClick: second },
     ]);
     expect(seen).toEqual([
-      { op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] },
+      {
+        op: "speech-actions",
+        actions: [{ label: "Hear the controls" }, { label: "Hear what she can do", busy: true }],
+      },
     ]);
 
     message.emitControl({ op: "speech-action", index: 1 });

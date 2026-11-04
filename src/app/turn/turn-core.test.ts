@@ -26,8 +26,11 @@ vi.mock("./voice/wire-voice", async (importOriginal) => {
           speakFailure: () => {},
           resumeThinking: () => {},
           onSynthFailure: () => () => {},
+          onTtsReach: () => () => {},
+          reconnectTts: async () => true,
           createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
           dispose: () => {},
+          onUtteranceStart: () => () => {},
           onUtteranceEnd: () => () => {},
         },
         voiceInput: { setStt: () => {} } as unknown as TurnVoice["voiceInput"],
@@ -87,7 +90,11 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
       vrmSelection: { getActive: () => ({ url: "/a.vrm" }) },
       loadVrmSerialized: async () => {},
     },
-    speaker: { migrateVoiceIds: async () => {}, refreshVoiceList: () => {} },
+    speaker: {
+      migrateVoiceIds: async () => {},
+      refreshVoiceList: () => {},
+      checkTtsServer: async () => null,
+    },
     ...over,
   } as unknown as TurnCorePhase1;
   const core = wireTurnCore({} as never, phase1, {

@@ -67,13 +67,19 @@ it("routes the input-error action click back as a control op", () => {
   expect(bridge.emitControl).toHaveBeenCalledWith({ op: "input-error-action" });
 });
 
-it("routes a speech action's click back as a control op carrying its index", () => {
+it("relays each speech action's busy flag and routes its click back as a control op carrying its index", () => {
   const { send, surfaces, bridge } = setup();
 
-  send({ op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] });
+  send({
+    op: "speech-actions",
+    actions: [{ label: "Hear the controls" }, { label: "Connecting…", busy: true }],
+  });
 
   const actions = vi.mocked(surfaces.showSpeechActions).mock.calls[0]![0];
-  expect(actions.map((a) => a.label)).toEqual(["Hear the controls", "Hear what she can do"]);
+  expect(actions.map((a) => [a.label, a.busy])).toEqual([
+    ["Hear the controls", undefined],
+    ["Connecting…", true],
+  ]);
   actions[1]!.onClick();
   expect(bridge.emitControl).toHaveBeenCalledWith({ op: "speech-action", index: 1 });
 });

@@ -8,7 +8,10 @@ vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
 const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
   deleteVoice: vi.fn(async () => undefined),
-  listVoices: vi.fn<typeof import("../../io/voice/voices/tts-voices").listVoices>(async () => []),
+  listVoices: vi.fn<typeof import("../../io/voice/voices/tts-voices").listVoices>(async () => ({
+    kind: "ok",
+    ids: [],
+  })),
   upsertVoice: vi.fn<typeof import("../../io/voice/voices/tts-voices").upsertVoice>(
     async () => undefined,
   ),
@@ -19,7 +22,7 @@ vi.mock("../../io/voice/voices/tts-voices", () => ({ deleteVoice, listVoices, up
 const { deleteFishVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
   deleteFishVoice: vi.fn(async () => undefined),
   listFishVoices: vi.fn<typeof import("../../io/voice/voices/fish-voices").listFishVoices>(
-    async () => [],
+    async () => ({ kind: "ok", voices: [] }),
   ),
   upsertFishVoice: vi.fn(async () => "model_9"),
 }));
@@ -76,7 +79,7 @@ const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => 
 
 describe("wireSpeakerSelection — refreshVoiceList", () => {
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     selectFetch.mockClear();
   });
 
@@ -94,7 +97,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
   });
 
   it("feeds the server voice list into the manifest, mapped to id/label/empty ref_url", async () => {
-    listVoices.mockResolvedValue(["ナツメ", "あやせ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ", "あやせ"] });
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({
         tts_base_url: "http://localhost:8091",
@@ -133,7 +136,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
     });
 
     // The server now also lists "myvoice" — it was registered at import time.
-    listVoices.mockResolvedValue(["ナツメ", "myvoice"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ", "myvoice"] });
     await refreshVoiceList();
 
     const rows = speakerSelection.list().filter((o) => o.id === "myvoice");
@@ -155,7 +158,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
   });
 
   it("an empty server voice list yields a genuinely empty list — no phantom configured-default entry", async () => {
-    listVoices.mockResolvedValue([]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] });
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({
         tts_base_url: "http://localhost:8091",
@@ -173,7 +176,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
   });
 
   it("does not select a configured tts_speaker absent from a non-empty server list", async () => {
-    listVoices.mockResolvedValue(["あやせ", "レナ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["あやせ", "レナ"] });
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({
         tts_base_url: "http://localhost:8091",
@@ -192,7 +195,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
   });
 
   it("selects the configured tts_speaker when the server list contains it (unchanged from before)", async () => {
-    listVoices.mockResolvedValue(["あやせ", "ナツメ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["あやせ", "ナツメ"] });
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({
         tts_base_url: "http://localhost:8091",
@@ -211,8 +214,8 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
   it("does not let a slow earlier refresh clobber a newer manifest (out-of-order resolution)", async () => {
     // First call is slow and would resolve to a stale, single-voice manifest.
     let resolveSlow: (ids: string[]) => void = () => {};
-    const slow = new Promise<string[]>((res) => {
-      resolveSlow = res;
+    const slow = new Promise<{ kind: "ok"; ids: string[] }>((res) => {
+      resolveSlow = (ids) => res({ kind: "ok", ids });
     });
     listVoices.mockReturnValueOnce(slow);
     const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
@@ -227,7 +230,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
     const first = refreshVoiceList(); // in flight, slow
 
     // Second call is fast and resolves first with the actually-current manifest.
-    listVoices.mockResolvedValueOnce(["ナツメ", "あやせ"]);
+    listVoices.mockResolvedValueOnce({ kind: "ok", ids: ["ナツメ", "あやせ"] });
     await refreshVoiceList();
     expect(speakerSelection.list().map((o) => o.id)).toEqual(["ナツメ", "あやせ"]);
 
@@ -242,7 +245,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
 
 describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
     pickVoiceFile
       .mockReset()
@@ -305,7 +308,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   });
 
   it("commitVoiceImport overwrites via upsertVoice when the server already lists the id (duplicate name)", async () => {
-    listVoices.mockResolvedValue(["natsume"]); // server already has this id — explicit overwrite
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["natsume"] }); // server already has this id — explicit overwrite
     const { pickVoiceImport, commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       log: noopLog,
@@ -360,7 +363,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   // manifest) specifically for the new pick/commit flow: a voice just imported via commitVoiceImport
   // must not get clobbered by a refreshVoiceList triggered right after (e.g. the next panel open).
   it("a voice imported via commitVoiceImport survives a refreshVoiceList right after (next panel open)", async () => {
-    listVoices.mockResolvedValue([]); // not registered yet at commit time
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] }); // not registered yet at commit time
     const { pickVoiceImport, commitVoiceImport, refreshVoiceList, speakerSelection } =
       wireSpeakerSelection({
         getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -373,7 +376,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
 
     // The server now also lists it (registered at import time) — simulate the next panel open.
-    listVoices.mockResolvedValue(["myvoice"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["myvoice"] });
     await refreshVoiceList();
 
     const rows = speakerSelection.list().filter((o) => o.id === "myvoice");
@@ -462,7 +465,7 @@ describe("createEffectiveEndpoints", () => {
       });
 
     beforeEach(() => {
-      listVoices.mockReset().mockResolvedValue(["ナツメ"]);
+      listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: ["ナツメ"] });
       upsertVoice.mockReset().mockResolvedValue(undefined);
       pickVoiceFile
         .mockReset()
@@ -536,7 +539,7 @@ describe("createEffectiveEndpoints", () => {
         broadcastSettings: () => {},
       });
 
-      await expect(refreshVoiceList()).resolves.toBeUndefined();
+      await expect(refreshVoiceList()).resolves.toEqual({ kind: "skipped" });
       expect(listVoices).not.toHaveBeenCalled();
 
       await expect(
@@ -584,7 +587,7 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
 
   beforeEach(() => {
     deleteVoice.mockReset().mockResolvedValue(undefined);
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
     removeUserVoiceMock.mockReset().mockResolvedValue(undefined);
     selectFetch.mockClear();
@@ -764,7 +767,9 @@ describe("wireAvatarSelection — voice list refresh", () => {
     listFishVoices
       .mockReset()
       .mockImplementation(async (opts) =>
-        (await opts.getApiKey?.()) ? [{ id: "own1", label: "Own" }] : null,
+        (await opts.getApiKey?.())
+          ? { kind: "ok", voices: [{ id: "own1", label: "Own" }] }
+          : { kind: "refused" },
       );
     const { speaker } = wireAvatarSelection({
       renderer: {} as never,
@@ -806,7 +811,7 @@ describe("wireSpeakerSelection — openai", () => {
 
   beforeEach(() => {
     deleteVoice.mockReset().mockResolvedValue(undefined);
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
   });
 
@@ -845,7 +850,7 @@ describe("wireSpeakerSelection — openai", () => {
     const myVoice = { id: "myvoice", label: "My Voice", ref_url: "asset://x/clip.wav" };
     speakerSelection.addUserOption(myVoice);
     // The server lists the import under its own id.
-    listVoices.mockResolvedValue(["natsume", "myvoice"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["natsume", "myvoice"] });
     await refreshVoiceList();
     speakerSelection.select("myvoice");
     expect(speakerSelection.getActiveId()).toBe("myvoice");
@@ -909,10 +914,12 @@ describe("wireSpeakerSelection — voices belong to the provider that owns them"
   });
 
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue(["natsume"]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: ["natsume"] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
     deleteVoice.mockReset().mockResolvedValue(undefined);
-    listFishVoices.mockReset().mockResolvedValue([{ id: "own1", label: "Own" }]);
+    listFishVoices
+      .mockReset()
+      .mockResolvedValue({ kind: "ok", voices: [{ id: "own1", label: "Own" }] });
     upsertFishVoice.mockReset().mockResolvedValue("model_9");
     deleteFishVoice.mockReset().mockResolvedValue(undefined);
     removeUserVoiceMock.mockReset().mockResolvedValue(undefined);

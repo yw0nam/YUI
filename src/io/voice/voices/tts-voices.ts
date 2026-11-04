@@ -1,6 +1,7 @@
 /** Irodori's `/v1/audio/voices` API — lists, uploads, and deletes reference voices. */
 
 import { createLogger, type Logger } from "../../../logger";
+import type { ServerFailure } from "../../chat/models/server-check";
 import { createDeadlineSignal, untilAborted } from "../deadline";
 import { fetchReferenceClip } from "./reference-clip";
 
@@ -29,6 +30,16 @@ export async function authHeaders(
   return key ? { Authorization: `Bearer ${key}` } : {};
 }
 
+export function httpFailure(status: number): ServerFailure {
+  return status === 401 || status === 403 ? { kind: "refused" } : { kind: "http", status };
+}
+
+/** A thrown list read: the deadline fired, a 2xx body failed to read, or no response came. */
+export function thrownFailure(deadline: AbortSignal, responded: boolean): ServerFailure {
+  if (deadline.aborted) return { kind: "timeout" };
+  return responded ? { kind: "malformed" } : { kind: "unreachable" };
+}
+
 /** Reduces an OpenAI-style `{error:{message}}` body to one appendable line. */
 async function errorDetail(res: Response, signal: AbortSignal): Promise<string> {
   try {
@@ -42,13 +53,16 @@ async function errorDetail(res: Response, signal: AbortSignal): Promise<string> 
 /**
  * GETs {baseUrl}/v1/audio/voices and returns the server's voice ids — the TTS server is the
  * source of truth for the speaker list, and its ids are opaque strings (non-ASCII included).
- * A failed request (non-2xx, thrown request, deadline timeout) resolves to null so the caller
- * can tell it from a server that genuinely lists no voices, which resolves to [].
+ * A failed request resolves to its failure kind, so the caller can tell it from a server that
+ * genuinely lists no voices, which resolves to an ok empty list.
  */
-export async function listVoices(opts: VoicesRequestOptions): Promise<string[] | null> {
+export async function listVoices(
+  opts: VoicesRequestOptions,
+): Promise<{ kind: "ok"; ids: string[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("tts-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice list timed out");
+  let responded = false;
   try {
     const res = await untilAborted(
       fetchImpl(`${opts.baseUrl}/v1/audio/voices`, {
@@ -57,19 +71,21 @@ export async function listVoices(opts: VoicesRequestOptions): Promise<string[] |
       }),
       deadline.signal,
     );
+    responded = true;
     if (!res.ok) {
       log.warn("voice_list_failed", { status: res.status });
-      return null;
+      return httpFailure(res.status);
     }
     const body = (await untilAborted(res.json(), deadline.signal)) as {
       data?: Array<{ id?: unknown }>;
     };
-    return (body.data ?? [])
+    const ids = (body.data ?? [])
       .map((v) => v.id)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
+    return { kind: "ok", ids };
   } catch (err) {
     log.warn("voice_list_failed", { error: String(err) });
-    return null;
+    return thrownFailure(deadline.signal, responded);
   } finally {
     deadline.clear();
   }

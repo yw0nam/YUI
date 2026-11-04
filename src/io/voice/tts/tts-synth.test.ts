@@ -13,7 +13,12 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
-import { createTtsProvider, createTtsSynth, TTS_SYNTH_TIMEOUT_MS } from "./tts-synth";
+import {
+  createTtsProvider,
+  createTtsSynth,
+  TTS_SYNTH_TIMEOUT_MS,
+  TtsUnreachableError,
+} from "./tts-synth";
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -165,6 +170,43 @@ describe("createTtsSynth", () => {
     await expect(synth("x")).rejects.toThrow(/503/);
   });
 
+  it.each([
+    [
+      "a fetch that rejects",
+      true,
+      async () => {
+        throw new TypeError("error sending request");
+      },
+      false,
+    ],
+    [
+      "a caller abort",
+      false,
+      async () => {
+        throw new DOMException("Aborted", "AbortError");
+      },
+      true,
+    ],
+    [
+      "an HTTP 500",
+      false,
+      async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response,
+      false,
+    ],
+  ])("a TTS request ending in %s throws TtsUnreachableError: %s", async (_l, unreachable, impl, aborted) => {
+    const synth = createTtsSynth({
+      provider: "irodori",
+      baseUrl: BASE_URL,
+      fetch: vi.fn<FetchFn>(impl) as unknown as typeof fetch,
+    });
+    const ac = new AbortController();
+    if (aborted) ac.abort();
+
+    const err = await synth("hi", ac.signal).catch((e: unknown) => e);
+
+    expect(err instanceof TtsUnreachableError).toBe(unreachable);
+  });
+
   it("propagates the caller's abort to the request signal", async () => {
     const fetchMock = vi.fn<FetchFn>(
       (_url, init) =>
@@ -269,12 +311,12 @@ describe("createTtsSynth", () => {
       });
 
       const pending = synth("hi");
-      const assertion = expect(pending).rejects.toMatchObject({
-        name: "TimeoutError",
-        message: "TTS request timed out",
-      });
+      const assertion = expect(pending).rejects.toThrow(
+        new TtsUnreachableError("TimeoutError: TTS request timed out"),
+      );
       await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
       await assertion;
+      await expect(pending).rejects.toBeInstanceOf(TtsUnreachableError);
     });
 
     it("reports a caller abort as the caller's abort, not a timeout", async () => {

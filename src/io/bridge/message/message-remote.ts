@@ -23,6 +23,8 @@ export interface InputErrorAction {
 /** In-place fix offered under the speech text (e.g. "Open Connection" on an unconfigured backend). */
 export interface SpeechAction {
   label: string;
+  /** Shows disabled while its work runs; a click does nothing. */
+  busy?: boolean;
   onClick(): void;
 }
 
@@ -214,7 +216,10 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     showSpeechActions(actions) {
       speechActionClicks = actions.map((a) => a.onClick);
-      bridge.emitSurface({ op: "speech-actions", labels: actions.map((a) => a.label) });
+      bridge.emitSurface({
+        op: "speech-actions",
+        actions: actions.map(({ label, busy }) => (busy ? { label, busy } : { label })),
+      });
     },
     setAttachmentLimits(next) {
       limits = next;

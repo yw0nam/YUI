@@ -8,11 +8,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const state = { serverDown: false };
+  const state = { serverErrors: false };
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
   const fetchImpl = vi.fn<typeof globalThis.fetch>(async (url) => {
-    if (String(url).endsWith("/v1/audio/speech") && state.serverDown) {
-      throw new TypeError("error sending request for url (http://tts.test/v1/audio/speech)");
+    if (String(url).endsWith("/v1/audio/speech") && state.serverErrors) {
+      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response;
     }
     return {
       ok: true,
@@ -96,6 +96,8 @@ function setup(over: { ttsEnabled?: () => boolean } = {}): VoicePipeline {
     readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
+    refreshVoiceList: async () => ({ kind: "skipped" }),
+    checkTtsServer: async () => null,
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
     onUtteranceStart: vi.fn(),
@@ -109,7 +111,7 @@ function setup(over: { ttsEnabled?: () => boolean } = {}): VoicePipeline {
 describe("wireVoicePipeline synth-failure listeners", () => {
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
-    mocks.state.serverDown = false;
+    mocks.state.serverErrors = false;
   });
 
   it("a real synth rejection calls the subscribed listener once per failed sentence", async () => {
@@ -117,7 +119,7 @@ describe("wireVoicePipeline synth-failure listeners", () => {
     const cb = vi.fn();
     voice.onSynthFailure(cb);
 
-    mocks.state.serverDown = true;
+    mocks.state.serverErrors = true;
     voice.turnOutput.speak("ちょっと待ってね。", IDENTITY);
 
     await vi.waitFor(() => expect(cb).toHaveBeenCalledTimes(1));
@@ -130,7 +132,7 @@ describe("wireVoicePipeline synth-failure listeners", () => {
     const cb = vi.fn();
     voice.onSynthFailure(cb);
 
-    mocks.state.serverDown = true;
+    mocks.state.serverErrors = true;
     voice.speechPlayback.speakAside("ちょっと待ってね。");
 
     await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
@@ -159,7 +161,7 @@ describe("wireVoicePipeline synth-failure listeners", () => {
     const off = voice.onSynthFailure(cb);
     off();
 
-    mocks.state.serverDown = true;
+    mocks.state.serverErrors = true;
     voice.turnOutput.speak("ちょっと待ってね。", IDENTITY);
 
     await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
