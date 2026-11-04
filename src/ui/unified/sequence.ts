@@ -9,12 +9,10 @@ const log = createLogger("sequence");
 /** How long a target may stay silent before the sequence moves on, and how long a sent line waits for its record. */
 export const SEND_TIMEOUT_MS = 60_000;
 
-/** A done for the current send and target, or SEND_TIMEOUT_MS, moves on; a send that arrives meanwhile queues. */
-// ponytail: one queue, one timeout; no per-target retry while the backend answers nearly every turn
+/** A done for the current send and target, or SEND_TIMEOUT_MS, ends the send; a run while one is current is ignored. */
+// ponytail: one timeout; no per-target retry while the backend answers nearly every turn
 export function createSequence(deps: {
   emit: (event: UserTurnRouted) => void;
-  /** A queued send reached the front and is about to be emitted. */
-  onStart?: (sendId: string) => void;
   /** The last send is over and nothing waits. */
   onIdle?: () => void;
 }): {
@@ -22,11 +20,10 @@ export function createSequence(deps: {
   turnDone(done: UserTurnDone): void;
   /** The send under way, or null. */
   current(): Send | null;
-  /** Drops the send under way and every queued one. */
+  /** Drops the send under way. */
   cancel(): void;
   dispose(): void;
 } {
-  const queue: Send[] = [];
   let current: { send: Send; index: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -46,21 +43,13 @@ export function createSequence(deps: {
     }, SEND_TIMEOUT_MS);
   }
 
-  function startNext(): void {
-    const send = queue.shift();
-    if (!send) {
-      current = null;
-      deps.onIdle?.();
-      return;
-    }
-    current = { send, index: 0 };
-    deps.onStart?.(send.sendId);
-    emitCurrent();
+  function endSend(): void {
+    current = null;
+    deps.onIdle?.();
   }
 
   function cancel(): void {
     clearTimeout(timer);
-    queue.length = 0;
     current = null;
   }
 
@@ -69,13 +58,14 @@ export function createSequence(deps: {
     if (!current) return;
     current.index++;
     if (current.index < current.send.targets.length) emitCurrent();
-    else startNext();
+    else endSend();
   }
 
   return {
     run(send) {
-      queue.push(send);
-      if (!current) startNext();
+      if (current) return;
+      current = { send, index: 0 };
+      emitCurrent();
     },
     turnDone({ sendId, preset }) {
       if (current?.send.sendId === sendId && current.send.targets[current.index] === preset)

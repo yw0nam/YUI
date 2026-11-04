@@ -84,12 +84,6 @@ export interface AskFrame {
   expires_at?: number;
 }
 
-/** The Ask closed without the client's answer. */
-export interface AskEndFrame {
-  type: "ask_end";
-  ask_id: string;
-}
-
 /** The user's reply to one Ask: picked choice ids, free text, or both. */
 export type AskAnswer = AnswerPayload & { ask_id: string };
 

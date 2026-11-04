@@ -90,7 +90,7 @@ export function createUnifiedView(deps: {
   const nameOf = (id: string): string => castState.nameOf(id);
   const rows = () => {
     const now = deps.now();
-    pending = pending.filter((p) => p.queued || now - p.at < SEND_TIMEOUT_MS);
+    pending = pending.filter((p) => now - p.at < SEND_TIMEOUT_MS);
     return mergeTranscripts(deps.transcripts(), pending, now);
   };
 
@@ -133,11 +133,6 @@ export function createUnifiedView(deps: {
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);
-    },
-    onStart: (sendId) => {
-      pending = pending.map((p) =>
-        p.sendId === sendId ? { sendId, text: p.text, to: p.to, at: deps.now() } : p,
-      );
     },
     onIdle: () => paint(),
   });
@@ -204,7 +199,6 @@ export function createUnifiedView(deps: {
       text: send.text,
       to: recipientOf(send),
       at: deps.now(),
-      queued: true,
     });
     sequence.run({ ...send, via });
     // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
