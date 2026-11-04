@@ -244,6 +244,18 @@ describe("createQuickControls — VRM section", () => {
     qc.dispose();
   });
 
+  it("the VRM section foot links to VRoid Hub", () => {
+    const qc = buildQc();
+    qc.open();
+
+    const link = qc.el.querySelector<HTMLAnchorElement>(".yui-vrm__hub")!;
+    expect(link.getAttribute("href")).toBe("https://hub.vroid.com/en/users/36144806");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.textContent).toBe("VRoid Hub에서 모델 찾기");
+
+    qc.dispose();
+  });
+
   it("caps the list in a scroll container; the add-row footer lives OUTSIDE it", () => {
     const qc = buildQc();
     qc.open();
