@@ -16,6 +16,10 @@ pub(super) struct Server {
 
 impl Server {
     pub(super) fn start() -> Self {
+        Self::with_accept_errors(Vec::new())
+    }
+
+    fn with_accept_errors(errors: Vec<std::io::ErrorKind>) -> Self {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let addr = listener.local_addr().unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -35,7 +39,18 @@ impl Server {
                 .unwrap()
                 .block_on(async move {
                     let listener = tokio::net::TcpListener::from_std(listener).unwrap();
-                    let serving = server::serve(listener, capacity, move |request| {
+                    let mut errors = errors.into_iter();
+                    let listener = &listener;
+                    let accept = move || {
+                        let error = errors.next();
+                        async move {
+                            match error {
+                                Some(kind) => Err(std::io::Error::from(kind)),
+                                None => listener.accept().await,
+                            }
+                        }
+                    };
+                    let serving = server::serve(accept, capacity, move |request| {
                         let threads = threads.clone();
                         async move {
                             let expected_label = if request.uri().path().starts_with("/presets/x/")
@@ -103,7 +118,10 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         let _ = self.stop.take().unwrap().send(());
-        self.worker.take().unwrap().join().unwrap();
+        let joined = self.worker.take().unwrap().join();
+        if !thread::panicking() {
+            joined.unwrap();
+        }
     }
 }
 
@@ -280,5 +298,23 @@ fn loopback_request_reaches_window_check_without_reading_registry() {
         body.len()
     )
     .unwrap();
+    assert!(response(&mut stream).starts_with("HTTP/1.1 200"));
+}
+
+#[test]
+fn accept_errors_do_not_stop_the_listener() {
+    let server = Server::with_accept_errors(vec![
+        std::io::ErrorKind::ConnectionAborted,
+        std::io::ErrorKind::ConnectionReset,
+        std::io::ErrorKind::ConnectionRefused,
+        std::io::ErrorKind::Other,
+    ]);
+    let mut stream = server.connect();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    stream
+        .write_all(b"GET /avatar/state HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .unwrap();
     assert!(response(&mut stream).starts_with("HTTP/1.1 200"));
 }

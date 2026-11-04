@@ -75,17 +75,19 @@ pub(super) async fn route_request(
     result
 }
 
-pub(super) async fn serve<F, Fut>(
-    listener: TcpListener,
+pub(super) async fn serve<A, Accept, F, Fut>(
+    mut accept: A,
     connections: Arc<Semaphore>,
     handler: F,
 ) -> std::io::Result<()>
 where
+    A: FnMut() -> Accept,
+    Accept: Future<Output = std::io::Result<(tokio::net::TcpStream, std::net::SocketAddr)>>,
     F: Fn(Request<Incoming>) -> Fut + Clone + Send + 'static,
     Fut: Future<Output = HttpResponse> + Send,
 {
     loop {
-        let (stream, _) = listener.accept().await?;
+        let (stream, _) = accept().await?;
         let Ok(permit) = connections.clone().try_acquire_owned() else {
             drop(stream);
             continue;
@@ -188,7 +190,7 @@ pub(super) fn start(app: &AppHandle, port: u16) {
                     };
                     log::debug!("agent_ingress_listening port={port}");
                     let _ = serve(
-                        listener,
+                        || listener.accept(),
                         Arc::new(Semaphore::new(CONNECTION_LIMIT)),
                         move |request| {
                             let app = app.clone();
