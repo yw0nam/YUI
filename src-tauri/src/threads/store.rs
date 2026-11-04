@@ -57,21 +57,21 @@ impl State {
     }
 
     fn cap_threads(&mut self, recorded_id: Option<&str>) {
-        while self.threads.len() > THREAD_LIMIT {
-            let oldest = self
-                .threads
-                .values()
-                .filter(|thread| {
-                    thread.state != ThreadState::InputRequired
-                        && Some(thread.id.as_str()) != recorded_id
-                })
-                .min_by(|a, b| {
-                    a.updated_at
-                        .cmp(&b.updated_at)
-                        .then_with(|| a.id.cmp(&b.id))
-                })
-                .map(|thread| thread.id.clone());
-            let Some(id) = oldest else { break };
+        let excess = self.threads.len().saturating_sub(THREAD_LIMIT);
+        if excess == 0 {
+            return;
+        }
+        let mut eligible: Vec<_> = self
+            .threads
+            .values()
+            .filter(|thread| {
+                thread.state != ThreadState::InputRequired
+                    && Some(thread.id.as_str()) != recorded_id
+            })
+            .map(|thread| (thread.updated_at, thread.id.clone()))
+            .collect();
+        eligible.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
+        for (_, id) in eligible.into_iter().take(excess) {
             self.threads.remove(&id);
         }
     }
