@@ -3,7 +3,7 @@
  * The selection and the filters survive snapshots; the thread pane keeps each ask's draft.
  */
 
-import type { AskAnswerPayload, Thread, ThreadsSnapshot } from "../../../contract";
+import type { AskAnswer, Thread, ThreadsSnapshot } from "../../../contract";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import {
   createThreadList,
@@ -26,7 +26,7 @@ export function createThreadsTab(deps: {
   shell: TabShell;
   now(): number;
   /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: AskAnswerPayload): Promise<void>;
+  onAnswer(id: string, askId: string, answer: AskAnswer): Promise<void>;
   /** The user picked a Thread whose open ask has not been reported seen. */
   onSeen(id: string, askId: string): void;
   /** The user marked the Thread read. */

@@ -52,7 +52,7 @@ pub struct Ask {
     pub choices: Vec<Choice>,
     #[serde(
         default,
-        deserialize_with = "multiple",
+        deserialize_with = "deserialize_multiple",
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub multiple: bool,
@@ -136,7 +136,9 @@ pub struct Upsert {
     pub ask: AskUpdate,
 }
 
-fn multiple<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+fn deserialize_multiple<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<bool, D::Error> {
     match Option::<bool>::deserialize(deserializer)? {
         None => Ok(false),
         Some(true) => Ok(true),

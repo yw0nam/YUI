@@ -106,9 +106,10 @@
   open. Settlement drops it and sends `ask_end` only when accepted. Open Asks wait while the client
   is away; unexpired ones replay after `ready` on a connection that accepts `ask`.
 - Raises Hermes clarify questions as Asks with the question and choices; a multi-select question
-  with buttons carries `multiple: true`. Its answer resolves as a JSON array string containing
-  the picked full labels followed by any text. Without buttons, typed text follows Hermes's
-  typed-reply rule; a single choice with text joins the label and text with a newline.
+  with buttons carries `multiple: true` without a hint sentence. Picked ids resolve as a JSON array
+  string of full labels in the Ask's order, followed by any text. Without buttons, a multi-select
+  question keeps Hermes's hint sentence. A text-only answer always follows Hermes's typed-reply
+  rule; a single choice with text joins the label and text with a newline.
   A clarify without a timeout has no `expires_at`. Retiring an open clarify sends `ask_end`
   when the client accepts it.
 - Stops the session's running agent on `stop`, which the client sends when the user presses stop.

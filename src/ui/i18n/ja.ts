@@ -821,7 +821,7 @@ const ja: Record<string, string> = {
   "threads.role_system": "システム",
   "threads.just_now": "たった今",
   "threads.choose_multiple": "1つ以上選んでください",
-  "threads.send_count": "{count}件送信",
+  "threads.send_count": "{n}件送信",
   "threads.send": "送信",
   "threads.mark_read": "既読にする",
   "threads.send_hint": "Enterで送信、Shift+Enterで改行",

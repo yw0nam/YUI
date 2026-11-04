@@ -4,6 +4,7 @@ import json
 import logging
 from collections.abc import Callable
 
+from agent.i18n import t
 from tools.clarify_gateway import (
     _coerce_text_response,
     get_pending,
@@ -35,15 +36,17 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             body["prompt"] += "\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
         if multi and "choices" in body:
             body["multiple"] = True
+        elif multi:
+            body["prompt"] += "\n\n" + t("gateway.clarify.hint_multi")
 
-    def resolve(choice: str | list[str] | None, text: str | None) -> None:
-        if body.get("multiple"):
-            values = [choices[int(id) - 1] for id in choice or []]
+    def resolve(selection: str | list[str] | None, text: str | None) -> None:
+        if isinstance(selection, list):
+            values = [label for i, label in enumerate(choices, 1) if str(i) in selection]
             if text is not None:
                 values.append(text)
             value = json.dumps(values, ensure_ascii=False)
-        elif choice is not None:
-            value = choices[int(choice) - 1]
+        elif selection is not None:
+            value = choices[int(selection) - 1]
             if text is not None:
                 # Hermes strips its recommendation label only from an answer that is the label alone.
                 value = f"{strip_recommended(value)}\n{text}"

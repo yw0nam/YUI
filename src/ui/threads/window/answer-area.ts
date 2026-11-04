@@ -4,8 +4,9 @@
  */
 
 import "./answer-area.css";
-import type { AskAnswerPayload, ThreadAsk } from "../../../contract";
+import type { AskAnswer, ThreadAsk } from "../../../contract";
 import { t } from "../../i18n";
+import { CHECK_SVG } from "../glyphs";
 import type { Draft } from "./drafts";
 import { entryMarkdown } from "./entry-markdown";
 
@@ -28,7 +29,7 @@ export function createAnswerArea(deps: {
   /** A send of this ask is in flight; send stays disabled until it settles. */
   sending: boolean;
   onDraft(draft: Draft): void;
-  onSend(answer: AskAnswerPayload): void;
+  onSend(answer: AskAnswer): void;
   /** Rides the head after the prompt. */
   head?: Node;
 }): AnswerArea {
@@ -70,13 +71,8 @@ export function createAnswerArea(deps: {
     key.textContent = String(i + 1);
     button.append(key, choice.label);
     if (ask.multiple) {
-      const check = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      check.classList.add("yui-threads-answer__check");
-      check.setAttribute("viewBox", "0 0 24 24");
-      check.setAttribute("aria-hidden", "true");
-      check.innerHTML =
-        '<path d="m5 12 4 4L19 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-      button.append(check);
+      button.insertAdjacentHTML("beforeend", CHECK_SVG);
+      button.lastElementChild!.classList.add("yui-threads-answer__check");
     }
     button.addEventListener("click", () => pick(i));
     return button;
@@ -138,8 +134,8 @@ export function createAnswerArea(deps: {
     });
     const choices = picked();
     send.textContent =
-      ask.multiple && choices.length > 1
-        ? t("threads.send_count", { count: choices.length })
+      choices.length > 1
+        ? t("threads.send_count", { n: choices.length })
         : (choices[0]?.label ?? t("threads.send"));
     send.classList.toggle(
       "is-danger",

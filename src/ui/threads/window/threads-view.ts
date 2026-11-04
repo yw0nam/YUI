@@ -4,7 +4,7 @@
  */
 
 import "./threads-view.css";
-import type { AskAnswerPayload, ScreenRect, ThreadsSnapshot } from "../../../contract";
+import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
 import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
@@ -51,7 +51,7 @@ export function createThreadsView(deps: {
   mount: HTMLElement;
   now(): number;
   /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: AskAnswerPayload): Promise<void>;
+  onAnswer(id: string, askId: string, answer: AskAnswer): Promise<void>;
   onSeen(id: string, askId: string): void;
   onRead(id: string): void;
   onClose(): void;

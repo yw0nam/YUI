@@ -140,7 +140,7 @@ impl ThreadStore {
         now
     }
 
-    pub fn answer(&self, id: &str, answer: AnswerInput, now: u64) -> Result<(), &'static str> {
+    pub fn answer(&self, id: &str, mut answer: AnswerInput, now: u64) -> Result<(), &'static str> {
         let snapshot = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
@@ -149,11 +149,11 @@ impl ThreadStore {
                 return Err("ask_id does not match open ask");
             }
             if ask.multiple && answer.choice.is_some() {
-                return Err("multiple ask does not accept choice");
+                return Err("multi-select Ask does not accept choice");
             }
             if let Some(ids) = &answer.choices {
                 if !ask.multiple {
-                    return Err("single-select ask does not accept choices");
+                    return Err("single-select Ask does not accept choices");
                 }
                 if ids.is_empty() {
                     return Err("choices must be non-empty");
@@ -164,9 +164,16 @@ impl ThreadStore {
                         return Err("choices must be distinct");
                     }
                     if !ask.choices.iter().any(|choice| &choice.id == id) {
-                        return Err("choices are not among the ask choices");
+                        return Err("a choice is not among the ask choices");
                     }
                 }
+                answer.choices = Some(
+                    ask.choices
+                        .iter()
+                        .filter(|choice| ids.contains(&choice.id))
+                        .map(|choice| choice.id.clone())
+                        .collect(),
+                );
             }
             let choice = answer
                 .choice
@@ -175,7 +182,7 @@ impl ThreadStore {
                     ask.choices
                         .iter()
                         .find(|c| &c.id == id)
-                        .ok_or("choice is not among the ask choices")
+                        .ok_or("a choice is not among the ask choices")
                 })
                 .transpose()?;
             if answer.choice.is_none()
@@ -416,7 +423,7 @@ mod tests {
         for (payload, error) in [
             (
                 serde_json::json!({"choice":"yes"}),
-                "multiple ask does not accept choice",
+                "multi-select Ask does not accept choice",
             ),
             (
                 serde_json::json!({"choices":[]}),
@@ -428,7 +435,7 @@ mod tests {
             ),
             (
                 serde_json::json!({"choices":["unknown"]}),
-                "choices are not among the ask choices",
+                "a choice is not among the ask choices",
             ),
         ] {
             let s = store();
@@ -613,8 +620,8 @@ mod tests {
             ("unknown", "unknown thread"),
             ("closed", "ask is not open"),
             ("mismatch", "ask_id does not match open ask"),
-            ("choice", "choice is not among the ask choices"),
-            ("choices", "single-select ask does not accept choices"),
+            ("choice", "a choice is not among the ask choices"),
+            ("choices", "single-select Ask does not accept choices"),
             (
                 "empty",
                 "answer requires a choice, non-empty text, or release",

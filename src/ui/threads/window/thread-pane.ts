@@ -5,10 +5,10 @@
  */
 
 import "./thread-pane.css";
-import type { AskAnswerPayload, Thread, ThreadEntry } from "../../../contract";
+import type { AskAnswer, Thread, ThreadEntry } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { getLocale, t } from "../../i18n";
-import { glyph } from "../glyphs";
+import { CHECK_SVG } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { type AnswerArea, createAnswerArea } from "./answer-area";
 import { type Draft, draftKey, pruneDrafts } from "./drafts";
@@ -34,8 +34,6 @@ function entryEl(entry: ThreadEntry, source: string, now: number): HTMLElement {
   el.append(head, text);
   return el;
 }
-
-const CHECK_SVG = glyph('<path d="M5 12.5 9.5 17 19 7"/>');
 
 function readButton(onRead: () => void): HTMLButtonElement {
   const el = document.createElement("button");
@@ -105,7 +103,7 @@ export function createThreadPane(deps: {
   back: HTMLElement;
   now(): number;
   /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: AskAnswerPayload): Promise<void>;
+  onAnswer(id: string, askId: string, answer: AskAnswer): Promise<void>;
   onRead(id: string): void;
 }): ThreadPane {
   const { el } = deps;

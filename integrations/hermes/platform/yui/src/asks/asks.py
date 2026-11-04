@@ -36,9 +36,7 @@ class Asks:
     def get(self, chat_id: str, ask_id: str) -> Ask | None:
         return self._chats.get(chat_id, {}).get(ask_id)
 
-    def take(
-        self, chat_id: str, ask_id: str, choice: object, text: object, choices: object = None
-    ) -> Ask | None:
+    def take(self, chat_id: str, ask_id: str, choice: object, text: object, choices: object) -> Ask | None:
         ask = self.get(chat_id, ask_id)
         if ask is None:
             return None

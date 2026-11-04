@@ -84,7 +84,7 @@ Thread can take it. A preset-prefixed path reaches no Thread route, as everywher
 
 An Answer supplies `ask_id` with picked choice ids, text, both, or `release: true` to answer at the agent's own terminal. The Thread must exist and the ask must be open with that id.
 
-A multi-select Ask accepts `choices` only when non-empty, distinct, and all ids belong to the Ask; it never accepts `choice`. Any other Ask accepts `choice` and never `choices`. With no pick, a text-only or release answer omits `choices`.
+A multi-select Ask accepts `choices` only when non-empty, distinct, and all ids belong to the Ask; it never accepts `choice`. Any other Ask accepts `choice` and never `choices`. With no pick, a text-only or release answer omits `choices`. The store normalizes picked ids to the Ask’s choice order before storing and delivering the Answer.
 
 A choice must belong to the ask. Text requires `ask.text: true` and cannot exceed 16384 code points. Without a choice, non-empty text, or release, the answer is refused.
 

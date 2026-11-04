@@ -818,7 +818,7 @@ const en: Record<string, string> = {
   "threads.role_system": "System",
   "threads.just_now": "just now",
   "threads.choose_multiple": "Choose one or more",
-  "threads.send_count": "Send {count}",
+  "threads.send_count": "Send {n}",
   "threads.send": "Send",
   "threads.mark_read": "Mark read",
   "threads.send_hint": "Enter sends, Shift+Enter starts a new line",

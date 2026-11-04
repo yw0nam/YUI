@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { AskAnswerPayload, ExpressArgs, ThreadAsk, Usage } from "../../../contract";
+import type { AskAnswer as AnswerPayload, ExpressArgs, ThreadAsk, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -91,12 +91,11 @@ export interface AskEndFrame {
 }
 
 /** The user's reply to one Ask: picked choice ids, free text, or both. */
-export interface AnswerFrame extends AskAnswerPayload {
-  type: "answer";
-  ask_id: string;
-}
+export type AskAnswer = AnswerPayload & { ask_id: string };
 
-export type AskAnswer = Omit<AnswerFrame, "type">;
+export interface AnswerFrame extends AskAnswer {
+  type: "answer";
+}
 
 export interface PlaybackFrame {
   type: "playback";
