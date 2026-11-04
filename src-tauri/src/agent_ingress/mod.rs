@@ -374,3 +374,6 @@ mod tests {
         assert!(claim_and_bind(&claim, port, 1, Duration::ZERO).is_none());
     }
 }
+
+#[cfg(test)]
+mod transport_tests;
