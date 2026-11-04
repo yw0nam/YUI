@@ -272,8 +272,8 @@ wait that passes after the first `render` ends the turn as well and writes a log
 leaving `ready` ends the turn at once, with the same two outcomes.
 
 A `render` that arrives after the turn ended this way still plays like any other frame, as long as
-the turn is still outstanding. A turn whose wait ended stays outstanding, so the next user action
-that stops speech stops it too, and its late `render` is dropped.
+the turn is still outstanding. A turn whose wait ended stays outstanding (the newest 200 are kept), so
+the next user action that stops speech stops it too, and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
@@ -295,13 +295,14 @@ Every Ask still open ends with an `ask_end` frame.
 
 The client sends the frame when the user presses stop, or when the user starts speaking with barge-in on while the unified chat window shows and a character was running; that window then sends the same stop its stop button sends.
 
-`turn_ids` are the turns the client just stopped: every turn that was outstanding on the chat at that
-moment. The backend stops generating for those still running and sends each its `turn_end`, and an
-id it no longer holds is ignored. The client sends the frame only while the socket is `ready`.
+`turn_ids` are the turns the client just stopped: the newest 200 of the turns that were outstanding
+on the chat at that moment. The backend stops generating for those still running and sends each its
+`turn_end`, and an id it no longer holds is ignored. The client sends the frame only while the socket
+is `ready`.
 
 - A turn that is not named, one the backend started after the client's stop, keeps running.
 - A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame.
-- A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it.
+- A backend that ignores `stop` stays correct: the client drops the frames of the newest 200 stopped turns until their `turn_end`, as it does without it.
 - Whether stopping a turn also ends work that turn delegated is the backend's decision. A delegation it ends is reported through `delegations`.
 
 ### `playback` (client → backend)
@@ -372,7 +373,9 @@ A `render` plays after the speech already queued, in the order the frames arrive
 3. The stop button.
 4. The user started speaking, with barge-in on, while the unified chat window shows and a character was running.
 
-The `render`, `speech` and `tool_status` frames still to come for a turn stopped that way are dropped, and its `turn_end` is the frame on which the client forgets the turn.
+The `render`, `speech` and `tool_status` frames still to come for a turn stopped that way are dropped
+for the newest 200 stopped turns, and its `turn_end` is the frame on which the client forgets the
+turn.
 
 ### `speech` (backend → client)
 

@@ -86,4 +86,29 @@ describe("clip-library", () => {
 
     expect(await pending).toBeNull();
   });
+
+  it("a mirrored load the swap overtakes after the upright load resumed returns null and caches nothing", async () => {
+    const { clips, loader } = makeLibrary();
+    let resolveLoad!: (value: unknown) => void;
+    loader.loadAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    clips.onVrmLoaded(makeVrm());
+    clips.setMirror(true);
+
+    const pending = clips.load("a.vrma");
+    // The swap lands after the upright load resumed, in the window before the mirrored branch continues.
+    resolveLoad({ userData: { vrmAnimations: [{}] } });
+    queueMicrotask(() => {
+      clips.onVrmDisposed();
+      clips.onVrmLoaded(makeVrm());
+      clips.setMirror(true);
+    });
+
+    expect(await pending).toBeNull();
+    expect(await clips.load("a.vrma")).not.toBeNull();
+    expect(loader.loadAsync).toHaveBeenCalledTimes(2);
+  });
 });
