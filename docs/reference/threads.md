@@ -58,11 +58,13 @@ Only GET is accepted; another method receives 405. Query parameter `ask_id` is o
 | 204 | Deadline passed with no answer; with `ask_id`, that ask is still open |
 | 410 | Only with `ask_id`: ask closed, replaced, or never existed, with no pending answer |
 | 404 | Unknown Thread |
-| 503 | All 32 answer workers are occupied, or a worker cannot start |
+| 503 | All 32 answer wait slots are occupied, or the blocking task fails |
 
 Without `ask_id`, a known Thread never receives 410.
 
-A pending answer wins over 410. Answering closes the ask, but the producer's next poll still receives the answer. Delivery removes the pending answer. Each request runs on its own worker thread, so waiting does not block the ingress accept loop. At most 32 answer requests run at once.
+A pending answer wins over 410. Answering closes the ask, but the producer's next poll still receives the answer. Delivery removes the pending answer.
+
+Answer waits run on the bounded blocking pool, so waiting does not block the ingress accept loop. Each wait holds one of 32 permits until it returns, including after a client disconnects.
 
 ## `GET /threads/answers?source=<source>`
 

@@ -243,3 +243,7 @@ While signals are enabled, a group whose envelope is not an object or fails the 
 ### Size limits
 
 A request with any signal item whose JSON serialization exceeds 16 KiB receives HTTP 400; no item of that request is delivered. A request body over 64 KiB receives HTTP 400.
+
+Request headers must finish within 5 seconds or the connection closes. The entire body must arrive within 10 seconds; an unreadable, stalled, or oversized body receives HTTP 400. Host and Origin checks run before body reads and before `100 Continue`.
+
+At most 64 connections are open at once. Additional connections close before parsing. Each connection serves one request; keep-alive is disabled.

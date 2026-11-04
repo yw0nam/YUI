@@ -1,14 +1,12 @@
 use super::payload::{AvatarRoute, AvatarRpcRequest, AVATAR_RPC_CHANNEL};
-use super::response::{respond_json, spawn_request};
 use crate::os_event_watcher::epoch_ms;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Emitter};
+use tokio::sync::oneshot::{channel, Receiver, Sender};
 
-/// In-flight avatar RPCs, keyed by request id. An entry lives from the emit until
-/// either the webview answers or the deadline passes.
+/// Each pending RPC belongs to its target window until resolution, timeout, or cancellation.
 type Pending = HashMap<String, (String, Sender<serde_json::Value>)>;
 
 fn pending() -> &'static Mutex<Pending> {
@@ -61,27 +59,40 @@ fn resolve_pending(id: &str, label: &str, result: serde_json::Value) -> bool {
     delivered
 }
 
-/// Emits the request into the webview and blocks until it answers or the deadline
-/// passes. `Err(503)` covers both an emit failure and a silent webview.
-fn avatar_rpc(app: &AppHandle, label: &str, route: AvatarRoute) -> Result<serde_json::Value, u16> {
+/// Emits into the webview and waits for its answer; failure or timeout returns 503.
+pub(super) async fn avatar_rpc(
+    app: &AppHandle,
+    label: &str,
+    route: AvatarRoute,
+) -> Result<serde_json::Value, u16> {
+    request_avatar(label, route, |payload| {
+        app.emit_to(label, AVATAR_RPC_CHANNEL, payload)
+    })
+    .await
+}
+
+async fn request_avatar<E: std::fmt::Display>(
+    label: &str,
+    route: AvatarRoute,
+    emit: impl FnOnce(AvatarRpcRequest) -> Result<(), E>,
+) -> Result<serde_json::Value, u16> {
     let timeout = route.timeout();
     let (method, params) = route.into_rpc();
     let id = next_rpc_id();
     let rx = register_pending(&id, label);
+    let _pending = PendingRequest(id.clone());
     let payload = AvatarRpcRequest {
         id: id.clone(),
         method: method.to_string(),
         params,
     };
-    if let Err(e) = app.emit_to(label, AVATAR_RPC_CHANNEL, payload) {
-        drop_pending(&id);
+    if let Err(e) = emit(payload) {
         log::warn!("avatar_rpc_emit_failed method={method} error={e}");
         return Err(503);
     }
-    match rx.recv_timeout(timeout) {
-        Ok(value) => Ok(value),
-        Err(_) => {
-            drop_pending(&id);
+    match tokio::time::timeout(timeout, rx).await {
+        Ok(Ok(value)) => Ok(value),
+        _ => {
             log::warn!("avatar_rpc_timeout method={method} id={id}");
             Err(503)
         }
@@ -94,18 +105,12 @@ pub fn avatar_rpc_response(window: tauri::Window, id: String, result: serde_json
     resolve_pending(&id, window.label(), result);
 }
 
-/// Runs the avatar RPC off the ingress accept loop.
-pub(super) fn spawn_avatar_request(
-    app: &AppHandle,
-    label: &str,
-    route: AvatarRoute,
-    request: tiny_http::Request,
-) {
-    let app = app.clone();
-    let label = label.to_string();
-    spawn_request("avatar_rpc", request, move |request| {
-        respond_json(request, avatar_rpc(&app, &label, route));
-    });
+struct PendingRequest(String);
+
+impl Drop for PendingRequest {
+    fn drop(&mut self) {
+        drop_pending(&self.0);
+    }
 }
 
 #[cfg(test)]
@@ -117,7 +122,7 @@ mod tests {
     #[test]
     fn foreign_response_leaves_request_for_its_target() {
         let id = next_rpc_id();
-        let rx = register_pending(&id, "pet-a");
+        let mut rx = register_pending(&id, "pet-a");
         assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
         assert!(rx.try_recv().is_err());
         assert!(resolve_pending(
@@ -125,7 +130,7 @@ mod tests {
             "pet-a",
             serde_json::json!({"ok":true})
         ));
-        assert_eq!(rx.recv().unwrap()["ok"], true);
+        assert_eq!(rx.blocking_recv().unwrap()["ok"], true);
     }
 
     #[test]
@@ -144,7 +149,7 @@ mod tests {
             "main",
             serde_json::json!({"ok": true})
         ));
-        let got = rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+        let got = rx.blocking_recv().unwrap();
         assert_eq!(got["ok"], true);
     }
 
@@ -165,13 +170,28 @@ mod tests {
         assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
     }
 
-    #[test]
-    fn pending_receiver_times_out_when_unanswered() {
+    #[tokio::test]
+    async fn canceled_avatar_request_removes_its_pending_entry() {
+        let (sent, received) = channel();
+        let request = tokio::spawn(request_avatar("main", AvatarRoute::State, |payload| {
+            sent.send(payload.id).unwrap();
+            Ok::<_, &str>(())
+        }));
+        let id = received.await.unwrap();
+        request.abort();
+        assert!(request.await.unwrap_err().is_cancelled());
+        assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
+    }
+
+    #[tokio::test]
+    async fn pending_receiver_times_out_when_unanswered() {
         let id = next_rpc_id();
         let rx = register_pending(&id, "main");
-        assert!(rx
-            .recv_timeout(std::time::Duration::from_millis(20))
-            .is_err());
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), rx)
+                .await
+                .is_err()
+        );
         drop_pending(&id);
     }
 }
