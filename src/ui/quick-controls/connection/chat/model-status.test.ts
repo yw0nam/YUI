@@ -64,16 +64,26 @@ describe("modelStatusView", () => {
     [
       "unreachable",
       "unreachable",
-      { want: t("svc.chat_models_unreachable", { host: HOST }) },
+      { want: t("svc.chat_models_unreachable", { host: HOST }), action: t("svc.chat_status_reconnect") },
       ["is-failed"],
     ],
-    ["timeout", "timeout", { want: t("svc.chat_models_timeout", { host: HOST }) }, ["is-failed"]],
+    [
+      "timeout",
+      "timeout",
+      { want: t("svc.chat_models_timeout", { host: HOST }), action: t("svc.chat_status_reconnect") },
+      ["is-failed"],
+    ],
     ["refused", "refused", { want: t("svc.chat_models_refused") }, ["is-failed"]],
     ["http", "http", { want: t("svc.chat_models_http", { status: 500 }) }, ["is-failed"]],
     ["no_list", "no_list", { want: t("svc.chat_models_no_list") }, []],
     ["malformed", "malformed", { want: t("svc.chat_models_malformed") }, ["is-failed"]],
   ])("maps %s", (_name, kind, ctx, dot) => {
-    const { want, ...rest } = ctx as { want?: string; typedModel?: string; defaultModel?: string };
+    const { want, action, ...rest } = ctx as {
+      want?: string;
+      action?: string;
+      typedModel?: string;
+      defaultModel?: string;
+    };
     const view = modelStatusView({
       phase: phase(kind as "reading"),
       typedModel: rest.typedModel ?? "",
@@ -82,6 +92,7 @@ describe("modelStatusView", () => {
     });
     expect(view.text).toBe(want);
     expect([...view.dot]).toEqual(dot);
+    expect(view.action).toBe(action);
   });
 
   it("matches the prefix rule case-sensitively", () => {

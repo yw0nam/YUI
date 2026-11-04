@@ -512,5 +512,35 @@ describe("createConnectionTab", () => {
       expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
       tab.dispose();
     });
+
+    it("offers Reconnect on an unreachable read, and clicking it reads again", async () => {
+      let calls = 0;
+      const fetchImpl: typeof globalThis.fetch = () => {
+        calls += 1;
+        return Promise.reject(new TypeError("fetch failed"));
+      };
+      const tab = build({
+        getEndpointDefaults: () => defaults,
+        getChatApiKey: async () => "key-1",
+        getFetch: async () => fetchImpl,
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const status = statusOf(tab);
+      expect(status.textContent).toContain(t("svc.chat_models_unreachable", { host: "def.test" }));
+      const action = status.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
+      expect(action.hidden).toBe(false);
+      expect(action.textContent).toBe(t("svc.chat_status_reconnect"));
+
+      action.click();
+      await tick();
+      await tick();
+
+      expect(calls).toBe(2);
+      tab.dispose();
+    });
   });
 });
