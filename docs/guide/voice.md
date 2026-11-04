@@ -6,7 +6,7 @@ Speech out and speech in are two separate services, and both are optional.
 
 ## Speak
 
-1. On **Connection**, pick a **Provider** in the TTS section: Irodori, OpenAI, or Fish Audio.
+1. On **Connection**, pick a **Provider** in the TTS section: Irodori, OpenAI, or Fish Audio. The line under the section says whether the TTS server answers; **Reconnect** checks again.
 2. Enter the **TTS API key** if the service needs one.
 3. On **Voice**, turn on **Voice output** and pick a voice from the list. **Preview** plays a sample for a voice with a reference clip.
 

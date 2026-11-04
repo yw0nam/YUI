@@ -826,7 +826,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/stt",
       "module": "input",
       "label": "voice input",
-      "role": "Microphone capture, VAD segmentation, and the STT upload of each segment.",
+      "role": "Microphone capture, VAD segmentation, the STT upload of each segment, and the Connection page's STT server check.",
       "paths": [
         "src/io/voice"
       ]
@@ -1195,7 +1195,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line, the voice step and Help once connected; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line, the voice step and Help once connected, and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -3836,6 +3836,24 @@ globalThis.YUI_MAP =
       "carries": "read the model list for the Connection page",
       "kind": "call",
       "transport": "request"
+    },
+    {
+      "id": "stt-models-check",
+      "from": "app/settings-window",
+      "to": "stt-service",
+      "carries": "the Connection page's STT line: GET {stt_base_url}/models, any answer counts as answered",
+      "kind": "http",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "tts-line-check",
+      "from": "app/settings",
+      "to": "ui/quick-controls",
+      "carries": "speaker.checkTtsServer() → ServerCheck or null: the Connection page's TTS line check and its Reconnect",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
     {
       "id": "controls-guide",

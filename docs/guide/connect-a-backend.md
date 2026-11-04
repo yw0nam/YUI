@@ -9,6 +9,8 @@ Connect any OpenAI-compatible model, or an agent that keeps its own memory.
 3. Pick a **Provider** (OpenAI, Ollama, LM Studio, Groq, Google Gemini, or Hermes Agent). A preset fills **Chat server URL**, and Google Gemini also fills **Chat model**; enter the **Chat model** yourself when the preset fills no model. Hermes Agent switches **Type** to Push and fills no URL. Ollama and LM Studio must be running.
 4. Enter a **Chat API key** if the provider needs one, close the window, and press `/` to talk.
 
+The line under each section says whether that server answers; **Reconnect** checks again.
+
 ## Which protocol
 
 **Type** sets the protocol, and Chat Completions is the default.
