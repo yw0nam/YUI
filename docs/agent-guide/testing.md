@@ -29,7 +29,7 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 7. For new behaviour, the `test:` commit fails when run on its own, before the `feat:` or `fix:` commit. A bug fix that ships a test shows that test failing without the fix; `CONTRIBUTING.md` § Tests accompany behavior says which fixes ship one.
 8. A test added to behaviour that already works is shown failing: change the production line its path takes in a throwaway worktree, watch the test fail, restore the line. The PR body names that line.
 
-`bash scripts/red-run.sh <test-commit>` runs the files a `test:` commit adds or changes at that commit, in a throwaway worktree, and names every added case that already passes there; each one it names needs rule 8.
+`bash scripts/red-run.sh <test-commit>` runs the files a `test:` commit adds or changes at that commit, in a throwaway worktree, and names every added case that already passes there; each one it names needs rule 8. A commit that changes test files but adds no case title it can name (new assertions inside existing cases) is judged by its files: the script exits 1 when none of them fails at the commit, and that commit needs rule 8 too.
 
 ## Existing tests
 
