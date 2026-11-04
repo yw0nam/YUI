@@ -273,6 +273,10 @@ _Avoid_: onboarding, wizard
 An ego lite tab workspace the `browser` plugin works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the plugin being disabled, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
 _Avoid_: tab group, browser session
 
+**Pet window**:
+The transparent always-on-top window the character stands in, with her speech bubble and text input beneath her while docked; the owner calls it the character window (캐릭터 창). `main` is the first one; each Bound pet window is another. The message window is its popped-out bubble and input, and the unified chat window replaces its chat while shown.
+_Avoid_: character window (in code and docs), avatar window, main window (for a bound one)
+
 **Bound pet window**:
 A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>`, message window `message-<id>` and quick-card window `quick-card-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the four windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the four is live, and `main` clears keys whose window no longer exists at boot.
 _Avoid_: secondary window, companion window, extra window, sub-window
