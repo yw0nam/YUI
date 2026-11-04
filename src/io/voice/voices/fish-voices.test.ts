@@ -3,7 +3,7 @@
  *
  * listFishVoices: GET {baseUrl}/model?self=true&page_size=100&page_number=<n> → items[].{_id,title}
  * across pages (has_more, falling back to total). Fail-soft like the OpenAI-shaped list: a failed
- * fetch resolves null + warn.
+ * fetch resolves its failure kind + warn.
  * upsertFishVoice: multipart POST /model (type=tts, title, train_mode=fast, voices) → the returned
  * _id; a non-2xx body's message/detail rides the thrown error.
  * deleteFishVoice: DELETE /model/{_id}.
@@ -59,7 +59,7 @@ describe("listFishVoices", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       `${BASE_URL}/model?self=true&page_size=100&page_number=1`,
     );
-    expect(voices).toEqual([{ id: "m1", label: "ナツメ" }, { id: "m2" }]);
+    expect(voices).toEqual({ kind: "ok", voices: [{ id: "m1", label: "ナツメ" }, { id: "m2" }] });
   });
 
   it("sends Authorization: Bearer when a key is configured and omits it otherwise", async () => {
@@ -103,11 +103,14 @@ describe("listFishVoices", () => {
       logger: noopLog,
     });
 
-    expect(voices).toEqual([
-      { id: "a", label: "A" },
-      { id: "b", label: "B" },
-      { id: "c", label: "C" },
-    ]);
+    expect(voices).toEqual({
+      kind: "ok",
+      voices: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+        { id: "c", label: "C" },
+      ],
+    });
     expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
       `${BASE_URL}/model?self=true&page_size=100&page_number=1`,
       `${BASE_URL}/model?self=true&page_size=100&page_number=2`,
@@ -135,11 +138,14 @@ describe("listFishVoices", () => {
       logger: noopLog,
     });
 
-    expect(voices).toEqual([
-      { id: "a", label: "A" },
-      { id: "b", label: "B" },
-      { id: "c", label: "C" },
-    ]);
+    expect(voices).toEqual({
+      kind: "ok",
+      voices: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+        { id: "c", label: "C" },
+      ],
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -156,12 +162,42 @@ describe("listFishVoices", () => {
       logger: noopLog,
     });
 
-    expect(voices).toEqual([{ id: "a", label: "A" }]);
+    expect(voices).toEqual({ kind: "ok", voices: [{ id: "a", label: "A" }] });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("resolves to null and warns on a non-2xx response", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => errorResponse(401));
+  it.each([
+    [
+      "ok",
+      async () => jsonResponse({ items: [{ _id: "m1" }], has_more: false }),
+      { kind: "ok", voices: [{ id: "m1" }] },
+      0,
+    ],
+    [
+      "unreachable",
+      async () => {
+        throw new TypeError("connection refused");
+      },
+      { kind: "unreachable" },
+      1,
+    ],
+    [
+      "malformed",
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw new SyntaxError("not json");
+          },
+        }) as unknown as Response,
+      { kind: "malformed" },
+      1,
+    ],
+    ["http", async () => errorResponse(500), { kind: "http", status: 500 }, 1],
+    ["refused", async () => errorResponse(401), { kind: "refused" }, 1],
+  ])("resolves a %s list to its kind", async (_kind, impl, expected, warns) => {
+    const fetchMock = vi.fn<FetchFn>(impl);
 
     await expect(
       listFishVoices({
@@ -169,26 +205,11 @@ describe("listFishVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       }),
-    ).resolves.toBeNull();
-    expect(noopLog.warn).toHaveBeenCalledOnce();
+    ).resolves.toEqual(expected);
+    expect(noopLog.warn).toHaveBeenCalledTimes(warns);
   });
 
-  it("resolves to null and warns when the request throws", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => {
-      throw new Error("connection refused");
-    });
-
-    await expect(
-      listFishVoices({
-        baseUrl: BASE_URL,
-        fetch: fetchMock as unknown as typeof fetch,
-        logger: noopLog,
-      }),
-    ).resolves.toBeNull();
-    expect(noopLog.warn).toHaveBeenCalledOnce();
-  });
-
-  it("resolves to null and warns with the timeout when the body never settles", async () => {
+  it("resolves to timeout and warns when the body never settles", async () => {
     vi.useFakeTimers();
     try {
       const fetchMock = vi.fn<FetchFn>(
@@ -202,7 +223,7 @@ describe("listFishVoices", () => {
         logger: noopLog,
       });
       await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
-      await expect(pending).resolves.toBeNull();
+      await expect(pending).resolves.toEqual({ kind: "timeout" });
       expect(noopLog.warn).toHaveBeenCalledWith("voice_list_failed", {
         error: expect.stringContaining("voice list timed out"),
       });

@@ -1,9 +1,9 @@
 /**
  * tts-voices.test.ts — the OpenAI-compatible voices API client.
  *
- * listVoices: GET {tts_base_url}/v1/audio/voices → data[].id. Fail-soft: a failed fetch
- * (non-2xx, thrown request, timeout) resolves null + warn, an empty server resolves []. Ids are
- * opaque strings — non-ASCII must survive untouched.
+ * listVoices: GET {tts_base_url}/v1/audio/voices → data[].id. Fail-soft: a failed fetch resolves
+ * its failure kind + warn, an empty server resolves an ok empty list. Ids are opaque strings —
+ * non-ASCII must survive untouched.
  * upsertVoice: multipart POST /v1/audio/voices, falling back to PUT /v1/audio/voices/{id} on 409.
  */
 
@@ -62,7 +62,7 @@ describe("listVoices", () => {
     });
 
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8092/v1/audio/voices");
-    expect(ids).toEqual(["ナツメ", "ムラサメ", "none"]);
+    expect(ids).toEqual({ kind: "ok", ids: ["ナツメ", "ムラサメ", "none"] });
   });
 
   it("drops non-string and empty ids without touching the rest", async () => {
@@ -76,7 +76,7 @@ describe("listVoices", () => {
       logger: noopLog,
     });
 
-    expect(ids).toEqual(["ナツメ", "レナ"]);
+    expect(ids).toEqual({ kind: "ok", ids: ["ナツメ", "レナ"] });
   });
 
   it("sends Authorization: Bearer when a key is configured", async () => {
@@ -107,8 +107,37 @@ describe("listVoices", () => {
     expect("Authorization" in headers).toBe(false);
   });
 
-  it("resolves to null and warns on a non-2xx response", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => errorResponse(500));
+  it.each([
+    [
+      "ok",
+      async () => jsonResponse({ data: [{ id: "ナツメ" }] }),
+      { kind: "ok", ids: ["ナツメ"] },
+      0,
+    ],
+    [
+      "unreachable",
+      async () => {
+        throw new TypeError("connection refused");
+      },
+      { kind: "unreachable" },
+      1,
+    ],
+    [
+      "malformed",
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw new SyntaxError("not json");
+          },
+        }) as unknown as Response,
+      { kind: "malformed" },
+      1,
+    ],
+    ["http", async () => errorResponse(500), { kind: "http", status: 500 }, 1],
+  ])("resolves a %s list to its kind", async (_kind, impl, expected, warns) => {
+    const fetchMock = vi.fn<FetchFn>(impl);
 
     await expect(
       listVoices({
@@ -116,26 +145,11 @@ describe("listVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       }),
-    ).resolves.toBeNull();
-    expect(noopLog.warn).toHaveBeenCalledOnce();
+    ).resolves.toEqual(expected);
+    expect(noopLog.warn).toHaveBeenCalledTimes(warns);
   });
 
-  it("resolves to null and warns when the request throws", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => {
-      throw new Error("connection refused");
-    });
-
-    await expect(
-      listVoices({
-        baseUrl: BASE_URL,
-        fetch: fetchMock as unknown as typeof fetch,
-        logger: noopLog,
-      }),
-    ).resolves.toBeNull();
-    expect(noopLog.warn).toHaveBeenCalledOnce();
-  });
-
-  it("resolves to [] when the body carries no data array", async () => {
+  it("resolves to an ok empty list when the body carries no data array", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => jsonResponse({ object: "list" }));
 
     await expect(
@@ -144,10 +158,10 @@ describe("listVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual({ kind: "ok", ids: [] });
   });
 
-  it("resolves to null and warns with the timeout when the body never settles", async () => {
+  it("resolves to timeout and warns when the body never settles", async () => {
     vi.useFakeTimers();
     try {
       const fetchMock = vi.fn<FetchFn>(
@@ -161,7 +175,7 @@ describe("listVoices", () => {
         logger: noopLog,
       });
       await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
-      await expect(pending).resolves.toBeNull();
+      await expect(pending).resolves.toEqual({ kind: "timeout" });
       expect(noopLog.warn).toHaveBeenCalledWith("voice_list_failed", {
         error: expect.stringContaining("TTS voice list timed out"),
       });
