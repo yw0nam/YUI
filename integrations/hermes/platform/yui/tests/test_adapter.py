@@ -2575,16 +2575,25 @@ async def test_clarify_choice(client, adapter, multi):
     assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
 
 
-async def test_clarify_text(client, adapter):
+@pytest.mark.parametrize(
+    "multi,text,coerced",
+    [
+        (False, "skip", "\x00skipped"),
+        (True, "skip", "\x00skipped"),
+        (True, "1, 3", '["A", "C"]'),
+        (True, "why", "why"),
+    ],
+)
+async def test_clarify_text(client, adapter, multi, text, coerced):
     ws = await ready(client, accepts=["ask"])
-    await clarify(adapter, choices=["A", "B"])
+    await clarify(adapter, choices=["A", "B", "C"], multi=multi)
     await recv(ws)
-    CLARIFY.coerced = "\x00skipped"
-    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": "skip"})
+    CLARIFY.coerced = coerced
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": text})
     assert CLARIFY.calls == [
         ("mark", "clarify-1"),
-        ("coerce", CLARIFY.entries["clarify-1"], "skip"),
-        ("resolve", "clarify-1", "\x00skipped"),
+        ("coerce", CLARIFY.entries["clarify-1"], text),
+        ("resolve", "clarify-1", coerced),
     ]
 
 
@@ -2637,8 +2646,14 @@ async def test_clarify_requires_acceptance(client, adapter):
         await asyncio.wait_for(ws.receive_json(), 0.05)
 
 
-@pytest.mark.parametrize("multi", [False, True])
-async def test_clarify_seven_choices(client, adapter, multi):
+@pytest.mark.parametrize(
+    "multi,prompt",
+    [
+        (False, "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G"),
+        (True, "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G\n\ngateway.clarify.hint_multi"),
+    ],
+)
+async def test_clarify_seven_choices(client, adapter, multi, prompt):
     ws = await ready(client, accepts=["ask"])
     choices = list("ABCDEFG")
     await clarify(adapter, choices=choices, multi=multi)
@@ -2646,7 +2661,7 @@ async def test_clarify_seven_choices(client, adapter, multi):
     assert "choices" not in ask
     assert "multiple" not in ask
     assert ask["text"] is True
-    assert ask["prompt"] == "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G"
+    assert ask["prompt"] == prompt
 
 
 @pytest.mark.parametrize("source", ["clarify", "exec"])
@@ -2867,7 +2882,7 @@ async def test_backend_command_late_output_is_not_rendered(client, adapter, monk
     [
         (["1", "2"], "why", '["α (Recommended)", "B", "why"]'),
         (["2"], None, '["B"]'),
-        (None, "why", '["why"]'),
+        (["2", "1"], None, '["α (Recommended)", "B"]'),
     ],
 )
 async def test_clarify_multiple_answer(client, adapter, picks, text, expected):

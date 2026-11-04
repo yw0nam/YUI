@@ -406,7 +406,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(answer).unwrap(),
             serde_json::json!({
-                "ask_id":"a", "choices":["no","yes"], "text":"why", "at":2
+                "ask_id":"a", "choices":["yes","no"], "text":"why", "at":2
             })
         );
     }
