@@ -14,9 +14,9 @@ import type {
   UserTurnDone,
   UserTurnRouted,
 } from "../io/bridge/settings-bridge";
+import { onDemandLines } from "../io/chat/tools/bridge/on-demand-lines";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
-import { onDemandLines } from "../io/chat/tools/plugin-bridge/on-demand-lines";
 import { createMcpHost } from "../io/mcp-host/mcp-host";
 import type { ThreadsClient } from "../io/threads/threads-client";
 import { threadsWaitingProvider } from "../io/threads/threads-waiting";

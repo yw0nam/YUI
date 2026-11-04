@@ -117,7 +117,7 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
-    /** The enabled plugins' tools and skills for the per-turn lines; none outside Tauri. */
+    /** The window's On-demand tools and plugin skills for the per-turn lines; none outside Tauri. */
     getOnDemandLines?: DispatcherDeps["getOnDemandLines"];
     /** The Threads waiting for the user's answer for the per-turn line; main's window only. */
     getThreadsWaiting?: DispatcherDeps["getThreadsWaiting"];

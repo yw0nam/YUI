@@ -42,14 +42,13 @@ import {
 } from "../../io/chat/stream/chat-client";
 import { buildCCMessages } from "../../io/chat/stream/chat-completions";
 import type { ClientToolRegistry } from "../../io/chat/tools/client-tools";
-import type { PluginLines } from "../../io/mcp-host/enabled-plugins";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import { sendIdOf } from "../core/classify";
 import type { Turn } from "../turn/turn";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
-import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
+import { buildContext, imageDataUrlsOf, type OnDemandLines, userTextOf } from "./context-builder";
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { composeResponsesInput, encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
@@ -114,8 +113,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getOpenCharacters?: () => string[];
   /** The Threads waiting for the user's answer, read once per turn; main's window only. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
-  /** The enabled plugins' tools and skills, read once per turn. */
-  getOnDemandLines?: () => PluginLines;
+  /** The window's On-demand tools and plugin skills, read once per turn. */
+  getOnDemandLines?: () => OnDemandLines;
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */

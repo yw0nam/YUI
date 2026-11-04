@@ -9,9 +9,13 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
-import type { PluginLines } from "../../io/mcp-host/enabled-plugins";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
+
+export interface OnDemandLines {
+  tools: Array<{ name: string; summary: string }>;
+  skills: Array<{ name: string; description: string }>;
+}
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
@@ -30,7 +34,7 @@ interface ContextProviders {
   /** The Threads waiting for the user's answer, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
   /** The window's On-demand tools and plugin skills, read once per turn. */
-  getOnDemandLines?: () => PluginLines;
+  getOnDemandLines?: () => OnDemandLines;
 }
 
 interface BuiltContext {

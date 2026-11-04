@@ -1,16 +1,11 @@
-/**
- * plugin-bridge.test.ts — the bridge tools over the MCP host.
- *
- * The describe tool answers a tool's description and schema, the call tool runs it, and the
- * skill tool reads a skill's body.
- */
+/** The bridge describes and calls On-demand tools and reads plugin skills. */
 
 import { describe, expect, it, vi } from "vitest";
 import type { McpHost, PluginHostSnapshot } from "../../../mcp-host/mcp-host";
 import { type ClientTool, toolFailed } from "../client-tools";
 import { executeClientTool } from "../execute";
 import { createTerminalTools, type TerminalInvoke } from "../terminal/terminal-tools";
-import { createPluginBridgeTools } from "./plugin-bridge";
+import { createBridgeTools } from "./bridge-tools";
 
 const SNAPSHOT: PluginHostSnapshot = {
   revision: 1,
@@ -55,7 +50,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("yui_tool_describe", () => {
   it("answers a plugin tool's name, description and input schema", async () => {
-    const [describe] = createPluginBridgeTools({
+    const [describe] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -67,7 +62,7 @@ describe("yui_tool_describe", () => {
   });
 
   it("answers an unknown name", async () => {
-    const [describe] = createPluginBridgeTools({
+    const [describe] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -80,7 +75,7 @@ describe("yui_tool_describe", () => {
 describe("yui_tool_call", () => {
   it("rejects arguments that break the tool's schema, without calling the host", async () => {
     const host = fakeHost();
-    const [, call] = createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] });
+    const [, call] = createBridgeTools({ host, presetId: () => "p1", onDemand: [] });
 
     const result = await call.execute({ name: "echo_args", arguments: { n: "x" } });
 
@@ -91,7 +86,7 @@ describe("yui_tool_call", () => {
 
   it("rejects arguments that arrived as a string", async () => {
     const host = fakeHost();
-    const [, call] = createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] });
+    const [, call] = createBridgeTools({ host, presetId: () => "p1", onDemand: [] });
 
     const result = await call.execute({ name: "echo_args", arguments: '{"n":1}' });
 
@@ -104,7 +99,7 @@ describe("yui_tool_call", () => {
 
   it("calls the host with the tool's name, arguments and the window's preset", async () => {
     const host = fakeHost();
-    const [, call] = createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] });
+    const [, call] = createBridgeTools({ host, presetId: () => "p1", onDemand: [] });
 
     const result = await call.execute({ name: "echo_args", arguments: { n: 1 } });
 
@@ -126,7 +121,7 @@ describe("yui_tool_call", () => {
         return { content: [], isError: false };
       }),
     });
-    const [, call] = createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] });
+    const [, call] = createBridgeTools({ host, presetId: () => "p1", onDemand: [] });
 
     const running = call.execute({ name: "echo_args", arguments: { n: 1 } }, abort.signal);
     await vi.waitFor(() => expect(callId).not.toBe(""));
@@ -137,7 +132,7 @@ describe("yui_tool_call", () => {
   });
 
   it("names the status chip after the plugin tool it calls", () => {
-    const [, call] = createPluginBridgeTools({
+    const [, call] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -147,7 +142,7 @@ describe("yui_tool_call", () => {
   });
 
   it("reads a result as failed when it keeps the plugin's error or unknown prefix", () => {
-    const [, call] = createPluginBridgeTools({
+    const [, call] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -161,7 +156,7 @@ describe("yui_tool_call", () => {
 
 describe("plugin_skill", () => {
   it("answers the skill's body", async () => {
-    const [, , skill] = createPluginBridgeTools({
+    const [, , skill] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -192,7 +187,7 @@ describe("on-demand built-ins", () => {
   };
 
   it("describes a built-in before a plugin with the same name", async () => {
-    const [describe] = createPluginBridgeTools({
+    const [describe] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [builtin],
@@ -209,7 +204,7 @@ describe("on-demand built-ins", () => {
       'error: invalid arguments (#/n: Instance type "string" is invalid. Expected "integer".)\ninput schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"],"additionalProperties":false}',
     ],
   ])("calls a built-in with %j", async (args, expected) => {
-    const [, call] = createPluginBridgeTools({
+    const [, call] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [builtin],
@@ -218,7 +213,7 @@ describe("on-demand built-ins", () => {
   });
 
   it("rejects an unknown call name", async () => {
-    const [, call] = createPluginBridgeTools({
+    const [, call] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],
@@ -232,7 +227,7 @@ describe("on-demand built-ins", () => {
     vi.useFakeTimers();
     try {
       const invoke = vi.fn<TerminalInvoke>(async () => await new Promise<string>(() => {}));
-      const [, call] = createPluginBridgeTools({
+      const [, call] = createBridgeTools({
         host: fakeHost(),
         presetId: () => "p1",
         onDemand: createTerminalTools({ presetId: () => "p1", invoke }),
@@ -250,7 +245,7 @@ describe("on-demand built-ins", () => {
   });
 
   it("marks a denied terminal call as failed", () => {
-    const [, call] = createPluginBridgeTools({
+    const [, call] = createBridgeTools({
       host: fakeHost(),
       presetId: () => "p1",
       onDemand: [],

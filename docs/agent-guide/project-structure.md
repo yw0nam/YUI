@@ -396,16 +396,17 @@ YUI/
           tool-calls.ts                # Validates, queues and answers the backend's tool_call frames
           tool-results/                # Tool results encoded for push frames
             encode.ts                  # Text and image tool results within the push frame's byte cap
-        tools/                         # The tools YUI declares to the backend and runs itself
+        tools/                         # Declared client tools and built-in On-demand tools
           client-tools.ts              # Registry of the declared tools and the ClientTool type
           execute.ts                   # The bounded execute both the request transports and the push consumer call
           express.ts                   # The generate_express tool
           avatar.ts                    # The body_action and look tools over the avatar executor
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
-          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, the bridge tools under Tauri, body_action and look in main
-          plugin-bridge/               # The bridge tools over the MCP host
-            plugin-bridge.ts           # yui_tool_describe, yui_tool_call and plugin_skill
+          pet-window-tools.ts          # Splits a window's declared tools from its Terminal and Threads On-demand tools
+          bridge/                      # Bridge tools for built-in On-demand tools and enabled plugins
+            bridge-tools.ts            # yui_tool_describe, yui_tool_call and plugin_skill
+            on-demand-lines.ts         # Builds the on-demand line entries: built-in summaries first, then enabled plugin tools; plugin skills unchanged
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
           screen/                      # The screen tool
@@ -433,7 +434,7 @@ YUI/
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       threads/                         # The Thread store's client
         threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, thread_answer, thread_seen and thread_read
-      mcp-host/                        # The MCP host client and the `on-demand tools:` and `plugin skills:` lines
+      mcp-host/                        # The MCP host client and enabled plugin summaries and skills
         mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
       voice/

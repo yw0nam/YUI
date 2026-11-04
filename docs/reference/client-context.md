@@ -761,7 +761,7 @@ the headline.
 ## On-demand tools and plugin skills
 
 The two lines report the window's On-demand tools and enabled plugin skills. Plugin entries
-come from the MCP host's newest snapshot once per turn. They sit after the trigger lines and before the `guide:` block,
+come from the MCP host's newest snapshot once per turn. They sit after the trigger lines and before the `guide:` block.
 Each line is omitted when it has no entries.
 
 ### `on-demand tools`
@@ -769,7 +769,7 @@ Each line is omitted when it has no entries.
 One line naming the window's built-in On-demand tools, then every enabled Plugin tool, with a summary of each:
 
 ```text
-on-demand tools: terminal_list — List every terminal. · echo_args — Echo argv.
+on-demand tools: threads_list — List the user's Threads — outside conversations a producer posted. · threads_search — Search the user's Threads by a case-insensitive substring over title, label and entry text. · terminal_open — Open a new terminal (a shell YUI runs) and get its id. · terminal_list — List every terminal, one per line: id | owner (you or a preset) | title | running or exited <code> | · terminal_read — Read a terminal's rendered screen (id from terminal_list; lines defaults to 100, max 500). · terminal_write — Write text to a terminal (id from terminal_list); Enter is sent after it unless enter:false, and "\u · terminal_close — Close a terminal you opened (id from terminal_list); closing runs without asking the user.
 ```
 
 The `ClientContext` field is `on_demand_tools?: { name, summary }[]`, built-in entries first, followed by plugin entries in

@@ -522,7 +522,7 @@ A call against a tool the client declared in `hello.tools`.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
 6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
-   - `yui_tool_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the plugin tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
+   - `yui_tool_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the On-demand tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
 
 #### Image results
 

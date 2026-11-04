@@ -6,7 +6,7 @@ import { type ClientTool, TURN_STOPPED } from "../client-tools";
 export type TerminalInvoke = (command: string, args?: Record<string, unknown>) => Promise<string>;
 
 /** Whether a result reads as a failure: an error, or the user's denial. */
-function terminalFailed(text: string): boolean {
+export function terminalFailed(text: string): boolean {
   return text.startsWith("error:") || text.startsWith("denied");
 }
 

@@ -12,9 +12,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
+import { createBridgeTools } from "./bridge/bridge-tools";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
-import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
 import { createRateRelationTool } from "./relation";
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
@@ -225,7 +225,7 @@ describe("docs/reference/client-tools.md catalog", () => {
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
-      ...createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] }),
+      ...createBridgeTools({ host, presetId: () => "p1", onDemand: [] }),
     ]).map((tool) => tool.name);
 
     expect(names).toEqual([

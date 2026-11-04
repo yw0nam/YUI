@@ -97,7 +97,7 @@ export function wireDispatcher(deps: {
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
-  /** The enabled plugins' tools and skills, read once per turn. */
+  /** The window's On-demand tools and plugin skills, read once per turn. */
   getOnDemandLines?: Parameters<typeof createBackendCaller>[0]["getOnDemandLines"];
   /** The Threads waiting for the user's answer, read once per turn; main's window only. */
   getThreadsWaiting?: Parameters<typeof createBackendCaller>[0]["getThreadsWaiting"];

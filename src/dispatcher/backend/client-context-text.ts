@@ -86,7 +86,7 @@ function renderThreadsWaiting(threads: ClientContext["threads_waiting"]): string
 }
 
 /** One On-demand tool or plugin skill as a `name — text` entry; the name alone when the text is empty. */
-function pluginEntry(name: string, text: string): string {
+function contextEntry(name: string, text: string): string {
   const label = oneLine(name);
   const detail = oneLine(text);
   return detail === "" ? label : `${label} — ${detail}`;
@@ -94,12 +94,12 @@ function pluginEntry(name: string, text: string): string {
 
 function renderOnDemandTools(tools: ClientContext["on_demand_tools"]): string | undefined {
   if (!tools || tools.length === 0) return undefined;
-  return `on-demand tools: ${tools.map((tool) => pluginEntry(tool.name, tool.summary)).join(" · ")}`;
+  return `on-demand tools: ${tools.map((tool) => contextEntry(tool.name, tool.summary)).join(" · ")}`;
 }
 
 function renderPluginSkills(skills: ClientContext["plugin_skills"]): string | undefined {
   if (!skills || skills.length === 0) return undefined;
-  return `plugin skills: ${skills.map((skill) => pluginEntry(skill.name, skill.description)).join(" · ")}`;
+  return `plugin skills: ${skills.map((skill) => contextEntry(skill.name, skill.description)).join(" · ")}`;
 }
 
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {

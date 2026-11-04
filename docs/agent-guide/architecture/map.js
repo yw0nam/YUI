@@ -718,7 +718,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and built-in On-demand tools; the bridge describes and calls Terminal, Threads and Plugin tools. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds their per-turn summaries. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]

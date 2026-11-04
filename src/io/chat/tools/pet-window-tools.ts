@@ -9,8 +9,8 @@ import type { McpHost } from "../../mcp-host/mcp-host";
 import type { ThreadsClient } from "../../threads/threads-client";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
+import { createBridgeTools } from "./bridge/bridge-tools";
 import type { ClientTool } from "./client-tools";
-import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
 import { createRateRelationTool } from "./relation";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 import { createTerminalTools } from "./terminal/terminal-tools";
@@ -50,7 +50,7 @@ export function createPetWindowTools(deps: {
     rate,
     address,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
-    ...createPluginBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow, onDemand }),
+    ...createBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow, onDemand }),
   ];
   return { declared, onDemand };
 }

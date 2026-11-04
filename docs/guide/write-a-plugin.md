@@ -79,7 +79,7 @@ ROOT is the plugin folder, which is also the working directory. DATA is the plug
 
 A tool name held by a built-in client tool or by an already enabled plugin is hidden, though the later plugin still runs ([Plugins](./plugins.md)).
 
-These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `yui_tool_call`, `yui_tool_describe`, `plugin_skill`, `rate_relation`.
+These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_skill`, `rate_relation`, `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_write`, `threads_list`, `threads_search`, `yui_tool_call`, `yui_tool_describe`.
 
 | `_meta` key | Where | What it does |
 |---|---|---|
@@ -120,6 +120,6 @@ A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin
 ## Go deeper
 
 - [Client Tools](../reference/client-tools.md): bridge tools, arguments, waits and consent.
-- [Client Context § Plugin lines](../reference/client-context.md#plugin-lines): what a turn carries of a plugin's tools and skills.
+- [Client Context § On-demand tools and plugin skills](../reference/client-context.md#on-demand-tools-and-plugin-skills): what a turn carries of a plugin's tools and skills.
 
 To share it with other users, see [Contribute a plugin](./contribute-a-plugin.md).
