@@ -38,8 +38,12 @@ impl Host {
             let asset = release.url.rsplit('/').next().unwrap_or(&release.url);
             return Err(format!("checksum mismatch: {asset}"));
         }
+        let stored_path = writable(&self.lock().state)?
+            .plugin(plugin_id)
+            .map(|plugin| plugin.path.clone());
         let path = unpack(
             &self.dir.join("installed").join(plugin_id),
+            stored_path.as_deref(),
             &release,
             &bytes,
         )?;
@@ -51,14 +55,17 @@ impl Host {
                 let plugin = StoredPlugin {
                     id: plugin_id.to_string(),
                     source: release.source,
-                    path,
+                    path: path.clone(),
                     enabled: false,
                     approved_path: None,
                     enabled_seq: None,
                 };
                 let live = self.live(&plugin, manifest::read(&plugin.path));
                 state.plugins.push(plugin);
-                self.save(&mut inner, state)?;
+                if let Err(error) = self.save(&mut inner, state) {
+                    let _ = remove_dir(&path);
+                    return Err(error);
+                }
                 inner.live.insert(plugin_id.to_string(), live);
                 self.publish(&mut inner);
                 return Ok(());
@@ -74,7 +81,12 @@ impl Host {
             let old = std::mem::replace(&mut plugin.path, path.clone());
             let run = plugin.enabled && plugin.consented();
             let live = self.live(plugin, manifest::read(&plugin.path));
-            self.save(&mut inner, state)?;
+            if let Err(error) = self.save(&mut inner, state) {
+                if old != path {
+                    let _ = remove_dir(&path);
+                }
+                return Err(error);
+            }
             let stopping = inner.stop_servers(|id, _| id == plugin_id);
             inner.live.insert(plugin_id.to_string(), live);
             inner.updating.insert(plugin_id.to_string());
@@ -138,13 +150,37 @@ impl Host {
 }
 
 /// Unpacks via `<version>.partial` into `<versions>/<version>/`; checks its plugin id and version.
-fn unpack(versions: &Path, release: &Release, bytes: &[u8]) -> Result<PathBuf, String> {
+fn unpack(
+    versions: &Path,
+    stored_path: Option<&Path>,
+    release: &Release,
+    bytes: &[u8],
+) -> Result<PathBuf, String> {
     let partial = versions.join(format!("{}.partial", release.version));
     let target = versions.join(&release.version);
     fn at(path: &Path) -> impl FnOnce(std::io::Error) -> String + '_ {
         move |e| format!("{}: {e}", path.display())
     }
     remove_dir(&partial).map_err(at(&partial))?;
+    if let Ok(entries) = std::fs::read_dir(versions) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path != partial
+                && Some(path.as_path()) != stored_path
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension == "partial")
+                && path.is_dir()
+            {
+                if let Err(e) = remove_dir(&path) {
+                    log::warn!(
+                        "mcp_host_partial_not_removed path={} error={e}",
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
     let checked = zip::ZipArchive::new(std::io::Cursor::new(bytes))
         .and_then(|mut archive| archive.extract(&partial))
         .map_err(|e| format!("plugin unpack failed: {e}"))
@@ -360,6 +396,11 @@ mod tests {
         assert!(versions
             .join("0.0.8.partial/.claude-plugin/plugin.json")
             .is_file());
+        assert!(!versions.join("0.0.9.partial").exists());
+        std::fs::remove_dir(app_data.join("plugins/state.json.tmp")).unwrap();
+        std::fs::create_dir(versions.join("0.0.9.partial")).unwrap();
+        host.install("yui-test").await.unwrap();
+        assert_eq!(only(&host).path, versions.join("0.1.0"));
         assert!(!versions.join("0.0.9.partial").exists());
     }
 
