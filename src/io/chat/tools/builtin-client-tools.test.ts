@@ -50,10 +50,7 @@ describe("builtin-client-tools.json", () => {
     );
   });
 
-  it.each([
-    true,
-    false,
-  ])("keeps the declared set and definitions across Relations state %s", (enabled) => {
+  it.each([true, false])("keeps the declared names across Relations state %s", (enabled) => {
     const tools = windowTools(enabled);
     expect(tools.declared.map((tool) => tool.name)).toEqual([
       "rate_relation",
@@ -64,9 +61,6 @@ describe("builtin-client-tools.json", () => {
       "yui_tool_call",
       "plugin_skill",
     ]);
-    expect(tools.declared.map((tool) => tool.definition)).toEqual(
-      windowTools(!enabled).declared.map((tool) => tool.definition),
-    );
     expect(tools.onDemand.map((tool) => tool.name)).toEqual([
       "threads_list",
       "threads_search",

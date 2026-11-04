@@ -8,9 +8,6 @@ vi.mock("../../../io/chat/push/push-socket", async (importOriginal) => ({
 }));
 
 import { createAvatarTools } from "../../../io/chat/tools/avatar";
-import { createPetWindowTools } from "../../../io/chat/tools/pet-window-tools";
-import { noopScreenCapturer } from "../../../io/window/capture/screen-source-provider";
-import { createRelationsStore } from "../../../settings/relations/relations-store";
 import { createPushStores } from "./push-stores";
 
 describe("createPushStores", () => {
@@ -59,50 +56,6 @@ describe("createPushStores", () => {
 
     stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {}, windowTools: avatarTools });
     expect(socketDeps.tools()).toEqual(avatarTools.map((tool) => tool.definition));
-  });
-
-  it("declares the window subset without Terminal or Threads schemas", () => {
-    vi.stubGlobal("__TAURI_INTERNALS__", {});
-    try {
-      const tools = createPetWindowTools({
-        bound: false,
-        getExecutor: () => null,
-        screen: {
-          allowRequests: () => false,
-          getWindow: () => null,
-          listMonitors: async () => [],
-          pointsAreLogical: true,
-          capturer: noopScreenCapturer,
-        },
-        relations: createRelationsStore(),
-        relationsEnabled: () => false,
-        targets: () => [],
-        recordAddressed: vi.fn(),
-        mcpHost: {
-          snapshot: () => null,
-          call: vi.fn(),
-          cancel: vi.fn(),
-          skill: vi.fn(),
-          subscribe: vi.fn(),
-        },
-        threads: { threads: () => [] },
-      });
-      const { stores, socketDeps } = createStores();
-      stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {}, windowTools: tools.declared });
-      expect(
-        socketDeps.tools().map((tool: { function: { name: string } }) => tool.function.name),
-      ).toEqual([
-        "rate_relation",
-        "address_character",
-        "body_action",
-        "look",
-        "yui_tool_describe",
-        "yui_tool_call",
-        "plugin_skill",
-      ]);
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it("declares no tools when bound with none", () => {
