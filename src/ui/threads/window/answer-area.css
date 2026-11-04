@@ -81,10 +81,8 @@
 .yui-threads-answer__choices {
   display: flex;
   flex: 0 1000 auto;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
   box-sizing: border-box;
   min-height: 44px;
   margin: -4px;
@@ -111,11 +109,11 @@
   cursor: pointer;
 }
 
-.yui-threads-answer button:hover:not(:disabled) {
+.yui-threads-answer button:hover:not(:disabled, [aria-pressed="true"]) {
   background: var(--yui-hover);
 }
 
-.yui-threads-answer__choices button:active:not(:disabled) {
+.yui-threads-answer__choices button:active:not(:disabled, [aria-pressed="true"]) {
   background: var(--yui-selected);
 }
 
@@ -125,33 +123,32 @@
   inset: -4px;
 }
 
+/* One borderless row per choice, as wide as the area; the pick shows by fill and weight. */
 .yui-threads-answer__choices button {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 6px 8px;
+  padding: 6px 12px 6px 10px;
+  border: 0;
   font-size: var(--yui-fs-body);
+  font-weight: 500;
   white-space: normal;
   text-align: left;
 }
 
 .yui-threads-answer__choices kbd {
-  min-width: 1.5em;
-  padding: 0 4px;
-  border: 1px solid var(--yui-edge-strong);
-  border-radius: 4px;
   color: var(--yui-text-mute);
   font: inherit;
   font-size: var(--yui-fs-sub);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
 .yui-threads-answer__choices [aria-pressed="true"] {
-  border-color: var(--yui-accent-ink);
   background: var(--yui-selected);
   color: var(--yui-accent-ink);
+  font-weight: 600;
 }
 
 .yui-threads-answer__choices .is-danger {
@@ -159,7 +156,6 @@
 }
 
 .yui-threads-answer__choices .is-danger[aria-pressed="true"] {
-  border-color: var(--yui-danger);
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
 }
