@@ -1,7 +1,7 @@
 /** The settings side a window without a renderer runs: stores, config, voices and the pet window's mirrors. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
 import { createMirroredPushSocket } from "../../io/bridge/push/push-socket-bridge";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
@@ -43,11 +43,12 @@ export async function wireWindowSettings(deps: {
   );
 
   // Config loaded best-effort only (failure → bundled defaults stay empty).
-  // The TTS key rides along so this window's voice requests reach a gated server too.
+  // The chat, STT and TTS keys ride along so this window's requests reach gated servers too.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
       stores: {
         [CHAT_API_KEY_SECRET]: settingsStores.chatKeySettings,
+        [STT_API_KEY_SECRET]: settingsStores.sttKeySettings,
         [TTS_API_KEY_SECRET]: settingsStores.ttsKeySettings,
       },
       fallback: devKeyFallback(),
