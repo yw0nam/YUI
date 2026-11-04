@@ -2,10 +2,12 @@
 
 import { type VRM, VRMUtils } from "@pixiv/three-vrm";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
+import { promoteVrm0ExpressionPresets } from "./vrm0-expression-presets";
 
 /** Optimises a loaded glTF (three-vrm official recommendation) and returns its VRM. */
 export function prepareVrm(gltf: GLTF): VRM {
   const vrm = gltf.userData.vrm as VRM;
+  promoteVrm0ExpressionPresets(vrm);
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
   VRMUtils.combineSkeletons(gltf.scene);
   VRMUtils.combineMorphs(vrm);
