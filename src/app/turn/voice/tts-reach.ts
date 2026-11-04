@@ -14,7 +14,7 @@ export function createTtsReach(deps: {
 }): {
   /** Resolves whether a voice is ready, fetching the voice list once more when a TTS URL is set. */
   ensureSpeaker(isReady: () => boolean, hasUrl: () => boolean): Promise<boolean>;
-  /** Drops a failed voice list retry kept for the last utterance. */
+  /** Drops a settled failed voice list retry; a retry in flight stays with its callers. */
   clear(): void;
   report(reach: TtsReach): void;
   /** Reports a synth failure; true when it is the voice's failure, not a server that did not answer. */
@@ -28,18 +28,22 @@ export function createTtsReach(deps: {
     for (const cb of [...listeners]) cb(reach);
   };
   let retry: Promise<VoiceListOutcome> | undefined;
+  // The retry settled with a failure, kept until the next utterance starts.
+  let kept = false;
   function listRetry(): Promise<VoiceListOutcome> {
     if (retry) return retry;
     const pending = deps.refreshVoiceList().then((outcome) => {
-      // skipped: a newer refresh took the answer, so the next caller asks again.
-      if ((outcome.kind === "ok" || outcome.kind === "skipped") && retry === pending) {
-        retry = undefined;
+      if (retry === pending) {
+        // skipped: a newer refresh took the answer, so the next caller asks again.
+        if (outcome.kind === "ok" || outcome.kind === "skipped") retry = undefined;
+        else kept = true;
       }
       if (outcome.kind === "ok") report("ok");
       else if (noAnswer(outcome.kind)) report("unreachable");
       return outcome;
     });
     retry = pending;
+    kept = false;
     return pending;
   }
   return {
@@ -50,7 +54,9 @@ export function createTtsReach(deps: {
       return isReady();
     },
     clear() {
+      if (!kept) return;
       retry = undefined;
+      kept = false;
     },
     report,
     synthFailed(error) {
@@ -59,8 +65,8 @@ export function createTtsReach(deps: {
       return false;
     },
     async reconnect() {
-      const result = await deps.checkTtsServer();
-      retry = undefined;
+      // A retry in flight is the check; a second request would supersede it.
+      const result = retry && !kept ? await retry : await deps.checkTtsServer();
       const reached = !(result && noAnswer(result.kind));
       report(reached ? "ok" : "unreachable");
       return reached;
