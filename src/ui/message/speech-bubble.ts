@@ -445,9 +445,10 @@ export function createSpeechBubble(
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = action.label;
+        button.disabled = action.busy === true;
         // A button dropped with its list does nothing.
         button.addEventListener("click", () => {
-          if (button.isConnected) action.onClick();
+          if (button.isConnected && !button.disabled) action.onClick();
         });
         bubbleAction.append(button);
       }

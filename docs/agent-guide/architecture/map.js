@@ -3954,7 +3954,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the labels of the buttons the bubble shows under its speech, in order; commands and command-reply restated on ready",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the label and busy flag of each button the bubble shows under its speech, in order; commands and command-reply restated on ready",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"

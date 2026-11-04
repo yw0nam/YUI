@@ -51,7 +51,7 @@ export type MessageSurfaceOp =
   | { op: "dismiss-input" }
   | { op: "busy"; busy: boolean }
   | { op: "input-error"; message: string; action?: { label: string } }
-  | { op: "speech-actions"; labels: string[] }
+  | { op: "speech-actions"; actions: { label: string; busy?: boolean }[] }
   | { op: "attachment-limits"; limits: AttachmentLimits }
   | { op: "quote"; quote: UserQuote }
   | { op: "quote-signals"; lines: SourceLine[] }
