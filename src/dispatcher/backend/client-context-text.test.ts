@@ -357,15 +357,16 @@ describe("renderClientContext — threads line", () => {
 describe("renderClientContext — plugin tools and skills lines", () => {
   it("renders the tools and the skills after the trigger lines and before the guide block", () => {
     const cc = baseContext({ kind: "user", guide: "controls" });
-    cc.plugin_tools = [
+    cc.on_demand_tools = [
+      { name: "terminal_list", summary: "List terminals." },
       { name: "echo_args", summary: "Echo argv." },
       { name: "slow", summary: "" },
     ];
     cc.plugin_skills = [{ name: "hello", description: "Says hello." }];
     const lines = renderClientContext(cc, NOW).split("\n");
 
-    const at = lines.findIndex((line) => line.startsWith("plugin tools:"));
-    expect(lines[at]).toBe("plugin tools: echo_args — Echo argv. · slow");
+    const at = lines.findIndex((line) => line.startsWith("on-demand tools:"));
+    expect(lines[at]).toBe("on-demand tools: terminal_list — List terminals. · echo_args — Echo argv. · slow");
     expect(lines[at + 1]).toBe("plugin skills: hello — Says hello.");
     expect(lines[at - 1]).toBe("trigger: user message");
     expect(lines[at + 2]).toBe("guide:");
@@ -374,7 +375,7 @@ describe("renderClientContext — plugin tools and skills lines", () => {
   it("renders no line for an absent list", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
 
-    expect(text).not.toContain("plugin tools:");
+    expect(text).not.toContain("on-demand tools:");
     expect(text).not.toContain("plugin skills:");
   });
 });

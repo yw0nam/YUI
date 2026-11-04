@@ -234,8 +234,8 @@ describe("docs/reference/client-tools.md catalog", () => {
       "address_character",
       "body_action",
       "look",
-      "plugin_describe",
-      "plugin_call",
+      "yui_tool_describe",
+      "yui_tool_call",
       "plugin_skill",
     ]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
