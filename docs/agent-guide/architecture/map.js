@@ -799,7 +799,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/models",
       "module": "transport",
       "label": "model list",
-      "role": "Reads the model list of a chat endpoint.",
+      "role": "Reads the model list of a chat endpoint, and checks whether a server answers at all.",
       "paths": [
         "src/io/chat/models"
       ]
@@ -853,7 +853,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/voices",
       "module": "speech",
       "label": "voices",
-      "role": "The speaker catalogue: selection, the voices API per provider, and voice import, and the Fish key check that Quick start's voice step runs.",
+      "role": "The speaker catalogue: selection, the voices API per provider with the reason a list read failed, the voice list refresh and its outcome, voice import, the TTS server check, and the Fish key check that Quick start's voice step runs.",
       "paths": [
         "src/io/voice/voices"
       ]
@@ -1286,7 +1286,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage.",
       "paths": [
         "src/app/turn"
       ]
@@ -2090,7 +2090,7 @@ globalThis.YUI_MAP =
       "id": "synth-failure",
       "from": "io/voice/tts",
       "to": "app/turn",
-      "carries": "onSynthFailure(tracked) when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure always, the synth failure listeners only for a backend utterance's sentence (tracked)",
+      "carries": "onSynthFailure(tracked, error) when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure always; a TtsUnreachableError reports the unreachable reach, any other error the synth failure listeners, only for a backend utterance's sentence (tracked)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2121,6 +2121,67 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
+    },
+    {
+      "id": "voice-list-retry",
+      "from": "io/voice/tts",
+      "to": "io/voice/voices",
+      "carries": "refreshVoiceList() → VoiceListOutcome when a synth finds no resolved voice and a TTS URL is set; one request shared by its callers, ok or skipped cleared at once, a failure reused until the next utterance starts",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "tts-reach",
+      "from": "io/voice/tts",
+      "to": "app/turn",
+      "carries": "onTtsReach(\"ok\" | \"unreachable\"): a voice list retry's outcome, a network synth that resolves or throws TtsUnreachableError, and reconnectTts()'s check",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "tts-reconnect-check",
+      "from": "app/turn",
+      "to": "io/voice/voices",
+      "carries": "reconnectTts() → checkTtsServer() → ServerCheck or null; false only for unreachable or timeout; clears a failed voice list retry",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "tts-unreachable-notice",
+      "from": "app/turn",
+      "to": "ui/surfaces",
+      "carries": "showSpeechActions([\"Voice server not connected · Reconnect\"]) when a reply ends after an unreachable reach, once per outage until an ok reach; a greeting, or a reply while the unified chat window shows, shows nothing",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-tts-unreachable-notice.ts"
+    },
+    {
+      "id": "tts-unreachable-action",
+      "from": "ui/surfaces",
+      "to": "app/turn",
+      "carries": "the notice's action clicked → showSpeechActions([Connecting…, busy]) and reconnectTts(); reached → showSpeechActions([]), else the action again; nothing when new speech started during the check",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-tts-unreachable-notice.ts"
+    },
+    {
+      "id": "tts-server-check",
+      "from": "io/voice/voices",
+      "to": "io/chat/models",
+      "carries": "checkServer({tts_base_url}/v1) for a provider whose voice list is built in → ServerCheck; any other provider answers with its voice list refresh",
+      "kind": "call",
+      "transport": "shared"
+    },
+    {
+      "id": "server-check-http",
+      "from": "io/chat/models",
+      "to": "tts-service",
+      "carries": "GET {tts_base_url}/v1/models: any answer, a 404 or an unparsed body included, counts as reachable",
+      "kind": "http",
+      "transport": "shared"
     },
     {
       "id": "speech-previous",

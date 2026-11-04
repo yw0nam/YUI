@@ -26,6 +26,8 @@ If part of her reply cannot be spoken (a deleted voice, an expired key, or a quo
 
 A thinking phrase or the greeting that cannot be spoken shows nothing. A reply that fails while the unified chat window shows, which hides the pet bubble, does not use up the action either: the next failed reply shows it.
 
+When the voice server does not answer at all, the bubble shows **Voice server not connected · Reconnect** under that reply instead, once until the server answers again. **Reconnect** checks the server again without replaying the reply, and the next reply also checks it by itself. **Can't speak with this voice** stays for a server that answered with an error.
+
 ## Listen
 
 ![Settings window, Listening and bubble page](/shots/settings-listening.png)
