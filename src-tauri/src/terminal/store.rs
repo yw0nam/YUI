@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 pub const TURN_STOPPED: &str = "error: turn stopped";
 const REFUSED_CAP: usize = 64;
+const TERMINAL_LIMIT: usize = 16;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(
@@ -108,6 +109,7 @@ pub fn lock<T: ?Sized>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 /// Terminals, their owner and access, and the access requests their tool calls wait on.
 pub struct TerminalStore<P> {
     state: Mutex<State<P>>,
+    opening: Mutex<()>,
     changed: Condvar,
     emit: Box<dyn Fn(&TerminalSnapshot) + Send + Sync>,
     limit: Duration,
@@ -125,6 +127,7 @@ impl<P> TerminalStore<P> {
                 asked: 0,
                 size: (120, 32),
             }),
+            opening: Mutex::new(()),
             changed: Condvar::new(),
             emit: Box::new(emit),
             limit,
@@ -166,6 +169,17 @@ impl<P> TerminalStore<P> {
             .iter()
             .map(|(_, p)| p.clone())
             .collect()
+    }
+
+    /// Serializes the capacity check and shell creation through the terminal's insertion.
+    pub fn begin_open(&self) -> Result<MutexGuard<'_, ()>, String> {
+        let opening = lock(&self.opening);
+        if lock(&self.state).terminals.len() >= TERMINAL_LIMIT {
+            return Err(format!(
+                "error: too many terminals ({TERMINAL_LIMIT} open); close one first"
+            ));
+        }
+        Ok(opening)
     }
 
     pub fn add(&self, owner: TerminalOwner, title: String, pty: Arc<P>, now: u64) -> Terminal {
