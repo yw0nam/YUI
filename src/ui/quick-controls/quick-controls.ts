@@ -619,13 +619,11 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     onOpen: () => {
       for (const section of sections) section.reflect?.();
-      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
-      // Before the page's entry: the TTS line's check must start last, so its answer is not
-      // superseded and the line shows on every open.
-      refreshVoiceList?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionViews.entered();
       if (tabRail.selected() === "plugins") pluginsPage?.entered();
+      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
+      refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
       screenshot.loadMonitorsIfEnabled();
     },

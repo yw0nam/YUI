@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * quick-controls.tts-line-open.test.ts — the panel open's TTS line: the voice list refresh runs
- * before the Connection page is entered, so the line's own check is the one that lands last and
- * its answer shows.
+ * quick-controls.tts-line-open.test.ts — opening the panel on the Connection page, with the
+ * open's voice list refresh in flight, shows the TTS line Connected: the line's own check reads
+ * the endpoints after the refresh started, so its answer is the one that lands.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
