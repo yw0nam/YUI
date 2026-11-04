@@ -718,7 +718,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and built-in On-demand tools; the bridge describes and calls Terminal, Threads and Plugin tools. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -736,7 +736,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tools and plugin skills lines.",
+      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tool summaries and plugin skills.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -2188,7 +2188,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn",
+      "carries": "declared tool schemas of the turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2215,7 +2215,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: the window tools (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2324,10 +2324,10 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "mcp-host-backend",
-      "from": "io/mcp-host",
+      "id": "on-demand-backend",
+      "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "the plugin tools and plugin skills lines per turn: each enabled plugin's tools with their summaries, and its skills with their descriptions",
+      "carries": "on_demand_tools and plugin_skills per turn: built-in On-demand tool summaries first, then each enabled plugin's tools and skills",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"

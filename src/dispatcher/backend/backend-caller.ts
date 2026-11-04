@@ -115,7 +115,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   /** The Threads waiting for the user's answer, read once per turn; main's window only. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
   /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginLines?: () => PluginLines;
+  getOnDemandLines?: () => PluginLines;
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -233,7 +233,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getRelations: deps.getRelations,
         getOpenCharacters: deps.getOpenCharacters,
         getThreadsWaiting: deps.getThreadsWaiting,
-        getPluginLines: deps.getPluginLines,
+        getOnDemandLines: deps.getOnDemandLines,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered

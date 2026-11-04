@@ -119,8 +119,8 @@ The backend cuts `title` and `summary` to their limits, counting Unicode code po
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, address_character | 2 s on the client, 7 s on the backend adapter |
-| `tool_call` wait, plugin_call | 121 s on the client, 125 s on the backend |
-| `tool_call` wait, plugin_describe | 2 s on the client, 7 s on the backend |
+| `tool_call` wait, yui_tool_call | 121 s on the client, 125 s on the backend |
+| `tool_call` wait, yui_tool_describe | 2 s on the client, 7 s on the backend |
 | `tool_call` wait, plugin_skill | 2 s on the client, 7 s on the backend |
 
 ## Connection
@@ -182,7 +182,7 @@ A turn that starts before `ready` ends as a network failure, and so does a turn 
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
 | `accepts` | The frame types the client reads beyond the base set ([what it covers](#what-accepts-covers)) |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
-| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none, and fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `plugin_describe`, `plugin_call` and `plugin_skill`, and `main` also declares `body_action` and `look` |
+| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none, and fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `yui_tool_describe`, `yui_tool_call` and `plugin_skill`, and `main` also declares `body_action` and `look` |
 
 #### What `accepts` covers
 
@@ -475,7 +475,7 @@ state, the thinking motion and speech as they are. A turn may carry none.
 
 A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
 
-A `tool_status` naming a tool the client declared and runs itself, `plugin_call`, leaves the status
+A `tool_status` naming a tool the client declared and runs itself, `yui_tool_call`, leaves the status
 pill as it is, since that tool's status comes from the client's own run. It still counts as a frame
 of the turn for the frame wait.
 
@@ -522,7 +522,7 @@ A call against a tool the client declared in `hello.tools`.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
 6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
-   - `plugin_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the plugin tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
+   - `yui_tool_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the plugin tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
 
 #### Image results
 

@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { McpHost, PluginHostSnapshot } from "../../../mcp-host/mcp-host";
 import { type ClientTool, toolFailed } from "../client-tools";
 import { executeClientTool } from "../execute";
-import { createTerminalTools } from "../terminal/terminal-tools";
+import { createTerminalTools, type TerminalInvoke } from "../terminal/terminal-tools";
 import { createPluginBridgeTools } from "./plugin-bridge";
 
 const SNAPSHOT: PluginHostSnapshot = {
@@ -55,7 +55,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("yui_tool_describe", () => {
   it("answers a plugin tool's name, description and input schema", async () => {
-    const [describe] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [describe] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
 
     await expect(describe.execute({ name: "echo_args" })).resolves.toBe(
       'name: echo_args\ndescription: Echoes its arguments.\ninput schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"]}',
@@ -63,11 +67,13 @@ describe("yui_tool_describe", () => {
   });
 
   it("answers an unknown name", async () => {
-    const [describe] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [describe] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
 
-    await expect(describe.execute({ name: "nope" })).resolves.toBe(
-      "error: unknown tool: nope",
-    );
+    await expect(describe.execute({ name: "nope" })).resolves.toBe("error: unknown tool: nope");
   });
 });
 
@@ -131,13 +137,21 @@ describe("yui_tool_call", () => {
   });
 
   it("names the status chip after the plugin tool it calls", () => {
-    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [, call] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
 
     expect(call.statusId?.({ name: "echo_args" })).toBe("echo_args");
   });
 
   it("reads a result as failed when it keeps the plugin's error or unknown prefix", () => {
-    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [, call] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
 
     expect(toolFailed(call, "error: x")).toBe(true);
     expect(toolFailed(call, "unknown: x")).toBe(true);
@@ -147,26 +161,42 @@ describe("yui_tool_call", () => {
 
 describe("plugin_skill", () => {
   it("answers the skill's body", async () => {
-    const [, , skill] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [, , skill] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
 
     await expect(skill.execute({ name: "hello" })).resolves.toBe("# hello");
   });
 });
 
-
 describe("on-demand built-ins", () => {
   const builtin: ClientTool = {
     name: "echo_args",
-    definition: { type: "function", function: {
-      name: "echo_args", description: "Built-in echo.",
-      parameters: { type: "object", properties: { n: { type: "integer" } }, required: ["n"], additionalProperties: false },
-    } },
+    definition: {
+      type: "function",
+      function: {
+        name: "echo_args",
+        description: "Built-in echo.",
+        parameters: {
+          type: "object",
+          properties: { n: { type: "integer" } },
+          required: ["n"],
+          additionalProperties: false,
+        },
+      },
+    },
     execute: async () => "built-in result",
     waitMs: 2000,
   };
 
   it("describes a built-in before a plugin with the same name", async () => {
-    const [describe] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [builtin] });
+    const [describe] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [builtin],
+    });
     await expect(describe.execute({ name: "echo_args" })).resolves.toBe(
       'name: echo_args\ndescription: Built-in echo.\ninput schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"],"additionalProperties":false}',
     );
@@ -174,32 +204,57 @@ describe("on-demand built-ins", () => {
 
   it.each([
     [{ n: 1 }, "built-in result"],
-    [{ n: "x" }, 'error: invalid arguments (#/n: Instance type "string" is invalid. Expected "integer".)\ninput schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"],"additionalProperties":false}'],
+    [
+      { n: "x" },
+      'error: invalid arguments (#/n: Instance type "string" is invalid. Expected "integer".)\ninput schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"],"additionalProperties":false}',
+    ],
   ])("calls a built-in with %j", async (args, expected) => {
-    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [builtin] });
+    const [, call] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [builtin],
+    });
     await expect(call.execute({ name: "echo_args", arguments: args })).resolves.toBe(expected);
   });
 
   it("rejects an unknown call name", async () => {
-    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
-    await expect(call.execute({ name: "missing", arguments: {} })).resolves.toBe("error: unknown tool: missing");
+    const [, call] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
+    await expect(call.execute({ name: "missing", arguments: {} })).resolves.toBe(
+      "error: unknown tool: missing",
+    );
   });
 
   it("keeps a terminal read's own wait and cancels its access request", async () => {
     vi.useFakeTimers();
     try {
-      const invoke = vi.fn(async () => await new Promise<string>(() => {}));
-      const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1",
-        onDemand: createTerminalTools({ presetId: () => "p1", invoke }) });
+      const invoke = vi.fn<TerminalInvoke>(async () => await new Promise<string>(() => {}));
+      const [, call] = createPluginBridgeTools({
+        host: fakeHost(),
+        presetId: () => "p1",
+        onDemand: createTerminalTools({ presetId: () => "p1", invoke }),
+      });
       const running = executeClientTool(call, { name: "terminal_read", arguments: { id: "t1" } });
       await vi.advanceTimersByTimeAsync(70_000);
       await expect(running).resolves.toBe("error: timed out after 70 s");
-      expect(invoke.mock.calls.map(([command]) => command)).toEqual(["terminal_tool_read", "terminal_tool_cancel"]);
-    } finally { vi.useRealTimers(); }
+      expect(invoke.mock.calls.map(([command]) => command)).toEqual([
+        "terminal_tool_read",
+        "terminal_tool_cancel",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks a denied terminal call as failed", () => {
-    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1", onDemand: [] });
+    const [, call] = createPluginBridgeTools({
+      host: fakeHost(),
+      presetId: () => "p1",
+      onDemand: [],
+    });
     expect(toolFailed(call, "denied: no answer in 60 s")).toBe(true);
   });
 });

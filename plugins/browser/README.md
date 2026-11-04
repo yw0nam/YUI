@@ -1,6 +1,6 @@
 # browser
 
-An MCP server with one tool, `browser`, that runs JavaScript in an ego lite task space and returns its logs and screenshots. It speaks MCP over stdio and opens no port. The backend reaches it through `plugin_call` with `name: "browser"`.
+An MCP server with one tool, `browser`, that runs JavaScript in an ego lite task space and returns its logs and screenshots. It speaks MCP over stdio and opens no port. The backend reaches it through `yui_tool_call` with `name: "browser"`.
 
 ego lite (`ego-browser`) runs a local browser that holds the user's sign-ins; the script reaches and acts on pages through ego lite's browser SDK, and `guide: true` returns the installed version's own guide to that SDK.
 
@@ -114,7 +114,7 @@ One lock per task-space name is held until that space's CLI exits and its screen
 
 The script stops itself at its deadline, and the CLI is killed at the backstop when it does not (see [Limits](#limits)). The kill does not stop the script, so a call after a backstop kill can overlap a script still running, and its result says so. Image collection and cleanup run in the time left.
 
-The host's deadline for one call is the tool's `_meta["io.github.yw0nam.yui/wait_ms"]` ([Limits](#limits)); the lock wait counts in it. `plugin_call` waits 121 s on the client, above the host's longest deadline.
+The host's deadline for one call is the tool's `_meta["io.github.yw0nam.yui/wait_ms"]` ([Limits](#limits)); the lock wait counts in it. `yui_tool_call` waits 121 s on the client, above the host's longest deadline.
 
 A turn stopped mid-run cancels the call, not the script: the client cancels the host call, the host sends `notifications/cancelled` to the plugin and answers `error: plugin tool cancelled`, and the script runs on in ego lite until it ends or reaches its deadline, its result discarded. A turn stopped before the call started answers `error: turn stopped` and sends nothing.
 
@@ -132,7 +132,7 @@ The guide carries neither the status line nor the untrusted line.
 
 The whole text is capped at the size in [Limits](#limits). The status line, the untrusted line, and the screenshot notes are never cut; output that does not fit is cut, ends with `[truncated]`, and keeps the rest of the result intact.
 
-The model receives this text through the client's `plugin_call` result conversion: an error text that already starts with `error:` or `unknown:` keeps that prefix, and any other error text gets `error: ` in front.
+The model receives this text through the client's `yui_tool_call` result conversion: an error text that already starts with `error:` or `unknown:` keeps that prefix, and any other error text gets `error: ` in front.
 
 ## Screenshots
 

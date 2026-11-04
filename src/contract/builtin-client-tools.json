@@ -3,8 +3,6 @@
   "body_action",
   "generate_express",
   "look",
-  "plugin_call",
-  "plugin_describe",
   "plugin_skill",
   "rate_relation",
   "terminal_close",
@@ -13,5 +11,7 @@
   "terminal_read",
   "terminal_write",
   "threads_list",
-  "threads_search"
+  "threads_search",
+  "yui_tool_call",
+  "yui_tool_describe"
 ]

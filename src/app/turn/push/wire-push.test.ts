@@ -661,7 +661,11 @@ describe("wirePushTransport — tool calls", () => {
     const onFrame = vi.fn();
     void pushTurns.awaitTurnEnd("7", { onFrame });
     wire(turnFeed, [pluginCall]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "yui_tool_call", arguments: { name: "look" } });
+    socket.pushToolCall({
+      ...frame("c1", "7"),
+      name: "yui_tool_call",
+      arguments: { name: "look" },
+    });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",
@@ -691,7 +695,11 @@ describe("wirePushTransport — tool calls", () => {
         }),
     };
     wire(turnFeed, [pluginCall]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "yui_tool_call", arguments: { name: "look" } });
+    socket.pushToolCall({
+      ...frame("c1", "7"),
+      name: "yui_tool_call",
+      arguments: { name: "look" },
+    });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",

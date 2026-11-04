@@ -405,7 +405,7 @@ YUI/
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
           pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, the bridge tools under Tauri, body_action and look in main
           plugin-bridge/               # The bridge tools over the MCP host
-            plugin-bridge.ts           # plugin_describe, plugin_call and plugin_skill
+            plugin-bridge.ts           # yui_tool_describe, yui_tool_call and plugin_skill
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
           screen/                      # The screen tool
@@ -433,7 +433,7 @@ YUI/
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       threads/                         # The Thread store's client
         threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, thread_answer, thread_seen and thread_read
-      mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
+      mcp-host/                        # The MCP host client and the `on-demand tools:` and `plugin skills:` lines
         mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
       voice/

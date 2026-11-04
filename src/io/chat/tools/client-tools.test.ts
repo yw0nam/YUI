@@ -225,7 +225,7 @@ describe("docs/reference/client-tools.md catalog", () => {
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
-      ...createPluginBridgeTools({ host, presetId: () => "p1" }),
+      ...createPluginBridgeTools({ host, presetId: () => "p1", onDemand: [] }),
     ]).map((tool) => tool.name);
 
     expect(names).toEqual([

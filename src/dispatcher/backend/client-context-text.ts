@@ -85,16 +85,16 @@ function renderThreadsWaiting(threads: ClientContext["threads_waiting"]): string
   return `threads: ${threads.total} waiting (${groups.join(", ")})`;
 }
 
-/** One plugin tool or skill as a `name — text` entry; the name alone when the text is empty. */
+/** One On-demand tool or plugin skill as a `name — text` entry; the name alone when the text is empty. */
 function pluginEntry(name: string, text: string): string {
   const label = oneLine(name);
   const detail = oneLine(text);
   return detail === "" ? label : `${label} — ${detail}`;
 }
 
-function renderPluginTools(tools: ClientContext["plugin_tools"]): string | undefined {
+function renderOnDemandTools(tools: ClientContext["on_demand_tools"]): string | undefined {
   if (!tools || tools.length === 0) return undefined;
-  return `plugin tools: ${tools.map((tool) => pluginEntry(tool.name, tool.summary)).join(" · ")}`;
+  return `on-demand tools: ${tools.map((tool) => pluginEntry(tool.name, tool.summary)).join(" · ")}`;
 }
 
 function renderPluginSkills(skills: ClientContext["plugin_skills"]): string | undefined {
@@ -246,8 +246,8 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   lines.push(...renderTrigger(clientContext.trigger, nowMs));
 
-  const pluginTools = renderPluginTools(clientContext.plugin_tools);
-  if (pluginTools) lines.push(pluginTools);
+  const onDemandTools = renderOnDemandTools(clientContext.on_demand_tools);
+  if (onDemandTools) lines.push(onDemandTools);
 
   const pluginSkills = renderPluginSkills(clientContext.plugin_skills);
   if (pluginSkills) lines.push(pluginSkills);

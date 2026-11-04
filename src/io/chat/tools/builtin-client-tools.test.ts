@@ -10,7 +10,7 @@ vi.mock("../../../tauri-env", async (importOriginal) => ({
   isTauri: () => true,
 }));
 
-export function windowTools(relationsEnabled = false) {
+function windowTools(relationsEnabled = false) {
   return createPetWindowTools({
     bound: false,
     getExecutor: () => null,
@@ -45,17 +45,36 @@ describe("builtin-client-tools.json", () => {
       emotionText: { mode: "free", table: null },
     });
 
-    expect([...tools.declared, ...tools.onDemand, express].map((tool) => tool.name).sort()).toEqual(builtinNames);
+    expect([...tools.declared, ...tools.onDemand, express].map((tool) => tool.name).sort()).toEqual(
+      builtinNames,
+    );
   });
 
-  it.each([true, false])("keeps the declared set and definitions across Relations state %s", (enabled) => {
+  it.each([
+    true,
+    false,
+  ])("keeps the declared set and definitions across Relations state %s", (enabled) => {
     const tools = windowTools(enabled);
     expect(tools.declared.map((tool) => tool.name)).toEqual([
-      "rate_relation", "address_character", "body_action", "look", "yui_tool_describe", "yui_tool_call", "plugin_skill",
+      "rate_relation",
+      "address_character",
+      "body_action",
+      "look",
+      "yui_tool_describe",
+      "yui_tool_call",
+      "plugin_skill",
     ]);
-    expect(tools.declared.map((tool) => tool.definition)).toEqual(windowTools(!enabled).declared.map((tool) => tool.definition));
+    expect(tools.declared.map((tool) => tool.definition)).toEqual(
+      windowTools(!enabled).declared.map((tool) => tool.definition),
+    );
     expect(tools.onDemand.map((tool) => tool.name)).toEqual([
-      "threads_list", "threads_search", "terminal_open", "terminal_list", "terminal_read", "terminal_write", "terminal_close",
+      "threads_list",
+      "threads_search",
+      "terminal_open",
+      "terminal_list",
+      "terminal_read",
+      "terminal_write",
+      "terminal_close",
     ]);
   });
 });

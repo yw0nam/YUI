@@ -79,11 +79,11 @@ ROOT is the plugin folder, which is also the working directory. DATA is the plug
 
 A tool name held by a built-in client tool or by an already enabled plugin is hidden, though the later plugin still runs ([Plugins](./plugins.md)).
 
-These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_call`, `plugin_describe`, `plugin_skill`, `rate_relation`.
+These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `yui_tool_call`, `yui_tool_describe`, `plugin_skill`, `rate_relation`.
 
 | `_meta` key | Where | What it does |
 |---|---|---|
-| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary a turn shows for the tool ([Client Context § plugin tools](../reference/client-context.md#plugin-tools)). |
+| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary a turn shows for the tool ([Client Context § on-demand tools](../reference/client-context.md#on-demand-tools)). |
 | `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the host waits for one call ([Client Tools](../reference/client-tools.md#waits-and-cancel)). |
 | `io.github.yw0nam.yui/preset` | the request `_meta` of every `tools/call` | The preset id of the calling character, so a tool keeps one state per character. |
 

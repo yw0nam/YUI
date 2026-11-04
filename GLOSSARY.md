@@ -202,7 +202,7 @@ The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_
 _Avoid_: plugin manager, runtime
 
 **Plugin tool**:
-A tool one of a plugin's MCP servers declares, published in the MCP host's snapshot while the plugin is enabled and run by `plugin_call`. Not a Client tool.
+A tool one of a plugin's MCP servers declares, published in the MCP host's snapshot while the plugin is enabled and run by `yui_tool_call`. An On-demand tool.
 _Avoid_: MCP tool, plugin function
 
 **Skill**:
@@ -218,11 +218,14 @@ Wiring for one backend agent, kept under `integrations/<agent>/` (the Hermes pla
 _Avoid_: adapter, connector
 
 **Bridge tool**:
-A Client tool that reaches an enabled plugin through the MCP host: `plugin_describe` reads one plugin tool's description and input schema, `plugin_call` runs it, and `plugin_skill` reads one plugin skill's instructions. Declared in every pet window under Tauri.
+A Client tool that reaches On-demand tools and plugin skills: `yui_tool_describe` reads a tool's description and input schema, `yui_tool_call` runs it, and `plugin_skill` reads one plugin skill's instructions. Declared in every pet window under Tauri.
 _Avoid_: host tool, relay tool
 
+**On-demand tool**:
+A tool the client runs but does not declare. The backend learns its name and summary from the turn's client context and reaches it through `yui_tool_describe` and `yui_tool_call`. A Plugin tool or a Terminal/Threads tool.
+
 **Client tool**:
-A tool the client declares to the backend and runs itself (generate_express, body_action, look, rate_relation, address_character, plugin_describe, plugin_call, plugin_skill).
+A tool the client runs itself (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill). An On-demand tool is a client-run tool the client does not declare.
 _Avoid_: in-app tool, local tool
 
 **Producer**:

@@ -98,7 +98,7 @@ export function wireDispatcher(deps: {
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
   /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginLines?: Parameters<typeof createBackendCaller>[0]["getPluginLines"];
+  getOnDemandLines?: Parameters<typeof createBackendCaller>[0]["getOnDemandLines"];
   /** The Threads waiting for the user's answer, read once per turn; main's window only. */
   getThreadsWaiting?: Parameters<typeof createBackendCaller>[0]["getThreadsWaiting"];
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
@@ -222,7 +222,7 @@ export function wireDispatcher(deps: {
         relationsSwitch.get().enabled,
       ),
     getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
-    getPluginLines: deps.getPluginLines,
+    getOnDemandLines: deps.getOnDemandLines,
     getThreadsWaiting: deps.getThreadsWaiting,
     commitOverheard: overheard.commit,
     contextHistory,

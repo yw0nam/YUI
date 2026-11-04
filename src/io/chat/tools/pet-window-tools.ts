@@ -1,4 +1,4 @@
-/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, the bridge and terminal tools under Tauri, the avatar and Threads tools in main only. */
+/** The declared window tools and the built-in On-demand tools reached through the bridge. */
 
 import { invoke } from "@tauri-apps/api/core";
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
@@ -31,7 +31,7 @@ export function createPetWindowTools(deps: {
   mcpHost: McpHost;
   /** The window's Thread store reader; null outside main's window. */
   threads: Pick<ThreadsClient, "threads"> | null;
-}): ClientTool[] {
+}): { declared: ClientTool[]; onDemand: ClientTool[] } {
   const rate = createRateRelationTool({
     store: deps.relations,
     targets: deps.targets,
@@ -41,13 +41,16 @@ export function createPetWindowTools(deps: {
     targets: deps.targets,
     record: deps.recordAddressed,
   });
-  if (!isTauri()) return [rate, address];
-  return [
+  if (!isTauri()) return { declared: [rate, address], onDemand: [] };
+  const onDemand = [
+    ...(deps.threads ? createThreadsTools(deps.threads) : []),
+    ...createTerminalTools({ presetId: presetIdForWindow, invoke }),
+  ];
+  const declared = [
     rate,
     address,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
-    ...(deps.threads ? createThreadsTools(deps.threads) : []),
-    ...createPluginBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow }),
-    ...createTerminalTools({ presetId: presetIdForWindow, invoke }),
+    ...createPluginBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow, onDemand }),
   ];
+  return { declared, onDemand };
 }
