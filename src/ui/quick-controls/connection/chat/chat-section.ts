@@ -115,7 +115,10 @@ export function createChatSection(deps: {
     ?.insertAdjacentHTML("beforeend", pushReasonHtml("push.reason_model"));
   const modelReasonEl = chatModelRowEl?.querySelector<HTMLElement>(".yui-push-reason");
 
-  const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
+  // Push: the button reopens the socket. Otherwise: it re-runs the model list read.
+  const status = createChatStatus(el, {
+    onAction: () => (isPush() ? pushSocket?.reconnectNow() : evaluateModels()),
+  });
 
   // The pick persists through the input's own commit path — the store is not written here.
   const combobox = modelInput
@@ -189,7 +192,7 @@ export function createChatSection(deps: {
       status.render(pushState());
       return;
     }
-    status.renderModels(
+    status.renderView(
       modelPhase === null
         ? null
         : modelStatusView({

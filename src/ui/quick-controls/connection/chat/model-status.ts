@@ -5,10 +5,12 @@
 import type { ModelListResult } from "../../../../io/chat/models/reader";
 import { t } from "../../../i18n";
 
-export interface ModelStatusView {
+export interface StatusView {
   text: string;
   /** Dot classes to wear; empty leaves the dot grey. */
   dot: readonly string[];
+  /** The action button's label; absent hides the button. */
+  action?: string;
 }
 
 export type ModelStatusPhase = { phase: "reading" } | { phase: "done"; result: ModelListResult };
@@ -19,7 +21,7 @@ export function modelStatusView(input: {
   typedModel: string;
   defaultModel?: string;
   host: string;
-}): ModelStatusView {
+}): StatusView {
   const { phase, typedModel, defaultModel, host } = input;
   if (phase.phase === "reading") {
     return { text: t("svc.chat_models_reading"), dot: ["is-waiting", "is-busy"] };
@@ -39,9 +41,17 @@ export function modelStatusView(input: {
       return { text: t("svc.chat_models_absent"), dot: [] };
     }
     case "unreachable":
-      return { text: t("svc.chat_models_unreachable", { host }), dot: ["is-failed"] };
+      return {
+        text: t("svc.chat_models_unreachable", { host }),
+        dot: ["is-failed"],
+        action: t("svc.chat_status_reconnect"),
+      };
     case "timeout":
-      return { text: t("svc.chat_models_timeout", { host }), dot: ["is-failed"] };
+      return {
+        text: t("svc.chat_models_timeout", { host }),
+        dot: ["is-failed"],
+        action: t("svc.chat_status_reconnect"),
+      };
     case "refused":
       return { text: t("svc.chat_models_refused"), dot: ["is-failed"] };
     case "http":
