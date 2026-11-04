@@ -277,8 +277,6 @@
   transform: translateY(1px);
 }
 
-/* ── user row's ✎ rename · 🗑 delete — the 1.5rem ghost base, emerge, hover and focus rules live in ../row-actions.css. ── */
-
 .yui-vrm.is-remove-armed,
 .yui-spk.is-remove-armed {
   background: var(--yui-danger-faint);
