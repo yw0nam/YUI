@@ -47,3 +47,31 @@ it.each([
   expect(run).toHaveBeenCalledWith("status", "");
   remote.dispose();
 });
+
+it.each([
+  {
+    frames: [
+      { type: "ask" as const, ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+    ],
+  },
+  { frames: [] },
+])("replays the last Ask list on ready: $frames", ({ frames }) => {
+  let control!: (op: MessageControlOp) => void;
+  const bridge = {
+    emitSurface: vi.fn(),
+    onControl: (cb: typeof control) => {
+      control = cb;
+      return () => {};
+    },
+  } as unknown as MessageBridge;
+  const remote = createRemoteSurfaces(bridge);
+  remote.setAsks(frames);
+  vi.mocked(bridge.emitSurface).mockClear();
+  control({ op: "ready" });
+  expect(bridge.emitSurface).toHaveBeenCalledWith({ op: "asks", frames });
+  const answer = vi.fn(() => false);
+  remote.onAskAnswer(answer);
+  control({ op: "ask-answer", answer: { ask_id: "a", choice: "once" } });
+  expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  remote.dispose();
+});

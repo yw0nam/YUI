@@ -29,7 +29,8 @@ function makeLocal(): Surfaces {
   return {
     el: document.createElement("div"),
     chipColumn: document.createElement("div"),
-    askSlot: document.createElement("div"),
+    setAsks: vi.fn(),
+    onAskAnswer: vi.fn(),
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
     endSpeech: vi.fn(),
@@ -63,6 +64,8 @@ function makeLocal(): Surfaces {
 
 function makeRemote(): RemoteSurfaces {
   return {
+    setAsks: vi.fn(),
+    onAskAnswer: vi.fn(),
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
     endSpeech: vi.fn(),
@@ -111,6 +114,54 @@ describe("createSurfacesRouter", () => {
     shown = next;
     for (const cb of shownListeners) cb(next);
   };
+
+  it.each([
+    [true, "popped", "local"],
+    [false, "docked", "local"],
+    [false, "popped", "remote"],
+  ] as const)("places Asks with shown=%s mode=%s on %s", (on, m, target) => {
+    setMode(m);
+    setShown(on);
+    const frames = [
+      { type: "ask" as const, ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+    ];
+    router.setAsks(frames);
+    expect((target === "local" ? local : remote).setAsks).toHaveBeenLastCalledWith([
+      { type: "ask", ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+    ]);
+    expect(stream.setAsks).not.toHaveBeenCalled();
+  });
+
+  it("moves open Asks on dock and unified visibility changes and clears the old side", () => {
+    const frames = [
+      { type: "ask" as const, ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+    ];
+    router.setAsks(frames);
+    setMode("popped");
+    expect(local.setAsks).toHaveBeenLastCalledWith([]);
+    expect(remote.setAsks).toHaveBeenLastCalledWith(frames);
+    setMode("docked");
+    expect(remote.setAsks).toHaveBeenLastCalledWith([]);
+    expect(local.setAsks).toHaveBeenLastCalledWith(frames);
+    setShown(true);
+    setMode("popped");
+    expect(local.setAsks).toHaveBeenLastCalledWith(frames);
+    setShown(false);
+    expect(local.setAsks).toHaveBeenLastCalledWith([]);
+    expect(remote.setAsks).toHaveBeenLastCalledWith(frames);
+    const answer = vi.fn(() => true);
+    router.onAskAnswer(answer);
+    for (const side of [local, remote]) {
+      expect(vi.mocked(side.onAskAnswer).mock.calls[0]![0]({ ask_id: "a", text: "yes" })).toBe(
+        true,
+      );
+    }
+    expect(answer.mock.calls).toEqual([
+      [{ ask_id: "a", text: "yes" }],
+      [{ ask_id: "a", text: "yes" }],
+    ]);
+    expect(stream.onAskAnswer).not.toHaveBeenCalled();
+  });
 
   it("fans the command list to both windows and registers both input sources", () => {
     const commands = [{ name: "status", description: "Info", args: "" }];

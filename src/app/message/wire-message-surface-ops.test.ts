@@ -16,6 +16,8 @@ function setup() {
     beginSpeech: vi.fn(),
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
+    setAsks: vi.fn(),
+    onAskAnswer: vi.fn(),
     setCommands: vi.fn(),
     showCommandReply: vi.fn(),
     onCommandReplyClose: vi.fn(),
@@ -93,4 +95,22 @@ it("draws the commands and reply received over the bridge", () => {
   send({ op: "command-reply", reply });
   expect(surfaces.setCommands).toHaveBeenCalledWith(commands);
   expect(surfaces.showCommandReply).toHaveBeenCalledWith(reply);
+});
+
+it("renders the Ask list and sends its Answer through control", () => {
+  const { send, surfaces, bridge } = setup();
+  send({
+    op: "asks",
+    frames: [{ type: "ask", ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } }],
+  });
+  expect(surfaces.setAsks).toHaveBeenCalledExactlyOnceWith([
+    { type: "ask", ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+  ]);
+  expect(vi.mocked(surfaces.onAskAnswer).mock.calls[0]![0]({ ask_id: "a", text: "yes" })).toBe(
+    true,
+  );
+  expect(bridge.emitControl).toHaveBeenCalledExactlyOnceWith({
+    op: "ask-answer",
+    answer: { ask_id: "a", text: "yes" },
+  });
 });
