@@ -1,4 +1,4 @@
-/** VRM load helpers: the three-vrm optimisation of a loaded glTF and the display-name read. */
+/** VRM load helpers: the three-vrm optimisation of a loaded glTF, the VRM 0.x preset promotion, and the display-name read. */
 
 import { type VRM, VRMExpression, VRMUtils } from "@pixiv/three-vrm";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
