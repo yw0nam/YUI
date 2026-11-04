@@ -94,7 +94,7 @@
   font-weight: 600;
 }
 
-/* A focused button takes a 2px Amber-soft ring; the field takes an Amber border and a 1px Amber-soft ring. */
+/* The shared answer area defines no focus ring, and the Threads window's reaches only .yui-threads. */
 .yui-ask-card .yui-threads-answer button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
