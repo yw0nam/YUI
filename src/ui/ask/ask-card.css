@@ -94,6 +94,18 @@
   font-weight: 600;
 }
 
+/* The shared answer area defines no focus ring, and the Threads window's reaches only .yui-threads. */
+.yui-ask-card .yui-threads-answer button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-ask-card .yui-threads-answer textarea:focus {
+  outline: none;
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
 /* The composer is as tall as Send or the field, and never shrinks under them. */
 .yui-ask-card .yui-threads-answer__composer {
   flex: none;
