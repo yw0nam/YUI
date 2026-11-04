@@ -443,11 +443,12 @@ class YuiAdapter(BasePlatformAdapter):
             return
         choice = frame.get("choice")
         text = frame.get("text")
-        ask = self._asks.take(chat_id, ask_id, choice, text)
+        choices = frame.get("choices")
+        ask = self._asks.take(chat_id, ask_id, choice, text, choices)
         if ask is None:
             logger.warning("yui: refused answer choice=%r for Ask %s chat=%s", choice, ask_id, chat_id)
             return
-        ask.resolve(choice, text)
+        ask.resolve(choices if ask.multiple else choice, text)
 
     def _forget(self, chat_id: str, ws: web.WebSocketResponse) -> None:
         if chat_id and self._sockets.get(chat_id) is ws:

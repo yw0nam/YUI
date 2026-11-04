@@ -5,6 +5,7 @@
 export type {
   // Pending read or write on a terminal — the Allow / Deny card
   AccessRequest,
+  AskAnswerPayload,
   // Current posture reported each turn
   BodyState,
   // Flat system-message context (client → backend each turn)

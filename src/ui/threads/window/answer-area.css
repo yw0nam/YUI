@@ -263,7 +263,23 @@
     padding-block: 8px 10px;
   }
 
-  .yui-threads-answer__head small {
+  .yui-threads-answer__head small:not(.yui-threads-answer__multiple) {
     display: none;
   }
+}
+
+.yui-threads-answer__multiple {
+  flex-basis: 100%;
+  order: 1;
+}
+
+.yui-threads-answer__check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  visibility: hidden;
+}
+
+[aria-pressed="true"] > .yui-threads-answer__check {
+  visibility: visible;
 }

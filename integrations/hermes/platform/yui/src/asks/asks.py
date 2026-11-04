@@ -8,8 +8,9 @@ from dataclasses import dataclass
 class Ask:
     frame: dict
     choices: frozenset[str]
+    multiple: bool
     text: bool
-    resolve: Callable[[str | None, str | None], None]
+    resolve: Callable[[str | list[str] | None, str | None], None]
     expires_at: float | None
 
 
@@ -22,7 +23,12 @@ class Asks:
         if expires_at is not None:
             frame["expires_at"] = expires_at
         ask = Ask(
-            frame, frozenset(c["id"] for c in body.get("choices", [])), body["text"], resolve, expires_at
+            frame,
+            frozenset(c["id"] for c in body.get("choices", [])),
+            body.get("multiple", False),
+            body["text"],
+            resolve,
+            expires_at,
         )
         self._chats.setdefault(chat_id, {})[ask_id] = ask
         return ask
@@ -30,15 +36,27 @@ class Asks:
     def get(self, chat_id: str, ask_id: str) -> Ask | None:
         return self._chats.get(chat_id, {}).get(ask_id)
 
-    def take(self, chat_id: str, ask_id: str, choice: object, text: object) -> Ask | None:
+    def take(
+        self, chat_id: str, ask_id: str, choice: object, text: object, choices: object = None
+    ) -> Ask | None:
         ask = self.get(chat_id, ask_id)
         if ask is None:
+            return None
+        if ask.multiple and choice is not None:
+            return None
+        if choices is not None and (
+            not ask.multiple
+            or not isinstance(choices, list)
+            or not choices
+            or any(not isinstance(id, str) or id not in ask.choices for id in choices)
+            or len(set(choices)) != len(choices)
+        ):
             return None
         if choice is not None and (not isinstance(choice, str) or choice not in ask.choices):
             return None
         if text is not None and (not isinstance(text, str) or not text.strip() or not ask.text):
             return None
-        if choice is None and text is None:
+        if choice is None and choices is None and text is None:
             return None
         self.drop(chat_id, ask_id)
         return ask

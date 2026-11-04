@@ -148,6 +148,26 @@ impl ThreadStore {
             if ask.ask_id != answer.ask_id {
                 return Err("ask_id does not match open ask");
             }
+            if ask.multiple && answer.choice.is_some() {
+                return Err("multiple ask does not accept choice");
+            }
+            if let Some(ids) = &answer.choices {
+                if !ask.multiple {
+                    return Err("single-select ask does not accept choices");
+                }
+                if ids.is_empty() {
+                    return Err("choices must be non-empty");
+                }
+                let mut unique = std::collections::HashSet::new();
+                for id in ids {
+                    if !unique.insert(id) {
+                        return Err("choices must be distinct");
+                    }
+                    if !ask.choices.iter().any(|choice| &choice.id == id) {
+                        return Err("choices are not among the ask choices");
+                    }
+                }
+            }
             let choice = answer
                 .choice
                 .as_ref()
@@ -159,6 +179,7 @@ impl ThreadStore {
                 })
                 .transpose()?;
             if answer.choice.is_none()
+                && answer.choices.is_none()
                 && answer.text.as_ref().is_none_or(|t| t.is_empty())
                 && answer.release != Some(true)
             {
@@ -174,9 +195,17 @@ impl ThreadStore {
             {
                 return Err("answer text exceeds 16384 characters");
             }
-            let text = choice
+            let text = ask
+                .choices
+                .iter()
+                .filter(|c| {
+                    choice == Some(*c)
+                        || answer
+                            .choices
+                            .as_ref()
+                            .is_some_and(|ids| ids.contains(&c.id))
+                })
                 .map(|c| c.label.as_str())
-                .into_iter()
                 .chain(answer.text.as_deref().filter(|s| !s.is_empty()))
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -340,6 +369,7 @@ mod tests {
         AnswerInput {
             ask_id: "a".into(),
             choice: Some("yes".into()),
+            choices: None,
             text: Some("Please".into()),
             release: None,
         }
@@ -660,6 +690,7 @@ mod tests {
         let a = AnswerInput {
             ask_id: "b".into(),
             choice: None,
+            choices: None,
             text: None,
             release: Some(true),
         };

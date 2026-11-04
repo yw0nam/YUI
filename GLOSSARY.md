@@ -100,7 +100,7 @@ One question held open for the user: the one a Thread holds, or one the backend 
 _Avoid_: prompt, request
 
 **Answer**:
-The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal. Over push, it travels as an `answer` frame.
+The user's reply to one Ask: a choice id, several choice ids for a multi-select Ask, text, both, or `release` to answer at the agent's own terminal. Over push, it travels as an `answer` frame.
 _Avoid_: reply, response
 
 **Backend command**:

@@ -5,7 +5,7 @@
  */
 
 import "./thread-pane.css";
-import type { Thread, ThreadEntry } from "../../../contract";
+import type { AskAnswerPayload, Thread, ThreadEntry } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { getLocale, t } from "../../i18n";
 import { glyph } from "../glyphs";
@@ -105,7 +105,7 @@ export function createThreadPane(deps: {
   back: HTMLElement;
   now(): number;
   /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
+  onAnswer(id: string, askId: string, answer: AskAnswerPayload): Promise<void>;
   onRead(id: string): void;
 }): ThreadPane {
   const { el } = deps;
@@ -159,7 +159,7 @@ export function createThreadPane(deps: {
     area = ask
       ? createAnswerArea({
           ask,
-          draft: drafts.get(key) ?? { text: "" },
+          draft: drafts.get(key) ?? { picks: [], text: "" },
           error: errors.get(key) ?? null,
           sending: sending.has(key),
           onDraft: (draft) => drafts.set(key, draft),

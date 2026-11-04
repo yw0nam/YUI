@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { ExpressArgs, ThreadAsk, Usage } from "../../../contract";
+import type { AskAnswerPayload, ExpressArgs, ThreadAsk, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -90,12 +90,10 @@ export interface AskEndFrame {
   ask_id: string;
 }
 
-/** The user's reply to one Ask: a choice id, free text, or both. */
-export interface AnswerFrame {
+/** The user's reply to one Ask: picked choice ids, free text, or both. */
+export interface AnswerFrame extends AskAnswerPayload {
   type: "answer";
   ask_id: string;
-  choice?: string;
-  text?: string;
 }
 
 export type AskAnswer = Omit<AnswerFrame, "type">;
@@ -212,10 +210,12 @@ function choicesReadable(choices: unknown): boolean {
 export function askFrameFault(v: Record<string, unknown>): string | null {
   const ask = v.ask;
   if (ask === null || typeof ask !== "object" || Array.isArray(ask)) return "ask";
-  const { ask_id, prompt, choices, text, placeholder } = ask as Record<string, unknown>;
+  const { ask_id, prompt, choices, multiple, text, placeholder } = ask as Record<string, unknown>;
   if (!textWithin(ask_id, 128)) return "ask_id";
   if (typeof prompt !== "string" || prompt === "") return "prompt";
   if (choices !== undefined && !choicesReadable(choices)) return "choices";
+  if (multiple != null && (multiple !== true || !Array.isArray(choices) || choices.length === 0))
+    return "multiple";
   if (typeof text !== "boolean") return "text";
   if (
     placeholder !== undefined &&

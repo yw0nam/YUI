@@ -608,7 +608,7 @@ An Ask is a question the backend holds open for the user in a character's own ch
 
 | Field | Value |
 |---|---|
-| `ask` | The Ask: `ask_id`, `prompt`, optional `choices`, `text`, and optional `placeholder`, as [threads.md](threads.md#ask-fields) defines them |
+| `ask` | The Ask: `ask_id`, `prompt`, optional `choices` and `multiple`, `text`, and optional `placeholder`, as [threads.md](threads.md#ask-fields) defines them |
 | `expires_at` | Optional epoch milliseconds after which the backend takes no answer. Absent, the Ask has no deadline |
 
 - `ask` follows the Ask fields of [threads.md](threads.md#ask-fields), except that `prompt` has no length cap of its own. The [text frame size](#frame-sizes) applies.
@@ -632,12 +632,21 @@ An Ask is a question the backend holds open for the user in a character's own ch
 |---|---|
 | `ask_id` | The `ask_id` of the open Ask |
 | `choice` | Optional choice id the Ask offered |
+| `choices` | Optional non-empty array of distinct offered ids, only for a `multiple` Ask; never with `choice` |
 | `text` | Optional free text, sent only when `ask.text` is true |
 
-- An `answer` carries `choice`, `text`, or both, under the Answer rules of [threads.md](threads.md#user-answers).
+- An `answer` carries `choice` or `choices`, `text`, or both, under the Answer rules of [threads.md](threads.md#user-answers).
+- A multi-select Answer uses `choices` even for one pick, in the Ask’s choice order, and never `choice`. A text-only Answer omits both.
 - A choice belongs to the Ask it answers.
 - The client sends `answer` only while the socket is `ready`.
 - A backend leaves the Ask open when the choice was not offered.
+
+A multi-select Ask and its Answer:
+
+```json
+{ "type": "ask", "ask": { "ask_id": "a2", "prompt": "Which targets?", "multiple": true, "choices": [{ "id": "dev", "label": "Development" }, { "id": "prod", "label": "Production", "tone": "danger" }], "text": true } }
+{ "type": "answer", "ask_id": "a2", "choices": ["dev", "prod"], "text": "Deploy both" }
+```
 
 ### `ask_end` (backend → client)
 

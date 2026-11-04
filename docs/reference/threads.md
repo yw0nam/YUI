@@ -12,7 +12,7 @@ Only bare routes exist. Every `/presets/<id>/threads…` path receives 404. Thre
 
 Only PUT is accepted; another method receives 405. The body is a JSON object of at most 64 KiB. Unknown fields are ignored. Any broken field rule receives 400 and leaves the store unchanged.
 
-Optional `label`, `placeholder`, `tone`, `entries`, and `choices` fields treat JSON `null` as absent. `ask: null` closes the ask.
+Optional `label`, `placeholder`, `tone`, `entries`, `multiple`, and `choices` fields treat JSON `null` as absent. `ask: null` closes the ask.
 
 | Field | Rule |
 |---|---|
@@ -34,6 +34,7 @@ Optional `label`, `placeholder`, `tone`, `entries`, and `choices` fields treat J
 | `ask_id` | Required non-empty string, at most 128 code points |
 | `prompt` | Required non-empty string, at most 500 code points. Markdown, rendered as entry text is |
 | `choices` | Optional array of at most 6 choices with unique ids |
+| `multiple` | Optional; when present, must be `true` and choices must be non-empty |
 | `text` | Required boolean: whether free text is accepted |
 | `placeholder` | Optional string, at most 200 code points |
 
@@ -53,7 +54,7 @@ Only GET is accepted; another method receives 405. Query parameter `ask_id` is o
 
 | Status | Meaning |
 |---|---|
-| 200 | Pending answer delivered once as `{"ask_id", "choice"?, "text"?, "release"?, "at"}` |
+| 200 | Pending answer delivered once as `{"ask_id", "choice"?, "choices"?, "text"?, "release"?, "at"}` |
 | 204 | Deadline passed with no answer; with `ask_id`, that ask is still open |
 | 410 | Only with `ask_id`: ask closed, replaced, or never existed, with no pending answer |
 | 404 | Unknown Thread |
@@ -68,7 +69,7 @@ A pending answer wins over 410. Answering closes the ask, but the producer's nex
 The sweep route delivers every pending answer of every Thread whose `source` equals the
 `source` parameter: oldest first, each removed on delivery from the same pending store the
 long-poll delivers from. The response is
-`{"answers": [{"thread_id", "ask_id", "choice"?, "text"?, "release"?, "at"}, …]}`; an empty
+`{"answers": [{"thread_id", "ask_id", "choice"?, "choices"?, "text"?, "release"?, "at"}, …]}`; an empty
 list when none.
 
 There is no `wait` parameter: a scheduled producer runs on its own clock. Only GET is
@@ -81,11 +82,13 @@ Thread can take it. A preset-prefixed path reaches no Thread route, as everywher
 
 ## User answers
 
-An Answer supplies `ask_id` and a choice id, text, both, or `release: true` to answer at the agent's own terminal. The Thread must exist and the ask must be open with that id.
+An Answer supplies `ask_id` with picked choice ids, text, both, or `release: true` to answer at the agent's own terminal. The Thread must exist and the ask must be open with that id.
+
+A multi-select Ask accepts `choices` only when non-empty, distinct, and all ids belong to the Ask; it never accepts `choice`. Any other Ask accepts `choice` and never `choices`. With no pick, a text-only or release answer omits `choices`.
 
 A choice must belong to the ask. Text requires `ask.text: true` and cannot exceed 16384 code points. Without a choice, non-empty text, or release, the answer is refused.
 
-An accepted answer becomes pending for the producer, closes the ask, sets state to `working`, and wakes waiters. One `user` entry contains the choice label and text joined with `\n`; a bare release adds no entry. The entry has the answer's timestamp, and the newest-50 limit still applies.
+An accepted answer becomes pending for the producer, closes the ask, sets state to `working`, and wakes waiters. One `user` entry contains the picked labels in the Ask's choice order, then text, joined with `\n`; a bare release adds no entry. The entry has the answer's timestamp, and the newest-50 limit still applies.
 
 ## Storage and expiry
 
@@ -105,7 +108,7 @@ Optional `read` is `true` when the user marked the Thread read in the Threads wi
 
 Each stored entry contains `role`, `text`, and `at`.
 
-`thread_answer(id, ask_id, choice?, text?, release?)` submits a user answer and returns success or an error string naming the broken rule. Every successful change increases the revision and publishes `threads-snapshot` to every window, with the same shape as `threads_snapshot()`. Revision starts at zero on app start.
+`thread_answer(id, ask_id, choice?, choices?, text?, release?)` submits a user answer and returns success or an error string naming the broken rule. Every successful change increases the revision and publishes `threads-snapshot` to every window, with the same shape as `threads_snapshot()`. Revision starts at zero on app start.
 
 `thread_seen(id, ask_id)` records the open ask as seen and returns success or an error string naming the broken rule. It leaves `updated_at` unchanged, and a repeat for the same ask changes nothing.
 

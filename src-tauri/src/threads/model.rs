@@ -50,6 +50,12 @@ pub struct Ask {
     pub prompt: String,
     #[serde(default, deserialize_with = "null_as_default")]
     pub choices: Vec<Choice>,
+    #[serde(
+        default,
+        deserialize_with = "multiple",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub multiple: bool,
     pub text: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub placeholder: Option<String>,
@@ -60,6 +66,8 @@ pub struct AnswerInput {
     pub ask_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub choice: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub choices: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -128,6 +136,14 @@ pub struct Upsert {
     pub ask: AskUpdate,
 }
 
+fn multiple<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    match Option::<bool>::deserialize(deserializer)? {
+        None => Ok(false),
+        Some(true) => Ok(true),
+        Some(false) => Err(serde::de::Error::custom("multiple must be true or absent")),
+    }
+}
+
 fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -153,7 +169,7 @@ fn check_ask(ask: &Ask) -> Result<(), u16> {
     bounded(&ask.ask_id, ASK_ID_MAX_CHARS, false)?;
     bounded(&ask.prompt, 500, false)?;
     bounded(ask.placeholder.as_deref().unwrap_or_default(), 200, true)?;
-    if ask.choices.len() > 6 {
+    if ask.choices.len() > 6 || (ask.multiple && ask.choices.is_empty()) {
         return Err(400);
     }
     let mut ids = std::collections::HashSet::new();
