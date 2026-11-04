@@ -41,21 +41,19 @@
 /* Every choice and Send stay whole; the prompt gives up its room and scrolls instead. */
 .yui-ask-card .yui-threads-answer__choices {
   flex: none;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
   min-height: 0;
-  gap: 6px;
+  gap: 2px;
   overflow: visible;
 }
 
-/* Choices are pills with a neutral pick, as the Quick card's are; amber stays out of the card. */
+/* Choices are borderless rows, one per line, and the pick shows by fill; amber stays out of the card. */
 .yui-ask-card .yui-threads-answer__choices button {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  min-height: 30px;
-  padding: 0 12px 0 10px;
-  border: 1px solid var(--yui-edge);
-  border-radius: var(--yui-radius-pill);
-  background: none;
+  padding: 6px 12px 6px 10px;
+  border: 0;
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-body);
   font-weight: 500;
@@ -70,8 +68,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"] {
-  border-color: var(--yui-edge-strong);
+.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"],
+.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"]:hover {
   background: var(--yui-selected);
   color: var(--yui-text);
   font-weight: 600;
@@ -82,7 +80,6 @@
 }
 
 .yui-ask-card .yui-threads-answer__choices .is-danger[aria-pressed="true"] {
-  border-color: var(--yui-danger-soft);
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
   font-weight: 600;
