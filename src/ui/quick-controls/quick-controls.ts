@@ -20,6 +20,7 @@ import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/s
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../io/chat/conversation/signal-history-store";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
+import type { ServerCheck } from "../../io/chat/models/server-check";
 import type { McpHost, McpHostManage } from "../../io/mcp-host/mcp-host";
 import type {
   createSpeakerSelection,
@@ -212,6 +213,8 @@ interface QuickControlsOptions {
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
+  /** Asks the STT server whether it answers, for the Connection page's STT line; undefined hides the line. */
+  checkSttServer?: () => Promise<ServerCheck | null>;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
   /** "Start fresh" calls it after the transcript boundary is written. */

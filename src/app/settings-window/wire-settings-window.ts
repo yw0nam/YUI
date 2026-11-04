@@ -1,4 +1,4 @@
-import { CHAT_API_KEY_SECRET } from "../../config/secrets";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET } from "../../config/secrets";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
@@ -7,6 +7,7 @@ import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
+import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { createLogger } from "../../logger";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
@@ -224,6 +225,10 @@ export async function wireSettingsWindow(deps: {
       onGuide: (guide, text) => bridge.emitHelpGuide({ guide, text }),
       getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
       getFetch: selectFetch,
+      checkSttServer: createSttServerCheck({
+        getEndpoints: shared.getEndpoints,
+        getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
+      }),
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       endpointsSettings,
       chatKeySettings,
