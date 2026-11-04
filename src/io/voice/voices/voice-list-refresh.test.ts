@@ -56,6 +56,22 @@ describe("createVoiceListRefresh", () => {
     expect(store.setManifest).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["a listed", { kind: "ok", ids: ["ナツメ"] }, { kind: "ok" }, 1],
+    ["a failed", { kind: "timeout" }, { kind: "timeout" }, 0],
+  ] as const)("returns the outcome of %s list", async (_l, listed, outcome, manifests) => {
+    listVoices.mockResolvedValue(listed as Awaited<ReturnType<typeof listVoices>>);
+    const store = fakeStore();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+      speakerSelection: store,
+      log: noopLog,
+    });
+
+    await expect(refresh()).resolves.toEqual(outcome);
+    expect(store.setManifest).toHaveBeenCalledTimes(manifests);
+  });
+
   it("maps the server ids into the manifest as id/label/empty ref_url", async () => {
     listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ", "あやせ"] });
     const store = fakeStore();
