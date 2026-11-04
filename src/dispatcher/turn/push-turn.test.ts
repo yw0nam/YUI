@@ -349,6 +349,17 @@ describe("a turn id the backend remembers across a restart", () => {
 });
 
 describe("recent push identity", () => {
+  it("caps live and stopped at the newest 200 turns when no turn_end comes", () => {
+    const turns = createPushTurns();
+    for (let i = 0; i < 300; i++) turns.opened(String(i), "proactive.tap_bored");
+    const swept = turns.cut();
+
+    expect(swept).toHaveLength(200);
+    expect(turns.cutCount()).toBe(200);
+    expect(turns.isCut("99")).toBe(false);
+    expect(turns.isCut("100")).toBe(true);
+  });
+
   it("keeps recent ended identities and evicts the oldest past 200 turns", () => {
     const turns = createPushTurns();
     for (let i = 0; i < 201; i++) {
