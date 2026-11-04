@@ -386,6 +386,90 @@ mod tests {
     }
 
     #[test]
+    fn completed_threads_evict_the_five_oldest_past_200() {
+        let s = store();
+        for i in 0..205 {
+            let mut body = input();
+            body.state = ThreadState::Completed;
+            s.upsert(&format!("t{i:03}"), body, i);
+        }
+        let snapshot = s.snapshot();
+        assert_eq!(snapshot.threads.len(), 200);
+        for i in 0..5 {
+            assert_eq!(
+                s.wait_answer(&format!("t{i:03}"), None, Duration::ZERO),
+                WaitOutcome::Unknown
+            );
+        }
+        assert_eq!(snapshot.threads.last().unwrap().id, "t005");
+    }
+
+    #[test]
+    fn input_required_and_just_recorded_threads_survive_count_eviction() {
+        for completed_last in [false, true] {
+            let s = store();
+            for i in 0..201 {
+                let mut body = input();
+                if completed_last && i == 200 {
+                    body.state = ThreadState::Completed;
+                }
+                s.upsert(&format!("t{i:03}"), body, i);
+            }
+            assert_eq!(
+                s.snapshot().threads.len(),
+                201,
+                "completed_last={completed_last}"
+            );
+        }
+    }
+
+    #[test]
+    fn loaded_threads_keep_the_newest_200_with_id_ties() {
+        let seed = store();
+        let mut body = input();
+        body.state = ThreadState::Completed;
+        seed.upsert("seed", body, 1);
+        let template = seed.snapshot().threads.remove(0);
+        let loaded = (0..250)
+            .rev()
+            .map(|i| {
+                let mut thread = template.clone();
+                thread.id = format!("t{i:03}");
+                thread.updated_at = (i / 2) as u64;
+                thread
+            })
+            .collect();
+        let s = ThreadStore::new(loaded, Box::new(|_| Ok(())), |_| {});
+        let snapshot = s.snapshot();
+        assert_eq!(snapshot.threads.len(), 200);
+        assert_eq!(snapshot.threads.first().unwrap().id, "t248");
+        assert_eq!(snapshot.threads.last().unwrap().id, "t051");
+    }
+
+    #[test]
+    fn count_eviction_wakes_waiter_as_unknown() {
+        let s = Arc::new(store());
+        for i in 0..200 {
+            let mut body = input();
+            body.state = ThreadState::Completed;
+            s.upsert(&format!("t{i:03}"), body, i);
+        }
+        let other = s.clone();
+        let start = Arc::new(Barrier::new(2));
+        *s.wait_started.lock().unwrap() = Some(start.clone());
+        let waiter =
+            std::thread::spawn(move || other.wait_answer("t000", None, Duration::from_secs(2)));
+        start.wait();
+        let elapsed = Instant::now();
+        s.upsert("fresh", input(), 200);
+        assert_eq!(waiter.join().unwrap(), WaitOutcome::Unknown);
+        assert!(
+            elapsed.elapsed() < Duration::from_secs(2),
+            "eviction wakes before the 2 s deadline"
+        );
+    }
+
+    #[test]
     fn multiple_answers_keep_ids_and_join_labels_in_ask_order() {
         let s = store();
         let mut value = body();
