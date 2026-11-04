@@ -117,6 +117,12 @@ it("toggles multiple picks with checks, a count and danger feedback", () => {
   expect(area.el.querySelector(`#${group.getAttribute("aria-describedby")}`)?.textContent).toBe(
     "Choose one or more",
   );
+  expect([...area.el.children].map((child) => child.className)).toEqual([
+    "yui-threads-answer__head",
+    "yui-threads-answer__multiple",
+    "yui-threads-answer__choices",
+    "yui-threads-answer__composer",
+  ]);
   expect([send.textContent, send.disabled]).toEqual(["Send", true]);
   area.pick(1);
   expect([send.textContent, send.classList.contains("is-danger")]).toEqual(["Deny", true]);
