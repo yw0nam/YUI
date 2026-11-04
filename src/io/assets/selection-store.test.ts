@@ -444,6 +444,17 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("a");
   });
 
+  it("keeps an override another window stored while the list was empty, for the list that arrives", () => {
+    const storage = makeMemStorage();
+    const store = makeStore({ available: [], defaultValue: "", storage });
+
+    storage._data = "b";
+    store.reloadFromStorage();
+    store.setManifest({ available: SAMPLE, defaultValue: "" });
+
+    expect(store.getActiveId()).toBe("b");
+  });
+
   it("stops notifications after unsubscribe or dispose", () => {
     const store = makeStore();
     const unsubscribed = vi.fn();
