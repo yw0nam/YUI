@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => {
     calls.push(u);
     if (!state.serverUp) throw new TypeError(`error sending request for url (${u})`);
     if (u.endsWith("/v1/audio/voices")) {
+      // A list request answers on a later task, as a real server does.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       return new Response(JSON.stringify({ data: [{ id: "natsume" }] }), { status: 200 });
     }
     return {
@@ -72,9 +74,10 @@ const surfaces = {
  * Wires the pet's speaker store and voice pipeline, then runs the boot voice list refresh. With
  * filler on, the failure-line prewarm's voice list request settles first.
  */
-async function boot(opts: { filler?: boolean } = {}) {
+async function boot(opts: { filler?: boolean; maxInflight?: number } = {}) {
+  const eps = { ...EPS, tts_max_inflight: opts.maxInflight };
   const speaker = wireSpeakerSelection({
-    getEndpoints: () => EPS,
+    getEndpoints: () => eps,
     log,
     broadcastSettings: () => {},
   });
@@ -88,7 +91,7 @@ async function boot(opts: { filler?: boolean } = {}) {
     },
     surfaces,
     turnLog: createTurnLog(),
-    getEndpoints: () => EPS,
+    getEndpoints: () => eps,
     getFillerConfig: () => ({
       gap_ms: 1_000,
       gap_jitter_ms: 0,
@@ -161,6 +164,18 @@ describe("wireVoicePipeline voice list retry", () => {
 
     await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
     expect(count("/v1/audio/voices")).toBe(1);
+  });
+
+  it("speaks every sentence of a reply when Reconnect runs during its voice list retry", async () => {
+    const voice = await boot({ maxInflight: 3 });
+    mocks.state.serverUp = true;
+
+    voice.turnOutput.speak("こんにちは。元気？またね。", IDENTITY);
+    const reconnected = voice.reconnectTts();
+
+    await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
+    await expect(reconnected).resolves.toBe(true);
+    expect([count("/v1/audio/voices"), count("/v1/audio/speech")]).toEqual([1, 3]);
   });
 
   it("reports a synth with no answer as unreachable, not as a voice failure", async () => {
