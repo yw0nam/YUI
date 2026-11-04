@@ -99,6 +99,13 @@ describe("prepareVrm", () => {
       keys: ["Surprised"],
       driver: "Surprised",
     },
+    {
+      caseName: "keeps a VRM 0.x custom Constructor as a custom expression",
+      metaVersion: "0",
+      custom: "Constructor",
+      keys: ["Constructor"],
+      driver: "Constructor",
+    },
   ])("$caseName", ({ metaVersion, custom, preset, keys, driver }) => {
     const { gltf, mesh, presetExpression } = buildVrm({ metaVersion, custom, preset });
     prepareVrm(gltf);
