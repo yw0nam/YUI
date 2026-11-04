@@ -5,8 +5,11 @@
  * TriggerMeta kind so no ClientContext field is silently dropped.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ClientContext } from "../../contract";
+import { onDemandLines } from "../../io/chat/tools/bridge/on-demand-lines";
+import { createTerminalTools } from "../../io/chat/tools/terminal/terminal-tools";
+import { createThreadsTools } from "../../io/chat/tools/threads/threads-tools";
 import { SIGNAL_ENVELOPE } from "../test-helpers";
 import { renderClientContext } from "./client-context-text";
 
@@ -365,19 +368,51 @@ describe("renderClientContext — on-demand tools and plugin skills lines", () =
     cc.plugin_skills = [{ name: "hello", description: "Says hello." }];
     const lines = renderClientContext(cc, NOW).split("\n");
 
-    const at = lines.findIndex((line) => line.startsWith("on-demand tools:"));
+    const at = lines.findIndex((line) =>
+      line.startsWith("on-demand tools (call through yui_tool_call):"),
+    );
     expect(lines[at]).toBe(
-      "on-demand tools: terminal_list — List terminals. · echo_args — Echo argv. · slow",
+      "on-demand tools (call through yui_tool_call): terminal_list — List terminals. · echo_args — Echo argv. · slow",
     );
     expect(lines[at + 1]).toBe("plugin skills: hello — Says hello.");
     expect(lines[at - 1]).toBe("trigger: user message");
     expect(lines[at + 2]).toBe("guide:");
   });
 
+  it("renders every built-in On-demand summary as its complete first sentence", () => {
+    const tools = [
+      ...createThreadsTools({ threads: () => [] }),
+      ...createTerminalTools({ presetId: () => "p1", invoke: vi.fn() }),
+    ];
+    const lines = onDemandLines(
+      {
+        snapshot: () => null,
+        call: vi.fn(),
+        cancel: vi.fn(),
+        skill: vi.fn(),
+        subscribe: vi.fn(),
+      },
+      tools,
+    )();
+    const cc = baseContext({ kind: "user" });
+    cc.on_demand_tools = lines.tools;
+    const line =
+      renderClientContext(cc, NOW)
+        .split("\n")
+        .find((line) => line.startsWith("on-demand tools")) ?? "";
+
+    expect(line.slice(line.indexOf(": ") + 2).split(" · ")).toEqual(
+      tools.map(
+        (tool) =>
+          `${tool.name} — ${tool.definition.function.description.match(/^.*?[.!?](?=\s|$)/)?.[0]}`,
+      ),
+    );
+  });
+
   it("renders no line for an absent list", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
 
-    expect(text).not.toContain("on-demand tools:");
+    expect(text).not.toContain("on-demand tools (call through yui_tool_call):");
     expect(text).not.toContain("plugin skills:");
   });
 });
