@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
@@ -83,11 +85,21 @@ describe("wireSettingsWindow", () => {
   it("the STT line's check sends the stored STT key", async () => {
     const requests: { url: string; authorization: string | null }[] = [];
     vi.stubGlobal("fetch", ((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
       requests.push({
-        url: String(input instanceof Request ? input.url : input),
+        url,
         authorization: new Headers(init?.headers).get("authorization"),
       });
-      return Promise.resolve(new Response("", { status: 404 }));
+      // The bundled configs load for real, so the window's effective endpoints exist.
+      let body = "";
+      if (url.startsWith("/configs/")) {
+        try {
+          body = readFileSync(join(process.cwd(), url), "utf8");
+        } catch {
+          body = "";
+        }
+      }
+      return Promise.resolve(new Response(body, { status: body ? 200 : 404 }));
     }) as typeof fetch);
     // The real window wiring, so the secret provider the check reads is the one under review.
     wireWindowSettings.mockImplementation(async (deps) => {
