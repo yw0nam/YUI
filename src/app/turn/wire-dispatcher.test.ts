@@ -93,7 +93,7 @@ describe("wireDispatcher", () => {
       oneVoiceSettings: { get: () => ({ enabled: false }) } as never,
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
-      getFrontmost: () => undefined,
+      contextProviders: { getFrontmost: () => undefined },
       voice: { speakFailure: vi.fn() } as never,
       turnLog: {} as never,
       previousTurn: previousTurn as never,

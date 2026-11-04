@@ -130,14 +130,16 @@ function callerWith(
       throw new Error("push mode must not open a chat stream");
     },
     turnOutput,
-    ...(getScreenshot ? { getScreenshot } : {}),
-    ...(pushImageRoom ? { pushImageRoom } : {}),
-    ...(getToolSwitches ? { getToolSwitches } : {}),
-    getPrevious: () => {
-      order.push("context");
-      onContextBuilt?.();
-      return undefined;
+    contextProviders: {
+      ...(getScreenshot ? { getScreenshot } : {}),
+      ...(getToolSwitches ? { getToolSwitches } : {}),
+      getPrevious: () => {
+        order.push("context");
+        onContextBuilt?.();
+        return undefined;
+      },
     },
+    ...(pushImageRoom ? { pushImageRoom } : {}),
     pushTurn: (frame) => {
       sent.push(frame);
       onTurnSent?.();

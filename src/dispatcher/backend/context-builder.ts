@@ -17,9 +17,11 @@ export interface OnDemandLines {
   skills: Array<{ name: string; description: string }>;
 }
 
-interface ContextProviders {
+export interface ContextProviders {
+  /** The screenshot block; undefined when the switch is off or the capture failed. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   onScreenshotError?: (error: unknown) => void;
+  /** The held posture; absent only for a caller with no dispatcher wired. */
   getBodyState?: () => BodyState | undefined;
   getFrontmost?: () => FrontmostState | undefined;
   getPrevious?: () => PreviousTurn | undefined;
