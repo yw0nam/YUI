@@ -114,7 +114,8 @@ export function createWorkflowsSection(deps: WorkflowsSectionDeps): WorkflowsSec
       listEl.replaceChildren(emptyEl);
       return;
     }
-    reconcileRows(listEl, entries, { key: (entry) => entry.id, create: buildRow });
+    // A row's content never changes, and a rebuild would reset its flash.
+    reconcileRows(listEl, entries, { key: (entry) => entry.id, create: buildRow, update() {} });
   }
 
   function validateForm(): void {

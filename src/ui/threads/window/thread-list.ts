@@ -4,7 +4,7 @@ import "./thread-list.css";
 import type { Thread } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
-import { keepFocus, reconcileRows, syncRow } from "../../keyed-rows/keyed-rows";
+import { keepFocus, reconcileRows } from "../../keyed-rows/keyed-rows";
 import { threadSource } from "../thread-source";
 import { timeEl } from "./relative-time";
 import { sourceLine, stateWord } from "./thread-meta";
@@ -169,7 +169,6 @@ export function createThreadList(deps: {
         reconcileRows(rowsEl, view.rows, {
           key: (th) => th.id,
           create: (th) => row(th, th.id === selected, now),
-          update: (el, th) => syncRow(el, row(th, th.id === selected, now)),
         });
       });
     },

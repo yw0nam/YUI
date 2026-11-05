@@ -4,8 +4,9 @@ const lists = new WeakMap<HTMLElement, Map<string, HTMLElement>>();
 
 /**
  * Makes `container` hold one row per item, in order. A key still present keeps its node and gets
- * `update`; a new key gets `create`; any other child leaves first, so a survivor moves only when its
- * place changed. A key must change when the row's element type must. Never touches focus.
+ * `update` (default: `syncRow` from a fresh `create`); a new key gets `create`; any other child
+ * leaves first, so a survivor moves only when its place changed. A key must change when the row's
+ * element type must. Never touches focus.
  */
 export function reconcileRows<T>(
   container: HTMLElement,
@@ -18,11 +19,12 @@ export function reconcileRows<T>(
 ): void {
   const before = lists.get(container);
   const rows = new Map<string, HTMLElement>();
+  const update = opts.update ?? ((row, item) => syncRow(row, opts.create(item)));
   for (const item of items) {
     const key = opts.key(item);
     const old = before?.get(key);
     const kept = old?.parentElement === container ? old : undefined;
-    if (kept) opts.update?.(kept, item);
+    if (kept) update(kept, item);
     rows.set(key, kept ?? opts.create(item));
   }
   const keep = new Set(rows.values());

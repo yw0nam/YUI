@@ -8,7 +8,7 @@ import "./thread-rail.css";
 import type { Thread } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
-import { keepFocus, reconcileRows, syncRow } from "../../keyed-rows/keyed-rows";
+import { keepFocus, reconcileRows } from "../../keyed-rows/keyed-rows";
 import { glyph, THREADS_GLYPH } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { renderKinds, type ThreadFilter, type ThreadListView } from "./thread-list";
@@ -122,7 +122,6 @@ export function createThreadRail(deps: {
         reconcileRows(listEl, view.rows, {
           key: (th) => th.id,
           create: (th) => item(th, th.id === selected),
-          update: (el, th) => syncRow(el, item(th, th.id === selected)),
         });
       });
     },

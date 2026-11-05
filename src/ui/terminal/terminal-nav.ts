@@ -1,7 +1,7 @@
 /** The terminal list pane and its rail alike: New terminal on top, then one button per terminal, the selected one current and focusable. */
 
 import type { AccessRequest, Terminal } from "../../contract";
-import { keepFocus, reconcileRows, syncRow } from "../keyed-rows/keyed-rows";
+import { keepFocus, reconcileRows } from "../keyed-rows/keyed-rows";
 
 export interface TerminalNav {
   el: HTMLElement;
@@ -64,7 +64,6 @@ export function createTerminalNav(deps: {
         reconcileRows(itemsEl, terminals, {
           key: (term) => term.id,
           create: (term) => row(term, requests, selected),
-          update: (el, term) => syncRow(el, row(term, requests, selected)),
         });
       });
     },
