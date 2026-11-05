@@ -12,6 +12,7 @@ import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
+import { createCoalescingBridge } from "./coalesce-pushes";
 import type { CommandReplyState, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
@@ -71,7 +72,8 @@ export interface RemoteSurfaces {
   dispose(): void;
 }
 
-export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
+export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
+  const bridge = createCoalescingBridge(rawBridge);
   const log = createLogger("message-remote");
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
@@ -241,6 +243,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       openSettingsHandlers.push(cb);
     },
     dispose() {
+      bridge.flush();
       unlisten();
       submitHandlers.length = 0;
       commandHandlers.length = 0;

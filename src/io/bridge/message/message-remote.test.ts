@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageBridge, MessageControlOp } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
 
@@ -74,4 +74,56 @@ it("replays open and cleared Asks on ready and forwards an Answer", () => {
   control({ op: "ask-answer", answer: { ask_id: "a", choice: "once" } });
   expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
   remote.dispose();
+});
+
+describe("the streamed deltas", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function setup() {
+    let control!: (op: MessageControlOp) => void;
+    const bridge = {
+      emitSurface: vi.fn(),
+      onControl: (cb: (op: MessageControlOp) => void) => {
+        control = cb;
+        return () => {};
+      },
+    } as unknown as MessageBridge;
+    const remote = createRemoteSurfaces(bridge);
+    return { bridge, remote, ready: () => control({ op: "ready" }) };
+  }
+
+  it("sends the held delta on dispose and leaves no timer", () => {
+    const { bridge, remote } = setup();
+    remote.pushSpeech("a");
+    expect(bridge.emitSurface).not.toHaveBeenCalled();
+
+    remote.dispose();
+
+    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([[{ op: "push", delta: "a" }]]);
+    vi.advanceTimersByTime(80);
+    expect(bridge.emitSurface).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the held delta before the replay the ready brings", () => {
+    const { bridge, remote, ready } = setup();
+    remote.setName("Yui");
+    remote.setBusy(true);
+    vi.mocked(bridge.emitSurface).mockClear();
+
+    remote.pushSpeech("a");
+    ready();
+
+    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
+      [{ op: "push", delta: "a" }],
+      [{ op: "name", name: "Yui" }],
+      [{ op: "busy", busy: true }],
+    ]);
+    remote.dispose();
+  });
 });
