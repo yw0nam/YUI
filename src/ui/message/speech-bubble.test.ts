@@ -761,6 +761,20 @@ describe("pushSpeech — throttled markdown rendering", () => {
     expect(mount.querySelector(".yui-bubble__sr")?.textContent).toBe(expected);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
   });
+
+  it("keeps a finished paragraph's node while the next one types", () => {
+    s.beginSpeech();
+    s.pushSpeech("First paragraph.\n\nSecond");
+    vi.advanceTimersByTime(100);
+    const first = mount.querySelector(".yui-bubble__text p");
+    s.pushSpeech(" paragraph grows.");
+    vi.advanceTimersByTime(100);
+
+    expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(
+      "First paragraph.\nSecond paragraph grows.",
+    );
+    expect(mount.querySelector(".yui-bubble__text p")).toBe(first);
+  });
 });
 
 describe("close button — dismiss the bubble by hand", () => {
