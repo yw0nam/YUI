@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** terminal-nav.test.ts — a snapshot keeps each terminal's row and the nodes inside it, and does not move focus off an unselected row. */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Terminal } from "../../contract";
 import { createTerminalNav } from "./terminal-nav";
 
@@ -38,7 +38,10 @@ function setup() {
   return nav;
 }
 
-afterEach(() => document.body.replaceChildren());
+afterEach(() => {
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+});
 
 describe("createTerminalNav", () => {
   it("keeps the row, its inner nodes and focus across a snapshot, with the text updated", () => {
@@ -55,5 +58,15 @@ describe("createTerminalNav", () => {
     expect(status.textContent).toBe("exited");
     expect(row.getAttribute("aria-current")).toBe("false");
     expect(document.activeElement).toBe(row);
+  });
+
+  it("focusSelected focuses the selected terminal without scrolling", () => {
+    const nav = setup();
+    nav.render([terminal("t1"), terminal("t2")], [], "t2");
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+
+    nav.focusSelected();
+
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 });
