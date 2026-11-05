@@ -7,6 +7,7 @@ import {
   type WorkflowEntry,
 } from "../../../../settings/backend/workflow-settings";
 import { t } from "../../../i18n";
+import { reconcileRows } from "../../../keyed-rows/keyed-rows";
 import { CROSS_SVG } from "../../constants";
 
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor"/></svg>`;
@@ -32,7 +33,6 @@ export function createWorkflowsSection(deps: WorkflowsSectionDeps): WorkflowsSec
   const urlRow = root.querySelector<HTMLElement>('.yui-input-row[data-wf-field="url"]')!;
   const addBtn = root.querySelector<HTMLButtonElement>(".yui-wf-add-btn")!;
   const flashTimeouts = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
-  const rowCleanups = new Map<HTMLElement, () => void>();
   let disposed = false;
 
   function clearFlash(rowEl: HTMLElement): void {
@@ -88,39 +88,33 @@ export function createWorkflowsSection(deps: WorkflowsSectionDeps): WorkflowsSec
     fireBtn.className = "yui-wf__fire";
     fireBtn.setAttribute("aria-label", t("workflows.fire_aria", { name: entry.label }));
     fireBtn.innerHTML = PLAY_SVG;
-    const handleFire = (): void => fireWorkflow(entry, rowEl, fireBtn);
-    fireBtn.addEventListener("click", handleFire);
+    fireBtn.addEventListener("click", () => fireWorkflow(entry, rowEl, fireBtn));
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "yui-wf__delete";
     deleteBtn.setAttribute("aria-label", t("workflows.delete_aria", { name: entry.label }));
     deleteBtn.innerHTML = CROSS_SVG;
-    const handleDelete = (): void => store.removeWorkflow(entry.id);
-    deleteBtn.addEventListener("click", handleDelete);
+    deleteBtn.addEventListener("click", () => store.removeWorkflow(entry.id));
 
     rowEl.append(nameEl, fireBtn, deleteBtn);
-    rowCleanups.set(rowEl, () => {
-      clearFlash(rowEl);
-      fireBtn.removeEventListener("click", handleFire);
-      deleteBtn.removeEventListener("click", handleDelete);
-    });
     return rowEl;
   }
 
   function render(): void {
-    for (const cleanup of rowCleanups.values()) cleanup();
-    rowCleanups.clear();
-    listEl.innerHTML = "";
     const entries = store.get().entries;
+    const ids = new Set(entries.map((entry) => entry.id));
+    for (const rowEl of listEl.querySelectorAll<HTMLElement>(".yui-wf")) {
+      if (!ids.has(rowEl.dataset.wfId!)) clearFlash(rowEl);
+    }
     if (entries.length === 0) {
       const emptyEl = document.createElement("p");
       emptyEl.className = "yui-wf-empty";
       emptyEl.textContent = t("workflows.empty");
-      listEl.appendChild(emptyEl);
+      listEl.replaceChildren(emptyEl);
       return;
     }
-    for (const entry of entries) listEl.appendChild(buildRow(entry));
+    reconcileRows(listEl, entries, { key: (entry) => entry.id, create: buildRow });
   }
 
   function validateForm(): void {
@@ -151,8 +145,6 @@ export function createWorkflowsSection(deps: WorkflowsSectionDeps): WorkflowsSec
       labelInput.removeEventListener("input", validateForm);
       urlInput.removeEventListener("input", validateForm);
       addBtn.removeEventListener("click", handleAdd);
-      for (const cleanup of rowCleanups.values()) cleanup();
-      rowCleanups.clear();
       for (const timeout of flashTimeouts.values()) clearTimeout(timeout);
       flashTimeouts.clear();
     },

@@ -1,6 +1,7 @@
 /** The terminal list pane and its rail alike: New terminal on top, then one button per terminal, the selected one current and focusable. */
 
 import type { AccessRequest, Terminal } from "../../contract";
+import { keepFocus, reconcileRows, syncRow } from "../keyed-rows/keyed-rows";
 
 export interface TerminalNav {
   el: HTMLElement;
@@ -35,7 +36,16 @@ export function createTerminalNav(deps: {
   });
 
   function focusSelected(): void {
-    (itemsEl.querySelector<HTMLElement>('[aria-current="true"]') ?? newEl).focus();
+    (itemsEl.querySelector<HTMLElement>('[aria-current="true"]') ?? newEl).focus({
+      preventScroll: true,
+    });
+  }
+
+  function row(term: Terminal, requests: AccessRequest[], selected: string | null): HTMLElement {
+    const item = deps.item(term, requests);
+    item.dataset.id = term.id;
+    item.setAttribute("aria-current", String(term.id === selected));
+    return item;
   }
 
   return {
@@ -43,23 +53,20 @@ export function createTerminalNav(deps: {
     render(terminals, requests, selected) {
       el.setAttribute("aria-label", deps.label());
       deps.labelNew(newEl);
-      const hadFocus = itemsEl.contains(document.activeElement);
-      if (terminals.length === 0) {
-        const empty = document.createElement("p");
-        empty.className = deps.empty.className;
-        empty.textContent = deps.empty.text();
-        itemsEl.replaceChildren(empty);
-      } else {
-        itemsEl.replaceChildren(
-          ...terminals.map((term) => {
-            const item = deps.item(term, requests);
-            item.dataset.id = term.id;
-            item.setAttribute("aria-current", String(term.id === selected));
-            return item;
-          }),
-        );
-      }
-      if (hadFocus) focusSelected();
+      keepFocus(itemsEl, () => {
+        if (terminals.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = deps.empty.className;
+          empty.textContent = deps.empty.text();
+          itemsEl.replaceChildren(empty);
+          return;
+        }
+        reconcileRows(itemsEl, terminals, {
+          key: (term) => term.id,
+          create: (term) => row(term, requests, selected),
+          update: (el, term) => syncRow(el, row(term, requests, selected)),
+        });
+      });
     },
     focusSelected,
   };
