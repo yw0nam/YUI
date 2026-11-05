@@ -94,9 +94,10 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
     log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 1 });
     applyPinTargets(env, peekDrop, sitDropEdge);
     applyPeekState(env);
-    // The sitter started window_sit; a repeat request would crossfade into another variant.
-    if (isSeatEntry(env.event_name) && renderer.getCurrentMotion()?.id === PERCH_MOTION_ID) return;
     try {
+      // The sitter started window_sit; a repeat request would crossfade into another variant.
+      if (isSeatEntry(env.event_name) && renderer.getCurrentMotion()?.id === PERCH_MOTION_ID)
+        return;
       renderer.applyDirective(directive);
       // The pat emotion holds for the whole press — an earlier tap's revert would clip it,
       // and only the release eases back, and only what the pat itself applied.
@@ -170,8 +171,7 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
           ? deps.peek.enter()
           : env.event_name === "user.peek_exit" ||
               env.event_name === "user.drag_start" ||
-              isSitDrop(env.event_name) ||
-              env.event_name === "user.window_sit_enter"
+              isSeatEntry(env.event_name)
             ? deps.peek.exit()
             : null;
       void operation?.catch((err) => log.error("tier1.peek_state_error", { error: String(err) }));

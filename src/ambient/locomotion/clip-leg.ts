@@ -19,8 +19,7 @@ export interface LegWindow {
 
 /** One leg: which clip paces it, and how far the window travels. */
 export interface ClipLeg {
-  /** null paces the clip without moving anything. */
-  win: LegWindow | null;
+  win: LegWindow;
   /** Only a linear leg moves x — the hang, carrying her off the corner onto the face. */
   fromX: number;
   toX: number;
@@ -91,7 +90,6 @@ export function createLegRunner(deps: LegRunnerDeps): LegRunner {
   }
 
   function moveTo(l: RunningLeg): void {
-    if (!l.win) return;
     void l.win
       .setPositionPhysical(Math.round(l.x), Math.round(l.y))
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
