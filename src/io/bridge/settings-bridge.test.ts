@@ -12,10 +12,10 @@
  * is integration and intentionally not unit-tested here.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BridgeTransport } from "./core/bridge-core";
 import type { MessageSurfaceOp } from "./message/surface-ops";
-import { createSettingsBridge } from "./settings-bridge";
+import { createSettingsBridge, type SettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
 function createFakeTransport(): BridgeTransport & {
@@ -41,43 +41,191 @@ function createFakeTransport(): BridgeTransport & {
   };
 }
 
+type ChannelKey = keyof SettingsBridge extends infer M
+  ? M extends `on${infer N}`
+    ? N
+    : never
+  : never;
+
+interface Row {
+  name: string;
+  args: unknown[];
+  /** The payload the envelope carries. */
+  wire: unknown;
+  /** The arguments the receiving callback gets. */
+  delivered: unknown[];
+  scope: "shared" | "preset";
+  settled?: true;
+}
+
+const none = { args: [], wire: undefined, delivered: [] };
+const same = (value: unknown) => ({ args: [value], wire: value, delivered: [value] });
+
+const rows: Record<ChannelKey, Row> = {
+  SpeechStream: {
+    name: "yui://speech-stream",
+    scope: "shared",
+    ...same({ preset: "a", op: { op: "push", delta: "hi" } }),
+  },
+  SpeechStreamAsk: { name: "yui://speech-stream-ask", scope: "shared", ...none },
+  StopTurns: { name: "yui://stop-turns", scope: "shared", ...none },
+  SpeechOnset: { name: "yui://speech-onset", scope: "shared", ...none },
+  SpeechStreamControl: {
+    name: "yui://speech-stream-control",
+    scope: "shared",
+    ...same({ preset: "a", op: { op: "input-error-action" } }),
+  },
+  SettingsPage: {
+    name: "yui://settings-page",
+    scope: "shared",
+    ...same({ preset: "a", page: "conn" }),
+  },
+  OpenDevtools: { name: "yui://open-devtools", scope: "shared", ...none },
+  QuickCardOpen: {
+    name: "yui://quick-card-open",
+    scope: "preset",
+    ...same({ left: 1, right: 200, y: 30 }),
+  },
+  QuickCardReady: { name: "yui://quick-card-ready", scope: "preset", ...none },
+  ThreadsOpen: { name: "yui://threads-open", scope: "shared", ...same({ tab: "terminal" }) },
+  ThreadsReady: { name: "yui://threads-ready", scope: "shared", ...none },
+  ThreadsClosed: { name: "yui://threads-closed", scope: "shared", ...none },
+  ThreadsOpenRequest: {
+    name: "yui://threads-open-request",
+    scope: "shared",
+    args: ["terminal"],
+    wire: { tab: "terminal" },
+    delivered: ["terminal"],
+  },
+  SettingsChanged: {
+    name: "yui://settings-changed",
+    scope: "shared",
+    ...none,
+    delivered: ["pet"],
+  },
+  MouthPreview: { name: "yui://mouth-preview", scope: "preset", ...same(0.3) },
+  VoiceSet: { name: "yui://voice-set", scope: "shared", ...same(true) },
+  VoiceState: { name: "yui://voice-state", scope: "shared", ...same({ state: "listening" }) },
+  PushState: { name: "yui://push-state", scope: "preset", ...same({ kind: "disconnected" }) },
+  PushStateAsk: { name: "yui://push-state-ask", scope: "preset", ...none },
+  PushReset: { name: "yui://push-reset", scope: "preset", ...none },
+  SessionReset: { name: "yui://session-reset", scope: "preset", ...same("a") },
+  FirstConversationConnected: {
+    name: "yui://first-conversation-connected",
+    scope: "preset",
+    ...none,
+  },
+  FirstConversationReplay: { name: "yui://first-conversation-replay", scope: "preset", ...none },
+  PushReconnect: { name: "yui://push-reconnect", scope: "preset", ...none },
+  Delegations: {
+    name: "yui://delegations",
+    scope: "preset",
+    ...same([{ id: "d1", title: "build", started_at: 1, state: "running" }]),
+  },
+  DelegationsAsk: { name: "yui://delegations-ask", scope: "preset", ...none },
+  Reasoning: { name: "yui://reasoning", scope: "preset", ...same({ text: "x", live: true }) },
+  ReasoningAsk: { name: "yui://reasoning-ask", scope: "preset", ...none },
+  HelpGuide: {
+    name: "yui://help-guide",
+    scope: "preset",
+    ...same({ guide: "controls", text: "help" }),
+  },
+  PresetChanged: {
+    name: "yui://preset-changed",
+    scope: "shared",
+    settled: true,
+    ...same({ active: "b" }),
+  },
+  PetWindowsChanged: {
+    name: "yui://pet-windows-changed",
+    scope: "shared",
+    settled: true,
+    ...none,
+  },
+  CharacterAddressed: {
+    name: "yui://character-addressed",
+    scope: "shared",
+    ...same({ from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }),
+  },
+  UserTurnRouted: {
+    name: "yui://user-turn-routed",
+    scope: "shared",
+    ...same({ sendId: "s1", to: "p2", text: "x" }),
+  },
+  VoiceSegment: { name: "yui://voice-segment", scope: "shared", ...same({ text: "hello" }) },
+  UserTurnDone: {
+    name: "yui://user-turn-done",
+    scope: "shared",
+    ...same({ sendId: "s1", preset: "p2" }),
+  },
+};
+
+type Method = (...args: unknown[]) => unknown;
+const call = (bridge: SettingsBridge, method: string, ...args: unknown[]): unknown =>
+  (bridge as unknown as Record<string, Method>)[method]!(...args);
+
+describe("every channel", () => {
+  afterEach(() => history.replaceState(null, "", "/"));
+
+  function windows() {
+    const t = createFakeTransport();
+    const sent = vi.spyOn(t, "emit");
+    const open = (windowKind: "pet" | "settings", preset: string) => {
+      history.replaceState(null, "", `/?preset=${preset}`);
+      return createSettingsBridge(t, { windowKind });
+    };
+    return {
+      t,
+      sent,
+      sender: open("pet", "a"),
+      samePreset: open("settings", "a"),
+      otherPreset: open("settings", "b"),
+    };
+  }
+
+  it.each(Object.entries(rows))("round-trips %s through two windows", async (key, row) => {
+    const { t, sent, sender, samePreset, otherPreset } = windows();
+    const [self, a, b] = [sender, samePreset, otherPreset].map((bridge) => {
+      const cb = vi.fn();
+      call(bridge, `on${key}`, cb);
+      return cb;
+    });
+
+    const returned = call(sender, `emit${key}`, ...row.args);
+
+    if (row.settled) await expect(returned).resolves.toBeUndefined();
+    else expect(returned).toBeUndefined();
+    expect(
+      sent.mock.calls.map(([name, env]) => [name, (env as { payload: unknown }).payload]),
+    ).toStrictEqual([[row.name, row.wire]]);
+    expect(self).not.toHaveBeenCalled();
+    expect(a!.mock.calls).toStrictEqual([row.delivered]);
+    expect(b!.mock.calls).toStrictEqual(row.scope === "shared" ? [row.delivered] : []);
+
+    // An envelope without a preset reaches only the shared channels.
+    t.emit(row.name, { __src: "other", __kind: "pet", payload: row.wire });
+    expect(a!.mock.calls).toStrictEqual(
+      row.scope === "shared" ? [row.delivered, row.delivered] : [row.delivered],
+    );
+  });
+
+  it.each([
+    ["MouthPreview", undefined, [[null]]],
+    ["VoiceSet", undefined, [[false]]],
+    ["Delegations", "garbage", [[[]]]],
+    ["Reasoning", null, []],
+  ] as const)("normalizes a raw %s payload %j", (key, payload, calls) => {
+    const { t, samePreset } = windows();
+    const cb = vi.fn();
+    call(samePreset, `on${key}`, cb);
+
+    t.emit(rows[key].name, { __src: "other", __kind: "pet", __preset: "a", payload });
+
+    expect(cb.mock.calls).toStrictEqual(calls);
+  });
+});
+
 describe("createSettingsBridge", () => {
-  it("delivers mouth-preview from A to B with the payload value", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const cb = vi.fn();
-    b.onMouthPreview(cb);
-
-    a.emitMouthPreview(0.3);
-    expect(cb).toHaveBeenCalledWith(0.3);
-
-    a.emitMouthPreview(null);
-    expect(cb).toHaveBeenCalledWith(null);
-  });
-
-  it("delivers settings-changed from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const cb = vi.fn();
-    b.onSettingsChanged(cb);
-
-    a.emitSettingsChanged();
-    expect(cb).toHaveBeenCalledTimes(1);
-  });
-
-  it("delivers settings-changed with the sending window kind", () => {
-    const t = createFakeTransport();
-    const devtools = createSettingsBridge(t, { windowKind: "devtools" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const cb = vi.fn();
-    b.onSettingsChanged(cb);
-
-    devtools.emitSettingsChanged();
-    expect(cb).toHaveBeenCalledWith("devtools");
-  });
-
   it("ignores a message that carries no envelope", () => {
     const t = createFakeTransport();
     const b = createSettingsBridge(t, { windowKind: "settings" });
@@ -91,30 +239,6 @@ describe("createSettingsBridge", () => {
 
     expect(changed).not.toHaveBeenCalled();
     expect(mouth).not.toHaveBeenCalled();
-  });
-
-  it("delivers voice-set true/false from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const cb = vi.fn();
-    b.onVoiceSet(cb);
-
-    a.emitVoiceSet(true);
-    expect(cb).toHaveBeenLastCalledWith(true);
-    a.emitVoiceSet(false);
-    expect(cb).toHaveBeenLastCalledWith(false);
-  });
-
-  it("delivers voice-state snapshot from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const cb = vi.fn();
-    b.onVoiceState(cb);
-
-    a.emitVoiceState({ state: "listening" });
-    expect(cb).toHaveBeenCalledWith({ state: "listening" });
   });
 
   it("per-listener disposer stops delivery", () => {
@@ -188,18 +312,6 @@ describe("createSettingsBridge", () => {
     expect(() => bridge.emitSettingsChanged()).not.toThrow();
   });
 
-  it("delivers a reasoning state from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "message" });
-    const cb = vi.fn();
-    b.onReasoning(cb);
-
-    a.emitReasoning({ text: "checking the logs", live: true });
-
-    expect(cb).toHaveBeenCalledWith({ text: "checking the logs", live: true });
-  });
-
   it("ignores a reasoning payload whose text is not a string", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "pet" });
@@ -222,18 +334,6 @@ describe("createSettingsBridge", () => {
     a.emitReasoning({ text: "x", live: "yes" } as never);
 
     expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("delivers a reasoning ask from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "message" });
-    const ask = vi.fn();
-    a.onReasoningAsk(ask);
-
-    b.emitReasoningAsk();
-
-    expect(ask).toHaveBeenCalledTimes(1);
   });
 
   it("delivers a quick-card open request from A to B, with and without the listening flag", () => {
@@ -316,18 +416,6 @@ describe("createSettingsBridge", () => {
     expect(cb.mock.calls).toEqual([["terminal"], ["threads"]]);
   });
 
-  it("delivers the active preset id from A to B", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "settings" });
-    const b = createSettingsBridge(t, { windowKind: "pet" });
-    const cb = vi.fn();
-    b.onPresetChanged(cb);
-
-    a.emitPresetChanged({ active: "aaaa0001" });
-
-    expect(cb).toHaveBeenCalledWith({ active: "aaaa0001" });
-  });
-
   it.each([
     [null],
     [{}],
@@ -360,63 +448,6 @@ describe("createSettingsBridge", () => {
     b.dispose();
     b.emitReasoningAsk();
     expect(ask).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["onSettingsChanged", undefined, false],
-    ["onPresetChanged", { active: "b" }, false],
-    ["onPetWindowsChanged", undefined, false],
-    ["onMouthPreview", 0.3, true],
-    ["onVoiceSet", true, false],
-    ["onVoiceState", { state: "idle" }, false],
-    ["onPushState", { kind: "disconnected" }, true],
-    ["onPushStateAsk", undefined, true],
-    ["onPushReset", undefined, true],
-    ["onSessionReset", "a", true],
-    ["onFirstConversationConnected", undefined, true],
-    ["onFirstConversationReplay", undefined, true],
-    ["onPushReconnect", undefined, true],
-    ["onDelegations", [], true],
-    ["onDelegationsAsk", undefined, true],
-    ["onReasoning", { text: "x", live: true }, true],
-    ["onReasoningAsk", undefined, true],
-    ["onHelpGuide", { guide: "controls", text: "help" }, true],
-    ["onCharacterAddressed", { from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }, false],
-    ["onUserTurnRouted", { sendId: "s1", to: "p2", text: "x" }, false],
-    ["onSpeechStream", { preset: "p2", op: { op: "push", delta: "hi" } }, false],
-    ["onSpeechStreamAsk", undefined, false],
-    ["onStopTurns", undefined, false],
-    ["onSpeechStreamControl", { preset: "p2", op: { op: "input-error-action" } }, false],
-    ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
-    ["onSettingsPage", { preset: "p2", page: "conn" }, false],
-    ["onOpenDevtools", undefined, false],
-    ["onQuickCardOpen", { left: 1, right: 200, y: 30 }, true],
-    ["onQuickCardReady", undefined, true],
-    ["onThreadsOpenRequest", { tab: "terminal" }, false],
-  ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
-    history.replaceState(null, "", "/?preset=a");
-    const t = createFakeTransport();
-    const bridge = createSettingsBridge(t, { windowKind: "pet" });
-    const cb = vi.fn();
-    bridge[method](cb);
-    const name = [...t.listeners.keys()][0]!;
-    for (const tag of ["b", undefined, "a"])
-      t.emit(name, { __src: "other", __kind: "settings", __preset: tag, payload });
-    expect(cb).toHaveBeenCalledTimes(scoped ? 1 : 3);
-    bridge.dispose();
-    history.replaceState(null, "", "/");
-  });
-
-  it("delivers a first-conversation replay from the settings window to the pet window", () => {
-    const t = createFakeTransport();
-    const settings = createSettingsBridge(t, { windowKind: "settings" });
-    const pet = createSettingsBridge(t, { windowKind: "pet" });
-    const cb = vi.fn();
-    pet.onFirstConversationReplay(cb);
-
-    settings.emitFirstConversationReplay();
-
-    expect(cb).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -502,18 +533,6 @@ describe("createSettingsBridge", () => {
     expect(cb.mock.calls).toEqual([[{ text: "hello there" }]]);
   });
 
-  it("delivers a speech onset from one window to another", () => {
-    const t = createFakeTransport();
-    const main = createSettingsBridge(t, { windowKind: "pet" });
-    const unified = createSettingsBridge(t, { windowKind: "unified" });
-    const cb = vi.fn();
-    unified.onSpeechOnset(cb);
-
-    main.emitSpeechOnset();
-
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
   it.each([
     { sendId: "s1", to: "natsume" },
     { sendId: 7, to: "natsume", text: "x" },
@@ -560,48 +579,6 @@ describe("createSettingsBridge", () => {
     pet.emitSettingsPage(payload as never);
 
     expect(cb).not.toHaveBeenCalled();
-  });
-
-  it("delivers an open-devtools request from the settings window to the pet window", () => {
-    const t = createFakeTransport();
-    const settings = createSettingsBridge(t, { windowKind: "settings" });
-    const pet = createSettingsBridge(t, { windowKind: "pet" });
-    const cb = vi.fn();
-    pet.onOpenDevtools(cb);
-
-    settings.emitOpenDevtools();
-
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("delivers a stop from the unified window to every pet window", () => {
-    const t = createFakeTransport();
-    const unified = createSettingsBridge(t, { windowKind: "unified" });
-    const pets = [
-      createSettingsBridge(t, { windowKind: "pet" }),
-      createSettingsBridge(t, { windowKind: "pet" }),
-    ];
-    const stops = pets.map((pet) => {
-      const cb = vi.fn();
-      pet.onStopTurns(cb);
-      return cb;
-    });
-
-    unified.emitStopTurns();
-
-    for (const cb of stops) expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("delivers a user-turn-done event from a pet window to the unified window", () => {
-    const t = createFakeTransport();
-    const pet = createSettingsBridge(t, { windowKind: "pet" });
-    const unified = createSettingsBridge(t, { windowKind: "unified" });
-    const cb = vi.fn();
-    unified.onUserTurnDone(cb);
-
-    pet.emitUserTurnDone({ sendId: "s1", preset: "natsume" });
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({ sendId: "s1", preset: "natsume" });
   });
 
   it.each([
@@ -707,16 +684,6 @@ describe("speech stream", () => {
       unified.emitSpeechStreamControl(bad as never);
 
     expect(control.mock.calls).toEqual([[{ preset: "yui", op: { op: "input-error-action" } }]]);
-  });
-
-  it("delivers an ask from the unified window to a pet window", () => {
-    const { pet, unified } = pair();
-    const ask = vi.fn();
-    pet.onSpeechStreamAsk(ask);
-
-    unified.emitSpeechStreamAsk();
-
-    expect(ask).toHaveBeenCalledOnce();
   });
 });
 
