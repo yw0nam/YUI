@@ -7,7 +7,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x with hot-swap, the bundled AvatarSample A, and imports you can rename or delete |
-| Emotions and motions | 10 emotions and 24 motions, 8 of which the backend can pick, falling back to neutral ([catalog](motions.md)) |
+| Emotions and motions | 10 emotions and 24 motions. The backend can pick all 10 emotions and 8 of the motions, and each emotion has a fallback ([catalog](motions.md)) |
 | Cursor gaze | Her head and eyes follow the cursor on screen |
 | Lipsync | Mouth movement that follows speech amplitude, with a gain slider |
 | Idle liveliness | Blinking, swaying, breathing, and looking around, quieter under reduced motion |
@@ -23,7 +23,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Perch and peek | She sits on a window's top edge or peeks from behind it, until the window moves or closes |
 | Locomotion | Walking, window-top jumps, and falls that end in a landing, with climbing in development |
 | Touch | Taps on the head, chest, and hips, plus a head pat, one cue a minute |
-| Summon and tray | A global summon shortcut, and a tray menu with Settings and Quit |
+| Summon and tray | A global summon shortcut, and a tray menu with Settings, Terminal, and Quit |
 
 ## Conversation and voice
 
@@ -37,6 +37,8 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Waiting filler | A thinking motion and short lines while a reply is pending, editable per language |
 | History and message window | History on the device with every Signal, and an optional message window |
 | Unified chat window | One window for every open character, with a cast row |
+| Threads | Outside conversations from coding agents, read and answered in the Threads window; the Waiting for you chip marks those that need you |
+| Ask card | A push backend's question above the input, answered by choice or text; a timed one shows the time left |
 
 ## Backend
 
@@ -49,6 +51,9 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Per-turn context | The time, the frontmost app, a screenshot, posture, and the last outcome ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token, taken as a silent turn |
 | Delegated tasks | On push, a chip for background work, with saved history |
+| Backend commands | Slash commands a push backend offers, run from the text input |
+| Quick start | The Connection page's free Google Gemini path; the key is saved only after a model-list check |
+| Reasoning effort | How deeply the model thinks, set on Connection; a push backend decides it itself |
 
 ## Proactive and context
 
@@ -69,8 +74,9 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 
 | Feature | What it does |
 | --- | --- |
-| Plugins | MCP servers and skills under `plugins/`, attached through the backend agent's MCP configuration, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
+| Plugins | MCP servers and skills under `plugins/`; the host runs a server once you allow it, or the backend agent connects to it, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
 | Plugins page | Installs catalog plugins such as `browser`, and runs their servers with your consent ([Plugins](plugins.md)) |
+| Terminal | Shells on this device, opened from the Terminal tab or by her backend; her first read or write on a terminal asks you for Allow, which lasts until you press **Take back** |
 | Integrations | Wiring for one backend agent under `integrations/`, such as Hermes |
 
 ## Platform
@@ -79,6 +85,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | --- | --- |
 | Languages | English, Japanese, and Korean UI, with the OS language first |
 | Appearance | Dawn and Hearth themes, following the OS by default |
+| Text size | Bubbles, chips, Threads, and settings scale; the terminal keeps its own size |
 | Configuration | Settings validated at load, with hot-reload in development |
 | Logs | One file per day, with frontend and Rust lines together ([convention](../reference/logging.md)) |
 | Platforms | macOS Apple Silicon and Windows x64; Intel Mac and Linux are not officially supported |

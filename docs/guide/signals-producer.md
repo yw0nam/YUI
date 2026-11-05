@@ -37,7 +37,7 @@ Drop a signal by not sending it: `delivery` has no drop value.
 
 ## Write a label
 
-`label` is one optional line on where the signal came from, in at most 120 code points: `devbox · tmux yui:2 · YUI (main)`.
+`label` is one optional line on where the signal came from: `devbox · tmux yui:2 · YUI (main)`. A label over 120 code points is cut to 119 and `…`.
 
 ## Choose an event_id
 
@@ -69,6 +69,7 @@ A `200` means the ingress accepted the wire shape and attempted to emit the batc
 | The request body | 64 KiB; a larger body receives HTTP 400. |
 | One signal item | 16 KiB serialized; a larger item receives HTTP 400 and no item of that request is delivered. |
 | Each buffer | Five groups; the oldest drops on overflow. |
+| Connections | 64 open at once. One request per connection, with headers within 5 seconds and the body within 10. |
 
 ## Tips
 

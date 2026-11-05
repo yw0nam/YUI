@@ -116,7 +116,7 @@ The backend cuts `title` and `summary` to their limits, counting Unicode code po
 | Name | Value |
 |---|---|
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
-| `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
+| `tool_call` wait, look | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, address_character | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, yui_tool_call | 121 s on the client, 125 s on the backend |
@@ -139,7 +139,7 @@ A `4401` close schedules no retry: the socket stays closed until the protocol, e
 setting changes, or until the user asks for a reconnect.
 :::
 
-A turn that starts before `ready` ends as a network failure, and so does a turn still running when the socket leaves `ready`.
+A turn that starts before `ready` ends as a network failure. A turn that has not rendered when the socket leaves `ready` also ends as a network failure; after its first `render` it ends with a log line and no failure line.
 
 ### `hello` (client → backend)
 
@@ -240,13 +240,15 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 The frame may carry `images`, an array of `data:image/<subtype>;base64,<data>` strings: the turn's screenshot first when the turn has one, then the images the user attached. The client sends the field only to a backend whose `ready` carried `max_turn_bytes`, and omits it when the turn has no image.
 
-When the images would take the frame over the stated size, the client re-encodes the images that exceed an equal share of the room as smaller JPEGs before it sends.
+When the images would take the frame over the stated size, the client re-encodes the images that exceed an equal share of the room as smaller JPEGs before it sends. A frame still over the stated size is not sent, and its turn ends as a network failure.
 
 #### Turn ids
 
 Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
 
 A backend that takes a new turn's text while it is still running an older one, into that run or queued behind it, sends every frame that follows under the newer turn's `turn_id`, and closes both turns with their own `turn_end`. The client has stopped the older turn by then and drops frames that name it.
+
+The client keeps the newest 200 outstanding turn ids and the newest 200 stopped ones. A `stop` covers only an outstanding id, and frames of a stopped id play once the stopped set drops it.
 
 A `turn_id` names one turn for as long as the backend remembers it: the client reads the wall clock when a run starts and counts up from there, one per turn.
 
@@ -264,16 +266,13 @@ The client shows the turn running from the `turn` frame to its `turn_end`:
 
 #### The frame wait
 
-The client applies the wait in the limits table to each frame of the turn, counted from the `turn`
-frame and again from every frame carrying its `turn_id`.
+The client applies the wait in the limits table to each turn. It starts at the `turn` frame and restarts on every `render`, `speech`, `tool_status` and `error` frame carrying the turn's `turn_id`. A `reasoning` frame or a `tool_call` frame does not restart it.
 
 A wait that passes before the first `render` ends the turn, and the client speaks a failure line. A
 wait that passes after the first `render` ends the turn as well and writes a log line. The socket
 leaving `ready` ends the turn at once, with the same two outcomes.
 
-A `render` that arrives after the turn ended this way still plays like any other frame, as long as
-the turn is still outstanding. A turn whose wait ended stays outstanding (the newest 200 are kept), so
-the next user action that stops speech stops it too, and its late `render` is dropped.
+A `render` that arrives after the wait ended the turn still plays, unless the user stopped the turn. A turn whose wait ended stays outstanding (the newest 200 are kept), so the next user action that stops speech stops it too, and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
@@ -440,7 +439,7 @@ The frame goes out once per turn, after its last `render`, and a turn with no `r
 - A turn whose text the backend takes into a turn already running on the same chat ends when that turn ends.
 - A turn may get its `turn_end` before any of its renders; a `render` naming a turn the client has already closed still plays.
 - A turn that fails gets its `turn_end` after its `error` frame, or after the backend's failure line renders when the client did not list `error` in `accepts`, or before the next turn's frames when the backend has no failure text.
-- A `turn_end` for a turn the client does not hold is ignored.
+- A `turn_end` for a turn the client does not hold still passes its `usage` to the readout.
 
 ### `error` (backend → client)
 
@@ -457,7 +456,7 @@ Sent only to a client whose `hello` lists `error` in `accepts`, when a turn fail
 
 A turn that gets an `error` frame ends as failed on its `turn_end`: the client speaks its failure line and shows `message` where it shows the server text of a failed request, as one line cut at 200 characters with no status in front.
 
-A turn the user typed shows it in the input's error line, and a turn the user spoke shows it in the status pill.
+A turn the user typed shows it in the input's error line while the input is open, and a turn the user spoke shows it in the status pill.
 
 The frame counts as a frame of the turn for the frame wait. An `error` frame for a turn the client did not send shows nothing, and one for a turn the user stopped is dropped.
 
@@ -517,10 +516,8 @@ A call against a tool the client declared in `hello.tools`.
 #### The client's rules
 
 1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
-2. A `tool_call` is answered at once with `error: <reason>` in three cases, with one of `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>` or `error: turn stopped`.
-   - Its `name` is not in the declared set.
-   - Its `arguments` lack a field the action needs or carry a value it does not accept.
-   - Its `turn_id` names a turn the client has stopped.
+2. A `tool_call` is answered at once with `error: unknown tool` when its `name` is not declared, or with `error: turn stopped` when its `turn_id` is a stopped turn.
+   - Its `arguments` are checked after the call queues. The tool then answers `error: missing field <name>`, `error: invalid field <name>`, or its own error text.
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.

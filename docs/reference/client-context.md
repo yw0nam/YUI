@@ -408,7 +408,7 @@ carries an optional `turn_id`; a record without it still loads.
 Only the backend's own turn writes the value. The thinking filler phrases and the
 client's failure phrases leave it as it was, and so does a turn the backend answers with
 silence on a call that succeeds. The value lives in `localStorage` under
-`yui.previous-turn`, so it survives a restart of the app.
+`yui.previous-turn` (`yui.<id>.previous-turn` on a preset other than the default), so it survives a restart of the app.
 
 #### Push
 
@@ -448,7 +448,8 @@ instruction.
 
 #### The cursor
 
-The client keeps one cursor per other preset, stored under `yui.overheard`, that marks
+The client keeps one cursor per other preset, stored under `yui.overheard`
+(`yui.<id>.overheard` on a preset other than the default). Each cursor marks
 the last line this character has heard. The cursor moves only after the turn that
 carried the lines ended `ok`, so a line is never sent twice and a failed turn sends it
 again.
@@ -536,7 +537,7 @@ turn is user-started (`trigger: user message`), and at least one Thread waits. A
 waiting it is omitted.
 
 The backend reads Threads only through the `threads_list` and
-`threads_search` client tools ([client-tools.md](client-tools.md)), which read the same
+`threads_search` on-demand tools, called through `yui_tool_call` ([client-tools.md](client-tools.md)). They read the same
 store snapshot this count comes from. Threads fire no turn.
 
 ## Trigger lines
@@ -727,7 +728,7 @@ answers is the backend's judgment, and a `[SILENT]` reply ends the exchange.
 #### Handoff
 
 With `address_character` `handoff: true` on a user turn, `user_message` carries that
-turn's user message verbatim. The receiver takes it and answers the user; the headline
+turn's user message verbatim. The tool description tells the backend to set `handoff` only when the user asks to pass the message on. The receiver takes it and answers the user; the headline
 reads:
 
 ```text

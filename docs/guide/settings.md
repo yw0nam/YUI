@@ -6,7 +6,7 @@ The settings window opens from **Settings…** in the tray menu or from **All se
 
 | Page | What it is for |
 | --- | --- |
-| Connection | Chat, speech recognition, and speech synthesis for this character. An empty field uses the bundled default, and Reset Chat and Reset TTS clear their keys ([Connect a backend](connect-a-backend.md), [Voice in and out](voice.md)) |
+| Connection | Chat, speech recognition, and speech synthesis for this character, with Reasoning effort; with nothing connected, Quick start opens. An empty field uses the bundled default. Reset clears a section's fields, Reset Chat and Reset TTS also clear their keys, and Reset STT keeps the shared STT key ([Connect a backend](connect-a-backend.md), [Voice in and out](voice.md)) |
 | Voice | How she speaks, and its message window, off outside the desktop app and while unified chat shows ([Voice in and out](voice.md)) |
 | Persona | Her card ([Cards](cards.md)) |
 | Body | The model that renders her, her relations, and the camera |
@@ -14,10 +14,10 @@ The settings window opens from **Settings…** in the tray menu or from **All se
 | Together | Several characters at once, up to 4, with main always on; Relations off hides the sliders and keeps the stored values |
 | Listening and bubble | Her ears and the speech bubble; the reading dictionary is case-sensitive and the longest word wins |
 | Permissions | What she may see of your screen; both switches are off by default, and screen watch sends no pixels without Attach screenshot |
-| Plugins | MCP servers and skills for every character's backend ([Plugins](plugins.md)) |
+| Plugins | MCP servers and skills for every character's backend; install from the catalog, then Allow each one before it runs ([Plugins](plugins.md)) |
 | Proactive | When she speaks first, and the workflows she fires on demand ([Features](features.md#proactive-and-context)) |
 | Motion and desktop | How she moves, climbs, falls, and spends power; a motion you turn off drops out of her vocabulary |
-| General | Language, Appearance, Your name, Developer Tools with the context inspector and the motion preview, and the two Help entries, for this device |
+| General | Language, Appearance, Text size, Your name, Developer Tools with the context inspector and the motion preview, and the two Help entries, for this device |
 
 ## Tips
 

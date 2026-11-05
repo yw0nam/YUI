@@ -12,7 +12,7 @@ flowchart TB
   plugins["Plugins on your computer"]
 
   you <-->|"talk and tap / face and voice"| yui
-  producers -->|"POST /signals"| yui
+  producers -->|"POST /signals, PUT /threads"| yui
   yui <-->|"speech / voice"| voice
   yui <-->|"what happened / words and tool calls"| brain
   yui -->|"runs"| plugins

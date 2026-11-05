@@ -24,7 +24,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 |---|---|---|---|---|---|
 | `idle` | ambient | yes (cycle) | Calm ambient baseline: a random pool of `calm.vrma` and the three calmest idle variants (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_POSE / PET_IDLE / PET_MISC | — |
 | `idle_lively` | oneshot | no | Agent-selectable random lively-fidget pool (see below). Plays one variant once, then returns to the prior stable motion. | PET_IDLE / UPDATE_2 | — |
-| `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
+| `drag` | reactive | yes | Pickup reaction while the window is being dragged. | PET_MISC/PET_DRAGGING | — |
 | `head_pat` | reactive | yes | Head-pat reaction, held for as long as the press stays on the head region. `pingpong: true` (single variant): plays forward↔reverse continuously until the release clears it. `broker_publish: false`. Reuses `idle_10.vrma` as the pat loop. | PET_IDLE/PET_IDLE_10 | 11.0s |
 | `falling` | reactive | yes | Falling loop, held for the whole descent to the surface below. `broker_publish: false`. | Mixamo "Falling_2" | 2.78s |
 | `landing` | oneshot | no | Touchdown at the end of a fall, then recover to standing. A fall that came down on a window top takes its seat once this clip hands the body back. `broker_publish: false`. | Mixamo "Falling_and_landing" | 7.18s |
@@ -230,7 +230,7 @@ Clips come from four origins. Durations are the source clip length.
 
 ## Agent vocabulary
 
-`broker_publish` defaults to `true`. A `false` entry stays renderable locally but is kept out of the agent-facing motion vocabulary on every transport: the declared tool's `motion_id` enum and the push `vocabulary` frames. The agent therefore never selects it.
+`broker_publish` defaults to `true`. A `false` entry stays renderable locally but is kept out of the agent-facing motion vocabulary on every transport, as are all `reactive` and `ambient` entries: the declared tool's `motion_id` enum and the push `vocabulary` frames. The agent therefore never selects it.
 
 The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_lively, dance, sulk`.
 

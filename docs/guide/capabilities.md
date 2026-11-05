@@ -24,7 +24,7 @@ She can greet you at set times, check in after idle time, welcome your first act
 
 ## Your coding agents
 
-With External signals on, she tells you when a coding agent finishes a task or needs your input.
+With External signals on and the yui-notify plugin installed on the machine where the agent runs, Claude Code and Codex conversations post to Threads, which you read and answer in the Threads window. A Thread never starts a turn for her.
 
 ## On the web
 
@@ -33,6 +33,10 @@ With the official `browser` plugin installed and turned on, she can search and r
 ## Delegated work
 
 When her backend runs work in the background for you, a chip near her lists that work, and you can tap it to see the list.
+
+When her backend needs an answer from you, an Ask card above the input shows the question and its choices until you answer; a timed one shows the time left.
+
+She can also use a Terminal on this device. Her first read or write on a terminal asks you for Allow, and it lasts until you press **Take back**.
 
 ## Conversation history
 

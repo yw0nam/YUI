@@ -26,7 +26,7 @@ Every key, click, and menu that moves her.
 | Wheel | Zooms in and out |
 | `Ctrl` + wheel | Resizes her, feet in place |
 | `Shift` + drag | Orbits the camera |
-| Right-click | Opens the quick card: Voice, Listen, Keep bubble, Unified chat, Body, Reference voice, Reset…, Turn off for another character, All settings… |
+| Right-click | Opens the quick card: Voice, Listen, Keep bubble, Unified chat, Threads, Terminal, Body, Reference voice, Reset…, Turn off for another character, All settings… |
 
 ## Text input
 
@@ -41,6 +41,8 @@ Every key, click, and menu that moves her.
 | Pop-out | Moves speech and typing to a draggable message window; the dock button returns them |
 | Hover on a long reply | Pauses its auto-hide so you can read it |
 | Reasoning | Folds open at the top of a reply in the message window |
+| Ask card | A question from a push backend, with its choices, above the input until you answer; a timed one shows the time left |
+| Slash command | Type `/` and a command name, then send, to run a command the backend offers |
 
 ## Unified chat
 
@@ -66,7 +68,8 @@ Every key, click, and menu that moves her.
 
 | Item | What it does |
 | --- | --- |
-| Tray menu | Show / Hide Character, Settings…, and Quit YUI |
+| Tray menu | Show / Hide Character, Settings…, Terminal, and Quit YUI |
+| Waiting for you chip | Threads that wait for your answer; tap it to open the Threads window |
 | Status pill | The tool she is running |
 | Signal pill | One per Signal group; tap it for details, the cross dismisses it, and **+N** unfolds the rest |
 | Delegation chip | Lists background work; tap to open it, hold to fold it away |

@@ -8,7 +8,7 @@ Every address in the bundled `configs/endpoints.json` is unset, and an unset add
 
 | Service | Key | Without it |
 | --- | --- | --- |
-| Chat backend | `chat_base_url` | The character appears and idles. A chat turn answers "Backend not configured" and points at **Connection**. |
+| Chat backend | `chat_base_url` | The character appears and idles. A chat turn answers "Not connected yet", and its **Connect** button opens **Connection**. |
 | Chat API key | **Chat API key** field | Only needed when the endpoint enforces one. |
 | TTS | `tts_base_url` | The speech bubble works, but there is no audio. |
 | STT | `stt_base_url` | Text input works, but there is no voice input. |
@@ -26,6 +26,8 @@ Every address in the bundled `configs/endpoints.json` is unset, and an unset add
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window: what Responses mode displays, and the length the client-side transcript is trimmed to in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; appended to the card and sent as `instructions` on Responses or as the first system message on Chat Completions |
+
+In the Connection page's chat section, a provider preset (OpenAI, Ollama, LM Studio, Groq, Google Gemini, Hermes Agent) sets the endpoint. Each preset except Hermes Agent autofills `chat_base_url`; Google Gemini also fills `chat_model`, and Hermes Agent sets the protocol to `push`.
 
 Who keeps the conversation: the client on Chat Completions, the server on Responses, the backend on push. [Push transport](../reference/push-transport.md#what-each-chat-transport-carries) lists what each transport carries, row by row.
 
@@ -261,6 +263,7 @@ The loopback listener takes external signals and the avatar RPC routes.
 | --- | --- | --- |
 | **External signals** | off | Turns the listener on. A change applies at the next launch |
 | **Listener port** | `8770` | Port the listener binds on loopback |
+| Request limits | Not configurable | 5 s to read the headers, 10 s to read the body, a 64 KiB body, and 64 connections at once |
 
 Bare paths (`/signals`, `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations`) reach the active character in the main window. The `/presets/<id>/` paths reach the pet window bound to preset `<id>`. The route table, the replies and the envelope are in [Signals ingress](../reference/signals-ingress.md).
 
