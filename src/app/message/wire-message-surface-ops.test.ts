@@ -8,8 +8,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
-import { createMessageBridge, type MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
+import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import type { MessageSurfaceOp, surfaceOps } from "../../io/bridge/message/surface-ops";
 import { focusWindow } from "../../io/window/geometry/companion-column";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireMessageSurfaceOps } from "./wire-message-surface-ops";
@@ -112,7 +113,7 @@ interface Row {
   received: [string, unknown[]][];
 }
 
-const ROWS: Record<MessageSurfaceOp["op"], Row[]> = {
+const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
   asks: [
     {
       send: (r) => r.setAsks(FRAMES),

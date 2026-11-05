@@ -1,7 +1,7 @@
 import type { MessageBridge } from "../../io/bridge/message/message-bridge";
+import { receiveSurfaceOp, type SurfacePort } from "../../io/bridge/message/surface-ops";
 import { focusWindow } from "../../io/window/geometry/companion-column";
 import { createLogger } from "../../logger";
-import { applySpeechOp } from "../../ui/surfaces/apply-speech-op";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import type { MirroredName } from "./mirrored-name";
 
@@ -22,72 +22,21 @@ export function wireMessageSurfaceOps({
     return true;
   });
   surfaces.onCommandReplyClose(() => bridge.emitControl({ op: "command-reply-close" }));
+  const port: SurfacePort = {
+    ...surfaces,
+    setName: (n) => name.set(n),
+    summonInput: () => {
+      // A document focus in an unfocused webview leaves the keystrokes with the pet window.
+      void focusWindow("message").then(() => surfaces.summonInput());
+    },
+    setBusy: (busy) => {
+      log.info("busy_recv", { busy });
+      surfaces.setBusy(busy);
+    },
+  };
   bridge.onSurface((op) => {
-    switch (op.op) {
-      case "asks":
-        surfaces.setAsks(op.frames);
-        break;
-      case "begin":
-      case "push":
-      case "end":
-      case "finish":
-      case "hide":
-      case "quote":
-      case "quote-signals":
-      case "settle-quote":
-      case "clear-quote":
-        applySpeechOp(op, surfaces);
-        break;
-      case "name":
-        name.set(op.name);
-        break;
-      case "summon-input":
-        // A document focus in an unfocused webview leaves the keystrokes with the pet window.
-        void focusWindow("message").then(() => surfaces.summonInput());
-        break;
-      case "dismiss-input":
-        surfaces.dismissInput();
-        break;
-      case "commands":
-        surfaces.setCommands(op.commands);
-        break;
-      case "command-reply":
-        surfaces.showCommandReply(op.reply);
-        break;
-      case "busy":
-        log.info("busy_recv", { busy: op.busy });
-        surfaces.setBusy(op.busy);
-        break;
-      case "input-error":
-        surfaces.showInputError(
-          op.message,
-          op.action
-            ? {
-                label: op.action.label,
-                onClick: () => bridge.emitControl({ op: "input-error-action" }),
-              }
-            : undefined,
-        );
-        break;
-      case "speech-actions":
-        surfaces.showSpeechActions(
-          op.actions.map(({ label, busy }, index) => ({
-            label,
-            busy,
-            onClick: () => bridge.emitControl({ op: "speech-action", index }),
-          })),
-        );
-        break;
-      case "attachment-limits":
-        surfaces.setAttachmentLimits(op.limits);
-        break;
-      case "restore-input":
-        surfaces.restoreInput(op.text, op.images);
-        break;
-      default: {
-        const unhandled: never = op;
-        log.warn("unhandled_surface_op", { op: JSON.stringify(unhandled) });
-      }
+    if (!receiveSurfaceOp(op, port, (c) => bridge.emitControl(c))) {
+      log.warn("unhandled_surface_op", { op: JSON.stringify(op) });
     }
   });
 }

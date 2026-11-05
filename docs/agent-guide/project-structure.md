@@ -521,6 +521,7 @@ YUI/
         message/                       # The pet ↔ message window bus and its remote half
           message-bridge.ts            # Cross-window bus linking the pet window and the message window
           message-remote.ts            # The message window's bubble and input as a remote Surfaces half
+          surface-ops.ts               # Each pet → message surface op once: its payload, the call that sends it, the call that draws it, and whether ready replays it
           stream-bridge.ts             # The speech stream as a message bridge: the pet's ops stamped with its preset, the unified window's ask as `ready`, and a click on an error's fix that names this preset
         delegations/                   # The backend's background-work list, live and persisted
           delegations-store.ts         # Background work the backend reports on the push socket

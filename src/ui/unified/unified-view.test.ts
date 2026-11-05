@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
+import type { MessageSurfaceOp } from "../../io/bridge/message/surface-ops";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PresetEntry } from "../../settings/preset/active-preset";

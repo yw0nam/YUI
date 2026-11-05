@@ -9,12 +9,9 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { BridgeTransport } from "../core/bridge-core";
-import {
-  createMessageBridge,
-  type MessageControlOp,
-  type MessageSurfaceOp,
-} from "./message-bridge";
+import { createMessageBridge, type MessageControlOp } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
+import type { MessageSurfaceOp } from "./surface-ops";
 
 function createFakeTransport(): BridgeTransport {
   const listeners = new Map<string, Set<(p: unknown) => void>>();

@@ -7,9 +7,9 @@
  * that API's arguments and nothing more — no judgment crosses the wire.
  */
 
-import type { AttachmentLimits } from "../../../config/validators/guardrails";
-import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
+import type { AskAnswer } from "../../chat/push/push-frames";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
+import type { MessageSurfaceOp } from "./surface-ops";
 
 const CH_MESSAGE_SURFACE = "yui://message-surface";
 const CH_MESSAGE_CONTROL = "yui://message-control";
@@ -35,29 +35,6 @@ export type CommandReplyState =
   | { kind: "pending"; name: string; speaker?: string }
   | { kind: "settled"; name: string; text: string; speaker?: string }
   | { kind: "clear" };
-
-/** Pet → message: one call on the message window's local `Surfaces`. */
-export type MessageSurfaceOp =
-  | { op: "asks"; frames: AskFrame[] }
-  | { op: "commands"; commands: BackendCommand[] }
-  | { op: "command-reply"; reply: CommandReplyState }
-  | { op: "begin" }
-  | { op: "name"; name: string }
-  | { op: "push"; delta: string }
-  | { op: "end"; defer?: boolean }
-  | { op: "finish" }
-  | { op: "hide" }
-  | { op: "summon-input" }
-  | { op: "dismiss-input" }
-  | { op: "busy"; busy: boolean }
-  | { op: "input-error"; message: string; action?: { label: string } }
-  | { op: "speech-actions"; actions: { label: string; busy?: boolean }[] }
-  | { op: "attachment-limits"; limits: AttachmentLimits }
-  | { op: "quote"; quote: UserQuote }
-  | { op: "quote-signals"; lines: SourceLine[] }
-  | { op: "settle-quote" }
-  | { op: "clear-quote" }
-  | { op: "restore-input"; text: string; images: string[] };
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =

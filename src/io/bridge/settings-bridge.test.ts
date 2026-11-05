@@ -14,7 +14,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { BridgeTransport } from "./core/bridge-core";
-import type { MessageSurfaceOp } from "./message/message-bridge";
+import type { MessageSurfaceOp } from "./message/surface-ops";
 import { createSettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
