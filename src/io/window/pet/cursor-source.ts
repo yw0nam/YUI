@@ -204,7 +204,7 @@ function createPollFeed(opts: CursorSourceOptions, emit: CursorListener): Cursor
       } else {
         cursor = await w.cursorPosition();
       }
-      if (isHidden()) return;
+      if (gen !== generation || isHidden()) return;
       if (backoff) log.warn("poll_recovered", {});
       failureCount = 0;
       backoff = false;

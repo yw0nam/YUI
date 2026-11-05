@@ -396,25 +396,27 @@ describe("createCursorSource — Tauri poll", () => {
     expect(h.scheduled).toEqual(scheduled);
   });
 
-  it("a read in flight when the last subscriber leaves is not delivered, even to a new subscriber", async () => {
+  it("a read in flight when the last subscriber leaves is never delivered, even after the next generation's refresh", async () => {
     const win = fakeWindow();
-    let resolveCursor: ((v: { x: number; y: number }) => void) | undefined;
+    let resolveStale: ((v: { x: number; y: number }) => void) | undefined;
     win.cursorPosition.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          resolveCursor = resolve;
+          resolveStale = resolve;
         }),
     );
     const h = harness(win);
     const first = h.collect();
-    void h.poll(); // cursorPosition() is now pending
+    void h.poll(); // read A is now pending
     first.off();
     const second = h.collect();
-    resolveCursor?.({ x: 300, y: 400 });
+    await h.poll(); // the new generation's refresh completes and delivers
+    expect(second.seen).toEqual([{ x: 100, y: 100 }]);
+    resolveStale?.({ x: 500, y: 600 }); // read A resolves into the new generation
     await flush();
     expect(first.seen).toEqual([]);
-    expect(second.seen).toEqual([]);
-    expect(h.scheduled).toEqual([50, 50]);
+    expect(second.seen).toEqual([{ x: 100, y: 100 }]);
+    expect(h.scheduled).toEqual([50, 50, 50]);
   });
 
   it("a subscriber that throws does not stop delivery to the others", async () => {
