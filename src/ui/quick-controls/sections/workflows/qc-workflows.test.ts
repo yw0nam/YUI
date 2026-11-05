@@ -177,6 +177,27 @@ describe("createWorkflowsSection", () => {
     section.dispose();
   });
 
+  it("keeps a fired row, its button and its flash when another entry is added", async () => {
+    const root = buildRoot();
+    const fetchFn = vi.fn().mockResolvedValue({});
+    const store = createWorkflowSettings({ storage: memoryStorage({ entries: [ENTRY] }) });
+    const section = createWorkflowsSection({ root, store, log: makeLog(), fetchFn });
+    const row = root.querySelector<HTMLElement>(".yui-wf")!;
+    const fire = row.querySelector<HTMLButtonElement>(".yui-wf__fire")!;
+    fire.click();
+    await vi.waitFor(() => expect(row.classList.contains("yui-wf--fired-ok")).toBe(true));
+
+    store.addWorkflow({ label: "Other", url: "https://example.com/other" });
+
+    expect(root.querySelectorAll(".yui-wf")).toHaveLength(2);
+    expect(root.querySelector(".yui-wf")).toBe(row);
+    expect(row.querySelector(".yui-wf__fire")).toBe(fire);
+    expect(row.classList.contains("yui-wf--fired-ok")).toBe(true);
+    fire.click();
+    expect(fetchFn).toHaveBeenLastCalledWith(ENTRY.url, expect.anything());
+    section.dispose();
+  });
+
   it("deletes the selected workflow", () => {
     const root = buildRoot();
     const store = createWorkflowSettings({ storage: memoryStorage({ entries: [ENTRY] }) });
