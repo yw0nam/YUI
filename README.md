@@ -78,7 +78,7 @@ YUI ships no model of its own. Choose the brain by what it can do.
 
 | Brain | What you get |
 | --- | --- |
-| **An open-source agent** (recommended) | Memory, its own persona, chat-history search, and much more come with the agent. Recommended for your waifu. Worked example: [Hermes Agent](integrations/hermes/README.md); other agents connect through the [push contract](docs/reference/push-transport.md). |
+| **An open-source agent** (recommended) | Memory, its own persona, chat-history search, and much more come with the agent, so we recommend it for your waifu. Today YUI supports [Hermes Agent](integrations/hermes/README.md). Another agent can join by implementing the [push contract](docs/reference/push-transport.md). |
 | **Any OpenAI-compatible endpoint** | Light and quick to start: chat, persona text you write in the app, and expressions with a tool-calling model. Not enough for everything YUI can do: memory, turns the brain starts on its own, Ask cards, and backend commands need an agent. |
 
 Pick each provider in **Settings → Connection**.
