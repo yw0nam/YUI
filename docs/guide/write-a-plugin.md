@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools.
+A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools `yui_tool_describe` and `yui_tool_call`, and its skills through `plugin_skill`.
 
 To build one with a coding agent, paste this line:
 

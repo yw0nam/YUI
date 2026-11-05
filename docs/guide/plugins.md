@@ -14,7 +14,7 @@ Plugins add MCP servers and skills to the backend of every character. The page i
 
 The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character.
 
-The second lists the tools and skills the backend now sees. That first step is the only gate: a local plugin is approved once for its folder.
+The second lists the tools and skills the backend sees. It calls tools through `yui_tool_describe` and `yui_tool_call`, and reads skills through `plugin_skill`. That first step is the only gate: a local plugin is approved once for its folder.
 
 ## Update
 

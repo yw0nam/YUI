@@ -88,7 +88,7 @@ An Answer supplies `ask_id` with picked choice ids, text, both, or `release: tru
 
 A multi-select Ask accepts `choices` only when non-empty, distinct, and all ids belong to the Ask; it never accepts `choice`. Any other Ask accepts `choice` and never `choices`. With no pick, a text-only or release answer omits `choices`. The store normalizes picked ids to the Ask’s choice order before storing and delivering the Answer.
 
-A choice must belong to the ask. Text requires `ask.text: true` and cannot exceed 16384 code points. Without a choice, non-empty text, or release, the answer is refused.
+A choice must belong to the ask. Text requires `ask.text: true` and cannot exceed 16384 code points. Without a choice (`choice` or `choices`), non-empty text, or release, the answer is refused.
 
 An accepted answer becomes pending for the producer, closes the ask, sets state to `working`, and wakes waiters. One `user` entry contains the picked labels in the Ask's choice order, then text, joined with `\n`; a bare release adds no entry. The entry has the answer's timestamp, and the newest-50 limit still applies.
 
@@ -120,7 +120,7 @@ Each stored entry contains `role`, `text`, and `at`.
 
 ## In the app
 
-Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it; the Threads window draws its list and thread pane. Only the Threads window calls `thread_answer`, with a choice, text, or both. It never sends `release`.
+Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it; the Threads window draws its list and thread pane. Only the Threads window calls `thread_answer`, with a choice (`choice`, or `choices` for a multi-select Ask), text, or both. It never sends `release`.
 
 The Threads window also calls `thread_seen` when the user picks a Thread with an open ask in its list or rail.
 

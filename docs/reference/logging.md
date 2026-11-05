@@ -16,7 +16,7 @@ The message is an event name such as `backend_call`. Fields carry the detail.
 
 ## Namespaces
 
-Namespaces are `kebab-case` and flat, with one logger per module, and each namespace matches its module's file name.
+Namespaces are `kebab-case` and flat, with one logger per module, and each namespace matches its module's file name. A namespace may differ from its file name only in the file that `KNOWN` in `scripts/ci/logger-namespace.mjs` pairs it with.
 
 | File | Namespace |
 |---|---|
@@ -210,14 +210,14 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 ## Threads window
 
-`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-placement.ts` places and drags it and saves its frame.
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` runs in both windows and reads its snapshots through `io/snapshot-feed/`, which logs as namespace `snapshot-feed`. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-placement.ts` places and drags it and saves its frame.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `threads-window` | `threads_window_create_error` | `error` | The Threads window could not be created (`error` level). |
 | `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip leaves its open state unless the window is open (`error` level). |
-| `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
-| `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
+| `snapshot-feed` | `snapshot.invoke_failed` | `command`, `error` | `threads_snapshot` rejected (`warn` level). |
+| `snapshot-feed` | `snapshot.listen_failed` | `event`, `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
 | `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
 | `wire-threads-window` | `thread_seen_failed` | `error` | `thread_seen` rejected, e.g. the ask closed before the pick reached the store; the chip keeps counting that Thread (`warn` level). |
