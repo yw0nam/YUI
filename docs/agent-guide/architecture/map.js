@@ -1927,7 +1927,7 @@ globalThis.YUI_MAP =
       "carries": "render-turn → TurnOutput: releaseMute, cueWithSpeech, delta, silentCue, end",
       "kind": "callback",
       "transport": "push",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+      "wiring": "src/app/turn/voice/speak-turn.ts"
     },
     {
       "id": "render-conversation",
@@ -1999,7 +1999,7 @@ globalThis.YUI_MAP =
       "carries": "TurnOutput implemented over speech playback: delta, cue, end, interrupt",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+      "wiring": "src/app/turn/voice/speak-turn.ts"
     },
     {
       "id": "output-filler",
@@ -2008,7 +2008,7 @@ globalThis.YUI_MAP =
       "carries": "thinkingStart → fillerLoop.start, thinkingEnd → stop, toolStatus → onToolRunning",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+      "wiring": "src/app/turn/voice/speak-turn.ts"
     },
     {
       "id": "filler-speech",
@@ -3925,7 +3925,7 @@ globalThis.YUI_MAP =
       "carries": "onSpeechActive with speech outstanding → speechPlayback.interrupt({muteCurrentTurn}), fillerLoop.stop(); while the unified chat window shows and barge-in is on, onSpeechActive → speech-onset",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+      "wiring": "src/app/turn/voice/speak-turn.ts"
     },
     {
       "id": "barge-in-push",
