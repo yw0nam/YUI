@@ -109,9 +109,8 @@ export function createSpeechBubble(
   let deferred = false;
   // The line's markdown as received.
   let speechRaw = "";
-  // The received line rendered — its stable part while it streams, all of it once it ends — and that rendering's text.
-  let parsed = createStreamingMarkdown();
-  let parsedText = "";
+  // The received line's rendering — its stable part while it streams, all of it once it ends.
+  let markdown = createStreamingMarkdown();
   let lastParseAt = Number.NEGATIVE_INFINITY;
   let parseTimer: ReturnType<typeof setTimeout> | null = null;
   // How many characters of the rendered text show.
@@ -223,9 +222,8 @@ export function createSpeechBubble(
     clearParseTimer();
     lastParseAt = performance.now();
     const source = final ? speechRaw : stableMarkdown(speechRaw);
-    parsedText = parsed.update(source, !final);
     const before = revealed;
-    typer.received(parsedText);
+    typer.received(markdown.update(source, !final));
     // A rendering that revealed nothing new (an image has no text) still draws.
     if (revealed === before) renderThrottled();
   }
@@ -240,7 +238,7 @@ export function createSpeechBubble(
     clearRenderTimer();
     // Measure before updating — don't yank down a user who has scrolled up to read.
     const pin = isPinnedToEnd();
-    parsed.render(bubbleText, revealed);
+    markdown.render(bubbleText, revealed);
     lastRenderAt = performance.now();
     scrollBubbleToEnd(pin);
   }
@@ -261,21 +259,25 @@ export function createSpeechBubble(
     bubbleNext.hidden = true;
   }
 
+  // Drops the line's text and its rendering.
+  function clearLine(): void {
+    speechRaw = "";
+    markdown = createStreamingMarkdown();
+    bubbleText.replaceChildren();
+  }
+
   function beginSpeech(): void {
     clearDwell();
     deferred = false;
     dismissed = false;
     revealHeld = false;
     bubbleEl.classList.remove("is-held");
-    speechRaw = "";
-    parsed = createStreamingMarkdown();
-    parsedText = "";
+    clearLine();
     revealed = 0;
     lastRenderAt = Number.NEGATIVE_INFINITY;
     lastParseAt = Number.NEGATIVE_INFINITY;
     clearRenderTimer();
     clearParseTimer();
-    bubbleText.replaceChildren();
     bubbleSr.textContent = "";
     bubbleNext.hidden = true;
     clearSpeechActions();
@@ -297,9 +299,7 @@ export function createSpeechBubble(
       cancelFade?.();
       cancelFade = null;
       stopTyping();
-      speechRaw = "";
-      parsed = createStreamingMarkdown();
-      bubbleText.replaceChildren();
+      clearLine();
       clearSpeechActions();
       bubbleEl.classList.remove("is-streaming");
     }
@@ -338,7 +338,7 @@ export function createSpeechBubble(
     scrollBubbleToEnd(pin);
     // The line is whole now: render all of it, and announce it once — not on every delta or barge-in re-call.
     parse(true);
-    const announced = parsed.announcement();
+    const announced = markdown.announcement();
     if (bubbleSr.textContent !== announced) bubbleSr.textContent = announced;
     clearDwell();
     // A deferred line holds the fade until playback ends — finishSpeech() arms the dwell.
@@ -396,9 +396,7 @@ export function createSpeechBubble(
       cancelFade = null;
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
-        speechRaw = "";
-        parsed = createStreamingMarkdown();
-        bubbleText.replaceChildren();
+        clearLine();
         bubbleQuote.hidden = true;
       }
     });

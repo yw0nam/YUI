@@ -76,25 +76,23 @@ export function renderMarkdownInline(
   return sanitize((parser.parse(text, { async: false }) as string).trim());
 }
 
-/**
- * `text` split into its top-level blocks, each with a key that changes whenever its rendering would, and a
- * render that returns that block's part of `renderMarkdownInline(text)`. The text is lexed whole: a reference
- * definition can change an earlier block. Raw HTML can open a tag in one block and close it in another, so a
- * text holding any is one block rendered whole.
- */
+/** `renderMarkdownInline(text)` in top-level blocks, each keyed by everything its rendering depends on. */
 export function markdownBlocks(
   text: string,
-  streaming: boolean,
+  opts?: { streaming?: boolean },
 ): { key: string; render(): HTMLSpanElement }[] {
+  const streaming = opts?.streaming === true;
   const parser = streaming ? streamingMarked : fullMarked;
+  // Lexed whole: a reference definition can change an earlier block.
   const tokens = parser.lexer(text);
   let html = false;
   parser.walkTokens(tokens, (token) => {
     if (token.type === "html") html = true;
   });
+  // Raw HTML can open a tag in one block and close it in another, so text holding any is one block.
   if (html) {
     return [
-      { key: `${streaming}\0${text}`, render: () => renderMarkdownInline(text, { streaming }) },
+      { key: JSON.stringify([streaming, text]), render: () => renderMarkdownInline(text, opts) },
     ];
   }
   const blocks = tokens.filter((token) => token.type !== "space" && token.type !== "def");

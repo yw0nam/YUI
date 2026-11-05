@@ -28,7 +28,7 @@ export function createStreamingMarkdown(): StreamingMarkdown {
     const previous = blocks;
     blocks = empty
       ? []
-      : markdownBlocks(source, streaming).map(({ key, render }, index) => {
+      : markdownBlocks(source, { streaming }).map(({ key, render }, index) => {
           if (previous[index]?.key === key) return previous[index];
           const rendered = render();
           return { key, nodes: [...rendered.childNodes], text: visibleText(rendered) };
