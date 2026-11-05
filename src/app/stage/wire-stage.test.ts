@@ -1,28 +1,21 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-// The wiring reaches isOverInteractive/onCursor only as factory options — mock the factories
+// The wiring reaches isOverInteractive and the cursor only as factory options — mock the factories
 // to capture the options they are created with and to stand in for the controllers.
-const { createHitTestController, createCursorTracker } = vi.hoisted(() => ({
-  createHitTestController: vi.fn(
-    (_opts: {
-      isOverInteractive: (x: number, y: number, marginPx: number) => boolean;
-      moveTarget: EventTarget;
-      getConfig: () => unknown;
-    }) => ({}) as { start: () => void; stop: () => void },
-  ),
-  createCursorTracker: vi.fn(
-    (_opts: { onCursor: (pos: { x: number; y: number } | null) => void }) =>
-      ({}) as { start: () => void; stop: () => void },
-  ),
+const { createHitTestController, createCursorSource } = vi.hoisted(() => ({
+  createHitTestController:
+    vi.fn<typeof import("../../io/window/pet/hit-test").createHitTestController>(),
+  createCursorSource:
+    vi.fn<typeof import("../../io/window/pet/cursor-source").createCursorSource>(),
 }));
 
 vi.mock("../../io/window/pet/hit-test", () => ({ createHitTestController }));
-vi.mock("../../io/window/pet/cursor-tracker", () => ({ createCursorTracker }));
+vi.mock("../../io/window/pet/cursor-source", () => ({ createCursorSource }));
 
 import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
-import { wireGaze, wireHitTest } from "./wire-stage";
+import { wireCursorStage } from "./wire-stage";
 
 const rectOf = (left: number, top: number, right: number, bottom: number): DOMRect =>
   ({ left, top, right, bottom }) as DOMRect;
@@ -34,9 +27,12 @@ const knobs = (): HitTestKnobs => ({
   alpha_threshold: 0.5,
 });
 
-const setupHitTest = (opts: {
+type Cursor = { x: number; y: number } | null;
+
+const setup = (opts: {
   hit?: (x: number, y: number) => boolean;
   overlays?: Record<string, DOMRect[]>;
+  gazeEnabled?: boolean;
 }) => {
   const controller = {
     start: vi.fn(),
@@ -46,71 +42,67 @@ const setupHitTest = (opts: {
     setMoving: vi.fn(),
   };
   createHitTestController.mockImplementation(() => controller);
+  const listeners = new Set<(pos: Cursor) => void>();
+  const cursor = {
+    subscribe: vi.fn((listener: (pos: Cursor) => void) => {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    }),
+    setMoving: vi.fn(),
+  };
+  createCursorSource.mockImplementation(() => cursor);
   const querySelectorAll = vi.fn((selector: string) =>
     (opts.overlays?.[selector] ?? []).map(
       (rect) => ({ getBoundingClientRect: () => rect }) as unknown as HTMLElement,
     ),
   );
-  const hitTest = wireHitTest({
+  const setGazeEnabled = vi.fn();
+  const setGazeCursor = vi.fn();
+  const settingsSubscribers = new Set<(state: { enabled: boolean }) => void>();
+  let enabled = opts.gazeEnabled ?? false;
+  const teardowns: Array<() => void> = [];
+  const hitTest = wireCursorStage({
     root: { querySelectorAll } as unknown as HTMLElement,
-    renderer: { hitTest: opts.hit ?? (() => false) },
+    renderer: { hitTest: opts.hit ?? (() => false), setGazeEnabled, setGazeCursor },
     getConfig: knobs,
+    gazeSettings: {
+      get: () => ({ enabled }),
+      subscribe: (cb) => {
+        settingsSubscribers.add(cb);
+        return () => void settingsSubscribers.delete(cb);
+      },
+    },
+    register: (teardown) => void teardowns.push(teardown),
   });
   return {
     hitTest,
     controller,
+    cursor,
+    listeners,
     querySelectorAll,
+    setGazeEnabled,
+    setGazeCursor,
+    settingsSubscribers,
+    teardown: () => {
+      for (const t of teardowns) t();
+    },
+    setEnabled: (next: boolean) => {
+      enabled = next;
+      for (const cb of settingsSubscribers) cb({ enabled: next });
+    },
     isOverInteractive: createHitTestController.mock.calls[0][0].isOverInteractive,
   };
 };
 
-const setupGaze = (initialEnabled: boolean) => {
-  const tracker = { start: vi.fn(), stop: vi.fn() };
-  createCursorTracker.mockImplementation(() => tracker);
-  const setGazeEnabled = vi.fn();
-  const setGazeCursor = vi.fn();
-  const unsubscribe = vi.fn();
-  const subscribers = new Set<(state: { enabled: boolean }) => void>();
-  let enabled = initialEnabled;
-  const register = vi.fn((_teardown: () => void) => {});
-  wireGaze({
-    renderer: { setGazeEnabled, setGazeCursor },
-    gazeSettings: {
-      get: () => ({ enabled }),
-      subscribe: (cb) => {
-        subscribers.add(cb);
-        return unsubscribe;
-      },
-    },
-    register,
-  });
-  return {
-    tracker,
-    setGazeEnabled,
-    setGazeCursor,
-    unsubscribe,
-    register,
-    setEnabled: (next: boolean) => {
-      enabled = next;
-      for (const cb of subscribers) cb({ enabled: next });
-    },
-  };
-};
-
-describe("wireHitTest", () => {
-  beforeEach(() => {
-    createHitTestController.mockReset();
-    createCursorTracker.mockReset();
-  });
-
+describe("wireCursorStage — hit-test", () => {
   it("counts a point on the character as interactive without any rect lookup", () => {
-    const s = setupHitTest({ hit: () => true });
+    const s = setup({ hit: () => true });
     expect(s.isOverInteractive(50, 60, 10)).toBe(true);
     expect(s.querySelectorAll).not.toHaveBeenCalled();
   });
 
   it("counts a point inside an overlay's margin and rejects one outside it", () => {
-    const s = setupHitTest({
+    const s = setup({
       overlays: { [INTERACTIVE_OVERLAY_SELECTORS[0]]: [rectOf(100, 100, 200, 140)] },
     });
     expect(s.isOverInteractive(95, 120, 10)).toBe(true);
@@ -119,7 +111,7 @@ describe("wireHitTest", () => {
 
   // One selector can name several targets, such as the bubble's two edge buttons.
   it("counts every element a selector matches, not only the first", () => {
-    const s = setupHitTest({
+    const s = setup({
       overlays: {
         [INTERACTIVE_OVERLAY_SELECTORS[0]]: [
           rectOf(100, 100, 120, 120),
@@ -130,34 +122,40 @@ describe("wireHitTest", () => {
     expect(s.isOverInteractive(140, 110, 0)).toBe(true);
   });
 
-  it("starts the controller and returns it", () => {
-    const s = setupHitTest({});
+  it("starts the controller on the shared cursor polled at hit_test.poll_interval_ms, and returns it", () => {
+    const s = setup({});
     expect(s.controller.start).toHaveBeenCalledTimes(1);
     expect(s.hitTest).toBe(s.controller);
-    expect(createHitTestController.mock.calls[0][0].moveTarget).toBe(window);
+    const opts = createHitTestController.mock.calls[0][0];
+    expect(opts.moveTarget).toBe(window);
+    expect(opts.cursor).toBe(s.cursor);
+    expect(createCursorSource.mock.calls[0][0].getIntervalMs()).toBe(50);
+    s.teardown();
+    expect(s.controller.stop).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("wireGaze", () => {
-  beforeEach(() => {
-    createHitTestController.mockReset();
-    createCursorTracker.mockReset();
-  });
-
-  it("applies the store's enabled state at start and on every store change", () => {
-    const s = setupGaze(true);
+describe("wireCursorStage — gaze", () => {
+  it("subscribes the gaze cursor while gaze is on and clears it when turned off", () => {
+    const s = setup({ gazeEnabled: true });
     expect(s.setGazeEnabled).toHaveBeenCalledWith(true);
-    expect(s.tracker.start).toHaveBeenCalledTimes(1);
+    expect(s.listeners.size).toBe(1);
+    for (const listener of s.listeners) listener({ x: 3, y: 4 });
+    expect(s.setGazeCursor).toHaveBeenCalledWith({ x: 3, y: 4 });
+
     s.setEnabled(false);
-    expect(s.tracker.stop).toHaveBeenCalledTimes(1);
+    expect(s.listeners.size).toBe(0);
     expect(s.setGazeEnabled).toHaveBeenLastCalledWith(false);
-    expect(s.setGazeCursor).toHaveBeenCalledWith(null);
+    expect(s.setGazeCursor).toHaveBeenLastCalledWith(null);
+
+    s.setEnabled(true);
+    expect(s.listeners.size).toBe(1);
   });
 
-  it("registers the tracker stop first and the unsubscribe second", () => {
-    const s = setupGaze(false);
-    expect(s.register).toHaveBeenCalledTimes(2);
-    expect(s.register.mock.calls[0][0]).toBe(s.tracker.stop);
-    expect(s.register.mock.calls[1][0]).toBe(s.unsubscribe);
+  it("teardown releases the gaze subscription and the settings subscription", () => {
+    const s = setup({ gazeEnabled: true });
+    s.teardown();
+    expect(s.listeners.size).toBe(0);
+    expect(s.settingsSubscribers.size).toBe(0);
   });
 });
