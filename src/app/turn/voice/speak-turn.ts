@@ -104,7 +104,7 @@ export function createSpeakTurn(deps: SpeakTurnDeps) {
     if (deps.bargeInEnabled() && speechPlayback.hasOutstandingSpeech()) {
       deps.onBargeIn?.();
       speechPlayback.interrupt({ muteCurrentTurn: true });
-      // The interrupted utterance can no longer drive the filler loop's completion.
+      // The interrupted utterance can no longer report completion, and the user is talking, so this window's filler is over.
       fillerLoop.stop();
     }
   }
