@@ -188,7 +188,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 `sulk` クリップ(`suneru.vrma`)は、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)(Unity Humanoid `06_suneru`、「拗ね」)に含まれるもので、necocoya氏のクレジットを表記しています。改変、変換、クレジットを表記したうえでの同梱は許可されています。元ファイル単体での再販売は禁止されています。
 
-移動系のクリップ `walk`、`jump`、`falling`、`landing`、よじ登る・降りる動作のモーション一式(`climb_up`、`climb_up_done`、`climb_down`、`climb_down_landing`)、`sit_down`、`stand_up` は[Mixamo](https://www.mixamo.com/)のもので、Mixamoの規約に基づきロイヤリティフリーです。
+移動系のクリップ `walk`、`jump`、`falling`、`landing`、よじ登る・降りる動作のモーション一式(`climb_up`、`climb_up_done`、`climb_down`、`climb_down_landing`)は[Mixamo](https://www.mixamo.com/)のもので、Mixamoの規約に基づきロイヤリティフリーです。
 
 同梱している既定のVRMモデル(`resources/vrms/AvatarSample_A.vrm`)は **AvatarSample_A** です。ピクシブ株式会社の[AvatarSample利用条件](https://vroid.pixiv.help/hc/ja/articles/4402394424089)のもとで配布されています。CC0ではありません。クレジット表記は不要です。表記の全文は[`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)をご覧ください。
 

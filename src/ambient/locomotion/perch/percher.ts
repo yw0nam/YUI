@@ -5,8 +5,8 @@
  * The sit pin is suspended for the length of the walk and restored from wherever the
  * window actually landed, so the loop owns the seat the whole time: it either resumes it
  * or abandons it, and only a lost host takes the published exit path. She stands up before
- * the walk and sits down before the seat is taken, the window rising and sinking with the
- * transition clips.
+ * the walk and sits down before the seat is taken, the window easing up and down over the
+ * crossfade.
  *
  * A stroll with no window to jump across to now and then walks off the host's nearer edge
  * instead and lets the fall take her. The same loop takes the seat at the other end: a
@@ -463,7 +463,7 @@ export function createPercher(deps: PercherDeps): Percher {
   }
 
   /**
-   * Sit down where she stands, the window sinking with the clip, and read back where that
+   * Sit down where she stands, the window easing down with the crossfade, and read back where that
    * leaves it. null when the transition was cut short or the loop has moved on.
    */
   async function sitDownHere(

@@ -9,6 +9,11 @@ export function isSitDrop(eventName: string): boolean {
   return eventName === "user.window_sit_drop" || eventName === "avatar.window_sit";
 }
 
+/** Every event that seats her: a drop, a climb or perch sit (avatar.window_sit), or the in-place dev enter. */
+export function isSeatEntry(eventName: string): boolean {
+  return isSitDrop(eventName) || eventName === "user.window_sit_enter";
+}
+
 export function samePosture(a: Posture, b: Posture): boolean {
   return (
     a.state === b.state &&

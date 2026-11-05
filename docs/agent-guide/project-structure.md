@@ -315,7 +315,7 @@ YUI/
           wire-fall.ts               # Faller start, the fall switch, and landing events
         travel/                      # Travel frame shared by the stroll, fall, and climb
           wire-travel-frame.ts       # Real-window travel frame wiring
-        sitter.ts                    # Sit-down and stand-up seat transitions
+        sitter.ts                    # Seat transitions: crossfade and eased window move
         clip-leg.ts                  # A window leg paced by an in-place clip
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores

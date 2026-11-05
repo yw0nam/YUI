@@ -49,7 +49,7 @@ export function wireWindowSources(deps: {
   onRelocated: () => Promise<void>;
   /** An armed sit lost its host — the character falls from where the seat was. */
   onSitLost: () => void;
-  /** The sit-down a drop plays in place before the seat is taken. */
+  /** The crossfade to window_sit a drop plays in place before the seat is taken. */
   sitDown: () => Promise<"done" | "lost">;
   /** The applied Ctrl+wheel resize bounds — the window-geometry store's record. */
   onResizeApplied?: (bounds: { x: number; y: number; width: number; height: number }) => void;

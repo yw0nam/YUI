@@ -125,8 +125,6 @@ describe("configs/motions.json", () => {
     ["climb_up_done", "oneshot", false],
     ["climb_down", "reactive", true],
     ["climb_down_landing", "oneshot", false],
-    ["sit_down", "oneshot", false],
-    ["stand_up", "oneshot", false],
     ["jump", "oneshot", false],
     ["thinking", "state", true],
     ["head_pat", "reactive", true],
@@ -174,7 +172,7 @@ describe("configs/motions.json", () => {
     expect(m.thinking.interrupt_policy).toBe("ignore");
   });
 
-  it("locks the root vertically on the climb clips and the seat transitions alone", () => {
+  it("locks the root vertically on the climb clips alone", () => {
     const locked = Object.entries(m)
       .filter(([, e]: [string, any]) => e.root_lock_y === true)
       .map(([id]) => id);
@@ -183,8 +181,6 @@ describe("configs/motions.json", () => {
       "climb_down_landing",
       "climb_up",
       "climb_up_done",
-      "sit_down",
-      "stand_up",
     ]);
   });
 });

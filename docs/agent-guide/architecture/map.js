@@ -2800,7 +2800,7 @@ globalThis.YUI_MAP =
       "id": "tier1-renderer",
       "from": "dispatcher/tier1",
       "to": "renderer",
-      "carries": "applyDirective(ControlEnvelope), setPerchTarget, setPeekTarget, setMotionMirror, easeEmotionToNeutral",
+      "carries": "applyDirective(ControlEnvelope), setPerchTarget, setPeekTarget, setMotionMirror, easeEmotionToNeutral, getCurrentMotion",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"

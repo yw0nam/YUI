@@ -69,6 +69,7 @@ export interface DispatcherDeps {
     | "setPeekTarget"
     | "setMotionMirror"
     | "easeEmotionToNeutral"
+    | "getCurrentMotion"
   >;
   peekConfig: () => PeekConfig;
   /** Tap knobs — touch_emotion_hold_ms drives the tap-emotion revert timer. */

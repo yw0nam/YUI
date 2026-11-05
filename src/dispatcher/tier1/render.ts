@@ -1,10 +1,12 @@
 /** Tier-1 rendering: local directives, posture ledger, pin targets and the tap-emotion revert, with no backend involved. */
 import type { PeekConfig, TapConfig } from "../../config/validators/avatar/types";
 import type { BodyState, Posture } from "../../contract";
+import { PERCH_MOTION_ID } from "../../io/window/geometry/perch";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { BusEnvelope } from "../core/event-bus";
 import {
+  isSeatEntry,
   isSitDrop,
   type PeekDropPayload,
   parsePeekDropPayload,
@@ -20,6 +22,7 @@ export interface Tier1RenderDeps {
     | "setPeekTarget"
     | "setMotionMirror"
     | "easeEmotionToNeutral"
+    | "getCurrentMotion"
   >;
   peekConfig: () => PeekConfig;
   /** Tap knobs — touch_emotion_hold_ms drives the tap-emotion revert timer. */
@@ -92,6 +95,9 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
     applyPinTargets(env, peekDrop, sitDropEdge);
     applyPeekState(env);
     try {
+      // The sitter started window_sit; a repeat request would crossfade into another variant.
+      if (isSeatEntry(env.event_name) && renderer.getCurrentMotion()?.id === PERCH_MOTION_ID)
+        return;
       renderer.applyDirective(directive);
       // The pat emotion holds for the whole press — an earlier tap's revert would clip it,
       // and only the release eases back, and only what the pat itself applied.
@@ -165,8 +171,7 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
           ? deps.peek.enter()
           : env.event_name === "user.peek_exit" ||
               env.event_name === "user.drag_start" ||
-              isSitDrop(env.event_name) ||
-              env.event_name === "user.window_sit_enter"
+              isSeatEntry(env.event_name)
             ? deps.peek.exit()
             : null;
       void operation?.catch((err) => log.error("tier1.peek_state_error", { error: String(err) }));

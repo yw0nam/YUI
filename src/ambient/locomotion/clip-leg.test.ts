@@ -4,26 +4,18 @@ import type { RenderMotionSignal } from "../../renderer";
 import { type ClipLeg, createLegRunner } from "./clip-leg";
 
 /** Source clip lengths the renderer reports once the clips are cached. */
-const MOTION_S: Record<string, number> = { up: 2, pull: 2, sit: 4.4, hang: 1 };
+const MOTION_S: Record<string, number> = { up: 2, pull: 2, hang: 1 };
 /** Hips travel (m, signed) the renderer levelled out of each clip. */
-const MOTION_TRAVEL_M: Record<string, number> = { up: 1, pull: 1, sit: -0.34, hang: 0 };
+const MOTION_TRAVEL_M: Record<string, number> = { up: 1, pull: 1, hang: 0 };
 const MOTION_LOOPS = new Set(["up", "idle"]);
 const MOTION_KINDS: Record<string, MotionKind> = {
   idle: "ambient",
   up: "reactive",
   pull: "oneshot",
-  sit: "oneshot",
   hang: "oneshot",
   happy: "oneshot",
   drag: "reactive",
 };
-
-/** The sit's hips: still for 2 s, down 0.34 m over the next 0.6 s, then seated. */
-function sitCurve(t: number): number {
-  if (t <= 2) return 0;
-  if (t >= 2.6) return -0.34;
-  return (-0.34 * (t - 2)) / 0.6;
-}
 
 function makeHarness() {
   const cached = new Set<string>();
@@ -53,7 +45,6 @@ function makeHarness() {
       getMotionTravelY: (id) => (cached.has(id) ? (MOTION_TRAVEL_M[id] ?? 0) : null),
       getMotionTravelAt: (id, t) => {
         if (!cached.has(id)) return null;
-        if (id === "sit") return sitCurve(t);
         const total = MOTION_TRAVEL_M[id] ?? 0;
         return total * Math.min(Math.max(t, 0) / (MOTION_S[id] ?? 1), 1);
       },
@@ -102,7 +93,6 @@ function leg(h: ReturnType<typeof makeHarness>, over: Partial<ClipLeg> = {}): Cl
     pxPerMetre: 300,
     linearS: null,
     curveY: true,
-    fit: false,
     oneshot: false,
     handoffS: 0,
     ...over,
@@ -142,54 +132,6 @@ describe("createLegRunner — clip-paced window legs", () => {
     expect(h.positions.at(-1)?.y).toBe(250);
   });
 
-  it("spans fromY to toY over the clip's whole travel when fitted, and ends at the handoff", async () => {
-    const h = makeHarness();
-    // A 0.34 m drop stretched to 300 px: the window sinks exactly as the hips do.
-    const done = h.runner.run(
-      leg(h, { motionId: "sit", fromY: 480, toY: 780, fit: true, oneshot: true, handoffS: 0.5 }),
-    );
-    await h.runFrames(20);
-    expect(h.positions.at(-1)?.y).toBe(480);
-    await h.runFrames(3);
-    expect(h.positions.at(-1)?.y).toBeCloseTo(480 + (300 * sitCurve(2.3)) / -0.34, 6);
-    await h.runFrames(4);
-    // The hips have landed, but the leg runs with the clip rather than ending on arrival.
-    expect(h.positions.at(-1)?.y).toBe(780);
-    expect(await outcome(done)).toBe("pending");
-    await h.runFrames(12);
-    expect(h.clipT()).toBeGreaterThanOrEqual(MOTION_S.sit - 0.5);
-    expect(await outcome(done)).toBe("done");
-    expect(h.positions.at(-1)).toEqual({ x: 500, y: 780 });
-  });
-
-  it("runs a fitted leg the other way when the clip's travel opposes the window's", async () => {
-    const h = makeHarness();
-    // The clip rises; the window has to come down. The curve's shape still paces it.
-    const done = h.runner.run(
-      leg(h, { motionId: "pull", fromY: 600, toY: 800, fit: true, oneshot: true, handoffS: 0 }),
-    );
-    await h.runFrames(10);
-    expect(h.positions.at(-1)?.y).toBeCloseTo(700, 6);
-    await h.runFrames(11);
-    expect(await outcome(done)).toBe("done");
-    expect(h.positions.at(-1)?.y).toBe(800);
-  });
-
-  it("paces a clip without moving anything when given no window", async () => {
-    const h = makeHarness();
-    const done = h.runner.run(
-      leg(h, { win: null, motionId: "sit", fromY: 480, toY: 480, fit: true, oneshot: true }),
-    );
-    expect(h.motions).toEqual([{ id: "sit" }]);
-    await h.runFrames(43);
-    expect(await outcome(done)).toBe("pending");
-    // The oneshot runs out and the baseline comes back: the leg is over.
-    await h.runFrames(2);
-    expect(await outcome(done)).toBe("done");
-    expect(h.positions).toEqual([]);
-    expect(h.win.setPositionPhysical).not.toHaveBeenCalled();
-  });
-
   it("holds the window while another clip has the body, then finishes a oneshot on the baseline", async () => {
     const h = makeHarness();
     const done = h.runner.run(leg(h, { motionId: "pull", toY: 700, oneshot: true }));
@@ -219,20 +161,6 @@ describe("createLegRunner — clip-paced window legs", () => {
     // The replay's first frame is its new baseline; the next four move 15 px each.
     expect(h.positions.at(-1)?.y).toBeCloseTo(y - 60, 6);
     expect(await outcome(done)).toBe("pending");
-  });
-
-  it("holds a fitted span on a clip with no travel of its own", async () => {
-    const h = makeHarness();
-    // Nothing paces the fit, so the window takes the far end at once and stays there.
-    const done = h.runner.run(
-      leg(h, { motionId: "hang", fromY: 600, toY: 700, fit: true, oneshot: true, handoffS: 0 }),
-    );
-    await h.frame();
-    expect(h.positions).toEqual([{ x: 500, y: 700 }]);
-    expect(await outcome(done)).toBe("pending");
-    await h.runFrames(10);
-    expect(await outcome(done)).toBe("done");
-    for (const p of h.positions) expect(p.y).toBe(700);
   });
 
   it("eases a linear leg on its own clock, x and y alike", async () => {
@@ -277,7 +205,7 @@ describe("createLegRunner — clip-paced window legs", () => {
     expect(await runner.run(leg(h, { toY: 850 }))).toBe("lost");
   });
 
-  it("is done at once when a leg has nowhere to go and nothing to fit", async () => {
+  it("is done at once when a leg has nowhere to go", async () => {
     const h = makeHarness();
     expect(await h.runner.run(leg(h))).toBe("done");
     expect(h.motions).toEqual([]);

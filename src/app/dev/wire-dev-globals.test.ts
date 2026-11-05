@@ -113,7 +113,7 @@ describe("wireDevGlobals", () => {
     expect(deps.userInput.submit).toHaveBeenCalledWith("hello");
   });
 
-  it("__yui_windowSit.enter plays the sit-down, then pushes a window_sit_enter event", async () => {
+  it("__yui_windowSit.enter crossfades to window_sit, then pushes a window_sit_enter event", async () => {
     const deps = makeDeps();
     await wireDevGlobals(deps as never);
     const windowSit = (globalThis as unknown as Record<string, { enter: () => void }>)
