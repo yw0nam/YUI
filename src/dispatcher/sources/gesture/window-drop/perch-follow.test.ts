@@ -34,7 +34,7 @@ afterEach(() => {
  * The host starts at (300, 400, 520 wide), window number 7. The pet window sits at physical
  * (520, 740) at scale 2 with seat offset (40, 30), so the seat is (300, 400): the host's top-left corner.
  */
-function follow() {
+function follow(timers = { setInterval, clearInterval }) {
   const host = { rect: win({ windowNumber: 7 }) as WindowRect | null };
   const windowBounds = vi.fn(async () => host.rect);
   const petWindow = {
@@ -50,8 +50,7 @@ function follow() {
     renderer: perch.renderer,
     listMonitors: async () => [MONITOR],
     setGuardPaused,
-    setInterval,
-    clearInterval,
+    ...timers,
   });
   return { subject, host, windowBounds, petWindow, perch, onLost, setGuardPaused };
 }
@@ -116,23 +115,44 @@ describe("perch-follow", () => {
     expect(setGuardPaused).toHaveBeenLastCalledWith(false);
   });
 
-  it("loses the seat once, as off_screen, when the move puts it off every monitor", async () => {
+  it("loses the seat once, as off_screen, without moving when the move would put it off every monitor", async () => {
     const info = vi.spyOn(console, "info");
     const { subject, host, petWindow, onLost } = follow();
     subject.start(7, onLost);
     await step();
 
-    // The seat lands at (300, 1200) on a 1080-high screen.
+    // The seat would land at (300, 1200) on a 1080-high screen.
     host.rect = win({ windowNumber: 7, y: 1200 });
     await step();
     await step();
 
-    expect(petWindow.setPositionPhysical).toHaveBeenCalledWith(520, 2340);
+    expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
     expect(onLost).toHaveBeenCalledTimes(1);
     expect(info).toHaveBeenCalledWith("[YUI][perch-follow] perch.follow_lost", {
       reason: "off_screen",
       windowNumber: 7,
     });
+  });
+
+  it("calls its timers detached, as WebKit's brand check requires", async () => {
+    // A native timer throws when called as a method of anything but the window.
+    const branded = <Args extends unknown[], R>(native: (...args: Args) => R) =>
+      function (this: unknown, ...args: Args): R {
+        if (this !== undefined && this !== globalThis) {
+          throw new TypeError("Can only call Window.setInterval on instances of Window");
+        }
+        return native(...args);
+      };
+    const { subject, windowBounds, onLost } = follow({
+      setInterval: branded(setInterval) as typeof setInterval,
+      clearInterval: branded(clearInterval) as typeof clearInterval,
+    });
+
+    subject.start(7, onLost);
+    await step();
+    subject.stop();
+
+    expect(windowBounds).toHaveBeenCalledTimes(1);
   });
 
   it("moves nothing while the renderer is not perched", async () => {
