@@ -245,7 +245,7 @@ pub fn list_all_windows() -> Vec<WindowAtPoint> {
 pub fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
     enumerate(K_CG_WINDOW_LIST_OPTION_INCLUDING_WINDOW, window_number)
         .into_iter()
-        .find(|w| w.window_number == window_number)
+        .next()
         .map(window_rect_to_at_point)
 }
 

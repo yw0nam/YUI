@@ -9,8 +9,8 @@ import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {
   attachKeepOnScreen,
+  createKeepOnScreenPause,
   type KeepOnScreenHandle,
-  type KeepOnScreenHolder,
 } from "../../io/window/geometry/keep-on-screen";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { wasWindowDragging } from "../../io/window/pet/gesture/window-drag";
@@ -89,13 +89,8 @@ export function wireWindowSources(deps: {
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
   let keepOnScreen: KeepOnScreenHandle | null = null;
-  // The holders that pause the guard before it exists — applied once it does.
-  const pendingHolders = new Set<KeepOnScreenHolder>();
-  const holdKeepOnScreen = (holder: KeepOnScreenHolder, paused: boolean): void => {
-    if (paused) pendingHolders.add(holder);
-    else pendingHolders.delete(holder);
-    keepOnScreen?.setPaused(holder, paused);
-  };
+  // Holds taken before the guard attaches still apply once it does.
+  const keepOnScreenPause = createKeepOnScreenPause();
   let disposed = false;
   const handle = {
     noteUserDrag: () => {
@@ -115,7 +110,7 @@ export function wireWindowSources(deps: {
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
     abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
-    setKeepOnScreenPaused: (paused: boolean) => holdKeepOnScreen("travel", paused),
+    setKeepOnScreenPaused: (paused: boolean) => keepOnScreenPause.setPaused("travel", paused),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();
@@ -163,7 +158,7 @@ export function wireWindowSources(deps: {
       windowBounds: (windowNumber) =>
         invoke("window_bounds", { windowNumber }) as Promise<WindowRect | null>,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
-      setGuardPaused: (paused) => holdKeepOnScreen("perch_follow", paused),
+      setGuardPaused: (paused) => keepOnScreenPause.setPaused("perch_follow", paused),
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -226,8 +221,8 @@ export function wireWindowSources(deps: {
         onResized: (cb) => getCurrentWindow().onResized(() => cb()),
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
+      { pause: keepOnScreenPause },
     );
-    for (const holder of pendingHolders) keepOnScreen.setPaused(holder, true);
     if (disposed) keepOnScreen.dispose();
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {

@@ -245,7 +245,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       getWindow,
       renderer,
       listMonitors: deps.listMonitors,
-      onLost: () => perch.loseSit(),
       setGuardPaused: deps.setGuardPaused,
       ...timers,
     }),

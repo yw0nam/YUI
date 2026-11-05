@@ -25,7 +25,6 @@ export interface PerchFollowDeps {
   getWindow: () => DropWindow;
   renderer: Pick<PerchProbeSource, "getPerchProbe" | "isPerched">;
   listMonitors(): Promise<ScreenMonitor[]>;
-  onLost(reason: "off_width" | "off_screen"): void;
   /** Pause the keep-on-screen guard while the follow owns the window position. */
   setGuardPaused(paused: boolean): void;
   setInterval: typeof setInterval;
@@ -33,8 +32,8 @@ export interface PerchFollowDeps {
 }
 
 export interface PerchFollow {
-  /** Follow a host from now on; a running follow is replaced. */
-  start(windowNumber: number): void;
+  /** Follow a host from now on, replacing a running follow; `onLost` runs once when the seat is lost. */
+  start(windowNumber: number, onLost: () => void): void;
   /** Stop following; an in-flight step writes nothing. */
   stop(): void;
 }
@@ -42,6 +41,7 @@ export interface PerchFollow {
 export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
   let timer: ReturnType<typeof setInterval> | null = null;
   let windowNumber = 0;
+  let onLost: () => void = () => {};
   let last: WindowRect | null = null;
   let monitors: ScreenMonitor[] | null = null;
   let busy = false;
@@ -60,7 +60,7 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
   function lose(reason: "off_width" | "off_screen"): void {
     stop();
     log.info("perch.follow_lost", { reason, windowNumber });
-    deps.onLost(reason);
+    onLost();
   }
 
   async function step(g: number): Promise<void> {
@@ -100,9 +100,10 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
   }
 
   return {
-    start(n) {
+    start(n, lost) {
       stop();
       windowNumber = n;
+      onLost = lost;
       last = null;
       monitors = null;
       deps.setGuardPaused(true);

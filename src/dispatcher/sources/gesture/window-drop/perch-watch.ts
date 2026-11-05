@@ -75,8 +75,6 @@ export interface PerchWatchDeps {
 }
 
 export interface PerchWatch {
-  /** The follow lost the seat: exit, unpin and fall. */
-  loseSit(): void;
   /** Arm the poll on a window; a re-arm replaces the previous one. */
   arm(
     kind: "sit" | "peek",
@@ -214,7 +212,7 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
         log.warn("perch_poll_tick_failed", { degrade: true, error: String(err) }),
       );
     }, PERCH_POLL_MS);
-    if (kind === "sit") deps.follow.start(windowNumber);
+    if (kind === "sit") deps.follow.start(windowNumber, loseSit);
   }
 
   async function tick(): Promise<void> {
@@ -290,7 +288,6 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
   }
 
   return {
-    loseSit,
     arm,
     pushExit,
     disarm,
