@@ -22,7 +22,7 @@ The backend can pick all 10 emotions and 8 of the motions. Each emotion has a fa
 | --- | --- |
 | Overlay | Transparent, frameless, and always on top, with clicks passing through empty pixels |
 | Drag and resize | Native dragging across monitors, and resizing with Ctrl+wheel at her feet |
-| Perch and peek | She sits on a window's top edge or peeks from behind it, until the window moves or closes |
+| Perch and peek | She sits on a window's top edge and follows it as it moves or resizes, and falls when it closes, covers her seat, or leaves the screen; she peeks from behind a window until it moves or closes |
 | Locomotion | Walking, window-top jumps, and falls that end in a landing, with climbing in development |
 | Touch | Taps on the head, chest, and hips, plus a head pat, one cue a minute |
 | Summon and tray | A global summon shortcut, and a tray menu with Settings, Terminal, and Quit |

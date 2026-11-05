@@ -1079,7 +1079,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/gesture",
       "module": "sources",
       "label": "gesture sources",
-      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch and placement.",
+      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch, the follow of a moved or resized host, and placement.",
       "paths": [
         "src/dispatcher/sources/gesture"
       ]
@@ -2662,6 +2662,15 @@ globalThis.YUI_MAP =
       "carries": "list_windows → WindowAtPoint[]",
       "kind": "tauri-command",
       "transport": "shared"
+    },
+    {
+      "id": "gesture-window-bounds",
+      "from": "dispatcher/sources/gesture",
+      "to": "shell/os-event-watcher",
+      "carries": "window_bounds(windowNumber) → WindowAtPoint | null",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
       "id": "locomotion-list-windows",
