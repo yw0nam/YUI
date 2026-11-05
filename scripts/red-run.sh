@@ -21,11 +21,11 @@ files="$(git diff --name-only "$commit^" "$commit")"
 ts="$(printf '%s\n' "$files" | grep -E '\.test\.tsx?$' || true)"
 py="$(printf '%s\n' "$files" | grep -E '(^|/)test_[^/]*\.py$' || true)"
 # Titles of the cases the commit adds: it("…"), it.each(…)("…"), test("…"), def test_…; a title on
-# the line after an opening `it(` / `it.each(…)(` / `])(` is read from that next line.
+# the line after an opening `it(` / `it.each(…)(` / `])(` / `] as const)(` is read from that next line.
 added="$(git diff -U0 "$commit^" "$commit" -- $ts $py | grep -E '^\+' |
   sed -nE 's/^\+[[:space:]]*(it|test)(\.each\(.*\))?\([[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\3/p;
-           s/^\+[[:space:]]*[]})]+\([[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\1/p;
-           /^\+[[:space:]]*((it|test)(\.each\(.*\))?|[]})]+)\([[:space:]]*$/{n;s/^\+[[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\1/p;};
+           s/^\+[[:space:]]*[]})]+([[:space:]]+as[[:space:]]+const[[:space:]]*\))?\([[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\2/p;
+           /^\+[[:space:]]*((it|test)(\.each\(.*\))?|[]})]+([[:space:]]+as[[:space:]]+const[[:space:]]*\))?)\([[:space:]]*$/{n;s/^\+[[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\1/p;};
            s/^\+[[:space:]]*(async[[:space:]]+)?def[[:space:]]+(test_[A-Za-z0-9_]+).*/\2/p')"
 [ -z "$added" ] && [ -z "$ts$py" ] && { echo "red-run: $commit adds no test case"; exit 0; }
 
@@ -68,11 +68,12 @@ if [ -z "$added" ]; then
 fi
 
 green=""
+hole=$'\001'
 while IFS= read -r title; do
   [ -z "$title" ] && continue
-  # A templated title (%s, $name) matches the run's rendered titles by its fixed prefix.
-  prefix="${title%%[%\$]*}"
-  if printf '%s\n' "$passed" | grep -qF -- "$prefix"; then
+  # Anchored at the start only, so a title the parser cut at an inner quote (window's) still matches.
+  re="$(printf '%s' "$title" | sed -E "s/%.|\\\$[A-Za-z0-9_#\$][A-Za-z0-9_.\$]*/$hole/g; s/[][\\.*^\$+?(){}|]/\\\\&/g; s/$hole/.*/g")"
+  if printf '%s\n' "$passed" | grep -qE -- "^$re"; then
     green="$green
   $title"
   fi
