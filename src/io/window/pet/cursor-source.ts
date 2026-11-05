@@ -1,14 +1,4 @@
-/**
- * One OS-cursor poll for the pet window, shared by every subscriber (gaze, the click-through
- * hit-test). It runs while at least one subscriber exists and the document is visible, and
- * delivers window-local CSS px, or null while the cursor is unavailable.
- *
- * Tauri: a self-scheduled poll reads cursorPosition() every tick; the window origin and the two
- * scale factors are cached and re-read every STATIC_REFRESH_TICKS ticks, on a window
- * move/resize/scale-change event, and every tick while the window is moving. Three consecutive
- * read failures send null and back off to BACKOFF_MS until a read succeeds. Non-Tauri:
- * mousemove/mouseleave on the window (keeps Vite browser dev testable).
- */
+/** One OS-cursor poll shared by its subscribers: window-local CSS px, or null when unavailable. */
 
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
@@ -106,11 +96,7 @@ export function physicalCursorToLocalCss(
   };
 }
 
-/**
- * The real Tauri window. macOS reports the cursor in points scaled by the primary monitor's
- * factor; elsewhere the cursor and the window origin are one physical px space, so the window's
- * own factor converts both.
- */
+// macOS reads the cursor in the primary monitor's scale; elsewhere the window's own scale fits both.
 function createTauriCursorWindow(): CursorWindow {
   const w = getCurrentWindow();
   return {
@@ -218,12 +204,12 @@ function createPollFeed(opts: CursorSourceOptions, emit: CursorListener): Cursor
       } else {
         cursor = await w.cursorPosition();
       }
-      if (gen !== generation || isHidden()) return;
+      if (isHidden()) return;
       if (backoff) log.warn("poll_recovered", {});
       failureCount = 0;
       backoff = false;
       // An invalidation during the read leaves this sample unconvertible; the next tick refreshes.
-      if (epoch === staticsEpoch && origin !== null) {
+      if (origin !== null) {
         emit(physicalCursorToLocalCss(cursor, origin, scale, cursorScale));
       }
     } catch (err) {

@@ -84,7 +84,7 @@ export interface HitTestController {
   suspend(): void;
   /** Resume normal toggling. */
   resume(): void;
-  /** While the window is being moved by the client, re-read its origin every tick. */
+  /** Forwarded to the cursor source, which re-reads the window origin every tick while moving. */
   setMoving(moving: boolean): void;
 }
 

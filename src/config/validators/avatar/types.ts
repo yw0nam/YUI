@@ -164,7 +164,7 @@ export interface FramingConfig {
 export interface HitTestKnobs {
   /** How far outside the character the cursor may sit and still hold the window interactive. */
   hysteresis_margin_px: number;
-  /** Gap between cursor reads while the window is click-through. */
+  /** Gap between cursor reads, shared by the click-through check and gaze. */
   poll_interval_ms: number;
   /** Agreeing samples needed before the click-through state flips. */
   debounce_samples: number;
