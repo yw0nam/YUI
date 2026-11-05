@@ -17,14 +17,14 @@ vi.mock("./markdown", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./markdown")>();
   return {
     ...actual,
-    renderMarkdownInline: vi.fn(actual.renderMarkdownInline),
+    markdownBlocks: vi.fn(actual.markdownBlocks),
   };
 });
 
 import { BUBBLE, INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
-import { renderMarkdownInline } from "./markdown";
+import { markdownBlocks } from "./markdown";
 
 const TOOLS_SELECTOR = `${BUBBLE} .yui-bubble__tools button`;
 const BOX_SELECTOR = `${BUBBLE} .yui-bubble__box`;
@@ -736,7 +736,7 @@ describe("pushSpeech — throttled markdown rendering", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.mocked(renderMarkdownInline).mockClear();
+    vi.mocked(markdownBlocks).mockClear();
     ({ s, mount } = makeSurfaces());
   });
 
@@ -753,7 +753,7 @@ describe("pushSpeech — throttled markdown rendering", () => {
     s.beginSpeech();
     for (const delta of deltas) s.pushSpeech(delta);
 
-    expect(renderMarkdownInline).toHaveBeenCalledTimes(1);
+    expect(markdownBlocks).toHaveBeenCalledTimes(1);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).not.toBe(expected);
 
     s.endSpeech();

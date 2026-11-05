@@ -1,7 +1,7 @@
 /**
  * Markdown renderer for the speech bubble and the Threads window's entries — marked → DOMPurify → <span>.
  *
- * The bubble re-renders the FULL accumulated text on each streaming delta, so
+ * The bubble re-lexes the FULL accumulated text on each streaming delta, so
  * marked is used in synchronous mode and tolerates incomplete markdown
  * (unterminated `**`, half-written `[`) by leaving it as literal text.
  *
@@ -72,11 +72,50 @@ export function renderMarkdownInline(
   text: string,
   opts?: { streaming?: boolean },
 ): HTMLSpanElement {
+  const parser = opts?.streaming ? streamingMarked : fullMarked;
+  return sanitize((parser.parse(text, { async: false }) as string).trim());
+}
+
+/**
+ * `text` split into its top-level blocks, each with a key that changes whenever its rendering would, and a
+ * render that returns that block's part of `renderMarkdownInline(text)`. The text is lexed whole: a reference
+ * definition can change an earlier block. Raw HTML can open a tag in one block and close it in another, so a
+ * text holding any is one block rendered whole.
+ */
+export function markdownBlocks(
+  text: string,
+  streaming: boolean,
+): { key: string; render(): HTMLSpanElement }[] {
+  const parser = streaming ? streamingMarked : fullMarked;
+  const tokens = parser.lexer(text);
+  let html = false;
+  parser.walkTokens(tokens, (token) => {
+    if (token.type === "html") html = true;
+  });
+  if (html) {
+    return [
+      { key: `${streaming}\0${text}`, render: () => renderMarkdownInline(text, { streaming }) },
+    ];
+  }
+  const blocks = tokens.filter((token) => token.type !== "space" && token.type !== "def");
+  const links = JSON.stringify(tokens.links);
+  return blocks.map((token, index) => {
+    // The whole rendering is trimmed: only the last block's trailing newline goes.
+    const last = index === blocks.length - 1;
+    return {
+      key: JSON.stringify([streaming, links, last, token.raw]),
+      render() {
+        const out = parser.parser([token]);
+        return sanitize(last ? out.trimEnd() : out);
+      },
+    };
+  });
+}
+
+function sanitize(html: string): HTMLSpanElement {
   installHooks();
   const container = document.createElement("span");
-  const parser = opts?.streaming ? streamingMarked : fullMarked;
-  const rawHtml = (parser.parse(text, { async: false }) as string).trim();
-  container.innerHTML = DOMPurify.sanitize(rawHtml, PURIFY_CONFIG);
+  container.innerHTML = DOMPurify.sanitize(html, PURIFY_CONFIG);
   for (const input of container.querySelectorAll("input")) {
     if (input.type === "checkbox") {
       input.removeAttribute("src");
