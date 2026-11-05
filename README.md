@@ -188,7 +188,7 @@ Most clips are extracted from the [Mate Engine](https://github.com/shinyflvre/Ma
 
 The `sulk` clip (`suneru.vrma`) is from necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) (Unity Humanoid `06_suneru`, 拗ね = sulk/pout), attribution to necocoya. Modification, conversion, and bundling-with-credit are permitted; standalone resale of the raw file is prohibited.
 
-The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down` and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under the Mixamo terms.
+The locomotion clips `walk`, `jump`, `falling`, `landing` and the climb set (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`) are from [Mixamo](https://www.mixamo.com/), royalty-free under the Mixamo terms.
 
 The bundled default VRM model (`resources/vrms/AvatarSample_A.vrm`) is **AvatarSample_A**, a sample model of [VRoid Studio](https://vroid.com/en/studio) by pixiv Inc., distributed under pixiv's [AvatarSample conditions of use](https://vroid.pixiv.help/hc/ja/articles/4402394424089). It is not CC0; no credit is required. See [`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md) for the full notice.
 

@@ -42,8 +42,6 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `climb_up_done` | oneshot | no | Pull-over onto the ledge that ends an ascent. `root_lock_y: true`: the window follows the clip's own rise, leaving the feet on the window's top edge. `broker_publish: false`. | Mixamo "Climbing To Top" | 4.0s |
 | `climb_down` | reactive | yes | Wall-descent loop held for the length of a descent. `root_lock_y: true`: the window follows the clip's own ~1.05 m per cycle. `broker_publish: false`. | Mixamo "Climbing Down Wall" | 2.0s |
 | `climb_down_landing` | oneshot | no | Touchdown at the end of a descent. `root_lock_y: true`: the window follows the clip's own ~0.24 m drop onto the work-area floor. `broker_publish: false`. | Mixamo "Climbing Down_landing" | 1.38s |
-| `sit_down` | oneshot | no | Sitting down onto a window top, played before `window_sit` takes the seat. `root_lock_y: true`, the window following the clip's own hips curve (see [Seat transitions](#seat-transitions)). `broker_publish: false`. | Mixamo "Sitting" | 4.4s |
-| `stand_up` | oneshot | no | Standing up from a window seat, played before a perched stroll or a climb descent leaves the seat. `root_lock_y: true`: the pin is released and the window follows the clip's rise, scaled to the same seat distance, so the feet end on the edge. `broker_publish: false`. | Mixamo "Sit To Stand" | 2.03s |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
 | `laugh` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
 | `embarrassed` | oneshot | no | Strongly embarrassed; shy finger-point gesture. | PET_MISC/PET_SHY_POINT | — |
@@ -126,7 +124,7 @@ All four are `broker_publish: false`.
 
 ### Seat transitions
 
-`sit_down` and `stand_up` are the seat transitions, played by the client's sitter on every seat entry and on the voluntary seat exits.
+The client's sitter crossfades the body and eases the window on every seat entry and on the voluntary seat exits.
 
 Seat entries are:
 
@@ -142,9 +140,9 @@ Voluntary exits are:
 
 A drag pickup and a lost host window leave the seat at once, with no stand-up.
 
-`sit_down` plays before `window_sit` takes the seat. The perch pin stays off while the clip plays, and the window follows the clip's own hips curve, scaled so its total drop is the measured standing-feet → seated-hips distance. The last frame lands the hips on the edge, then `window_sit` crossfades in and the pin engages.
+`window_sit` crossfades in over 500 ms while the window eases down by the measured standing-feet → seated-hips distance. The pin engages after.
 
-A drag drop keeps the window where the user left it and plays the clip in place. Both transitions are `root_lock_y: true` and `broker_publish: false`.
+A drag drop keeps the window where the user left it. A voluntary exit crossfades to `idle` while the window eases up to the standing position over 500 ms.
 
 ### Thinking
 
@@ -196,6 +194,8 @@ Both are client-held perch states with `broker_publish: false`.
 
 7 variants: a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that ping-pongs each variant forward↔reverse a random 1 to 3 round trips (`loop_cycles: [1, 3]`), then crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
 
+A seat entry starts `window_sit` with a 500 ms crossfade.
+
 | variant file | description | source clip | ~len |
 |---|---|---|---|
 | sit_01.vrma | Floor sit, legs folded to one side, one hand supporting, elegant. | PET_SITTING/ME_02/PET_SIT_01 | 3.2s |
@@ -244,9 +244,9 @@ Clips come from four origins. Durations are the source clip length.
 
 ### Mixamo
 
-[Mixamo](https://www.mixamo.com/) supplies ten clips, royalty-free under the Mixamo terms.
+[Mixamo](https://www.mixamo.com/) supplies eight clips, royalty-free under the Mixamo terms.
 
-They are converted to `.vrma` through the Mate-Engine `YuiExport.YuiVrmaExport` pipeline (30 FPS) with a with-skin (bind-pose) source avatar. `jump`, the fall pair, the climb set and the seat transitions are exported from the "Maria WProp J J Ong" character.
+They are converted to `.vrma` through the Mate-Engine `YuiExport.YuiVrmaExport` pipeline (30 FPS) with a with-skin (bind-pose) source avatar. `jump`, the fall pair and the climb set are exported from the "Maria WProp J J Ong" character.
 
 | id | Mixamo clip |
 |---|---|
@@ -258,8 +258,6 @@ They are converted to `.vrma` through the Mate-Engine `YuiExport.YuiVrmaExport` 
 | `climb_up_done` | "Climbing To Top" |
 | `climb_down` | "Climbing Down Wall" |
 | `climb_down_landing` | "Climbing Down_landing" |
-| `sit_down` | "Sitting" |
-| `stand_up` | "Sit To Stand" |
 
 ## Agent vocabulary
 
@@ -280,7 +278,6 @@ The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_liv
 | `jump` | `broker_publish: false`, its window-to-window crossing |
 | `falling`, `landing` | `broker_publish: false`, the client-owned fall chain |
 | `climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing` | `broker_publish: false`, the client-owned climb chain |
-| `sit_down`, `stand_up` | `broker_publish: false`, the client-owned seat transitions |
 
 ## Playback settings
 
@@ -300,7 +297,7 @@ It narrows the vocabulary carried in push frames and in the `motion_id` enum of 
 
 `root_lock_y` defaults to `false`. The loader strips a clip's baked horizontal root drift from every entry, but leaves vertical motion alone because that is the bob. A `true` entry has its hips-Y track levelled instead. Every key moves onto the hips height the VRM has in its rest pose. The curve that comes out is kept beside the clip.
 
-It is set on the four climb clips and the two seat transitions, whose rise and fall is the movement. The OS window replays that curve. As a result:
+It is set on the four climb clips, whose rise and fall is the movement. The OS window replays that curve. As a result:
 
 - the clip and the window compose to the authored motion exactly once;
 - a loop has no seam left to snap at;
