@@ -49,12 +49,14 @@ let setPerchTarget: ReturnType<typeof vi.fn>;
 let setPeekTarget: ReturnType<typeof vi.fn>;
 let setMotionMirror: ReturnType<typeof vi.fn>;
 let easeEmotionToNeutral: ReturnType<typeof vi.fn>;
+let getCurrentMotion: ReturnType<typeof vi.fn>;
 let renderer: {
   applyDirective: typeof applyDirective;
   setPerchTarget: typeof setPerchTarget;
   setPeekTarget: typeof setPeekTarget;
   setMotionMirror: typeof setMotionMirror;
   easeEmotionToNeutral: typeof easeEmotionToNeutral;
+  getCurrentMotion: typeof getCurrentMotion;
 };
 let peekEnter: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let peekExit: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -85,6 +87,7 @@ beforeEach(() => {
   setPeekTarget = vi.fn();
   setMotionMirror = vi.fn();
   easeEmotionToNeutral = vi.fn();
+  getCurrentMotion = vi.fn(() => null);
   peekEnter = vi.fn().mockResolvedValue(undefined);
   peekExit = vi.fn().mockResolvedValue(undefined);
   renderer = {
@@ -93,6 +96,7 @@ beforeEach(() => {
     setPeekTarget,
     setMotionMirror,
     easeEmotionToNeutral,
+    getCurrentMotion,
   };
   callDeferred = [];
   backendCaller = makeDeferredBackendCaller(callDeferred);

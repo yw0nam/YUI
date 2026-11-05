@@ -132,13 +132,7 @@ export function wireLocomotion(deps: {
   let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
 
   // The seat transitions every seat entry and voluntary exit plays; one body, one sitter.
-  const sitter = createSitter({
-    renderer,
-    currentMotionKind: () => {
-      const current = renderer.getCurrentMotion();
-      return current ? (getConfig().motions[current.id]?.kind ?? null) : null;
-    },
-  });
+  const sitter = createSitter({ renderer });
   sitter.start();
   register(sitter.stop);
 

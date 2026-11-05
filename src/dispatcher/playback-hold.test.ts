@@ -196,6 +196,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
         setPeekTarget: vi.fn(),
         setMotionMirror: vi.fn(),
         easeEmotionToNeutral: vi.fn(),
+        getCurrentMotion: vi.fn(() => null),
       },
       peekConfig: () => PEEK_CONFIG,
       tapConfig: () => TAP_CONFIG,

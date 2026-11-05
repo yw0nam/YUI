@@ -1,30 +1,22 @@
 /**
- * Seat transitions — the sit-down that puts the character onto a window top and the
- * stand-up that takes her off it, played before the seat is taken or left. The clips are
- * root-locked, so the OS window supplies the descent and the rise: it follows each clip's
- * own hips curve, stretched so that the sit lands the hips on the edge and the stand puts
- * the feet back on it. Whoever seats or unseats her runs the transition first and carries
- * on when it resolves; a transition cut short by a pickup resolves "lost".
+ * Seat transitions — taking a window seat and leaving it. The seat entry crossfades into
+ * the seated clip while the OS window eases down by the standing-feet to seated-hips
+ * distance; the exit crossfades to idle while the window eases up to the standing origin.
+ * Whoever seats or unseats her runs the transition first and carries on when it resolves;
+ * a transition cut short by a pickup resolves "lost".
  */
 
-import type { MotionKind } from "../../contract";
+import { PERCH_MOTION_ID } from "../../io/window/geometry/perch";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
-import { createLegRunner, type LegWindow } from "./clip-leg";
+import { easeInOut } from "../../renderer/motion/yaw/body-yaw";
+import type { LegWindow } from "./clip-leg";
 import type { WalkerDoc } from "./walk/walker";
 
 const log = createLogger("sitter");
 
-/** Registry id of the sit-down onto a ledge. */
-export const SIT_DOWN_MOTION_ID = "sit_down";
-/** Registry id of the stand-up off a ledge. */
-export const STAND_UP_MOTION_ID = "stand_up";
-/**
- * How long before a transition clip ends the next clip takes the body. The seat or the walk
- * crossfades out of the clip's settled last stretch; a oneshot left to run out drops the
- * body through idle first.
- */
-export const SEAT_HANDOFF_S = 0.5;
+/** The motion crossfade and the window ease share this span. */
+const SEAT_EASE_MS = 500;
 
 export interface SeatWindow extends LegWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
@@ -33,19 +25,8 @@ export interface SeatWindow extends LegWindow {
 export interface SitterDeps {
   renderer: Pick<
     Renderer,
-    | "onTick"
-    | "playMotion"
-    | "getCurrentMotion"
-    | "getCurrentMotionTime"
-    | "getMotionDuration"
-    | "getMotionTravelY"
-    | "getMotionTravelAt"
-    | "preloadMotion"
-    | "getCharacterAnchor"
-    | "getPerchProbe"
+    "onTick" | "playMotion" | "getCurrentMotion" | "getCharacterAnchor" | "getPerchProbe"
   >;
-  /** Registry kind of the committed motion. null when nothing is playing. */
-  currentMotionKind(): MotionKind | null;
   /** Defaults to the global document; injected in tests. */
   doc?: WalkerDoc;
 }
@@ -55,32 +36,42 @@ export interface Sitter {
   start(): void;
   stop(): void;
   /**
-   * Sit down onto the edge under the feet. With a window, it sinks by the standing seat
-   * height — the feet on the edge become the hips on it — along the clip's curve; without
-   * one, or with a body the renderer cannot measure, the clip plays in place.
+   * Crossfade to the seated clip. With a window, it eases down by the standing seat
+   * height — the feet on the edge become the hips on it; without one, or with a body the
+   * renderer cannot measure, the clip fades in place.
    */
   sitDown(target: { win: SeatWindow; scale: number } | null): Promise<"done" | "lost">;
-  /** Stand up, the window rising along the clip's curve to `toY` (physical px). */
+  /** Crossfade to idle, the window rising to `toY` (physical px). */
   standUp(win: SeatWindow, toY: number): Promise<"done" | "lost">;
-  /** End a running transition now, handing its clip back. */
+  /** End a running transition now, handing a seated clip back. */
   cancel(): void;
+}
+
+interface Ease {
+  sit: boolean;
+  win: SeatWindow | null;
+  x: number;
+  fromY: number;
+  toY: number;
+  elapsedMs: number;
+  settle: (r: "done" | "lost") => void;
 }
 
 export function createSitter(deps: SitterDeps): Sitter {
   const { renderer } = deps;
-  const runner = createLegRunner({ renderer, currentMotionKind: deps.currentMotionKind });
   const doc = deps.doc ?? (typeof document === "undefined" ? null : document);
   let unsub: (() => void) | null = null;
   /** Bumped by every cancel and every new transition, so a stale one drops its plan. */
   let generation = 0;
+  let ease: Ease | null = null;
 
   function cancel(): void {
     generation += 1;
-    runner.finish("lost");
-    const current = renderer.getCurrentMotion();
-    if (current && (current.id === SIT_DOWN_MOTION_ID || current.id === STAND_UP_MOTION_ID)) {
-      renderer.playMotion(null);
-    }
+    const e = ease;
+    if (!e) return;
+    ease = null;
+    e.settle("lost");
+    if (e.sit && renderer.getCurrentMotion()?.id === PERCH_MOTION_ID) renderer.playMotion(null);
   }
 
   // The renderer parks its rAF while hidden, so a transition left running would never
@@ -89,36 +80,30 @@ export function createSitter(deps: SitterDeps): Sitter {
     if (doc?.visibilityState === "hidden") cancel();
   };
 
-  async function transition(
-    motionId: string,
-    win: SeatWindow | null,
-    toY: (at: { x: number; y: number }) => number,
-  ): Promise<"done" | "lost"> {
-    cancel();
-    const startedAt = generation;
-    await renderer.preloadMotion(motionId);
-    if (generation !== startedAt) return "lost";
-    let from = { x: 0, y: 0 };
-    if (win) {
-      from = await win.outerPosition();
-      if (generation !== startedAt) return "lost";
+  function step(dt: number): void {
+    const e = ease;
+    if (!e) return;
+    e.elapsedMs += dt * 1000;
+    const done = e.elapsedMs >= SEAT_EASE_MS;
+    const y = done ? e.toY : e.fromY + (e.toY - e.fromY) * easeInOut(e.elapsedMs / SEAT_EASE_MS);
+    void e.win
+      ?.setPositionPhysical(e.x, Math.round(y))
+      .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
+    if (done) {
+      ease = null;
+      e.settle("done");
     }
-    const to = win ? toY(from) : from.y;
-    log.debug("transition", { motionId, fromY: Math.round(from.y), toY: Math.round(to) });
-    return runner.run({
-      win,
-      fromX: from.x,
-      toX: from.x,
-      fromY: from.y,
-      toY: to,
-      motionId,
-      phase: motionId,
-      pxPerMetre: 0,
-      linearS: null,
-      curveY: true,
-      fit: true,
-      oneshot: true,
-      handoffS: SEAT_HANDOFF_S,
+  }
+
+  function startEase(
+    sit: boolean,
+    win: SeatWindow | null,
+    from: { x: number; y: number },
+    toY: number,
+  ): Promise<"done" | "lost"> {
+    log.debug("transition", { sit, fromY: Math.round(from.y), toY: Math.round(toY) });
+    return new Promise((settle) => {
+      ease = { sit, win, x: from.x, fromY: from.y, toY, elapsedMs: 0, settle };
     });
   }
 
@@ -126,7 +111,7 @@ export function createSitter(deps: SitterDeps): Sitter {
     start() {
       if (unsub) return;
       doc?.addEventListener("visibilitychange", onVisibilityChange);
-      unsub = renderer.onTick(({ dt }) => runner.step(dt));
+      unsub = renderer.onTick(({ dt }) => step(dt));
     },
     stop() {
       cancel();
@@ -134,16 +119,26 @@ export function createSitter(deps: SitterDeps): Sitter {
       unsub = null;
       doc?.removeEventListener("visibilitychange", onVisibilityChange);
     },
-    sitDown(target) {
+    async sitDown(target) {
+      cancel();
+      const startedAt = generation;
       // The seat sits this far above the feet while she stands; the window sinks by it.
       const anchor = renderer.getCharacterAnchor();
       const probe = renderer.getPerchProbe();
       const dropPx = target && anchor && probe ? (anchor.y - probe.seatPx.y) * target.scale : 0;
       const win = target && dropPx > 0 ? target.win : null;
-      return transition(SIT_DOWN_MOTION_ID, win, (at) => at.y + dropPx);
+      const from = win ? await win.outerPosition() : { x: 0, y: 0 };
+      if (generation !== startedAt) return "lost";
+      renderer.playMotion({ id: PERCH_MOTION_ID, fade_ms: SEAT_EASE_MS });
+      return startEase(true, win, from, from.y + dropPx);
     },
-    standUp(win, toY) {
-      return transition(STAND_UP_MOTION_ID, win, () => toY);
+    async standUp(win, toY) {
+      cancel();
+      const startedAt = generation;
+      const from = await win.outerPosition();
+      if (generation !== startedAt) return "lost";
+      renderer.playMotion(null);
+      return startEase(false, win, from, toY);
     },
     cancel,
   };
