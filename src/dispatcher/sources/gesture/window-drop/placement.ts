@@ -35,6 +35,8 @@ export interface PlacementDeps {
   invoke: DropInvoke;
   getWindow: () => DropWindow;
   getPeekConfig: () => PeekConfig;
+  /** Stop the follow of an armed sit before the placement moves the pet window itself. */
+  stopFollow(): void;
   commitSit(
     dropped: WindowRect,
     pos: { x: number; y: number },
@@ -82,7 +84,7 @@ function seatPointFor(request: PlacementRequest, target: WindowRect): ScreenPoin
 export function createPlacement(
   deps: PlacementDeps,
 ): (request: PlacementRequest, opts?: PlacementOptions) => Promise<PlacementResult> {
-  const { renderer, invoke, getWindow, getPeekConfig, commitSit, commitPeek } = deps;
+  const { renderer, invoke, getWindow, getPeekConfig, stopFollow, commitSit, commitPeek } = deps;
 
   return async function placeOn(
     request: PlacementRequest,
@@ -137,6 +139,7 @@ export function createPlacement(
       x: Math.round(pos.x + (seat.x - current.x) * sf),
       y: Math.round(pos.y + (seat.y - current.y) * sf),
     };
+    stopFollow();
     await move(next.x, next.y);
     // The window manager may clamp the move (menu bar, screen bounds), so the local
     // coords have to be computed against where the window actually landed.

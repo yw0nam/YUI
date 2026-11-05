@@ -45,6 +45,7 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
   let last: WindowRect | null = null;
   let monitors: ScreenMonitor[] | null = null;
   let busy = false;
+  let stepFailureLogged = false;
   // Bumped on every start/stop; a step discards its result when it changed mid-await.
   let gen = 0;
 
@@ -61,6 +62,13 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
     stop();
     log.info("perch.follow_lost", { reason, windowNumber });
     onLost();
+  }
+
+  /** Reads the monitors; a read that finishes after a stop or restart leaves the cache alone. */
+  async function readMonitors(g: number): Promise<ScreenMonitor[]> {
+    const read = await deps.listMonitors();
+    if (g === gen) monitors = read;
+    return read;
   }
 
   async function step(g: number): Promise<void> {
@@ -84,15 +92,17 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       if (g !== gen) return;
       const next = { x: Math.round(pos.x + dx * scale), y: Math.round(pos.y + dy * scale) };
       if (dx !== 0 || dy !== 0) await win.setPositionPhysical?.(next.x, next.y);
+      if (g !== gen) return;
       last = b;
       const probe = deps.renderer.getPerchProbe();
-      if (g !== gen || !probe) return;
+      if (!probe) return;
       const seat = projectSeat(probe, next, scale);
       if (seat.x < b.x || seat.x > b.x + b.width) return lose("off_width");
-      monitors ??= await deps.listMonitors();
-      if (!monitorAtLogical(monitors, seat.x, seat.y)) {
-        monitors = await deps.listMonitors();
-        if (g === gen && !monitorAtLogical(monitors, seat.x, seat.y)) lose("off_screen");
+      const known = monitors ?? (await readMonitors(g));
+      if (g !== gen) return;
+      if (!monitorAtLogical(known, seat.x, seat.y)) {
+        const fresh = await readMonitors(g);
+        if (g === gen && !monitorAtLogical(fresh, seat.x, seat.y)) lose("off_screen");
       }
     } finally {
       if (g === gen) busy = false;
@@ -106,10 +116,15 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       onLost = lost;
       last = null;
       monitors = null;
+      stepFailureLogged = false;
       deps.setGuardPaused(true);
       const g = gen;
       timer = deps.setInterval(() => {
-        void step(g).catch((err) => log.debug("perch.follow_step_failed", { error: String(err) }));
+        void step(g).catch((err) => {
+          if (stepFailureLogged) return;
+          stepFailureLogged = true;
+          log.warn("perch.follow_step_failed", { degrade: true, error: String(err) });
+        });
       }, FOLLOW_MS);
     },
     stop,

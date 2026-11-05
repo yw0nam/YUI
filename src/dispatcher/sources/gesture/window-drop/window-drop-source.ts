@@ -233,6 +233,14 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     setInterval: deps.setInterval ?? setInterval,
     clearInterval: deps.clearInterval ?? clearInterval,
   };
+  const follow = createPerchFollow({
+    windowBounds: deps.windowBounds,
+    getWindow,
+    renderer,
+    listMonitors: deps.listMonitors,
+    setGuardPaused: deps.setGuardPaused,
+    ...timers,
+  });
   const perch: PerchWatch = createPerchWatch({
     bus,
     renderer,
@@ -240,14 +248,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     getWindow,
     peekActive: deps.peekActive ?? (() => false),
     onSitLost: () => deps.onSitLost?.(),
-    follow: createPerchFollow({
-      windowBounds: deps.windowBounds,
-      getWindow,
-      renderer,
-      listMonitors: deps.listMonitors,
-      setGuardPaused: deps.setGuardPaused,
-      ...timers,
-    }),
+    follow,
     ...timers,
   });
 
@@ -403,6 +404,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     invoke,
     getWindow,
     getPeekConfig,
+    stopFollow: follow.stop,
     commitSit,
     commitPeek,
   });

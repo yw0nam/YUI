@@ -27,6 +27,7 @@ function makeDeps(windows: WindowRect[]) {
         setPositionPhysical,
       }),
       getPeekConfig: () => avatarFixture().peek,
+      stopFollow: vi.fn(),
       commitSit: vi.fn(async () => ({ kind: "sit" as const })),
       commitPeek: vi.fn(() => ({ kind: "peek" as const })),
     },
