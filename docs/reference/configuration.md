@@ -15,7 +15,7 @@ Every address in the bundled `configs/endpoints.json` is unset. An unset address
 | TTS | `tts_base_url` | The speech bubble works, but there is no audio. |
 | STT | `stt_base_url` | Text input works, but there is no voice input. |
 | Screenshot context | **Attach screenshot** switch | The agent receives no screen context. |
-| Plugins | the `plugins/` folder | No plugin capabilities, such as the Factorio game bridge. |
+| Plugins | the `plugins/` folder | No plugin capabilities, such as the browser. |
 
 On a chat turn that answers "Not connected yet", the **Connect** button opens **Connection**.
 

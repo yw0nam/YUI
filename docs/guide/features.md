@@ -78,7 +78,7 @@ Quick start greets once when it connects and turns the greetings and check-ins o
 
 | Feature | What it does |
 | --- | --- |
-| Plugins | MCP servers and skills under `plugins/`; the host runs a server once you allow it, or the backend agent connects to it, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
+| Plugins | MCP servers and skills under `plugins/`; the host runs a server once you allow it, such as the [browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) plugin |
 | Plugins page | Installs catalog plugins such as `browser`, and runs their servers with your consent ([Plugins](plugins.md)) |
 | Terminal | Shells on this device, opened from the Terminal tab or by her backend |
 | Integrations | Wiring for one backend agent under `integrations/`, such as Hermes |

@@ -1,2 +1,0 @@
-# Runtime dir the headless integration test creates and wipes per run
-tests/.headless-run/

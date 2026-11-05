@@ -176,7 +176,7 @@ The pill beside the avatar for one signal group, with a details sheet on tap and
 ### Plugins and tools
 
 **Plugin**:
-The install unit YUI runs: one folder in `plugins/` with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed by YUI from the Catalog (browser) or added from a folder, or attached through the backend agent's MCP configuration (factorio). Alone, the word means only this; a Tauri plugin, a Hermes plugin, and a Coding-agent plugin are named with their ecosystem.
+The install unit YUI runs: one folder in `plugins/` with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed by YUI from the Catalog (browser) or added from a folder. Alone, the word means only this; a Tauri plugin, a Hermes plugin, and a Coding-agent plugin are named with their ecosystem.
 _Avoid_: mod, add-on, extension
 
 **Coding-agent plugin**:
@@ -191,11 +191,11 @@ _Avoid_: registry, index
 _Avoid_: registry, store, index
 
 **MCP server**:
-A standalone process that offers tools over MCP (the factorio server in `plugins/factorio/`, a plugin's `.mcp.json` server). Not part of the app runtime: the backend agent or the MCP host runs it as its own process.
+A standalone process that offers tools over MCP (a plugin's `.mcp.json` server). Not part of the app runtime: the backend agent or the MCP host runs it as its own process.
 _Avoid_: Mod
 
 **Backend-attached**:
-How an MCP server reaches the brain through the backend agent's own MCP configuration; the Python HTTP servers under `plugins/` (factorio) are reached this way, over a loopback port and an SSH reverse tunnel.
+How an MCP server reaches the brain through the backend agent's own MCP configuration, outside YUI.
 
 **YUI-hosted**:
 How an MCP server runs when YUI starts it as its own child process through the MCP host, which publishes the server's tools in the host's snapshot. Pairs with Backend-attached.
@@ -232,11 +232,11 @@ A tool the client runs itself: one it declares to the backend (generate_express,
 _Avoid_: in-app tool, local tool
 
 **Producer**:
-An outside program that posts signals to `/signals` (the factorio MCP server) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
+An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
 _Avoid_: sender, emitter
 
 **Game mod**:
-Code a game loads, such as the Factorio Lua mod in `plugins/factorio/game-mod/`. "Mod" alone is not used.
+Code a game loads, such as the RimEventFeed mod for RimWorld. "Mod" alone is not used.
 
 ### Configuration
 
