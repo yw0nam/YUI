@@ -925,7 +925,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/message",
       "module": "bridge",
       "label": "message bridge",
-      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists with ready replay and ask-answer controls, and the message window's surfaces as a remote half.",
+      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists with ready replay and ask-answer controls, and the message window's surfaces as a remote half. One surface op table builds the remote half's sender and the message window's receiver.",
       "paths": [
         "src/io/bridge/message"
       ]

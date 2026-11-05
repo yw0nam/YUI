@@ -1,24 +1,48 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { guardrailsFixture } from "../../../config/load-test-helpers";
 import type { MessageBridge, MessageControlOp } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
 
-it("sends the character's name, and sends it again to a message window that comes up later", () => {
+/** The caps configs/guardrails.json delivers through setAttachmentLimits. */
+const LIMITS = guardrailsFixture().attachments;
+
+it("replays only asks, commands, the command reply, the limits, the name and busy on ready, in that order", () => {
   let control!: (op: MessageControlOp) => void;
   const bridge = {
     emitSurface: vi.fn(),
-    onControl: (cb: (op: MessageControlOp) => void) => {
+    onControl: (cb: typeof control) => {
       control = cb;
       return () => {};
     },
   } as unknown as MessageBridge;
   const remote = createRemoteSurfaces(bridge);
+  control({ op: "ready" });
+  expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([[{ op: "busy", busy: false }]]);
 
+  const frames = [
+    { type: "ask" as const, ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } },
+  ];
+  const commands = [{ name: "status", description: "Info", args: "" }];
+  const reply = { kind: "pending" as const, name: "status" };
+  remote.pushSpeech("a");
+  remote.restoreInput("hi", []);
+  remote.setAsks(frames);
+  remote.setCommands(commands);
+  remote.showCommandReply(reply);
+  remote.setAttachmentLimits(LIMITS);
   remote.setName("Yui");
-  expect(bridge.emitSurface).toHaveBeenLastCalledWith({ op: "name", name: "Yui" });
-
+  remote.setBusy(true);
   vi.mocked(bridge.emitSurface).mockClear();
   control({ op: "ready" });
-  expect(bridge.emitSurface).toHaveBeenCalledWith({ op: "name", name: "Yui" });
+
+  expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
+    [{ op: "asks", frames }],
+    [{ op: "commands", commands }],
+    [{ op: "command-reply", reply }],
+    [{ op: "attachment-limits", limits: LIMITS }],
+    [{ op: "name", name: "Yui" }],
+    [{ op: "busy", busy: true }],
+  ]);
 });
 
 it.each([

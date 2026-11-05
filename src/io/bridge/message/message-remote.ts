@@ -3,9 +3,9 @@
  * `Surfaces`, backed by the bridge instead of local DOM.
  *
  * An action's callback cannot cross the wire, so only its label travels and the
- * click comes back as `input-error-action` / `speech-action`. The limits and the busy
- * state are held here so a window created after the fact can ask for them with
- * `ready` and catch up.
+ * click comes back as `input-error-action` / `speech-action`. The sender built from
+ * `surfaceOps` holds the replayed ops, so a window created after the fact can ask
+ * for them with `ready` and catch up.
  */
 
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
@@ -14,6 +14,7 @@ import { createLogger } from "../../../logger";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
 import { createCoalescingBridge } from "./coalesce-pushes";
 import type { CommandReplyState, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
+import { createSurfaceSender } from "./surface-ops";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -82,15 +83,11 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
   const commandReplyCloseHandlers: Array<() => void> = [];
   const commandHandlers: Array<(name: string, args: string) => boolean> = [];
   const askAnswerHandlers: Array<(answer: AskAnswer) => boolean> = [];
-  let asks: AskFrame[] | null = null;
-  let commands: BackendCommand[] | null = null;
-  let reply: CommandReplyState | null = null;
   let inputOpen = false;
-  let busy = false;
-  let name: string | null = null;
-  let limits: AttachmentLimits | null = null;
   let pendingErrorAction: (() => void) | null = null;
   let speechActionClicks: Array<() => void> = [];
+
+  const sender = createSurfaceSender((op) => bridge.emitSurface(op));
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
@@ -125,12 +122,7 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
         for (const cb of dockHandlers) cb();
         break;
       case "ready":
-        if (asks !== null) bridge.emitSurface({ op: "asks", frames: asks });
-        if (commands !== null) bridge.emitSurface({ op: "commands", commands });
-        if (reply !== null) bridge.emitSurface({ op: "command-reply", reply });
-        if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
-        if (name !== null) bridge.emitSurface({ op: "name", name });
-        bridge.emitSurface({ op: "busy", busy });
+        sender.replay();
         break;
       default: {
         const unhandled: never = op;
@@ -140,20 +132,9 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
   });
 
   return {
-    setAsks(frames) {
-      asks = frames;
-      bridge.emitSurface({ op: "asks", frames });
-    },
+    ...sender.methods,
     onAskAnswer(cb) {
       askAnswerHandlers.push(cb);
-    },
-    setCommands(list) {
-      commands = list;
-      bridge.emitSurface({ op: "commands", commands });
-    },
-    showCommandReply(value) {
-      reply = value;
-      bridge.emitSurface({ op: "command-reply", reply });
     },
     onCommandReplyClose(cb) {
       commandReplyCloseHandlers.push(cb);
@@ -163,72 +144,26 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
     },
     beginSpeech() {
       speechActionClicks = [];
-      bridge.emitSurface({ op: "begin" });
-    },
-    pushSpeech(delta) {
-      bridge.emitSurface({ op: "push", delta });
-    },
-    endSpeech(opts) {
-      bridge.emitSurface(opts?.defer ? { op: "end", defer: true } : { op: "end" });
-    },
-    finishSpeech() {
-      bridge.emitSurface({ op: "finish" });
+      sender.methods.beginSpeech();
     },
     hideSpeech() {
       speechActionClicks = [];
-      bridge.emitSurface({ op: "hide" });
-    },
-    quoteUser(quote) {
-      bridge.emitSurface({ op: "quote", quote });
-    },
-    quoteSignals(lines) {
-      bridge.emitSurface({ op: "quote-signals", lines });
-    },
-    settleQuote() {
-      bridge.emitSurface({ op: "settle-quote" });
-    },
-    clearQuote() {
-      bridge.emitSurface({ op: "clear-quote" });
-    },
-    summonInput() {
-      bridge.emitSurface({ op: "summon-input" });
-    },
-    dismissInput() {
-      bridge.emitSurface({ op: "dismiss-input" });
+      sender.methods.hideSpeech();
     },
     isInputOpen() {
       return inputOpen;
     },
-    setName(value) {
-      name = value;
-      bridge.emitSurface({ op: "name", name: value });
-    },
     setBusy(value) {
       log.info("busy_emit", { busy: value });
-      busy = value;
-      bridge.emitSurface({ op: "busy", busy: value });
+      sender.methods.setBusy(value);
     },
     showInputError(message, action) {
       pendingErrorAction = action?.onClick ?? null;
-      bridge.emitSurface(
-        action
-          ? { op: "input-error", message, action: { label: action.label } }
-          : { op: "input-error", message },
-      );
+      sender.methods.showInputError(message, action);
     },
     showSpeechActions(actions) {
       speechActionClicks = actions.map((a) => a.onClick);
-      bridge.emitSurface({
-        op: "speech-actions",
-        actions: actions.map(({ label, busy }) => (busy ? { label, busy } : { label })),
-      });
-    },
-    setAttachmentLimits(next) {
-      limits = next;
-      bridge.emitSurface({ op: "attachment-limits", limits: next });
-    },
-    restoreInput(text, images) {
-      bridge.emitSurface({ op: "restore-input", text, images });
+      sender.methods.showSpeechActions(actions);
     },
     onSubmit(cb) {
       submitHandlers.push(cb);
