@@ -32,7 +32,7 @@ If the current directory is already a YUI checkout, use it. Otherwise clone into
 
 ```bash
 git clone https://github.com/yw0nam/YUI ~/YUI && cd ~/YUI
-git checkout "$(git describe --tags --abbrev=0)"
+git checkout "$(git describe --tags --abbrev=0 --match 'v*')"
 pnpm install
 ```
 
