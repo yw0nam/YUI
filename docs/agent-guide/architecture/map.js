@@ -907,7 +907,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/core",
       "module": "bridge",
       "label": "bridge core",
-      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, and the owner and mirror pattern built on it.",
+      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, the channel table helper that builds a bridge's emit and on pairs and mirrors from one entry per channel, and the owner and mirror pattern built on it.",
       "paths": [
         "src/io/bridge/core"
       ]
@@ -916,7 +916,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
+      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]

@@ -1,8 +1,8 @@
 /** Each pet window owns one socket; its companions mirror delegations over preset-scoped channels. */
 
 import type { DelegationItem } from "../../chat/push/push-frames";
-import { createStateMirror, publishState } from "../core/state-mirror";
-import type { SettingsBridge } from "../settings-bridge";
+import { channelMirror } from "../core/channel-table";
+import { channels, type SettingsBridge } from "../settings-bridge";
 
 type DelegationsBridge = Pick<
   SettingsBridge,
@@ -30,12 +30,7 @@ export function publishDelegations(deps: {
   };
   bridge: DelegationsBridge;
 }): () => void {
-  return publishState({
-    get: deps.store.get,
-    subscribe: deps.store.subscribe,
-    emit: deps.bridge.emitDelegations,
-    onAsk: deps.bridge.onDelegationsAsk,
-  });
+  return channelMirror(channels, "Delegations", deps.bridge).publish(deps.store);
 }
 
 /**
@@ -43,11 +38,7 @@ export function publishDelegations(deps: {
  * after the pet window settled still shows where the work stands.
  */
 export function createMirroredDelegations(deps: { bridge: DelegationsBridge }): DelegationsMirror {
-  const mirror = createStateMirror<DelegationItem[]>({
-    initial: [],
-    on: deps.bridge.onDelegations,
-    ask: deps.bridge.emitDelegationsAsk,
-  });
+  const mirror = channelMirror(channels, "Delegations", deps.bridge).create();
 
   return {
     ...mirror,
