@@ -72,7 +72,11 @@ Each character keeps her own brain, persona, voice, VRM model, and history, and 
 
 The [yui-notify](plugins/yui-notify/README.md) plugin posts Claude Code and Codex conversations as Threads without character speech. You answer them in YUI's Threads window: Codex takes answers through synchronous hooks, and Claude Code through its own inbox socket, with no launch flag. Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
 
-**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+### Answer her backend, and share a terminal
+
+With a push backend, an approval or a question waits above the text input as a card, and you answer with one choice or several. Type `/` to run the backend's commands, such as `/status`. The **Terminal** tab in the Threads window opens shells on this device: the backend's first read or write on a terminal waits for your **Allow**, which lasts until you choose **Take back**.
+
+**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, plugins you install from a catalog, a text size setting, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
