@@ -142,7 +142,7 @@ A drag pickup and a lost host window leave the seat at once, with no stand-up.
 
 `window_sit` crossfades in over 500 ms while the window eases down by the measured standing-feet → seated-hips distance. The pin engages after.
 
-A drag drop keeps the window where the user left it. A voluntary exit crossfades to `idle` while the window eases up to the standing position over 500 ms.
+A drag drop keeps the window where the user left it. A voluntary exit releases the pin, which crossfades her to `idle`, and the window eases up to the standing position over 500 ms.
 
 ### Thinking
 
@@ -194,7 +194,7 @@ Both are client-held perch states with `broker_publish: false`.
 
 7 variants: a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that ping-pongs each variant forward↔reverse a random 1 to 3 round trips (`loop_cycles: [1, 3]`), then crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
 
-A seat entry starts `window_sit` with a 500 ms crossfade.
+On a seat entry the sitter starts `window_sit` with a 500 ms crossfade. A seat event that finds another motion current plays it at its own `fade_ms: 700`.
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
