@@ -98,36 +98,6 @@ describe("the streamed deltas", () => {
     return { bridge, remote, ready: () => control({ op: "ready" }) };
   }
 
-  it("sends one burst of deltas as a single push", () => {
-    const { bridge, remote } = setup();
-    for (const delta of ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]) {
-      remote.pushSpeech(delta);
-      vi.advanceTimersByTime(3);
-    }
-    expect(bridge.emitSurface).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(10);
-
-    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
-      [{ op: "push", delta: "abcdefghij" }],
-    ]);
-    remote.dispose();
-  });
-
-  it("sends the held delta before the op that follows it", () => {
-    const { bridge, remote } = setup();
-    remote.pushSpeech("a");
-    expect(bridge.emitSurface).not.toHaveBeenCalled();
-
-    remote.endSpeech();
-
-    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
-      [{ op: "push", delta: "a" }],
-      [{ op: "end" }],
-    ]);
-    remote.dispose();
-  });
-
   it("sends the held delta on dispose and leaves no timer", () => {
     const { bridge, remote } = setup();
     remote.pushSpeech("a");
@@ -154,21 +124,6 @@ describe("the streamed deltas", () => {
       [{ op: "name", name: "Yui" }],
       [{ op: "busy", busy: true }],
     ]);
-    remote.dispose();
-  });
-
-  it("drops the pending timer when a flush sends the held delta", () => {
-    const { bridge, remote } = setup();
-    remote.pushSpeech("a");
-    remote.endSpeech();
-    vi.advanceTimersByTime(30);
-
-    remote.pushSpeech("b");
-    vi.advanceTimersByTime(39);
-
-    expect(bridge.emitSurface).not.toHaveBeenCalledWith({ op: "push", delta: "b" });
-    vi.advanceTimersByTime(1);
-    expect(bridge.emitSurface).toHaveBeenLastCalledWith({ op: "push", delta: "b" });
     remote.dispose();
   });
 });

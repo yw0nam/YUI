@@ -12,16 +12,8 @@ import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
-import type {
-  CommandReplyState,
-  MessageBridge,
-  MessageSurfaceOp,
-  SourceLine,
-  UserQuote,
-} from "./message-bridge";
-
-/** Streamed deltas leave the remote window at most every 40 ms. */
-const COALESCE_MS = 40;
+import { createCoalescingBridge } from "./coalesce-pushes";
+import type { CommandReplyState, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -80,7 +72,8 @@ export interface RemoteSurfaces {
   dispose(): void;
 }
 
-export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
+export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
+  const bridge = createCoalescingBridge(rawBridge);
   const log = createLogger("message-remote");
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
@@ -98,30 +91,6 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   let limits: AttachmentLimits | null = null;
   let pendingErrorAction: (() => void) | null = null;
   let speechActionClicks: Array<() => void> = [];
-  let heldDelta = "";
-  let coalesceTimer: ReturnType<typeof setTimeout> | undefined;
-
-  /** Sends the held deltas now and drops the timer that would have sent them. */
-  const flush = (): void => {
-    if (coalesceTimer !== undefined) clearTimeout(coalesceTimer);
-    coalesceTimer = undefined;
-    if (!heldDelta) return;
-    const delta = heldDelta;
-    heldDelta = "";
-    bridge.emitSurface({ op: "push", delta });
-  };
-
-  /** Holds the streamed deltas for one tick; every other op goes out behind them. */
-  const emit = (op: MessageSurfaceOp): void => {
-    if (op.op === "push") {
-      if (!op.delta) return;
-      heldDelta += op.delta;
-      coalesceTimer ??= setTimeout(flush, COALESCE_MS);
-      return;
-    }
-    flush();
-    bridge.emitSurface(op);
-  };
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
@@ -156,12 +125,12 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         for (const cb of dockHandlers) cb();
         break;
       case "ready":
-        if (asks !== null) emit({ op: "asks", frames: asks });
-        if (commands !== null) emit({ op: "commands", commands });
-        if (reply !== null) emit({ op: "command-reply", reply });
-        if (limits) emit({ op: "attachment-limits", limits });
-        if (name !== null) emit({ op: "name", name });
-        emit({ op: "busy", busy });
+        if (asks !== null) bridge.emitSurface({ op: "asks", frames: asks });
+        if (commands !== null) bridge.emitSurface({ op: "commands", commands });
+        if (reply !== null) bridge.emitSurface({ op: "command-reply", reply });
+        if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
+        if (name !== null) bridge.emitSurface({ op: "name", name });
+        bridge.emitSurface({ op: "busy", busy });
         break;
       default: {
         const unhandled: never = op;
@@ -173,18 +142,18 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   return {
     setAsks(frames) {
       asks = frames;
-      emit({ op: "asks", frames });
+      bridge.emitSurface({ op: "asks", frames });
     },
     onAskAnswer(cb) {
       askAnswerHandlers.push(cb);
     },
     setCommands(list) {
       commands = list;
-      emit({ op: "commands", commands });
+      bridge.emitSurface({ op: "commands", commands });
     },
     showCommandReply(value) {
       reply = value;
-      emit({ op: "command-reply", reply });
+      bridge.emitSurface({ op: "command-reply", reply });
     },
     onCommandReplyClose(cb) {
       commandReplyCloseHandlers.push(cb);
@@ -194,54 +163,54 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     beginSpeech() {
       speechActionClicks = [];
-      emit({ op: "begin" });
+      bridge.emitSurface({ op: "begin" });
     },
     pushSpeech(delta) {
-      emit({ op: "push", delta });
+      bridge.emitSurface({ op: "push", delta });
     },
     endSpeech(opts) {
-      emit(opts?.defer ? { op: "end", defer: true } : { op: "end" });
+      bridge.emitSurface(opts?.defer ? { op: "end", defer: true } : { op: "end" });
     },
     finishSpeech() {
-      emit({ op: "finish" });
+      bridge.emitSurface({ op: "finish" });
     },
     hideSpeech() {
       speechActionClicks = [];
-      emit({ op: "hide" });
+      bridge.emitSurface({ op: "hide" });
     },
     quoteUser(quote) {
-      emit({ op: "quote", quote });
+      bridge.emitSurface({ op: "quote", quote });
     },
     quoteSignals(lines) {
-      emit({ op: "quote-signals", lines });
+      bridge.emitSurface({ op: "quote-signals", lines });
     },
     settleQuote() {
-      emit({ op: "settle-quote" });
+      bridge.emitSurface({ op: "settle-quote" });
     },
     clearQuote() {
-      emit({ op: "clear-quote" });
+      bridge.emitSurface({ op: "clear-quote" });
     },
     summonInput() {
-      emit({ op: "summon-input" });
+      bridge.emitSurface({ op: "summon-input" });
     },
     dismissInput() {
-      emit({ op: "dismiss-input" });
+      bridge.emitSurface({ op: "dismiss-input" });
     },
     isInputOpen() {
       return inputOpen;
     },
     setName(value) {
       name = value;
-      emit({ op: "name", name: value });
+      bridge.emitSurface({ op: "name", name: value });
     },
     setBusy(value) {
       log.info("busy_emit", { busy: value });
       busy = value;
-      emit({ op: "busy", busy: value });
+      bridge.emitSurface({ op: "busy", busy: value });
     },
     showInputError(message, action) {
       pendingErrorAction = action?.onClick ?? null;
-      emit(
+      bridge.emitSurface(
         action
           ? { op: "input-error", message, action: { label: action.label } }
           : { op: "input-error", message },
@@ -249,17 +218,17 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     showSpeechActions(actions) {
       speechActionClicks = actions.map((a) => a.onClick);
-      emit({
+      bridge.emitSurface({
         op: "speech-actions",
         actions: actions.map(({ label, busy }) => (busy ? { label, busy } : { label })),
       });
     },
     setAttachmentLimits(next) {
       limits = next;
-      emit({ op: "attachment-limits", limits: next });
+      bridge.emitSurface({ op: "attachment-limits", limits: next });
     },
     restoreInput(text, images) {
-      emit({ op: "restore-input", text, images });
+      bridge.emitSurface({ op: "restore-input", text, images });
     },
     onSubmit(cb) {
       submitHandlers.push(cb);
@@ -274,7 +243,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       openSettingsHandlers.push(cb);
     },
     dispose() {
-      flush();
+      bridge.flush();
       unlisten();
       submitHandlers.length = 0;
       commandHandlers.length = 0;
