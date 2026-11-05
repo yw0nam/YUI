@@ -48,13 +48,13 @@
 
 ### 表情・しぐさ・声で反応する
 
-<img src="docs/public/yui-feature-cues.jpg" alt="口元に手を当て、目を閉じたうれしそうな表情で笑うYUI。その下の吹き出しには「The build passed. Want me to open the pull request for review?」と表示されている" width="360">
+<img src="docs/public/yui-feature-cues.jpg" alt="口元に手を添え、目を閉じたうれしそうな表情で笑うYUI。その下の吹き出しには「The build passed. Want me to open the pull request for review?」と表示されている" width="360">
 
 つないだAIが、返事に合わせて表情やしぐさ、声の調子を選びます。文字を返すだけでなく、笑ったり、すねたり、照れたり。しゃべると口が動き、つついたりなでたりすると反応します。
 
 ### 自分から、控えめに話しかける
 
-<img src="docs/public/yui-feature-proactive.png" alt="Proactive設定タブ。画面ウォッチ、操作がない状態が5分・10分・30分続いたときの反応、09:00・12:00・18:00・23:00の定時のあいさつ、自分から話しかける間隔10分、1時間あたりキュー24回・自発ターン40回の上限" width="400">
+<img src="docs/public/yui-feature-proactive.png" alt="Proactive設定ページ。画面ウォッチ、操作がない状態が5分・10分・30分続いたときの反応、09:00・12:00・18:00・23:00の定時のあいさつ" width="400">
 
 決まった時間のあいさつ、しばらく手が止まったときの声かけ、オンにすればアプリを切り替えたときの反応も。自分から話しかける回数や間隔は設定で調整できます。話すことがなければ、静かに見守ってくれます。
 

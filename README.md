@@ -48,13 +48,13 @@ She perches on a window top, peeks around a side edge, strolls the floor and win
 
 ### She reacts with her face, body, and voice
 
-<img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
+<img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand raised to her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
 Her brain picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
 
 ### She speaks first, with restraint
 
-<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 09:00, 12:00, 18:00, and 23:00, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="400">
+<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings page: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, and scheduled greetings at 09:00, 12:00, 18:00, and 23:00" width="400">
 
 She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 

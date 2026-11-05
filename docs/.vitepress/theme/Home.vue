@@ -121,7 +121,7 @@ onMounted(() => {
             <figure class="media">
               <img
                 :src="withBase('/yui-feature-cues.jpg')"
-                alt="YUI laughing with a hand over her mouth above a speech bubble"
+                alt="YUI laughing with a hand raised to her mouth above a speech bubble"
                 width="720"
                 height="540"
                 loading="lazy"
