@@ -5,7 +5,7 @@ YUI draws the character on your screen, gives her a voice, and moves her. The mo
 ```mermaid
 flowchart TB
   you(["You"])
-  producers["Producers: hooks, scripts, game mods"]
+  producers["Producers: hooks and scripts"]
   yui["YUI, the body"]
   voice["STT and TTS servers"]
   brain["Backend agent, the brain"]
