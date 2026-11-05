@@ -808,6 +808,45 @@ async function settleRelease(): Promise<void> {
   for (let i = 0; i < 12; i++) await Promise.resolve();
 }
 
+describe("window-drop-source — placement over a running follow", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("a host move during the placement's own window move does not move the pet window again", async () => {
+    const host = { rect: win({ windowNumber: 42, ownerName: "Code" }) };
+    const target = win({ windowNumber: 55, ownerName: "Notes", x: 700 });
+    let pos = { x: 520, y: 740 };
+    // The host slides while the placement's move is in flight, long enough for several follow steps.
+    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
+      pos = { x, y };
+      host.rect = { ...host.rect, y: host.rect.y + 60 };
+      await vi.advanceTimersByTimeAsync(48);
+    });
+    const source = createWindowDropSource({
+      bus,
+      renderer: makePerchSource().renderer,
+      invoke: vi.fn(async () => [target, host.rect]),
+      getWindow: () => ({
+        outerPosition: async () => pos,
+        scaleFactor: async () => 2,
+        setPositionPhysical,
+      }),
+      listen: makeListen().listen,
+      windowBounds: async (n) => (n === 42 ? host.rect : null),
+    });
+    source.adoptSit(42, { x: host.rect.x, y: host.rect.y }, 200, "adopt");
+    await vi.advanceTimersByTimeAsync(32);
+
+    await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(setPositionPhysical).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("window-drop-source — peek loss poll", () => {
   beforeEach(() => {
     vi.useFakeTimers();

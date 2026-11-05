@@ -27,6 +27,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 /**
@@ -48,7 +49,6 @@ function follow() {
     getWindow: () => petWindow,
     renderer: perch.renderer,
     listMonitors: async () => [MONITOR],
-    onLost,
     setGuardPaused,
     setInterval,
     clearInterval,
@@ -58,8 +58,8 @@ function follow() {
 
 describe("perch-follow", () => {
   it("moves nothing on the first step, which only reads the baseline", async () => {
-    const { subject, windowBounds, petWindow } = follow();
-    subject.start(7);
+    const { subject, windowBounds, petWindow, onLost } = follow();
+    subject.start(7, onLost);
     await step();
 
     expect(windowBounds).toHaveBeenCalledTimes(1);
@@ -72,8 +72,8 @@ describe("perch-follow", () => {
     { dx: -30, dy: 0, to: [460, 740] },
     { dx: 0, dy: -20, to: [520, 700] },
   ])("moves the pet window by the host's ($dx, $dy) at scale 2", async ({ dx, dy, to }) => {
-    const { subject, host, petWindow } = follow();
-    subject.start(7);
+    const { subject, host, petWindow, onLost } = follow();
+    subject.start(7, onLost);
     await step();
 
     host.rect = win({ windowNumber: 7, x: 300 + dx, y: 400 + dy });
@@ -85,7 +85,7 @@ describe("perch-follow", () => {
 
   it("follows only y when the width changes", async () => {
     const { subject, host, petWindow, onLost } = follow();
-    subject.start(7);
+    subject.start(7, onLost);
     await step();
 
     // The left edge grows out by 50 and the top edge moves down 50: x changes with the width.
@@ -97,8 +97,9 @@ describe("perch-follow", () => {
   });
 
   it("loses the seat once, as off_width, when the host shrinks past it, and stops", async () => {
+    const info = vi.spyOn(console, "info");
     const { subject, host, windowBounds, onLost, setGuardPaused } = follow();
-    subject.start(7);
+    subject.start(7, onLost);
     await step();
 
     host.rect = win({ windowNumber: 7, x: 500, width: 320 });
@@ -107,14 +108,18 @@ describe("perch-follow", () => {
     await step();
 
     expect(onLost).toHaveBeenCalledTimes(1);
-    expect(onLost).toHaveBeenCalledWith("off_width");
+    expect(info).toHaveBeenCalledWith("[YUI][perch-follow] perch.follow_lost", {
+      reason: "off_width",
+      windowNumber: 7,
+    });
     expect(windowBounds).toHaveBeenCalledTimes(2);
     expect(setGuardPaused).toHaveBeenLastCalledWith(false);
   });
 
   it("loses the seat once, as off_screen, when the move puts it off every monitor", async () => {
+    const info = vi.spyOn(console, "info");
     const { subject, host, petWindow, onLost } = follow();
-    subject.start(7);
+    subject.start(7, onLost);
     await step();
 
     // The seat lands at (300, 1200) on a 1080-high screen.
@@ -124,12 +129,15 @@ describe("perch-follow", () => {
 
     expect(petWindow.setPositionPhysical).toHaveBeenCalledWith(520, 2340);
     expect(onLost).toHaveBeenCalledTimes(1);
-    expect(onLost).toHaveBeenCalledWith("off_screen");
+    expect(info).toHaveBeenCalledWith("[YUI][perch-follow] perch.follow_lost", {
+      reason: "off_screen",
+      windowNumber: 7,
+    });
   });
 
   it("moves nothing while the renderer is not perched", async () => {
     const { subject, host, perch, petWindow, onLost } = follow();
-    subject.start(7);
+    subject.start(7, onLost);
     await step();
 
     perch.state.perched = false;
@@ -142,8 +150,8 @@ describe("perch-follow", () => {
   });
 
   it("pauses the keep-on-screen guard from start to stop and ignores a step left over from before a restart", async () => {
-    const { subject, host, windowBounds, petWindow, setGuardPaused } = follow();
-    subject.start(7);
+    const { subject, host, windowBounds, petWindow, setGuardPaused, onLost } = follow();
+    subject.start(7, onLost);
     expect(setGuardPaused).toHaveBeenLastCalledWith(true);
     await step();
 
@@ -165,11 +173,36 @@ describe("perch-follow", () => {
 
     // The left-over step resolves after a restart: it neither moves her nor sets the baseline.
     host.rect = win({ windowNumber: 7 });
-    subject.start(7);
+    subject.start(7, onLost);
     resolveBounds(win({ windowNumber: 7, x: 400, y: 450 }));
     await step();
     await step();
 
     expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
+  it("keeps the next follow's baseline when a step blocked on the window move straddles stop and start", async () => {
+    const { subject, host, petWindow, onLost } = follow();
+    subject.start(7, onLost);
+    await step();
+
+    // The step's window move is still in flight when she is re-seated on window 8.
+    let finishMove!: () => void;
+    petWindow.setPositionPhysical.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishMove = resolve;
+        }),
+    );
+    host.rect = win({ windowNumber: 7, x: 400, y: 450 });
+    await step();
+    subject.stop();
+    host.rect = win({ windowNumber: 8, x: 900, y: 900 });
+    subject.start(8, onLost);
+    finishMove();
+    await step();
+    await step();
+
+    expect(petWindow.setPositionPhysical).toHaveBeenCalledTimes(1);
   });
 });
