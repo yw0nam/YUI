@@ -1490,6 +1490,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/listbox"
       ]
+    },
+    {
+      "id": "ui/keyed-rows",
+      "module": "display",
+      "label": "keyed rows",
+      "role": "Keeps each list row's element across snapshots by key, moves only rows whose place changed, and hands focus of a removed row to its neighbour.",
+      "paths": [
+        "src/ui/keyed-rows"
+      ]
     }
   ],
   "edges": [
@@ -4360,6 +4369,51 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/commands/command-list.ts"
+    },
+    {
+      "id": "threads-list-rows",
+      "from": "ui/threads",
+      "to": "ui/keyed-rows",
+      "carries": "reconcileRows: Threads list rows kept by key, reordered only when their place changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/thread-list.ts"
+    },
+    {
+      "id": "threads-rail-rows",
+      "from": "ui/threads",
+      "to": "ui/keyed-rows",
+      "carries": "reconcileRows: Threads rail rows kept by key, reordered only when their place changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/thread-rail.ts"
+    },
+    {
+      "id": "terminal-nav-rows",
+      "from": "ui/terminal",
+      "to": "ui/keyed-rows",
+      "carries": "reconcileRows: Terminal list and rail rows kept by key, reordered only when their place changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/terminal/terminal-nav.ts"
+    },
+    {
+      "id": "delegation-rows-keyed",
+      "from": "ui/chips",
+      "to": "ui/keyed-rows",
+      "carries": "reconcileRows: delegation rows and opened summary panels kept by key, reordered only when their place changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/chips/delegation-rows.ts"
+    },
+    {
+      "id": "workflow-rows-keyed",
+      "from": "ui/quick-controls",
+      "to": "ui/keyed-rows",
+      "carries": "reconcileRows: workflow rows kept by key, reordered only when their place changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/sections/workflows/workflows-section.ts"
     }
   ],
   "flows": [

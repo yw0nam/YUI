@@ -8,6 +8,7 @@ import "./thread-rail.css";
 import type { Thread } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
+import { keepFocus, reconcileRows } from "../../keyed-rows/keyed-rows";
 import { glyph, THREADS_GLYPH } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { renderKinds, type ThreadFilter, type ThreadListView } from "./thread-list";
@@ -86,7 +87,7 @@ export function createThreadRail(deps: {
   });
 
   function focusSelected(): void {
-    listEl.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+    listEl.querySelector<HTMLElement>('[aria-current="true"]')?.focus({ preventScroll: true });
   }
 
   return {
@@ -110,16 +111,19 @@ export function createThreadRail(deps: {
       if (view.kind === null) kindMark.innerHTML = FUNNEL_SVG;
       else kindMark.textContent = threadSource(view.kind).mark;
 
-      const hadFocus = listEl.contains(document.activeElement);
-      if (view.rows.length === 0) {
-        const empty = document.createElement("p");
-        empty.className = "yui-threads-rail__empty";
-        empty.textContent = t("threads.rail_empty");
-        listEl.replaceChildren(empty);
-      } else {
-        listEl.replaceChildren(...view.rows.map((th) => item(th, th.id === selected)));
-      }
-      if (hadFocus) focusSelected();
+      keepFocus(listEl, () => {
+        if (view.rows.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "yui-threads-rail__empty";
+          empty.textContent = t("threads.rail_empty");
+          listEl.replaceChildren(empty);
+          return;
+        }
+        reconcileRows(listEl, view.rows, {
+          key: (th) => th.id,
+          create: (th) => item(th, th.id === selected),
+        });
+      });
     },
     focusSelected,
   };

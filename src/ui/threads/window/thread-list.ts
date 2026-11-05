@@ -4,6 +4,7 @@ import "./thread-list.css";
 import type { Thread } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
+import { keepFocus, reconcileRows } from "../../keyed-rows/keyed-rows";
 import { threadSource } from "../thread-source";
 import { timeEl } from "./relative-time";
 import { sourceLine, stateWord } from "./thread-meta";
@@ -128,7 +129,7 @@ export function createThreadList(deps: {
   });
 
   function focusSelected(): void {
-    rowsEl.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+    rowsEl.querySelector<HTMLElement>('[aria-current="true"]')?.focus({ preventScroll: true });
   }
 
   function emptyText(view: ThreadListView): string {
@@ -157,16 +158,19 @@ export function createThreadList(deps: {
       kindEl.setAttribute("aria-label", t("threads.kind"));
       renderKinds(kindEl, view);
 
-      const hadFocus = rowsEl.contains(document.activeElement);
-      if (view.rows.length === 0) {
-        const empty = document.createElement("p");
-        empty.className = "yui-threads-list__empty";
-        empty.textContent = emptyText(view);
-        rowsEl.replaceChildren(empty);
-      } else {
-        rowsEl.replaceChildren(...view.rows.map((th) => row(th, th.id === selected, now)));
-      }
-      if (hadFocus) focusSelected();
+      keepFocus(rowsEl, () => {
+        if (view.rows.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "yui-threads-list__empty";
+          empty.textContent = emptyText(view);
+          rowsEl.replaceChildren(empty);
+          return;
+        }
+        reconcileRows(rowsEl, view.rows, {
+          key: (th) => th.id,
+          create: (th) => row(th, th.id === selected, now),
+        });
+      });
     },
     focusSelected,
   };

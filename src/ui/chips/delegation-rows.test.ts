@@ -225,6 +225,23 @@ describe("renderDelegationRows — the row DOM", () => {
       container.remove();
     });
 
+    it("keeps the same row node and its focus when a refresh renders the same items", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const items = [{ ...done("d-1", 100_000), status: "ok" as const, summary: "All green." }];
+      const render = (): void =>
+        renderDelegationRows(container, items, NOW, { open: new Set(), onToggle: render });
+      render();
+      const button = container.querySelector<HTMLButtonElement>("button.yui-deleg__item")!;
+      button.focus();
+
+      render();
+
+      expect(container.querySelector("button.yui-deleg__item")).toBe(button);
+      expect(document.activeElement).toBe(button);
+      container.remove();
+    });
+
     it("leaves a running item, a done item without a summary, and one with an empty summary as plain rows", () => {
       const container = document.createElement("div");
       renderDelegationRows(

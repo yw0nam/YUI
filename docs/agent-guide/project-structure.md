@@ -803,6 +803,8 @@ YUI/
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
+      keyed-rows/                    # Keyed list rows
+        keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
       theme/                         # The window theme
         apply-theme.ts               # Resolves system through OS appearance and follows the store and the OS
       i18n/                          # Locale catalogs

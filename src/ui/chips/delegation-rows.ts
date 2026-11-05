@@ -8,6 +8,7 @@
 import "./delegation-rows.css";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
+import { reconcileRows, syncRow } from "../keyed-rows/keyed-rows";
 import { HIST_CHEVRON_SVG } from "../quick-controls/constants";
 
 /** How often a visible delegation list recomputes its elapsed and ago text. */
@@ -83,56 +84,67 @@ function summaryPanel(item: DelegationItem, n: number): HTMLElement {
   return panel;
 }
 
-/** Rebuilds the container's rows from the list, sorted running-first. */
+/** One list entry: an item as a plain row, a disclosure button, or the panel opened under that button. */
+interface Entry {
+  item: DelegationItem;
+  n: number;
+  kind: "div" | "button" | "panel";
+}
+
+function buildEntry(
+  { item, n, kind }: Entry,
+  now: number,
+  disclosure: SummaryDisclosure | undefined,
+): HTMLElement {
+  if (kind === "panel") return summaryPanel(item, n);
+  const row = document.createElement(kind);
+  row.className = kind === "button" ? "yui-deleg__item yui-deleg__item--toggle" : "yui-deleg__item";
+  row.dataset.id = item.id;
+  row.dataset.state = item.state;
+  if (item.status !== undefined) row.dataset.status = item.status;
+  row.append(...rowParts(item, now));
+  if (kind === "div" || !disclosure) return row;
+  const button = row as HTMLButtonElement;
+  button.type = "button";
+  button.id = `yui-deleg-row-${n}`;
+  button.setAttribute("aria-expanded", String(disclosure.open.has(item.id)));
+  button.setAttribute("aria-controls", `yui-deleg-sum-${n}`);
+  if (disclosure.open.has(item.id)) button.classList.add("is-open");
+  const chev = document.createElement("span");
+  chev.className = "yui-deleg__item-chev";
+  chev.innerHTML = HIST_CHEVRON_SVG;
+  button.append(chev);
+  button.onclick = () => {
+    if (disclosure.open.has(item.id)) disclosure.open.delete(item.id);
+    else disclosure.open.add(item.id);
+    disclosure.onToggle();
+  };
+  return button;
+}
+
+/** Reconciles the container's rows with the list, sorted running-first; a row keeps its node while its item stays. */
 export function renderDelegationRows(
   container: HTMLElement,
   items: DelegationItem[],
   now: number,
   disclosure?: SummaryDisclosure,
 ): void {
-  const focused = container.contains(document.activeElement)
-    ? (document.activeElement as HTMLElement).dataset.id
-    : undefined;
-  container.replaceChildren();
-  sortDelegations(items).forEach((item, n) => {
+  const entries = sortDelegations(items).flatMap((item, n): Entry[] => {
     const openable =
       disclosure !== undefined &&
       item.state === "done" &&
       typeof item.summary === "string" &&
       item.summary !== "";
-    const row = document.createElement(openable ? "button" : "div");
-    row.className = openable ? "yui-deleg__item yui-deleg__item--toggle" : "yui-deleg__item";
-    row.dataset.id = item.id;
-    row.dataset.state = item.state;
-    if (item.status !== undefined) row.dataset.status = item.status;
-    row.append(...rowParts(item, now));
-    if (!openable || !disclosure) {
-      container.append(row);
-      return;
-    }
-    const button = row as HTMLButtonElement;
-    button.type = "button";
-    button.id = `yui-deleg-row-${n}`;
-    button.setAttribute("aria-expanded", String(disclosure.open.has(item.id)));
-    button.setAttribute("aria-controls", `yui-deleg-sum-${n}`);
-    if (disclosure.open.has(item.id)) button.classList.add("is-open");
-    const chev = document.createElement("span");
-    chev.className = "yui-deleg__item-chev";
-    chev.innerHTML = HIST_CHEVRON_SVG;
-    button.append(chev);
-    button.addEventListener("click", () => {
-      if (disclosure.open.has(item.id)) disclosure.open.delete(item.id);
-      else disclosure.open.add(item.id);
-      disclosure.onToggle();
-    });
-    container.append(button);
-    if (disclosure.open.has(item.id)) container.append(summaryPanel(item, n));
+    const row: Entry = { item, n, kind: openable ? "button" : "div" };
+    return openable && disclosure.open.has(item.id) ? [row, { item, n, kind: "panel" }] : [row];
   });
-  if (focused === undefined) return;
-  for (const el of container.querySelectorAll<HTMLElement>("button.yui-deleg__item")) {
-    if (el.dataset.id === focused) {
-      el.focus();
-      break;
-    }
-  }
+  reconcileRows(container, entries, {
+    key: (entry) => `${entry.kind}:${entry.item.id}`,
+    create: (entry) => buildEntry(entry, now, disclosure),
+    update(row, entry) {
+      const fresh = buildEntry(entry, now, disclosure);
+      syncRow(row, fresh);
+      row.onclick = fresh.onclick;
+    },
+  });
 }
