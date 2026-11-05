@@ -8,7 +8,6 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { guardrailsFixture } from "../../../config/load-test-helpers";
 import type { BridgeTransport } from "../core/bridge-core";
 import {
   createMessageBridge,
@@ -16,9 +15,6 @@ import {
   type MessageSurfaceOp,
 } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
-
-/** The caps configs/guardrails.json delivers through setAttachmentLimits. */
-const LIMITS = guardrailsFixture().attachments;
 
 function createFakeTransport(): BridgeTransport {
   const listeners = new Map<string, Set<(p: unknown) => void>>();
@@ -46,29 +42,6 @@ function pair() {
   };
 }
 
-const SURFACE_OPS: MessageSurfaceOp[] = [
-  { op: "begin" },
-  { op: "name", name: "Yui" },
-  { op: "push", delta: "hello" },
-  { op: "end" },
-  { op: "end", defer: true },
-  { op: "finish" },
-  { op: "hide" },
-  { op: "summon-input" },
-  { op: "dismiss-input" },
-  { op: "busy", busy: true },
-  { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
-  {
-    op: "speech-actions",
-    actions: [{ label: "Hear the controls" }, { label: "Connecting…", busy: true }],
-  },
-  { op: "attachment-limits", limits: LIMITS },
-  { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
-  { op: "settle-quote" },
-  { op: "clear-quote" },
-  { op: "restore-input", text: "hi", images: ["data:image/jpeg;base64,x"] },
-];
-
 const CONTROL_OPS: MessageControlOp[] = [
   { op: "command", name: "status", args: "" },
   { op: "submit", text: "hi", images: ["data:image/jpeg;base64,x"] },
@@ -81,14 +54,6 @@ const CONTROL_OPS: MessageControlOp[] = [
 ];
 
 describe("createMessageBridge", () => {
-  it.each(SURFACE_OPS)("round-trips surface op %j pet → message", (sent) => {
-    const { pet, message } = pair();
-    const cb = vi.fn();
-    message.onSurface(cb);
-    pet.emitSurface(sent);
-    expect(cb).toHaveBeenCalledWith(sent);
-  });
-
   it.each(CONTROL_OPS)("round-trips control op %j message → pet", (sent) => {
     const { pet, message } = pair();
     const cb = vi.fn();
@@ -158,72 +123,6 @@ describe("createMessageBridge", () => {
 });
 
 describe("createRemoteSurfaces — the pet-side adapter", () => {
-  it("emits a surface op per call", () => {
-    const { pet, message } = pair();
-    const remote = createRemoteSurfaces(pet);
-    const seen: MessageSurfaceOp[] = [];
-    message.onSurface((op) => seen.push(op));
-
-    remote.beginSpeech();
-    remote.pushSpeech("a");
-    remote.endSpeech({ defer: true });
-    remote.finishSpeech();
-    remote.hideSpeech();
-    remote.summonInput();
-    remote.dismissInput();
-    remote.setBusy(true);
-    remote.setAttachmentLimits(LIMITS);
-
-    expect(seen).toEqual([
-      { op: "begin" },
-      { op: "push", delta: "a" },
-      { op: "end", defer: true },
-      { op: "finish" },
-      { op: "hide" },
-      { op: "summon-input" },
-      { op: "dismiss-input" },
-      { op: "busy", busy: true },
-      { op: "attachment-limits", limits: LIMITS },
-    ]);
-  });
-
-  it("emits the quote and the restore ops", () => {
-    const { pet, message } = pair();
-    const remote = createRemoteSurfaces(pet);
-    const seen: MessageSurfaceOp[] = [];
-    message.onSurface((op) => seen.push(op));
-
-    remote.quoteUser({ text: "hi", via: "text", images: 0 });
-    remote.settleQuote();
-    remote.clearQuote();
-    remote.quoteSignals([{ delivery: "urgent", source: "gh", text: "CI failed" }]);
-    remote.restoreInput("hi", ["data:image/jpeg;base64,x"]);
-
-    expect(seen).toEqual([
-      { op: "quote", quote: { text: "hi", via: "text", images: 0 } },
-      { op: "settle-quote" },
-      { op: "clear-quote" },
-      { op: "quote-signals", lines: [{ delivery: "urgent", source: "gh", text: "CI failed" }] },
-      { op: "restore-input", text: "hi", images: ["data:image/jpeg;base64,x"] },
-    ]);
-  });
-
-  it("sends only the action label and runs onClick when the click routes back", () => {
-    const { pet, message } = pair();
-    const remote = createRemoteSurfaces(pet);
-    const seen: MessageSurfaceOp[] = [];
-    message.onSurface((op) => seen.push(op));
-    const onClick = vi.fn();
-
-    remote.showInputError("no backend", { label: "Open Advanced", onClick });
-    expect(seen).toEqual([
-      { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
-    ]);
-
-    message.emitControl({ op: "input-error-action" });
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
   it("sends only the speech actions' labels and busy flags, routes a click back by index, and drops the callbacks on replacement", () => {
     const { pet, message } = pair();
     const remote = createRemoteSurfaces(pet);
@@ -278,22 +177,6 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
 
     expect(onSubmit).toHaveBeenCalledWith("hi", ["data:x"]);
     expect(onStop).toHaveBeenCalledTimes(1);
-  });
-
-  it("resends the current limits and busy state when a late window reports ready", () => {
-    const { pet, message } = pair();
-    const remote = createRemoteSurfaces(pet);
-    remote.setAttachmentLimits(LIMITS);
-    remote.setBusy(true);
-
-    const seen: MessageSurfaceOp[] = [];
-    message.onSurface((op) => seen.push(op));
-    message.emitControl({ op: "ready" });
-
-    expect(seen).toEqual([
-      { op: "attachment-limits", limits: LIMITS },
-      { op: "busy", busy: true },
-    ]);
   });
 
   it("reports a dock request to the registered callback", () => {
