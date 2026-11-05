@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageBridge, MessageControlOp } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
 
@@ -74,4 +74,64 @@ it("replays open and cleared Asks on ready and forwards an Answer", () => {
   control({ op: "ask-answer", answer: { ask_id: "a", choice: "once" } });
   expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
   remote.dispose();
+});
+
+describe("the streamed deltas", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function setup() {
+    const bridge = {
+      emitSurface: vi.fn(),
+      onControl: () => () => {},
+    } as unknown as MessageBridge;
+    return { bridge, remote: createRemoteSurfaces(bridge) };
+  }
+
+  it("sends one burst of deltas as a single push", () => {
+    const { bridge, remote } = setup();
+    for (const delta of ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]) {
+      remote.pushSpeech(delta);
+      vi.advanceTimersByTime(3);
+    }
+    expect(bridge.emitSurface).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(10);
+
+    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
+      [{ op: "push", delta: "abcdefghij" }],
+    ]);
+    remote.dispose();
+  });
+
+  it("sends the held delta before the op that follows it", () => {
+    const { bridge, remote } = setup();
+    remote.pushSpeech("a");
+    expect(bridge.emitSurface).not.toHaveBeenCalled();
+
+    remote.endSpeech();
+
+    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([
+      [{ op: "push", delta: "a" }],
+      [{ op: "end" }],
+    ]);
+    remote.dispose();
+  });
+
+  it("sends the held delta on dispose and leaves no timer", () => {
+    const { bridge, remote } = setup();
+    remote.pushSpeech("a");
+    expect(bridge.emitSurface).not.toHaveBeenCalled();
+
+    remote.dispose();
+
+    expect(vi.mocked(bridge.emitSurface).mock.calls).toEqual([[{ op: "push", delta: "a" }]]);
+    vi.advanceTimersByTime(80);
+    expect(bridge.emitSurface).toHaveBeenCalledTimes(1);
+  });
 });

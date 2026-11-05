@@ -102,3 +102,21 @@ it("delivers command and close only to their named preset", () => {
   expect(close).toHaveBeenCalledOnce();
   remote.dispose();
 });
+
+it("coalesces the deltas it sends to the unified chat window", () => {
+  vi.useFakeTimers();
+  try {
+    const { remote, emitted } = setup();
+    remote.pushSpeech("a");
+    vi.advanceTimersByTime(20);
+    remote.pushSpeech("b");
+    expect(emitted).toEqual([]);
+
+    vi.advanceTimersByTime(20);
+
+    expect(emitted).toEqual([{ preset: "yui", op: { op: "push", delta: "ab" } }]);
+    remote.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
+});
