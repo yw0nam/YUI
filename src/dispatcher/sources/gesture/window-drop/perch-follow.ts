@@ -39,6 +39,9 @@ export interface PerchFollow {
 }
 
 export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
+  // Detached: WebKit rejects a native timer called as a method of anything but the window.
+  const setIntervalImpl = deps.setInterval;
+  const clearIntervalImpl = deps.clearInterval;
   let timer: ReturnType<typeof setInterval> | null = null;
   let windowNumber = 0;
   let onLost: () => void = () => {};
@@ -53,7 +56,7 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
     gen++;
     busy = false;
     if (timer === null) return;
-    deps.clearInterval(timer);
+    clearIntervalImpl(timer);
     timer = null;
     deps.setGuardPaused(false);
   }
@@ -91,19 +94,22 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
       if (g !== gen) return;
       const next = { x: Math.round(pos.x + dx * scale), y: Math.round(pos.y + dy * scale) };
+      const probe = deps.renderer.getPerchProbe();
+      const seat = probe ? projectSeat(probe, next, scale) : null;
+      // Off every screen the seat is lost where she stands, so the fall starts on screen.
+      if (seat) {
+        const known = monitors ?? (await readMonitors(g));
+        if (g !== gen) return;
+        if (!monitorAtLogical(known, seat.x, seat.y)) {
+          const fresh = await readMonitors(g);
+          if (g !== gen) return;
+          if (!monitorAtLogical(fresh, seat.x, seat.y)) return lose("off_screen");
+        }
+      }
       if (dx !== 0 || dy !== 0) await win.setPositionPhysical?.(next.x, next.y);
       if (g !== gen) return;
       last = b;
-      const probe = deps.renderer.getPerchProbe();
-      if (!probe) return;
-      const seat = projectSeat(probe, next, scale);
-      if (seat.x < b.x || seat.x > b.x + b.width) return lose("off_width");
-      const known = monitors ?? (await readMonitors(g));
-      if (g !== gen) return;
-      if (!monitorAtLogical(known, seat.x, seat.y)) {
-        const fresh = await readMonitors(g);
-        if (g === gen && !monitorAtLogical(fresh, seat.x, seat.y)) lose("off_screen");
-      }
+      if (seat && (seat.x < b.x || seat.x > b.x + b.width)) lose("off_width");
     } finally {
       if (g === gen) busy = false;
     }
@@ -119,7 +125,7 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       stepFailureLogged = false;
       deps.setGuardPaused(true);
       const g = gen;
-      timer = deps.setInterval(() => {
+      timer = setIntervalImpl(() => {
         void step(g).catch((err) => {
           if (stepFailureLogged) return;
           stepFailureLogged = true;
