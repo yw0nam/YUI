@@ -12,7 +12,7 @@
  *   2. seatGlobal = petPxToGlobalPoints(seatPx, outerPosition, scaleFactor).
  *   3. windows = invoke("list_windows")  (front-to-back, topmost first).
  *   4. target = first window whose catch zone contains the seat (topmost wins).
- *   5. hit → proactive.window_sit at once, the sit-down plays in place, then
+ *   5. hit → proactive.window_sit at once, the sit crossfades in place, then
  *      user.window_sit_drop { edge_local_ypx } + arm the poll on target.windowNumber,
  *      both read off the host as it is when the sit lands; miss → user.window_sit_exit
  *      when the character was sitting or peeking at pickup.
@@ -90,7 +90,7 @@ export interface WindowDropSourceDeps {
   wasDragging?: () => boolean;
   /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
   onSitLost?: () => void;
-  /** Play the sit-down where she is. "lost" means a pickup took her before it landed. */
+  /** Crossfade to window_sit where she is. "lost" means a pickup took her before it landed. */
   sitDown: () => Promise<"done" | "lost">;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
@@ -234,10 +234,10 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   });
 
   /**
-   * Commit a sit on `target`: cue (unless suppressed) → sit-down → local edge → tier1 drop
+   * Commit a sit on `target`: cue (unless suppressed) → crossfade → local edge → tier1 drop
    * → arm. `pos` is the pet window's physical origin the character is at when it commits;
-   * the window stays there, so the sit-down plays in place. The host can move or close
-   * while the clip plays, so the edge and the arm read the stack again once it lands, and
+   * the window stays there, so the crossfade runs in place. The host can move or close
+   * while it runs, so the edge and the arm read the stack again once it lands, and
    * a host that has gone is a miss.
    */
   async function commitSit(

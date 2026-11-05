@@ -541,7 +541,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     // The pull-over may carry the window onto a different-scale monitor, so every leg
     // moves through logical points rather than this monitor's own physical ones.
     const climbWin = logicalLegWindow(win, w.scale);
-    const base = { win: climbWin, fromX: at.x, toX: at.x, pxPerMetre, fit: false };
+    const base = { win: climbWin, fromX: at.x, toX: at.x, pxPerMetre };
     let y = at.y;
 
     const loop = await legs.run({
@@ -664,7 +664,6 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromX: wallX,
       toX: wallX,
       pxPerMetre,
-      fit: false,
     };
     let y = at.y;
 
@@ -768,8 +767,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     // A descent never starts from a monitor climb, but the shim is applied uniformly —
     // it is a no-op difference on the single monitor a descent always runs on.
     const descentWin = logicalLegWindow(w.win, w.scale);
-    // Stand up onto the ledge: the window rises with the clip until the feet are on the
-    // edge, wherever a drop left it.
+    // Stand up onto the ledge: the window eases up until the feet are on the edge,
+    // wherever a drop left it.
     if ((await deps.sitter.standUp(descentWin, Math.round(standY * w.scale))) !== "done") {
       return endClimb();
     }
@@ -910,7 +909,6 @@ export function createClimber(deps: ClimberDeps): Climber {
       pxPerMetre,
       linearS: distance / walkSpeedPxPerSec(pxPerMetre, cycleS),
       curveY: false,
-      fit: false,
       oneshot: false,
       handoffS: 0,
     });

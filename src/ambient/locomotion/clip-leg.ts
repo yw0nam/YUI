@@ -1,9 +1,8 @@
 /**
  * A window leg paced by a clip. The VRM plays an in-place clip at scene origin while the
  * OS window supplies the travel the loader levelled out of it — along the clip's own hips
- * curve, stretched to a chosen span, or on the leg's own clock — until the travel is
- * spent, the clip ends, or the leg is cut short. The climber's wall legs and the sitter's
- * seat transitions run on it.
+ * curve or on the leg's own clock — until the travel is spent, the clip ends, or the leg
+ * is cut short. The climber's wall legs run on it.
  */
 
 import type { MotionKind } from "../../contract";
@@ -36,11 +35,6 @@ export interface ClipLeg {
   linearS: number | null;
   /** y follows the clip's own rise curve rather than the leg's own clock. */
   curveY: boolean;
-  /**
-   * y spans fromY→toY over the clip's whole travel, whichever way the clip goes, and the
-   * leg ends with the clip rather than on arrival. `pxPerMetre` is not read.
-   */
-  fit: boolean;
   /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
   oneshot: boolean;
   /** End the leg this many seconds before its clip ends, so the next clip blends out of it. */
@@ -104,7 +98,7 @@ export function createLegRunner(deps: LegRunnerDeps): LegRunner {
   }
 
   function run(spec: ClipLeg): Promise<"done" | "lost"> {
-    if (!spec.fit && spec.toY === spec.fromY && spec.toX === spec.fromX) {
+    if (spec.toY === spec.fromY && spec.toX === spec.fromX) {
       return Promise.resolve("done");
     }
     // A leg can inherit a clip that is already running — the descent picks up the one the
@@ -180,7 +174,7 @@ export function createLegRunner(deps: LegRunnerDeps): LegRunner {
     }
     if (l.curveY && !advanceOnCurve(l)) return;
     moveTo(l);
-    if (!l.fit && l.y === l.toY && l.x === l.toX) finish("done");
+    if (l.y === l.toY && l.x === l.toX) finish("done");
   }
 
   /**
@@ -193,12 +187,7 @@ export function createLegRunner(deps: LegRunnerDeps): LegRunner {
     const at = t === null ? null : renderer.getMotionTravelAt(l.motionId, t);
     const total = renderer.getMotionTravelY(l.motionId);
     if (t === null || at === null || total === null) return false;
-    if (total === 0) {
-      // A clip with no travel of its own has nothing to pace a fit by; it holds its span.
-      if (!l.fit) return false;
-      l.y = l.toY;
-      return true;
-    }
+    if (total === 0) return false;
     if (l.travel0 === null) {
       // The clip was not measurable when the leg opened; take the baseline now.
       l.travel0 = at;
@@ -208,9 +197,7 @@ export function createLegRunner(deps: LegRunnerDeps): LegRunner {
     if (t < l.prevT) l.wraps += 1;
     l.prevT = t;
     const travelled = at + l.wraps * total - l.travel0;
-    const next = l.fit
-      ? l.fromY + (l.toY - l.fromY) * (travelled / total)
-      : l.fromY - travelled * l.pxPerMetre;
+    const next = l.fromY - travelled * l.pxPerMetre;
     // Snap on arrival rather than comparing floats that were reached two different ways.
     const reached = l.toY >= l.fromY ? next >= l.toY : next <= l.toY;
     l.y = reached ? l.toY : next;

@@ -31,7 +31,7 @@ export async function wireDevGlobals(deps: {
   userInput: Pick<UserInputSource, "submit">;
   bus: EventBus;
   getDispatcher: () => Dispatcher | null;
-  /** The sit-down the dev perch plays in place before it takes the seat. */
+  /** The crossfade to window_sit the dev perch plays in place before it takes the seat. */
   sitDown: () => Promise<"done" | "lost">;
 }): Promise<void> {
   const {
@@ -81,7 +81,7 @@ export async function wireDevGlobals(deps: {
     // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
     __yui_dispatcher: getDispatcher,
     // DEV-ONLY trigger: fire window_sit perch enter/exit/drop directly from console.
-    //   window.__yui_windowSit.enter() → sit-down → user.window_sit_enter → dispatcher → renderer.
+    //   window.__yui_windowSit.enter() → window_sit crossfade → user.window_sit_enter → dispatcher → renderer.
     //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
     __yui_windowSit: {
       enter: () =>
