@@ -887,6 +887,7 @@ YUI/
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
   plugins/                           # Plugins, independent of the app runtime: Python/uv projects (own `python` and `python-lint` CI jobs) and Rust crates (own `plugins-rust` CI job)
+    README.md                        # The official plugins for readers, with the browser demo and the coding-agent Threads
     catalog.json                     # The official and community plugins; the plugin release workflow opens a PR that writes the official entries
     browser/                         # ego lite browser MCP server: one `browser` tool, a task space per preset
       src/
@@ -911,6 +912,7 @@ YUI/
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
   skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL
+    README.md                        # The skills for readers: what each one teaches and how an agent takes it
     rimworld-companion/              # Backend-agnostic skill: tiers RimWorld game events (RimEventFeed) and kibitzes against a stage guide (references/)
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
     yui-plugin/                      # Builds a plugin: routes to BUILD.md, or CONTRIBUTE.md to share one
