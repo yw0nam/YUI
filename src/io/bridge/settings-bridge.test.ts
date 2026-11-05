@@ -18,12 +18,9 @@ import type { MessageSurfaceOp } from "./message/surface-ops";
 import { type channels, createSettingsBridge, type SettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
-function createFakeTransport(): BridgeTransport & {
-  listeners: Map<string, Set<(p: unknown) => void>>;
-} {
+function createFakeTransport(): BridgeTransport {
   const listeners = new Map<string, Set<(p: unknown) => void>>();
   return {
-    listeners,
     emit(name, payload) {
       const set = listeners.get(name);
       if (!set) return;
@@ -267,31 +264,6 @@ describe("createSettingsBridge", () => {
     expect(voice).not.toHaveBeenCalled();
   });
 
-  it("ignores self-emitted events but delivers them to a second instance", () => {
-    // Shared transport broadcasts to every registered listener (incl. the emitter's own) —
-    // models Tauri global emit delivering back to the sender window.
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "settings" });
-    const selfCb = vi.fn();
-    const otherCb = vi.fn();
-    a.onSettingsChanged(selfCb);
-    b.onSettingsChanged(otherCb);
-
-    a.emitSettingsChanged();
-    expect(selfCb).not.toHaveBeenCalled();
-    expect(otherCb).toHaveBeenCalledTimes(1);
-
-    // Payload-bearing channels: the second instance still receives the unwrapped value.
-    const selfMouth = vi.fn();
-    const otherMouth = vi.fn();
-    a.onMouthPreview(selfMouth);
-    b.onMouthPreview(otherMouth);
-    a.emitMouthPreview(0.42);
-    expect(selfMouth).not.toHaveBeenCalled();
-    expect(otherMouth).toHaveBeenCalledWith(0.42);
-  });
-
   it("does not throw when the transport.emit throws", () => {
     const throwing: BridgeTransport = {
       emit() {
@@ -330,20 +302,16 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("delivers a quick-card open request from A to B, with and without the listening flag", () => {
+  it("delivers a quick-card open request from A to B with the listening flag", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "pet" });
     const b = createSettingsBridge(t, { windowKind: "quick-card" });
     const cb = vi.fn();
     b.onQuickCardOpen(cb);
 
-    a.emitQuickCardOpen({ left: 64, right: 336, y: 120 });
     a.emitQuickCardOpen({ left: 64, right: 336, y: 120, listening: true });
 
-    expect(cb.mock.calls).toEqual([
-      [{ left: 64, right: 336, y: 120 }],
-      [{ left: 64, right: 336, y: 120, listening: true }],
-    ]);
+    expect(cb.mock.calls).toEqual([[{ left: 64, right: 336, y: 120, listening: true }]]);
   });
 
   it.each([

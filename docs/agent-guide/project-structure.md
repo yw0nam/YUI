@@ -517,8 +517,8 @@ YUI/
         settings-bridge.ts             # Typed cross-window settings bus: one table of its channels, each with its scope and payload check
         core/                          # The cross-window bus every bridge here is built on
           bridge-core.ts               # Transports, message envelope and listener bookkeeping shared by every bridge
-          channel-table.ts             # Builds a bridge's emit/on pairs and state mirrors from its channel table
-          state-mirror.ts              # One window's value published to the others and mirrored back; channel-table's `channelMirror` builds on it
+          channel-table.ts             # Builds a bridge's emit/on pairs from its channel table, and its state mirrors with `channelMirror`
+          state-mirror.ts              # One window's value published to the others and mirrored back
         message/                       # The pet ↔ message window bus and its remote half
           message-bridge.ts            # Cross-window bus linking the pet window and the message window
           message-remote.ts            # The message window's bubble and input as a remote Surfaces half

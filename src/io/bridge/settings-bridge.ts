@@ -286,6 +286,7 @@ export const channels = {
   SettingsChanged: {
     name: "yui://settings-changed",
     scope: "shared",
+    // The receiver gets the sender's kind; the emit sends nothing.
     encode: () => undefined,
     read: (_payload, deliver: (from: WindowKind) => void, from) => deliver(from),
   },

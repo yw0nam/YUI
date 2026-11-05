@@ -4,14 +4,13 @@ import type { createBridgeCore, WindowKind } from "./bridge-core";
 import { createStateMirror, publishState } from "./state-mirror";
 
 export interface Channel {
-  /** The wire name. */
   name: string;
   /** "preset": delivered only to windows of the sender's preset. */
   scope: "shared" | "preset";
   /** Calls `deliver` with the callback's arguments, or not at all to drop the payload; without it the callback gets none. */
-  read?(payload: unknown, deliver: (...value: any[]) => void, from: WindowKind): void;
+  read?(payload: unknown, deliver: (...value: unknown[]) => void, from: WindowKind): void;
   /** The wire payload for the emit's arguments; without it the emit sends its one argument, or nothing. */
-  encode?(...args: any[]): unknown;
+  encode?(...args: unknown[]): unknown;
   /** The emit returns the send's promise. */
   settled?: true;
   /** The value one window owns and the others mirror; `ask` is the key of the channel that asks for it. */

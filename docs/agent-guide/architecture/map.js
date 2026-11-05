@@ -916,7 +916,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus, its channels one table, each with its scope: scoped to the sender's preset, or the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
+      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
