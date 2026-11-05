@@ -17,6 +17,7 @@ type CGWindowListOption = u32;
 
 const K_CG_NULL_WINDOW_ID: CGWindowID = 0;
 const K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY: CGWindowListOption = 1 << 0;
+const K_CG_WINDOW_LIST_OPTION_INCLUDING_WINDOW: CGWindowListOption = 1 << 3;
 
 #[repr(i32)]
 enum CFNumberType {
@@ -240,6 +241,14 @@ pub fn list_all_windows() -> Vec<WindowAtPoint> {
         .collect()
 }
 
+/// One window's current bounds in points, `None` when `window_number` no longer exists.
+pub fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
+    enumerate(K_CG_WINDOW_LIST_OPTION_INCLUDING_WINDOW, window_number)
+        .into_iter()
+        .find(|w| w.window_number == window_number)
+        .map(window_rect_to_at_point)
+}
+
 /// Pure own-pid filter (no FFI), so the ordering/exclusion is unit-testable.
 ///
 /// `windows` is front-to-back (topmost first); the order is preserved, only
@@ -269,9 +278,12 @@ fn window_rect_to_at_point(w: WindowRect) -> WindowAtPoint {
 /// window whose `kCGWindowLayer` != 0 — normal app windows live at layer 0;
 /// system chrome sits at non-zero layers. Own-pid exclusion is left to callers.
 fn enumerate_windows() -> Vec<WindowRect> {
-    let windows = unsafe {
-        CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
-    };
+    enumerate(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, K_CG_NULL_WINDOW_ID)
+}
+
+/// `enumerate_windows` for any `CGWindowListCopyWindowInfo` option and reference window.
+fn enumerate(option: CGWindowListOption, relative_to: CGWindowID) -> Vec<WindowRect> {
+    let windows = unsafe { CGWindowListCopyWindowInfo(option, relative_to) };
     if windows.is_null() {
         log::debug!("enumerate_windows_null skipped=true");
         return Vec::new();

@@ -120,6 +120,25 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
+/// One window's current bounds in logical points, or `None` when the platform cannot
+/// read it or the window no longer exists.
+#[command]
+pub async fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::window_bounds(window_number)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        windows::window_bounds(window_number)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = window_number;
+        None
+    }
+}
+
 #[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 mod witness;
 

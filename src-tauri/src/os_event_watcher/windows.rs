@@ -30,8 +30,8 @@ use windows::Win32::{
         Input::KeyboardAndMouse::{GetAsyncKeyState, GetLastInputInfo, LASTINPUTINFO, VK_LBUTTON},
         WindowsAndMessaging::{
             EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowLongW, GetWindowRect,
-            GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE,
-            WS_EX_TOOLWINDOW,
+            GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
+            GWL_EXSTYLE, WS_EX_TOOLWINDOW,
         },
     },
 };
@@ -213,6 +213,31 @@ pub fn list_all_windows() -> Vec<WindowAtPoint> {
         .iter()
         .filter_map(physical_window_to_at_point)
         .collect()
+}
+
+/// HWNDs are 32-bit significant and sign-extended on 64-bit Windows, so a `u32` number widens through `i32`.
+fn hwnd_from_number(window_number: u32) -> isize {
+    window_number as i32 as isize
+}
+
+/// One window's current bounds in logical points, `None` when it is gone, hidden or minimised.
+pub fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
+    let hwnd = HWND(hwnd_from_number(window_number) as *mut c_void);
+    if !unsafe { IsWindow(Some(hwnd)) }.as_bool()
+        || !unsafe { IsWindowVisible(hwnd) }.as_bool()
+        || unsafe { IsIconic(hwnd) }.as_bool()
+    {
+        return None;
+    }
+    let mut pid: u32 = 0;
+    unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+    physical_window_to_at_point(&PhysicalWindow {
+        rect: extended_frame_bounds(hwnd)?,
+        pid: pid as i32,
+        name: window_title(hwnd),
+        window_number,
+        dpi: window_monitor_dpi(hwnd),
+    })
 }
 
 /// True when `hwnd`'s window class matches the shell-chrome blocklist.

@@ -7,6 +7,7 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::drag::drag_window,
         crate::os_event_watcher::list_windows,
+        crate::os_event_watcher::window_bounds,
         #[cfg(desktop)]
         crate::screenshot::list_screen_sources,
         #[cfg(desktop)]

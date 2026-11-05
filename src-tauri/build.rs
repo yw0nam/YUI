@@ -2,6 +2,7 @@
 const COMMANDS: &[&str] = &[
     "drag_window",
     "list_windows",
+    "window_bounds",
     "list_screen_sources",
     "capture_screen",
     "capture_screen_at",
