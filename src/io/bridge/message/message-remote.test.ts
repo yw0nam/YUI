@@ -6,7 +6,7 @@ import { createRemoteSurfaces } from "./message-remote";
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
 const LIMITS = guardrailsFixture().attachments;
 
-it("replays asks, commands, the command reply, the limits, the name and busy on ready, in that order", () => {
+it("replays only asks, commands, the command reply, the limits, the name and busy on ready, in that order", () => {
   let control!: (op: MessageControlOp) => void;
   const bridge = {
     emitSurface: vi.fn(),
@@ -24,6 +24,8 @@ it("replays asks, commands, the command reply, the limits, the name and busy on 
   ];
   const commands = [{ name: "status", description: "Info", args: "" }];
   const reply = { kind: "pending" as const, name: "status" };
+  remote.pushSpeech("a");
+  remote.restoreInput("hi", []);
   remote.setAsks(frames);
   remote.setCommands(commands);
   remote.showCommandReply(reply);

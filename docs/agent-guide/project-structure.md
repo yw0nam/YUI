@@ -565,7 +565,7 @@ YUI/
         surfaces.ts                  # Mounts the speech bubble and text input as one system, with the name plate and backlog when asked, forwarding tool status
         surfaces-router.ts           # One Surfaces handle over the pet window, the message window and the speech stream, which takes the chat while the unified window shows
         wire.ts                      # Local surfaces plus the message-window bridge and the speech stream, routed by the stored window mode and the unified window, scoped to the window's preset
-        apply-speech-op.ts           # Draws one bubble op on a Surfaces, for the message window and the unified box
+        apply-speech-op.ts           # Draws one bubble op on the unified box through the surface op table
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it

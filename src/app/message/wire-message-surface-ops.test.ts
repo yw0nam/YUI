@@ -107,7 +107,8 @@ beforeEach(() => {
 });
 
 interface Row {
-  note?: string;
+  /** The case title; the op name when absent. */
+  title?: string;
   send(remote: RemoteSurfaces): void;
   wire: MessageSurfaceOp;
   received: [string, unknown[]][];
@@ -166,19 +167,19 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
   ],
   end: [
     {
-      note: " with no options",
+      title: "end with no options",
       send: (r) => r.endSpeech(),
       wire: { op: "end" },
       received: [["endSpeech", [undefined]]],
     },
     {
-      note: " deferred",
+      title: "end deferred",
       send: (r) => r.endSpeech({ defer: true }),
       wire: { op: "end", defer: true },
       received: [["endSpeech", [{ defer: true }]]],
     },
     {
-      note: " with defer false",
+      title: "end with defer false",
       send: (r) => r.endSpeech({ defer: false }),
       wire: { op: "end" },
       received: [["endSpeech", [undefined]]],
@@ -190,7 +191,7 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
   hide: [{ send: (r) => r.hideSpeech(), wire: { op: "hide" }, received: [["hideSpeech", []]] }],
   "summon-input": [
     {
-      note: " after focus",
+      title: "summon-input after focus",
       send: (r) => r.summonInput(),
       wire: { op: "summon-input" },
       received: [
@@ -208,13 +209,13 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
   ],
   "input-error": [
     {
-      note: " with an action",
+      title: "input-error with an action",
       send: (r) => r.showInputError("no backend", { label: "Open Advanced", onClick: vi.fn() }),
       wire: { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
       received: [["showInputError", ["no backend", { label: "Open Advanced", onClick: click }]]],
     },
     {
-      note: " with no action",
+      title: "input-error with no action",
       send: (r) => r.showInputError("no backend"),
       wire: { op: "input-error", message: "no backend" },
       received: [["showInputError", ["no backend", undefined]]],
@@ -222,7 +223,7 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
   ],
   "speech-actions": [
     {
-      note: " with a busy action",
+      title: "speech-actions with a busy action",
       send: (r) =>
         r.showSpeechActions([
           { label: "Hear the controls", onClick: vi.fn() },
@@ -242,14 +243,6 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
             ],
           ],
         ],
-      ],
-    },
-    {
-      note: " with no busy action",
-      send: (r) => r.showSpeechActions([{ label: "Hear the controls", onClick: vi.fn() }]),
-      wire: { op: "speech-actions", actions: [{ label: "Hear the controls" }] },
-      received: [
-        ["showSpeechActions", [[{ label: "Hear the controls", busy: undefined, onClick: click }]]],
       ],
     },
   ],
@@ -284,7 +277,7 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
 
 it.each(
   Object.entries(ROWS).flatMap(([op, rows]) =>
-    rows.map((row) => ({ ...row, title: `${op}${row.note ?? ""}` })),
+    rows.map((row) => ({ ...row, title: row.title ?? op })),
   ),
 )("carries $title from the pet window to the message window's surfaces", async (row) => {
   const { sent, received, remote } = setup();

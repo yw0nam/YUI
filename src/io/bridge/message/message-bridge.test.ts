@@ -120,7 +120,7 @@ describe("createMessageBridge", () => {
 });
 
 describe("createRemoteSurfaces — the pet-side adapter", () => {
-  it("sends only the speech actions' labels and busy flags, routes a click back by index, and drops the callbacks on replacement", () => {
+  it("sends only the speech actions' labels and busy flags, routes a click back by index, and drops the callbacks on new speech and on hide", () => {
     const { pet, message } = pair();
     const remote = createRemoteSurfaces(pet);
     const seen: MessageSurfaceOp[] = [];
@@ -147,6 +147,12 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     remote.beginSpeech();
     message.emitControl({ op: "speech-action", index: 1 });
     expect(second).toHaveBeenCalledTimes(1);
+
+    // Hiding the speech drops them too.
+    remote.showSpeechActions([{ label: "Hear the controls", onClick: first }]);
+    remote.hideSpeech();
+    message.emitControl({ op: "speech-action", index: 0 });
+    expect(first).not.toHaveBeenCalled();
   });
 
   it("mirrors the input-open state reported by the message window", () => {

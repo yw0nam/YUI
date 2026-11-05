@@ -20,6 +20,7 @@ function entry<M extends keyof RemoteSurfaces, P extends object, const F extends
   method: M,
   encode: (...args: Parameters<RemoteSurfaces[M]>) => P,
   receive: (payload: P, port: Pick<RemoteSurfaces, M>, control: Control) => void,
+  // An entry without flags has none set; F only carries the literal flags a call passes.
   flags = {} as F,
 ) {
   return { method, encode, receive, ...flags };
@@ -176,12 +177,10 @@ export type MessageSurfaceOp = {
 /** The calls the message window makes to draw the named ops. */
 export type SurfacePort<K extends OpName = OpName> = Pick<RemoteSurfaces, Table[K]["method"]>;
 
-interface AnyEntry {
-  method: Table[OpName]["method"];
+interface AnyEntry extends Flags<object> {
+  method: string;
   encode(...args: unknown[]): object;
   receive(payload: unknown, port: SurfacePort, control: Control): void;
-  replay?: true;
-  initial?: object;
 }
 
 // The entries' payload types differ, so the code that iterates the table casts to one shape.
@@ -202,18 +201,20 @@ export function receiveSurfaceOp<O extends MessageSurfaceOp>(
 /** The `RemoteSurfaces` calls that send each op, and `replay` for a message window that comes up later. */
 export function createSurfaceSender(emit: (op: MessageSurfaceOp) => void) {
   const held = new Map<OpName, MessageSurfaceOp>();
-  const send = (op: OpName, e: AnyEntry, payload: object): MessageSurfaceOp => {
+  const send = (op: OpName, replay: boolean | undefined, payload: object): MessageSurfaceOp => {
+    // The payload is the one this op's own entry encodes.
     const sent = { op, ...payload } as MessageSurfaceOp;
-    if (e.replay) held.set(op, sent);
+    if (replay) held.set(op, sent);
     return sent;
   };
-  for (const [op, e] of entries) if (e.initial) send(op, e, e.initial);
+  for (const [op, e] of entries) if (e.initial) send(op, e.replay, e.initial);
+  // Every entry adds the method it names, so the object holds each port method.
   const methods = Object.fromEntries(
     entries.map(([op, e]) => [
       e.method,
-      (...args: unknown[]) => emit(send(op, e, e.encode(...args))),
+      (...args: unknown[]) => emit(send(op, e.replay, e.encode(...args))),
     ]),
-  ) as unknown as SurfacePort;
+  ) as SurfacePort;
   return {
     methods,
     replay(): void {
