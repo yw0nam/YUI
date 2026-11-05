@@ -71,9 +71,8 @@ green=""
 hole=$'\001'
 while IFS= read -r title; do
   [ -z "$title" ] && continue
-  # A title matches a rendered title from its start, each placeholder (%s, $name) a wildcard; a title
-  # the parser cut at an inner quote (window's) still matches by what it kept.
-  re="$(printf '%s' "$title" | sed -E "s/%[sdifjoc#]|\\\$[A-Za-z_#][A-Za-z0-9_.]*/$hole/g; s/[][\\.*^\$+?(){}|]/\\\\&/g; s/$hole/.*/g")"
+  # Anchored at the start only, so a title the parser cut at an inner quote (window's) still matches.
+  re="$(printf '%s' "$title" | sed -E "s/%.|\\\$[A-Za-z0-9_#\$][A-Za-z0-9_.\$]*/$hole/g; s/[][\\.*^\$+?(){}|]/\\\\&/g; s/$hole/.*/g")"
   if printf '%s\n' "$passed" | grep -qE -- "^$re"; then
     green="$green
   $title"
