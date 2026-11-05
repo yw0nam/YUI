@@ -10,8 +10,8 @@ A YUI plugin gives a character new MCP tools or skills. This skill has two paths
 
 | The user wants to | Read |
 |---|---|
-| Build a plugin for their own YUI | [BUILD.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/BUILD.md) |
-| Share a plugin that already works: list it in the catalog, or add it to the YUI repository | [CONTRIBUTE.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/CONTRIBUTE.md) |
+| Build a plugin for their own YUI | [BUILD.md](https://raw.githubusercontent.com/yw0nam/YUI/main/coding-agents/yui-dev/skills/yui-plugin/BUILD.md) |
+| Share a plugin that already works: list it in the catalog, or add it to the YUI repository | [CONTRIBUTE.md](https://raw.githubusercontent.com/yw0nam/YUI/main/coding-agents/yui-dev/skills/yui-plugin/CONTRIBUTE.md) |
 
 Both files sit in this folder. When the user wants a new plugin and also wants to share it, run BUILD.md first, then CONTRIBUTE.md.
 

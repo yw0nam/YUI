@@ -887,7 +887,7 @@ YUI/
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
   plugins/                           # Plugins, independent of the app runtime: Python/uv projects (own `python` and `python-lint` CI jobs) and Rust crates (own `plugins-rust` CI job)
-    README.md                        # The official plugins for readers, with the browser demo and the coding-agent Threads
+    README.md                        # The official plugins for readers, with the browser demo
     catalog.json                     # The official and community plugins; the plugin release workflow opens a PR that writes the official entries
     browser/                         # ego lite browser MCP server: one `browser` tool, a task space per preset
       src/
@@ -904,6 +904,9 @@ YUI/
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
         factorio-companion/          # Game play through the factorio MCP server tools
+  coding-agents/                     # Coding-agent plugins Claude Code and Codex install from the `yui` marketplace
+    README.md                        # The coding-agent plugins for readers, their install commands, and the coding-agent Threads
+    yui-dev/                         # Skills for a coding agent that extends YUI: `skills/yui-plugin` (BUILD.md, CONTRIBUTE.md) and `skills/yui-wake-character`
     yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, the Claude Code inbox poller, `skills/setup`, and `skills/thread-producer`
   integrations/                      # Agent-specific adapters, independent of the YUI app runtime
     hermes/
@@ -911,12 +914,10 @@ YUI/
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
-  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL
+  skills/                            # Skill folders for the character's backend agent, copied into the agent's skill folder or fetched by raw URL
     README.md                        # The skills for readers: what each one teaches and how an agent takes it
     rimworld-companion/              # Backend-agnostic skill: tiers RimWorld game events (RimEventFeed) and kibitzes against a stage guide (references/)
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
-    yui-plugin/                      # Builds a plugin: routes to BUILD.md, or CONTRIBUTE.md to share one
-    yui-wake-character/              # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src

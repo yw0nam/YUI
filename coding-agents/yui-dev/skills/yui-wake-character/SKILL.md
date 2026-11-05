@@ -11,7 +11,8 @@ each bound to a preset. All of them share one loopback ingress on one port. The 
 chooses the character: `POST /signals` wakes the character of the main window, and
 `POST /presets/<id>/signals` wakes the character bound to preset `<id>`. The request body
 is the same signal envelope in both cases; read `docs/reference/signals-ingress.md` in the
-YUI repository for its fields and the delivery rules.
+YUI repository for its fields and the delivery rules. Outside a checkout:
+https://raw.githubusercontent.com/yw0nam/YUI/main/docs/reference/signals-ingress.md
 
 The ingress listens only while the user has turned on **External signals** in YUI's
 Proactive tab, on the port shown there (default 8770), and a change of that switch or
@@ -77,7 +78,8 @@ Done when: the code is 200, or the user has been told the one action that the ta
 
 ## Reference
 
-- Route table, envelope fields, delivery and buffering rules: `docs/reference/signals-ingress.md`.
+- Route table, envelope fields, delivery and buffering rules: `docs/reference/signals-ingress.md`
+  (https://raw.githubusercontent.com/yw0nam/YUI/main/docs/reference/signals-ingress.md).
 - The avatar routes `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`,
   `/presets/<id>/avatar/command` follow the same prefix rule and move that character's body.
 - `/presets/<id>/relations` follows the same prefix rule and reads or replaces that character's
