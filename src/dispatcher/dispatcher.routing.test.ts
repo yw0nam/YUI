@@ -575,19 +575,21 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(setPerchTarget).toHaveBeenCalledWith({ edgeLocalYpx: 30 });
   });
 
-  it("sets the perch target on user.window_sit_drop but requests no second window_sit while one is playing", async () => {
+  it.each([
+    { event_name: "user.window_sit_drop", perch: { edgeLocalYpx: 30 } },
+    { event_name: "avatar.window_sit", perch: { edgeLocalYpx: 30 } },
+    { event_name: "user.window_sit_enter", perch: null },
+  ])("$event_name with window_sit already playing requests no second window_sit", async ({
+    event_name,
+    perch,
+  }) => {
     getCurrentMotion.mockReturnValue({ id: "window_sit", vrma_path: "/motions/window_sit.vrma" });
     dispatcher.start();
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "user.window_sit_drop",
-        payload: { edge_local_ypx: 30 },
-      }),
-    );
+    bus.push(env({ source: "os_event_watcher", event_name, payload: { edge_local_ypx: 30 } }));
     await vi.advanceTimersByTimeAsync(20);
-    expect(setPerchTarget).toHaveBeenCalledWith({ edgeLocalYpx: 30 });
     expect(applyDirective).not.toHaveBeenCalled();
+    if (perch) expect(setPerchTarget).toHaveBeenCalledWith(perch);
+    else expect(setPerchTarget).not.toHaveBeenCalled();
   });
 
   it("clears the perch on user.window_sit_exit via setPerchTarget(null)", async () => {

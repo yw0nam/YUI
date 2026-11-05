@@ -67,6 +67,9 @@ function makeHarness(over: { probe?: null } = {}) {
     positions,
     frame,
     flush,
+    setCurrent: (id: string) => {
+      current = { id, vrma_path: `/motions/${id}.vrma` };
+    },
     hide: () => {
       doc.visibilityState = "hidden";
       for (const cb of visibilityListeners) cb();
@@ -130,6 +133,7 @@ describe("createSitter", () => {
 
   it.each([
     { name: "cancel", end: (h: ReturnType<typeof makeHarness>) => h.sitter.cancel() },
+    { name: "stop", end: (h: ReturnType<typeof makeHarness>) => h.sitter.stop() },
     { name: "the document hiding", end: (h: ReturnType<typeof makeHarness>) => h.hide() },
     {
       name: "a new transition",
@@ -149,5 +153,56 @@ describe("createSitter", () => {
     expect(h.motions.slice(0, 2)).toEqual([SIT, null]);
     await h.frame(125);
     expect(h.positions.length).toBe(moved);
+  });
+
+  it("stops listening to the document once stopped", async () => {
+    const h = makeHarness();
+    h.sitter.start();
+    h.sitter.stop();
+    const done = h.sitter.sitDown({ win: h.win, scale: 1 });
+    await h.flush();
+    h.hide();
+    expect(await outcome(done)).toBe("pending");
+  });
+
+  it.each([
+    {
+      name: "sitDown",
+      begin: (h: ReturnType<typeof makeHarness>) => h.sitter.sitDown({ win: h.win, scale: 1 }),
+    },
+    { name: "standUp", begin: (h: ReturnType<typeof makeHarness>) => h.sitter.standUp(h.win, 400) },
+  ])("loses $name cancelled while it reads the window position and plays nothing", async ({
+    begin,
+  }) => {
+    const h = makeHarness();
+    h.sitter.start();
+    const done = begin(h);
+    h.sitter.cancel();
+    await h.flush();
+    expect(await outcome(done)).toBe("lost");
+    expect(h.motions).toEqual([]);
+  });
+
+  it.each([
+    {
+      name: "a sit while an emote is current",
+      begin: (h: ReturnType<typeof makeHarness>) => h.sitter.sitDown({ win: h.win, scale: 1 }),
+      current: "happy",
+    },
+    {
+      name: "a stand-up while window_sit is current",
+      begin: (h: ReturnType<typeof makeHarness>) => h.sitter.standUp(h.win, 400),
+      current: "window_sit",
+    },
+  ])("plays nothing when $name is cancelled", async ({ begin, current }) => {
+    const h = makeHarness();
+    h.sitter.start();
+    const done = begin(h);
+    await h.flush();
+    h.setCurrent(current);
+    const played = h.motions.length;
+    h.sitter.cancel();
+    expect(await outcome(done)).toBe("lost");
+    expect(h.motions.length).toBe(played);
   });
 });
