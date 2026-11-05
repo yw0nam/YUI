@@ -38,7 +38,7 @@ globalThis.YUI_MAP =
       "kind": "external",
       "col": 5,
       "row": 0,
-      "desc": "the factorio plugin, coding-agent hooks, signal producers, the verification driver"
+      "desc": "coding-agent hooks, signal producers, the verification driver"
     },
     {
       "id": "shell",
@@ -453,14 +453,6 @@ globalThis.YUI_MAP =
       "module": "catalog",
       "label": "Catalog on GitHub",
       "role": "plugins/catalog.json on main, each community plugin's plugin.json on its repo's default branch, and the release zips and checksums.txt the MCP host downloads.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "factorio",
-      "module": "senders",
-      "label": "plugins/factorio",
-      "role": "The MCP server that polls the Factorio game mod over RCON and posts urgent game signals to the loopback ingress.",
       "paths": [],
       "external": true
     },
@@ -2506,14 +2498,6 @@ globalThis.YUI_MAP =
       "from": "signal-producers",
       "to": "shell/agent-ingress",
       "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "factorio-ingress",
-      "from": "factorio",
-      "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope delivery:\"urgent\"}",
       "kind": "http",
       "transport": "shared"
     },
@@ -5115,8 +5099,7 @@ globalThis.YUI_MAP =
           "from": "senders",
           "label": "POST /signals",
           "edges": [
-            "signals-ingress",
-            "factorio-ingress"
+            "signals-ingress"
           ],
           "to": "shell"
         },

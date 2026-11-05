@@ -233,7 +233,7 @@ onMounted(() => {
           <div>
             <b>Plugins</b>
             <span
-              >Independent MCP servers you allow in Settings, such as the official browser plugin, or that the backend attaches, such as factorio.</span
+              >Independent MCP servers you allow in Settings, such as the official browser plugin.</span
             >
           </div>
           <div>

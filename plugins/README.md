@@ -5,7 +5,6 @@ A plugin gives YUI's characters something new to do: a tool her brain can call, 
 | Plugin | What it does | How you get it |
 | --- | --- | --- |
 | [browser](browser/README.md) | She searches the web and opens pages in ego lite, then tells you what she found. | Installed from the Catalog on YUI's **Plugins** page |
-| [factorio](factorio/README.md) | Bridges the Factorio game to her brain, so she reacts to what happens in your factory. | Run it yourself on the machine that runs Factorio; your backend agent connects to it. |
 
 ## She looks things up in your browser
 

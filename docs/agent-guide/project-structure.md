@@ -886,7 +886,7 @@ YUI/
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
-  plugins/                           # Plugins, independent of the app runtime: Python/uv projects (own `python` and `python-lint` CI jobs) and Rust crates (own `plugins-rust` CI job)
+  plugins/                           # Plugins, independent of the app runtime: Rust crates (own `plugins-rust` CI job)
     README.md                        # The official plugins for readers, with the browser demo
     catalog.json                     # The official and community plugins; the plugin release workflow opens a PR that writes the official entries
     browser/                         # ego lite browser MCP server: one `browser` tool, a task space per preset
@@ -900,10 +900,6 @@ YUI/
         shots.rs                     # Per-call screenshot folder: collect the last screenshots, remove, sweep stale folders
         locate.rs                    # Finds the installed `ego-browser` CLI
         image_encode.rs              # Screenshot resize and base64 JPEG encode
-    factorio/                        # Factorio RCON poll, event cache, and urgent signals MCP server
-      game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
-      skills/                        # The companion skill the backend agent reads
-        factorio-companion/          # Game play through the factorio MCP server tools
   coding-agents/                     # Coding-agent plugins Claude Code and Codex install from the `yui` marketplace
     README.md                        # The coding-agent plugins for readers, their install commands, and the coding-agent Threads
     yui-dev/                         # Skills for a coding agent that extends YUI: `skills/yui-plugin` (BUILD.md, CONTRIBUTE.md) and `skills/yui-wake-character`
