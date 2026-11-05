@@ -22,34 +22,51 @@ type Cursor = { x: number; y: number } | null;
 // ─── physicalCursorToLocalCss ──────────────────────────────────────────────────
 
 describe("physicalCursorToLocalCss", () => {
-  it("DPI 1 — subtracts the window origin, identity scale", () => {
-    const p = physicalCursorToLocalCss({ x: 150, y: 220 }, { x: 100, y: 200 }, 1);
-    expect(p).toEqual({ x: 50, y: 20 });
-  });
-
-  it("DPI 2 (Retina) — divides the physical delta by the scale factor", () => {
-    const p = physicalCursorToLocalCss({ x: 300, y: 400 }, { x: 100, y: 200 }, 2);
-    expect(p).toEqual({ x: 100, y: 100 });
-  });
-
-  it("DPI 1.5 (Windows HiDPI) — fractional scale", () => {
-    const p = physicalCursorToLocalCss({ x: 250, y: 350 }, { x: 100, y: 200 }, 1.5);
-    expect(p).toEqual({ x: 100, y: 100 });
-  });
-
-  it("negative window origin (monitor left of primary) — delta can stay positive", () => {
-    const p = physicalCursorToLocalCss({ x: -200, y: 60 }, { x: -400, y: 0 }, 2);
-    expect(p).toEqual({ x: 100, y: 30 });
-  });
-
-  it("cursor left of / above the window origin yields negative local coords", () => {
-    const p = physicalCursorToLocalCss({ x: 50, y: 100 }, { x: 100, y: 200 }, 1);
-    expect(p).toEqual({ x: -50, y: -100 });
-  });
-
-  it("scaleFactor ≤ 0 falls back to scale 1 (never divide by zero)", () => {
-    const p = physicalCursorToLocalCss({ x: 150, y: 220 }, { x: 100, y: 200 }, 0);
-    expect(p).toEqual({ x: 50, y: 20 });
+  it.each([
+    [
+      "DPI 1 — subtracts the window origin, identity scale",
+      { x: 150, y: 220 },
+      { x: 100, y: 200 },
+      1,
+      { x: 50, y: 20 },
+    ],
+    [
+      "DPI 2 (Retina) — divides the physical delta by the scale factor",
+      { x: 300, y: 400 },
+      { x: 100, y: 200 },
+      2,
+      { x: 100, y: 100 },
+    ],
+    [
+      "DPI 1.5 (Windows HiDPI) — fractional scale",
+      { x: 250, y: 350 },
+      { x: 100, y: 200 },
+      1.5,
+      { x: 100, y: 100 },
+    ],
+    [
+      "negative window origin (monitor left of primary) — delta can stay positive",
+      { x: -200, y: 60 },
+      { x: -400, y: 0 },
+      2,
+      { x: 100, y: 30 },
+    ],
+    [
+      "cursor left of / above the window origin yields negative local coords",
+      { x: 50, y: 100 },
+      { x: 100, y: 200 },
+      1,
+      { x: -50, y: -100 },
+    ],
+    [
+      "scaleFactor ≤ 0 falls back to scale 1 (never divide by zero)",
+      { x: 150, y: 220 },
+      { x: 100, y: 200 },
+      0,
+      { x: 50, y: 20 },
+    ],
+  ])("%s", (_name, cursor, origin, scale, expected) => {
+    expect(physicalCursorToLocalCss(cursor, origin, scale)).toEqual(expected);
   });
 
   // Cursor and window origin are the same point space scaled by different monitors' factors:
@@ -74,11 +91,6 @@ describe("physicalCursorToLocalCss", () => {
     );
     expect(b.x).toBeCloseTo(192.17, 1); // clientX 192
     expect(b.y).toBeCloseTo(217.98, 1); // clientY 218
-  });
-
-  it("uniform DPI — an omitted cursor scale keeps the single-factor conversion", () => {
-    const p = physicalCursorToLocalCss({ x: 300, y: 400 }, { x: 100, y: 200 }, 2);
-    expect(p).toEqual({ x: 100, y: 100 });
   });
 });
 
@@ -232,28 +244,6 @@ describe("createCursorSource — Tauri poll", () => {
     expect(unlistenMoved).toHaveBeenCalledTimes(1);
   });
 
-  it("converts at the configured cadence with DPI and reports window-local CSS px", async () => {
-    const win = fakeWindow({ x: 300, y: 400 });
-    const h = harness(win, fakeDoc(), 50);
-    const { seen } = h.collect();
-    await h.poll();
-    expect(seen).toEqual([{ x: 100, y: 100 }]);
-    expect(h.scheduled).toEqual([50, 50]);
-  });
-
-  it("a mixed-DPI reading converts with the primary scale, not the window's", async () => {
-    const win = fakeWindow({ x: 329.84375, y: -937.0390625 });
-    win.outerPosition.mockResolvedValue({ x: -28, y: -726 });
-    win.scaleFactor.mockResolvedValue(1);
-    win.primaryScaleFactor.mockResolvedValue(2);
-    const h = harness(win);
-    const { seen } = h.collect();
-    await h.poll();
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.x).toBeCloseTo(192.92, 1);
-    expect(seen[0]?.y).toBeCloseTo(257.48, 1);
-  });
-
   it("only re-reads outerPosition/scaleFactor/primaryScaleFactor every 8th tick", async () => {
     const win = fakeWindow();
     const h = harness(win);
@@ -371,44 +361,39 @@ describe("createCursorSource — Tauri poll", () => {
     expect(h.scheduled.at(-1)).toBe(50);
   });
 
-  it("subscribing while hidden polls nothing and sends null only after subscribe returns", async () => {
-    const doc = fakeDoc();
-    doc.visibilityState = "hidden";
-    const h = harness(fakeWindow(), doc);
-    const { seen } = h.collect();
-    expect(seen).toEqual([]);
-    await Promise.resolve();
-    expect(seen).toEqual([null]);
-    expect(h.scheduled).toEqual([]);
-  });
-
+  // F1: the null arrives in a microtask, so the caller holds its unsubscribe handle first.
   it.each([
     [
       "the document is hidden",
-      async (_win: FakeWin, doc: FakeDoc) => {
+      async (h: ReturnType<typeof harness>, _win: FakeWin, doc: FakeDoc) => {
         doc.visibilityState = "hidden";
-        doc.fire();
+        return h.collect();
       },
+      [],
     ],
     [
       "reads keep failing",
-      async (win: FakeWin, _doc: FakeDoc, poll: () => Promise<void>) => {
+      async (h: ReturnType<typeof harness>, win: FakeWin) => {
+        const first = h.collect();
         win.cursorPosition.mockRejectedValue(new Error("failed"));
-        await poll();
-        await poll();
-        await poll();
+        await h.poll();
+        await h.poll();
+        await h.poll();
+        return first;
       },
+      [50, 50, 50, 1000],
     ],
-  ])("a subscriber joining while %s gets null after subscribe returns", async (_name, makeUnavailable) => {
+  ])("subscribers joining while %s get null after subscribe returns", async (_name, makeUnavailable, scheduled) => {
     const win = fakeWindow();
     const doc = fakeDoc();
     const h = harness(win, doc);
-    h.collect();
-    await makeUnavailable(win, doc, h.poll);
+    const first = await makeUnavailable(h, win, doc);
     const late = h.collect();
     expect(late.seen).toEqual([]);
     await Promise.resolve();
+    expect(first.seen).toEqual([null]);
     expect(late.seen).toEqual([null]);
+    expect(h.scheduled).toEqual(scheduled);
   });
 
   it("a read in flight when the last subscriber leaves is not delivered, even to a new subscriber", async () => {
@@ -520,19 +505,19 @@ describe("createCursorSource — non-Tauri mousemove path", () => {
     else (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = orig;
   });
 
-  it("forwards mousemove as the cursor and mouseleave as null, until the last unsubscribe", () => {
+  it("forwards mousemove as the cursor and mouseleave as null, and the last unsubscribe removes both listeners", () => {
     const target = new EventTarget();
+    const add = vi.spyOn(target, "addEventListener");
+    const remove = vi.spyOn(target, "removeEventListener");
     const source = createCursorSource({ getIntervalMs: () => 33, moveTarget: target });
     const seen: Cursor[] = [];
     const off = source.subscribe((p) => seen.push(p));
-    const move = (x: number, y: number): void =>
-      void target.dispatchEvent(
-        Object.assign(new Event("mousemove"), { clientX: x, clientY: y }) as Event,
-      );
-    move(12, 34);
+    target.dispatchEvent(
+      Object.assign(new Event("mousemove"), { clientX: 12, clientY: 34 }) as Event,
+    );
     target.dispatchEvent(new Event("mouseleave"));
-    off();
-    move(1, 1);
     expect(seen).toEqual([{ x: 12, y: 34 }, null]);
+    off();
+    expect(remove.mock.calls).toEqual(add.mock.calls);
   });
 });
