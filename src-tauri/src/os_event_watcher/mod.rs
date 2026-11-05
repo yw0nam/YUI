@@ -120,8 +120,9 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
-/// One window's current bounds in logical points, or `None` when the platform cannot
-/// read it or the window no longer exists.
+/// One window's current bounds in logical points, or `None` when the platform cannot read it.
+/// `None` also means the window no longer exists, and on Windows that it is minimised.
+/// macOS still returns the bounds of a minimised window.
 #[command]
 pub async fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
     #[cfg(target_os = "macos")]
