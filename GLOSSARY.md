@@ -235,9 +235,6 @@ _Avoid_: in-app tool, local tool
 An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
 _Avoid_: sender, emitter
 
-**Game mod**:
-Code a game loads, such as the RimEventFeed mod for RimWorld. "Mod" alone is not used.
-
 ### Configuration
 
 **Tunable**:
