@@ -64,6 +64,7 @@ YUI/
         voice/                       # Voice input and speech playback wiring
           wire-voice.ts              # The voice-input and turn-voice wiring; a bound window builds no capture
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
+          speak-turn.ts              # The speech turn behind TurnOutput: thinking guard and motion hold, filler availability, failure asides, barge-in
           unified-voice.ts           # Main's speech while the unified chat window shows, and the user speaking answered like a stop
           wire-synth-failure-notice.ts # The first synth failure per pet window run: the bubble's Choose another action, opening the Voice page
       stage/                         # What is bound to the pet window's stage and overlay

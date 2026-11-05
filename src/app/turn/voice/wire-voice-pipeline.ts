@@ -6,17 +6,12 @@ import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
 import type { ServerCheck } from "../../../io/chat/models/server-check";
 import { selectFetch } from "../../../io/chat/stream/chat-client";
 import { createFillerAudioCache } from "../../../io/voice/filler/filler-audio-cache";
-import {
-  createFillerLoop,
-  DEFAULT_TOOL_KEY,
-  type FillerLoop,
-} from "../../../io/voice/filler/filler-loop";
+import { createFillerLoop, type FillerLoop } from "../../../io/voice/filler/filler-loop";
 import {
   effectiveFillerPool,
   fillerSubmissions,
   phraseSentences,
 } from "../../../io/voice/filler/filler-pool";
-import { createShuffleBag } from "../../../io/voice/filler/shuffle-bag";
 import type { SttVad } from "../../../io/voice/stt-vad";
 import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
 import { createReadings } from "../../../io/voice/tts/readings";
@@ -31,6 +26,7 @@ import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import type { ReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
+import { createSpeakTurn } from "./speak-turn";
 import { createTtsReach, type TtsReach } from "./tts-reach";
 
 type VoiceRenderer = Pick<
@@ -202,9 +198,6 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // Listeners registered through the VoicePipeline interface, notified beside the filler loop's
   // own degradation, only for real synth rejections of backend speech (not filler or TTS_SKIP).
   const synthFailureListeners = new Set<() => void>();
-  // Id of the turn owning current thinking — late onThinkingEnd of an overtaken turn must not
-  // clean up the single fillerLoop/motion, so ignore it when the id differs.
-  let thinkingTurnId: number | null = null;
   const speechPlayback = createSpeechPlayback({
     renderer: deps.renderer,
     surfaces: deps.surfaces,
@@ -248,82 +241,16 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     },
   });
 
-  function hasFiller(): boolean {
-    const pool = effectiveFiller();
-    return (
-      pool.first.length > 0 ||
-      pool.repeat.length > 0 ||
-      pool.long_wait.length > 0 ||
-      Object.keys(pool.tool).length > 0
-    );
-  }
-
-  function onThinkingStart(turnId: number): void {
-    thinkingTurnId = turnId;
-    // hold BEFORE the first filler can speak so no filler sentence resets the motion.
-    speechPlayback.holdMotion(true);
-    if (!deps.isStrolling()) deps.renderer.playMotion({ id: "thinking", loop: true });
-    fillerLoop?.start();
-  }
-
-  function resumeThinking(): void {
-    if (thinkingTurnId === null) return;
-    deps.renderer.playMotion({ id: "thinking", loop: true });
-  }
-
-  function onThinkingEnd(turnId: number): void {
-    if (turnId !== thinkingTurnId) return;
-    thinkingTurnId = null;
-    // A cue parked under the hold applies here; its motion is the one to keep.
-    const applied = speechPlayback.holdMotion(false);
-    fillerLoop?.stop();
-    // thinking is loop:true — without an explicit return to idle it spins forever and pollutes previousStable.
-    if (!applied && !deps.isStrolling()) deps.renderer.playMotion(null);
-  }
-
-  const turnOutput: TurnOutput = {
-    interrupt: () => speechPlayback.interrupt(),
-    hasFiller,
-    thinkingStart: onThinkingStart,
-    thinkingEnd: onThinkingEnd,
-    delta: (text, identity) => speechPlayback.onSpeechDelta(text, identity),
-    speak: (text, identity) => speechPlayback.onSpeech(text, identity),
-    end: () => speechPlayback.onSpeechEnd(),
-    abort: () => speechPlayback.abort(),
-    cue: (args) => speechPlayback.setCue(args),
-    cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
-    silentCue: (args) => speechPlayback.silentCue(args),
-    toolStatus: (turnId, state, toolId) => {
-      // Ignores an event from a turn other than the one currently thinking — a superseded turn's
-      // late tool_status must not reach whichever newer turn's filler loop is now running.
-      if (turnId !== thinkingTurnId) return;
-      if (state === "running") fillerLoop?.onToolRunning(toolId ?? DEFAULT_TOOL_KEY);
-      else fillerLoop?.onActivity();
-    },
-    activity: (turnId) => {
-      if (turnId !== thinkingTurnId) return;
-      fillerLoop?.onActivity();
-    },
-    releaseMute: () => speechPlayback.releaseMute(),
-    hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),
-    onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
-  };
-
-  // One bag per failure tier, drawn the same way the filler loop draws its own tiers.
-  const timeoutBag = createShuffleBag();
-  const unreachableBag = createShuffleBag();
-
-  function speakFailure(reason: TurnFailure): void {
-    const pool = effectiveFiller();
-    const phrase =
-      reason === "network_stall"
-        ? timeoutBag.draw(pool.timeout)
-        : reason === "network_drop"
-          ? unreachableBag.draw(pool.unreachable)
-          : undefined;
-    if (phrase === undefined) return;
-    speechPlayback.speakAside(phrase);
-  }
+  const speakTurn = createSpeakTurn({
+    speechPlayback,
+    fillerLoop,
+    getPools: effectiveFiller,
+    playMotion: (motion) => deps.renderer.playMotion(motion),
+    isStrolling: deps.isStrolling,
+    bargeInEnabled: () => deps.vadSettings.get().bargeIn,
+    onBargeIn: deps.onBargeIn,
+    onSpeechActive: deps.onSpeechActive,
+  });
 
   async function createSttEngine(): Promise<SttVad> {
     const { createSttVad } = await import("../../../io/voice/stt-vad");
@@ -334,24 +261,15 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       getApiKey: deps.getSttApiKey,
       onVoiceSegment: deps.onVoiceSegment,
       onState: (state, detail) => deps.voiceInputStatus.set(state, detail),
-      onSpeechActive: () => {
-        deps.onSpeechActive?.();
-        if (deps.vadSettings.get().bargeIn && speechPlayback.hasOutstandingSpeech()) {
-          deps.onBargeIn?.();
-          speechPlayback.interrupt({ muteCurrentTurn: true });
-          // The disposed utterance can no longer report completion, and the user is talking —
-          // this window's filler is over, not merely waiting.
-          fillerLoop?.stop();
-        }
-      },
+      onSpeechActive: speakTurn.onSpeechActive,
     });
   }
 
   return {
     speechPlayback,
-    turnOutput,
-    speakFailure,
-    resumeThinking,
+    turnOutput: speakTurn.turnOutput,
+    speakFailure: speakTurn.speakFailure,
+    resumeThinking: speakTurn.resumeThinking,
     createSttEngine,
     onSynthFailure(cb) {
       synthFailureListeners.add(cb);
