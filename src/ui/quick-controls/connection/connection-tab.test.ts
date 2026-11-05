@@ -4,9 +4,12 @@
  * field persisting and resetting with the service, the model list read, and dispose committing.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { EndpointsConfig } from "../../../contract";
+import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
   createChatKeySettings,
+  createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import {
@@ -43,11 +46,15 @@ describe("createConnectionTab", () => {
     getEndpointDefaults?: () => EndpointOverrides | undefined;
     getChatApiKey?: () => Promise<string | undefined>;
     getFetch?: () => Promise<typeof globalThis.fetch>;
+    checkSttServer?: () => Promise<ServerCheck | null>;
+    checkTtsServer?: () => Promise<ServerCheck | null>;
+    getEndpoints?: () => EndpointsConfig | null;
   }) {
     return createConnectionTab({
       endpointsSettings,
       chatKeySettings,
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       isOpen: () => true,
       ...extra,
       log: {
@@ -510,6 +517,92 @@ describe("createConnectionTab", () => {
       tab.close();
 
       expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
+      tab.dispose();
+    });
+
+    it("offers Reconnect on an unreachable read, and clicking it reads again", async () => {
+      let calls = 0;
+      const fetchImpl: typeof globalThis.fetch = () => {
+        calls += 1;
+        return Promise.reject(new TypeError("fetch failed"));
+      };
+      const tab = build({
+        getEndpointDefaults: () => defaults,
+        getChatApiKey: async () => "key-1",
+        getFetch: async () => fetchImpl,
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const status = statusOf(tab);
+      expect(status.textContent).toContain(t("svc.chat_models_unreachable", { host: "def.test" }));
+      const action = status.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
+      expect(action.hidden).toBe(false);
+      expect(action.textContent).toBe(t("svc.chat_status_reconnect"));
+
+      action.click();
+      await tick();
+      await tick();
+
+      expect(calls).toBe(2);
+      tab.dispose();
+    });
+  });
+
+  describe("server lines", () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+    function endpointsWith(field: "stt_base_url" | "tts_base_url", url: string): EndpointsConfig {
+      return {
+        chat_base_url: "",
+        stt_base_url: field === "stt_base_url" ? url : "",
+        tts_base_url: field === "tts_base_url" ? url : "",
+      };
+    }
+
+    it("the TTS line shows Could not reach with Reconnect, and clicking it checks the server again", async () => {
+      const checkTtsServer = vi.fn(
+        async (): Promise<ServerCheck | null> => ({
+          kind: "unreachable",
+        }),
+      );
+      const tab = build({
+        checkTtsServer,
+        getEndpoints: () => endpointsWith("tts_base_url", "https://tts.test"),
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const line = tab.el.querySelector<HTMLElement>('[data-svc="tts"] .yui-chat-status');
+      expect(line?.hidden).toBe(false);
+      const action = line!.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
+
+      action.click();
+      await tick();
+      await tick();
+
+      expect(checkTtsServer).toHaveBeenCalledTimes(2);
+      tab.dispose();
+    });
+
+    it("the STT line shows the server the check reached", async () => {
+      const checkSttServer = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
+      const tab = build({
+        checkSttServer,
+        getEndpoints: () => endpointsWith("stt_base_url", "https://stt.test/v1"),
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const line = tab.el.querySelector<HTMLElement>('[data-svc="stt"] .yui-chat-status');
+      expect(line?.hidden).toBe(false);
+      expect(line!.textContent).toContain(t("svc.server_connected", { host: "stt.test" }));
       tab.dispose();
     });
   });

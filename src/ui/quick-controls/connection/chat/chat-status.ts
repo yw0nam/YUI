@@ -1,20 +1,20 @@
 /**
  * The chat status line under the key row — the single writer of `.yui-chat-status`: text, dot
- * class, and the action button. Renders the push socket's state or the model-list read's view;
- * hidden when neither has anything to say.
+ * class, and the action button. Renders the push socket's state, the model-list read's view, or a
+ * server line's view; hidden when nothing has anything to say.
  */
 
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import { t } from "../../../i18n";
-import type { ModelStatusView } from "./model-status";
+import type { StatusView } from "./model-status";
 import { pushStateText } from "./push-state-text";
 import "./chat-status.css";
 
 export interface ChatStatus {
   /** Writes the line for the socket's state, or hides it when undefined (outside push mode). */
   render(state: PushSocketState | undefined): void;
-  /** Writes the line for the model-list view, or hides it when null. */
-  renderModels(view: ModelStatusView | null): void;
+  /** Writes the line for a view, or hides it when null. */
+  renderView(view: StatusView | null): void;
   dispose(): void;
 }
 
@@ -56,7 +56,7 @@ export function createChatStatus(section: HTMLElement, deps: { onAction: () => v
   }
 
   // The text span is the live region — identical text stays untouched so screen readers keep quiet.
-  function renderModels(view: ModelStatusView | null): void {
+  function renderView(view: StatusView | null): void {
     line.hidden = view === null;
     line.classList.remove("is-ready", "is-waiting", "is-busy", "is-failed");
     actionEl.hidden = true;
@@ -65,6 +65,10 @@ export function createChatStatus(section: HTMLElement, deps: { onAction: () => v
       return;
     }
     for (const cls of view.dot) line.classList.add(cls);
+    if (view.action !== undefined) {
+      actionEl.textContent = view.action;
+      actionEl.hidden = false;
+    }
     if (textEl.textContent !== view.text) textEl.textContent = view.text;
   }
 
@@ -73,7 +77,7 @@ export function createChatStatus(section: HTMLElement, deps: { onAction: () => v
 
   return {
     render,
-    renderModels,
+    renderView,
     dispose(): void {
       actionEl.removeEventListener("click", handleAction);
     },

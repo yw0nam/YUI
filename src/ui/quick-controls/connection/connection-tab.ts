@@ -1,5 +1,7 @@
 /** Connection tab endpoint sections share markup, handlers and reflection. */
 
+import type { EndpointsConfig } from "../../../contract";
+import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import type { Logger } from "../../../logger";
 import type {
@@ -17,11 +19,14 @@ import {
   keyRowHtml,
   secHeadHtml,
   selectRowHtml,
+  statusLineHtml,
   svcResetRowHtml,
 } from "../markup";
 import { effortSectionHtml } from "../sections/agent/agent-section";
 import { createChatSection } from "./chat/chat-section";
 import { createEndpointsSection, validateEndpointInput } from "./endpoints-section";
+import { hostOf } from "./server-line/host";
+import { createServerLine } from "./server-line/server-line";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
@@ -64,6 +69,7 @@ function sttSectionHtml(): string {
             ${endpointRowHtml("stt_base_url")}
             ${endpointRowHtml("stt_model")}
             ${endpointRowHtml("stt_language", { suggestions: STT_LANGUAGE_SUGGESTIONS, subKey: "endpoints.stt_language.sub" })}
+            ${statusLineHtml()}
             ${svcResetRowHtml("stt")}
           </div>
         </section>`;
@@ -81,6 +87,7 @@ function ttsSectionHtml(): string {
             ${endpointRowHtml("tts_base_url")}
             ${endpointRowHtml("tts_model")}
             ${keyRowHtml("ttskey")}
+            ${statusLineHtml()}
             ${svcResetRowHtml("tts")}
           </div>
         </section>`;
@@ -92,6 +99,14 @@ export function createConnectionTab(deps: {
   chatKeySettings: ChatKeySettingsStore;
   /** TTS (openai-compatible) API key overrides store. Value is secret — no logging. */
   ttsKeySettings: ApiKeySettingsStore;
+  /** STT API key overrides store — the STT line re-checks when it commits. Value is secret — no logging. */
+  sttKeySettings: ApiKeySettingsStore;
+  /** Asks the STT server whether it answers; absent keeps the STT line hidden. */
+  checkSttServer?: () => Promise<ServerCheck | null>;
+  /** Asks the TTS server whether it answers; absent keeps the TTS line hidden. */
+  checkTtsServer?: () => Promise<ServerCheck | null>;
+  /** The window's effective endpoints — the host and watch the lines show are the ones the checks read. */
+  getEndpoints?: () => EndpointsConfig | null;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for the chat protocol when no override (undefined if not loaded). */
@@ -110,6 +125,10 @@ export function createConnectionTab(deps: {
     endpointsSettings,
     chatKeySettings,
     ttsKeySettings,
+    sttKeySettings,
+    checkSttServer,
+    checkTtsServer,
+    getEndpoints,
     getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
@@ -148,6 +167,33 @@ export function createConnectionTab(deps: {
     onChatCommit: () => chatSection.onCommit(),
     log,
   });
+
+  // A service without its check or the window's endpoints keeps its line hidden — no line is built.
+  const sttLine =
+    checkSttServer && getEndpoints
+      ? createServerLine({
+          section: el.querySelector<HTMLElement>('[data-svc="stt"]')!,
+          check: checkSttServer,
+          host: () => hostOf(getEndpoints()?.stt_base_url ?? ""),
+          watch: () => getEndpoints()?.stt_base_url ?? "",
+          subscribe: endpointsSettings.subscribe,
+          subscribeKey: sttKeySettings.subscribe,
+          isOpen,
+        })
+      : undefined;
+  const ttsLine =
+    checkTtsServer && getEndpoints
+      ? createServerLine({
+          section: el.querySelector<HTMLElement>('[data-svc="tts"]')!,
+          check: checkTtsServer,
+          host: () => hostOf(getEndpoints()?.tts_base_url ?? ""),
+          watch: () =>
+            `${getEndpoints()?.tts_base_url ?? ""}\u0000${getEndpoints()?.tts_provider ?? ""}`,
+          subscribe: endpointsSettings.subscribe,
+          subscribeKey: ttsKeySettings.subscribe,
+          isOpen,
+        })
+      : undefined;
 
   const ttsProviderEl = el.querySelector<HTMLSelectElement>(".yui-tts-provider")!;
 
@@ -211,13 +257,19 @@ export function createConnectionTab(deps: {
     refresh,
     commit,
     focusStt,
-    entered: () => chatSection.entered(),
+    entered: () => {
+      chatSection.entered();
+      sttLine?.run();
+      ttsLine?.run();
+    },
     close: () => chatSection.close(),
     dispose(): void {
       // Commit first: the locale remount relies on dispose landing typed keys and endpoints.
       commit();
       unsubscribeEndpoints();
       chatSection.dispose();
+      sttLine?.dispose();
+      ttsLine?.dispose();
       endpointsSection.dispose();
       el.remove();
     },

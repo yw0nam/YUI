@@ -1,10 +1,11 @@
-import { CHAT_API_KEY_SECRET } from "../../config/secrets";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET } from "../../config/secrets";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
+import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
@@ -85,6 +86,7 @@ export async function wireSettingsWindow(deps: {
     canManageVoices,
     canReuploadVoices,
     canPasteVoiceId,
+    checkTtsServer,
   } = shared.speaker;
   const {
     screenshotSettings,
@@ -224,6 +226,12 @@ export async function wireSettingsWindow(deps: {
       onGuide: (guide, text) => bridge.emitHelpGuide({ guide, text }),
       getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
       getFetch: selectFetch,
+      checkSttServer: createSttServerCheck({
+        getEndpoints: shared.getEndpoints,
+        getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
+      }),
+      checkTtsServer,
+      getEndpoints: shared.getEndpoints,
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       endpointsSettings,
       chatKeySettings,

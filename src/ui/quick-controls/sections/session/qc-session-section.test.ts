@@ -259,13 +259,15 @@ describe("createQuickControls — session section delegated list", () => {
       qc.dispose();
     });
 
-    it("leaves the chat section's status line the only one of its kind", () => {
+    it("leaves no status line outside the service sections, with the chat section holding exactly one", () => {
       const qc = buildPushQc(fakeDelegations(), fakePushSocket({ kind: "failed", code: 4401 }));
       qc.open();
 
-      const lines = [...qc.el.querySelectorAll<HTMLElement>(".yui-chat-status")];
-      expect(lines).toHaveLength(1);
-      expect(lines[0]!.closest('.yui-svc[data-svc="chat"]')).not.toBeNull();
+      const outside = [...qc.el.querySelectorAll<HTMLElement>(".yui-chat-status")].filter(
+        (line) => line.closest(".yui-svc") === null,
+      );
+      expect(outside).toHaveLength(0);
+      expect(qc.el.querySelectorAll('.yui-svc[data-svc="chat"] .yui-chat-status')).toHaveLength(1);
 
       qc.dispose();
     });

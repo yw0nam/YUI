@@ -6,7 +6,7 @@ Speech out and speech in are two separate services, and both are optional.
 
 ## Speak
 
-1. On **Connection**, pick a **Provider** in the TTS section: Irodori, OpenAI, or Fish Audio.
+1. On **Connection**, pick a **Provider** in the TTS section: Irodori, OpenAI, or Fish Audio. The line under the section says whether the TTS server answers; **Reconnect** checks again.
 2. Enter the **TTS API key** if the service needs one.
 3. On **Voice**, turn on **Voice output** and pick a voice from the list. **Preview** plays a sample for a voice with a reference clip.
 
@@ -32,7 +32,7 @@ When the voice server does not answer at all, the bubble shows **Voice server no
 
 ![Settings window, Listening and bubble page](/shots/settings-listening.png)
 
-1. On **Connection**, enter the **Speech recognition (STT) server URL**. Any OpenAI-compatible transcription server works.
+1. On **Connection**, enter the **Speech recognition (STT) server URL**. Any OpenAI-compatible transcription server works. The line under the section says whether the STT server answers; **Reconnect** checks again.
 2. On **Listening and bubble**, turn on **Voice input**, and enter the **STT API key** if the server needs one.
 3. Speak, and when you stop, the audio goes to STT and arrives as your message.
 

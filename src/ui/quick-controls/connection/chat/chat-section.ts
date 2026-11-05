@@ -23,10 +23,12 @@ import {
   keyRowHtml,
   secHeadHtml,
   selectRowHtml,
+  statusLineHtml,
   svcResetRowHtml,
 } from "../../markup";
 import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
+import { hostOf } from "../server-line/host";
 import { createChatStatus } from "./chat-status";
 import { createModelCombobox } from "./model-combobox";
 import { createModelRead, modelReadAction } from "./model-read";
@@ -48,7 +50,7 @@ function chatSectionHtml(): string {
             ${endpointRowHtml("chat_base_url")}
             ${endpointRowHtml("chat_model")}
             ${keyRowHtml("chatkey")}
-            <p class="yui-chat-status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text" role="status" aria-live="polite" aria-atomic="true"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
+            ${statusLineHtml()}
             ${svcResetRowHtml("chat")}
           </div>
         </section>`;
@@ -115,7 +117,10 @@ export function createChatSection(deps: {
     ?.insertAdjacentHTML("beforeend", pushReasonHtml("push.reason_model"));
   const modelReasonEl = chatModelRowEl?.querySelector<HTMLElement>(".yui-push-reason");
 
-  const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
+  // Push: the button reopens the socket. Otherwise: it re-runs the model list read.
+  const status = createChatStatus(el, {
+    onAction: () => (isPush() ? pushSocket?.reconnectNow() : evaluateModels()),
+  });
 
   // The pick persists through the input's own commit path — the store is not written here.
   const combobox = modelInput
@@ -175,21 +180,13 @@ export function createChatSection(deps: {
     return mergeEndpoints(base, endpointsSettings.get()).chat_base_url;
   }
 
-  function hostOf(url: string): string {
-    try {
-      return new URL(url).host;
-    } catch {
-      return "";
-    }
-  }
-
   // One line under the key row: the push socket's state in push mode, the model-list read otherwise.
   function renderStatus(): void {
     if (isPush()) {
       status.render(pushState());
       return;
     }
-    status.renderModels(
+    status.renderView(
       modelPhase === null
         ? null
         : modelStatusView({
