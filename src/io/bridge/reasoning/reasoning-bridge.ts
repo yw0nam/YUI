@@ -1,7 +1,7 @@
 /** Each pet window owns one socket; its companions mirror reasoning over preset-scoped channels. */
 
-import { createStateMirror, publishState } from "../core/state-mirror";
-import type { SettingsBridge } from "../settings-bridge";
+import { channelMirror } from "../core/channel-table";
+import { channels, type SettingsBridge } from "../settings-bridge";
 import type { ReasoningState, ReasoningStore } from "./reasoning-store";
 
 type ReasoningBridge = Pick<
@@ -26,12 +26,7 @@ export function publishReasoning(deps: {
   store: Pick<ReasoningStore, "get" | "subscribe">;
   bridge: ReasoningBridge;
 }): () => void {
-  return publishState({
-    get: deps.store.get,
-    subscribe: deps.store.subscribe,
-    emit: deps.bridge.emitReasoning,
-    onAsk: deps.bridge.onReasoningAsk,
-  });
+  return channelMirror(channels, "Reasoning", deps.bridge).publish(deps.store);
 }
 
 /**
@@ -39,9 +34,5 @@ export function publishReasoning(deps: {
  * long after the pet window settled still shows where the reasoning stands.
  */
 export function createMirroredReasoning(deps: { bridge: ReasoningBridge }): ReasoningMirror {
-  return createStateMirror<ReasoningState>({
-    initial: { text: "", live: false },
-    on: deps.bridge.onReasoning,
-    ask: deps.bridge.emitReasoningAsk,
-  });
+  return channelMirror(channels, "Reasoning", deps.bridge).create();
 }

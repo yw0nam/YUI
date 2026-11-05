@@ -15,7 +15,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BridgeTransport } from "./core/bridge-core";
 import type { MessageSurfaceOp } from "./message/surface-ops";
-import { createSettingsBridge, type SettingsBridge } from "./settings-bridge";
+import { type channels, createSettingsBridge, type SettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
 function createFakeTransport(): BridgeTransport & {
@@ -41,12 +41,6 @@ function createFakeTransport(): BridgeTransport & {
   };
 }
 
-type ChannelKey = keyof SettingsBridge extends infer M
-  ? M extends `on${infer N}`
-    ? N
-    : never
-  : never;
-
 interface Row {
   name: string;
   args: unknown[];
@@ -61,7 +55,7 @@ interface Row {
 const none = { args: [], wire: undefined, delivered: [] };
 const same = (value: unknown) => ({ args: [value], wire: value, delivered: [value] });
 
-const rows: Record<ChannelKey, Row> = {
+const rows: Record<keyof typeof channels, Row> = {
   SpeechStream: {
     name: "yui://speech-stream",
     scope: "shared",

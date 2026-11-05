@@ -6,8 +6,8 @@
 
 import { createLogger } from "../../../logger";
 import type { PushSocketState } from "../../chat/push/push-socket";
-import { createStateMirror, publishState } from "../core/state-mirror";
-import type { SettingsBridge } from "../settings-bridge";
+import { channelMirror } from "../core/channel-table";
+import { channels, type SettingsBridge } from "../settings-bridge";
 
 const log = createLogger("push-socket-bridge");
 
@@ -50,11 +50,9 @@ export function publishPushSocket(deps: {
   stopTurn: () => void;
   bridge: PushBridge;
 }): () => void {
-  const stopState = publishState({
+  const stopState = channelMirror(channels, "PushState", deps.bridge).publish({
     get: () => deps.socket.getState(),
     subscribe: (cb) => deps.socket.onState(cb),
-    emit: deps.bridge.emitPushState,
-    onAsk: deps.bridge.onPushStateAsk,
   });
   const unsubscribes = [
     deps.bridge.onPushReset(() => {
@@ -79,11 +77,7 @@ export function publishPushSocket(deps: {
  * asks at once, so a window opened long after the socket settled still shows where it stands.
  */
 export function createMirroredPushSocket(deps: { bridge: PushBridge }): PushSocketMirror {
-  const mirror = createStateMirror<PushSocketState>({
-    initial: { kind: "disconnected" },
-    on: deps.bridge.onPushState,
-    ask: deps.bridge.emitPushStateAsk,
-  });
+  const mirror = channelMirror(channels, "PushState", deps.bridge).create();
 
   return {
     getState: mirror.get,
