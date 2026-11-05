@@ -1,0 +1,9 @@
+{
+  "name": "yui-dev",
+  "version": "0.1.0",
+  "description": "Skills for a coding agent that extends YUI: build or contribute a YUI plugin, and wake one YUI character from a producer.",
+  "author": {
+    "name": "yw0nam"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

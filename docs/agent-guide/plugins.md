@@ -1,10 +1,11 @@
 # YUI — Plugins & CI
 
-`plugins/` holds every plugin folder, independent of the app runtime, in three kinds:
+`plugins/` holds every plugin folder, independent of the app runtime, in two kinds:
 
 - **Python plugins** (factorio) bundle a Backend-attached MCP server over HTTP, reached over a loopback port and an SSH reverse tunnel. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another.
 - **Rust plugin crates** (browser) bundle an MCP server that speaks MCP over stdio and opens no port; `.mcp.json` names the `command` that starts it. The plugin release workflow builds and releases them; `docs/agent-guide/build-run.md` § Plugin releases gives the layout.
-- **Coding-agent plugins** (yui-notify) install into Claude Code and Codex from the `yui` marketplace: standard-library hooks and an inbox poller, with a `uv` project for the development checks.
+
+Coding-agent plugins (yui-notify, yui-dev) live in `coding-agents/` and install into Claude Code and Codex from the `yui` marketplace. yui-notify holds standard-library hooks and an inbox poller, with a `uv` project for the development checks.
 
 `plugins/catalog.json` lists the official and community plugins; the plugin release workflow opens a PR that writes the official entries (`docs/agent-guide/build-run.md` § Plugin releases).
 
@@ -50,7 +51,7 @@ A stdio plugin opens no port: its host starts it from `.mcp.json`, and it speaks
 - `test-guard` — source changes under `src/` / `src-tauri/` and a plugin crate's `src/` must ship a test (`skip-tests` label bypasses); it does **not** scope the standalone Python projects.
 - `pr-title` — Conventional-Commit type + **printable-ASCII subject** (English; no em-dash or emoji in the title).
 
-`python (uv + pytest)` and `python-lint (ruff)` run on every PR over every tracked `pyproject.toml` folder — the plugins under `plugins/` and the Python projects under `integrations/`. They are not required checks in the repository rulesets.
+`python (uv + pytest)` and `python-lint (ruff)` run on every PR over every tracked `pyproject.toml` folder — the plugins under `plugins/`, the Coding-agent plugins under `coding-agents/`, and the Python projects under `integrations/`. They are not required checks in the repository rulesets.
 
 `plugins-rust (cargo fmt + clippy + test)` runs `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`, and `cargo test --locked` over every tracked `plugins/*/Cargo.toml`; on a pull request it runs them only when a crate's `Cargo.toml`, `Cargo.lock`, or `src/`, or `.github/workflows/ci.yml` changes. It is not a required check.
 

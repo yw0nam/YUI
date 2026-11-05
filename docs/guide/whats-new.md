@@ -12,7 +12,7 @@ Releases are listed newest first, and older releases are on [GitHub Releases](ht
 - The **Terminal** tab in Threads opens host terminals you share with the backend. The backend needs your **Allow** first ([Terminal tools](../reference/client-tools.md#terminal-tools)).
 - **Default** reasoning effort sends no effort, so the model applies its own default ([Connect a backend](connect-a-backend.md)).
 - The **Waiting for you** chip opens the Threads window. **Mark read** takes a Thread off the Waiting tab; its open ask stays answerable from All ([Threads](../reference/threads.md)).
-- yui-notify posts Threads for coding agents. On macOS, a Codex permission request posts without an ask while Codex's host app is in front. It also ships the `/yui-notify:thread-producer` skill ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)).
+- yui-notify posts Threads for coding agents. On macOS, a Codex permission request posts without an ask while Codex's host app is in front. It also ships the `/yui-notify:thread-producer` skill ([yui-notify](https://github.com/yw0nam/YUI/blob/main/coding-agents/yui-notify/README.md)).
 - A backend's approval or clarify question reaches you as an **Ask** card, which can take several choices ([Threads](../reference/threads.md)).
 - Type `/` in the text input to run the backend's commands, such as `/status`, over push ([Push transport](../reference/push-transport.md)).
 - **Quick start** on the **Connection** page takes a free Gemini key to a first conversation. Voice is optional, and **Maybe later** skips it ([Connect a backend](connect-a-backend.md)).
@@ -22,7 +22,7 @@ Releases are listed newest first, and older releases are on [GitHub Releases](ht
 
 | Change | What you do |
 | --- | --- |
-| yui-notify removes `agent.*` signals, `events.*` configuration, and `test --delivery`. | Hooks post Threads without character turns, and Codex answers through synchronous hooks. Configure `endpoint`, `wait.stop`, and `wait.permission`, and use `test` to send a completed Thread ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)). |
+| yui-notify removes `agent.*` signals, `events.*` configuration, and `test --delivery`. | Hooks post Threads without character turns, and Codex answers through synchronous hooks. Configure `endpoint`, `wait.stop`, and `wait.permission`, and use `test` to send a completed Thread ([yui-notify](https://github.com/yw0nam/YUI/blob/main/coding-agents/yui-notify/README.md)). |
 | The `briefing.py migrate` command, the daily briefing's one-time folder move, is removed ([#1652](https://github.com/yw0nam/YUI/pull/1652)). | Nothing, unless your spool holds day folders at its root: move them into `reports/` by hand. |
 | The Expression Broker connection is removed, and client-declared tools carry expression cues ([#1654](https://github.com/yw0nam/YUI/pull/1654)). | Nothing, unless you set `broker_base_url`: the key is ignored. A backend that does not pass a request's tools to its model carries expression cues only on Push, so set **Type** in the Chat section of the **Connection** page to **Push** ([Push transport](../reference/push-transport.md)). |
 | `POST /agent-event` is removed ([#1655](https://github.com/yw0nam/YUI/pull/1655)). | Nothing, unless a hook posts to `/agent-event`: post a signals envelope to [`/signals`](../reference/signals-ingress.md) instead. |

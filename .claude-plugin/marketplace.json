@@ -6,8 +6,13 @@
   "plugins": [
     {
       "name": "yui-notify",
-      "source": "./plugins/yui-notify",
+      "source": "./coding-agents/yui-notify",
       "description": "Coding-agent Threads: Claude Code answers through its inbox socket, Codex answers through synchronous hooks, and a skill that builds a Thread producer for any other source."
+    },
+    {
+      "name": "yui-dev",
+      "source": "./coding-agents/yui-dev",
+      "description": "Skills for a coding agent that extends YUI: build or contribute a YUI plugin, and wake one YUI character from a producer."
     }
   ]
 }

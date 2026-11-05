@@ -68,7 +68,7 @@ One chat window holds the conversation and shows one line at a time. Pick who yo
 
 ### Plugins and skills
 
-Plugins give her new tools, such as a browser she looks things up in, and bring your coding agent's conversations into YUI as Threads you answer. Skills teach her brain new jobs, such as a daily briefing. See [Plugins](plugins/README.md) and [Skills](skills/README.md).
+Plugins give her new tools, such as a browser she looks things up in. Skills teach her brain new jobs, such as a daily briefing. Coding-agent plugins bring your coding agent's conversations into YUI as Threads you answer, and teach a coding agent to build a plugin. See [Plugins](plugins/README.md), [Skills](skills/README.md), and [Coding agents](coding-agents/README.md).
 
 And more:
 

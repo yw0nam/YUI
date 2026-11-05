@@ -200,7 +200,7 @@ Claude Code answers need Claude Code v2.1.224 or later. Claude Code or Codex nee
 support. `uv` runs only the development checks below.
 
 ```bash
-cd plugins/yui-notify
+cd coding-agents/yui-notify
 uv run pytest
 uv run ruff format --check .
 uv run ruff check .

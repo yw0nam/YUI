@@ -29,7 +29,8 @@ rules are fixed:
    transcript holds a briefing you were telling, say in one clause that it was cut off. Read
    `$YUI_BRIEFING_SPOOL/<path>` directly for the paths of that earlier turn, without
    running `pending` or `mark-spoken` again. The line's `already spoken:` and
-   `never spoken:` text (see `docs/reference/client-context.md` in the YUI checkout) shows
+   `never spoken:` text (see `docs/reference/client-context.md` in the YUI checkout, or
+   https://raw.githubusercontent.com/yw0nam/YUI/main/docs/reference/client-context.md) shows
    where the user stopped hearing; pick up from there.
 
 Done when: each mentioned item carries exactly one link and each day other than today is
