@@ -69,11 +69,13 @@ export function keepOnScreen(
   return nearest;
 }
 
-/** The guard's handle: teardown, plus a pause a travel holds while it parks the window itself. */
+/** Who pauses the guard: a travel while it parks the window, a perch follow while it carries it. */
+export type KeepOnScreenHolder = "travel" | "perch_follow";
+
 export interface KeepOnScreenHandle {
   dispose(): void;
-  /** While paused, a moved/resized event does nothing; unpausing evaluates once right away. */
-  setPaused(paused: boolean): void;
+  /** While any holder pauses, a moved/resized event does nothing; the last release evaluates once right away. */
+  setPaused(holder: KeepOnScreenHolder, paused: boolean): void;
 }
 
 /** Debounced onMoved/onResized evaluation plus one startup pass, since opening emits neither. */
@@ -85,10 +87,10 @@ export async function attachKeepOnScreen(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let running = false;
-  let paused = false;
+  const holders = new Set<KeepOnScreenHolder>();
 
   const evaluate = async (): Promise<void> => {
-    if (disposed || running || paused) return;
+    if (disposed || running || holders.size > 0) return;
     running = true;
     try {
       const [monitors, pos, size] = await Promise.all([
@@ -98,7 +100,7 @@ export async function attachKeepOnScreen(
       ]);
       // Re-checked here, not just on entry: a pause can arrive while this evaluation is
       // already mid-flight, and it must not push the window a travel just parked.
-      if (disposed || paused) return;
+      if (disposed || holders.size > 0) return;
       // Content-driven size, so the inset is recomputed from the current outerSize every pass.
       const inset = opts.wholeWindow ? { x: size.width / 2, y: size.height / 2 } : undefined;
       const pushed = keepOnScreen(monitors, pos, size, inset);
@@ -111,14 +113,14 @@ export async function attachKeepOnScreen(
   };
 
   const run = (): void => {
-    if (paused) return;
+    if (holders.size > 0) return;
     void evaluate().catch((error) =>
       log.warn("keep_on_screen_eval_failed", { error: String(error) }),
     );
   };
 
   const schedule = (): void => {
-    if (disposed || paused) return;
+    if (disposed || holders.size > 0) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -139,9 +141,10 @@ export async function attachKeepOnScreen(
       unlistenMoved();
       unlistenResized();
     },
-    setPaused(next) {
-      paused = next;
-      if (paused) {
+    setPaused(holder, paused) {
+      if (paused) holders.add(holder);
+      else holders.delete(holder);
+      if (holders.size > 0) {
         if (timer) clearTimeout(timer);
         timer = null;
         return;

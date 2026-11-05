@@ -39,6 +39,7 @@ import type {
   PlacementResult,
 } from "../../../../io/window/geometry/perch";
 import { containsSeat } from "../../../../io/window/geometry/perch";
+import type { ScreenMonitor } from "../../../../io/window/geometry/screen-geometry";
 import { THREADS_WINDOW_LABEL } from "../../../../io/window/openers/threads-window";
 import { createLogger } from "../../../../logger";
 import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
@@ -48,6 +49,7 @@ import {
   peekTargetPx,
 } from "../../../../renderer/geometry/probe/perch-geometry";
 import type { EventBus } from "../../../core/event-bus";
+import { createPerchFollow } from "./perch-follow";
 import {
   createPerchWatch,
   type DropInvoke,
@@ -92,6 +94,11 @@ export interface WindowDropSourceDeps {
   onSitLost?: () => void;
   /** Crossfade to window_sit where she is. "lost" means a pickup took her before it landed. */
   sitDown: () => Promise<"done" | "lost">;
+  /** One window's current bounds, or null when it is gone or the platform cannot read it. */
+  windowBounds: (windowNumber: number) => Promise<WindowRect | null>;
+  listMonitors: () => Promise<ScreenMonitor[]>;
+  /** Pause the keep-on-screen guard while a seated character follows her host. */
+  setGuardPaused: (paused: boolean) => void;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -222,6 +229,10 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   let unlisten: (() => void) | undefined;
   let heldAtPickup = false;
 
+  const timers = {
+    setInterval: deps.setInterval ?? setInterval,
+    clearInterval: deps.clearInterval ?? clearInterval,
+  };
   const perch: PerchWatch = createPerchWatch({
     bus,
     renderer,
@@ -229,8 +240,16 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     getWindow,
     peekActive: deps.peekActive ?? (() => false),
     onSitLost: () => deps.onSitLost?.(),
-    setInterval: deps.setInterval ?? setInterval,
-    clearInterval: deps.clearInterval ?? clearInterval,
+    follow: createPerchFollow({
+      windowBounds: deps.windowBounds,
+      getWindow,
+      renderer,
+      listMonitors: deps.listMonitors,
+      onLost: () => perch.loseSit(),
+      setGuardPaused: deps.setGuardPaused,
+      ...timers,
+    }),
+    ...timers,
   });
 
   /**
