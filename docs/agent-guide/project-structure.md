@@ -504,8 +504,7 @@ YUI/
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
           companion-windows.ts         # Closes a bound pet window's settings-<id>, message-<id> and quick-card-<id>, and watches a companion's owner window
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
-          window-statics.ts            # Cached window origin and scale factors for the global-cursor poll loops
-          cursor-tracker.ts            # Forwards the OS cursor position to the gaze apply layer
+          cursor-source.ts             # One OS-cursor poll shared by gaze and the hit-test, in window-local CSS px
           hit-test.ts                  # Click-through hit-test controller for the transparent window
           peek-state.ts                # Holds the current peek side and its lifecycle
           gesture/                     # The three pointer-gesture detectors the stage wires

@@ -898,7 +898,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, click-through hit-test, gaze cursor, peek state, and summon hotkey.",
+      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, and summon hotkey.",
       "paths": [
         "src/io/window/pet"
       ]

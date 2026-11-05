@@ -7,14 +7,11 @@
  *
  * - CAPTURE (ignore=false): the webview gets events. A `pointermove` computes
  *   isOverInteractive; debounce_samples consecutive non-interactive samples →
- *   ignore=true, enter PASSTHROUGH, start the poll.
- * - PASSTHROUGH (ignore=true): the webview is blind. A self-scheduled poll reads
- *   the screen-global PHYSICAL cursor, converts to window-local CSS px, and
+ *   ignore=true, enter PASSTHROUGH, subscribe to the cursor source.
+ * - PASSTHROUGH (ignore=true): the webview is blind. The shared cursor source
+ *   (src/io/window/pet/cursor-source.ts) delivers the window-local cursor, and
  *   debounce_samples consecutive interactive samples → ignore=false, CAPTURE.
- *   Only cursorPosition() is read every tick; outerPosition/scaleFactor/
- *   primaryScaleFactor are cached and refreshed every STATIC_REFRESH_TICKS
- *   ticks, or immediately on a window move/resize/scale-change event (the
- *   cache itself lives in src/io/window/pet/window-statics.ts).
+ *   A null sample (cursor unavailable, document hidden) returns to CAPTURE at once.
  *
  * Hysteresis: leaving CAPTURE rejects only when the cursor is outside the box
  * OUTSET by hysteresis_margin_px (within-margin counts as still interactive);
@@ -28,51 +25,13 @@ import { invoke } from "@tauri-apps/api/core";
 import type { HitTestKnobs } from "../../../config/validators/avatar/types";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
-import {
-  createTauriStaticsSource,
-  createWindowStatics,
-  STATIC_REFRESH_TICKS,
-  type Vec2,
-  type WindowStaticsSource,
-} from "./window-statics";
+import type { CursorSource, Vec2 } from "./cursor-source";
 
 const log = createLogger("hit-test");
 
 export type HitTestState = "capture" | "passthrough";
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
-
-/**
- * Convert a screen-global PHYSICAL cursor to window-local CSS/logical px.
- *
- * On macOS both readings describe the same screen-global point space, but each arrives scaled by
- * a different monitor's factor: the cursor by the primary monitor's, the window origin by the
- * factor of the monitor the window sits on. Dividing each by its own factor recovers the shared
- * space — `localLogical = cursorPhys / cursorScaleFactor − windowOuterPhys / scaleFactor`. Where
- * the two readings are one physical px space (Windows), or on a uniform-DPI setup, the factors
- * are equal and this reduces to the single-factor form, so cursorScaleFactor defaults to
- * scaleFactor. Either factor ≤ 0 falls back to 1 (never divide by zero).
- */
-export function physicalCursorToLocalCss(
-  cursorPhys: Vec2,
-  windowOuterPhys: Vec2,
-  scaleFactor: number,
-  cursorScaleFactor: number = scaleFactor,
-): Vec2 {
-  const sf = scaleFactor > 0 ? scaleFactor : 1;
-  const cf = cursorScaleFactor > 0 ? cursorScaleFactor : 1;
-  // Equal factors subtract first — dividing each term separately loses precision on 1.5.
-  if (cf === sf) {
-    return {
-      x: (cursorPhys.x - windowOuterPhys.x) / sf,
-      y: (cursorPhys.y - windowOuterPhys.y) / sf,
-    };
-  }
-  return {
-    x: cursorPhys.x / cf - windowOuterPhys.x / sf,
-    y: cursorPhys.y / cf - windowOuterPhys.y / sf,
-  };
-}
 
 /** Result of one state-machine step. */
 interface TransitionResult {
@@ -113,8 +72,8 @@ export function decideTransition(args: {
 
 // ─── Controller ──────────────────────────────────────────────────────────────
 
-/** Minimal window surface the controller needs: the statics cache's reads plus click-through. */
-interface HitTestWindow extends WindowStaticsSource {
+/** The window surface the controller needs: the click-through flag. */
+interface HitTestWindow {
   setIgnoreCursorEvents(ignore: boolean): Promise<void>;
 }
 
@@ -125,12 +84,14 @@ export interface HitTestController {
   suspend(): void;
   /** Resume normal toggling. */
   resume(): void;
-  /** While the window is being moved by the client, re-read its origin every tick. */
+  /** Forwarded to the cursor source, which re-reads the window origin every tick while moving. */
   setMoving(moving: boolean): void;
 }
 
 interface HitTestOptions {
-  /** Returns the live Tauri window. Default: getCurrentWindow(). */
+  /** The shared cursor source; subscribed only while in PASSTHROUGH. */
+  cursor: Pick<CursorSource, "subscribe" | "setMoving">;
+  /** Returns the live Tauri window. Default: createTauriHitTestWindow(). */
   getWindow?: () => HitTestWindow;
   /** EventTarget for pointermove in CAPTURE. Default: window. */
   moveTarget?: EventTarget;
@@ -139,14 +100,8 @@ interface HitTestOptions {
    * CAPTURE (tight box) and hysteresis_margin_px when LEAVING (outset box).
    */
   isOverInteractive: (xCss: number, yCss: number, marginPx: number) => boolean;
-  /** The live configs/avatar.json hit_test block; only the polling keys are read here. */
+  /** The live configs/avatar.json hit_test block; the margin and debounce keys are read here. */
   getConfig: () => HitTestKnobs;
-  /** setTimeout seam (testability). Default: globalThis.setTimeout. */
-  schedule?: (cb: () => void, ms: number) => number;
-  /** clearTimeout seam. Default: globalThis.clearTimeout. */
-  cancel?: (handle: number) => void;
-  /** Document seam for visibility (gates the poll while hidden). Default: document. */
-  doc?: Document;
 }
 
 /**
@@ -156,7 +111,6 @@ interface HitTestOptions {
  */
 export function createTauriHitTestWindow(): HitTestWindow {
   return {
-    ...createTauriStaticsSource(),
     setIgnoreCursorEvents: (ignore: boolean) => invoke<void>("set_click_through", { ignore }),
   };
 }
@@ -170,10 +124,6 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
 
   const getWindow = opts.getWindow ?? createTauriHitTestWindow;
   const moveTarget = opts.moveTarget ?? (globalThis as unknown as EventTarget);
-  const schedule =
-    opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
-  const cancel = opts.cancel ?? ((h) => globalThis.clearTimeout(h));
-  const doc = opts.doc ?? document;
 
   let win: HitTestWindow | null = null;
   let state: HitTestState = "capture";
@@ -182,16 +132,8 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let ignore = false;
   let running = false;
   let suspended = false;
-  // An ambient stroll moves the window every frame — the cached origin goes stale at once.
-  let moving = false;
-  let pollHandle: number | null = null;
+  let unsubscribe: (() => void) | null = null;
   let ignoreChain = Promise.resolve();
-  // Consecutive poll failures: after this many, degrade to CAPTURE.
-  const POLL_FAILURE_THRESHOLD = 3;
-  let pollFailureCount = 0;
-  let tick = 0;
-  // Window origin and scale factors, re-read every STATIC_REFRESH_TICKS.
-  const statics = createWindowStatics();
 
   function margin(): number {
     return opts.getConfig().hysteresis_margin_px;
@@ -211,20 +153,36 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     });
   }
 
+  function release(): void {
+    unsubscribe?.();
+    unsubscribe = null;
+  }
+
+  function toCapture(): void {
+    state = "capture";
+    counter = 0;
+    release();
+    setIgnore(false);
+  }
+
   // Drive one transition from a sample, applying toggle + side effects.
   function applySample(interactive: boolean): void {
     const r = decideTransition({ state, interactive, counter, config: opts.getConfig() });
     state = r.state;
     counter = r.counter;
-    if (r.toggle) {
-      if (state === "passthrough") {
-        setIgnore(true);
-        scheduleNextPoll();
-      } else {
-        setIgnore(false);
-        stopPoll();
-      }
+    if (!r.toggle) return;
+    if (state === "capture") {
+      toCapture();
+      return;
     }
+    setIgnore(true);
+    unsubscribe = opts.cursor.subscribe(onCursor);
+  }
+
+  // PASSTHROUGH source: the shared cursor. Entering CAPTURE uses the tight box (margin 0).
+  function onCursor(pos: Vec2 | null): void {
+    if (pos === null) toCapture();
+    else applySample(opts.isOverInteractive(pos.x, pos.y, 0));
   }
 
   // CAPTURE source: pointermove on the stage/window. Outset box (leaving).
@@ -232,74 +190,6 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     if (!running || suspended || state !== "capture") return;
     const pe = e as PointerEvent;
     applySample(opts.isOverInteractive(pe.clientX, pe.clientY, margin()));
-  }
-
-  function stopPoll(): void {
-    if (pollHandle !== null) {
-      cancel(pollHandle);
-      pollHandle = null;
-    }
-  }
-
-  function scheduleNextPoll(): void {
-    stopPoll();
-    // Nothing can click a hidden window — resumes via onVisibilityChange.
-    if (doc.visibilityState === "hidden") return;
-    const ms = opts.getConfig().poll_interval_ms;
-    pollHandle = schedule(() => {
-      void poll();
-    }, ms);
-  }
-
-  // Hidden window: pause the poll instead of burning IPC on a window nothing can see.
-  function onVisibilityChange(): void {
-    if (doc.visibilityState === "hidden") {
-      stopPoll();
-    } else if (running && !suspended && state === "passthrough" && pollHandle === null) {
-      scheduleNextPoll();
-    }
-  }
-
-  // PASSTHROUGH loop: webview is blind, so read the global cursor and convert. Only
-  // cursorPosition() is read every tick; the slower statics are cached (see window-statics.ts).
-  async function poll(): Promise<void> {
-    if (
-      !running ||
-      suspended ||
-      state !== "passthrough" ||
-      !win ||
-      doc.visibilityState === "hidden"
-    )
-      return;
-    const refreshStatics = statics.origin === null || moving || tick % STATIC_REFRESH_TICKS === 0;
-    tick++;
-    try {
-      const cursor = await statics.readCursor(win, refreshStatics);
-      // A move/resize/scale-change can invalidate the cache while a cached tick's
-      // cursorPosition() is still in flight — skip this sample (don't return: the
-      // reschedule below must still run, or the loop dies with the window stuck
-      // click-through). The next tick's stale cache forces a fresh refresh.
-      const origin = statics.origin;
-      if (origin !== null) {
-        pollFailureCount = 0;
-        const local = physicalCursorToLocalCss(cursor, origin, statics.scale, statics.cursorScale);
-        // Entering CAPTURE uses the tight box (margin 0).
-        applySample(opts.isOverInteractive(local.x, local.y, 0));
-      }
-    } catch (err) {
-      log.warn("poll_failed", { error: String(err) });
-      pollFailureCount++;
-      if (pollFailureCount >= POLL_FAILURE_THRESHOLD) {
-        log.warn("poll_failure_threshold_reached", { degrade: "capture" });
-        pollFailureCount = 0;
-        state = "capture";
-        counter = 0;
-        setIgnore(false);
-        stopPoll();
-        return;
-      }
-    }
-    if (running && !suspended && state === "passthrough") scheduleNextPoll();
   }
 
   function start(): void {
@@ -313,20 +203,13 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     ignore = true;
     setIgnore(false);
     suspended = false;
-    pollFailureCount = 0;
-    tick = 0;
-    statics.invalidate();
-    statics.subscribe(win);
     moveTarget.addEventListener("pointermove", onPointerMove);
-    doc.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   function stop(): void {
     running = false;
-    stopPoll();
-    statics.unsubscribe();
+    release();
     moveTarget.removeEventListener("pointermove", onPointerMove);
-    doc.removeEventListener("visibilitychange", onVisibilityChange);
     // Leave the window interactive so teardown never strands click-through on.
     setIgnore(false);
     win = null;
@@ -334,25 +217,14 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
 
   function suspend(): void {
     suspended = true;
-    state = "capture";
-    counter = 0;
-    pollFailureCount = 0;
-    stopPoll();
-    setIgnore(false);
+    toCapture();
   }
 
   function resume(): void {
     if (!suspended) return;
     suspended = false;
-    state = "capture";
-    counter = 0;
-    pollFailureCount = 0;
-    setIgnore(false);
+    toCapture();
   }
 
-  function setMoving(next: boolean): void {
-    moving = next;
-  }
-
-  return { start, stop, suspend, resume, setMoving };
+  return { start, stop, suspend, resume, setMoving: (moving) => opts.cursor.setMoving(moving) };
 }
