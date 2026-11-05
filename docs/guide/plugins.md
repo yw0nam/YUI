@@ -6,27 +6,36 @@ Plugins add MCP servers and skills to the backend of every character. The page i
 
 ## Install
 
-**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository, while **Community** ones come as their authors published them, checked against the author's `checksums.txt`.
+**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version.
+
+**Official** plugins are reviewed and built in the YUI repository. **Community** plugins come as their authors published them, checked against the author's `checksums.txt`.
 
 **Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
 
 ## Turn on with consent
 
-The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character.
+The first time you turn a plugin on, the switch asks in two steps.
 
-The second lists the tools and skills the backend sees. It calls tools through `yui_tool_describe` and `yui_tool_call`, and reads skills through `plugin_skill`. That first step is the only gate: a local plugin is approved once for its folder.
+1. The first step shows **Source**, **Version**, and **Launch command**. **Allow** records your approval and starts the servers with your permissions, for every character.
+2. The second step lists the tools and skills the backend sees. It calls tools through `yui_tool_describe` and `yui_tool_call`, and reads skills through `plugin_skill`.
+
+That first step is the only gate. A local plugin is approved once for its folder.
 
 ## Update
 
-**Update to v&lt;version&gt;** installs that version in place of the old one, and an Official update keeps the plugin running. A Community update clears the approval, and the row shows **Allow again…** with a note that the update changed its contents. **Check for updates** reloads the catalog and reports **Updates: n** or **All up to date**.
+**Update to v&lt;version&gt;** installs that version in place of the old one. An Official update keeps the plugin running.
+
+A Community update clears the approval. The row shows **Allow again…** with a note that the update modified its contents.
+
+**Check for updates** reloads the catalog and reports **Updates: n** or **All up to date**.
 
 ## Remove
 
-**Delete** removes a catalog plugin's code, data, and installed versions. **Remove from list** removes a local plugin from the list, deletes its data, and leaves its folder; both ask for confirmation first.
+**Delete** removes a catalog plugin's code, data, and installed versions. **Remove from list** removes a local plugin from the list, deletes its data, and leaves its folder. Both ask for confirmation first.
 
 ## Add from a folder
 
-**Add from folder…** opens a folder picker. The folder needs `.claude-plugin/plugin.json`; a `.mcp.json` declares its servers, and `skills/*/SKILL.md` declares its skills. The plugin runs in place, and its contents are not checked.
+**Add from folder…** opens a folder picker. The folder needs `.claude-plugin/plugin.json`. A `.mcp.json` declares its servers, and `skills/*/SKILL.md` declares its skills. The plugin runs in place, and its contents are not checked.
 
 ## Status lines
 
@@ -40,7 +49,9 @@ The second lists the tools and skills the backend sees. It calls tools through `
 
 ## Hidden names
 
-A tool or skill name belongs to one holder: a built-in tool first, then each plugin in turn-on order. A later plugin with a taken name keeps running and hides that name, and the page names every hidden name and its holder.
+A tool or skill name has one holder. The earlier holder wins: a built-in tool first, then each plugin in turn-on order.
+
+A later plugin with a taken name keeps running and hides that name. The page names every hidden name and its holder.
 
 ## Log
 

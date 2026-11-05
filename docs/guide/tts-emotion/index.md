@@ -6,13 +6,25 @@
 
 `emotion_text` is the voice and TTS control channel of `generate_express`, separate from `emotion_id`, the VRM face blendshape. A happy face (`emotion_id`) and a whispered voice (`emotion_text`) can fire at the same time.
 
-The model behind the active chat endpoint produces `emotion_text` through a `generate_express` tool call. YUI consumes whatever arrives, from the `/v1/responses` stream in Responses mode or identically from `chat.completion.chunk` tool-call deltas in Chat Completions mode, and hands it to the TTS provider beside the segment. It never shows in the speech bubble.
+The model behind the active chat endpoint produces `emotion_text` through a `generate_express` tool call. YUI consumes whatever arrives. In Responses mode it comes from the `/v1/responses` stream. In Chat Completions mode it comes from `chat.completion.chunk` tool-call deltas, handled the same way.
 
-Irodori prepends it to the spoken text, OpenAI puts it in `instructions`, and Fish wraps it in `[...]` ahead of the spoken text (S2 inline direction).
+YUI hands it to the TTS provider beside the segment. It never shows in the speech bubble.
+
+Each TTS provider places it differently:
+
+- Irodori prepends it to the spoken text.
+- OpenAI puts it in `instructions`.
+- Fish wraps it in `[...]` ahead of the spoken text (S2 inline direction).
 
 In push mode the cue arrives in the `segments[].cues` of `render` and `speech` frames, and the client sends the vocabulary in its `hello` and `vocabulary` frames ([push transport](../../reference/push-transport.md)).
 
-`generate_express` carries a second, independent voice channel beside it. `caption` is a free-text voice direction that travels out of band in the synthesis request. Irodori takes it as `irodori.caption`, OpenAI joins it after `emotion_text` in `instructions`, and Fish wraps it in its own `[...]` bracket after the `emotion_text` bracket. It has no vocabulary and no enum gate.
+`generate_express` carries a second, independent voice channel beside it. `caption` is a free-text voice direction that travels out of band in the synthesis request. Providers handle it as follows:
+
+- Irodori takes it as `irodori.caption`.
+- OpenAI joins it after `emotion_text` in `instructions`.
+- Fish wraps it in its own `[...]` bracket after the `emotion_text` bracket.
+
+It has no vocabulary and no enum gate.
 
 The cue contract that carries both channels is in [`client-context.md`](../../reference/client-context.md). The control envelope shape lives in [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).
 
@@ -20,7 +32,9 @@ The cue contract that carries both channels is in [`client-context.md`](../../re
 
 With `tts_provider` `irodori`, the vocabulary is the emoji enum table in [`configs/emotion_text/irodori.json`](https://github.com/yw0nam/YUI/blob/main/configs/emotion_text/irodori.json), documented in [`irodori.md`](./irodori.md). The client declares it in the tool schema.
 
-If the table cannot be loaded, the vocabulary uses free text, and every other provider uses free text as well. A `tts_provider` change reloads the table for the declared tool schema and push `vocabulary` frames without a restart.
+If the table cannot be loaded, the vocabulary uses free text. Every other provider uses free text as well.
+
+A `tts_provider` change reloads the table for the declared tool schema and push `vocabulary` frames without a restart.
 
 ## See also
 

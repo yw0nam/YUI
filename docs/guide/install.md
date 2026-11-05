@@ -10,11 +10,11 @@ The rest of this page is the instruction set for that agent.
 
 ## Instructions for the agent
 
-Take the user from nothing to a checkout that runs with `pnpm tauri dev`. Ask the user only for what the machine cannot tell you. Every step ends on a checkable state; do not report done before step 4 passes.
+Take the user from nothing to a checkout that runs with `pnpm tauri dev`. Ask the user only for what the machine cannot tell you. Every step ends on a checkable state. Do not report done before step 4 passes.
 
 ### 1. Prerequisites
 
-Run `git --version`, `pnpm -v`, `rustc -V`, `cargo -V`. On macOS also run `xcode-select -p`; on Windows, Tauri needs the MSVC build tools and WebView2 ([Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)).
+Run `git --version`, `pnpm -v`, `rustc -V`, `cargo -V`. On macOS, also run `xcode-select -p`. On Windows, Tauri needs the MSVC build tools and WebView2 ([Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)).
 
 For each missing tool, ask the user before installing it:
 
@@ -28,7 +28,7 @@ Done when every command above prints a version or a path.
 
 ### 2. Clone
 
-If the current directory is already a YUI checkout, use it. Otherwise clone into a directory the user names, defaulting to `~/YUI`, and check out the latest release tag, since `main` carries unreleased work:
+If the current directory is already a YUI checkout, use it. Otherwise, clone into a directory the user names. The default is `~/YUI`. Check out the latest release tag, because `main` carries unreleased work:
 
 ```bash
 git clone https://github.com/yw0nam/YUI ~/YUI && cd ~/YUI
@@ -47,23 +47,45 @@ curl -s --max-time 3 http://localhost:11434/v1/models  # Ollama
 curl -s --max-time 3 http://localhost:1234/v1/models   # LM Studio
 ```
 
-Both addresses are the OpenAI-compatible model-list endpoints documented for [Ollama](https://docs.ollama.com/api/openai-compatibility) and [LM Studio](https://lmstudio.ai/docs/developer/openai-compat); the YUI provider presets use the same two URLs. A server answers when the probe returns JSON with a `data` array. A model list can carry embedding models (LM Studio's does), and a chat request to one fails, so leave out ids naming an embedding model (for example `text-embedding-...`); LM Studio answers such a request with HTTP 404 (`Model is not llm`). For each server that answers, show the user the remaining model ids and ask whether to use that server and which model. An answer whose `data` array is empty means the server lists no model, and step 4 reports that as its own result. Picking one sets `chat_base_url` to `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio, sets `chat_model` to the chosen id, and leaves `chat_api` at `chat_completions`. When neither server answers, or the user declines both, continue with the question below.
+Both addresses are the OpenAI-compatible model-list endpoints documented for [Ollama](https://docs.ollama.com/api/openai-compatibility) and [LM Studio](https://lmstudio.ai/docs/developer/openai-compat). The YUI provider presets use the same two URLs. A server answers when the probe returns JSON with a `data` array.
+
+A model list can carry embedding models (LM Studio's does), and a chat request to one fails. Leave out ids naming an embedding model, for example `text-embedding-...`. LM Studio answers such a request with HTTP 404 (`Model is not llm`).
+
+For each server that answers, show the user the remaining model ids. Ask whether to use that server and which model. An answer whose `data` array is empty means the server lists no model, and step 4 reports that as its own result.
+
+Once the user picks a server and a model, set `chat_base_url` to `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio, set `chat_model` to the chosen id, and leave `chat_api` at `chat_completions`. When neither server answers, or the user declines both, continue with the question below.
 
 Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → All settings… → Connection)?" On "later", go to step 4.
 
-Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
+Otherwise, collect what the user has. Every URL starts with `http://` or `https://`. The config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
 
-When the user has no backend of their own, recommend the Google Gemini free tier. The user makes a key at https://aistudio.google.com/apikey. Set `chat_base_url` to `https://generativelanguage.googleapis.com/v1beta/openai`, `chat_model` to `models/gemini-3.5-flash-lite`, and the key to `VITE_YUI_CHAT_KEY`. Tell the user the free tier has a daily limit, that Google may use what they send to improve its products, and that people may review it.
+When the user has no backend of their own, recommend the Google Gemini free tier:
+
+- The user makes a key at https://aistudio.google.com/apikey.
+- Set `chat_base_url` to `https://generativelanguage.googleapis.com/v1beta/openai`, `chat_model` to `models/gemini-3.5-flash-lite`, and the key to `VITE_YUI_CHAT_KEY`.
+- Tell the user the free tier has a daily limit, that Google may use what they send to improve its products, and that people may review it.
 
 | Value | Where it goes |
 |---|---|
-| Chat base URL and model id | `configs/endpoints.json` → `chat_base_url`, `chat_model`. In the `chat_completions` and `responses` modes the URL is the API root including `/v1` (`http://localhost:8643/v1`). In `push` mode it is the WebSocket base without `/v1` (`http://localhost:8646`) |
-| Chat protocol | `chat_api`: pick by who keeps the conversation history: keep `chat_completions` (the client sends the history) for any tool-calling OpenAI-compatible endpoint, `responses` (the server keeps it) for a backend agent on the Responses API, `push` for a backend that speaks first through the [push transport](../reference/push-transport.md) |
+| Chat base URL and model id | `configs/endpoints.json` → `chat_base_url`, `chat_model` |
+| Chat protocol | `chat_api` |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` |
-| TTS provider, URL, model, speaker, key | `tts_provider` (`irodori`, `openai`, or `fish`), `tts_base_url` without `/v1` (`http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI, `https://api.fish.audio` for Fish Audio), `tts_model` (`irodori-tts`, `gpt-4o-mini-tts` for OpenAI, `s2.1-pro-free` for Fish Audio), `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
-| STT URL, model, key | `stt_base_url` with `/v1` (`http://localhost:5517/v1`), `stt_model`, `.env.local` → `VITE_YUI_STT_KEY` |
+| TTS provider, URL, model, speaker, key | `tts_provider`, `tts_base_url`, `tts_model`, `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
+| STT URL, model, key | `stt_base_url`, `stt_model`, `.env.local` → `VITE_YUI_STT_KEY` |
 
-Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. The `VITE_YUI_*_KEY` values in it apply to dev runs only; a release build carries no key and reads the keys entered in the settings window. Merge the answered keys into `configs/endpoints.json` and leave the rest out; an unset URL keeps that feature off. `pnpm tauri dev` reloads `configs/` on change; a change to `.env.local` needs a restart.
+- Chat URL: in `chat_completions` and `responses` modes, the URL is the API root including `/v1` (`http://localhost:8643/v1`). In `push` mode, it is the WebSocket base without `/v1` (`http://localhost:8646`).
+- Chat protocol: pick it by who keeps the conversation history.
+  - `chat_completions`: the client sends the history. Use it for any tool-calling OpenAI-compatible endpoint.
+  - `responses`: the server keeps the history. Use it for a backend agent on the Responses API.
+  - `push`: a backend that speaks first through the [push transport](../reference/push-transport.md).
+- TTS: `tts_provider` is `irodori`, `openai`, or `fish`. `tts_base_url` has no `/v1`: `http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI, and `https://api.fish.audio` for Fish Audio. `tts_model` is `irodori-tts`, `gpt-4o-mini-tts` for OpenAI, or `s2.1-pro-free` for Fish Audio.
+- STT: `stt_base_url` has `/v1`: `http://localhost:5517/v1`.
+
+Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. The `VITE_YUI_*_KEY` values in it apply to dev runs only. A release build carries no key and reads the keys entered in the settings window.
+
+Merge the answered keys into `configs/endpoints.json` and leave the rest out. An unset URL keeps that feature off.
+
+`pnpm tauri dev` reloads `configs/` on change. A change to `.env.local` needs a restart.
 
 Done when this exits 0 and every value the user gave is in place:
 
@@ -75,7 +97,13 @@ node -e 'const c=JSON.parse(require("fs").readFileSync("configs/endpoints.json",
 
 `pnpm build` exits 0.
 
-When step 3 set a Chat Completions backend, also test that the chosen model calls tools; Chat Completions mode needs this because the client always declares its `generate_express` tool. Send one request to `<chat_base_url>/chat/completions` with the chosen model, one trivial function tool in `tools`, and a user message asking the model to call it. Omit `tool_choice`; Ollama does not support it ([Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)). LM Studio converts the model output to native `tool_calls` when the request carries `tools` ([LM Studio tool calling](https://lmstudio.ai/docs/developer/openai-compat/tools)). Send the `Authorization` header only when the user gave a key. The command writes the body to a temp file, captures the HTTP status and curl's exit code, and one `node -e` classifier reads all three (Node is a prerequisite through pnpm):
+When step 3 set a Chat Completions backend, also test that the chosen model calls tools. Chat Completions mode needs this because the client always declares its `generate_express` tool.
+
+Send one request to `<chat_base_url>/chat/completions` with the chosen model, one trivial function tool in `tools`, and a user message asking the model to call it. Omit `tool_choice`. Ollama does not support it ([Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)). LM Studio converts the model output to native `tool_calls` when the request carries `tools` ([LM Studio tool calling](https://lmstudio.ai/docs/developer/openai-compat/tools)).
+
+Send the `Authorization` header only when the user gave a key.
+
+The command writes the body to a temp file, captures the HTTP status and curl's exit code, and one `node -e` classifier reads all three. Node is a prerequisite through pnpm.
 
 ```bash
 # Omit the Authorization header when the user gave no key.
@@ -95,18 +123,18 @@ rm -f "$resp"
 The command and the step 3 probe report exactly one of seven results:
 
 1. `tool call returned`: the reply carries a non-empty `choices[0].message.tool_calls`.
-2. `no server answered`: the status is 000 with any curl exit code other than 28; curl could not connect.
+2. `no server answered`: the status is 000 with any curl exit code other than 28. curl could not connect.
 3. The server lists no model: the step 3 probe answered with an empty `data` array.
 4. `authentication failed`: the status is 401 or 403.
-5. `HTTP <status>: <message>`: any other non-2xx status; the message is the server's `error.message` when it is a string, or the first 200 bytes of the body.
-6. `timed out`: curl hit `--max-time 120`. Run the command once more (the first request can include the model load) and report `timed out` only when the second run also times out.
-7. `reply carried no tool call`: a 2xx reply whose `choices[0].message.tool_calls` is missing or empty. Run the test once more before reporting it, since a model can answer in text on one run; then tell the user the model cannot drive expression and suggest a tool-calling model such as [`qwen3`](https://ollama.com/library/qwen3).
+5. `HTTP <status>: <message>`: any other non-2xx status. The message is the server's `error.message` when it is a string, or the first 200 bytes of the body.
+6. `timed out`: curl hit `--max-time 120`. Run the command once more, because the first request can include the model load. Report `timed out` only when the second run also times out.
+7. `reply carried no tool call`: a 2xx reply whose `choices[0].message.tool_calls` is missing or empty. Run the test once more before reporting it, since a model can answer in text on one run. Then tell the user the model cannot drive expression, and suggest a tool-calling model such as [`qwen3`](https://ollama.com/library/qwen3).
 
 Report to the user:
 
 1. The paths written, never a key value.
 2. The tool-call test result, one of the seven results above.
 3. What was skipped, with the place to set it later: right-click the character → All settings… → Connection.
-4. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend she idles, and a chat turn answers with a pointer to the Connection tab.
+4. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend, she idles. A chat turn answers with a pointer to the Connection tab.
 5. What the connection keeps across turns and where long-term memory comes from: [what the connection remembers](https://github.com/yw0nam/YUI/blob/main/docs/guide/connect-a-backend.md#what-the-connection-remembers).
 6. The optional services (TTS, STT, backend agents) are covered in [Connect a backend](connect-a-backend.md) and [Voice in and out](voice.md).

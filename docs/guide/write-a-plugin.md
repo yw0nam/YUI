@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools `yui_tool_describe` and `yui_tool_call`, and its skills through `plugin_skill`.
+A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server. The brain reaches its tools through the bridge tools `yui_tool_describe` and `yui_tool_call`, and its skills through `plugin_skill`.
 
 To build one with a coding agent, paste this line:
 
@@ -64,16 +64,23 @@ YUI reads three fields of `plugin.json` and ignores the rest:
 
 YUI starts `command` with `args` as argv and no shell, so an argument reaches the server as written. It replaces `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `command`, in every argument and in every `env` value.
 
-ROOT is the plugin folder, which is also the working directory. DATA is the plugin's data folder: created before the start, deleted when the user removes the plugin. The server inherits YUI's environment, with `env` applied over it.
+The server gets two folders:
+
+- ROOT is the plugin folder, which is also the working directory.
+- DATA is the plugin's data folder. YUI creates it before the start and deletes it when the user removes the plugin.
+
+The server inherits YUI's environment, with `env` applied over it.
 
 | What YUI expects | What happens |
 |---|---|
 | `initialize` and `tools/list` answer within 30 s together | A miss shows **Unavailable**, naming the step it stopped at. |
 | A server that ends on its own | It shows **Exited** with **Restart**; the next app start runs it again. |
-| A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. On Windows a process started with `CREATE_BREAKAWAY_FROM_JOB` leaves the tree and outlives the stop. |
+| A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. |
 | The app killed without quitting | Every process the server started ends: with the app on Windows, at the next app start on macOS. |
 | stdout | The MCP channel, and nothing else. |
 | stderr | Each line goes to the plugin log, prefixed `[<server>] ` and cut at 2000 bytes. |
+
+On Windows, a process started with `CREATE_BREAKAWAY_FROM_JOB` leaves the tree and outlives a stop.
 
 ## Tools and skills
 
@@ -103,13 +110,24 @@ description: Greets the user in one line.
 | `description` | Required. A skill without one is skipped, with a warning in the app log. |
 | `name` | Optional; the folder name when absent. `plugin_skill` and the per-turn line use it. |
 
-`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction and YUI serves no other file of the skill folder. The body is read on each call, while the name and description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
+`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction. YUI serves no other file of the skill folder.
+
+The body is read on each call. The name and description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
 
 ## Test locally
 
-Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, choose **Add from folder…**, turn the plugin on and **Allow** once. The approval holds for that folder path while its files change; a new path asks again.
+1. Run the app (`pnpm tauri dev`, or a release build).
+2. Open **Plugins**.
+3. Choose **Add from folder…**.
+4. Turn the plugin on, then choose **Allow** once.
 
-A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on. **Retry** and **Restart** start a new process from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change. While a server is running, neither button appears.
+The approval holds for that folder path while its files change. A different path asks again.
+
+A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on.
+
+**Retry** and **Restart** start the server process again from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change.
+
+While a server is running, neither button appears.
 
 ## Tips
 

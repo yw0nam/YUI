@@ -6,8 +6,8 @@ The settings window opens from **Settings…** in the tray menu or from **All se
 
 | Page | What it is for |
 | --- | --- |
-| Connection | Chat, speech recognition, and speech synthesis for this character, with Reasoning effort; with nothing connected, Quick start opens. An empty field uses the bundled default. Reset clears a section's fields, Reset Chat and Reset TTS also clear their keys, and Reset STT keeps the shared STT key ([Connect a backend](connect-a-backend.md), [Voice in and out](voice.md)) |
-| Voice | How she speaks, and its message window, off outside the desktop app and while unified chat shows ([Voice in and out](voice.md)) |
+| Connection | Chat, speech recognition, and speech synthesis for this character, with Reasoning effort ([Connect a backend](connect-a-backend.md), [Voice in and out](voice.md)) |
+| Voice | How she speaks, and her message window ([Voice in and out](voice.md)) |
 | Persona | Her card ([Cards](cards.md)) |
 | Body | The model that renders her, her relations, and the camera |
 | History | The conversation, session by session, on this device, with the context meter and delegated tasks; a reset keeps the earlier turns |
@@ -21,6 +21,9 @@ The settings window opens from **Settings…** in the tray menu or from **All se
 
 ## Tips
 
+- On **Connection**, Quick start opens when nothing is connected. An empty field uses the bundled default.
+- On **Connection**, **Reset** clears a section's fields. Reset Chat and Reset TTS also clear their keys. Reset STT keeps the shared STT key.
+- The **Voice** page's message window is off outside the desktop app and while unified chat shows.
 - **Plugins** appears only in the desktop app, where the plugin host runs.
 - The note line under the strip says where a change shows: in main, in that character's own window, or when it opens.
 - A language change reloads the panel.

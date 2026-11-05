@@ -42,12 +42,17 @@ Put the plugin in a public GitHub repository, then publish a release that meets 
 
 ### Ship an update
 
-An update needs no PR: a release carrying another version, and that version on the default branch. YUI clears the user's approval on a community update, so the user allows the updated version again ([Plugins § Update](./plugins.md#update)).
+An update needs no PR. Publish a release with another version, and put that version on the default branch. YUI clears the user's approval on a community update, so the user allows the updated version again ([Plugins § Update](./plugins.md#update)).
 
 ## Add an official plugin
 
 An **Official** plugin lives under `plugins/<id>/` in the YUI repository, and the release workflow builds and releases it. [Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases) carries the tag, the version rule and the zip layout.
 
-Open the issue first, from the [feature task template](https://github.com/yw0nam/YUI/blob/main/.github/ISSUE_TEMPLATE/feature_task.md), so a maintainer can agree that YUI ships this plugin. After that agreement, [Plugins & CI](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/plugins.md) holds the folder layout and the local checks, and Build, Run & Logs § Plugin releases above holds the tag and the release.
+Open the issue first, from the [feature task template](https://github.com/yw0nam/YUI/blob/main/.github/ISSUE_TEMPLATE/feature_task.md), so a maintainer can agree that YUI ships this plugin.
+
+After that agreement, the rest sits in two places:
+
+- [Plugins & CI](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/plugins.md) holds the folder layout and the local checks.
+- Build, Run & Logs § Plugin releases above holds the tag and the release.
 
 To build the plugin itself first, see [Write a plugin](./write-a-plugin.md).
