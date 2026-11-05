@@ -68,8 +68,7 @@ The request body contains a `signals` array and a delivery envelope:
 }
 ```
 
-Signal items are arbitrary opaque JSON values, and the client transports and renders them without
-interpreting their meaning.
+Signal items are arbitrary opaque JSON values. The client transports and renders them without interpreting their meaning.
 
 ## Routes
 
@@ -108,13 +107,17 @@ There is no fallback timestamp.
 
 ### The event_id field
 
-A group replaces a buffered group with the same `event_id` in the same buffer, at its position, while a group with the same `event_id` in another buffer stays; a delivered group is not compared.
+A group replaces a buffered group with the same `event_id` in the same buffer, at its position. A group with the same `event_id` in another buffer stays. A delivered group is not compared.
 
 ### The label field
 
 The `label` is the producer's one-line origin, for example `devbox · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted; a non-string label makes the envelope invalid.
 
-The label is not rendered in `client_context`; the client shows it, or `event_type` when it is absent, after `source` as the source line of the group on the speech bubble and in History. The bubble keeps the line to its own width and cuts the rest with an ellipsis, so the distinguishing words go first.
+The label is not rendered in `client_context`.
+
+The client shows the label after `source`, as the source line of the group on the speech bubble and in History. When the label is absent, the client shows `event_type` instead.
+
+The bubble keeps the line to its own width and cuts the rest with an ellipsis, so the distinguishing words go first.
 
 ## Delivery
 
@@ -122,9 +125,13 @@ The label is not rendered in `client_context`; the client shows it, or `event_ty
 
 ### Urgent
 
-An `urgent` group means the user should hear it now: it fires at once while the user is present and the pipeline is idle, and the proactive quiet gap does not hold it. Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge the buffered urgent groups fire together as one urgent catch-up turn.
+An `urgent` group means the user should hear it without delay. It fires at once while the user is present and the pipeline is idle, and the proactive quiet gap does not hold it.
 
-On the return to present, the batch catch-up goes out first and the urgent catch-up is the next turn, right after it ends. Urgent groups never share a catch-up turn with `batched` groups, and the drains below carry batched groups only: a buffered urgent group keeps waiting for its own edge.
+Otherwise it waits in its own buffer. On the away-to-present or busy-to-idle edge, the buffered urgent groups fire together as one urgent catch-up turn.
+
+On the return to present, the batch catch-up goes out first. The urgent catch-up is the next turn, right after it ends.
+
+Urgent groups never share a catch-up turn with `batched` groups. The drains below carry batched groups only, so a buffered urgent group keeps waiting for its own edge.
 
 ### Batched
 
@@ -158,7 +165,9 @@ A turn dropped before its backend call puts its groups back at the front of thei
 - a stale queue entry
 - a degraded backend
 
-A push the bus refuses, or a call that failed in transport or at the backend, also puts its groups back at the front of their buffers, and the next edge or drain delivers them. A turn the user's message cancels after its call started does not.
+A push the bus refuses also puts its groups back at the front of their buffers. So does a call that failed in transport or at the backend. The next edge or drain delivers them.
+
+A turn the user's message cancels after its call started does not put its groups back.
 
 ### Buffer and rate limits
 
@@ -168,7 +177,7 @@ Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` 
 
 ## Relations
 
-`GET /relations` and `GET /presets/<id>/relations` return the character's relation store: the relation the backend has rated toward the user and toward each other preset (`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the whole store; that is how an external engine that keeps its own relationship record writes it.
+`GET /relations` and `GET /presets/<id>/relations` return the character's relation store: the relation the backend has rated toward the user and toward each other preset (`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the whole store. An external engine that keeps its own relationship record writes the store this way.
 
 ```json
 {
@@ -200,7 +209,9 @@ A `PUT` body that is not an object, has a key that is neither `user` nor an exis
 
 A key for the window's own preset id is accepted, stored, and never rendered, and any other method receives 405.
 
-The window renders the new relation on its next turn and in its preset row at once. The daily cap applies to the tool only; a `PUT` sets what it says.
+The window renders the relation on its next turn, and its preset row shows it at once.
+
+The daily cap applies to the tool only. A `PUT` stores exactly what it sends.
 
 ## Preset switch
 
@@ -222,15 +233,13 @@ A request under `/presets/` whose id no preset has, or whose path after the id i
 
 A request for a preset id that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
-Threads accept only PUT on `/threads/<id>`, GET on `/threads/<id>/answer`, and GET on
-`/threads/answers?source=<source>`; wrong methods receive 405. Invalid or missing Thread ids
-and any preset-prefixed Threads path receive 404. Field and query validation receives 400;
-the [Threads reference](./threads.md) defines answer outcomes, the sweep, and the wait-worker
-limit.
+Threads accept only PUT on `/threads/<id>`, GET on `/threads/<id>/answer`, and GET on `/threads/answers?source=<source>`; wrong methods receive 405. Invalid or missing Thread ids and any preset-prefixed Threads path receive 404. Field and query validation receives 400; the [Threads reference](./threads.md) defines answer outcomes, the sweep, and the wait-worker limit.
 
 ### What 200 means
 
-HTTP 200 means that the ingress accepted the wire shape and attempted to emit the batch to its target window; it does not confirm receipt or delivery. The envelope is forwarded unchanged and stamped with server time.
+HTTP 200 means the ingress accepted the wire shape and attempted to emit the batch to its target window. It does not confirm receipt or delivery.
+
+The envelope is forwarded unchanged and stamped with server time.
 
 ::: warning
 A 200 answers the wire shape only. The batch can still lose a group after it: while signals are enabled, an invalid envelope is dropped as a whole, and one warning records the item count.
@@ -246,6 +255,10 @@ A request with any signal item whose JSON serialization exceeds 16 KiB receives 
 
 ### Connection limits
 
-These limits apply to every ingress route. Request headers must finish within 5 seconds or the connection closes. The entire body must arrive within 10 seconds; an unreadable, stalled, or oversized body receives HTTP 400. Host and Origin checks run before body reads and before `100 Continue`.
+These limits apply to every ingress route.
+
+- Request headers must finish within 5 seconds, or the connection closes.
+- The entire body must arrive within 10 seconds. An unreadable, stalled, or oversized body receives HTTP 400.
+- Host and Origin checks run before body reads and before `100 Continue`.
 
 At most 64 connections are open at once. Additional connections close before parsing. Each connection serves one request; keep-alive is disabled.

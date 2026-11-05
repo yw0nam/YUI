@@ -15,7 +15,7 @@ sequenceDiagram
   B-->>C: Words, or silence
 ```
 
-The signal carries facts rather than a script; the brain decides what she says.
+The signal carries facts, not a script. The brain decides what she says.
 
 The work takes four steps:
 
@@ -30,7 +30,7 @@ The work takes four steps:
 
 | Value | Use it when |
 |---|---|
-| `urgent` | The user should hear it now. |
+| `urgent` | The user should hear it right away. |
 | `batched` | It can wait for the next batch. |
 
 Drop a signal by not sending it: `delivery` has no drop value.
@@ -41,13 +41,18 @@ Drop a signal by not sending it: `delivery` has no drop value.
 
 ## Choose an event_id
 
-`event_id` names the thing the signal is about, so keeping it stable for the same thing lets a later buffered group replace the earlier one in place instead of adding a second. A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
+`event_id` names the thing the signal is about. Keep it stable for that thing, and a later buffered group replaces the earlier one in place instead of adding a second.
+
+A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
 
 ## Send it
 
-Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. `POST /signals` wakes the main window's character; `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
+Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. Post to one of two routes:
 
-**Manage presets** puts **Copy ingress URL for** _name_ on each preset row but the active one while **External signals** is on.
+- `POST /signals` wakes the main window's character.
+- `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
+
+While **External signals** is on, **Manage presets** puts **Copy ingress URL for** _name_ on each preset row except the active one.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
@@ -69,12 +74,13 @@ A `200` means the ingress accepted the wire shape and attempted to emit the batc
 | The request body | 64 KiB; a larger body receives HTTP 400. |
 | One signal item | 16 KiB serialized; a larger item receives HTTP 400 and no item of that request is delivered. |
 | Each buffer | Five groups; the oldest drops on overflow. |
-| Connections | 64 open at once. One request per connection, with headers within 5 seconds and the body within 10. |
+| Connections | 64 open at once, with one request per connection. |
+| Connection timeouts | Headers within 5 seconds, body within 10. |
 
 ## Tips
 
 - Reuse one `event_id` for a resend, so the pending group is replaced rather than added.
-- Read the HTTP code: `503` means the preset's pet window is closed, so no window receives the group.
+- Read the HTTP code. A `503` means the preset's pet window is closed, so no window receives the group.
 
 ## Go deeper
 

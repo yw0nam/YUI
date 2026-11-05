@@ -1,18 +1,20 @@
 # Features
 
-Everything YUI does today, grouped by area. [What she can do](capabilities.md) covers the same in prose.
+Everything YUI does, grouped by area. [What she can do](capabilities.md) covers the same in prose.
 
 ## Character
 
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x with hot-swap, the bundled AvatarSample A, and imports you can rename or delete |
-| Emotions and motions | 10 emotions and 24 motions. The backend can pick all 10 emotions and 8 of the motions, and each emotion has a fallback ([catalog](motions.md)) |
+| Emotions and motions | 10 emotions and 24 motions ([catalog](motions.md)) |
 | Cursor gaze | Her head and eyes follow the cursor on screen |
 | Lipsync | Mouth movement that follows speech amplitude, with a gain slider |
 | Idle liveliness | Blinking, swaying, breathing, and looking around, quieter under reduced motion |
 | Camera | Auto-framing, zoom with the wheel, orbit with Shift+drag, and a reset to the front view |
 | Relations | Her feelings toward you and the other characters, set by hand or by the backend |
+
+The backend can pick all 10 emotions and 8 of the motions. Each emotion has a fallback.
 
 ## Desktop pet
 
@@ -59,7 +61,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 
 | Feature | What it does |
 | --- | --- |
-| Greetings and check-ins | Greetings at 09:00, 12:00, 18:00, and 23:00, and check-ins after 5, 10, or 30 quiet minutes; Quick start greets once when it connects and turns these off |
+| Greetings and check-ins | Greetings at 09:00, 12:00, 18:00, and 23:00, and check-ins after 5, 10, or 30 quiet minutes |
 | Screen watch | App switches after 10 minutes, and every 45 minutes in one app; off by default |
 | First activity of the day | A cue on your first activity of the day |
 | Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute quiet gap |
@@ -70,14 +72,18 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Witness log | App switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button on Proactive; the first run is a connection test |
 
+Quick start greets once when it connects and turns the greetings and check-ins off.
+
 ## Extensibility
 
 | Feature | What it does |
 | --- | --- |
 | Plugins | MCP servers and skills under `plugins/`; the host runs a server once you allow it, or the backend agent connects to it, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
 | Plugins page | Installs catalog plugins such as `browser`, and runs their servers with your consent ([Plugins](plugins.md)) |
-| Terminal | Shells on this device, opened from the Terminal tab or by her backend; her first read or write on a terminal asks you for Allow, which lasts until you press **Take back** |
+| Terminal | Shells on this device, opened from the Terminal tab or by her backend |
 | Integrations | Wiring for one backend agent under `integrations/`, such as Hermes |
+
+On a terminal, her first read or write asks you for Allow. That approval lasts until you press **Take back**.
 
 ## Platform
 

@@ -1,19 +1,23 @@
 # Configuration
 
-YUI reads its settings from `configs/*.json` at boot, and a dev run can also read keys from `.env.local`. The settings window overrides those files and stores each value on the device, and it never writes to the checked-in files.
+YUI reads its settings from `configs/*.json` at boot. A dev run can also read keys from `.env.local`.
+
+The settings window overrides those files. It stores each value on the device and never writes to the checked-in files.
 
 ## Services
 
-Every address in the bundled `configs/endpoints.json` is unset, and an unset address turns its feature off. Every service address comes from this file or from the settings window.
+Every address in the bundled `configs/endpoints.json` is unset. An unset address turns its feature off. Every service address comes from this file or from the settings window.
 
 | Service | Key | Without it |
 | --- | --- | --- |
-| Chat backend | `chat_base_url` | The character appears and idles. A chat turn answers "Not connected yet", and its **Connect** button opens **Connection**. |
+| Chat backend | `chat_base_url` | The character appears and idles. A chat turn answers "Not connected yet". |
 | Chat API key | **Chat API key** field | Only needed when the endpoint enforces one. |
 | TTS | `tts_base_url` | The speech bubble works, but there is no audio. |
 | STT | `stt_base_url` | Text input works, but there is no voice input. |
 | Screenshot context | **Attach screenshot** switch | The agent receives no screen context. |
 | Plugins | the `plugins/` folder | No plugin capabilities, such as the Factorio game bridge. |
+
+On a chat turn that answers "Not connected yet", the **Connect** button opens **Connection**.
 
 ## Chat
 
@@ -21,13 +25,22 @@ Every address in the bundled `configs/endpoints.json` is unset, and an unset add
 
 | Key | Shipped default | Purpose |
 | --- | --- | --- |
-| `chat_api` | `chat_completions` | Chat protocol: `chat_completions`, `responses`, or `push`. When the key is absent, the client behaves as `responses` |
-| `chat_base_url` | unset | In `chat_completions` and `responses` modes, the API root including `/v1`, to which the client appends `/chat/completions` or `/responses`. In push mode, the WebSocket base without `/v1`, where the client opens `<chat_base_url>/ws` |
+| `chat_api` | `chat_completions` | Chat protocol: `chat_completions`, `responses`, or `push`. Without the key, `responses` applies. |
+| `chat_base_url` | unset | API root or WebSocket base. See the list below the table. |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window: what Responses mode displays, and the length the client-side transcript is trimmed to in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; appended to the card and sent as `instructions` on Responses or as the first system message on Chat Completions |
 
-In the Connection page's chat section, a provider preset (OpenAI, Ollama, LM Studio, Groq, Google Gemini, Hermes Agent) sets the endpoint. Each preset except Hermes Agent autofills `chat_base_url`; Google Gemini also fills `chat_model`, and Hermes Agent sets the protocol to `push`.
+The meaning of `chat_base_url` depends on the mode:
+
+- `chat_completions` and `responses` modes: the API root, including `/v1`. The client appends `/chat/completions` or `/responses`.
+- `push` mode: the WebSocket base, without `/v1`. The client opens `<chat_base_url>/ws`.
+
+In the Connection page's chat section, a provider preset (OpenAI, Ollama, LM Studio, Groq, Google Gemini, Hermes Agent) sets the endpoint. Each preset fills in:
+
+- Each preset except Hermes Agent autofills `chat_base_url`.
+- Google Gemini also fills `chat_model`.
+- Hermes Agent sets the protocol to `push`.
 
 Who keeps the conversation: the client on Chat Completions, the server on Responses, the backend on push. [Push transport](../reference/push-transport.md#what-each-chat-transport-carries) lists what each transport carries, row by row.
 
@@ -51,9 +64,9 @@ Any model that calls tools works, such as [`gpt-5-mini`](https://platform.openai
 
 3. Provide the endpoint's API key if it needs one ([Keys](#keys)).
 
-`generate_express` tool-call deltas are accumulated from the `chat.completion.chunk` stream, and each call's cue plays when a chunk carries a `finish_reason` or the stream ends.
+`generate_express` tool-call deltas are accumulated from the `chat.completion.chunk` stream. Each call's cue plays when a chunk carries a `finish_reason` or the stream ends.
 
-A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech in up to three round trips, while a model that speaks alongside its cues finishes in one request.
+A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech in up to three round trips. A model that speaks alongside its cues finishes in one request.
 
 See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) and [Tool-call round trip](../reference/client-tools.md#tool-call-round-trip).
 
@@ -61,7 +74,7 @@ See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-co
 
 Any backend that serves the OpenAI Responses API (`/v1/responses`).
 
-The client declares `generate_express` on every request and runs the call locally. It then sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses.
+The client declares `generate_express` on every request and runs the call locally. It then sends a follow-up request that re-sends the input items plus the call and its result. The in-turn round trip therefore does not depend on the server keeping responses.
 
 Across turns the client chains on `previous_response_id`. A server that answers 404 for the stored id gets one retry without it, and the conversation context resets.
 
@@ -79,13 +92,15 @@ Across turns the client chains on `previous_response_id`. A server that answers 
 
    The client appends `/responses` to `chat_base_url` itself.
 
-Backend capability varies: a plain OpenAI-compatible server such as vLLM speaks standard tool-call streaming, while the Hermes Agent API server never surfaces tool calls, so Hermes drives expression on push only.
+Backend capability varies. A plain OpenAI-compatible server such as vLLM speaks standard tool-call streaming. The Hermes Agent API server never surfaces tool calls, so Hermes drives expression on push only.
 
 ### Reasoning effort
 
 The **Reasoning effort** control offers `Default`, `None`, `Minimal`, `Low` and `Medium`, the depth of thought before an answer.
 
-`Default`, the starting value, sends no effort, so the model's own default applies, and a model that rejects some values (GPT-OSS rejects `none`) still answers. Any other value is sent: on Responses as `reasoning.effort`, on Chat Completions as the top-level `reasoning_effort`.
+`Default` is the starting value. It sends no effort, so the model's own default applies. Under `Default`, a model that rejects some values (GPT-OSS rejects `none`) still answers.
+
+Any other value is sent: on Responses as `reasoning.effort`, on Chat Completions as the top-level `reasoning_effort`.
 
 The control appears in Chat Completions and Responses modes. On push it stays in place, disabled, with a line under it that says the backend decides how long to think on push.
 
@@ -107,13 +122,15 @@ The **Card** section works the same way: its fields stay in place, disabled, wit
 | `tts_default_voices` | `en` Shinobu, `ja` Tokai Teio, `ko` Sylvia | One `{ "id", "name" }` per app language, each a Fish Audio voice; when the key is present, all three languages need a non-blank `id` and `name` |
 | `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
 
-Quick start's voice step reads `tts_default_voices` through `getDefaultVoices` and, when voice is turned on, adds the voice for the app language to the voice list and selects it.
+Quick start's voice step reads `tts_default_voices` through `getDefaultVoices`. When voice is turned on, it adds the voice for the app language to the voice list and selects it.
 
-Each provider has its own endpoint shape and decides how the cue's `emotion_text` and `caption` ride in the request and where the voice list comes from.
+Each provider has its own endpoint shape. Each one decides how the cue's `emotion_text` and `caption` ride in the request, and where the voice list comes from.
 
 ### Irodori
 
-[Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server) is the reference deployment. Follow that repo's README to run it (default port 8088). YUI prepends the emoji `emotion_text` tag to the spoken text and sends `caption` as `irodori.caption`. Irodori serves Japanese only, so instruct your backend agent to respond in Japanese.
+[Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server) is the reference deployment. Follow that repo's README to run it (default port 8088).
+
+YUI prepends the emoji `emotion_text` tag to the spoken text and sends `caption` as `irodori.caption`. Irodori serves Japanese only, so instruct your backend agent to respond in Japanese.
 
 ```json
 "tts_provider": "irodori",
@@ -124,9 +141,9 @@ Each provider has its own endpoint shape and decides how the cue's `emotion_text
 
 `tts_model` must match the name the server is configured under, or the server answers 400.
 
-The TTS server decides which voice IDs are available (`GET /v1/audio/voices`), and YUI ships no bundled catalog. The panel's voice section lists them, and `tts_speaker` picks the one used until you choose another there.
+The TTS server decides which voice IDs are available (`GET /v1/audio/voices`). YUI ships no bundled catalog. The panel's voice section lists them. `tts_speaker` picks the one used until you choose another there.
 
-Voices live in the server's `voices/` directory, and the panel uploads imported reference clips with `POST`/`PUT /v1/audio/voices` and removes them with `DELETE /v1/audio/voices/{voice_id}`.
+Voices live in the server's `voices/` directory. The panel uploads imported reference clips with `POST`/`PUT /v1/audio/voices` and removes them with `DELETE /v1/audio/voices/{voice_id}`.
 
 When the server lists no voice that a local clip was imported under, the voice list refresh uploads that clip again.
 
@@ -144,15 +161,19 @@ The `tts-1` and `tts-1-hd` models ignore `instructions` and speak only `alloy`, 
 
 ### Fish Audio
 
-Fish Audio is a hosted service. Sign in at [https://fish.audio/](https://fish.audio/), create an API key, pick **Fish Audio** as the provider in the Connection page's TTS section (the server URL becomes `https://api.fish.audio` and the model `s2.1-pro-free`), and paste the key into the **TTS API key** field.
+Fish Audio is a hosted service. To set it up:
+
+1. Sign in at [https://fish.audio/](https://fish.audio/) and create an API key.
+2. In the Connection page's TTS section, pick **Fish Audio** as the provider. The server URL becomes `https://api.fish.audio` and the model `s2.1-pro-free`.
+3. Paste the key into the **TTS API key** field.
 
 The model field takes any S2-family model id (`s2-pro`, `s2.1-pro`, `s2.1-pro-free`, `drama-3-preview`). An unknown id falls back to `s2.1-pro` on Fish's side.
 
 The voice section lists the models in your Fish account (`GET /model?self=true`) by their titles.
 
-Importing an audio file uploads it as a voice model (`POST /model`, fast training) and selects the model Fish creates, and deleting a voice removes the model from your account.
+Importing an audio file uploads it as a voice model (`POST /model`, fast training) and selects the model Fish creates. Deleting a voice removes the model from your account.
 
-A voice from Fish's public library that is not in your list can still be used: paste its voice id, or its voice page URL such as `https://fish.audio/m/<id>`, into the field under the voice list and it becomes the active voice. Deleting a pasted voice only takes it off the list.
+A voice from Fish's public library that is not in your list can still be used. Paste its voice id, or its voice page URL such as `https://fish.audio/m/<id>`, into the field under the voice list. The voice then becomes the active voice. Deleting a pasted voice only takes it off the list.
 
 Imported and pasted voices belong to the provider they were added under, so they are listed only while that provider is selected.
 
@@ -168,15 +189,15 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 
 YUI sends audio to `<stt_base_url>/audio/transcriptions`.
 
-If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` for a dev run, or the **STT API key** on the **Listening and bubble** page in any build, and YUI sends it as `Authorization: Bearer`.
+If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` for a dev run. In any build, set the **STT API key** on the **Listening and bubble** page instead. YUI sends the key as `Authorization: Bearer`.
 
-A hosted API such as Groq also needs a model, which you can set as `stt_model` here (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection page's **STT model** field, which overrides the file. To fix the spoken language, set `stt_language` the same way.
+A hosted API such as Groq also needs a model. You can set it as `stt_model` here (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection page's **STT model** field, which overrides the file. To fix the spoken language, set `stt_language` the same way.
 
 The Connection page's **STT language** field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
 
 ## Keys
 
-`VITE_YUI_*_KEY` values are read from `.env.local`, which is gitignored, and this fallback applies to dev runs only. A release build reads only the keys entered in the settings window.
+`VITE_YUI_*_KEY` values are read from `.env.local`, which is gitignored. This fallback applies to dev runs only. A release build reads only the keys entered in the settings window.
 
 | Variable | Service | Where the panel field sits |
 | --- | --- | --- |
@@ -184,7 +205,9 @@ The Connection page's **STT language** field suggests Auto, English, and Japanes
 | `VITE_YUI_STT_KEY` | STT | **Listening and bubble**, **STT API key** |
 | `VITE_YUI_TTS_KEY` | TTS | **Connection**, **TTS API key** |
 
-The key set in the panel wins, and the environment value is the fallback used when the panel field is empty; YUI sends each key as `Authorization: Bearer`. The environment value is read at build time, so restart the dev server after editing it. Copy `.env.example` to `.env.local` to start.
+The key set in the panel wins. The environment value is the fallback, used when the panel field is empty. YUI sends each key as `Authorization: Bearer`.
+
+The environment value is read at build time, so restart the dev server after editing it. Copy `.env.example` to `.env.local` to start.
 
 ## Character
 
@@ -193,14 +216,14 @@ The key set in the panel wins, and the environment value is the fallback used wh
 - `vrm_url` is what the app loads at boot, and the bundled default is `/vrms/AvatarSample_A.vrm`.
 - `framing.margin` and `framing.fov` set the per-model framing.
 - `hit_test.alpha_threshold` sets the hit-test alpha threshold.
-- `tap.touch_cue_cooldown_ms` sets the gap between touch cues to the agent; the shipped value is `60000` ms, one cue a minute, shared by every touch region and the head pat.
-- Every tunable section in the file is required, because the client reads each value from it and fails the load naming any key the file leaves out.
+- `tap.touch_cue_cooldown_ms` sets the gap between touch cues to the agent. The shipped value is `60000` ms, one cue a minute, shared by every touch region and the head pat.
+- Every tunable section in the file is required. The client reads each value from it and fails the load, naming any key the file leaves out.
 
 `available` lists the models the Body page offers. Each entry has `id`, `label`, `url` and `source` (`"bundled"`), and `id` is limited to `[A-Za-z0-9._-]`.
 
-**Add from file…** on the Body page copies the file into the app data directory and adds it to the model list, so nothing in the repo changes.
+**Add from file…** on the Body page copies the file into the app data directory and adds it to the model list. Nothing in the repo changes.
 
-From the repo (`pnpm dev` or `pnpm tauri dev`), drop the file into `resources/vrms/`, which is gitignored except the bundled default, and Vite serves `/vrms/*` from there.
+From the repo (`pnpm dev` or `pnpm tauri dev`), drop the file into `resources/vrms/`. Vite serves `/vrms/*` from there. That folder is gitignored, except for the bundled default.
 
 Then set `vrm_url` to `/vrms/<file>.vrm` and add a matching `available` entry.
 
@@ -210,9 +233,9 @@ Then set `vrm_url` to `/vrms/<file>.vrm` and add a matching `available` entry.
 
 | Key | Shipped default | Purpose |
 | --- | --- | --- |
-| `summon_global` | `CmdOrCtrl+Shift+Y` | OS-wide shortcut: it brings the window forward and opens the text input from any app. An empty string disables it |
+| `summon_global` | `CmdOrCtrl+Shift+Y` | OS-wide: brings the window forward and opens the text input from any app |
 
-If another app holds the shortcut, registration fails and a notice names the accelerator.
+An empty string disables the shortcut. If another app holds the shortcut, registration fails and a notice names the accelerator.
 
 ## Filler
 
@@ -223,7 +246,7 @@ If another app holds the shortcut, registration fails and a notice names the acc
 - `long_wait_ms` (`40000`) is the silence before that long-wait line.
 - `pools` holds the default lines for each language (`ja`, `en`, `ko`): a first line, repeat lines, a long-wait line, per-tool lines with a `_default`, a timeout line and an unreachable line.
 
-The **Thinking interjections** section of the **Voice** page edits these lists per language, and an empty list uses the default from this file.
+The **Thinking interjections** section of the **Voice** page edits these lists per language. An empty list uses the default from this file.
 
 ## Screen watch
 
@@ -240,18 +263,18 @@ The **Thinking interjections** section of the **Voice** page edits these lists p
 
 ## Guardrails
 
-`configs/guardrails.json` holds the guardrails: per-source debounce, hourly caps and attachment limits. The **Limits** fields on the **Proactive** page override the caps, and an empty field uses the file.
+`configs/guardrails.json` holds the guardrails: per-source debounce, hourly caps and attachment limits. The **Limits** fields on the **Proactive** page override the caps. An empty field uses the file.
 
 | Setting | Shipped default | Meaning |
 | --- | --- | --- |
 | `rate_limit.window_ms` | `3600000` (1 h) | Length of the rolling window every cap counts in |
 | `rate_limit.tier2_max` | `24` | Cues per hour: proactive, schedule, agent, signal, milestone and addressed turns together |
-| `rate_limit.overall_max` | `40` | Total self-started turns per hour. Crossing it starts the cooldown |
+| `rate_limit.overall_max` | `40` | Total self-started turns per hour; crossing it starts the cooldown |
 | `rate_limit.urgent_max` | `120` | Urgent signal turns per hour. The cooldown never holds them |
 | `rate_limit.cooldown_ms` | `300000` (5 min) | How long every cue is held once `overall_max` is crossed |
 | `rate_limit.addressed_chain_max` | `2` | Answers to another character in a row, before you speak again |
 
-The **Proactive gap** on the same page sets the quiet gap after any turn before YUI speaks up on her own, and its default is `600000` ms (10 minutes). It is a device setting, `yui.proactive-pacer-gap`, not a key in this file.
+The **Proactive gap** on the same page sets the quiet gap after any turn before YUI speaks up on her own. Its default is `600000` ms (10 minutes). It is a device setting, `yui.proactive-pacer-gap`, not a key in this file.
 
 `debounce_ms` holds a per-source window: `5000` for `os_event_watcher`, `0` for `user_input_source`, and `5000` for `screen_watcher`. `attachments` caps one turn at `max_count` `6` images and `max_image_bytes` `5242880` (5 MiB) per image.
 
@@ -261,7 +284,7 @@ The loopback listener takes external signals and the avatar RPC routes.
 
 | Setting | Shipped default | Meaning |
 | --- | --- | --- |
-| **External signals** | off | Turns the listener on. A change applies at the next launch |
+| **External signals** | off | Turns the listener on; a change applies at the next launch |
 | **Listener port** | `8770` | Port the listener binds on loopback |
 | Request limits | Not configurable | 5 s to read the headers, 10 s to read the body, a 64 KiB body, and 64 connections at once |
 

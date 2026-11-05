@@ -1,6 +1,8 @@
 # Witness Log
 
-The witness log is a local record of which app the user has in front and when the machine goes idle. It holds transitions only, so a stable foreground app writes nothing; the Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) writes it on its 5-second poll.
+The witness log is a local record of which app the user has in front and when the machine goes idle. It holds transitions only, so a stable foreground app writes nothing.
+
+The Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) writes the log on its 5-second poll.
 
 ::: warning
 The log records app names and window titles, and keeps 14 days of them.
@@ -23,9 +25,9 @@ flowchart TB
 
 ## Location
 
-`<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl`; on macOS that is `~/Library/Application Support/com.yui.desktop/witness/`.
+`<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl`. On macOS that is `~/Library/Application Support/com.yui.desktop/witness/`.
 
-One file per calendar day in the `YUI_LOG_TZ` timezone, and files are retained 14 days, with older dated files pruned on rotation.
+There is one file per calendar day, in the `YUI_LOG_TZ` timezone. Files are retained 14 days. Older dated files are pruned on rotation.
 
 ## Format
 
@@ -46,7 +48,7 @@ JSONL: one JSON object per line.
 
 ### When a record is written
 
-A record appears only when the state changes; a stable foreground app writes nothing.
+A record appears only when the state changes. A stable foreground app writes nothing.
 
 | Record | Written when |
 |---|---|
@@ -58,16 +60,20 @@ Idle records carry the frontmost app and title read at the moment of the transit
 
 ## Platform notes
 
-The two platforms answer slightly different questions: macOS reports what sits in front, while Windows reports what holds focus.
+The two platforms answer slightly different questions. macOS reports what sits in front, while Windows reports what holds focus.
 
 | Platform | Frontmost source | Meaning |
 |---|---|---|
-| macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system helpers. Helpers are matched on the owner pid's executable base name (`WindowManager`, `Dock`, `ControlCenter`, `NotificationCenter`, `Spotlight`, `Screenshot`, `screencaptureui`), not on the localized display name | Topmost non-YUI, non-helper window |
+| macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system helpers (see below) | Topmost non-YUI, non-helper window |
 | Windows | `GetForegroundWindow()`; `app` is the owning process base name, without directory or `.exe` | Focused window, excluding YUI itself and shell chrome (desktop, taskbars) |
 | other | none | No records |
 
-macOS window titles require the Screen Recording permission. Without it, `window_title` is `null` and records carry the app alone.
+On macOS, helpers are matched on the owner pid's executable base name, not on the localized display name. The helpers are `WindowManager`, `Dock`, `ControlCenter`, `NotificationCenter`, `Spotlight`, `Screenshot`, and `screencaptureui`.
+
+macOS window titles require the Screen Recording permission. Without it, `window_title` is `null`, and records carry the app alone.
 
 ## Privacy
 
-Window titles can contain sensitive text: document names, page titles, chat partners. The log stays on the local machine, is written by the client only, and expires with the 14-day retention; `witness/` is git-ignored so the records can never be committed.
+Window titles can contain sensitive text: document names, page titles, chat partners.
+
+The log stays on the local machine. Only the client writes it, and it expires with the 14-day retention. `witness/` is git-ignored, so the records can never be committed.

@@ -1,6 +1,8 @@
 # YUI Logging Convention
 
-This page is the logging convention for the client, covering all TypeScript in `src/` and all Rust in `src-tauri/src/`, with a table of namespaces, events, fields and levels for each area. Read it when you add a log line, or when you need to know which module wrote one and at which level.
+The logging convention covers all TypeScript in `src/` and all Rust in `src-tauri/src/`. Each area has its own table of namespaces, events, fields, and levels.
+
+Read it when you add a log line, or when you need to know which module wrote one and at which level.
 
 ::: warning
 The message is an event name such as `backend_call`. Fields carry the detail.
@@ -10,13 +12,15 @@ The message is an event name such as `backend_call`. Fields carry the detail.
 
 - Every log line goes through the project logger: `createLogger(namespace)` from `src/logger.ts` in TypeScript, the `log` crate macros (`log::info!`, etc.) in Rust. Raw `console.*`, `println!`, and `eprintln!` are forbidden.
 - The message is a stable event name: `snake_case`, no spaces, present-tense identifier (e.g. `backend_call`, `vrm_loaded`, `state_change`). `pnpm logger:check` (CI) refuses any other shape.
-- Context is a single structured object of named fields, not interpolated prose, and errors are carried as `error: String(err)` (TypeScript).
-- Messages and field values use English; a free-text sentence never takes the message position, because the fields carry the detail.
+- Context is a single structured object of named fields, not interpolated prose. Errors are carried as `error: String(err)` (TypeScript).
+- Messages and field values use English. A free-text sentence never takes the message position, because the fields carry the detail.
 - Failure variants use a dotted sub-event name (e.g. `tier1.render_error`, `backend_call.unexpected_error`).
 
 ## Namespaces
 
-Namespaces are `kebab-case` and flat, with one logger per module, and each namespace matches its module's file name. A namespace may differ from its file name only in the file that `KNOWN` in `scripts/ci/logger-namespace.mjs` pairs it with.
+Namespaces are `kebab-case` and flat, with one logger per module. Each namespace matches its module's file name.
+
+A namespace may differ from its file name only in the file that `KNOWN` in `scripts/ci/logger-namespace.mjs` pairs it with.
 
 | File | Namespace |
 |---|---|
@@ -44,9 +48,9 @@ Namespaces are `kebab-case` and flat, with one logger per module, and each names
 
 ## Drop events
 
-`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs a `drop` line for every trigger it
-holds back or supersedes before its backend call, and for every backend call that failed.
-Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs a `drop` line for every trigger it holds back or supersedes before its backend call. It also logs one for every backend call that failed. Fields: `event_name`, `reason`, `seq_id`.
+
+The level comes from the reason:
 
 | `reason` | Level | When |
 |---|---|---|
@@ -66,9 +70,7 @@ Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
 
 ### Hook failure
 
-`dispatcher/dispatcher.ts` (namespace `dispatcher`) also logs `turn_hook_failed` at `warn`, with
-the field `error`, when an `onTurnClosed` subscriber throws: the turn summary was already logged
-and the pump goes on.
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) also logs `turn_hook_failed` at `warn`, with the field `error`. It does so when an `onTurnClosed` subscriber throws. The turn summary is logged before the hook runs, and the pump goes on.
 
 ## Relation events
 
@@ -76,17 +78,25 @@ and the pump goes on.
 
 | Event | Fields | When |
 |---|---|---|
-| `relation_rated` | `target`, `delta`, `band`, `clamped` | A `rate_relation` call reached the store. `target` is `user` or a preset id, `delta` the change applied after the daily cap and the range, `band` the band after it. |
+| `relation_rated` | `target`, `delta`, `band`, `clamped` | A `rate_relation` call reached the store. See the field notes below. |
 | `relations_replaced` | `targets` | An ingress `PUT /relations` replaced the window's store; `targets` lists its keys. |
-| `relation_set` | `target`, `value`, `band` | The user released a Relations slider at a value other than the stored one. `value` is the slider's value, `band` the band the store holds after the set. |
+| `relation_set` | `target`, `value`, `band` | The user released a Relations slider at a value other than the stored one. See the field notes below. |
 | `relations_toggle` | `enabled` | The user flipped the Relations switch. |
+
+Field notes for `relation_rated`:
+
+- `target` is `user` or a preset id.
+- `delta` is the change applied after the daily cap and the range.
+- `band` is the band after it.
+
+Field notes for `relation_set`:
+
+- `value` is the slider's value.
+- `band` is the band the store holds after the set.
 
 ## Addressed events
 
-`io/chat/tools/address-character.ts` (namespace `address-character`),
-`dispatcher/sources/addressed/addressed-producer.ts` (namespace `addressed-producer`), and
-`dispatcher/sources/addressed/addressed-source.ts` (namespace `addressed-source`) log at
-`info`.
+`io/chat/tools/address-character.ts` (namespace `address-character`), `dispatcher/sources/addressed/addressed-producer.ts` (namespace `addressed-producer`), and `dispatcher/sources/addressed/addressed-source.ts` (namespace `addressed-source`) log at `info`.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -102,7 +112,9 @@ and the pump goes on.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `routed-user-source` | `fire` | `mention` | The routed source submitted a user turn for a message the unified chat window sent to this preset. `mention` is `character`, `everyone` or `none`. |
+| `routed-user-source` | `fire` | `mention` | The routed source submitted a user turn for a message the unified chat window sent to this preset. |
+
+`mention` is `character`, `everyone` or `none`.
 
 ## Unified chat window
 
@@ -120,11 +132,17 @@ These modules log at `info` unless a row says otherwise:
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `unified-view` | `route` | `targets`, `mention`, `via` | The window sent a message. `targets` is how many presets it goes to, `mention` is `character`, `everyone` or `none`, `via` is `text` or `voice`. |
+| `unified-view` | `route` | `targets`, `mention`, `via` | The window sent a message. See the field notes below. |
 | `unified-view` | `stop` | none | The user pressed stop: the window dropped its sends and lines and asked every pet window to stop. |
 | `unified-voice` | `barge_in_all` | none | The user started speaking, with barge-in on, while the unified chat window shows: main told that window speech started. |
 | `unified-voice` | `segment_to_unified` | none | Main sent a recognized segment to the unified chat window. |
 | `sequence` | `sequence_timeout` | `preset` | A preset gave no done signal for the current send in 60 seconds, so the sequence moved on. |
+
+Field notes for `route`:
+
+- `targets` is how many presets the message goes to.
+- `mention` is `character`, `everyone` or `none`.
+- `via` is `text` or `voice`.
 
 ### Window lifecycle
 
@@ -140,14 +158,16 @@ These modules log at `info` unless a row says otherwise:
 |---|---|---|---|
 | `quick-controls`, `quick-card` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or tile. |
 | `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
-| `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
+| `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. |
+
+A `character_desktop_toggle` turn-on that the open-preset cap refused logs nothing.
 
 ### Photos
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `quick-controls` | `photo_crop_saved` | `preset` | The photo dialog's Use photo stored the preset's crop. |
-| `quick-controls` | `photo_default_framed` | `preset` | A picked photo's default framing was stored once its size was measured. |
+| `quick-controls` | `photo_default_framed` | `preset` | A picked photo's default framing is stored once its size is measured. |
 
 ## Companion column windows
 
@@ -161,7 +181,9 @@ These modules log at `info` unless a row says otherwise:
 
 ## Quick-card window
 
-`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window through `io/window/openers/ready-window.ts` (namespace `ready-window`). The modules below run in the quick-card window. All modules in this section, `quick-card-window` and `ready-window` included, log at `info` unless a row says otherwise.
+`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window through `io/window/openers/ready-window.ts` (namespace `ready-window`).
+
+The modules below run in the quick-card window. All modules in this section, `quick-card-window` and `ready-window` included, log at `info` unless a row says otherwise.
 
 - `windows/quick-card-main.ts` (namespace `quick-card-main`) boots it.
 - `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
@@ -210,7 +232,9 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 ## Threads window
 
-`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` runs in both windows and reads its snapshots through `io/snapshot-feed/`, which logs as namespace `snapshot-feed`. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-placement.ts` places and drags it and saves its frame.
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` runs in both windows and reads its snapshots through `io/snapshot-feed/`, which logs as namespace `snapshot-feed`.
+
+The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-placement.ts` places and drags it and saves its frame.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -231,7 +255,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `threads-placement` | `threads_move_save_failed` | `error` | Reading the window's position after a move threw; the move is not saved (`warn` level). |
 | `threads-resize` | `threads_resize_failed` | `error` | Reading the window's frame or applying a resize step threw; the resize saves only what was applied (`warn` level). |
 
-## TypeScript Usage
+## TypeScript usage
 
 ```ts
 import { createLogger } from "../logger";
@@ -244,9 +268,9 @@ log.warn("mouth_expression_missing", { key });
 
 The second argument is a plain object of named fields, so do not interpolate values into the message string.
 
-## Rust Usage
+## Rust usage
 
-The `log` crate is format-string based (no kv feature enabled), so the message leads with the `snake_case` event name and context follows as `field=value` pairs in the format string.
+The `log` crate is format-string based (no kv feature enabled), so the message leads with the `snake_case` event name. Context follows as `field=value` pairs in the format string.
 
 ```rust
 log::warn!("start_dragging_failed error={e}");
@@ -259,6 +283,8 @@ Level semantics are identical to TypeScript.
 The Rust logger has no kv feature. Pass context as `field=value` pairs inside the format string.
 :::
 
-## `console.*` Gate
+## `console.*` gate
 
-Raw `console.*` is forbidden in `src/`, and a Biome `noConsole` lint rule enforces it, with exemptions for `src/logger.ts`, `scripts/**`, and `src/**/*.live.test.ts`. The `lint` CI job (`pnpm lint`) fails any other violation.
+Raw `console.*` is forbidden in `src/`. A Biome `noConsole` lint rule enforces it, with exemptions for `src/logger.ts`, `scripts/**`, and `src/**/*.live.test.ts`.
+
+The `lint` CI job (`pnpm lint`) fails any other violation.

@@ -6,7 +6,7 @@ Install YUI from a release build, with a coding agent, or from source.
 
 1. **From a release build.** Each release on the [Releases page](https://github.com/yw0nam/YUI/releases) carries a build: `.dmg` for macOS on Apple Silicon, and `.msi` or `-setup.exe` for Windows x64. The macOS build is signed ad hoc, so allow the first launch once under System Settings → Privacy & Security → Open Anyway.
 
-2. **With a coding agent.** Paste this into Claude Code, Codex, OpenCode, or Cursor, and the agent follows [Install with a coding agent](install.md).
+2. **With a coding agent.** Paste this into Claude Code, Codex, OpenCode, or Cursor. The agent follows [Install with a coding agent](install.md).
 
    ```text
    Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
@@ -24,11 +24,13 @@ Install YUI from a release build, with a coding agent, or from source.
 
 ## First launch
 
-With no chat connected, she says so, and **Connect** opens Quick start. Quick start takes a free Google Gemini key to the first greeting.
+With no chat connected, she says so, and **Connect** opens Quick start. Quick start gets you from a free Google Gemini key to the first greeting.
 
 ## Load your own VRM model
 
-One VRM model ships with the app, `AvatarSample_A.vrm`. To use another VRM 1.0 or 0.x model, open the **Body** page and use **Add from file…** under VRM. **Find models on VRoid Hub** below it opens VRoid's official sample models in your browser; download a `.vrm` there and add it the same way.
+One VRM model ships with the app: `AvatarSample_A.vrm`. To use another VRM 1.0 or 0.x model, open the **Body** page and use **Add from file…** under VRM.
+
+**Find models on VRoid Hub** sits below it. It opens VRoid's official sample models in your browser. Download a `.vrm` file there and add it the same way.
 
 ## Next
 

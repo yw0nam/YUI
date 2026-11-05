@@ -194,8 +194,8 @@ onMounted(() => {
       <section class="sec" aria-labelledby="need-heading">
         <h2 class="h2" id="need-heading">What you need</h2>
         <p class="sub">
-          One required piece, and it ships in the repo. Add a brain and a voice
-          when you are ready.
+          The repo ships the one required piece. Add a brain and a voice when
+          you are ready.
         </p>
         <div class="req">
           <b>Required</b>
