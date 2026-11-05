@@ -23,6 +23,7 @@ import { threadsWaitingProvider } from "../io/threads/threads-waiting";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createUnifiedWindowController } from "../io/window/openers/unified-window";
+import { createCursorSource } from "../io/window/pet/cursor-source";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
@@ -40,7 +41,7 @@ import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
-import { wireCursorStage } from "./stage/wire-stage";
+import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
@@ -287,13 +288,17 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(screenSource.stop);
     register(addressedSource.stop);
     register(routedUserSource.stop);
-    const hitTest = wireCursorStage({
+    const cursor = createCursorSource({
+      getIntervalMs: () => config.get().avatar.hit_test.poll_interval_ms,
+    });
+    const hitTest = wireHitTest({
       root,
       renderer,
+      cursor,
       getConfig: () => config.get().avatar.hit_test,
-      gazeSettings,
-      register,
     });
+    register(hitTest.stop);
+    wireGaze({ renderer, gazeSettings, cursor, register });
 
     // The saved geometry applies before the faller places the window.
     const windowGeometry = await wireWindowGeometry({ register });

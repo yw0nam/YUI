@@ -1,22 +1,19 @@
 /** Wiring bound to the stage element and the renderer's view of it. */
 
 import type { HitTestKnobs } from "../../config/validators/avatar/types";
-import { createCursorSource } from "../../io/window/pet/cursor-source";
+import type { CursorSource } from "../../io/window/pet/cursor-source";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
 
-/** One cursor source feeds the click-through hit-test and, while gaze is on, the gaze cursor. */
-export function wireCursorStage(deps: {
+export function wireHitTest(deps: {
   root: HTMLElement;
-  renderer: Pick<Renderer, "hitTest" | "setGazeEnabled" | "setGazeCursor">;
+  renderer: Pick<Renderer, "hitTest">;
+  cursor: CursorSource;
   getConfig: () => HitTestKnobs;
-  gazeSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
-  register: (teardown: () => void) => void;
 }): HitTestController {
-  const { root, renderer, getConfig, gazeSettings, register } = deps;
-  const cursor = createCursorSource({ getIntervalMs: () => getConfig().poll_interval_ms });
+  const { root, renderer, cursor, getConfig } = deps;
   const interactiveRects = (): DOMRect[] => {
     const rects: DOMRect[] = [];
     for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
@@ -41,8 +38,16 @@ export function wireCursorStage(deps: {
     getConfig,
   });
   hitTest.start();
-  register(hitTest.stop);
+  return hitTest;
+}
 
+export function wireGaze(deps: {
+  renderer: Pick<Renderer, "setGazeEnabled" | "setGazeCursor">;
+  gazeSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
+  cursor: Pick<CursorSource, "subscribe">;
+  register: (teardown: () => void) => void;
+}): void {
+  const { renderer, gazeSettings, cursor, register } = deps;
   let stopGaze: (() => void) | null = null;
   const applyGazeEnabled = (enabled: boolean): void => {
     renderer.setGazeEnabled(enabled);
@@ -57,5 +62,4 @@ export function wireCursorStage(deps: {
   applyGazeEnabled(gazeSettings.get().enabled);
   register(() => stopGaze?.());
   register(gazeSettings.subscribe((state) => applyGazeEnabled(state.enabled)));
-  return hitTest;
 }
