@@ -34,6 +34,7 @@ describe("perch-watch — adopted sit", () => {
       invoke,
       getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
       peekActive: () => false,
+      follow: { start: vi.fn(), stop: vi.fn() },
       setInterval,
       clearInterval,
     });

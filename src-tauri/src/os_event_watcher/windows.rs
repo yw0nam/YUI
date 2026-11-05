@@ -463,6 +463,14 @@ mod tests {
         assert_eq!(p.window_number, 42);
     }
 
+    // ── hwnd_from_number (u32 window number → sign-extended handle value) ────
+
+    #[test]
+    fn hwnd_from_number_sign_extends_the_32_bit_handle() {
+        assert_eq!(hwnd_from_number(0x0001_0002), 0x10002);
+        assert_eq!(hwnd_from_number(0xFFFF_FFF0), -16);
+    }
+
     // ── filter_foreign (pure own-pid filter, order-preserving) ──────────────
 
     fn win(pid: i32) -> PhysicalWindow {

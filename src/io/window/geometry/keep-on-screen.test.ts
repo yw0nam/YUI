@@ -211,7 +211,7 @@ describe("attachKeepOnScreen", () => {
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
-    handle.setPaused(true);
+    handle.setPaused("travel", true);
     pos = { x: 1800, y: 400 }; // back off-screen
     onMovedCb();
     await vi.advanceTimersByTimeAsync(IDLE_MS);
@@ -226,7 +226,7 @@ describe("attachKeepOnScreen", () => {
 
     pos = { x: 1800, y: 400 }; // back off-screen
     onMovedCb(); // schedules the debounced evaluation
-    handle.setPaused(true);
+    handle.setPaused("travel", true);
     await vi.advanceTimersByTimeAsync(IDLE_MS);
 
     expect(win.setPositionPhysical).not.toHaveBeenCalled();
@@ -248,7 +248,7 @@ describe("attachKeepOnScreen", () => {
     onMovedCb();
     await vi.advanceTimersByTimeAsync(IDLE_MS); // fires evaluate(), which awaits listMonitors()
 
-    handle.setPaused(true);
+    handle.setPaused("travel", true);
     resolveMonitors([LEFT]);
     for (let i = 0; i < 10; i++) await Promise.resolve();
 
@@ -260,11 +260,29 @@ describe("attachKeepOnScreen", () => {
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
-    handle.setPaused(true);
+    handle.setPaused("travel", true);
     pos = { x: 1800, y: 400 }; // back off-screen, while paused
-    handle.setPaused(false);
+    handle.setPaused("travel", false);
     await vi.runOnlyPendingTimersAsync();
 
+    expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
+  });
+
+  it("evaluates only when the last of two holders releases", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    handle.setPaused("travel", true);
+    handle.setPaused("perch_follow", true);
+    pos = { x: 1800, y: 400 }; // off-screen, while paused
+    handle.setPaused("travel", false);
+    await vi.runOnlyPendingTimersAsync();
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+
+    handle.setPaused("perch_follow", false);
+    await vi.runOnlyPendingTimersAsync();
     expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
     expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
   });

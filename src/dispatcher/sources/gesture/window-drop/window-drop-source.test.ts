@@ -24,8 +24,27 @@ import {
 } from "./window-drop-source";
 
 function createWindowDropSource(
-  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer" | "sitDown"> &
-    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "sitDown">> & {
+  deps: Omit<
+    WindowDropSourceDeps,
+    | "getPeekConfig"
+    | "getGestureCues"
+    | "renderer"
+    | "sitDown"
+    | "windowBounds"
+    | "listMonitors"
+    | "setGuardPaused"
+  > &
+    Partial<
+      Pick<
+        WindowDropSourceDeps,
+        | "getPeekConfig"
+        | "getGestureCues"
+        | "sitDown"
+        | "windowBounds"
+        | "listMonitors"
+        | "setGuardPaused"
+      >
+    > & {
       renderer: Omit<WindowDropSourceDeps["renderer"], "setPerchTarget"> &
         Partial<Pick<WindowDropSourceDeps["renderer"], "setPerchTarget">>;
     },
@@ -37,6 +56,10 @@ function createWindowDropSource(
     getGestureCues: deps.getGestureCues ?? (() => CUES),
     // The sit-down lands at once unless a test holds it.
     sitDown: deps.sitDown ?? (async () => "done" as const),
+    // Off unless a test follows a host: no bounds read, no monitors, nothing to pause.
+    windowBounds: deps.windowBounds ?? (async () => null),
+    listMonitors: deps.listMonitors ?? (async () => []),
+    setGuardPaused: deps.setGuardPaused ?? (() => {}),
   });
 }
 
@@ -1425,15 +1448,13 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
   });
 
-  it("the armed window moving more than MOVE_TH detaches after 2 ticks (moved)", async () => {
+  it("the armed window moving more than MOVE_TH does not detach the sit", async () => {
     const { invoke, armed } = await armAbove();
 
     // Window slides down 40px (> MOVE_TH=12) from its arm-time y=412.
     invoke.mockImplementation(async () => [{ ...armed, y: armed.y + 40 }]);
-    await tick(); // lostStreak = 1 → ambiguous, no exit yet.
+    for (let i = 0; i < 6; i++) await tick();
     expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
-    await tick(); // lostStreak = 2 → detach.
-    expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
   });
 
   it("a window above that covers the seat detaches after 2 ticks (covered)", async () => {
@@ -2082,10 +2103,11 @@ describe("window-drop-source — host loss fall", () => {
     expect(onSitLost).toHaveBeenCalledTimes(1);
   });
 
-  it("falls after the exit when the host moved past the debounce", async () => {
+  it("falls after the exit when a moved host ends up covered", async () => {
     const { invoke, armed, onSitLost, order } = await armSit();
+    const cover = win({ name: "Cover", windowNumber: 99, y: 360, height: 200 });
 
-    invoke.mockImplementation(async () => [{ ...armed, y: armed.y + 40 }]);
+    invoke.mockImplementation(async () => [cover, { ...armed, y: armed.y + 40 }]);
     await tick();
     expect(onSitLost).not.toHaveBeenCalled();
     await tick();
