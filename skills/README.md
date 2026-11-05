@@ -1,0 +1,12 @@
+# Skills
+
+A skill teaches the agent behind a character a new job, written as a `SKILL.md` the agent reads when the job comes up. Skills belong to the brain, not to the app: install one in the agent you connected, such as [Hermes Agent](../integrations/hermes/README.md), for example by copying its folder into the agent's skills folder.
+
+| Skill | What it teaches |
+| --- | --- |
+| [yui-daily-briefing](yui-daily-briefing/SKILL.md) | Speak a daily briefing on the first activity of the day or on request, and build the scheduled producers that write it. |
+| [yui-wake-character](yui-wake-character/SKILL.md) | Wake one character, not the default one, from a backend agent, a scheduler, a webhook, or a script. |
+| [rimworld-companion](rimworld-companion/SKILL.md) | Watch a RimWorld colony beside the player, pick which events to bring up, and comment on how the colony is doing. |
+| [yui-plugin](yui-plugin/SKILL.md) | Build a YUI plugin, then contribute it to the Catalog or this repository. A coding agent reads this one ([Write a plugin](../docs/guide/write-a-plugin.md)). |
+
+A plugin can ship its own skills too: the [factorio](../plugins/factorio/README.md) plugin carries its companion skill, and [yui-notify](../plugins/yui-notify/README.md) carries one that builds a Thread producer for any source.

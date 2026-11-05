@@ -56,27 +56,17 @@ Her brain picks an expression, a gesture, and a tone of voice for each reply, so
 
 She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 
-### She looks things up in your browser
-
-<a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="The user asks Yangyang in the chat window to search for yw0nam/YUI; ego lite opens the Google results beside her, and she answers that she found the GitHub project" width="560"></a>
-
-Install the official `browser` plugin from the [Plugins page](docs/guide/plugins.md) and turn it on, and she searches the web and opens pages in [ego lite](plugins/browser/README.md), then tells you what she found. ego lite is the only supported browser.
-
 ### Several characters, one conversation
 
 Each character keeps her own brain, persona, voice, VRM model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
 
 <a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="Yangyang and Suisui stand on the desktop beside a browser page; the user asks both of them to look themselves up, and each answers in turn in the chat window" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="In the chat window, Yangyang passes the user's question to Suisui, and Suisui answers her" width="400"></a>
 
-### Read your coding agent's Threads
+### Plugins and skills
 
-The [yui-notify](plugins/yui-notify/README.md) plugin posts Claude Code and Codex conversations as Threads without character speech. You answer them in YUI's Threads window: Codex takes answers through synchronous hooks, and Claude Code through its own inbox socket, with no launch flag. Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
+Plugins give her new tools, such as a browser she looks things up in, and bring your coding agent's conversations to her as Threads you answer. Skills teach her brain new jobs, such as a daily briefing. See [Plugins](plugins/README.md) and [Skills](skills/README.md).
 
-### Answer her backend, and share a terminal
-
-With a push backend, an approval or a question waits above the text input as a card, and you answer with one choice or several. Type `/` to run the backend's commands, such as `/status`. The **Terminal** tab in the Threads window opens shells on this device: the backend's first read or write on a terminal waits for your **Allow**, which lasts until you choose **Take back**.
-
-**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, plugins you install from a catalog, a text size setting, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Ask cards and `/` commands from an agent brain, a terminal you share with it, a text size setting, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
@@ -88,8 +78,8 @@ YUI ships no model of its own. Choose the brain by what it can do.
 
 | Brain | What you get |
 | --- | --- |
-| **Any OpenAI-compatible endpoint** (OpenAI · Ollama · LM Studio · Groq · Google Gemini · your own endpoint) | Chat, persona text you write in the app, and expression with a tool-calling model. Voice and speech recognition are separate connections. |
-| **An automation agent with memory and the push transport** | Turns the backend starts on its own, long-term memory the agent keeps, and delegation status when the backend reports it. Recommended for the full feature set. Worked example: [Hermes Agent](integrations/hermes/README.md). Other agents connect through the [push contract](docs/reference/push-transport.md). |
+| **An open-source agent** (recommended) | Memory, its own persona, chat-history search, and much more come with the agent. Recommended for your waifu. Worked example: [Hermes Agent](integrations/hermes/README.md); other agents connect through the [push contract](docs/reference/push-transport.md). |
+| **Any OpenAI-compatible endpoint** | Light and quick to start: chat, persona text you write in the app, and expressions with a tool-calling model. Not enough for everything YUI can do: memory, turns the brain starts on its own, Ask cards, and backend commands need an agent. |
 
 Pick each provider in **Settings → Connection**.
 
