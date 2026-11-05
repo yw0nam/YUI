@@ -40,7 +40,7 @@ import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
-import { wireGaze, wireHitTest } from "./stage/wire-stage";
+import { wireCursorStage } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
@@ -287,13 +287,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(screenSource.stop);
     register(addressedSource.stop);
     register(routedUserSource.stop);
-    const hitTest = wireHitTest({
+    const hitTest = wireCursorStage({
       root,
       renderer,
       getConfig: () => config.get().avatar.hit_test,
+      gazeSettings,
+      register,
     });
-    register(hitTest.stop);
-    wireGaze({ renderer, gazeSettings, register });
 
     // The saved geometry applies before the faller places the window.
     const windowGeometry = await wireWindowGeometry({ register });
