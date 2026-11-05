@@ -4,7 +4,7 @@
 
 **Make your own waifu live on your desktop.**
 
-*Not a chatbot in a tab. A character who is actually there — standing on your window, watching the cursor, talking when she has something to say.*
+*Not a chatbot in a tab. A character who is actually there: standing on your window, watching the cursor, talking when she has something to say.*
 
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-yw0nam.github.io%2FYUI-8A63D2)](https://yw0nam.github.io/YUI/)
@@ -21,7 +21,7 @@
 - **You choose her brain.** A local model, a hosted API, or your own agent thinks for her. You write her persona text in the app, or your agent brings its own; the brain decides what she says.
 - **She speaks first, with restraint.** She greets you, checks in when you go quiet, and notices what you are doing, then stays silent when there is nothing worth saying.
 
-*Named after [Yui from* Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to.*
+_Named after [Yui from *Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to._
 
 ## Quickstart
 
@@ -34,7 +34,9 @@ You need a Mac with Apple Silicon or a Windows x64 PC. You do not need a termina
 
 Prefer to let a coding agent install it, or to build from source? See [Install](docs/guide/installation.md).
 
-To use another model or server, open **Detailed settings** on the same page (right-click her and choose **All settings…**, then **Connection**). To talk by voice, set up speech recognition and a voice provider there, then choose her voice in **Settings → Voice**. Chat Completions needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI or `llama-3.3-70b-versatile` on Groq.
+- To use another model or server, open **Detailed settings** on the same page (right-click her and choose **All settings…**, then **Connection**).
+- To talk by voice, set up speech recognition and a voice provider there. Then choose her voice in **Settings → Voice**.
+- On a Chat Completions server, use a model with tool-calling support, for example `gpt-5-mini` on OpenAI or `llama-3.3-70b-versatile` on Groq.
 
 ## What she does
 
@@ -58,15 +60,23 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 ### Several characters, one conversation
 
-Each character keeps her own brain, persona, voice, VRM model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
+Each character keeps her own brain, persona, voice, VRM model, and history. Up to four can share your desktop.
+
+One chat window holds the conversation and shows one line at a time. Pick who you are talking to, everyone at once, or type `@name`. Your voice goes to the same pick. They can also pass your message on to each other.
 
 <a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="Yangyang and Suisui stand on the desktop beside a browser page; the user asks both of them to look themselves up, and each answers in turn in the chat window" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="In the chat window, Yangyang passes the user's question to Suisui, and Suisui answers her" width="400"></a>
 
 ### Plugins and skills
 
-Plugins give her new tools, such as a browser she looks things up in, and bring your coding agent's conversations to her as Threads you answer. Skills teach her brain new jobs, such as a daily briefing. See [Plugins](plugins/README.md) and [Skills](skills/README.md).
+Plugins give her new tools, such as a browser she looks things up in, and bring your coding agent's conversations into YUI as Threads you answer. Skills teach her brain new jobs, such as a daily briefing. See [Plugins](plugins/README.md) and [Skills](skills/README.md).
 
-**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Ask cards and `/` commands from an agent brain, a terminal you share with it, a text size setting, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+And more:
+
+- Characters: your own VRM model, Tavern Card import and export, how each feels about you and the others.
+- Chat: voice you can interrupt, image attachments, a chat history, a Quick card on right-click, Ask cards and `/` commands from an agent brain.
+- App: a terminal you share with your agent (its first read or write asks for your Allow), tools it can use on your computer, text size, Dawn and Hearth themes, English, Japanese and Korean UI.
+
+See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
@@ -76,10 +86,19 @@ YUI is the body; the model or agent you plug in is the brain. YUI notices what h
 
 YUI ships no model of its own. Choose the brain by what it can do.
 
-| Brain | What you get |
-| --- | --- |
-| **An open-source agent** (recommended) | Memory, its own persona, chat-history search, and much more come with the agent, so we recommend it for your waifu. Today YUI supports [Hermes Agent](integrations/hermes/README.md). Another agent can join by implementing the [push contract](docs/reference/push-transport.md). |
-| **Any OpenAI-compatible endpoint** | Light and quick to start: chat, persona text you write in the app, and expressions with a tool-calling model. Not enough for everything YUI can do: memory, turns the brain starts on its own, Ask cards, and backend commands need an agent. |
+### An open-source agent (recommended)
+
+Memory, its own persona, chat-history search, and much more come with the agent. That is why we recommend it for your waifu.
+
+Today YUI supports [Hermes Agent](integrations/hermes/README.md). Another agent can join by implementing the [push contract](docs/reference/push-transport.md).
+
+### Any OpenAI-compatible endpoint
+
+It is light and quick to start. You get chat, persona text you write in the app, and expressions with a tool-calling model.
+
+It is not enough for everything YUI can do. Memory needs an agent. Turns the brain starts on its own, Ask cards, and backend commands also need that agent to speak push.
+
+### Providers
 
 Pick each provider in **Settings → Connection**.
 
@@ -125,8 +144,7 @@ The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missi
 
 ## Known limitations
 
-- Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
-- [Install](docs/guide/installation.md) covers the installers, the coding-agent route, and building from source.
+- Intel Macs and Linux are not officially supported.
 - Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 
@@ -166,40 +184,18 @@ The demo videos and GIFs use other VRM models and voices, which YUI does not inc
 
 The motion assets (`public/motions/*.vrma`) come from three sources.
 
-Most clips are extracted from the
-[Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny, used
-under Mate Engine's non-commercial terms: free for personal, study, and
-non-revenue use with attribution to Shiny; commercial use requires separate
-permission from Shiny.
+Most clips are extracted from the [Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny, used under Mate Engine's non-commercial terms: free for personal, study, and non-revenue use with attribution to Shiny; commercial use requires separate permission from Shiny.
 
-The `sulk` clip (`suneru.vrma`) is from necocoya's
-[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) (Unity Humanoid
-`06_suneru`, 拗ね = sulk/pout), attribution to necocoya. Modification, conversion,
-and bundling-with-credit are permitted; standalone resale of the raw file is
-prohibited.
+The `sulk` clip (`suneru.vrma`) is from necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) (Unity Humanoid `06_suneru`, 拗ね = sulk/pout), attribution to necocoya. Modification, conversion, and bundling-with-credit are permitted; standalone resale of the raw file is prohibited.
 
-The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set
-(`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down`
-and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under
-the Mixamo terms.
+The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down` and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under the Mixamo terms.
 
-The bundled default VRM model
-(`resources/vrms/AvatarSample_A.vrm`) is **AvatarSample_A**, a sample model of
-[VRoid Studio](https://vroid.com/en/studio) by pixiv Inc., distributed under
-pixiv's [AvatarSample conditions of use](https://vroid.pixiv.help/hc/ja/articles/4402394424089).
-It is not CC0; no credit is required —
-see
-[`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)
-for the full notice.
+The bundled default VRM model (`resources/vrms/AvatarSample_A.vrm`) is **AvatarSample_A**, a sample model of [VRoid Studio](https://vroid.com/en/studio) by pixiv Inc., distributed under pixiv's [AvatarSample conditions of use](https://vroid.pixiv.help/hc/ja/articles/4402394424089). It is not CC0; no credit is required. See [`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md) for the full notice.
 
 </details>
 
 ## License
 
-YUI is source-available. Its source code is licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE) — free for noncommercial use,
-modification, and redistribution with attribution. **Commercial use requires
-permission from the author** ([https://github.com/yw0nam](https://github.com/yw0nam)).
+YUI is source-available. Its source code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for noncommercial use, modification, and redistribution with attribution. **Commercial use requires permission from the author** ([https://github.com/yw0nam](https://github.com/yw0nam)).
 
-The bundled motion assets (`public/motions/*.vrma`) are **not** covered by this
-license; each follows its original author's terms — see [Credits](#credits) above.
+The bundled motion assets (`public/motions/*.vrma`) are **not** covered by this license. Each follows its original author's terms. See [Credits](#credits) above.
