@@ -461,10 +461,10 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     await collect(streamChat(CONFIG, req(), { tools: registry }));
 
     const [first, second, next] = ccCreateMock.mock.calls.map(([body]) => body.user);
-    expect(first).toEqual(expect.any(String));
-    expect(first).not.toBe("");
+    const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+    expect(first).toMatch(uuid);
     expect(second).toBe(first);
-    expect(next).toEqual(expect.any(String));
+    expect(next).toMatch(uuid);
     expect(next).not.toBe(first);
   });
 

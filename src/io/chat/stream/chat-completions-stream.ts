@@ -96,8 +96,7 @@ export async function* streamChatCompletions(
     });
   }
 
-  // A backend that keys an agent session on `user` continues the turn's tool loop; one id per turn
-  // because the client transcript holds the conversation.
+  // One id per turn: a backend that keys a session on user continues the tool loop; the transcript stays the client's.
   const user = crypto.randomUUID();
 
   for (let trips = 0; ; ) {

@@ -134,8 +134,7 @@ export async function* streamResponses(
     ? request.instructions
     : config.chat_instructions;
   const toolDefs = toResponsesTools(tools);
-  // ChatRequest.input is deliberately unknown (OpenAI-compatible input, caller encodes) — inputItems
-  // narrows it to the items the SDK expects.
+  // inputItems narrows the caller-encoded input to the SDK's items.
   let input = inputItems(request.input);
 
   // State of the response being read; reset per request.

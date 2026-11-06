@@ -170,7 +170,7 @@ On Chat Completions an executed call goes back on the assistant message with its
 
 Chat Completions appends two things to the message array of the turn in flight: the assistant message carrying the response's spoken text as `content` beside the `tool_calls` (`content: null` when the response said nothing), and one `role: "tool"` message per call (`tool_call_id` and the result string). It then sends the whole array again with the same `tools[]`.
 
-Every request of the turn carries the same `user` value.
+On Chat Completions, every request of the turn carries the same `user` value.
 
 ```jsonc
 // request 1: messages + tools[]
