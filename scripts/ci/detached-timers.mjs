@@ -1,4 +1,4 @@
-// A timer function is called on its own or on `window`/`globalThis`/`self`, never as a method of
+// A timer function is called on its own or on `window`/`globalThis`, never as a method of
 // another object: WebKit throws "Can only call Window.setInterval on instances of Window" for
 // `deps.setInterval(...)`, and the fake timers of a unit test do not (#1916). Bind it to a local
 // first: `const setIntervalImpl = deps.setInterval;`. Exits 1 and lists each call.
@@ -15,18 +15,19 @@ const walk = (dir) => {
 };
 walk("src");
 
+// Across lines too: `deps\n  .setInterval(`, `deps!.setTimeout!(`, `deps.setTimeout?.(`.
 const CALL =
-  /([A-Za-z_$][\w$]*|\)|\])\s*(?:\?\.|\.)\s*(setInterval|setTimeout|clearInterval|clearTimeout)\s*(?:\?\.)?\(/g;
-const GLOBAL = new Set(["window", "globalThis", "self"]);
+  /([A-Za-z_$][\w$]*|\)|\])!?\s*\??\.\s*(setInterval|setTimeout|clearInterval|clearTimeout)\s*!?\s*(?:\?\.)?\(/g;
+const GLOBAL = new Set(["window", "globalThis"]);
 
 const bad = [];
 for (const file of files) {
-  const lines = readFileSync(file, "utf8").split("\n");
-  lines.forEach((line, i) => {
-    for (const m of line.matchAll(CALL)) {
-      if (!GLOBAL.has(m[1])) bad.push(`${file}:${i + 1}: ${line.trim()}`);
-    }
-  });
+  const text = readFileSync(file, "utf8");
+  for (const m of text.matchAll(CALL)) {
+    if (GLOBAL.has(m[1])) continue;
+    const line = text.slice(0, m.index).split("\n").length;
+    bad.push(`${file}:${line}: ${m[0].replace(/\s+/g, " ")}`);
+  }
 }
 if (bad.length) {
   console.error(
