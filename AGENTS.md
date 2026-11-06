@@ -55,6 +55,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Building a plugin for yourself, or contributing one** → `coding-agents/yui-dev/skills/yui-plugin/SKILL.md`
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
+- **Connecting OpenClaw as the backend, or repairing that connection** → `integrations/openclaw/skills/yui-openclaw-setup/SKILL.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `skills/yui-daily-briefing/SKILL.md`
 - **Waking one YUI character from a backend agent or producer** → `coding-agents/yui-dev/skills/yui-wake-character/SKILL.md`
 - **Building a Thread producer for any source (PRs, mail, …)** → `coding-agents/yui-notify/skills/thread-producer/SKILL.md`

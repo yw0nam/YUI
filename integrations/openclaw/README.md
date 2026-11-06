@@ -8,36 +8,11 @@
 
 Chat Completions also works. The client then sends the transcript each turn.
 
-## Gateway settings
+## Setup
 
-Both HTTP endpoints are off by default. Enable the one you use on the OpenClaw side:
+[skills/yui-openclaw-setup/SKILL.md](skills/yui-openclaw-setup/SKILL.md) walks through it step by step, each step ending on a check: the gateway endpoint, Code Mode off for the agent, the YUI connection settings, and the persona files. Follow it by hand, or hand it to a coding agent. Its symptom table maps a failing connection to the step that fixes it.
 
-```bash
-openclaw config set gateway.http.endpoints.responses.enabled true
-openclaw config set gateway.http.endpoints.chatCompletions.enabled true   # Chat Completions only
-```
-
-Turn [Code Mode](https://docs.openclaw.ai/tools/code-mode) off for the YUI agent:
-
-```bash
-openclaw config set agents.entries.<agentId>.tools.codeMode false
-```
-
-OpenClaw's default `auto` engages Code Mode for some models, Gemini 3.5 Flash Lite among them. With it on, the client tools' arguments arrive empty (`{}`).
-
-## YUI settings
-
-In **Settings → Connection**, pick Provider **Custom** and fill:
-
-| Field | Value |
-| --- | --- |
-| Chat server URL | `http://127.0.0.1:18789/v1`, the gateway's default port |
-| Chat model | `openclaw/<agentId>` |
-| Chat API key | The gateway token, `gateway.auth.token` |
-
-## Persona
-
-The card goes out as `instructions` on Responses and as the system message on Chat Completions. OpenClaw merges it into its own system prompt beside the agent's workspace files (`SOUL.md`, `AGENTS.md`). Keep those files consistent with the card, or empty.
+For Chat Completions, enable `gateway.http.endpoints.chatCompletions.enabled` in its step 2 and pick Chat Completions as the **Type**.
 
 ## What works
 
