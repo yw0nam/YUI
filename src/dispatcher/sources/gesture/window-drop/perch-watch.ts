@@ -2,10 +2,10 @@
  * perch-watch — the armed perch/peek state and its occlusion-aware detach poll.
  *
  * Once armed on a window, the poll re-checks ~1.4 Hz whether the target detached.
- * Sit loses on gone, covered, or moved; peek loses on gone or moved because its
- * target is expected to cover YUI. Loss fires the matching exit through the bus
- * and disarms. The poll never mutates renderer state directly, except to clear the
- * perch pin of a lost or suspended sit.
+ * Sit loses on gone or covered and follows a moved or resized host; peek loses on
+ * gone or moved because its target is expected to cover YUI. Loss fires the matching
+ * exit through the bus and disarms. The poll never mutates renderer state directly,
+ * except to clear the perch pin of a lost or suspended sit.
  *
  * Tauri deps (invoke / getWindow) are injected so the module is unit-testable
  * without the Tauri runtime.
@@ -22,6 +22,7 @@ import { createLogger } from "../../../../logger";
 import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
 import { petPxToGlobalPoints } from "../../../../renderer/geometry/probe/perch-geometry";
 import type { EventBus } from "../../../core/event-bus";
+import type { PerchFollow } from "./perch-follow";
 
 const log = createLogger("window-drop");
 
@@ -42,6 +43,8 @@ export interface DropWindow {
    * a drag-only wiring may omit it, and `placeOn` then reports `unsupported`.
    */
   setPositionPhysical?(x: number, y: number): Promise<void>;
+  /** Move the pet window (logical points); the follow needs it. */
+  setPositionLogical?(x: number, y: number): Promise<void>;
 }
 
 /** Tauri `invoke` (only `list_windows` is used here). */
@@ -66,6 +69,8 @@ export interface PerchWatchDeps {
   peekActive: () => boolean;
   /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
   onSitLost?: () => void;
+  /** Carries a seated character with her host window while a sit is armed. */
+  follow: PerchFollow;
   /** Injectable timer fns (fake timers in tests). */
   setInterval: typeof setInterval;
   clearInterval: typeof clearInterval;
@@ -154,10 +159,20 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
   }
 
   function stopPoll(): void {
+    deps.follow.stop();
     if (pollTimer !== null) {
       clearIntervalImpl(pollTimer);
       pollTimer = null;
     }
+  }
+
+  /** The exit leaves the character standing where the seat was; a sit owes a fall. */
+  function loseSit(): void {
+    pushArmedExit("sit");
+    // The dispatcher clears the pin on that exit a pump later, too late for a fall
+    // starting here — the perch hold would swallow the falling clip until then.
+    renderer.setPerchTarget(null);
+    deps.onSitLost?.();
   }
 
   function disarm(): void {
@@ -199,6 +214,7 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
         log.warn("perch_poll_tick_failed", { degrade: true, error: String(err) }),
       );
     }, PERCH_POLL_MS);
+    if (kind === "sit") deps.follow.start(windowNumber, loseSit);
   }
 
   async function tick(): Promise<void> {
@@ -239,7 +255,8 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
       const w = windows[armedIdx];
       dx = armedRect ? w.x - armedRect.x : 0;
       dy = armedRect ? w.y - armedRect.y : 0;
-      const moved = armedRect != null && (Math.abs(dx) > MOVE_TH || Math.abs(dy) > MOVE_TH);
+      const moved =
+        kind === "peek" && armedRect != null && (Math.abs(dx) > MOVE_TH || Math.abs(dy) > MOVE_TH);
       if (kind === "sit" && seat) {
         // A window earlier in the front-to-back list (above the armed one) covers the seat.
         covering = windows.some((candidate, i) => i < armedIdx && containsSeat(candidate, seat));
@@ -264,14 +281,8 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
       // gone is unambiguous (1 tick); covered/moved ride out the debounce.
       const need = reason === "gone" ? 1 : PERCH_AMBIGUOUS_LOST_TICKS;
       if (lostStreak >= need) {
-        pushArmedExit(kind);
-        if (kind === "sit") {
-          // The exit leaves the character standing where the seat was; a sit owes a fall.
-          // The dispatcher clears the pin on that exit a pump later, too late for a fall
-          // starting here — the perch hold would swallow the falling clip until then.
-          renderer.setPerchTarget(null);
-          deps.onSitLost?.();
-        }
+        if (kind === "sit") loseSit();
+        else pushArmedExit(kind);
       }
     } else {
       lostStreak = 0;

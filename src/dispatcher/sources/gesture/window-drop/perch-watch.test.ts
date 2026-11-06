@@ -28,17 +28,19 @@ describe("perch-watch — adopted sit", () => {
     const { renderer } = makePerchSource();
     const armed = win({ name: "Armed", windowNumber: 42 });
     const invoke = vi.fn(async () => [armed]);
+    const follow = { start: vi.fn(), stop: vi.fn() };
     const source = createPerchWatch({
       bus,
       renderer,
       invoke,
       getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
       peekActive: () => false,
+      follow,
       setInterval,
       clearInterval,
     });
     source.adoptSit(42, { x: armed.x, y: armed.y }, 200, origin);
-    return { source, invoke, armed, renderer };
+    return { source, invoke, armed, renderer, follow };
   }
 
   it.each(["adopt", "commit"] as const)("arms the seat under its %s origin", (origin) => {
@@ -147,5 +149,31 @@ describe("perch-watch — adopted sit", () => {
     expect(renderer.setPerchTarget).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalled();
     expect(pushed).toEqual([]);
+  });
+
+  it("starts the follow on a sit's window number and not on a peek", () => {
+    const { source, follow } = adopted();
+    expect(follow.start).toHaveBeenCalledTimes(1);
+    expect(follow.start).toHaveBeenCalledWith(42, expect.any(Function));
+
+    follow.start.mockClear();
+    source.arm("peek", 43, { x: 300, y: 400 }, 200, null);
+    expect(follow.start).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["disarm", (s: ReturnType<typeof adopted>["source"]) => s.disarm()],
+    ["suspendSit", (s: ReturnType<typeof adopted>["source"]) => s.suspendSit()],
+    [
+      "a re-arm",
+      (s: ReturnType<typeof adopted>["source"]) => s.arm("peek", 43, { x: 300, y: 400 }, 200, null),
+    ],
+  ])("stops the follow on %s", (_name, act) => {
+    const { source, follow } = adopted();
+    follow.stop.mockClear();
+
+    act(source);
+
+    expect(follow.stop).toHaveBeenCalledTimes(1);
   });
 });

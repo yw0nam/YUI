@@ -69,26 +69,47 @@ export function keepOnScreen(
   return nearest;
 }
 
-/** The guard's handle: teardown, plus a pause a travel holds while it parks the window itself. */
+/** Who pauses the guard: a travel while it parks the window, a perch follow while it carries it. */
+type KeepOnScreenHolder = "travel" | "perch_follow";
+
+/** The guard's pause: held while any holder holds it, and usable before the guard attaches. */
+export function createKeepOnScreenPause() {
+  const holders = new Set<KeepOnScreenHolder>();
+  let onChange: () => void = () => {};
+  return {
+    /** The last release lets the guard evaluate once right away. */
+    setPaused(holder: KeepOnScreenHolder, paused: boolean): void {
+      if (paused) holders.add(holder);
+      else holders.delete(holder);
+      onChange();
+    },
+    isPaused: () => holders.size > 0,
+    /** The guard binds here when it attaches. */
+    bind(listener: () => void): void {
+      onChange = listener;
+    },
+  };
+}
+
+export type KeepOnScreenPause = ReturnType<typeof createKeepOnScreenPause>;
+
 export interface KeepOnScreenHandle {
   dispose(): void;
-  /** While paused, a moved/resized event does nothing; unpausing evaluates once right away. */
-  setPaused(paused: boolean): void;
 }
 
 /** Debounced onMoved/onResized evaluation plus one startup pass, since opening emits neither. */
 export async function attachKeepOnScreen(
   win: KeepOnScreenWindow,
   listMonitors: () => Promise<ScreenMonitor[]>,
-  opts: { wholeWindow?: boolean } = {},
+  opts: { wholeWindow?: boolean; pause?: KeepOnScreenPause } = {},
 ): Promise<KeepOnScreenHandle> {
+  const pause = opts.pause ?? createKeepOnScreenPause();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let running = false;
-  let paused = false;
 
   const evaluate = async (): Promise<void> => {
-    if (disposed || running || paused) return;
+    if (disposed || running || pause.isPaused()) return;
     running = true;
     try {
       const [monitors, pos, size] = await Promise.all([
@@ -98,7 +119,7 @@ export async function attachKeepOnScreen(
       ]);
       // Re-checked here, not just on entry: a pause can arrive while this evaluation is
       // already mid-flight, and it must not push the window a travel just parked.
-      if (disposed || paused) return;
+      if (disposed || pause.isPaused()) return;
       // Content-driven size, so the inset is recomputed from the current outerSize every pass.
       const inset = opts.wholeWindow ? { x: size.width / 2, y: size.height / 2 } : undefined;
       const pushed = keepOnScreen(monitors, pos, size, inset);
@@ -111,14 +132,14 @@ export async function attachKeepOnScreen(
   };
 
   const run = (): void => {
-    if (paused) return;
+    if (pause.isPaused()) return;
     void evaluate().catch((error) =>
       log.warn("keep_on_screen_eval_failed", { error: String(error) }),
     );
   };
 
   const schedule = (): void => {
-    if (disposed || paused) return;
+    if (disposed || pause.isPaused()) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -130,6 +151,14 @@ export async function attachKeepOnScreen(
   // the drag; gate on drag start/end if that bites.
   const unlistenMoved = await win.onMoved(schedule);
   const unlistenResized = await win.onResized(schedule);
+  pause.bind(() => {
+    if (pause.isPaused()) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      return;
+    }
+    run();
+  });
   run();
 
   return {
@@ -138,15 +167,6 @@ export async function attachKeepOnScreen(
       if (timer) clearTimeout(timer);
       unlistenMoved();
       unlistenResized();
-    },
-    setPaused(next) {
-      paused = next;
-      if (paused) {
-        if (timer) clearTimeout(timer);
-        timer = null;
-        return;
-      }
-      run();
     },
   };
 }

@@ -287,6 +287,7 @@ YUI/
           window-drop/               # Drag-release perch settle, armed-perch poll, and placement
             window-drop-source.ts    # Drag-release settle composing the perch watch and placement
             perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
+            perch-follow.ts          # Carries a seated character with her host window as it moves or resizes
             placement.ts             # Programmatic placement of the character on a named window
         addressed/                   # The character-addressed firing source and the speaking half
           addressed-source.ts        # Turns a character-addressed bridge event for this preset into the addressed.character candidate

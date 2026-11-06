@@ -9,6 +9,7 @@ import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {
   attachKeepOnScreen,
+  createKeepOnScreenPause,
   type KeepOnScreenHandle,
 } from "../../io/window/geometry/keep-on-screen";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
@@ -88,8 +89,8 @@ export function wireWindowSources(deps: {
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
   let keepOnScreen: KeepOnScreenHandle | null = null;
-  // A travel's pause request that arrives before the guard exists — applied once it does.
-  let pendingKeepOnScreenPaused = false;
+  // Holds taken before the guard attaches still apply once it does.
+  const keepOnScreenPause = createKeepOnScreenPause();
   let disposed = false;
   const handle = {
     noteUserDrag: () => {
@@ -109,10 +110,7 @@ export function wireWindowSources(deps: {
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
     abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
-    setKeepOnScreenPaused: (paused: boolean) => {
-      pendingKeepOnScreenPaused = paused;
-      keepOnScreen?.setPaused(paused);
-    },
+    setKeepOnScreenPaused: (paused: boolean) => keepOnScreenPause.setPaused("travel", paused),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();
@@ -131,7 +129,7 @@ export function wireWindowSources(deps: {
         log.warn("start_agent_ingress_failed", { error: String(e) }),
       );
     }
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
     const { listen } = await import("@tauri-apps/api/event");
     const { LogicalPosition, LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
     windowDropSource = createWindowDropSource({
@@ -146,6 +144,7 @@ export function wireWindowSources(deps: {
           outerPosition: () => win.outerPosition(),
           scaleFactor: () => win.scaleFactor(),
           setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+          setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
         };
       },
       listen: listen as never,
@@ -157,6 +156,10 @@ export function wireWindowSources(deps: {
       wasDragging: wasWindowDragging,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
+      windowBounds: (windowNumber) =>
+        invoke("window_bounds", { windowNumber }) as Promise<WindowRect | null>,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      setGuardPaused: (paused) => keepOnScreenPause.setPaused("perch_follow", paused),
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -178,7 +181,6 @@ export function wireWindowSources(deps: {
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
     // lives and the movement happens. Perch gestures go through the drop source's
     // placement so they share the drag flow's geometry, arming and envelopes.
-    const { availableMonitors } = await import("@tauri-apps/api/window");
     avatarExecutor = createAvatarExecutor({
       subscribe: (cb) => onAvatarRpc(cb),
       respond: (id, result) => void respondAvatarRpc(id, result),
@@ -220,8 +222,8 @@ export function wireWindowSources(deps: {
         onResized: (cb) => getCurrentWindow().onResized(() => cb()),
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
+      { pause: keepOnScreenPause },
     );
-    if (pendingKeepOnScreenPaused) keepOnScreen.setPaused(true);
     if (disposed) keepOnScreen.dispose();
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {

@@ -3,7 +3,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { attachKeepOnScreen, type KeepOnScreenWindow, keepOnScreen } from "./keep-on-screen";
+import {
+  attachKeepOnScreen,
+  createKeepOnScreenPause,
+  type KeepOnScreenWindow,
+  keepOnScreen,
+} from "./keep-on-screen";
 import type { ScreenMonitor } from "./screen-geometry";
 
 /** Mirrors the module's own debounce ceiling. */
@@ -207,11 +212,12 @@ describe("attachKeepOnScreen", () => {
   });
 
   it("does not push a moved event while paused", async () => {
-    const handle = await attachKeepOnScreen(win, listMonitors);
+    const pause = createKeepOnScreenPause();
+    await attachKeepOnScreen(win, listMonitors, { pause });
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
-    handle.setPaused(true);
+    pause.setPaused("travel", true);
     pos = { x: 1800, y: 400 }; // back off-screen
     onMovedCb();
     await vi.advanceTimersByTimeAsync(IDLE_MS);
@@ -220,20 +226,22 @@ describe("attachKeepOnScreen", () => {
   });
 
   it("clears a timer already pending when paused", async () => {
-    const handle = await attachKeepOnScreen(win, listMonitors);
+    const pause = createKeepOnScreenPause();
+    await attachKeepOnScreen(win, listMonitors, { pause });
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
     pos = { x: 1800, y: 400 }; // back off-screen
     onMovedCb(); // schedules the debounced evaluation
-    handle.setPaused(true);
+    pause.setPaused("travel", true);
     await vi.advanceTimersByTimeAsync(IDLE_MS);
 
     expect(win.setPositionPhysical).not.toHaveBeenCalled();
   });
 
   it("does not push when paused arrives while an evaluation already in flight is awaiting monitors", async () => {
-    const handle = await attachKeepOnScreen(win, listMonitors);
+    const pause = createKeepOnScreenPause();
+    await attachKeepOnScreen(win, listMonitors, { pause });
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
@@ -248,7 +256,7 @@ describe("attachKeepOnScreen", () => {
     onMovedCb();
     await vi.advanceTimersByTimeAsync(IDLE_MS); // fires evaluate(), which awaits listMonitors()
 
-    handle.setPaused(true);
+    pause.setPaused("travel", true);
     resolveMonitors([LEFT]);
     for (let i = 0; i < 10; i++) await Promise.resolve();
 
@@ -256,16 +264,50 @@ describe("attachKeepOnScreen", () => {
   });
 
   it("runs one evaluation on unpause when the window is off-screen", async () => {
-    const handle = await attachKeepOnScreen(win, listMonitors);
+    const pause = createKeepOnScreenPause();
+    await attachKeepOnScreen(win, listMonitors, { pause });
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
-    handle.setPaused(true);
+    pause.setPaused("travel", true);
     pos = { x: 1800, y: 400 }; // back off-screen, while paused
-    handle.setPaused(false);
+    pause.setPaused("travel", false);
     await vi.runOnlyPendingTimersAsync();
 
     expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
+  });
+
+  it("evaluates only when the last of two holders releases", async () => {
+    const pause = createKeepOnScreenPause();
+    await attachKeepOnScreen(win, listMonitors, { pause });
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    pause.setPaused("travel", true);
+    pause.setPaused("perch_follow", true);
+    pos = { x: 1800, y: 400 }; // off-screen, while paused
+    pause.setPaused("travel", false);
+    await vi.runOnlyPendingTimersAsync();
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+
+    pause.setPaused("perch_follow", false);
+    await vi.runOnlyPendingTimersAsync();
+    expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
+  });
+
+  it("applies a hold taken before the guard attached", async () => {
+    const pause = createKeepOnScreenPause();
+    pause.setPaused("perch_follow", true);
+    pos = { x: 1800, y: 400 }; // off-screen at attach
+
+    await attachKeepOnScreen(win, listMonitors, { pause });
+    await vi.runOnlyPendingTimersAsync();
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+
+    pause.setPaused("perch_follow", false);
+    await vi.runOnlyPendingTimersAsync();
     expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
   });
 });

@@ -18,6 +18,7 @@
   "permissions": [
     "allow-drag-window",
     "allow-list-windows",
+    "allow-window-bounds",
     "allow-list-screen-sources",
     "allow-capture-screen",
     "allow-capture-screen-at",
