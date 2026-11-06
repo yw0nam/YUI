@@ -4,15 +4,13 @@
 
 ## Protocol
 
-**Responses mode is recommended.** Set `"chat_api": "responses"` in `configs/endpoints.json`, or pick **Responses** as the **Type** in the settings panel. The gateway keeps the conversation and chains turns by `previous_response_id`.
+**Responses mode is recommended.** The gateway keeps the conversation and chains turns by `previous_response_id`.
 
 Chat Completions also works. The client then sends the transcript each turn.
 
 ## Setup
 
-[skills/yui-openclaw-setup/SKILL.md](skills/yui-openclaw-setup/SKILL.md) walks through it step by step, each step ending on a check: the gateway endpoint, Code Mode off for the agent, the YUI connection settings, and the persona files. Follow it by hand, or hand it to a coding agent. Its symptom table maps a failing connection to the step that fixes it.
-
-For Chat Completions, enable `gateway.http.endpoints.chatCompletions.enabled` in its step 2 and pick Chat Completions as the **Type**.
+Step-by-step setup and repair, by hand or by a coding agent: [skills/yui-openclaw-setup/SKILL.md](skills/yui-openclaw-setup/SKILL.md).
 
 ## What works
 

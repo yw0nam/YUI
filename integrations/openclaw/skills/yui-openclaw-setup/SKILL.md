@@ -1,28 +1,29 @@
 ---
 name: yui-openclaw-setup
-description: "Connect an OpenClaw agent to YUI as its chat backend, or repair that connection. Triggers on a first setup, a 400 or 401 from the gateway, client tools arriving with empty arguments, or a character that expresses but never speaks."
+description: "Connect an OpenClaw agent to YUI as its chat backend, or repair that connection. Triggers on a first setup, a 4xx from the gateway, client tools arriving with empty arguments, or a character that expresses but never speaks."
 license: PolyForm-Noncommercial-1.0.0
 ---
 
 # YUI on OpenClaw
 
-Connects one OpenClaw agent to a YUI client over the gateway's OpenAI-compatible HTTP endpoint. YUI runs in Responses mode, its recommended protocol here; [README.md](../../README.md) covers what works and what needs push.
+Connects one OpenClaw agent to a YUI client over the gateway's OpenAI-compatible HTTP endpoint, in Responses mode by default. [README.md](../../README.md) covers the tested version, what works, and what needs push. The checks use `curl` and `jq`.
 
 Run the steps in order. Each ends on a **Check**: a command and its expected output. When a check fails, stop and report it with the output. Repairing a connection: the symptom table at the end names the step that owns each failure.
 
-Replace `<agentId>` with the OpenClaw agent the character runs as. Add `--profile <name>` to every `openclaw` command when the gateway runs under a named profile. `$TOKEN` is the gateway token; the user sets it in their shell, so it never lands in the transcript.
+Replace `<agentId>` with the OpenClaw agent the character runs as. Add `--profile <name>` to every `openclaw` command when the gateway runs under a named profile. `$TOKEN` is the gateway token, the value of `gateway.auth.token` when `gateway.auth.mode` is `token`. The user exports `TOKEN` in their shell, and the transcript carries only `$TOKEN`.
 
 ## 1. Versions
 
 ```bash
 openclaw --version
+git -C <YUI checkout> merge-base --is-ancestor 7cf7a063 HEAD && echo yui-ok
 ```
 
-**Check:** `OpenClaw 2026.11.1` or later (the version tested). The client needs a YUI build that contains #1933: older builds get a 400 on Responses.
+**Check:** the first line names the version README.md lists as tested, or a later one; report a later one. The second prints `yui-ok`: the YUI build contains #1933, which both transports need. A packaged YUI needs a release after v0.6.0.
 
 ## 2. Enable the Responses endpoint
 
-Both HTTP endpoints are off by default.
+Both HTTP endpoints are off by default. For Chat Completions, set `gateway.http.endpoints.chatCompletions.enabled` instead. A running gateway picks up the settings of steps 2 and 3 with no restart.
 
 ```bash
 openclaw config set gateway.http.endpoints.responses.enabled true
@@ -44,7 +45,7 @@ openclaw config get agents.entries.<agentId>.tools.codeMode
 
 ## 4. Gateway up
 
-Start it in the foreground with `openclaw gateway run`, or as a service with `openclaw gateway install`. Keep `gateway.bind` on loopback ([why](../../README.md#security-and-cost)).
+Start it in the foreground with `openclaw gateway run` (then run the checks from another terminal), or as a service with `openclaw gateway install`. Keep `gateway.bind` on loopback ([why](../../README.md#security-and-cost)).
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18789/v1/models -H "Authorization: Bearer $TOKEN"
@@ -72,18 +73,22 @@ The user does this in **Settings → Connection** (right-click the character →
 | Field | Value |
 | --- | --- |
 | Provider | Custom |
-| Type | Responses |
+| Type | Responses (Chat Completions when step 2 enabled that endpoint) |
 | Chat server URL | `http://127.0.0.1:18789/v1` |
 | Chat model | `openclaw/<agentId>` |
 | Chat API key | the gateway token |
 
-**Check:** a message typed to the character (`/` opens the input) gets a spoken reply in the bubble. The app log shows `turn {… "outcome":"ok" … "spoke_text":true}`. The log lives in `<repo>/logs/` for `pnpm tauri dev` and in `~/Library/Logs/com.yui.desktop/` for a macOS release.
+**Check:** the user types a message to the character (`/` opens the input) and the reply appears in the bubble. In a `pnpm tauri dev` run, `<repo>/logs/` also shows `turn {… "outcome":"ok" … "spoke_text":true}`.
 
-## 7. Persona
+## 7. The card and the workspace files
 
 The card goes out as `instructions`, and OpenClaw adds it to its own system prompt beside the workspace files (`openclaw config get agents.entries.<agentId>.workspace`). Bring `SOUL.md` and `IDENTITY.md` in line with the card. A new workspace also holds `BOOTSTRAP.md`, OpenClaw's first-run introduction; the first reply of a fresh agent carried it, so finish or remove it before the character goes live.
 
-**Check:** the user confirms the character answers in the card's voice with no self-introduction.
+```bash
+ls "$(openclaw config get agents.entries.<agentId>.workspace)/BOOTSTRAP.md"
+```
+
+**Check:** `No such file or directory`. The user confirms the character answers in the card's voice.
 
 ## Symptoms
 
