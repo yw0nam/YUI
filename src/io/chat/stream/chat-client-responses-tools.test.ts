@@ -40,6 +40,9 @@ const CONFIG: EndpointsConfig = {
 
 const INPUT = [{ role: "user", content: "hi" }];
 
+/** What INPUT leaves as: a role item typed as a message. */
+const SENT = [{ type: "message", role: "user", content: "hi" }];
+
 const req = (over: Partial<ChatRequest> = {}): ChatRequest => ({ input: INPUT, ...over });
 
 // ── event fixtures (Responses stream shapes) ─────────────────────────────────
@@ -176,7 +179,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     expect(first.previous_response_id).toBe("resp_0");
     expect(second.previous_response_id).toBe("resp_0");
     expect(second.input).toEqual([
-      ...INPUT,
+      ...SENT,
       { type: "function_call", call_id: "call_fc_1", name: "generate_express", arguments: ARGS },
       { type: "function_call_output", call_id: "call_fc_1", output: "ok" },
     ]);
@@ -205,7 +208,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     const second = createMock.mock.calls[1][0];
     expect(second.previous_response_id).toBe("resp_0");
     expect(second.input).toEqual([
-      ...INPUT,
+      ...SENT,
       reasoning,
       { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
       { type: "function_call_output", call_id: "call_fc_1", output: "42" },
@@ -239,7 +242,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     await collect(streamChat(CONFIG, req(), optsFor(lookup)));
 
     expect(createMock.mock.calls[1][0].input).toEqual([
-      ...INPUT,
+      ...SENT,
       rs1,
       { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
       rs2,
@@ -258,7 +261,30 @@ describe("streamChat — Responses tool-call round trip", () => {
       streamChat(CONFIG, req({ input: "hello" }), optsFor(oneWayStub("generate_express"))),
     );
 
-    expect(createMock.mock.calls[1][0].input[0]).toEqual({ role: "user", content: "hello" });
+    expect(createMock.mock.calls[1][0].input[0]).toEqual({
+      type: "message",
+      role: "user",
+      content: "hello",
+    });
+  });
+
+  it("sends every role item typed as a message on the first request and the follow-up", async () => {
+    const lookup = toolStub("lookup");
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([text("Let me check."), ...call("lookup", "fc_1"), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([text("It is 42."), done("resp_2")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(lookup)));
+
+    const roleItems = (n: number) =>
+      createMock.mock.calls[n][0].input.filter((item: object) => "role" in item);
+    expect(roleItems(0)).toEqual([{ type: "message", role: "user", content: "hi" }]);
+    expect(roleItems(1)).toEqual([
+      { type: "message", role: "user", content: "hi" },
+      { type: "message", role: "assistant", content: "Let me check." },
+    ]);
   });
 
   it("a cue-only call in a response that already spoke is a finished turn — no round trip", async () => {
@@ -375,8 +401,8 @@ describe("streamChat — Responses tool-call round trip", () => {
       envelope: { speech_text: "Let me check. It is 42." },
     });
     expect(createMock.mock.calls[1][0].input).toEqual([
-      ...INPUT,
-      { role: "assistant", content: "Let me check." },
+      ...SENT,
+      { type: "message", role: "assistant", content: "Let me check." },
       { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
       { type: "function_call_output", call_id: "call_fc_1", output: "42" },
     ]);
@@ -406,8 +432,8 @@ describe("streamChat — Responses tool-call round trip", () => {
       .join("");
     expect(deltas).toBe("Let me check. It is 42.");
     expect(createMock.mock.calls[2][0].input).toEqual([
-      ...INPUT,
-      { role: "assistant", content: "Let me check." },
+      ...SENT,
+      { type: "message", role: "assistant", content: "Let me check." },
       { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
       { type: "function_call_output", call_id: "call_fc_1", output: "42" },
       { type: "function_call", call_id: "call_fc_2", name: "generate_express", arguments: ARGS },

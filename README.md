@@ -90,7 +90,7 @@ YUI ships no model of its own. Choose the brain by what it can do.
 
 Memory, its own persona, chat-history search, and much more come with the agent. That is why we recommend it for your waifu.
 
-Today YUI supports [Hermes Agent](integrations/hermes/README.md). Another agent can join by implementing the [push contract](docs/reference/push-transport.md).
+Today YUI supports [Hermes Agent](integrations/hermes/README.md) and [OpenClaw](integrations/openclaw/README.md). Another agent can join by implementing the [push contract](docs/reference/push-transport.md).
 
 ### Any OpenAI-compatible endpoint
 
@@ -104,7 +104,7 @@ Pick each provider in **Settings → Connection**.
 
 | | Providers |
 | --- | --- |
-| Chat | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · any OpenAI-compatible endpoint |
+| Chat | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · [OpenClaw](integrations/openclaw/README.md) · any OpenAI-compatible endpoint |
 | Voice (TTS) | [Irodori](https://github.com/Aratako/Irodori-TTS-Server) (Japanese) · OpenAI · [Fish Audio](https://fish.audio/) |
 | Speech recognition | Any OpenAI-compatible transcription endpoint · Groq |
 
@@ -121,6 +121,7 @@ Pick each provider in **Settings → Connection**.
 | Groq | `chat_completions` | Hosted, API key | `llama-3.3-70b-versatile` |
 | Google Gemini | `chat_completions` | Hosted, API key, free tier | `models/gemini-3.5-flash-lite` |
 | [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | Self-hosted | The model the agent runs |
+| [OpenClaw](integrations/openclaw/README.md) | `responses`, `chat_completions` | Self-hosted | The model the agent runs |
 | Custom endpoint | `chat_completions`, `responses`, `push` | Any server that speaks the protocol | Tool-calling model on `chat_completions` |
 
 #### TTS

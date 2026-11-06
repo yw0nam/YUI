@@ -170,6 +170,8 @@ On Chat Completions an executed call goes back on the assistant message with its
 
 Chat Completions appends two things to the message array of the turn in flight: the assistant message carrying the response's spoken text as `content` beside the `tool_calls` (`content: null` when the response said nothing), and one `role: "tool"` message per call (`tool_call_id` and the result string). It then sends the whole array again with the same `tools[]`.
 
+On Chat Completions, every request of the turn carries the same `user` value.
+
 ```jsonc
 // request 1: messages + tools[]
 // response 1: speech deltas, then tool-call deltas
@@ -186,7 +188,7 @@ Chat Completions appends two things to the message array of the turn in flight: 
 {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 ```
 
-Responses sends another request whose `input` holds, in order:
+Responses sends another request whose `input` holds, in order (a message item carries `type: "message"`):
 
 1. the original input items
 2. an assistant message item carrying the response's spoken text (omitted when the response said nothing)
@@ -202,7 +204,7 @@ The request keeps the turn's original `previous_response_id`, so the round trip 
 {"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"answer\"}"}
 
 // request 2: the same tools[] and previous_response_id, input = the original items plus
-{"role":"assistant","content":"Let me check."}
+{"type":"message","role":"assistant","content":"Let me check."}
 {"type":"reasoning","id":"rs_1","summary":[]}
 {"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"answer\"}"}
 {"type":"function_call_output","call_id":"call_1","output":"42"}

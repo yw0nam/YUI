@@ -54,6 +54,7 @@ Each row is one thing a transport carries, and each column is one chat transport
 | Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request | `tool_call` for a tool the client declared in `hello.tools`, answered with `tool_result`; cues arrive in `render` and `speech` segments |
 | Model, `reasoning_effort` and instructions sent with the turn | All three; `reasoning_effort` only when the setting is not Default | All three; `reasoning.effort` only when the setting is not Default | None |
 | Card (persona text) | First system message | `instructions` | None; a push backend carries its own persona |
+| Turn identity | `user`: a random id per turn, the same on every request of the turn | None; `previous_response_id` chains turns | `turn_id` on the `turn` frame |
 
 ### What the backend sends back
 

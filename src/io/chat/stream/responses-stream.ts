@@ -97,11 +97,13 @@ function toResponsesTools(tools: ClientToolRegistry): FunctionTool[] {
   }));
 }
 
-/** The turn's input as items: a string is one user message. */
+/** The turn's input as items: a string is one user message, and a role item without a type becomes `type: "message"`. */
 function inputItems(input: unknown): ResponseInputItem[] {
-  return typeof input === "string"
-    ? [{ role: "user", content: input }]
-    : (input as ResponseInputItem[]);
+  const items =
+    typeof input === "string" ? [{ role: "user", content: input }] : (input as ResponseInputItem[]);
+  return items.map((item) =>
+    "role" in item && !("type" in item) ? { type: "message", ...item } : item,
+  ) as ResponseInputItem[];
 }
 
 /**
@@ -132,9 +134,8 @@ export async function* streamResponses(
     ? request.instructions
     : config.chat_instructions;
   const toolDefs = toResponsesTools(tools);
-  // ChatRequest.input is deliberately unknown (OpenAI-compatible input, caller encodes) — narrow-cast
-  // to the shape SDK expects only at the call site.
-  let input = request.input as ResponseCreateParamsStreaming["input"];
+  // inputItems narrows the caller-encoded input to the SDK's items.
+  let input = inputItems(request.input);
 
   // State of the response being read; reset per request.
   // Same call (id, or output_index if absent) appears multiple times across added/done/arguments.done
@@ -372,8 +373,10 @@ export async function* streamResponses(
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.
     yield { type: "keepalive" };
     input = [
-      ...inputItems(input),
-      ...(roundText ? [{ role: "assistant" as const, content: roundText }] : []),
+      ...input,
+      ...(roundText
+        ? [{ type: "message" as const, role: "assistant" as const, content: roundText }]
+        : []),
       ...replay,
       ...executed.map((e) => e.output),
     ];

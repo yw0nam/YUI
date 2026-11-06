@@ -44,6 +44,8 @@ Conversation history is not long-term memory. For long-term memory, connect an a
 
 [Hermes Agent](https://github.com/nousresearch/hermes-agent) is one optional backend. Its [integration README](https://github.com/yw0nam/YUI/blob/main/integrations/hermes/README.md) describes the wiring.
 
+[OpenClaw](https://docs.openclaw.ai) is another. Its [integration README](https://github.com/yw0nam/YUI/blob/main/integrations/openclaw/README.md) describes the wiring.
+
 A push backend can ask you questions in an Ask card and offer slash commands ([Controls](controls.md)).
 
 ## Go deeper
