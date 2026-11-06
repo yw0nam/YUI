@@ -131,7 +131,7 @@ export function numRowHtml(opts: {
               ${subHtml}${hintHtml}
             </div>
             <div class="yui-num">
-              <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" />
+              <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" data-digits="${String(max).length}" />
               ${suffixHtml}
             </div>
           </div>`;

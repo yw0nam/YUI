@@ -137,9 +137,19 @@
     box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
+/* Its digits (a tabular digit is 0.76em in Pretendard; ch is narrower) and the spin buttons WebKit always shows (1em). */
 .yui-num-input {
-  width: 4rem;
+  width: calc(var(--yui-num-digits, 3) * 0.8em + 1em + 1rem + 2px);
   text-align: right;
+}
+
+/* An attribute, not an inline style: the app's CSP nonce blocks style attributes. */
+.yui-num-input[data-digits="4"] {
+  --yui-num-digits: 4;
+}
+
+.yui-num-input[data-digits="5"] {
+  --yui-num-digits: 5;
 }
 
 .yui-cue__name-input {
