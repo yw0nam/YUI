@@ -73,4 +73,13 @@ describe("scripts/ci/rule-tests.sh", () => {
     expect(r.status).toBe(1);
     expect(r.out).toMatch(/rule-change/);
   });
+
+  it("fails when a rule test is moved and loosened", () => {
+    const repo = makeRepoEditing("src/ui/wording.test.ts");
+    git(repo, "mv", "src/ui/wording.test.ts", "src/ui/wording-moved.test.ts");
+    // Similar enough that git reports a rename, which hides the old path.
+    write(repo, { "src/ui/wording-moved.test.ts": `// ${MARKER} base\nchanged\nloosened\n` });
+    git(repo, "commit", "-q", "-m", "move");
+    expect(run(repo).status).toBe(1);
+  });
 });
