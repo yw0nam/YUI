@@ -132,6 +132,9 @@ it("is", () => expect(one()).toBe(2));
 it.each(["new"])("sends $0", (v) => expect(v).toBe("x"));
 it("it's two", () => expect(one()).toBe(2));
 `,
+        "new.test.ts": `import { expect, it } from "vitest";
+it.each(["a"])("gives %s", (v) => expect(v).toBe("x"));
+`,
       },
       {
         "old.test.ts": `import { expect, it } from "vitest";
@@ -142,7 +145,7 @@ it("sends the old", () => expect(one()).toBe(1));
       },
     );
     const { status, out } = redRun(repo, commit);
-    expect(out).toContain("3 red, 0 harness, 0 passes, 0 unmatched");
+    expect(out).toContain("4 red, 0 harness, 0 passes, 0 unmatched");
     expect(status).toBe(0);
   });
 

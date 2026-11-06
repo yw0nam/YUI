@@ -3,67 +3,117 @@
 # throwaway worktree, runs the test files it adds or changes, and prints one line per test case the
 # commit adds: its kind and the first line of its error. Each named case needs rule 8's mutation proof,
 # or it is no red test. The kinds:
-#   red      the case failed on an assertion (vitest AssertionError or a snapshot mismatch; pytest assert)
+#   red      the case failed on an assertion (vitest: an AssertionError, also through .resolves and
+#            .rejects, a snapshot or assertion-count mismatch; pytest: assert or pytest.fail)
 #   harness  the case failed before any assertion ran: a missing module or import, ReferenceError,
 #            TypeError, a syntax error, a timeout, or a whole-file collection failure; nothing about
 #            behaviour is shown, so the failure proves no red test
 #   passes   the case already passes at the commit
+# A case title the script cannot find in the run's results is printed `unmatched`.
 #
 # Usage: bash scripts/red-run.sh <test-commit>   (run from any checkout of the repo)
 # A commit that changes test files but adds no case title it can name (assertions added inside existing
 # cases) is judged by the files alone: their failing cases are classified the same way.
 # Exit 0 when every added case is red. Exit 1 when any added case passes, any is harness, or one could
-# not be matched to a result. Exit 2 on a setup error.
+# not be matched to a result. Exit 2 on a setup error, or on a commit that changes only Rust files (Rust
+# tests are not run here; use cargo test).
 set -u
 
 commit="${1:?usage: red-run.sh <test-commit>}"
 root="$(git rev-parse --show-toplevel)" || exit 2
 cd "$root" || exit 2
-wt="$(mktemp -d "${TMPDIR:-/tmp}/red-run.XXXXXX")"
+wt="$(mktemp -d "${TMPDIR:-/tmp}/red-run.XXXXXX")" || exit 2
+trap 'git worktree remove --force "$wt" >/dev/null 2>&1; rm -rf "$wt"' EXIT
 git worktree add -q --detach "$wt" "$commit" || exit 2
-trap 'git worktree remove --force "$wt" >/dev/null 2>&1' EXIT
 bash scripts/worktree-setup.sh "$wt" "$root" >/dev/null 2>&1
 
 files="$(git diff --name-only "$commit^" "$commit")"
 ts="$(printf '%s\n' "$files" | grep -E '\.test\.tsx?$' || true)"
 py="$(printf '%s\n' "$files" | grep -E '(^|/)test_[^/]*\.py$' || true)"
-[ -z "$ts$py" ] && { echo "red-run: $commit adds no test case"; exit 0; }
+if [ -z "$ts$py" ]; then
+  if printf '%s\n' "$files" | grep -qE '\.rs$'; then
+    echo "red-run: $commit changes only Rust files; red-run runs vitest and pytest, not cargo test, so a Rust test commit is not covered"
+    exit 2
+  fi
+  echo "red-run: $commit adds no test case"
+  exit 0
+fi
 tab=$'\t'
 
-# Titles of the cases the commit adds to one file: it("…"), it.each(…)("…"), test("…"), def test_…; a
-# title on the line after an opening `it(` / `it.each(…)(` / `])(` / `] as const)(` is read from that line.
+# Helpers run by node: the title parser (stdin: diff lines) and vitest's reporter.
+cat > "$wt/.red-run-titles.cjs" <<'JS'
+// Titles of the cases the added lines hold: it("…"), it.each(…)("…"), test("…"), def test_…. A title on
+// the line after an opening `it(` / `it.each(…)(` / `])(` / `] as const)(` is read from that line. A
+// string literal is read to its own closing quote, so a title may hold the other quote characters.
+const lines = require("fs").readFileSync(0, "utf8").split("\n").filter((l) => l.startsWith("+")).map((l) => l.slice(1));
+const lit = (s) => {
+  const q = s[0];
+  if (!"\"'`".includes(q ?? "\0")) return "";
+  let t = "";
+  for (let i = 1; i < s.length; i++) {
+    if (s[i] === "\\") t += s[++i] ?? "";
+    else if (s[i] === q) return t;
+    else t += s[i];
+  }
+  return t;
+};
+const open = /^\s*(?:(?:it|test)(?:\.each\(.*\))?|[\]})]+(?:\s+as\s+const\s*\))?)\(\s*/;
+const def = /^\s*(?:async\s+)?def\s+(test_\w+)/;
+lines.forEach((l, i) => {
+  const d = l.match(def);
+  const m = l.match(open);
+  const t = d ? d[1] : m && lit(m[0].length === l.length ? (lines[i + 1] ?? "").trimStart() : l.slice(m[0].length));
+  if (t) console.log(t);
+});
+JS
+cat > "$wt/.red-run-reporter.mjs" <<'JS'
+// vitest reporter: one line per case, kind<TAB>file<TAB>title<TAB>first error line, to $RED_RUN_OUT.
+// A case is red when its first error is an AssertionError (what expect() throws, also through .resolves,
+// .rejects and expect.poll, whose stack starts "Error:") or says snapshot / assertion-count mismatch;
+// any other error is harness. A module that failed to collect is one harness row titled "(whole file)".
+import { appendFileSync } from "node:fs";
+import { relative } from "node:path";
+const one = (s) => String(s ?? "").split("\n").find((l) => l.trim()) ?? "";
+const line = (e) => `${e.name || "Error"}: ${one(e.message)}`;
+const redError = (e) => e.name === "AssertionError" || /^(Snapshot |expected number of assertions|expected any number of assertion)/.test(e.message ?? "");
+export default class {
+  onTestRunEnd(modules) {
+    const rows = [];
+    for (const m of modules) {
+      const file = relative(process.cwd(), m.moduleId);
+      const e = m.errors()[0];
+      if (e) rows.push(["harness", file, "(whole file)", line(e)]);
+      for (const t of m.children.allTests()) {
+        const r = t.result();
+        if (r.state === "passed") rows.push(["pass", file, t.name, ""]);
+        if (r.state === "failed") rows.push([redError(r.errors[0]) ? "red" : "harness", file, t.name, line(r.errors[0])]);
+      }
+    }
+    appendFileSync(process.env.RED_RUN_OUT, rows.map((r) => r.join("\t") + "\n").join(""));
+  }
+}
+JS
+
 added_titles() {
-  git diff -U0 "$commit^" "$commit" -- "$1" | grep -E '^\+' |
-    sed -nE 's/^\+[[:space:]]*(it|test)(\.each\(.*\))?\([[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\3/p;
-             s/^\+[[:space:]]*[]})]+([[:space:]]+as[[:space:]]+const[[:space:]]*\))?\([[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\2/p;
-             /^\+[[:space:]]*((it|test)(\.each\(.*\))?|[]})]+([[:space:]]+as[[:space:]]+const[[:space:]]*\))?)\([[:space:]]*$/{n;s/^\+[[:space:]]*["'"'"'`]([^"'"'"'`]+).*/\1/p;};
-             s/^\+[[:space:]]*(async[[:space:]]+)?def[[:space:]]+(test_[A-Za-z0-9_]+).*/\2/p'
+  git diff -U0 "$commit^" "$commit" -- "$1" | node "$wt/.red-run-titles.cjs"
+}
+# The same parse of the file as it was before the commit: cases that already existed.
+old_titles() {
+  git show "$commit^:$1" 2>/dev/null | sed 's/^/+/' | node "$wt/.red-run-titles.cjs"
 }
 
 # One line per case the run reports: kind<TAB>file<TAB>title<TAB>first error line. A failure of a whole
 # file (collection) has the title "(whole file)". kind: pass, red (a failed assertion) or harness (any other failure).
 results=""
 if [ -n "$ts" ]; then
-  (cd "$wt" && ./node_modules/.bin/vitest run $ts --reporter=json --outputFile="$wt/.red-run.json" >/dev/null 2>&1)
-  results="$(cd "$wt" && node -e '
-    const r = require(process.argv[1]);
-    const one = (s) => String(s ?? "").split("\n").find((l) => l.trim()) ?? "";
-    // vitest names an expect() failure AssertionError, and a snapshot mismatch Error: Snapshot ...
-    const kind = (m) => (/^(AssertionError|Error: Snapshot)/.test(m) ? "red" : "harness");
-    for (const f of r.testResults) {
-      const file = require("path").relative(process.cwd(), f.name);
-      if (!f.assertionResults.length && f.status === "failed") console.log(["harness", file, "(whole file)", one(f.message)].join("\t"));
-      for (const a of f.assertionResults) {
-        if (a.status === "passed") console.log(["pass", file, a.title, ""].join("\t"));
-        if (a.status === "failed") { const m = one(a.failureMessages[0]); console.log([kind(m), file, a.title, m].join("\t")); }
-      }
-    }
-  ' "$wt/.red-run.json" 2>/dev/null)"
+  : > "$wt/.red-run.tsv"
+  (cd "$wt" && RED_RUN_OUT="$wt/.red-run.tsv" ./node_modules/.bin/vitest run $ts --reporter="$wt/.red-run-reporter.mjs" >/dev/null 2>&1)
+  results="$(cat "$wt/.red-run.tsv")"
 fi
 for f in $py; do
   proj="$(dirname "$(dirname "$f")")"
   # pytest's JUnit XML names each case and gives the failure's first line; an assert failure reads
-  # `assert …` or `AssertionError…`, a failure of a whole file (collection) is an <error> with no case.
+  # `assert …` or `AssertionError…`, pytest.fail reads `Failed: …`, a failure of a whole file (collection) is an <error> with no case.
   (cd "$wt/$proj" && uv run --quiet pytest -q "${f#"$proj"/}" --junitxml="$wt/.red-run.xml" >/dev/null 2>&1)
   pyres="$(cd "$wt/$proj" && uv run --quiet python -I -c '
 import re, sys, xml.etree.ElementTree as ET
@@ -77,7 +127,7 @@ for c in ET.parse(sys.argv[1]).iter("testcase"):
     msg = (bad.get("message") or "").splitlines()[0:1] or [""]
     msg = last(bad.text) if msg[0] == "collection failure" else msg[0]
     whole = bad.get("message", "").startswith("collection failure")
-    red = bad.tag == "failure" and re.match(r"(assert( |$)|AssertionError|Failed: DID NOT RAISE)", msg)
+    red = bad.tag == "failure" and re.match(r"(assert( |$)|AssertionError|Failed:)", msg)
     print("red" if red else "harness", sys.argv[2], "(whole file)" if whole else c.get("name"), msg, sep="\t")
   ' "$wt/.red-run.xml" "$f" 2>/dev/null)"
   results="$results
@@ -85,7 +135,6 @@ $pyres"
 done
 results="$(printf '%s\n' "$results" | sed "/^\$/d; s#[^ ]*/red-run\.[A-Za-z0-9]*/##g" | cut -c1-400)"
 
-fails=0
 n_red=0 n_harness=0 n_pass=0 n_miss=0
 say() { # kind, file, title, message
   printf '  %-8s %s  [%s]%s\n' "$1" "$3" "$2" "${4:+  $4}" | cut -c1-300
@@ -117,14 +166,19 @@ fi
 hole=$'\001'
 shown=""
 for f in $ts $py; do
+  old_titles "$f" > "$wt/.red-run-old"
   fres="$(printf '%s\n' "$results" | awk -F'\t' -v f="$f" '$2 == f' | cut -f1,3-)"
   while IFS= read -r title; do
     [ -z "$title" ] && continue
-    # An exact title wins; else anchored at the start only, so a title the parser cut at an inner quote
-    # (window's) or an it.each title with $ placeholders still matches.
+    # An exact title wins. Else the whole title is matched, a pytest parameter id allowed after it and an
+    # it.each placeholder (%s, $0, ${x}) standing for any text; a result whose title is a case the file
+    # already held before the commit is never an added case.
     re="$(printf '%s' "$title" | sed -E "s/%.|\\\$\\{[^}]*\\}|\\\$[A-Za-z0-9_#\$][A-Za-z0-9_.\$]*/$hole/g; s/[][\\.*^\$+?(){}|]/\\\\&/g; s/$hole/.*/g")"
     hit="$(printf '%s\n' "$fres" | grep -F -- "$tab$title$tab" | awk -F'\t' -v t="$title" '$2 == t' || true)"
-    [ -z "$hit" ] && hit="$(printf '%s\n' "$fres" | grep -E -- "^[a-z]+$tab$re" || true)"
+    if [ -z "$hit" ]; then
+      hit="$(printf '%s\n' "$fres" | grep -E -- "^[a-z]+$tab$re(\\[[^$tab]*\\])?$tab" |
+        awk -F'\t' -v oldfile="$wt/.red-run-old" 'FILENAME == oldfile { old[$0]; next } !($2 in old)' "$wt/.red-run-old" - || true)"
+    fi
     if [ -z "$hit" ]; then
       # A file that failed as a whole ran none of its cases.
       hit="$(printf '%s\n' "$fres" | grep -E "^harness$tab\(whole file\)$tab" | head -1 || true)"
