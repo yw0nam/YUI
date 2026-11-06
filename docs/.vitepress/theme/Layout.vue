@@ -14,7 +14,7 @@ const { Layout } = DefaultTheme
         <p class="yui-404-sub">
           The page moved or never existed. YUI looked; the corner is empty.
         </p>
-        <a :href="withBase('/')" class="yui-404-home">Take me home</a>
+        <a :href="withBase('/')" target="_self" class="yui-404-home">Take me home</a>
       </div>
     </template>
   </Layout>

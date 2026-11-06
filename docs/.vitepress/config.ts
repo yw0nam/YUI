@@ -141,6 +141,7 @@ export default defineConfig({
     }
   },
   themeConfig: {
+    logoLink: { link: '/YUI/', target: '_self' },
     nav: [
       { text: 'Home', link: '/docs/' },
       { text: 'Guide', items: navGroups([START, USE, EXTEND]) },
