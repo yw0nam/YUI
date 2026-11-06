@@ -5,6 +5,10 @@
  * host's delta: a move follows in x and y, a resize follows the top edge only. The seat is
  * lost when it leaves the host's width or every monitor. Covered and gone stay with the
  * perch poll.
+ *
+ * The pet position is read once, at the baseline, and then carried in logical points: a
+ * physical position is in the backing scale of the moment, which changes while she crosses
+ * onto a monitor of another scale.
  */
 
 import type { WindowRect } from "../../../../contract";
@@ -13,7 +17,7 @@ import {
   type ScreenMonitor,
 } from "../../../../io/window/geometry/screen-geometry";
 import { createLogger } from "../../../../logger";
-import { type DropWindow, type PerchProbeSource, projectSeat } from "./perch-watch";
+import type { DropWindow, PerchProbeSource } from "./perch-watch";
 
 const log = createLogger("perch-follow");
 
@@ -46,6 +50,8 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
   let windowNumber = 0;
   let onLost: () => void = () => {};
   let last: WindowRect | null = null;
+  // The pet window's top-left in logical points, from the baseline on.
+  let pet: { x: number; y: number } | null = null;
   let monitors: ScreenMonitor[] | null = null;
   let busy = false;
   let stepFailureLogged = false;
@@ -61,9 +67,18 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
     deps.setGuardPaused(false);
   }
 
-  function lose(reason: "off_width" | "off_screen"): void {
+  function lose(
+    reason: "off_width" | "off_screen",
+    seat: { x: number; y: number },
+    host: WindowRect,
+  ): void {
     stop();
-    log.info("perch.follow_lost", { reason, windowNumber });
+    log.info("perch.follow_lost", {
+      reason,
+      windowNumber,
+      seat: { x: Math.round(seat.x), y: Math.round(seat.y) },
+      host: { x: host.x, y: host.y, width: host.width },
+    });
     onLost();
   }
 
@@ -82,7 +97,11 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       if (g !== gen || !b) return;
       // The first read is the baseline: the arm-time rect is stale after a stroll.
       const prev = last;
-      if (!prev) {
+      if (!prev || !pet) {
+        const win = deps.getWindow();
+        const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+        if (g !== gen) return;
+        pet = { x: pos.x / scale, y: pos.y / scale };
         last = b;
         return;
       }
@@ -90,12 +109,9 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       const dy = b.y - prev.y;
       const dx = resized ? 0 : b.x - prev.x;
       if (!resized && dx === 0 && dy === 0) return;
-      const win = deps.getWindow();
-      const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-      if (g !== gen) return;
-      const next = { x: Math.round(pos.x + dx * scale), y: Math.round(pos.y + dy * scale) };
+      const next = { x: pet.x + dx, y: pet.y + dy };
       const probe = deps.renderer.getPerchProbe();
-      const seat = probe ? projectSeat(probe, next, scale) : null;
+      const seat = probe ? { x: next.x + probe.seatPx.x, y: next.y + probe.seatPx.y } : null;
       // Off every screen the seat is lost where she stands, so the fall starts on screen.
       if (seat) {
         const known = monitors ?? (await readMonitors(g));
@@ -103,13 +119,14 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
         if (!monitorAtLogical(known, seat.x, seat.y)) {
           const fresh = await readMonitors(g);
           if (g !== gen) return;
-          if (!monitorAtLogical(fresh, seat.x, seat.y)) return lose("off_screen");
+          if (!monitorAtLogical(fresh, seat.x, seat.y)) return lose("off_screen", seat, b);
         }
       }
-      if (dx !== 0 || dy !== 0) await win.setPositionPhysical?.(next.x, next.y);
+      if (dx !== 0 || dy !== 0) await deps.getWindow().setPositionLogical?.(next.x, next.y);
       if (g !== gen) return;
+      pet = next;
       last = b;
-      if (seat && (seat.x < b.x || seat.x > b.x + b.width)) lose("off_width");
+      if (seat && (seat.x < b.x || seat.x > b.x + b.width)) lose("off_width", seat, b);
     } finally {
       if (g === gen) busy = false;
     }
@@ -121,6 +138,7 @@ export function createPerchFollow(deps: PerchFollowDeps): PerchFollow {
       windowNumber = n;
       onLost = lost;
       last = null;
+      pet = null;
       monitors = null;
       stepFailureLogged = false;
       deps.setGuardPaused(true);

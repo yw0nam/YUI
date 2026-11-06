@@ -43,6 +43,8 @@ export interface DropWindow {
    * a drag-only wiring may omit it, and `placeOn` then reports `unsupported`.
    */
   setPositionPhysical?(x: number, y: number): Promise<void>;
+  /** Move the pet window (logical points); the follow needs it. */
+  setPositionLogical?(x: number, y: number): Promise<void>;
 }
 
 /** Tauri `invoke` (only `list_windows` is used here). */

@@ -144,6 +144,7 @@ export function wireWindowSources(deps: {
           outerPosition: () => win.outerPosition(),
           scaleFactor: () => win.scaleFactor(),
           setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+          setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
         };
       },
       listen: listen as never,
