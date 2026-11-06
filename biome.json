@@ -10,13 +10,15 @@
       "src/**",
       "scripts/**",
       "tests/**",
+      "docs/landing/**",
       "*.ts",
       "*.mjs",
       "*.json",
       "plugins/catalog.json",
       "!**/public/vad",
       "!**/dist",
-      "!**/src-tauri/target"
+      "!**/src-tauri/target",
+      "!docs/landing/cc.json"
     ]
   },
   "formatter": {

@@ -1,0 +1,119 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YUI Desktop Scene</title>
+<link rel="icon" href="data:,">
+<script>document.documentElement.classList.add("js");</script>
+<link rel="stylesheet" href="/YUI/fonts/pretendardjp/pretendardjp-dynamic-subset.css">
+<style>
+/* Hallmark · v2.0.0 · system: locked by DESIGN.md (YUI tokens.css, The Hearthlight) · shape: one desktop scene, five user-driven steps · signature: the real YUI chip, bubble and Threads window over a recorded Claude Code session · material: real recordings (Claude Code 2.1.318 with yui-notify hooks), real UI modules, Fish Audio voice; absent: metrics, quotes, logos */
+/* critique: no headline or hero sentence by owner decision (the scene is the page, two address buttons at the end); the terminal is a borderless window, so no OS chrome is drawn */
+:root {
+  --wall-a: oklch(0.94 0.02 82); --wall-b: oklch(0.86 0.045 64); --glow: oklch(0.9 0.07 70 / 0.5);
+  --ghost: oklch(0.35 0.03 60 / 0.4); --ghost-fill: oklch(0.99 0.01 80 / 0.3);
+  --term-bg: oklch(0.21 0.005 60); --term-fg: oklch(0.92 0.005 60); --term-edge: oklch(0 0 0 / 0.55);
+  --term-shadow: 0 18px 50px oklch(0.2 0.02 60 / 0.35);
+  --term-font: "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  --load-track: oklch(0.5 0.02 70 / 0.18);
+  --hand-fill: oklch(0.99 0.005 80); --hand-ink: oklch(0.18 0.01 60);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="dawn"]) { --wall-a: oklch(0.23 0.02 62); --wall-b: oklch(0.14 0.012 55); --glow: oklch(0.42 0.11 50 / 0.4); --ghost: oklch(0.97 0.01 80 / 0.35); --ghost-fill: oklch(0.97 0.01 80 / 0.05); }
+}
+:root[data-theme="hearth"] { --wall-a: oklch(0.23 0.02 62); --wall-b: oklch(0.14 0.012 55); --glow: oklch(0.42 0.11 50 / 0.4); --ghost: oklch(0.97 0.01 80 / 0.35); --ghost-fill: oklch(0.97 0.01 80 / 0.05); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow: clip; }
+body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family: var(--yui-font); -webkit-font-smoothing: antialiased; }
+.stage { position: relative; height: 100%; overflow: clip; user-select: none; -webkit-user-select: none; }
+.desk { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: clip;
+  background: radial-gradient(70% 60% at 70% 100%, var(--glow), transparent 70%), linear-gradient(165deg, var(--wall-a), var(--wall-b)); }
+
+/* The terminal: a borderless window around xterm.js; the whole window is its drag handle. */
+.term { position: absolute; z-index: 2; padding: 12px; border-radius: 12px; background: var(--term-bg); box-shadow: 0 0 0 1px var(--term-edge), var(--term-shadow);
+  cursor: grab; touch-action: none; transition: opacity 400ms var(--yui-ease), transform 400ms var(--yui-ease); }
+.js .term:not(.on) { opacity: 0; transform: scale(0.97); }
+.term:active { cursor: grabbing; }
+.term.locked, .term.locked:active { cursor: default; }
+.term:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 4px; }
+.term .xterm, .term .xterm * { cursor: inherit !important; }
+.term .xterm-viewport { overflow: hidden !important; }
+.target { position: absolute; z-index: 1; border-radius: 12px; border: 2px dashed var(--ghost); background: var(--ghost-fill); opacity: 0; transition: opacity 300ms ease; pointer-events: none; }
+.target.on { opacity: 1; }
+.seat-mark { position: absolute; z-index: 3; width: 120px; height: 0; border-top: 3px dashed var(--yui-accent); opacity: 0; transition: opacity 300ms ease; pointer-events: none; }
+.seat-mark.on { opacity: 1; }
+
+/* Coach marks: one short label and, for a click, a ring on what to press. */
+.coach { position: absolute; z-index: 26; left: 0; top: 0; padding: 8px 16px; border-radius: var(--yui-radius-row); background: var(--yui-scrim-strong); border: 1px solid var(--yui-accent-soft);
+  color: var(--yui-text); font: 600 15px/1.3 var(--yui-font); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 250ms ease; }
+.coach.on { opacity: 1; }
+.ring { position: absolute; z-index: 25; left: 0; top: 0; border-radius: 12px; pointer-events: none; opacity: 0; box-shadow: 0 0 0 2px var(--yui-accent); transition: opacity 200ms ease; }
+.ring.on { opacity: 1; }
+.ring::after { content: ""; position: absolute; inset: -6px; border-radius: inherit; box-shadow: 0 0 0 2px var(--yui-accent-soft); animation: ring 1.6s var(--yui-ease) infinite; }
+@keyframes ring { from { opacity: 1; transform: scale(0.98); } 70%, to { opacity: 0; transform: scale(1.06); } }
+.arc { position: absolute; left: 0; top: 0; z-index: 24; pointer-events: none; opacity: 0; transition: opacity 600ms ease; overflow: visible; }
+.arc.on { opacity: 1; }
+.arc path { fill: none; stroke: var(--ghost); stroke-width: 2; stroke-dasharray: 6 7; }
+.arc .head { fill: var(--ghost); stroke: none; }
+.arc .hand { opacity: 0; }
+.arc .hand path { fill: var(--hand-fill); stroke: var(--hand-ink); stroke-dasharray: none; stroke-width: 1.1; }
+
+#gl { position: absolute; left: 0; top: 0; z-index: 10; pointer-events: none; }
+#gl.behind { z-index: 1; }   /* peeking: the terminal covers what is behind its edge */
+.grab { position: absolute; left: 0; top: 0; z-index: 11; border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; border-radius: 40px; }
+.grab:active { cursor: grabbing; }
+.grab:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 3px; }
+.pet { position: absolute; left: 0; top: 0; width: 400px; height: 600px; z-index: 12; pointer-events: none; }
+.threads-win { position: absolute; z-index: 20; }
+
+.links { position: fixed; z-index: 40; left: 16px; top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; transform: none; transition: opacity 600ms ease, transform 600ms var(--yui-ease); }
+.js .links:not(.on) { opacity: 0; pointer-events: none; transform: translateY(-8px); }
+.btn { display: inline-flex; align-items: center; gap: 8px; width: 48px; height: 48px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; text-decoration: none; font: 600 16px var(--yui-font); color: var(--yui-text-dim); background: var(--yui-scrim-strong); border: 0; box-shadow: var(--yui-float); transition: transform var(--yui-dur) var(--yui-ease), background-color var(--yui-dur) ease; }
+.btn:hover { transform: translateY(-1px); color: var(--yui-text); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn svg { width: 22px; height: 22px; flex: none; }
+.corner { position: fixed; z-index: 40; right: 16px; top: 14px; display: flex; gap: 8px; }
+.corner button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--yui-edge); background: var(--yui-scrim-strong); color: var(--yui-text-dim); display: grid; place-items: center; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 400ms ease; }
+.corner button.on { opacity: 1; pointer-events: auto; }
+.corner svg { width: 16px; height: 16px; }
+.corner button:focus-visible, .btn:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 3px; }
+.sound[aria-pressed="true"] .wave { display: none; }
+.sound[aria-pressed="false"] .cross { display: none; }
+.load { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 120px; height: 3px; border-radius: 3px; background: var(--load-track); overflow: clip; z-index: 50; }
+.load i { display: block; height: 100%; width: 100%; background: var(--yui-accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform 150ms linear; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .term, .coach, .ring, .links, .target, .seat-mark, .arc { transition: none; }
+  .ring::after { animation: none; opacity: 0; }
+}
+</style>
+
+<div class="stage" id="stage">
+  <div class="desk" id="desk">
+    <div class="target" id="target"></div>
+    <section class="term" id="term" tabindex="0" aria-label="Terminal running Claude Code. Drag to move it, or press Enter."><div id="termScreen"></div></section>
+    <div class="seat-mark" id="seatMark"></div>
+    <svg class="arc" id="arc" aria-hidden="true"><path id="arcPath"/><path class="head" id="arcHead" d="M0 -6 L11 0 L0 6 Z"/>
+      <g class="hand" id="arcHand"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5c0 3.6-2.4 6.5-6 6.5-2.7 0-4.3-1.3-5.6-3.4L4.2 13.8a1.5 1.5 0 0 1 2.4-1.8L9 14.5" transform="translate(-10 -6) scale(1.25)" stroke-linecap="round" stroke-linejoin="round"/></g>
+    </svg>
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <button type="button" class="grab" id="grab" aria-label="YUI. Drag her, or press Enter to seat her on the terminal." hidden></button>
+    <div class="pet" id="pet"></div>
+    <div class="threads-win" id="threadsWin" hidden></div>
+    <div class="ring" id="ring"></div>
+    <div class="coach" id="coach" aria-hidden="true"></div>
+  </div>
+  <p class="sr" id="live" aria-live="polite"></p>
+  <div class="load" id="load"><i></i></div>
+  <nav class="links" id="links" aria-label="YUI links">
+    <a class="btn" href="https://github.com/yw0nam/YUI" target="_blank" rel="noopener" aria-label="YUI on GitHub" title="github.com/yw0nam/YUI"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+    <a class="btn" href="https://yw0nam.github.io/YUI/docs/" target="_blank" rel="noopener" aria-label="YUI docs" title="yw0nam.github.io/YUI/docs/"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.5C6.6 2.5 4.6 2.2 2.5 2.5v10c2.1-.3 4.1 0 5.5 1 1.4-1 3.4-1.3 5.5-1v-10c-2.1-.3-4.1 0-5.5 1Z"/><path d="M8 3.5v10"/></svg></a>
+  </nav>
+  <div class="corner">
+    <button type="button" class="sound" id="sound" aria-label="Mute her voice" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6h2.5L8.5 3v10L5 10H2.5Z" fill="currentColor"/><path class="wave" d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4"/><path class="cross" d="M11 6l3.5 4M14.5 6L11 10"/></svg></button>
+    <button type="button" class="replay" id="replay" aria-label="Play from the start"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9"/><path d="M2.5 2.5v3h3"/></svg></button>
+  </div>
+  <noscript><p>YUI puts your agent on your desktop as a VRM character. Source: github.com/yw0nam/YUI. Docs: yw0nam.github.io/YUI/docs/.</p></noscript>
+</div>
+
+<script type="module" src="./main.ts"></script>
