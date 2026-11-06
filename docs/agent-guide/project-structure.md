@@ -912,7 +912,8 @@ YUI/
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
     openclaw/
-      README.md                      # OpenClaw gateway setup (Responses recommended, Code Mode off, auth)
+      README.md                      # OpenClaw integration: protocol, what works, security and cost
+      skills/yui-openclaw-setup/     # Step-by-step gateway and YUI connection setup with a check per step, and a symptom table
   skills/                            # Skill folders for the character's backend agent, copied into the agent's skill folder or fetched by raw URL
     README.md                        # The skills for readers: what each one teaches and how an agent takes it
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
