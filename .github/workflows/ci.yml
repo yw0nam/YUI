@@ -31,6 +31,7 @@ jobs:
       - run: pnpm logger:check # createLogger namespace equals the file name
       - run: pnpm commands:check # no Tauri command takes a file path from the webview
       - run: pnpm timers:check # timers are called detached, never as a method (WebKit throws)
+      - run: pnpm style-attrs:check # no inline style attribute in src/ markup (the CSP nonce drops it in the app)
       - run: pnpm docs:check # every site page meets the readability rule
       - run: pnpm docs:build # vitepress build + dead-link check
 
