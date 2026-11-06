@@ -96,6 +96,10 @@ export async function* streamChatCompletions(
     });
   }
 
+  // A backend that keys an agent session on `user` continues the turn's tool loop; one id per turn
+  // because the client transcript holds the conversation.
+  const user = crypto.randomUUID();
+
   for (let trips = 0; ; ) {
     let stream: AsyncIterable<ChatCompletionChunk>;
     try {
@@ -108,6 +112,7 @@ export async function* streamChatCompletions(
           ? { tools: toolDefs as unknown as ChatCompletionCreateParamsStreaming["tools"] }
           : {}),
         ...(request.reasoning_effort ? { reasoning_effort: request.reasoning_effort } : {}),
+        user,
         stream: true,
         stream_options: { include_usage: true },
       };
