@@ -143,7 +143,9 @@ A line is omitted outright when its underlying field is absent. For example, the
 
 Any field value that could contain whitespace runs, a newline, or the block's own tags is sanitized before it is embedded. Such values include an app name, a window title, a cue label, and a signal payload string.
 
-Whitespace runs collapse to one space, and the string is trimmed. Any `<client_context>` or `</client_context>` sequence inside it is stripped outright.
+Whitespace runs collapse to one space, and the string is trimmed. Any `<client_context>` or `</client_context>` sequence inside it is stripped outright, again until none is left, so a tag that the removal of another rebuilds is stripped too.
+
+A signal item is sanitized as its whole serialized JSON line: JSON escaping turns a newline inside a value into `\n`, and the collapse and trim apply to that line, not to each value.
 
 `configs/`-authored and user-typed fields go through the same sanitization.
 
