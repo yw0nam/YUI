@@ -32,14 +32,15 @@ afterEach(() => {
 
 /**
  * The host starts at (300, 400, 520 wide), window number 7. The pet window sits at physical
- * (520, 740) at scale 2 with seat offset (40, 30), so the seat is (300, 400): the host's top-left corner.
+ * (520, 740) at scale 2, logical (260, 370), with seat offset (40, 30), so the seat is (300, 400):
+ * the host's top-left corner.
  */
 function follow(timers = { setInterval, clearInterval }) {
   const host = { rect: win({ windowNumber: 7 }) as WindowRect | null };
   const windowBounds = vi.fn(async () => host.rect);
   const petWindow = {
     ...makeWindow({ x: 520, y: 740 }, 2),
-    setPositionPhysical: vi.fn(async (_x: number, _y: number) => {}),
+    setPositionLogical: vi.fn(async (_x: number, _y: number) => {}),
   };
   const perch = makePerchSource();
   const onLost = vi.fn();
@@ -63,14 +64,14 @@ describe("perch-follow", () => {
 
     expect(windowBounds).toHaveBeenCalledTimes(1);
     expect(windowBounds).toHaveBeenCalledWith(7);
-    expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
+    expect(petWindow.setPositionLogical).not.toHaveBeenCalled();
   });
 
   it.each([
-    { dx: 100, dy: 50, to: [720, 840] },
-    { dx: -30, dy: 0, to: [460, 740] },
-    { dx: 0, dy: -20, to: [520, 700] },
-  ])("moves the pet window by the host's ($dx, $dy) at scale 2", async ({ dx, dy, to }) => {
+    { dx: 100, dy: 50, to: [360, 420] },
+    { dx: -30, dy: 0, to: [230, 370] },
+    { dx: 0, dy: -20, to: [260, 350] },
+  ])("moves the pet window by the host's ($dx, $dy) in points", async ({ dx, dy, to }) => {
     const { subject, host, petWindow, onLost } = follow();
     subject.start(7, onLost);
     await step();
@@ -78,8 +79,8 @@ describe("perch-follow", () => {
     host.rect = win({ windowNumber: 7, x: 300 + dx, y: 400 + dy });
     await step();
 
-    expect(petWindow.setPositionPhysical).toHaveBeenCalledTimes(1);
-    expect(petWindow.setPositionPhysical).toHaveBeenCalledWith(to[0], to[1]);
+    expect(petWindow.setPositionLogical).toHaveBeenCalledTimes(1);
+    expect(petWindow.setPositionLogical).toHaveBeenCalledWith(to[0], to[1]);
   });
 
   it("follows only y when the width changes", async () => {
@@ -91,7 +92,7 @@ describe("perch-follow", () => {
     host.rect = win({ windowNumber: 7, x: 250, y: 450, width: 570 });
     await step();
 
-    expect(petWindow.setPositionPhysical).toHaveBeenCalledWith(520, 840);
+    expect(petWindow.setPositionLogical).toHaveBeenCalledWith(260, 420);
     expect(onLost).not.toHaveBeenCalled();
   });
 
@@ -110,6 +111,8 @@ describe("perch-follow", () => {
     expect(info).toHaveBeenCalledWith("[YUI][perch-follow] perch.follow_lost", {
       reason: "off_width",
       windowNumber: 7,
+      seat: { x: 300, y: 400 },
+      host: { x: 500, y: 400, width: 320 },
     });
     expect(windowBounds).toHaveBeenCalledTimes(2);
     expect(setGuardPaused).toHaveBeenLastCalledWith(false);
@@ -126,12 +129,31 @@ describe("perch-follow", () => {
     await step();
     await step();
 
-    expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
+    expect(petWindow.setPositionLogical).not.toHaveBeenCalled();
     expect(onLost).toHaveBeenCalledTimes(1);
     expect(info).toHaveBeenCalledWith("[YUI][perch-follow] perch.follow_lost", {
       reason: "off_screen",
       windowNumber: 7,
+      seat: { x: 300, y: 1200 },
+      host: { x: 300, y: 1200, width: 520 },
     });
+  });
+
+  it("keeps the seat on the host when the pet window's scale changes mid-follow", async () => {
+    const { subject, host, petWindow, onLost } = follow();
+    subject.start(7, onLost);
+    await step();
+    host.rect = win({ windowNumber: 7, x: 400 });
+    await step();
+
+    // Crossing onto a scale-1 monitor: the position still reads at scale 2 while the scale reads 1.
+    petWindow.outerPosition.mockResolvedValue({ x: 720, y: 740 });
+    petWindow.scaleFactor.mockResolvedValue(1);
+    host.rect = win({ windowNumber: 7, x: 500 });
+    await step();
+
+    expect(petWindow.setPositionLogical).toHaveBeenLastCalledWith(460, 370);
+    expect(onLost).not.toHaveBeenCalled();
   });
 
   it("calls its timers detached, as WebKit's brand check requires", async () => {
@@ -165,7 +187,7 @@ describe("perch-follow", () => {
     await step();
     await step();
 
-    expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
+    expect(petWindow.setPositionLogical).not.toHaveBeenCalled();
     expect(onLost).not.toHaveBeenCalled();
   });
 
@@ -198,7 +220,7 @@ describe("perch-follow", () => {
     await step();
     await step();
 
-    expect(petWindow.setPositionPhysical).not.toHaveBeenCalled();
+    expect(petWindow.setPositionLogical).not.toHaveBeenCalled();
   });
 
   it("keeps the next follow's baseline when a step blocked on the window move straddles stop and start", async () => {
@@ -208,7 +230,7 @@ describe("perch-follow", () => {
 
     // The step's window move is still in flight when she is re-seated on window 8.
     let finishMove!: () => void;
-    petWindow.setPositionPhysical.mockImplementationOnce(
+    petWindow.setPositionLogical.mockImplementationOnce(
       () =>
         new Promise<void>((resolve) => {
           finishMove = resolve;
@@ -223,6 +245,6 @@ describe("perch-follow", () => {
     await step();
     await step();
 
-    expect(petWindow.setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(petWindow.setPositionLogical).toHaveBeenCalledTimes(1);
   });
 });
