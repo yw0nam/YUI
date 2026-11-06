@@ -80,7 +80,7 @@ Quick start greets once when it connects and turns the greetings and check-ins o
 | Plugins | MCP servers and skills under `plugins/`; the host runs a server once you allow it, such as the [browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) plugin |
 | Plugins page | Installs catalog plugins such as `browser`, and runs their servers with your consent ([Plugins](plugins.md)) |
 | Terminal | Shells on this device, opened from the Terminal tab or by her backend |
-| Integrations | Wiring for one backend agent under `integrations/`, such as Hermes |
+| Integrations | Wiring for one backend agent under `integrations/`, such as OpenClaw and Hermes |
 
 On a terminal, her first read or write asks you for Allow. That approval lasts until you press **Take back**.
 
