@@ -1,7 +1,8 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type { Thread } from "../../src/contract";
+import { say } from "./session/speech";
 import { type Recording, store } from "./session/thread-store";
-import { startSession } from "./story";
+import { currentPhase, startSession } from "./story";
 
 const cast = vi.hoisted(() => {
   const marks = { ready: 1, answer: 2, end: 3 };
@@ -55,7 +56,10 @@ const recorded = (ask: object) =>
     ],
   }) as unknown as Recording["snapshots"][number];
 
+afterEach(() => vi.useRealTimers());
+
 it("keeps the replay on its path when the visitor answers the closing ask", async () => {
+  vi.useFakeTimers();
   let thread: Thread | undefined;
   store.subscribe((s) => {
     thread = s.threads[0];
@@ -77,7 +81,9 @@ it("keeps the replay on its path when the visitor answers the closing ask", asyn
   store.fromRecording(recorded({ ask_id: "stop:1", prompt: "What next?", text: true }), 0);
   await store.answer("cc", "stop:1", { text: "open the PR" });
   expect(thread?.entries.at(-1)).toMatchObject({ role: "user", text: "open the PR" });
-  expect(cast.seek.mock.calls).toEqual([[2]]);
-  expect(cast.playTo.mock.calls).toEqual([[2], [2.95]]);
-  expect(cast.switchTo.mock.calls).toEqual([]);
+  expect(currentPhase()).toBe("speaking");
+  await vi.advanceTimersByTimeAsync(900);
+  expect(vi.mocked(say).mock.calls).toEqual([
+    ["1,284 tests passed. Want me to open the PR for review?", "allow"],
+  ]);
 });
