@@ -33,6 +33,7 @@ const view = createThreadsView({
   onListCollapsed() {},
   listWidth: null,
   onListWidth() {},
+  onTurnsLevel() {},
   resize: box.resize,
   terminal: wireTerminalTab({
     register() {},
