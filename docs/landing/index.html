@@ -78,7 +78,8 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
 .load i { display: block; height: 100%; width: 100%; background: var(--yui-accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--yui-dur) var(--yui-ease); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
-  .term, .coach, .ring, .links, .target, .seat-mark, .arc { transition: none; }
+  .term, .coach, .ring, .links, .target, .seat-mark, .arc, .btn, .corner button, .load i { transition: none; }
+  .btn:hover, .btn:active { transform: none; }
   .ring::after { animation: none; opacity: 0; }
 }
 </style>
