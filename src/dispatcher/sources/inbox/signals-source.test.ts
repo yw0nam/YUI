@@ -915,3 +915,47 @@ describe("signals_source — onArrival", () => {
     src.stop();
   });
 });
+
+describe("signals_source — offer", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  async function started(isEnabled: () => boolean) {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox } = fakeInbox();
+    const onArrival = vi.fn();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled,
+      onInbox,
+      listen,
+      onArrival,
+    });
+    await src.start();
+    emitIdle(idleTick(LOW_IDLE));
+    return { src, pushed, onArrival };
+  }
+
+  it("an offered batched group goes out in the batch turn, label cut, without an arrival report", async () => {
+    const { src, pushed, onArrival } = await started(() => true);
+    src.offer({ envelope: { ...ENVELOPE, label: "x".repeat(130) }, items: [{ id: 1 }] });
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(pushed.map((e) => [e.event_name, e.payload?.signals])).toEqual([
+      [
+        "signals.batch",
+        [{ envelope: { ...ENVELOPE, label: `${"x".repeat(119)}…` }, items: [{ id: 1 }] }],
+      ],
+    ]);
+    expect(onArrival).not.toHaveBeenCalled();
+  });
+
+  it("an offered group is dropped while signals are disabled", async () => {
+    const { src, pushed } = await started(() => false);
+    src.offer({ envelope: ENVELOPE, items: [{ id: 1 }] });
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(pushed).toEqual([]);
+    expect(src.drain()).toEqual([]);
+  });
+});

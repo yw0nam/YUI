@@ -701,6 +701,9 @@ mod tests {
         assert_eq!(t.entries.len(), 50);
         assert_eq!(t.entries[0].text, "10");
         assert_eq!(t.entries[49].at, 102);
+        assert_eq!(t.entry_count, 60);
+        s.answer("t", answer(), 103).unwrap();
+        assert_eq!(s.snapshot().threads[0].entry_count, 61);
     }
 
     #[test]
