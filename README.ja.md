@@ -11,7 +11,7 @@
 [![Discussions](https://img.shields.io/github/discussions/yw0nam/YUI?logo=github)](https://github.com/yw0nam/YUI/discussions)
 [![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)](https://github.com/yw0nam/YUI/actions/workflows/ci.yml)
 
-[クイックスタート](#クイックスタート) · [デモ動画](https://youtu.be/dIOQdoAp0GE) · [ドキュメント](https://yw0nam.github.io/YUI/docs/) · [Discussions](https://github.com/yw0nam/YUI/discussions) · [English](README.md)
+[ブラウザで試す](https://yw0nam.github.io/YUI/) · [クイックスタート](#クイックスタート) · [デモ動画](https://youtu.be/dIOQdoAp0GE) · [ドキュメント](https://yw0nam.github.io/YUI/docs/) · [Discussions](https://github.com/yw0nam/YUI/discussions) · [English](README.md)
 
 <a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — 透過・常に最前面のオーバーレイとして、ブラウザウィンドウの上に立つVRMキャラクター。頭と視線がマウスカーソルを追い、画面の内容について入力された質問に吹き出しで答える" width="820"></a>
 
