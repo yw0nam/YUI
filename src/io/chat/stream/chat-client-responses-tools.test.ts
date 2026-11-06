@@ -261,6 +261,25 @@ describe("streamChat — Responses tool-call round trip", () => {
     expect(createMock.mock.calls[1][0].input[0]).toEqual({ role: "user", content: "hello" });
   });
 
+  it("sends every role item typed as a message on the first request and the follow-up", async () => {
+    const lookup = toolStub("lookup");
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([text("Let me check."), ...call("lookup", "fc_1"), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([text("It is 42."), done("resp_2")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(lookup)));
+
+    const roleItems = (n: number) =>
+      createMock.mock.calls[n][0].input.filter((item: object) => "role" in item);
+    expect(roleItems(0)).toEqual([{ type: "message", role: "user", content: "hi" }]);
+    expect(roleItems(1)).toEqual([
+      { type: "message", role: "user", content: "hi" },
+      { type: "message", role: "assistant", content: "Let me check." },
+    ]);
+  });
+
   it("a cue-only call in a response that already spoke is a finished turn — no round trip", async () => {
     const gen = oneWayStub("generate_express");
     createMock.mockResolvedValueOnce(

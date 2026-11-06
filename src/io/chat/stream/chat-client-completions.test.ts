@@ -445,6 +445,29 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(ccCreateMock).toHaveBeenCalledTimes(2);
   });
 
+  it("sends one user id on every request of a turn and a new one on the next turn", async () => {
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("Hi"), finishChunk("stop")]))
+      .mockResolvedValueOnce(streamOf([textChunk("Again"), finishChunk("stop")]));
+
+    await collect(streamChat(CONFIG, req(), { tools: registry }));
+    await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    const [first, second, next] = ccCreateMock.mock.calls.map(([body]) => body.user);
+    expect(first).toEqual(expect.any(String));
+    expect(first).not.toBe("");
+    expect(second).toBe(first);
+    expect(next).toEqual(expect.any(String));
+    expect(next).not.toBe(first);
+  });
+
   it("appends the assistant tool_calls message and one tool result per call, leaving the caller's array untouched", async () => {
     const messages = [{ role: "user", content: "hi" }] as any;
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
