@@ -1,9 +1,10 @@
 # yui-notify
 
 Claude Code and Codex hooks post coding-agent conversations as [Threads](../../docs/reference/threads.md).
-Threads are app-wide and fire no character turn. Codex accepts answers through synchronous
-hooks. Claude Code accepts answers through its own inbox socket: a poller the Stop hook
-starts posts the answer into the session, and permission hooks wait like Codex's.
+Threads are app-wide; they give the main character a turn only when Thread turns is on in
+YUI. Codex accepts answers through synchronous hooks. Claude Code accepts answers through its
+own inbox socket: a poller the Stop hook starts posts the answer into the session, and
+permission hooks wait like Codex's.
 
 ## Install
 

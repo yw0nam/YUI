@@ -2,7 +2,7 @@
 
 A Thread is an outside conversation that a producer posts for the user to read and answer. A Thread has an id, source, state, entries, and at most one open Ask.
 
-Threads are app-wide and do not fire character turns. Producers connect to YUI. YUI never connects to a producer.
+Threads are app-wide. A Thread update gives the main character a turn only through [Thread turns](#thread-turns). Producers connect to YUI. YUI never connects to a producer.
 
 ## Listener and paths
 
@@ -40,6 +40,8 @@ Optional `label`, `placeholder`, `tone`, `entries`, `multiple`, and `choices` fi
 `role` is `agent`, `user`, or `system`. `text` is non-empty and at most 16384 code points.
 
 The store appends the entries and stamps each one with `at` in epoch milliseconds. It keeps the newest 50.
+
+The Thread's `entry_count` is how many entries were ever appended to it, by PUTs and by user answers. It keeps counting past the newest-50 limit, so it names the new entries that `entries` alone cannot. A Thread replayed from a line without it reads 0.
 
 ### Ask fields
 
@@ -138,7 +140,7 @@ The state lock orders mutation, revision increase, and disk append. Disk order e
 
 `threads_snapshot()` returns `{revision, threads}`, with Threads sorted by newest `updated_at` first.
 
-Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, and `updated_at`.
+Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, `updated_at`, and `entry_count`.
 
 Optional `answered_ask_ids` records answered ids. It is omitted when empty.
 
@@ -176,4 +178,35 @@ The Threads window renders each entry's text as Markdown with the speech bubble'
 
 A picked Thread and a fresh open start at the newest entry. A new entry follows a reader at the bottom and leaves a reader above it in place.
 
-The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line. Threads fire no turn.
+The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line.
+
+## Thread turns
+
+Thread turns is the device-wide setting `yui.thread-turns`: `off` (the default), `notable`, or `every`. It decides which Thread updates give the main character a signals turn. A change applies without a restart.
+
+Main's pet window compares each Threads snapshot with the one before. The first snapshot it sees is the baseline and gives no turn, so Threads kept on disk do not replay at launch. Every snapshot updates what was seen, whatever the level, so turning the setting on gives no turn for earlier updates.
+
+| Level | A Thread gives a turn when |
+|---|---|
+| `off` | Never |
+| `notable` | It shows an `ask_id` not seen open on it before (`thread.ask`), or its state becomes `failed` (`thread.failed`) |
+| `every` | A new entry has role `agent` or `system` (`thread.entry`) |
+
+The new entries are the newest ones, as many as `entry_count` grew. A Thread absent from the previous snapshot starts with no seen asks, no state, and no entries. Under `notable`, a re-PUT of the same `ask_id` and a Thread becoming `completed` give no turn. Read and seen marks give no turn at any level.
+
+### The signal group
+
+Each Thread that gives a turn becomes one signal group with `delivery: "batched"`. It waits in the batch buffer like a `/signals` group ([Signals ingress](./signals-ingress.md#batched)). Its `event_id` is `thread:<id>`, so a newer group for the same Thread replaces a buffered one.
+
+`source` is the Thread's source, `occurred_at` its `updated_at`, and `label` its title, cut at 120 code points like a producer's label. No signal chip shows for these groups. The group holds one item:
+
+| Field | Value |
+|---|---|
+| `thread_id` | The Thread id |
+| `title` | The title on one line |
+| `label` | The label on one line; only when the Thread has one |
+| `state` | The Thread state |
+| `ask` | The open ask's prompt on one line; only while an ask is open |
+| `last` | `{role, text}` of the newest entry, its text on one line and cut at 160 characters; only when the Thread has an entry |
+
+Thread turns run in main's pet window only. Threads reach the client only while the ingress listener runs, and while External signals is off every group is dropped. Turning Thread turns off stops new groups; groups already buffered still go.

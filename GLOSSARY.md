@@ -119,6 +119,9 @@ _Avoid_: unread, pending
 The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
 _Avoid_: inbox, panel, dashboard
 
+**Thread turns**:
+The device-wide setting (`off`, `notable`, `every`) by which a Thread update gives the main character a signals turn.
+
 **Threads chip**:
 The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests, and opens the Threads window; it hides while that window is open.
 _Avoid_: badge, notification pill
@@ -164,7 +167,7 @@ A line the client speaks in the character's voice outside a turn's utterance: fi
 _Avoid_: client line, system line
 
 **Signals**:
-A burst of events from an external producer POSTed to the `/signals` ingress, flushed as one turn.
+A burst of events from an external producer POSTed to the `/signals` ingress, or derived from a Thread update, flushed as one turn.
 
 **Delivery class**:
 How urgent a signal group is, chosen by the producer: `urgent` (handle now) or `batched` (can wait and go out together). The client routes by it and shows it as the dot and class of a source line; it never changes the wire value.
@@ -232,7 +235,7 @@ A tool the client runs itself: one it declares to the backend (generate_express,
 _Avoid_: in-app tool, local tool
 
 **Producer**:
-An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
+An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks).
 _Avoid_: sender, emitter
 
 ### Configuration

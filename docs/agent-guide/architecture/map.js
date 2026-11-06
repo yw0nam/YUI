@@ -683,7 +683,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -1070,7 +1070,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1100,6 +1100,15 @@ globalThis.YUI_MAP =
       "role": "Turns a user-turn-routed bridge event for this preset into a user turn that carries its send id, its mention and whether the user spoke it, and reports the done signal for that send id once the turn closes or is dropped.",
       "paths": [
         "src/dispatcher/sources/routed"
+      ]
+    },
+    {
+      "id": "dispatcher/sources/threads",
+      "module": "sources",
+      "label": "thread turns",
+      "role": "Diffs each Threads snapshot against the last one seen and returns the batched signal groups the Thread turns level asks for: a new ask or a Thread becoming failed (notable), or a new agent or system entry (every); the first snapshot is the baseline.",
+      "paths": [
+        "src/dispatcher/sources/threads"
       ]
     },
     {
@@ -1278,7 +1287,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns and every group it returns is offered to the signals source.",
       "paths": [
         "src/app/turn"
       ]
@@ -2697,6 +2706,33 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "settings-thread-turns",
+      "from": "settings",
+      "to": "dispatcher/sources/threads",
+      "carries": "threadTurnsSettings.level (yui.thread-turns), read per snapshot",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "thread-turns-snapshot",
+      "from": "io/threads",
+      "to": "dispatcher/sources/threads",
+      "carries": "snapshot() once as the baseline, then every snapshot; main only",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-thread-turns.ts"
+    },
+    {
+      "id": "thread-turns-offer",
+      "from": "dispatcher/sources/threads",
+      "to": "dispatcher/sources/inbox",
+      "carries": "offer(group): one batched thread.ask, thread.failed or thread.entry group per Thread, event_id thread:<id>",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-thread-turns.ts"
     },
     {
       "id": "idle-tick-bus",

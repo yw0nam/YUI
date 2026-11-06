@@ -67,8 +67,8 @@ Done when: the JSON contains `endpoint`, `wait.stop`, and `wait.permission`.
 ```
 
 The command sends one Thread that asks “Did this test Thread arrive?” and waits 60 seconds
-for the answer. It fires no character turn. Ask the user to open the Threads chip beside the
-character and answer it.
+for the answer. It fires no character turn unless Thread turns is on in YUI (off by default).
+Ask the user to open the Threads chip beside the character and answer it.
 
 Done when: the command prints `answered: …`. `no answer within 60 s` means the Thread never
 showed in YUI, or the answer did not come back: read `references/troubleshooting.md`.
