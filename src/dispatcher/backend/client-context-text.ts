@@ -208,7 +208,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       if (group.items.length === 0) {
         lines.push(`${prefix} (no payload)`);
       } else {
-        for (const item of group.items) lines.push(`${prefix} ${JSON.stringify(item)}`);
+        for (const item of group.items) lines.push(`${prefix} ${oneLine(JSON.stringify(item))}`);
       }
     }
   }
