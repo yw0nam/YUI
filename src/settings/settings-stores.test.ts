@@ -38,6 +38,7 @@ describe("createSettingsStores", () => {
       "agentSettings",
       "userNameSettings",
       "themeSettings",
+      "threadTurnsSettings",
       "textSizeSettings",
       "fillerSettings",
       "readingsSettings",

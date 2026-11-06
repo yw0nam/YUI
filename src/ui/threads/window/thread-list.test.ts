@@ -7,7 +7,7 @@ import { setLocale } from "../../i18n";
 import { createThreadList, openSelection, threadListView } from "./thread-list";
 
 function thread(id: string, source: string, state: Thread["state"], updated_at: number): Thread {
-  return { id, source, title: id, state, entries: [], created_at: 1, updated_at };
+  return { id, source, title: id, state, entries: [], created_at: 1, updated_at, entry_count: 0 };
 }
 
 const THREADS = [

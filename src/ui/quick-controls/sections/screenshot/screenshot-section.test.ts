@@ -30,6 +30,7 @@ function build({ enabled = false, open = true }: { enabled?: boolean; open?: boo
       fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
+    showThreadTurns: false,
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,

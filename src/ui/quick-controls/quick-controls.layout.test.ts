@@ -29,6 +29,7 @@ import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { createRelationsStore } from "../../settings/relations/relations-store";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
+import { createThreadTurnsSettings } from "../../settings/threads/thread-turns-settings";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
@@ -157,6 +158,7 @@ describe("createQuickControls — settings layout", () => {
         ".yui-agentnotify-switch",
         "#yui-agent-port",
         "#yui-ingress-url",
+        ".yui-threadturns-row",
         ".yui-wf-list",
         "#yui-presence",
         "#yui-pacer-gap",
@@ -195,6 +197,7 @@ describe("createQuickControls — settings layout", () => {
       climbSettings: createFlagSettings(true),
       fallSettings: createFlagSettings(true),
       agentNotifySettings: createAgentNotifySettings(),
+      threadTurnsSettings: createThreadTurnsSettings(),
       presenceSettings: inMemoryPresenceStore(),
       pacerGapSettings: inMemoryPacerGapStore(),
       messageWindowSettings: createMessageWindowSettings(),

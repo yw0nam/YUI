@@ -1,8 +1,9 @@
 # Agent Lifecycle Hooks
 
 The [yui-notify plugin](../../coding-agents/yui-notify/README.md) posts Claude Code and
-Codex conversations as app-wide [Threads](../reference/threads.md). Threads fire no
-character turn. Producers connect to YUI; YUI never connects back to the agent.
+Codex conversations as app-wide [Threads](../reference/threads.md). Threads give the
+main character a turn only when [Thread turns](../reference/threads.md#thread-turns) is
+on in YUI (off by default). Producers connect to YUI; YUI never connects back to the agent.
 
 ## Setup
 

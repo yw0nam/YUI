@@ -5,7 +5,8 @@ import { oneLine } from "../../one-line";
 
 const LIST_LIMIT = 20;
 const SEARCH_LIMIT = 10;
-const LAST_CUT = 160;
+/** The chars of the newest entry a Thread row shows. */
+export const LAST_CUT = 160;
 const ENTRY_CUT = 2000;
 /** The chars a search snippet shows on each side of the match. */
 const SNIPPET_SIDE = 80;

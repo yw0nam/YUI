@@ -19,6 +19,7 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
     entries: [],
     created_at: 1,
     updated_at,
+    entry_count: 0,
   };
 }
 

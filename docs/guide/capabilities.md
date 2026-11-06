@@ -33,7 +33,7 @@ If you turn on screen watching, she can also comment when you switch apps or whe
 
 ## Your coding agents
 
-With External signals on and the yui-notify plugin installed on the machine where the agent runs, Claude Code and Codex conversations post to Threads, which you read and answer in the Threads window. A Thread never starts a turn for her.
+With External signals on and the yui-notify plugin installed on the machine where the agent runs, Claude Code and Codex conversations post to Threads, which you read and answer in the Threads window. A Thread starts a turn for her only when Thread turns is on; it is off by default.
 
 ## On the web
 

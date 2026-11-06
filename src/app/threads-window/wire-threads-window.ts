@@ -1,4 +1,4 @@
-/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, its frame, open and close, theme and language. */
+/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
@@ -13,6 +13,14 @@ import {
   localStorageThemeStorage,
 } from "../../settings/appearance/theme-settings";
 import {
+  createAgentNotifySettings,
+  localStorageAgentNotifyStorage,
+} from "../../settings/backend/agent-notify-settings";
+import {
+  createThreadTurnsSettings,
+  localStorageThreadTurnsStorage,
+} from "../../settings/threads/thread-turns-settings";
+import {
   createThreadsWindowSettings,
   localStorageThreadsWindowStorage,
 } from "../../settings/threads/threads-window-settings";
@@ -26,6 +34,7 @@ import { createThreadsPlacement } from "./threads-placement";
 import { createThreadsPresence } from "./threads-presence";
 import { createThreadsResize } from "./threads-resize";
 import { wireTerminalTab } from "./wire-terminal-tab";
+import { wireTurnsMenu } from "./wire-turns-menu";
 
 const log = createLogger("wire-threads-window");
 
@@ -36,7 +45,18 @@ export async function wireThreadsWindow(deps: {
   const { register } = deps.lifecycle;
   const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
   const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
+  const threadTurnsSettings = createThreadTurnsSettings({
+    storage: localStorageThreadTurnsStorage(),
+  });
+  const agentNotifySettings = createAgentNotifySettings({
+    storage: localStorageAgentNotifyStorage(),
+  });
   const bridge = createSettingsBridge(undefined, { windowKind: "threads" });
+  const turnsMenu = wireTurnsMenu({
+    turns: threadTurnsSettings,
+    agentNotify: agentNotifySettings,
+    emitSettingsChanged: bridge.emitSettingsChanged,
+  });
   const client = createThreadsClient();
   const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage() });
   const placement = createThreadsPlacement({ settings });
@@ -65,6 +85,7 @@ export async function wireThreadsWindow(deps: {
     onListWidth: settings.setListWidth,
     resize,
     terminal: wireTerminalTab({ register, settings }),
+    onTurnsLevel: turnsMenu.pick,
   });
   const presence = createThreadsPresence({
     view,
@@ -77,9 +98,12 @@ export async function wireThreadsWindow(deps: {
   // Drains LIFO, so registered in reverse of the teardown order.
   register(() => themeSettings.dispose());
   register(() => textSizeSettings.dispose());
+  register(() => threadTurnsSettings.dispose());
+  register(() => agentNotifySettings.dispose());
   register(() => bridge.dispose());
   register(() => client.dispose());
   register(() => view.dispose());
+  register(turnsMenu.draw(view.setTurns));
   register(() => placement.dispose());
   register(
     applyTheme({
@@ -97,6 +121,8 @@ export async function wireThreadsWindow(deps: {
       reloadLocale();
       themeSettings.reloadFromStorage();
       textSizeSettings.reloadFromStorage();
+      threadTurnsSettings.reloadFromStorage();
+      agentNotifySettings.reloadFromStorage();
     }),
   );
   window.addEventListener("beforeunload", deps.lifecycle.dispose);

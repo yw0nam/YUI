@@ -422,7 +422,7 @@ The line is present only when all three of these hold:
 
 At zero waiting, the line is omitted.
 
-The backend reads Threads only through the `threads_list` and `threads_search` on-demand tools. It calls them through `yui_tool_call` ([client-tools.md](client-tools.md)). They read the same store snapshot that this count comes from. Threads fire no turn.
+The backend reads Threads only through the `threads_list` and `threads_search` on-demand tools. It calls them through `yui_tool_call` ([client-tools.md](client-tools.md)). They read the same store snapshot that this count comes from. A Thread update gives a turn only through [Thread turns](./threads.md#thread-turns).
 
 ## Trigger lines
 
@@ -555,7 +555,9 @@ Signals are grouped by ingress batch. The headline counts items across all group
 
 An enveloped group with no items renders one `(no payload)` line. It contributes zero to the headline count. Envelope `delivery` and `label` are not rendered.
 
-Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline: `proactive.tap_bored` turns carry both their configured cue and drained signal groups. Every group carries the ingress envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
+Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline: `proactive.tap_bored` turns carry both their configured cue and drained signal groups. Every group carries an envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
+
+A group can also be Thread-derived: the client builds it from a Thread update while [Thread turns](./threads.md#thread-turns) is on. Its `event_type` is `thread.ask`, `thread.failed`, or `thread.entry`, and its `event_id` is `thread:<id>`. Its one item carries `thread_id`, `title`, `state`, and, when present, `label`, `ask`, and `last` (`{role, text}`).
 
 ### Addressed
 

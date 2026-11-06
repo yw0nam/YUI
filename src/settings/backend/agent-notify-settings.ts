@@ -50,6 +50,8 @@ export function createAgentNotifySettings(opts?: { storage?: AgentNotifyStorage 
   };
 }
 
+export type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
+
 /** localStorage-backed AgentNotifyStorage adapter. Gracefully no-ops where localStorage is absent. */
 export function localStorageAgentNotifyStorage(key = "yui.agentNotify"): AgentNotifyStorage {
   return localStorageStore<AgentNotifySettings>(key);

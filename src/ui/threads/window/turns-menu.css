@@ -1,0 +1,139 @@
+/* The head's Thread turns pill and its popover of the three levels.
+   Tokens in ../../tokens.css. */
+
+.yui-threads__turns {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.yui-threads__turns-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.yui-threads__turns-button.is-on {
+  border-color: var(--yui-accent-soft);
+  color: var(--yui-accent-ink);
+}
+
+.yui-threads__turns-button:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads__turns-button .yui-threads-glyph {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.yui-threads__turns-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Above the medium layout's list overlay, under the panel's edge line. */
+.yui-threads__turns-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 4;
+  box-sizing: border-box;
+  width: 280px;
+  padding: 6px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-threads-base);
+  box-shadow: var(--yui-float);
+  cursor: default;
+}
+
+.yui-threads__turns-pop[hidden] {
+  display: none;
+}
+
+.yui-threads__turns-caption,
+.yui-threads__turns-note {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+  line-height: 1.4;
+}
+
+.yui-threads__turns-caption {
+  font-weight: 600;
+}
+
+.yui-threads__turns-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--yui-radius-row);
+  background: none;
+  color: var(--yui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-threads__turns-radio:hover:not(:disabled) {
+  background: var(--yui-hover);
+}
+
+.yui-threads__turns-radio[aria-checked="true"] {
+  background: var(--yui-selected);
+}
+
+.yui-threads__turns-radio:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.yui-threads__turns-tick {
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 1.5px solid var(--yui-text-mute);
+  border-radius: 50%;
+}
+
+.yui-threads__turns-radio[aria-checked="true"] .yui-threads__turns-tick {
+  border-color: var(--yui-text);
+  background: var(--yui-text);
+}
+
+.yui-threads__turns-text {
+  display: grid;
+  gap: 2px;
+  line-height: 1.4;
+}
+
+.yui-threads__turns-text > :first-child {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-threads__turns-text > :last-child {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+}

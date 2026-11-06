@@ -292,6 +292,8 @@ export interface Thread {
   seen_ask_id?: string;
   /** The user marked the Thread read since the producer's last update. */
   read?: boolean;
+  /** How many entries were ever appended; `entries` keeps only the newest 50. */
+  entry_count: number;
 }
 
 export interface ThreadsSnapshot {

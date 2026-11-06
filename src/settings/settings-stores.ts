@@ -53,6 +53,10 @@ import {
   type PersistedStorage,
 } from "./persisted-store";
 import { createRelationsSwitch } from "./relations/relations-switch";
+import {
+  createThreadTurnsSettings,
+  localStorageThreadTurnsStorage,
+} from "./threads/thread-turns-settings";
 import { createUnifiedChatSwitch } from "./unified/unified-chat-switch";
 import { createFillerSettings, localStorageFillerStorage } from "./voice/filler-settings";
 import { createReadingsSettings, localStorageReadingsStorage } from "./voice/readings-settings";
@@ -127,6 +131,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const userNameSettings = createUserNameSettings({ storage: localStorageUserNameStorage() });
   // Device-wide theme: Dawn, Hearth, or the OS appearance.
   const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  // Device-wide Thread turns: which Thread updates give the main character a signals turn.
+  const threadTurnsSettings = createThreadTurnsSettings({
+    storage: localStorageThreadTurnsStorage(),
+  });
   // Device-wide text size: the scale every window applies to its text tokens.
   const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
@@ -205,6 +213,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     agentSettings,
     userNameSettings,
     themeSettings,
+    threadTurnsSettings,
     textSizeSettings,
     fillerSettings,
     readingsSettings,
@@ -258,6 +267,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   agentSettings: "broadcast",
   userNameSettings: "broadcast",
   themeSettings: "broadcast",
+  threadTurnsSettings: "broadcast",
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
   readingsSettings: "broadcast",

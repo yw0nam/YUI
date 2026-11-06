@@ -631,6 +631,14 @@ const en: Record<string, string> = {
   "agentNotify.sub":
     "Speaks up when a coding agent, a workflow, or another program on your machine sends a signal.",
   "agentNotify.aria": "External signals",
+  "threadTurns.label": "Thread turns",
+  "threadTurns.sub":
+    "Tell the main character about Thread updates. The character decides whether to speak.",
+  "threadTurns.aria": "Thread turns",
+  "threadTurns.off": "Off",
+  "threadTurns.notable": "When it needs me",
+  "threadTurns.every": "Every message",
+  "threadTurns.disabled_reason": "Turn on External signals to use this.",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
@@ -828,6 +836,12 @@ const en: Record<string, string> = {
   "threads.send_hint": "Enter sends, Shift+Enter starts a new line",
   "threads.reply_aria": "Reply",
   "threads.send_failed": "Couldn't send: {error}",
+  "threads.turns_button": "Thread turns: {level}",
+  "threads.turns_caption": "Tell the main character about Threads",
+  "threads.turns_off_sub": "Threads stay here. The character hears nothing.",
+  "threads.turns_notable_sub": "When a Thread asks you something or fails.",
+  "threads.turns_every_sub": "Each new message from an agent.",
+  "threads.turns_note": "The character decides whether to speak. External signals must be on.",
   "ask.label": "Question waiting for your answer",
   "ask.time_left": "{time} left",
   "ask.not_sent": "the connection is down",

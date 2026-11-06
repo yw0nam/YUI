@@ -630,6 +630,13 @@ const ko: Record<string, string> = {
   "agentNotify.sub":
     "코딩 에이전트, 워크플로, 다른 프로그램이 이 컴퓨터에서 신호를 보내면 말을 걸어요.",
   "agentNotify.aria": "외부 신호",
+  "threadTurns.label": "스레드에 반응",
+  "threadTurns.sub": "스레드가 오면 메인 캐릭터에게 알려요. 말할지는 캐릭터가 정해요.",
+  "threadTurns.aria": "스레드에 반응",
+  "threadTurns.off": "끔",
+  "threadTurns.notable": "알릴 일이 생길 때",
+  "threadTurns.every": "새 메시지마다",
+  "threadTurns.disabled_reason": "외부 신호를 켜야 쓸 수 있어요.",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
@@ -826,6 +833,12 @@ const ko: Record<string, string> = {
   "threads.send_hint": "Enter로 보내고 Shift+Enter로 줄을 바꿔요",
   "threads.reply_aria": "답장",
   "threads.send_failed": "보내지 못했어요: {error}",
+  "threads.turns_button": "캐릭터 반응: {level}",
+  "threads.turns_caption": "메인 캐릭터에게 스레드 알리기",
+  "threads.turns_off_sub": "스레드는 여기에만 남고 캐릭터는 몰라요.",
+  "threads.turns_notable_sub": "스레드가 답을 기다리거나 실패했을 때요.",
+  "threads.turns_every_sub": "에이전트의 새 메시지마다요.",
+  "threads.turns_note": "말할지는 캐릭터가 정해요. 외부 신호가 켜져 있어야 해요.",
   "ask.label": "답을 기다리는 질문",
   "ask.time_left": "{time} 남음",
   "ask.not_sent": "연결이 끊겼어요",

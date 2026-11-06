@@ -25,6 +25,7 @@ function thread(overrides: Partial<Thread> & Pick<Thread, "id">): Thread {
     entries: [],
     created_at: T.old,
     updated_at: T.mid,
+    entry_count: 0,
     ...overrides,
   };
 }

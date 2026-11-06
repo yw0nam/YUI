@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
 import { createGuardrailsSettings } from "../../../../settings/backend/guardrails-settings";
 import { createPacerGapStore, createPresenceStore } from "../../../../settings/settings-stores";
+import { createThreadTurnsSettings } from "../../../../settings/threads/thread-turns-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import {
@@ -418,19 +419,49 @@ describe("createQuickControls — reactions section", () => {
     qc.dispose();
   });
 
+  it("sets the Thread turns level from its segment, disabled with a reason while External signals is off", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const threadTurnsSettings = createThreadTurnsSettings();
+    const qc = buildQc({ agentNotifySettings, threadTurnsSettings });
+    const cells = [
+      ...qc.el.querySelectorAll<HTMLButtonElement>(".yui-threadturns-seg [data-level]"),
+    ];
+    const reason = qc.el.querySelector<HTMLElement>(".yui-threadturns-reason")!;
+    qc.open();
+    expect(cells.map((c) => c.dataset.level)).toEqual(["off", "notable", "every"]);
+    expect(cells.map((c) => c.disabled)).toEqual([true, true, true]);
+    expect(reason.hidden).toBe(false);
+    expect(reason.textContent).toBe("Turn on External signals to use this.");
+
+    agentNotifySettings.setEnabled(true);
+    expect(cells.map((c) => c.disabled)).toEqual([false, false, false]);
+    expect(reason.hidden).toBe(true);
+
+    cells[1].click();
+    expect(threadTurnsSettings.get()).toEqual({ level: "notable" });
+    expect(cells.map((c) => c.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
+    qc.dispose();
+  });
+
   it("releases every agent-port, presence, pacer-gap and cap subscription on dispose", () => {
     const agentNotifySettings = createAgentNotifySettings();
     const presenceSettings = inMemoryPresenceStore();
     const pacerGapSettings = inMemoryPacerGapStore();
     const rateLimitSettings = createGuardrailsSettings();
-    const counts = [agentNotifySettings, presenceSettings, pacerGapSettings, rateLimitSettings].map(
-      countSubscriptions,
-    );
+    const threadTurnsSettings = createThreadTurnsSettings();
+    const counts = [
+      agentNotifySettings,
+      presenceSettings,
+      pacerGapSettings,
+      rateLimitSettings,
+      threadTurnsSettings,
+    ].map(countSubscriptions);
     const qc = buildQc({
       agentNotifySettings,
       presenceSettings,
       pacerGapSettings,
       rateLimitSettings,
+      threadTurnsSettings,
     });
 
     qc.dispose();

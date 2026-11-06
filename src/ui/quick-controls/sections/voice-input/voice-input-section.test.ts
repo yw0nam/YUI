@@ -31,6 +31,7 @@ function build() {
       fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
+    showThreadTurns: false,
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,

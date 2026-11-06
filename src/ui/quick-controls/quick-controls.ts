@@ -6,6 +6,7 @@
 
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
+import type { ThreadTurnsSettingsStore } from "../../settings/threads/thread-turns-settings";
 import { createAppearanceSection } from "./sections/appearance/appearance-section";
 import { createTextSizeSection } from "./sections/appearance/text-size-section";
 import "./quick-controls.css";
@@ -249,6 +250,8 @@ interface QuickControlsOptions {
   fallSettings?: FlagSettingsStore;
   /** Agent notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
+  /** Thread turns level store. With agentNotifySettings, renders the Thread turns row in Watchers. */
+  threadTurnsSettings?: ThreadTurnsSettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;
   /** Docked/popped message-window mode store. If absent, that toggle row won't render. */
@@ -386,6 +389,7 @@ export function createQuickControls({
   climbSettings,
   fallSettings,
   agentNotifySettings,
+  threadTurnsSettings,
   bubblePersistSettings,
   messageWindowSettings,
   presenceSettings,
@@ -452,6 +456,7 @@ export function createQuickControls({
     showVoiceInput,
     openOnQuickStart,
     showScreen: !!screenSettings && !!screenKnobSettings,
+    showThreadTurns: !!threadTurnsSettings && !!agentNotifySettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
@@ -654,6 +659,7 @@ export function createQuickControls({
     boundId,
     root: el,
     agentNotifySettings,
+    threadTurnsSettings,
     presenceSettings,
     pacerGapSettings,
     rateLimitSettings,

@@ -1,11 +1,12 @@
 /**
  * The Threads window's view: one head (the sidebar toggle, the Threads and Terminal tabs, the
- * count, ×) over the selected tab's body, laid out by the panel's width, grown out of the chip.
+ * count, Thread turns, ×) over the selected tab's body, laid out by the panel's width, grown out of the chip.
  */
 
 import "./threads-view.css";
 import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
 import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
+import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
@@ -16,6 +17,7 @@ import { attachThreadsKeys } from "./threads-keys";
 import { createThreadsLayout } from "./threads-layout";
 import { createThreadsTab } from "./threads-tab";
 import { createThreadsTabs, type TabBody, type TabShell } from "./threads-tabs";
+import { createTurnsMenu, type TurnsState } from "./turns-menu";
 
 const SIDEBAR_SVG =
   '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>';
@@ -37,6 +39,8 @@ export interface ThreadsView {
   close(): Promise<void>;
   /** The head is the window's drag handle; its × keeps its click. */
   onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
+  /** Draws the stored level on the head's Thread turns button. */
+  setTurns(state: TurnsState): void;
   dispose(): void;
 }
 
@@ -64,6 +68,8 @@ export function createThreadsView(deps: {
   /** The panel's edge and corner drags. */
   resize: ResizeListener;
   terminal(shell: TabShell): TabBody;
+  /** A level picked in the head's Thread turns menu. */
+  onTurnsLevel(level: ThreadTurnsLevel): void;
 }): ThreadsView {
   const root = document.createElement("div");
   root.className = "yui-threads";
@@ -86,6 +92,8 @@ export function createThreadsView(deps: {
   const closeEl = root.querySelector<HTMLButtonElement>(".yui-threads__close")!;
   const toggleEl = root.querySelector<HTMLButtonElement>(".yui-threads__toggle")!;
   let from: ScreenRect | null = null;
+  const turns = createTurnsMenu({ onPick: deps.onTurnsLevel });
+  closeEl.before(turns.el);
 
   const tabs = createThreadsTabs({
     count: root.querySelector<HTMLElement>(".yui-threads__count")!,
@@ -136,10 +144,15 @@ export function createThreadsView(deps: {
   const offKeys = attachThreadsKeys({
     onToggleList: layout.toggle,
     onEscape: () => {
-      if (!layout.escape()) deps.onClose();
+      if (turns.isOpen()) turns.close();
+      else if (!layout.escape()) deps.onClose();
     },
-    onPick: (index) => tabs.current().pick?.(index),
-    onMove: (delta) => tabs.current().move(delta),
+    onPick: (index) => {
+      if (!turns.isOpen()) tabs.current().pick?.(index);
+    },
+    onMove: (delta) => {
+      if (!turns.isOpen()) tabs.current().move(delta);
+    },
   });
   closeEl.addEventListener("click", deps.onClose);
   const headListeners = new Set<(event: PointerEvent) => void>();
@@ -167,8 +180,10 @@ export function createThreadsView(deps: {
       headListeners.add(cb);
       return () => headListeners.delete(cb);
     },
+    setTurns: turns.set,
     dispose() {
       offKeys();
+      turns.dispose();
       threads.dispose();
       terminal.dispose();
       layout.dispose();

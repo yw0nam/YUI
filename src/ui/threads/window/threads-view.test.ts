@@ -21,6 +21,7 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
     ...(waiting ? { ask: { ask_id: "a1", prompt: "Next?", choices: [], text: true } } : {}),
     created_at: 0,
     updated_at,
+    entry_count: 0,
   };
 }
 
@@ -116,6 +117,7 @@ function build(
     listWidth,
     onListWidth: vi.fn(),
     resize: { start: vi.fn(), move: vi.fn(), end: vi.fn() },
+    onTurnsLevel: vi.fn(),
   });
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
   const field = () => $<HTMLTextAreaElement>(".yui-threads-answer textarea");
@@ -150,6 +152,29 @@ const key = (init: KeyboardEventInit) =>
 const CTRL_CMD_S = { key: "s", code: "KeyS", ctrlKey: true, metaKey: true };
 const ids = (selector: string) =>
   [...document.querySelectorAll<HTMLElement>(selector)].map((el) => el.dataset.id);
+
+it("closes the Thread turns menu on Escape, before the window", () => {
+  const { $, onClose } = build();
+  $<HTMLButtonElement>(".yui-threads__turns-button").click();
+
+  key({ key: "Escape" });
+
+  expect($<HTMLElement>(".yui-threads__turns-pop").hidden).toBe(true);
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("keeps 1–9 and the arrows from the answer and the list while the Thread turns menu is open", () => {
+  const { view, $ } = build();
+  const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
+  view.update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }, thread("t2", "codex", 1)]));
+  $<HTMLButtonElement>(".yui-threads__turns-button").click();
+
+  key({ key: "1" });
+  key({ key: "ArrowDown" });
+
+  expect($(".yui-threads-answer__choices button").getAttribute("aria-pressed")).toBe("false");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
+});
 
 it("sends once while a send is in flight, even when a snapshot rebuilds the pane", () => {
   const onAnswer = vi.fn(() => new Promise<void>(() => {}));

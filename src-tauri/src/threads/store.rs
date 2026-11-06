@@ -132,6 +132,7 @@ impl ThreadStore {
                 answered_ask_ids: Default::default(),
                 seen_ask_id: None,
                 read: false,
+                entry_count: 0,
             });
             thread.source = body.source;
             thread.title = body.title;
@@ -139,6 +140,7 @@ impl ThreadStore {
             thread.state = body.state;
             thread.updated_at = now;
             thread.read = false;
+            thread.entry_count += body.entries.len() as u64;
             thread
                 .entries
                 .extend(body.entries.into_iter().map(|e| Entry {
@@ -246,6 +248,7 @@ impl ThreadStore {
                     text,
                     at: now,
                 });
+                thread.entry_count += 1;
             }
             cap_entries(thread);
             thread.ask = None;
@@ -701,6 +704,9 @@ mod tests {
         assert_eq!(t.entries.len(), 50);
         assert_eq!(t.entries[0].text, "10");
         assert_eq!(t.entries[49].at, 102);
+        assert_eq!(t.entry_count, 60);
+        s.answer("t", answer(), 103).unwrap();
+        assert_eq!(s.snapshot().threads[0].entry_count, 61);
     }
 
     #[test]

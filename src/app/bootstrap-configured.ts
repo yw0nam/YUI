@@ -53,6 +53,7 @@ import { wireCard } from "./turn/wire-card";
 import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
+import { wireThreadTurns } from "./turn/wire-thread-turns";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
 const log = createLogger("bootstrap");
@@ -284,6 +285,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(proactiveSource.stop);
     register(scheduleSource.stop);
     register(signalsSource.stop);
+    register(
+      wireThreadTurns({
+        threads: phase1.threads,
+        level: () => settings.threadTurnsSettings.get().level,
+        offer: signalsSource.offer,
+      }),
+    );
     register(milestoneSource.stop);
     register(screenSource.stop);
     register(addressedSource.stop);

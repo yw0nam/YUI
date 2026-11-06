@@ -20,6 +20,7 @@ it("focusSelected focuses the selected row without scrolling", () => {
     entries: [],
     created_at: 1,
     updated_at: 5,
+    entry_count: 0,
   };
   const rail = createThreadRail({ onSelect() {}, onFilter() {} });
   document.body.append(rail.el);

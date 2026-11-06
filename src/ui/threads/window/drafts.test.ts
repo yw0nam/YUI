@@ -14,6 +14,7 @@ function thread(id: string, ask?: ThreadAsk): Thread {
     ...(ask ? { ask } : {}),
     created_at: 1,
     updated_at: 1,
+    entry_count: 0,
   };
 }
 

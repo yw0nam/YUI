@@ -633,6 +633,14 @@ const ja: Record<string, string> = {
   "agentNotify.sub":
     "コーディングエージェントやワークフローなど、このマシンのプログラムがシグナルを送ると話しかけます。",
   "agentNotify.aria": "外部シグナル",
+  "threadTurns.label": "スレッドへの反応",
+  "threadTurns.sub":
+    "スレッドが届くと、メインキャラクターに知らせます。話すかどうかはキャラクターが決めます。",
+  "threadTurns.aria": "スレッドへの反応",
+  "threadTurns.off": "オフ",
+  "threadTurns.notable": "必要なとき",
+  "threadTurns.every": "メッセージごと",
+  "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
@@ -831,6 +839,13 @@ const ja: Record<string, string> = {
   "threads.send_hint": "Enterで送信、Shift+Enterで改行",
   "threads.reply_aria": "返信",
   "threads.send_failed": "送信できませんでした: {error}",
+  "threads.turns_button": "スレッドへの反応: {level}",
+  "threads.turns_caption": "スレッドをメインキャラクターに知らせる",
+  "threads.turns_off_sub": "スレッドはここに残り、キャラクターには伝わりません。",
+  "threads.turns_notable_sub": "スレッドがあなたに質問したときや失敗したとき。",
+  "threads.turns_every_sub": "エージェントからの新しいメッセージごと。",
+  "threads.turns_note":
+    "話すかどうかはキャラクターが決めます。外部シグナルがオンである必要があります。",
   "ask.label": "回答を待っている質問",
   "ask.time_left": "残り {time}",
   "ask.not_sent": "接続が切れています",
