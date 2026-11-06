@@ -41,7 +41,7 @@ The card goes out as `instructions` on Responses and as the system message on Ch
 
 ## What works
 
-Chat, `generate_express` cues, and every client tool. The gateway passes the request's tools to its model and returns the calls to the client. Reasoning the model streams shows in the reasoning display.
+Chat, `generate_express` cues, and every client tool. The gateway passes the request's tools to its model and returns the calls to the client.
 
 ## What does not work
 
