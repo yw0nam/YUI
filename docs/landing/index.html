@@ -61,12 +61,16 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
 .pet { position: absolute; left: 0; top: 0; width: 400px; height: 600px; z-index: 12; pointer-events: none; }
 .threads-win { position: absolute; z-index: 20; }
 
-.links { position: fixed; z-index: 40; left: 16px; top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; transform: none; transition: opacity var(--yui-dur) var(--yui-ease), transform var(--yui-dur) var(--yui-ease); }
+.links { position: fixed; z-index: 40; left: 16px; top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; transform: none; transition: opacity var(--yui-dur) var(--yui-ease), transform var(--yui-dur) var(--yui-ease); }
 .js .links:not(.on) { opacity: 0; pointer-events: none; transform: translateY(-8px); }
 .btn { display: inline-flex; align-items: center; gap: 8px; width: 48px; height: 48px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; text-decoration: none; font: 600 16px var(--yui-font); color: var(--yui-text-dim); background: var(--yui-scrim-strong); border: 0; box-shadow: var(--yui-float); transition: transform var(--yui-dur) var(--yui-ease), background-color var(--yui-dur) var(--yui-ease); }
 .btn:hover { transform: translateY(-1px); color: var(--yui-text); }
 .btn:active { transform: translateY(0) scale(0.98); }
 .btn svg { width: 22px; height: 22px; flex: none; }
+/* The ending points at the two links: an accent ring that pulses, and one line beside them. */
+.links .btn { position: relative; box-shadow: 0 0 0 2px var(--yui-accent), var(--yui-float); color: var(--yui-text); }
+.links .btn::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--yui-accent-soft); animation: ring 1.6s var(--yui-ease) infinite; pointer-events: none; }
+.links-note { margin: 0 0 0 4px; padding: 8px 14px; border-radius: var(--yui-radius-row); background: var(--yui-scrim-strong); border: 1px solid var(--yui-accent-soft); color: var(--yui-text); font: 600 15px/1.3 var(--yui-font); max-width: min(40ch, calc(100vw - 160px)); }
 .corner { position: fixed; z-index: 40; right: 16px; top: 14px; display: flex; gap: 8px; }
 .corner button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--yui-edge); background: var(--yui-scrim-strong); color: var(--yui-text-dim); display: grid; place-items: center; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity var(--yui-dur) var(--yui-ease); }
 .corner button.on { opacity: 1; pointer-events: auto; }
@@ -80,7 +84,7 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
 @media (prefers-reduced-motion: reduce) {
   .term, .coach, .ring, .links, .target, .seat-mark, .arc, .btn, .corner button, .load i { transition: none; }
   .btn:hover, .btn:active { transform: none; }
-  .ring::after { animation: none; opacity: 0; }
+  .ring::after, .links .btn::after { animation: none; opacity: 0; }
 }
 </style>
 
@@ -104,6 +108,7 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
   <nav class="links" id="links" aria-label="YUI links">
     <a class="btn" href="https://github.com/yw0nam/YUI" target="_blank" rel="noopener" aria-label="YUI on GitHub" title="github.com/yw0nam/YUI"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
     <a class="btn" href="https://yw0nam.github.io/YUI/docs/" target="_blank" rel="noopener" aria-label="YUI docs" title="yw0nam.github.io/YUI/docs/"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.5C6.6 2.5 4.6 2.2 2.5 2.5v10c2.1-.3 4.1 0 5.5 1 1.4-1 3.4-1.3 5.5-1v-10c-2.1-.3-4.1 0-5.5 1Z"/><path d="M8 3.5v10"/></svg></a>
+    <p class="links-note">Want to bring your waifu to your desktop?</p>
   </nav>
   <div class="corner">
     <button type="button" class="sound" id="sound" aria-label="Mute her voice" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6h2.5L8.5 3v10L5 10H2.5Z" fill="currentColor"/><path class="wave" d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4"/><path class="cross" d="M11 6l3.5 4M14.5 6L11 10"/></svg></button>
