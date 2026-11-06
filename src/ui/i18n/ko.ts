@@ -630,6 +630,13 @@ const ko: Record<string, string> = {
   "agentNotify.sub":
     "코딩 에이전트, 워크플로, 다른 프로그램이 이 컴퓨터에서 신호를 보내면 말을 걸어요.",
   "agentNotify.aria": "외부 신호",
+  "threadTurns.label": "스레드에 반응",
+  "threadTurns.sub": "스레드가 오면 메인 캐릭터에게 알려요. 말할지는 캐릭터가 정해요.",
+  "threadTurns.aria": "스레드에 반응",
+  "threadTurns.off": "끔",
+  "threadTurns.notable": "알릴 일이 생길 때",
+  "threadTurns.every": "새 메시지마다",
+  "threadTurns.disabled_reason": "외부 신호를 켜야 쓸 수 있어요.",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

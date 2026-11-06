@@ -10,8 +10,10 @@ import type {
   RateLimitOverrides,
 } from "../../../../settings/backend/guardrails-settings";
 import type { ClampedIntSettingsStore } from "../../../../settings/persisted-store";
+import type { ThreadTurnsSettingsStore } from "../../../../settings/threads/thread-turns-settings";
 import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
 import { RATE_LIMIT_FIELDS } from "../../constants";
+import { createThreadTurnsRow } from "./thread-turns-row";
 
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 
@@ -21,6 +23,8 @@ interface ReactionsSectionDeps {
   root: HTMLElement;
   /** Agent notification settings — the agent-port row's store. Absent when the section isn't rendered. */
   agentNotifySettings?: AgentNotifySettingsStore;
+  /** Thread turns level store. Absent when its row isn't rendered. */
+  threadTurnsSettings?: ThreadTurnsSettingsStore;
   /** Away detection store. Absent when the presence row isn't rendered. */
   presenceSettings?: ClampedIntSettingsStore;
   /** Global proactive gap store. Absent when that row isn't rendered. */
@@ -46,6 +50,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   const {
     root: el,
     agentNotifySettings,
+    threadTurnsSettings,
     presenceSettings,
     pacerGapSettings,
     rateLimitSettings,
@@ -92,6 +97,11 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
       reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
     }
   }
+
+  const threadTurns =
+    agentNotifySettings && threadTurnsSettings
+      ? createThreadTurnsRow({ root: el, threadTurnsSettings, agentNotifySettings, isOpen })
+      : undefined;
 
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
     if (isOpen()) {
@@ -150,11 +160,13 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   return {
     reflect(): void {
       reflectAgentNotify();
+      threadTurns?.reflect();
       reflectPresence();
       reflectPacerGap();
       reflectRateLimits();
     },
     dispose(): void {
+      threadTurns?.dispose();
       unsubscribeAgentNotify?.();
       unsubscribePresence?.();
       unsubscribePacerGap?.();

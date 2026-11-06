@@ -103,6 +103,10 @@
   font-weight: 600;
 }
 
+.yui-seg__btn:disabled {
+  cursor: default;
+}
+
 .yui-seg__btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);

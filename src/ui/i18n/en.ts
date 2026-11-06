@@ -631,6 +631,14 @@ const en: Record<string, string> = {
   "agentNotify.sub":
     "Speaks up when a coding agent, a workflow, or another program on your machine sends a signal.",
   "agentNotify.aria": "External signals",
+  "threadTurns.label": "Thread turns",
+  "threadTurns.sub":
+    "When a Thread needs you, the main character hears about it. The character decides whether to speak.",
+  "threadTurns.aria": "Thread turns",
+  "threadTurns.off": "Off",
+  "threadTurns.notable": "When it needs me",
+  "threadTurns.every": "Every message",
+  "threadTurns.disabled_reason": "Turn on External signals to use this.",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",

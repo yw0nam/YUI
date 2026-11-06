@@ -633,6 +633,14 @@ const ja: Record<string, string> = {
   "agentNotify.sub":
     "コーディングエージェントやワークフローなど、このマシンのプログラムがシグナルを送ると話しかけます。",
   "agentNotify.aria": "外部シグナル",
+  "threadTurns.label": "スレッドへの反応",
+  "threadTurns.sub":
+    "スレッドが届くと、メインキャラクターに知らせます。話すかどうかはキャラクターが決めます。",
+  "threadTurns.aria": "スレッドへの反応",
+  "threadTurns.off": "オフ",
+  "threadTurns.notable": "必要なとき",
+  "threadTurns.every": "メッセージごと",
+  "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",

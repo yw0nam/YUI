@@ -305,6 +305,16 @@
   display: none;
 }
 
+/* The Thread turns row rests dim and its cells stop answering while External signals is off. */
+.yui-threadturns-row:has(:disabled) {
+  opacity: 0.55;
+}
+
+/* The row sub-line's display would otherwise beat the hidden attribute. */
+.yui-threadturns-reason[hidden] {
+  display: none;
+}
+
 .yui-row--action {
   min-height: 2.5rem;
 }
