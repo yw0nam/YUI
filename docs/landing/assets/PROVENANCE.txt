@@ -1,0 +1,3 @@
+Derived from resources/vrms/AvatarSample_A.vrm (pixiv Inc., VRoid Project).
+See resources/vrms/AvatarSample_A.PROVENANCE.md; its VRoid Hub license allows modification and redistribution.
+Textures downscaled to 1024 px for the landing.

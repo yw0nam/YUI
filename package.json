@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "tsc -p docs/landing && vitepress build docs && vite build --config docs/landing/vite.config.ts",
     "docs:preview": "vitepress preview docs",
     "lint": "biome check",
     "lint:fix": "biome check --write",
@@ -25,7 +25,8 @@
     "timers:check": "node scripts/ci/detached-timers.mjs",
     "docs:check": "node scripts/ci/docs-readability.mjs",
     "gates": "bash scripts/ci/gates.sh",
-    "map:base": "node scripts/architecture-map-base.mjs"
+    "map:base": "node scripts/architecture-map-base.mjs",
+    "landing:dev": "vite --config docs/landing/vite.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",

@@ -134,15 +134,16 @@ export default defineConfig({
     ['meta', { name: 'twitter:description', content: 'The head, not the brain: a VRM desktop companion that renders the body and delegates judgment to the backend agent you select.' }],
     ['meta', { name: 'twitter:image', content: 'https://yw0nam.github.io/YUI/og-card.png' }],
   ],
-  srcExclude: ['agent-guide/**', 'agents/**'],
+  srcExclude: ['agent-guide/**', 'agents/**', 'landing/**'],
   transformPageData(pageData) {
     if (LONG_READ.includes(pageData.relativePath)) {
       pageData.frontmatter.pageClass = 'yui-read'
     }
   },
   themeConfig: {
+    logoLink: { link: '/YUI/', target: '_self' },
     nav: [
-      { text: 'Home', link: '/' },
+      { text: 'Home', link: '/docs/' },
       { text: 'Guide', items: navGroups([START, USE, EXTEND]) },
       { text: 'Reference', items: navGroups([CONFIGURATION, BACKEND_CONTRACT, DIAGNOSTICS]) },
       { text: WHATS_NEW.text, link: WHATS_NEW.link },
