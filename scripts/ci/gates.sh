@@ -12,6 +12,7 @@ gates=(
   "pnpm logger:check"
   "pnpm commands:check"
   "pnpm timers:check"
+  "pnpm style-attrs:check"
   "pnpm docs:check"
   "pnpm docs:build"
   "cargo fmt --manifest-path src-tauri/Cargo.toml --check"

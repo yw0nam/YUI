@@ -23,6 +23,7 @@
     "logger:check": "node scripts/ci/logger-namespace.mjs",
     "commands:check": "node scripts/ci/command-paths.mjs",
     "timers:check": "node scripts/ci/detached-timers.mjs",
+    "style-attrs:check": "node scripts/ci/style-attributes.mjs",
     "docs:check": "node scripts/ci/docs-readability.mjs",
     "gates": "bash scripts/ci/gates.sh",
     "map:base": "node scripts/architecture-map-base.mjs",
