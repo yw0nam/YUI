@@ -305,7 +305,7 @@
   display: none;
 }
 
-/* The Thread turns row rests dim and its cells stop answering while External signals is off. */
+/* Dims the Thread turns row while its cells are disabled (External signals off). */
 .yui-threadturns-row:has(:disabled) {
   opacity: 0.55;
 }

@@ -1,4 +1,4 @@
-/** The Threads window head's Character turns button: it opens a popover of the three Thread turns levels. */
+/** The Threads window head's Thread turns button: it opens a popover of the three levels. */
 
 import "./turns-menu.css";
 import {

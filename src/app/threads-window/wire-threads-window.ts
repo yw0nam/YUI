@@ -1,4 +1,4 @@
-/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, Character turns, its frame, open and close, theme and language. */
+/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
@@ -52,6 +52,11 @@ export async function wireThreadsWindow(deps: {
     storage: localStorageAgentNotifyStorage(),
   });
   const bridge = createSettingsBridge(undefined, { windowKind: "threads" });
+  const turnsMenu = wireTurnsMenu({
+    turns: threadTurnsSettings,
+    agentNotify: agentNotifySettings,
+    emitSettingsChanged: bridge.emitSettingsChanged,
+  });
   const client = createThreadsClient();
   const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage() });
   const placement = createThreadsPlacement({ settings });
@@ -80,13 +85,7 @@ export async function wireThreadsWindow(deps: {
     onListWidth: settings.setListWidth,
     resize,
     terminal: wireTerminalTab({ register, settings }),
-    onTurnsLevel: (level) => turnsMenu.pick(level),
-  });
-  const turnsMenu = wireTurnsMenu({
-    turns: threadTurnsSettings,
-    agentNotify: agentNotifySettings,
-    show: view.setTurns,
-    emitSettingsChanged: bridge.emitSettingsChanged,
+    onTurnsLevel: turnsMenu.pick,
   });
   const presence = createThreadsPresence({
     view,
@@ -104,7 +103,7 @@ export async function wireThreadsWindow(deps: {
   register(() => bridge.dispose());
   register(() => client.dispose());
   register(() => view.dispose());
-  register(turnsMenu.dispose);
+  register(turnsMenu.draw(view.setTurns));
   register(() => placement.dispose());
   register(
     applyTheme({

@@ -633,7 +633,7 @@ const en: Record<string, string> = {
   "agentNotify.aria": "External signals",
   "threadTurns.label": "Thread turns",
   "threadTurns.sub":
-    "When a Thread needs you, the main character hears about it. The character decides whether to speak.",
+    "Tell the main character about Thread updates. The character decides whether to speak.",
   "threadTurns.aria": "Thread turns",
   "threadTurns.off": "Off",
   "threadTurns.notable": "When it needs me",
@@ -836,7 +836,7 @@ const en: Record<string, string> = {
   "threads.send_hint": "Enter sends, Shift+Enter starts a new line",
   "threads.reply_aria": "Reply",
   "threads.send_failed": "Couldn't send: {error}",
-  "threads.turns_button": "Character turns: {level}",
+  "threads.turns_button": "Thread turns: {level}",
   "threads.turns_caption": "Tell the main character about Threads",
   "threads.turns_off_sub": "Threads stay here. The character hears nothing.",
   "threads.turns_notable_sub": "When a Thread asks you something or fails.",

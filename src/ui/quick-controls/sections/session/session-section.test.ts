@@ -39,6 +39,7 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
       fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
+    showThreadTurns: false,
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,

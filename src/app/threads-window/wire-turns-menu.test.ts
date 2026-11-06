@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** wire-turns-menu.test.ts — the Character turns menu over the Thread turns and External signals stores. */
+/** wire-turns-menu.test.ts — the Thread turns menu over the Thread turns and External signals stores. */
 
 import { expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
@@ -14,20 +14,21 @@ it("draws a local pick from the store, tells the other windows, and follows Exte
   const agentNotify = createAgentNotifySettings();
   agentNotify.setEnabled(true);
   const emitSettingsChanged = vi.fn();
-  const menu = createTurnsMenu({ onPick: (level) => control.pick(level) });
+  const control = wireTurnsMenu({ turns, agentNotify, emitSettingsChanged });
+  const menu = createTurnsMenu({ onPick: control.pick });
   document.body.append(menu.el);
-  const control = wireTurnsMenu({ turns, agentNotify, show: menu.set, emitSettingsChanged });
+  control.draw(menu.set);
   const button = document.querySelector<HTMLButtonElement>(".yui-threads__turns-button")!;
   const radio = (name: string) =>
     document.querySelector<HTMLButtonElement>(`[role="radio"][data-level="${name}"]`)!;
-  expect(button.textContent).toBe("Character turns: Off");
+  expect(button.textContent).toBe("Thread turns: Off");
 
   button.click();
   radio("notable").click();
 
   expect(turns.get().level).toBe("notable");
   expect(emitSettingsChanged).toHaveBeenCalledOnce();
-  expect(button.textContent).toBe("Character turns: When it needs me");
+  expect(button.textContent).toBe("Thread turns: When it needs me");
   expect(radio("notable").getAttribute("aria-checked")).toBe("true");
   expect(radio("off").getAttribute("aria-checked")).toBe("false");
 

@@ -1,4 +1,4 @@
-import type { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
+import type { AgentNotifySettingsStore } from "../../../../settings/backend/agent-notify-settings";
 import {
   THREAD_TURNS,
   type ThreadTurnsSettingsStore,
@@ -26,7 +26,7 @@ export function threadTurnsRowHtml(): string {
 export function createThreadTurnsRow(deps: {
   root: HTMLElement;
   threadTurnsSettings: ThreadTurnsSettingsStore;
-  agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
+  agentNotifySettings: AgentNotifySettingsStore;
   isOpen: () => boolean;
 }) {
   const { root, threadTurnsSettings, agentNotifySettings, isOpen } = deps;

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** turns-menu.test.ts — the Threads window head's Character turns button and its popover. */
+/** turns-menu.test.ts — the Threads window head's Thread turns button and its popover. */
 
 import { beforeEach, expect, it, vi } from "vitest";
 import { setLocale } from "../../i18n";

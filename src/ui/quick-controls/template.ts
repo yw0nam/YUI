@@ -61,7 +61,7 @@ interface PanelHtmlOptions {
   /** Whether the screen-watch section renders — true when the screen flag store is injected. */
   showScreen: boolean;
   /** Whether the Thread turns row renders in Watchers — true with its store and External signals' store. */
-  showThreadTurns?: boolean;
+  showThreadTurns: boolean;
   showPresence: boolean;
   showPacerGap: boolean;
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */

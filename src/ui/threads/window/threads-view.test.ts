@@ -21,7 +21,7 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
     ...(waiting ? { ask: { ask_id: "a1", prompt: "Next?", choices: [], text: true } } : {}),
     created_at: 0,
     updated_at,
-    entry_count: 1,
+    entry_count: 0,
   };
 }
 
@@ -153,7 +153,7 @@ const CTRL_CMD_S = { key: "s", code: "KeyS", ctrlKey: true, metaKey: true };
 const ids = (selector: string) =>
   [...document.querySelectorAll<HTMLElement>(selector)].map((el) => el.dataset.id);
 
-it("closes the Character turns menu on Escape, before the window", () => {
+it("closes the Thread turns menu on Escape, before the window", () => {
   const { $, onClose } = build();
   $<HTMLButtonElement>(".yui-threads__turns-button").click();
 
@@ -163,7 +163,7 @@ it("closes the Character turns menu on Escape, before the window", () => {
   expect(onClose).not.toHaveBeenCalled();
 });
 
-it("keeps 1–9 and the arrows from the answer and the list while the Character turns menu is open", () => {
+it("keeps 1–9 and the arrows from the answer and the list while the Thread turns menu is open", () => {
   const { view, $ } = build();
   const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
   view.update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }, thread("t2", "codex", 1)]));

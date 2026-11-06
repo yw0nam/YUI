@@ -1,6 +1,6 @@
 /**
  * The Threads window's view: one head (the sidebar toggle, the Threads and Terminal tabs, the
- * count, Character turns, ×) over the selected tab's body, laid out by the panel's width, grown out of the chip.
+ * count, Thread turns, ×) over the selected tab's body, laid out by the panel's width, grown out of the chip.
  */
 
 import "./threads-view.css";
@@ -39,7 +39,7 @@ export interface ThreadsView {
   close(): Promise<void>;
   /** The head is the window's drag handle; its × keeps its click. */
   onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
-  /** Draws the stored Thread turns level on the head's Character turns button. */
+  /** Draws the stored level on the head's Thread turns button. */
   setTurns(state: TurnsState): void;
   dispose(): void;
 }
@@ -68,7 +68,7 @@ export function createThreadsView(deps: {
   /** The panel's edge and corner drags. */
   resize: ResizeListener;
   terminal(shell: TabShell): TabBody;
-  /** A Thread turns level picked in the head's Character turns menu. */
+  /** A level picked in the head's Thread turns menu. */
   onTurnsLevel(level: ThreadTurnsLevel): void;
 }): ThreadsView {
   const root = document.createElement("div");

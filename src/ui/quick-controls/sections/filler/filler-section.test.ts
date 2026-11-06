@@ -37,6 +37,7 @@ function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
       fillerSettings,
     }),
     showScreen: false,
+    showThreadTurns: false,
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,

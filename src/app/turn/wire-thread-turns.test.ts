@@ -36,3 +36,11 @@ it("takes the existing snapshot as the baseline and offers one group for a later
   });
   expect(offer.mock.calls.map(([group]) => group.envelope.event_id)).toEqual(["thread:t1"]);
 });
+
+it("wires nothing without a Threads client", () => {
+  const offer = vi.fn();
+  const off = wireThreadTurns({ threads: null, level: () => "every", offer });
+
+  expect(off).not.toThrow();
+  expect(offer).not.toHaveBeenCalled();
+});

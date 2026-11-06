@@ -839,7 +839,7 @@ const ja: Record<string, string> = {
   "threads.send_hint": "Enterで送信、Shift+Enterで改行",
   "threads.reply_aria": "返信",
   "threads.send_failed": "送信できませんでした: {error}",
-  "threads.turns_button": "キャラクターの反応: {level}",
+  "threads.turns_button": "スレッドへの反応: {level}",
   "threads.turns_caption": "スレッドをメインキャラクターに知らせる",
   "threads.turns_off_sub": "スレッドはここに残り、キャラクターには伝わりません。",
   "threads.turns_notable_sub": "スレッドがあなたに質問したときや失敗したとき。",

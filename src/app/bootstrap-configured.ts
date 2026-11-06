@@ -285,14 +285,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(proactiveSource.stop);
     register(scheduleSource.stop);
     register(signalsSource.stop);
-    if (phase1.threads)
-      register(
-        wireThreadTurns({
-          threads: phase1.threads,
-          level: () => settings.threadTurnsSettings.get().level,
-          offer: signalsSource.offer,
-        }),
-      );
+    register(
+      wireThreadTurns({
+        threads: phase1.threads,
+        level: () => settings.threadTurnsSettings.get().level,
+        offer: signalsSource.offer,
+      }),
+    );
     register(milestoneSource.stop);
     register(screenSource.stop);
     register(addressedSource.stop);
