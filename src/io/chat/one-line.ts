@@ -2,8 +2,11 @@
     `<client_context>`/`</client_context>` tag sequence, so a sampled or producer-authored string can
     never inject an extra physical line or terminate the block early. */
 export function oneLine(s: string): string {
-  return s
-    .replace(/<\/?client_context>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  let stripped = s;
+  // Repeats until stable: removing one tag can join its neighbours into another.
+  for (let prev = ""; prev !== stripped; ) {
+    prev = stripped;
+    stripped = stripped.replace(/<\/?client_context>/g, "");
+  }
+  return stripped.replace(/\s+/g, " ").trim();
 }
