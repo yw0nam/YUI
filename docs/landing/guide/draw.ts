@@ -1,47 +1,23 @@
-import { bodyState, proj } from "./character/body";
-import { charH, rHips } from "./character/load";
-import { surfaces } from "./character/overlays";
-import { deskRect, floorY, LH, LW } from "./desk";
-import { threadsState } from "./session/threads-window";
-import { $, clamp, rect, reduced, term, threadsWin } from "./shared/dom";
-import { storyState } from "./story";
-export const coach = $("coach"),
+import { proj, readBody } from "../character/body";
+import { charH, rHips } from "../character/load";
+import { surfaces } from "../character/overlays";
+import { deskRect, LH, LW } from "../desk";
+import { readThreadsWindow } from "../session/threads-window";
+import { $, reduced, term, threadsWin } from "../shared/dom";
+import { clamp, rect } from "../shared/math";
+import { readTerminal, seatPoint } from "../terminal";
+import { readGuide } from "./steps";
+
+const coach = $("coach"),
   ring = $("ring"),
   arc = $("arc"),
   arcPath = $<SVGPathElement>("arcPath"),
   arcHead = $<SVGPathElement>("arcHead"),
   arcHand = $<SVGGElement>("arcHand");
-export const targetEl = $("target"),
-  seatMark = $("seatMark"),
-  live = $("live");
-export const guideState = { step: "intro", stepAt: 0, touched: false, arcT0: 0, arcOn: false };
-export function setStep(s: string, say?: string) {
-  guideState.step = s;
-  guideState.stepAt = performance.now();
-  guideState.touched = false;
-  if (say) live.textContent = say;
-}
-export const target = { x: 0, y: 0 };
-export function placeScene() {
-  const w = term.offsetWidth,
-    h = term.offsetHeight;
-  term.style.top = Math.round(clamp(floorY() - h - 12, charH * 0.66, LH - h - 12)) + "px";
-  term.style.left = Math.round(clamp(LW * 0.5 - w / 2 + 40, 24, LW - w - 24)) + "px";
-  target.x = 48;
-  target.y = term.offsetTop;
-  placeTarget();
-}
-export function placeTarget() {
-  const w = term.offsetWidth,
-    h = term.offsetHeight;
-  target.y = clamp(target.y, 0, Math.max(0, LH - h - 12));
-  Object.assign(targetEl.style, {
-    left: target.x + "px",
-    top: target.y + "px",
-    width: w + "px",
-    height: h + "px",
-  });
-}
+const seatMark = $("seatMark");
+
+let arcOn = false,
+  arcT0 = 0;
 function show(el: HTMLElement | SVGElement, on: boolean) {
   el.classList.toggle("on", on);
 }
@@ -65,9 +41,9 @@ function ringOn(r: ReturnType<typeof rect> | null, pad = 4) {
 }
 
 function drawArc(from: { x: number; y: number }, to: { x: number; y: number }) {
-  if (!guideState.arcOn) {
-    guideState.arcOn = true;
-    guideState.arcT0 = performance.now();
+  if (!arcOn) {
+    arcOn = true;
+    arcT0 = performance.now();
   }
   show(arc, true);
   const cx = (from.x + to.x) / 2,
@@ -81,7 +57,7 @@ function drawArc(from: { x: number; y: number }, to: { x: number; y: number }) {
     `translate(${pe.x} ${pe.y}) rotate(${(Math.atan2(pe.y - pn.y, pe.x - pn.x) * 180) / Math.PI})`,
   );
   if (reduced) return;
-  const t = (performance.now() - guideState.arcT0) % 2000;
+  const t = (performance.now() - arcT0) % 2000;
   let len = 0.25,
     op = 0,
     lift = 0;
@@ -100,38 +76,28 @@ function drawArc(from: { x: number; y: number }, to: { x: number; y: number }) {
   arcHand.style.opacity = String(op);
 }
 const hideArc = () => {
-  guideState.arcOn = false;
+  arcOn = false;
   show(arc, false);
 };
-export const seatPoint = () => {
-  const r = rect(term);
-  return { x: r.l + (r.r - r.l) * 0.72, y: r.t };
-};
-export function guide(now: number) {
-  const idle = now - guideState.stepAt > 3000 && !guideState.touched;
-  const sitting = !!bodyState.pin && bodyState.pin.el === term && bodyState.state === "sit";
-  if (guideState.step === "seat" && sitting) {
-    setStep("move", "She sits on the terminal. Drag the terminal to move it.");
-  }
-  if (guideState.step === "move" && !bodyState.pin && bodyState.state !== "seating") {
-    setStep("seat", "Drag her onto the terminal.");
-  }
-  term.classList.toggle("locked", guideState.step === "intro");
-  show(targetEl, guideState.step === "move");
-  show(seatMark, guideState.step === "seat");
-  if (guideState.step === "seat") {
+export function guide(now: number, phase: string) {
+  const { step, idle } = readGuide(now);
+  const body = readBody();
+  const { dragging, target } = readTerminal();
+  const { threadsOpen } = readThreadsWindow();
+  show(seatMark, step === "seat");
+  if (step === "seat") {
     const s = seatPoint();
     seatMark.style.transform = `translate(${s.x - 60}px, ${s.y - 2}px)`;
-    if (bodyState.state !== "drag") label("Drag here", s.x, s.y - 14, "above");
+    if (body.state !== "drag") label("Drag here", s.x, s.y - 14, "above");
     else show(coach, false);
-    if (idle && bodyState.state !== "drag") {
+    if (idle && body.state !== "drag") {
       const h = proj(rHips);
       drawArc({ x: h.x, y: h.y - 0.1 * charH }, { x: s.x, y: s.y - 10 });
     } else hideArc();
     ringOn(null);
-  } else if (guideState.step === "move") {
+  } else if (step === "move") {
     const r = rect(term);
-    if (!storyState.termDrag)
+    if (!dragging)
       label(
         "Drag the window here",
         target.x + (r.r - r.l) / 2,
@@ -139,23 +105,23 @@ export function guide(now: number) {
         "center",
       );
     else show(coach, false);
-    if (idle && !storyState.termDrag)
+    if (idle && !dragging)
       drawArc(
         { x: (r.l + r.r) / 2, y: r.t + 60 },
         { x: target.x + (r.r - r.l) / 2, y: target.y + 40 },
       );
     else hideArc();
     ringOn(null);
-  } else if (guideState.step === "session") {
+  } else if (step === "session") {
     hideArc();
     const chipEl = surfaces.chipColumn.querySelector<HTMLElement>(".yui-threadchip");
     const answer = threadsWin.querySelector(".yui-threads-answer");
-    if (!threadsState.threadsOpen && chipEl && !chipEl.hidden) {
+    if (!threadsOpen && chipEl && !chipEl.hidden) {
       const c = deskRect(chipEl);
       label("Click this", c.r + 12, (c.t + c.b) / 2, "right");
       ringOn(c, 3);
       ring.style.borderRadius = "999px";
-    } else if (threadsState.threadsOpen && answer && storyState.phase === "asking") {
+    } else if (threadsOpen && answer && phase === "asking") {
       const picked = answer.querySelector('.yui-threads-answer__choices [aria-pressed="true"]');
       const send = answer.querySelector(".yui-threads-answer__send");
       const el =
@@ -177,6 +143,6 @@ export function guide(now: number) {
   }
 }
 
-export function finishWalk() {
-  if (guideState.step === "intro") setStep("seat", "Drag her onto the terminal.");
+export function coachText() {
+  return coach.classList.contains("on") ? coach.textContent : null;
 }

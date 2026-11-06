@@ -4,10 +4,8 @@
 <title>YUI Desktop Scene</title>
 <link rel="icon" href="data:,">
 <script>document.documentElement.classList.add("js");</script>
-<link rel="stylesheet" href="/YUI/fonts/pretendardjp/pretendardjp-dynamic-subset.css">
+<link rel="stylesheet" href="%BASE_URL%fonts/pretendardjp/pretendardjp-dynamic-subset.css">
 <style>
-/* Hallmark · v2.0.0 · system: locked by DESIGN.md (YUI tokens.css, The Hearthlight) · shape: one desktop scene, five user-driven steps · signature: the real YUI chip, bubble and Threads window over a recorded Claude Code session · material: real recordings (Claude Code 2.1.318 with yui-notify hooks), real UI modules, Fish Audio voice; absent: metrics, quotes, logos */
-/* critique: no headline or hero sentence by owner decision (the scene is the page, two address buttons at the end); the terminal is a borderless window, so no OS chrome is drawn */
 :root {
   --wall-a: oklch(0.94 0.02 82); --wall-b: oklch(0.86 0.045 64); --glow: oklch(0.9 0.07 70 / 0.5);
   --ghost: oklch(0.35 0.03 60 / 0.4); --ghost-fill: oklch(0.99 0.01 80 / 0.3);
@@ -16,9 +14,6 @@
   --term-font: "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   --load-track: oklch(0.5 0.02 70 / 0.18);
   --hand-fill: oklch(0.99 0.005 80); --hand-ink: oklch(0.18 0.01 60);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="dawn"]) { --wall-a: oklch(0.23 0.02 62); --wall-b: oklch(0.14 0.012 55); --glow: oklch(0.42 0.11 50 / 0.4); --ghost: oklch(0.97 0.01 80 / 0.35); --ghost-fill: oklch(0.97 0.01 80 / 0.05); }
 }
 :root[data-theme="hearth"] { --wall-a: oklch(0.23 0.02 62); --wall-b: oklch(0.14 0.012 55); --glow: oklch(0.42 0.11 50 / 0.4); --ghost: oklch(0.97 0.01 80 / 0.35); --ghost-fill: oklch(0.97 0.01 80 / 0.05); }
 * { box-sizing: border-box; }
@@ -31,27 +26,27 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
 
 /* The terminal: a borderless window around xterm.js; the whole window is its drag handle. */
 .term { position: absolute; z-index: 2; padding: 12px; border-radius: 12px; background: var(--term-bg); box-shadow: 0 0 0 1px var(--term-edge), var(--term-shadow);
-  cursor: grab; touch-action: none; transition: opacity 400ms var(--yui-ease), transform 400ms var(--yui-ease); }
+  cursor: grab; touch-action: none; transition: opacity var(--yui-dur) var(--yui-ease), transform var(--yui-dur) var(--yui-ease); }
 .js .term:not(.on) { opacity: 0; transform: scale(0.97); }
 .term:active { cursor: grabbing; }
 .term.locked, .term.locked:active { cursor: default; }
 .term:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 4px; }
 .term .xterm, .term .xterm * { cursor: inherit !important; }
 .term .xterm-viewport { overflow: hidden !important; }
-.target { position: absolute; z-index: 1; border-radius: 12px; border: 2px dashed var(--ghost); background: var(--ghost-fill); opacity: 0; transition: opacity 300ms ease; pointer-events: none; }
+.target { position: absolute; z-index: 1; border-radius: 12px; border: 2px dashed var(--ghost); background: var(--ghost-fill); opacity: 0; transition: opacity var(--yui-dur) var(--yui-ease); pointer-events: none; }
 .target.on { opacity: 1; }
-.seat-mark { position: absolute; z-index: 3; width: 120px; height: 0; border-top: 3px dashed var(--yui-accent); opacity: 0; transition: opacity 300ms ease; pointer-events: none; }
+.seat-mark { position: absolute; z-index: 3; width: 120px; height: 0; border-top: 3px dashed var(--yui-accent); opacity: 0; transition: opacity var(--yui-dur) var(--yui-ease); pointer-events: none; }
 .seat-mark.on { opacity: 1; }
 
 /* Coach marks: one short label and, for a click, a ring on what to press. */
 .coach { position: absolute; z-index: 26; left: 0; top: 0; padding: 8px 16px; border-radius: var(--yui-radius-row); background: var(--yui-scrim-strong); border: 1px solid var(--yui-accent-soft);
-  color: var(--yui-text); font: 600 15px/1.3 var(--yui-font); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 250ms ease; }
+  color: var(--yui-text); font: 600 15px/1.3 var(--yui-font); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity var(--yui-dur) var(--yui-ease); }
 .coach.on { opacity: 1; }
-.ring { position: absolute; z-index: 25; left: 0; top: 0; border-radius: 12px; pointer-events: none; opacity: 0; box-shadow: 0 0 0 2px var(--yui-accent); transition: opacity 200ms ease; }
+.ring { position: absolute; z-index: 25; left: 0; top: 0; border-radius: 12px; pointer-events: none; opacity: 0; box-shadow: 0 0 0 2px var(--yui-accent); transition: opacity var(--yui-dur) var(--yui-ease); }
 .ring.on { opacity: 1; }
 .ring::after { content: ""; position: absolute; inset: -6px; border-radius: inherit; box-shadow: 0 0 0 2px var(--yui-accent-soft); animation: ring 1.6s var(--yui-ease) infinite; }
 @keyframes ring { from { opacity: 1; transform: scale(0.98); } 70%, to { opacity: 0; transform: scale(1.06); } }
-.arc { position: absolute; left: 0; top: 0; z-index: 24; pointer-events: none; opacity: 0; transition: opacity 600ms ease; overflow: visible; }
+.arc { position: absolute; left: 0; top: 0; z-index: 24; pointer-events: none; opacity: 0; transition: opacity var(--yui-dur) var(--yui-ease); overflow: visible; }
 .arc.on { opacity: 1; }
 .arc path { fill: none; stroke: var(--ghost); stroke-width: 2; stroke-dasharray: 6 7; }
 .arc .head { fill: var(--ghost); stroke: none; }
@@ -66,21 +61,21 @@ body { margin: 0; background: var(--wall-b); color: var(--yui-text); font-family
 .pet { position: absolute; left: 0; top: 0; width: 400px; height: 600px; z-index: 12; pointer-events: none; }
 .threads-win { position: absolute; z-index: 20; }
 
-.links { position: fixed; z-index: 40; left: 16px; top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; transform: none; transition: opacity 600ms ease, transform 600ms var(--yui-ease); }
+.links { position: fixed; z-index: 40; left: 16px; top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; transform: none; transition: opacity var(--yui-dur) var(--yui-ease), transform var(--yui-dur) var(--yui-ease); }
 .js .links:not(.on) { opacity: 0; pointer-events: none; transform: translateY(-8px); }
-.btn { display: inline-flex; align-items: center; gap: 8px; width: 48px; height: 48px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; text-decoration: none; font: 600 16px var(--yui-font); color: var(--yui-text-dim); background: var(--yui-scrim-strong); border: 0; box-shadow: var(--yui-float); transition: transform var(--yui-dur) var(--yui-ease), background-color var(--yui-dur) ease; }
+.btn { display: inline-flex; align-items: center; gap: 8px; width: 48px; height: 48px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; text-decoration: none; font: 600 16px var(--yui-font); color: var(--yui-text-dim); background: var(--yui-scrim-strong); border: 0; box-shadow: var(--yui-float); transition: transform var(--yui-dur) var(--yui-ease), background-color var(--yui-dur) var(--yui-ease); }
 .btn:hover { transform: translateY(-1px); color: var(--yui-text); }
 .btn:active { transform: translateY(0) scale(0.98); }
 .btn svg { width: 22px; height: 22px; flex: none; }
 .corner { position: fixed; z-index: 40; right: 16px; top: 14px; display: flex; gap: 8px; }
-.corner button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--yui-edge); background: var(--yui-scrim-strong); color: var(--yui-text-dim); display: grid; place-items: center; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 400ms ease; }
+.corner button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--yui-edge); background: var(--yui-scrim-strong); color: var(--yui-text-dim); display: grid; place-items: center; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity var(--yui-dur) var(--yui-ease); }
 .corner button.on { opacity: 1; pointer-events: auto; }
 .corner svg { width: 16px; height: 16px; }
 .corner button:focus-visible, .btn:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 3px; }
 .sound[aria-pressed="true"] .wave { display: none; }
 .sound[aria-pressed="false"] .cross { display: none; }
 .load { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 120px; height: 3px; border-radius: 3px; background: var(--load-track); overflow: clip; z-index: 50; }
-.load i { display: block; height: 100%; width: 100%; background: var(--yui-accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform 150ms linear; }
+.load i { display: block; height: 100%; width: 100%; background: var(--yui-accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--yui-dur) var(--yui-ease); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   .term, .coach, .ring, .links, .target, .seat-mark, .arc { transition: none; }

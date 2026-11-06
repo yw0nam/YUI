@@ -1,18 +1,17 @@
 import { $ } from "./shared/dom";
+
 import allowUrl from "./voice/allow.mp3?url";
 import denyUrl from "./voice/deny.mp3?url";
 
 const LIPSYNC_GAIN = 6;
-export const voiceState = {
+const voiceState = {
   actx: null as AudioContext | null,
   analyser: null as AnalyserNode | null,
   tdBuf: null as Uint8Array<ArrayBuffer> | null,
   speaking: false,
   muted: false,
-  mouthA: 0,
-  mouthB: 0,
 };
-export const voiceBytes = Promise.all(
+const voiceBytes = Promise.all(
   [allowUrl, denyUrl].map((url) =>
     fetch(url)
       .then((r) => (r.ok ? r.arrayBuffer() : null))
@@ -61,3 +60,8 @@ soundBtn.addEventListener("click", () => {
   soundBtn.setAttribute("aria-pressed", String(voiceState.muted));
   soundBtn.setAttribute("aria-label", voiceState.muted ? "Unmute her voice" : "Mute her voice");
 });
+
+export const isSpeaking = () => voiceState.speaking;
+export async function canSpeak(name: "allow" | "deny") {
+  return !voiceState.muted && !!voiceState.actx && !!(await voiceBytes)[name === "allow" ? 0 : 1];
+}

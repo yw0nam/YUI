@@ -1,10 +1,13 @@
-import type * as THREE from "three";
+import * as THREE from "three";
 import { floorY, LH, LW } from "../desk";
-import { clamp, rect, reduced, term } from "../shared/dom";
-import { actions, baseYawY, charH, hipsH, rHips, S, v3, vrm } from "./load";
+import { reduced, term } from "../shared/dom";
+import { clamp, rect, smooth } from "../shared/math";
+import { actions, baseYawY, charH, hipsH, rHips, S, vrm } from "./load";
 import { play } from "./motion";
-export const feet = { x: 0, y: 0 };
-export const bodyState = {
+
+const v3 = new THREE.Vector3();
+const feet = { x: 0, y: 0 };
+const bodyState = {
   state: "stand",
   pin: null as { el: HTMLElement; x0: number; y0: number } | null,
   pinDy: 0,
@@ -17,11 +20,11 @@ export const bodyState = {
   dragOff: { x: 0, y: 0 },
 };
 const SEAT_EASE_MS = 500;
-export const WALK_YAW_RAD = Math.PI / 2,
+const WALK_YAW_RAD = Math.PI / 2,
   WALK_YAW_EASE_MS = 400,
   WALK_METRES_PER_CYCLE = 1.34;
 const yaw = { from: 0, to: 0, t: 1, cur: 0 };
-export const setYaw = (to: number) => {
+const setYaw = (to: number) => {
   yaw.from = yaw.cur;
   yaw.to = to;
   yaw.t = reduced ? 1 : 0;
@@ -31,14 +34,14 @@ export const proj = (o: THREE.Object3D) => {
   o.getWorldPosition(v3);
   return { x: v3.x * S, y: -v3.y * S };
 };
-export const charW = () => charH * 0.36;
+const charW = () => charH * 0.36;
 function planFall() {
   const room = 0.5 * charW(),
     r = rect(term);
   if (feet.y < r.t && feet.x >= r.l + room && feet.x <= r.r - room) return { el: term, t: r.t };
   return { el: null, t: floorY() };
 }
-export function drop() {
+function drop() {
   bodyState.pin = null;
   bodyState.seatEase = null;
   bodyState.peekX = null;
@@ -153,14 +156,13 @@ export function advanceBody(dt: number, onTurnDone: () => void) {
     onTurnDone();
   }
   if (yaw.t < 1) yaw.t = Math.min(1, yaw.t + (dt * 1000) / WALK_YAW_EASE_MS);
-  yaw.cur = yaw.from + (yaw.to - yaw.from) * (yaw.t * yaw.t * (3 - 2 * yaw.t));
+  yaw.cur = yaw.from + (yaw.to - yaw.from) * smooth(0, 1, yaw.t);
   vrm.scene.rotation.y = baseYawY + yaw.cur;
   if (bodyState.seatEase) {
     bodyState.seatEase.t += dt * 1000;
     const k = Math.min(1, bodyState.seatEase.t / SEAT_EASE_MS);
     feet.y =
-      bodyState.seatEase.from +
-      (bodyState.seatEase.to - bodyState.seatEase.from) * (k * k * (3 - 2 * k));
+      bodyState.seatEase.from + (bodyState.seatEase.to - bodyState.seatEase.from) * smooth(0, 1, k);
     if (k >= 1) seated(bodyState.seatEase.el);
   }
   if (bodyState.pin && bodyState.state === "sit") follow();
@@ -176,4 +178,62 @@ export function pinBody() {
   if (bodyState.peekX !== null) feet.x += (bodyState.peekX - hp.x) * 0.6;
   vrm.scene.position.set(feet.x / S, -(feet.y + bodyState.pinDy) / S, 0);
   vrm.scene.updateMatrixWorld(true);
+}
+
+export function readBody() {
+  return {
+    state: bodyState.state,
+    pinned: !!bodyState.pin,
+    seating: !!bodyState.seatEase,
+    sitting: bodyState.pin?.el === term && bodyState.state === "sit",
+  };
+}
+export function baseline() {
+  return bodyState.pin ? "window_sit" : "idle";
+}
+export function startPeek() {
+  const r = rect(term);
+  bodyState.peekX = r.r - 0.12 * charH;
+  feet.x = bodyState.peekX;
+  feet.y = r.b - 6;
+  bodyState.state = "peek";
+  play("peek", endPeek);
+}
+export function endPeek() {
+  if (bodyState.state !== "peek") return;
+  bodyState.peekX = null;
+  feet.x = clamp(proj(rHips).x, charW(), LW - charW());
+  feet.y = floorY();
+  bodyState.walkTo = Math.min(rect(term).r + 0.45 * charH, LW - charW());
+  if (bodyState.walkTo > feet.x) {
+    bodyState.state = "walk";
+    play("walk");
+    setYaw(WALK_YAW_RAD);
+  } else {
+    bodyState.state = "stand";
+    play("idle");
+    bodyState.seatAfterTurn = true;
+  }
+}
+export function seatAt(point: { x: number; y: number }) {
+  bodyState.peekX = null;
+  setYaw(0);
+  feet.x = point.x;
+  feet.y = Math.max(0, point.y - charH * 0.5);
+  bodyState.state = "stand";
+  drop();
+}
+export function initializeBody() {
+  feet.x = LW + 400;
+  feet.y = floorY();
+  play("idle");
+}
+export function clampIntoDesk() {
+  if (bodyState.state === "peek") {
+    const r = rect(term);
+    bodyState.peekX = r.r - 0.12 * charH;
+    feet.y = r.b - 6;
+  }
+  bodyState.walkTo = Math.min(bodyState.walkTo, LW - charW());
+  if (!bodyState.pin && !bodyState.seatEase) feet.x = clamp(feet.x, charW(), LW - charW());
 }

@@ -1,7 +1,14 @@
 import type { AskAnswer, Thread, ThreadsSnapshot } from "../../../src/contract";
-import type { Recording } from "./recording";
+export type Recording = {
+  cols: number;
+  rows: number;
+  marks: { ready: number; answer: number; end: number };
+  events: [number, string][];
+  snapshots: { t: number; threads: Thread[] }[];
+};
+
 export const store = (() => {
-  const threads = new Map<string, Thread & { ask_prompt?: string }>(),
+  const threads = new Map<string, Thread>(),
     listeners = new Set<(snapshot: ThreadsSnapshot) => void>();
   const answers = new Set<(prompt: string, answer: AskAnswer) => void>();
   let revision = 0,
@@ -53,13 +60,13 @@ export const store = (() => {
         .filter((c) => c.id === ans.choice || ans.choices?.includes(c.id))
         .map((c) => c.label);
       answerText = [...labels, ...(ans.text ? [ans.text] : [])].join("\n");
-      th.ask_prompt = th.ask.prompt;
+      const prompt = th.ask.prompt;
       delete th.ask;
       th.state = "working";
       th.updated_at = Date.now();
       th.entries.push({ role: "user", text: answerText, at: Date.now() });
       publish();
-      for (const answer of answers) answer(th.ask_prompt, ans);
+      for (const answer of answers) answer(prompt, ans);
     },
     read(id: string) {
       const th = threads.get(id);

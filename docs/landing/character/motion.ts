@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { reduced } from "../shared/dom";
-import { bodyState } from "./body";
+
 import { actions, mixer } from "./load";
 
 const MOTIONS = {
@@ -52,7 +52,10 @@ export function play(
   if (prev && prev !== a) a.crossFadeFrom(prev, reduced ? 0.01 : fade, false);
   cur = { id, name, action: a, onDone };
 }
-export const baseline = () => (bodyState.pin ? "window_sit" : "idle");
+let baseline: () => keyof typeof MOTIONS = () => "idle";
+export function setBaseline(read: typeof baseline) {
+  baseline = read;
+}
 mixer.addEventListener("finished", (e) => {
   if (e.action !== cur.action) return;
   if (MOTIONS[cur.id].mode === "pingpong") return play(cur.id);

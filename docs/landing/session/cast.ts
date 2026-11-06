@@ -1,8 +1,11 @@
 import { Terminal } from "@xterm/xterm";
+import recording from "../cc.json";
 import { $, cssVar } from "../shared/dom";
-import { CC } from "./recording";
-import { store } from "./thread-store";
-export const xt = new Terminal({
+import { type Recording, store } from "./thread-store";
+
+const CC = recording as unknown as Record<"allow" | "deny", Recording>;
+
+const xt = new Terminal({
   cols: CC.allow.cols,
   rows: CC.allow.rows,
   fontSize: 13,
@@ -14,7 +17,7 @@ export const xt = new Terminal({
   scrollback: 400,
 });
 xt.open($("termScreen"));
-export const castState = {
+const castState = {
   rec: CC.allow,
   castT: 0,
   castStart: 0,
@@ -23,7 +26,8 @@ export const castState = {
   si: 0,
   playing: false,
 };
-export function startRec(name: "allow" | "deny", at: number) {
+export function switchTo(name: "allow" | "deny", at: number) {
+  xt.reset();
   castState.rec = CC[name];
   castState.ei = 0;
   castState.si = 0;
@@ -55,4 +59,14 @@ export function pumpCast(now: number) {
   )
     store.fromRecording(castState.rec.snapshots[castState.si++], castState.rec.snapshots[0].t);
   if (castState.castT >= castState.holdT) castState.playing = false;
+}
+
+export function seek(at: number) {
+  castState.castT = at;
+}
+export function readCast() {
+  return { castT: castState.castT, playing: castState.playing, marks: { ...castState.rec.marks } };
+}
+export function marks(name: "allow" | "deny") {
+  return { ...CC[name].marks };
 }

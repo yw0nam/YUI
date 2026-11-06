@@ -8,9 +8,10 @@ import {
 import { createDelegationChipSettings } from "../../../src/settings/panels/delegation-chip-settings";
 import { createThreadsChip } from "../../../src/ui/threads/chip/threads-chip";
 import { createThreadsView } from "../../../src/ui/threads/window/threads-view";
-import { pet, surfaces } from "../character/overlays";
+import { readPet, surfaces } from "../character/overlays";
 import { K, LH, LW } from "../desk";
-import { clamp, desk, threadsWin } from "../shared/dom";
+import { desk, threadsWin } from "../shared/dom";
+import { clamp } from "../shared/math";
 import { store } from "./thread-store";
 
 const chip = createThreadsChip({
@@ -18,8 +19,7 @@ const chip = createThreadsChip({
   collapsed: createDelegationChipSettings(),
   onOpen: (r) => openThreads(r),
 });
-const disposers: (() => void)[] = [];
-export const threadsState = {
+const threadsState = {
   box: null as ScreenRect | null,
   box0: { x: 0, y: 0, width: 0, height: 0 } as ScreenRect,
   threadsOpen: false,
@@ -47,7 +47,7 @@ const view = createThreadsView({
     end() {},
   },
   terminal: wireTerminalTab({
-    register: (d) => disposers.push(d),
+    register() {},
     settings: { terminalFontSize: () => 13, setTerminalFontSize() {} },
   }),
 });
@@ -55,12 +55,12 @@ store.subscribe((s) => {
   view.update(s);
   chip.update(s.threads);
 });
-export function placeThreads() {
+function placeThreads() {
   Object.assign(threadsWin.style, {
-    left: threadsState.box!.x + "px",
-    top: threadsState.box!.y + "px",
-    width: threadsState.box!.width + "px",
-    height: threadsState.box!.height + "px",
+    left: `${threadsState.box!.x}px`,
+    top: `${threadsState.box!.y}px`,
+    width: `${threadsState.box!.width}px`,
+    height: `${threadsState.box!.height}px`,
   });
 }
 async function openThreads(chipRect: ScreenRect) {
@@ -73,7 +73,7 @@ async function openThreads(chipRect: ScreenRect) {
   };
   threadsState.box =
     threadsState.box ??
-    threadsWindowRect({ pet, workArea: workArea(), panel: { width: 880, height: 680 } });
+    threadsWindowRect({ pet: readPet(), workArea: workArea(), panel: { width: 880, height: 680 } });
   fitThreadsBox();
   placeThreads();
   threadsWin.hidden = false;
@@ -88,6 +88,7 @@ async function closeThreads() {
   threadsWin.hidden = true;
   chip.setWindowOpen(false);
 }
+// The Threads view receives its window keys only while its window is open.
 document.addEventListener(
   "keydown",
   (e) => {
@@ -121,10 +122,23 @@ view.onHeadPointerDown((e) => {
   addEventListener("pointerup", up);
 });
 
-export function fitThreadsBox() {
+function fitThreadsBox() {
   if (!threadsState.box) return;
   threadsState.box!.width = Math.min(threadsState.box!.width, LW - 24);
   threadsState.box!.height = Math.min(threadsState.box!.height, LH - 24);
   threadsState.box!.x = clamp(threadsState.box!.x, 120 - threadsState.box!.width, LW - 120);
   threadsState.box!.y = clamp(threadsState.box!.y, 0, LH - 60);
+}
+
+export function readThreadsWindow() {
+  return {
+    threadsOpen: threadsState.threadsOpen,
+    box: threadsState.box ? { ...threadsState.box } : null,
+  };
+}
+export function resizeThreadsWindow() {
+  if (threadsState.box) {
+    fitThreadsBox();
+    if (threadsState.threadsOpen) placeThreads();
+  }
 }

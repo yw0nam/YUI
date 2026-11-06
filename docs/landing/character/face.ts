@@ -1,7 +1,8 @@
 import * as THREE from "three";
-import { rms, voiceState } from "../voice";
+import { isSpeaking, rms } from "../voice";
 import { vrm } from "./load";
-export const faceState = {
+
+const faceState = {
   nextBlink: 3 + Math.random() * 3,
   blinkT: -1,
   mouthOn: false,
@@ -26,12 +27,12 @@ export function face(dt: number, now: number) {
       em.setValue("blink", 0);
     }
   }
-  if (voiceState.speaking) {
-    voiceState.mouthA += (rms() - voiceState.mouthA) * 0.4;
-    voiceState.mouthB += (voiceState.mouthA - voiceState.mouthB) * 0.4;
-    em.setValue("aa", voiceState.mouthB);
+  if (isSpeaking()) {
+    mouthA += (rms() - mouthA) * 0.4;
+    mouthB += (mouthA - mouthB) * 0.4;
+    em.setValue("aa", mouthB);
   } else {
-    voiceState.mouthA = voiceState.mouthB = 0;
+    mouthA = mouthB = 0;
     em.setValue(
       "aa",
       faceState.mouthOn
@@ -43,4 +44,16 @@ export function face(dt: number, now: number) {
     "relaxed",
     THREE.MathUtils.damp(em.getValue("relaxed") ?? 0, now < faceState.relaxedUntil ? 1 : 0, 3, dt),
   );
+}
+
+let mouthA = 0,
+  mouthB = 0;
+export function setTyping(on: boolean) {
+  faceState.mouthOn = on;
+}
+export function beginPat() {
+  faceState.relaxedUntil = performance.now() + 1e9;
+}
+export function endPat() {
+  faceState.relaxedUntil = performance.now() + 4000;
 }

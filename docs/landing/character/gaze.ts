@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { clamp, DEG, smooth } from "../shared/dom";
-import { bodyState, proj } from "./body";
+import { clamp, DEG, smooth } from "../shared/math";
+import { proj, readBody } from "./body";
 import { nHead, nNeck, pitchSign, rHead, vrm } from "./load";
 
 const gaze = { hy: 0, hp: 0, ey: 0, ep: 0 };
-export const gazeState = { gazePoint: null as { x: number; y: number } | null };
+const gazeState = { gazePoint: null as { x: number; y: number } | null };
 export function applyGaze(dt: number) {
   let ty = 0,
     tp = 0,
@@ -12,10 +12,10 @@ export function applyGaze(dt: number) {
     ep = 0;
   if (
     gazeState.gazePoint &&
-    bodyState.state !== "drag" &&
-    bodyState.state !== "fall" &&
-    bodyState.state !== "peek" &&
-    bodyState.state !== "walk"
+    readBody().state !== "drag" &&
+    readBody().state !== "fall" &&
+    readBody().state !== "peek" &&
+    readBody().state !== "walk"
   ) {
     const h = proj(rHead),
       mountW = 400;
@@ -46,4 +46,8 @@ export function applyGaze(dt: number) {
   nHead.quaternion.multiply(q(0.6));
   vrm.lookAt!.yaw = gaze.ey;
   vrm.lookAt!.pitch = -gaze.ep;
+}
+
+export function setGaze(point: { x: number; y: number } | null) {
+  gazeState.gazePoint = point;
 }

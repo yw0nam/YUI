@@ -1,13 +1,16 @@
-import { bodyState, proj } from "./character/body";
+import { proj, readBody } from "./character/body";
 import { rHead, rHips, vrm } from "./character/load";
-import { pet } from "./character/overlays";
+import { readPet } from "./character/overlays";
 import { K, LH, LW } from "./desk";
-import { coach, guideState, target } from "./guide";
-import { castState } from "./session/cast";
-import { threadsState } from "./session/threads-window";
-import { rect, term } from "./shared/dom";
-import { storyState } from "./story";
-import { voiceState } from "./voice";
+import { coachText } from "./guide/draw";
+import { currentStep } from "./guide/steps";
+import { readCast } from "./session/cast";
+import { readThreadsWindow } from "./session/threads-window";
+import { term } from "./shared/dom";
+import { rect } from "./shared/math";
+import { currentPhase } from "./story";
+import { readTerminal } from "./terminal";
+import { isSpeaking } from "./voice";
 
 declare global {
   interface Window {
@@ -15,25 +18,23 @@ declare global {
   }
 }
 const landingState = () => ({
-  speaking: voiceState.speaking,
+  speaking: isSpeaking(),
   aa: vrm.expressionManager?.getValue("aa") ?? 0,
-  phase: storyState.phase,
-  step: guideState.step,
-  state: bodyState.state,
-  pinned: !!bodyState.pin,
+  phase: currentPhase(),
+  step: currentStep(),
+  state: readBody().state,
+  pinned: readBody().pinned,
   hips: proj(rHips),
   head: proj(rHead),
   term: rect(term),
-  target: { ...target },
-  pet: { ...pet },
+  target: readTerminal().target,
+  pet: readPet(),
   K,
   LW,
   LH,
-  castT: castState.castT,
-  playing: castState.playing,
-  threadsOpen: threadsState.threadsOpen,
-  box: threadsState.box,
-  coach: coach.classList.contains("on") ? coach.textContent : null,
+  castT: readCast().castT,
+  playing: readCast().playing,
+  ...readThreadsWindow(),
+  coach: coachText(),
 });
-
 window.__yuiLanding = landingState;

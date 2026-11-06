@@ -1,9 +1,20 @@
 import "../../src/ui/tokens.css";
 import "@xterm/xterm/css/xterm.css";
 import "./shared/theme";
-import "./character/pointer";
+import "./pointer";
 import "./resize";
-import "./debug";
-import { start } from "./story";
+import { baseline, initializeBody } from "./character/body";
+import { setBaseline } from "./character/motion";
+import { startLoop } from "./loop";
+import { currentPhase, startSession, startStory } from "./story";
+import { onTerminalPlaced, placeScene } from "./terminal";
 
-start();
+if (import.meta.env.DEV) {
+  void import("./debug");
+}
+setBaseline(baseline);
+onTerminalPlaced(startSession);
+placeScene();
+initializeBody();
+startLoop(currentPhase);
+startStory();

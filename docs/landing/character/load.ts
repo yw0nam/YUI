@@ -25,7 +25,8 @@ import clip14 from "../../../public/motions/suwari1.vrma?url";
 import clip15 from "../../../public/motions/suwari3.vrma?url";
 import clip8 from "../../../public/motions/walk.vrma?url";
 import modelUrl from "../assets/yui-landing.vrm?url";
-import { $, DEG } from "../shared/dom";
+import { $ } from "../shared/dom";
+import { DEG } from "../shared/math";
 import { resize, scene } from "./renderer";
 
 const loader = new GLTFLoader();
@@ -76,6 +77,8 @@ const loadBar = $("load").firstElementChild as HTMLElement;
 function load(url: string) {
   return loader.loadAsync(url, (event) => {
     prog.set(url, { loaded: event.loaded, total: event.total });
+    if (prog.size !== CLIP_URLS.length + 1 || [...prog.values()].some((value) => value.total <= 0))
+      return;
     let loaded = 0,
       total = 0;
     for (const value of prog.values()) {
@@ -89,8 +92,6 @@ const [gltf, ...anims] = await Promise.all([load(modelUrl), ...CLIP_URLS.map(loa
 $("load").hidden = true;
 
 export const vrm = gltf.userData.vrm as VRM;
-export let S = 300,
-  charH = 500;
 export const boxC = new THREE.Vector3();
 VRMUtils.removeUnnecessaryVertices(gltf.scene);
 VRMUtils.combineSkeletons(gltf.scene);
@@ -100,26 +101,26 @@ vrm.scene.traverse((o) => {
 });
 scene.add(vrm.scene);
 vrm.scene.updateMatrixWorld(true);
-{
+export const S = (() => {
   const box = new THREE.Box3().setFromObject(vrm.scene),
     size = box.getSize(new THREE.Vector3());
   box.getCenter(boxC);
   const tanV = Math.tan(15 * DEG),
     dist = Math.max(size.y / 2 / tanV, size.x / 2 / ((400 / 600) * tanV)) * 1.1;
-  S = 300 / (dist * tanV);
-}
+  return 300 / (dist * tanV);
+})();
 const lookProxy = new VRMLookAtQuaternionProxy(vrm.lookAt!);
 lookProxy.name = "lookAtQuaternionProxy";
 vrm.scene.add(lookProxy);
 vrm.lookAt!.autoUpdate = false;
-export const N_ = (b: VRMHumanBoneName) => vrm.humanoid.getNormalizedBoneNode(b)!,
-  R_ = (b: VRMHumanBoneName) => vrm.humanoid.getRawBoneNode(b)!;
+const N_ = (b: VRMHumanBoneName) => vrm.humanoid.getNormalizedBoneNode(b)!;
+export const R_ = (b: VRMHumanBoneName) => vrm.humanoid.getRawBoneNode(b)!;
 export const nNeck = N_("neck"),
   nHead = N_("head"),
   rHead = R_("head"),
   rHips = R_("hips");
-export const v3 = new THREE.Vector3();
-charH = (rHead.getWorldPosition(v3).y + 0.13) * S;
+const v3 = new THREE.Vector3();
+export const charH = (rHead.getWorldPosition(v3).y + 0.13) * S;
 export const hipsH = rHips.getWorldPosition(v3).y * S;
 export const baseYawY = vrm.scene.rotation.y;
 export const pitchSign = vrm.meta?.metaVersion === "0" ? 1 : -1;
@@ -130,9 +131,9 @@ export const actions: Record<string, THREE.AnimationAction> = {};
 const swap = new Map<string, string>();
 for (const bone of Object.keys(vrm.humanoid.humanBones) as VRMHumanBoneName[]) {
   const other = bone.startsWith("left")
-    ? "right" + bone.slice(4)
+    ? `right${bone.slice(4)}`
     : bone.startsWith("right")
-      ? "left" + bone.slice(5)
+      ? `left${bone.slice(5)}`
       : null;
   const a = N_(bone),
     b = other && N_(other as VRMHumanBoneName);

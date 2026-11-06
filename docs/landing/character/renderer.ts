@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { fitDesk, K, LH, LW } from "../desk";
 import { $, canvas } from "../shared/dom";
+
 export const renderer = new THREE.WebGLRenderer({
   canvas,
   alpha: true,
@@ -16,8 +17,8 @@ sun.position.set(0.5, 1, 1);
 scene.add(sun);
 export function resize(S: number) {
   fitDesk();
-  canvas.style.width = LW + "px";
-  canvas.style.height = LH + "px";
+  canvas.style.width = `${LW}px`;
+  canvas.style.height = `${LH}px`;
   renderer.setPixelRatio(Math.min(devicePixelRatio * K, 2));
   renderer.setSize(LW, LH, false);
   cam.left = 0;
