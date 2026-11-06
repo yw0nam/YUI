@@ -911,6 +911,8 @@ YUI/
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
+    openclaw/
+      README.md                      # OpenClaw gateway setup (Responses recommended, Code Mode off, auth)
   skills/                            # Skill folders for the character's backend agent, copied into the agent's skill folder or fetched by raw URL
     README.md                        # The skills for readers: what each one teaches and how an agent takes it
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity

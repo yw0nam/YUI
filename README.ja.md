@@ -90,7 +90,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 記憶、エージェント自身のペルソナ、会話履歴の検索、そのほか多くの機能がエージェントに備わっています。そのため、あなたの嫁にはこちらをおすすめします。
 
-現在YUIが対応しているのは[Hermes Agent](integrations/hermes/README.md)です。ほかのエージェントも[pushの通信仕様](docs/reference/push-transport.md)を実装すればつなげられます。
+現在YUIが対応しているのは[Hermes Agent](integrations/hermes/README.md)と[OpenClaw](integrations/openclaw/README.md)です。ほかのエージェントも[pushの通信仕様](docs/reference/push-transport.md)を実装すればつなげられます。
 
 ### OpenAI互換の任意のエンドポイント
 
@@ -104,7 +104,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 | | プロバイダー |
 | --- | --- |
-| チャット | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · OpenAI互換のエンドポイント |
+| チャット | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · [OpenClaw](integrations/openclaw/README.md) · OpenAI互換のエンドポイント |
 | 音声合成(TTS) | [Irodori](https://github.com/Aratako/Irodori-TTS-Server)(日本語) · OpenAI · [Fish Audio](https://fish.audio/) |
 | 音声認識(STT) | OpenAI互換の文字起こしエンドポイント · Groq |
 
@@ -121,6 +121,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 | Groq | `chat_completions` | クラウド(APIキー) | `llama-3.3-70b-versatile` |
 | Google Gemini | `chat_completions` | クラウド(APIキー、無料枠) | `models/gemini-3.5-flash-lite` |
 | [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | セルフホスト | エージェント側で使用するモデル |
+| [OpenClaw](integrations/openclaw/README.md) | `responses`, `chat_completions` | セルフホスト | エージェント側で使用するモデル |
 | カスタムエンドポイント | `chat_completions`, `responses`, `push` | 該当プロトコルに対応した任意のサーバー | `chat_completions` ではツール呼び出し対応モデル |
 
 #### TTS
