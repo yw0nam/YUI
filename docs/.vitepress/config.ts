@@ -142,7 +142,7 @@ export default defineConfig({
   },
   themeConfig: {
     nav: [
-      { text: 'Home', link: '/' },
+      { text: 'Home', link: '/docs/' },
       { text: 'Guide', items: navGroups([START, USE, EXTEND]) },
       { text: 'Reference', items: navGroups([CONFIGURATION, BACKEND_CONTRACT, DIAGNOSTICS]) },
       { text: WHATS_NEW.text, link: WHATS_NEW.link },
