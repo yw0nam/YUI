@@ -1,8 +1,7 @@
 // The app's CSP carries a nonce, which makes the browser ignore `style-src 'unsafe-inline'`, so an
-// inline `style` attribute is dropped in the app while the dev server (no CSP) keeps it (#1926).
-// Set a CSS variable with `el.style.setProperty("--x", v)` or use a `data-` attribute and CSS.
+// inline `style` attribute is dropped in the app while the dev server (no CSP) keeps it.
 // CSSOM writes (`el.style.setProperty`, `el.style.cssText =`) are not governed by CSP and pass.
-// Exits 1 and lists each `style=` in markup and each `setAttribute("style"`.
+// Exits 1 and lists each `style=` in `src/` markup or a root page and each `setAttribute("style"`.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +27,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     }
   };
   walk("src");
+  files.push(...readdirSync(".").filter((name) => name.endsWith(".html")));
   const bad = files.flatMap((file) =>
     findInlineStyleWrites(readFileSync(file, "utf8")).map((c) => `${file}:${c.line}: ${c.hit}`),
   );
