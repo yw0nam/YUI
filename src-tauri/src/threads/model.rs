@@ -108,6 +108,9 @@ pub struct Thread {
     pub seen_ask_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub read: bool,
+    /// How many entries were ever appended; `entries` keeps only the newest 50.
+    #[serde(default)]
+    pub entry_count: u64,
 }
 
 #[derive(Clone, Debug, Deserialize)]

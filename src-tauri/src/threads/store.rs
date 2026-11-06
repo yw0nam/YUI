@@ -132,6 +132,7 @@ impl ThreadStore {
                 answered_ask_ids: Default::default(),
                 seen_ask_id: None,
                 read: false,
+                entry_count: 0,
             });
             thread.source = body.source;
             thread.title = body.title;
@@ -139,6 +140,7 @@ impl ThreadStore {
             thread.state = body.state;
             thread.updated_at = now;
             thread.read = false;
+            thread.entry_count += body.entries.len() as u64;
             thread
                 .entries
                 .extend(body.entries.into_iter().map(|e| Entry {
@@ -246,6 +248,7 @@ impl ThreadStore {
                     text,
                     at: now,
                 });
+                thread.entry_count += 1;
             }
             cap_entries(thread);
             thread.ask = None;

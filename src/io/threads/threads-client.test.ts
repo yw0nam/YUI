@@ -26,6 +26,7 @@ const thread = (id: string): Thread => ({
   entries: [],
   created_at: 0,
   updated_at: 1,
+  entry_count: 0,
 });
 
 it("keeps the highest revision, ignores an older snapshot event, and reads its Thread list", async () => {

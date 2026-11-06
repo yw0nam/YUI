@@ -13,6 +13,7 @@ function thread(source: string, state: Thread["state"]): Thread {
     entries: [],
     created_at: 0,
     updated_at: 0,
+    entry_count: 0,
   };
 }
 

@@ -47,6 +47,8 @@ export interface SignalsSource {
   stop(): void;
   drain(): SignalGroup[];
   restore(env: BusEnvelope): void;
+  /** Routes a client-built group like an inbox arrival, without `onArrival`. */
+  offer(group: SignalGroup): void;
 }
 
 type RoutedGroup = {
@@ -55,6 +57,13 @@ type RoutedGroup = {
 };
 
 type BufferedGroup = { sequence: number; group: SignalGroup };
+
+function cutLabel(envelope: SignalEnvelope): SignalEnvelope {
+  const { label } = envelope;
+  return label !== undefined && [...label].length > LABEL_MAX
+    ? { ...envelope, label: `${[...label].slice(0, LABEL_MAX - 1).join("")}…` }
+    : envelope;
+}
 
 function validEnvelope(value: unknown): value is SignalEnvelope {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -111,12 +120,10 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
     }
-    const { label } = envelope;
-    const cut =
-      label !== undefined && [...label].length > LABEL_MAX
-        ? { ...envelope, label: `${[...label].slice(0, LABEL_MAX - 1).join("")}…` }
-        : envelope;
-    return { group: { envelope: cut, items: raw.signals }, delivery: envelope.delivery };
+    return {
+      group: { envelope: cutLabel(envelope), items: raw.signals },
+      delivery: envelope.delivery,
+    };
   }
 
   // One inbox subscription feeds both cores: each arrival is parsed once, then routed by
@@ -133,9 +140,20 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     const item = parse(raw);
     if (item === undefined) return;
     deps.onArrival?.(item.group);
+    route(item);
+  }
+
+  function route(item: RoutedGroup): void {
     for (const { accept, sink } of sinks) {
       if (accept(item)) sink(item);
     }
+  }
+
+  function offer(group: SignalGroup): void {
+    route({
+      group: { ...group, envelope: cutLabel(group.envelope) },
+      delivery: group.envelope.delivery,
+    });
   }
 
   function inboxFor(accept: (item: RoutedGroup) => boolean) {
@@ -270,5 +288,5 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     clearBatchTimer();
   }
 
-  return { start, stop, drain, restore };
+  return { start, stop, drain, restore, offer };
 }

@@ -21,6 +21,7 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
     ...(waiting ? { ask: { ask_id: "a1", prompt: "Next?", choices: [], text: true } } : {}),
     created_at: 0,
     updated_at,
+    entry_count: 1,
   };
 }
 

@@ -62,6 +62,7 @@ function snapshotOf(waiting: number): ThreadsSnapshot {
       entries: [],
       created_at: 0,
       updated_at: 1,
+      entry_count: 0,
     })),
   };
 }
