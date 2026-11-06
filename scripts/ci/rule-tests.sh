@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# CI rule-tests: fail when a PR edits a rule test — a test that pins a repo-wide rule and carries a
-# `rule-test:` marker line in the base version (docs/agent-guide/testing.md rule 9: a rule is met by
-# fixing what breaks it, never by loosening its test). A deliberate rule change takes the
-# rule-change PR label (RULE_TESTS_SKIP=1 in CI).
+# CI rule-tests: fail when a PR edits a rule test — a test file (*.test.ts/.mjs/.js, under tests/,
+# test_*.py, *_test.py) that pins a repo-wide rule and carries a `rule-test:` marker line in the
+# base version (docs/agent-guide/testing.md rule 9: a rule is met by fixing what breaks it, never
+# by loosening its test). Other files that mention the marker are not rule tests. A deliberate
+# rule change takes the rule-change PR label (RULE_TESTS_SKIP=1 in CI).
 #
 # Usage: rule-tests.sh <base-ref>   (run from repo root)
 set -u
@@ -21,6 +22,10 @@ fi
 hit=0
 while IFS= read -r f; do
   [ -z "$f" ] && continue
+  case "$f" in
+    *.test.ts | *.test.mjs | *.test.js | tests/* | */tests/* | test_*.py | */test_*.py | *_test.py) ;;
+    *) continue ;;
+  esac
   if git show "$range:$f" 2>/dev/null | grep -q 'rule-test:'; then
     echo "rule-tests: $f is a rule test and this branch changes it" >&2
     hit=1
