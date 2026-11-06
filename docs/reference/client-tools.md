@@ -98,6 +98,12 @@ Every parameter is optional and `additionalProperties` is `false`.
 
 Chat Completions nests the schema: `{"type":"function","function":{"name","description","parameters"}}`. Responses flattens it: `{"type":"function","name","description","parameters","strict":false}`. A request with an empty registry carries no `tools` key.
 
+### Cost per request
+
+Each request of a turn carries the whole declared set again, round trips included. With the default config, the main window's eight schemas come to about 1,800 tokens (o200k). `generate_express` holds about 40% of that, most of it the enum-mode `emotion_text` tag table and its `pattern`.
+
+The schema bytes change only when the vocabulary does: the emotion registry, the motion catalog or the user's motion selection, or the TTS provider. Between those changes every request repeats the same prefix, which a provider's prompt cache can match.
+
 ### Motion selection
 
 When the motion selection is empty, the schema omits `motion_id` and the tool description omits body motion. A cue that names a deselected motion still renders: the selection limits what the model is offered.
