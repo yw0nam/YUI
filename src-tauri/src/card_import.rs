@@ -9,7 +9,7 @@ use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, sniff_ok,
     ClaimTarget, SniffKind,
 };
-use crate::preset_file::{PresetFileVoice, PresetFileVrm};
+use crate::preset_file::{read_preset_file, PresetDirs, PresetFileVoice, PresetFileVrm};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::Serialize;
 use std::io::Read;
@@ -236,20 +236,25 @@ pub(crate) fn cards_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "cards")
 }
 
-/// Open the card picker here and read the picked file (`.json`, or `.png` with its card
-/// JSON in a tEXt chunk), copying a PNG source into `cards/` under a temp id for the
-/// preset thumbnail. `None` when the picker is dismissed.
+/// Open the card picker here and read the picked file: a `.json`, a `.png` with its card JSON in
+/// a tEXt chunk (copied into `cards/` under a temp id for the preset thumbnail), or a `.yui`
+/// preset file (its thumbnail, VRM and voice clip claimed under `reserved_vrm_ids` and
+/// `voice_staging_id`). `None` when the picker is dismissed.
 #[command]
-pub async fn import_card_file(app: AppHandle) -> Result<Option<ImportedCardFile>, String> {
+pub async fn import_card_file(
+    app: AppHandle,
+    reserved_vrm_ids: Vec<String>,
+    voice_staging_id: String,
+) -> Result<Option<ImportedCardFile>, String> {
     let Some(src_path) = app
         .dialog()
         .file()
-        .add_filter("Card", &["json", "png"])
+        .add_filter("Card", &["json", "png", "yui"])
         .blocking_pick_file()
     else {
         return Ok(None);
     };
-    let cards = cards_dir(&app)?;
+    let dirs = PresetDirs::of(&app)?;
     open_and_import(app, src_path, move |name, identity, mut source| {
         let name = Path::new(name.as_deref().unwrap_or(""));
         let stem = name.file_stem().and_then(|s| s.to_str()).unwrap_or("card");
@@ -267,13 +272,21 @@ pub async fn import_card_file(app: AppHandle) -> Result<Option<ImportedCardFile>
             "png" => {
                 let bytes = read_bounded(&mut source, MAX_PNG_BYTES)?;
                 let json = card_json_from_png(&bytes)?;
-                let temp_id = claim_thumbnail(&cards, stem, &identity, &bytes)?;
+                let temp_id = claim_thumbnail(&dirs.cards, stem, &identity, &bytes)?;
                 Ok(ImportedCardFile::plain(
                     CardSource::Png,
                     json,
                     Some(temp_id),
                 ))
             }
+            "yui" => read_preset_file(
+                source,
+                stem,
+                &identity,
+                &dirs,
+                &reserved_vrm_ids,
+                &voice_staging_id,
+            ),
             _ => Err("unsupported file".to_string()),
         }
     })
@@ -322,22 +335,22 @@ pub fn remove_card_thumbnail(app: AppHandle, id: String) -> Result<(), String> {
     remove_thumbnail_at(&cards_dir(&app)?, &id)
 }
 
-/// Open the save dialog here and write the exported card to the picked path. `false`
-/// when the dialog is dismissed.
-#[command]
-pub async fn export_card_file(
-    app: AppHandle,
-    default_name: String,
-    text: String,
-) -> Result<bool, String> {
+/// Open the save dialog here and return the picked absolute path. `None` when the dialog is
+/// dismissed.
+pub(crate) fn pick_save_path(
+    app: &AppHandle,
+    default_name: &str,
+    filter_name: &str,
+    exts: &[&str],
+) -> Result<Option<PathBuf>, String> {
     let Some(dest_path) = app
         .dialog()
         .file()
-        .set_file_name(&default_name)
-        .add_filter("Card", &["json"])
+        .set_file_name(default_name)
+        .add_filter(filter_name, exts)
         .blocking_save_file()
     else {
-        return Ok(false);
+        return Ok(None);
     };
     let dest = dest_path.into_path().map_err(|e| {
         log::error!("card_dest_unavailable error={e}");
@@ -346,6 +359,20 @@ pub async fn export_card_file(
     if !dest.is_absolute() {
         return Err("destination must be absolute".to_string());
     }
+    Ok(Some(dest))
+}
+
+/// Open the save dialog here and write the exported card to the picked path. `false`
+/// when the dialog is dismissed.
+#[command]
+pub async fn export_card_file(
+    app: AppHandle,
+    default_name: String,
+    text: String,
+) -> Result<bool, String> {
+    let Some(dest) = pick_save_path(&app, &default_name, "Card", &["json"])? else {
+        return Ok(false);
+    };
     std::fs::write(&dest, text).map_err(|e| {
         log::error!("card_write_failed dest={} error={e}", dest.display());
         "card write failed".to_string()

@@ -34,6 +34,8 @@ tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 image = { version = "0.25", features = ["jpeg", "png"], default-features = false }
 base64 = "0.22"
+# CRC-32 of a PNG chunk; the version flate2 already pulls in.
+crc32fast = "1"
 hyper = { version = "1.10.1", features = ["server", "http1"] }
 hyper-util = { version = "0.1.20", features = ["tokio"] }
 http-body-util = "0.1.3"

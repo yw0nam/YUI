@@ -1,7 +1,11 @@
 //! The redistribution rule a VRM file states in its GLB JSON chunk.
 
 use serde::Serialize;
+use serde_json::Value;
 use std::io::Read;
+
+/// Largest GLB JSON chunk read; a bigger one is `Unknown`.
+const MAX_JSON_CHUNK: u32 = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -12,15 +16,40 @@ pub(crate) enum VrmLicense {
 }
 
 /// The license of the VRM in `reader`: VRM 1.0 `allowRedistribution`, else VRM 0.x `licenseName`.
-pub(crate) fn read_license(_reader: impl Read) -> VrmLicense {
-    VrmLicense::Unknown
+pub(crate) fn read_license(reader: impl Read) -> VrmLicense {
+    let Some(gltf) = glb_json(reader) else {
+        return VrmLicense::Unknown;
+    };
+    let ext = &gltf["extensions"];
+    if ext.get("VRMC_vrm").is_some() {
+        return match ext["VRMC_vrm"]["meta"]["allowRedistribution"] {
+            Value::Bool(true) => VrmLicense::Allowed,
+            _ => VrmLicense::Prohibited,
+        };
+    }
+    match ext["VRM"]["meta"]["licenseName"].as_str() {
+        Some("Redistribution_Prohibited") => VrmLicense::Prohibited,
+        None | Some("" | "Other") => VrmLicense::Unknown,
+        Some(_) => VrmLicense::Allowed,
+    }
+}
+
+/// The parsed JSON chunk of a GLB, read from the 12-byte header and the first chunk only.
+fn glb_json(mut reader: impl Read) -> Option<Value> {
+    let mut head = [0u8; 20];
+    reader.read_exact(&mut head).ok()?;
+    let len = u32::from_le_bytes(head[12..16].try_into().ok()?);
+    if &head[..4] != b"glTF" || &head[16..20] != b"JSON" || len > MAX_JSON_CHUNK {
+        return None;
+    }
+    serde_json::from_reader(reader.take(len as u64)).ok()
 }
 
 /// A GLB whose JSON chunk is `json`.
 #[cfg(test)]
 pub(crate) fn glb_with_json(json: &str) -> Vec<u8> {
     let mut chunk = json.as_bytes().to_vec();
-    while chunk.len() % 4 != 0 {
+    while !chunk.len().is_multiple_of(4) {
         chunk.push(b' ');
     }
     let total = 12 + 8 + chunk.len();

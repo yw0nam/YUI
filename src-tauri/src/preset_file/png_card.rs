@@ -1,9 +1,47 @@
 //! Writes a card into a PNG as a `chara` tEXt chunk.
 
+use crate::card_import::{chunk_len, text_chunk, PNG_SIGNATURE};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+
 /// `png` with every `chara` and `ccv3` tEXt chunk dropped and one `chara` chunk holding the base64
 /// of `card_json` placed right before `IEND`.
-pub(crate) fn with_card_chunk(png: &[u8], _card_json: &str) -> Result<Vec<u8>, String> {
-    Ok(png.to_vec())
+pub(crate) fn with_card_chunk(png: &[u8], card_json: &str) -> Result<Vec<u8>, String> {
+    let malformed = || "png malformed".to_string();
+    if !png.starts_with(PNG_SIGNATURE) {
+        return Err(malformed());
+    }
+    let mut out = PNG_SIGNATURE.to_vec();
+    let mut offset = PNG_SIGNATURE.len();
+    loop {
+        let len = chunk_len(png, offset).ok_or_else(malformed)?;
+        let end = offset + 12 + len;
+        let kind = &png[offset + 4..offset + 8];
+        if kind == b"IEND" {
+            out.extend(chara_chunk(card_json));
+        }
+        let is_card_text = kind == b"tEXt"
+            && matches!(
+                text_chunk(&png[offset + 8..end - 4]),
+                Some(("chara" | "ccv3", _))
+            );
+        if !is_card_text {
+            out.extend(&png[offset..end]);
+        }
+        if kind == b"IEND" {
+            return Ok(out);
+        }
+        offset = end;
+    }
+}
+
+/// A `tEXt` chunk `chara\0<base64(card_json)>`, with its CRC.
+fn chara_chunk(card_json: &str) -> Vec<u8> {
+    let mut body = b"tEXtchara\0".to_vec();
+    body.extend(B64.encode(card_json).as_bytes());
+    let mut chunk = ((body.len() - 4) as u32).to_be_bytes().to_vec();
+    chunk.extend(&body);
+    chunk.extend(crc32fast::hash(&body).to_be_bytes());
+    chunk
 }
 
 #[cfg(test)]

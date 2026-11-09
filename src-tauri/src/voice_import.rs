@@ -5,10 +5,11 @@
 //! arbitrary source with the app's own privileges.
 
 use crate::import_fs::{
-    app_data_subdir, audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file,
-    MAX_STEM_BYTES,
+    app_data_subdir, audio_sniff_kind, copy_bounded, ensure_within, sanitize_stem, short_hash,
+    sniff_file, MAX_STEM_BYTES,
 };
 use serde::Serialize;
+use std::io::Read;
 use std::path::Path;
 use tauri::{command, AppHandle};
 use tauri_plugin_dialog::DialogExt;
@@ -21,7 +22,7 @@ pub(crate) const AUDIO_EXTS: [&str; 8] =
 pub(crate) const MAX_AUDIO_BYTES: u64 = 100 * 1024 * 1024;
 
 /// True when `ext` (case-insensitive) is in the allowlist.
-pub(crate) fn is_allowed_audio_ext(ext: &str) -> bool {
+fn is_allowed_audio_ext(ext: &str) -> bool {
     let lower = ext.to_ascii_lowercase();
     AUDIO_EXTS.iter().any(|&e| e == lower)
 }
@@ -117,6 +118,40 @@ fn copy_into_references(
         return Err("unsupported audio type".to_string());
     }
 
+    place_in_references(references_dir, desired_name, ext_lower, |dest| {
+        std::fs::copy(&src, dest).map(drop).map_err(|e| {
+            log::error!("copy_failed dest={} error={e}", dest.display());
+            "import failed".to_string()
+        })
+    })
+}
+
+/// Stage `reader`, an audio stream of `ext_lower`, as `references_dir/<id>/clip.<ext_lower>`,
+/// refusing a stream over `MAX_AUDIO_BYTES` or one that fails the container sniff.
+pub(crate) fn copy_reader_into_references(
+    references_dir: &Path,
+    reader: impl Read,
+    ext_lower: &str,
+    desired_name: &str,
+) -> Result<ImportedVoice, String> {
+    let kind = audio_sniff_kind(ext_lower).ok_or("unsupported audio type".to_string())?;
+    place_in_references(references_dir, desired_name, ext_lower, |dest| {
+        let file = std::fs::File::create(dest).map_err(|e| {
+            log::error!("create_dest_failed dest={} error={e}", dest.display());
+            "import failed".to_string()
+        })?;
+        copy_bounded(reader, file, MAX_AUDIO_BYTES, kind).map(drop)
+    })
+}
+
+/// Build `references_dir/<id>/clip.<ext_lower>` with `fill` writing the clip into a sibling temp
+/// dir, where `<id>` is `voice_id_from_name(desired_name)`, and move the temp dir into place.
+fn place_in_references(
+    references_dir: &Path,
+    desired_name: &str,
+    ext_lower: &str,
+    fill: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<ImportedVoice, String> {
     std::fs::create_dir_all(references_dir).map_err(|e| {
         log::error!(
             "create_references_dir_failed dest={} error={e}",
@@ -145,10 +180,9 @@ fn copy_into_references(
     })?;
 
     let tmp_dest = tmp_dir.join(format!("clip.{ext_lower}"));
-    if let Err(e) = std::fs::copy(&src, &tmp_dest) {
-        log::error!("copy_failed dest={} error={e}", tmp_dest.display());
+    if let Err(e) = fill(&tmp_dest) {
         let _ = std::fs::remove_dir_all(&tmp_dir);
-        return Err("import failed".to_string());
+        return Err(e);
     }
 
     // Move the fully-built temp dir into place. The rename fails when `dir` already holds a

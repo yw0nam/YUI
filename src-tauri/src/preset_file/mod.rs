@@ -5,11 +5,28 @@ mod manifest;
 mod png_card;
 mod vrm_license;
 
-use crate::card_import::ImportedCardFile;
+use crate::card_import::{
+    cards_dir, claim_thumbnail, pick_save_path, read_bounded, remove_thumbnail_at, CardSource,
+    ImportedCardFile, MAX_JSON_BYTES, MAX_PNG_BYTES,
+};
+use crate::import_fs::{
+    app_data_subdir, claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind,
+};
+use crate::voice_import::{copy_reader_into_references, remove_user_voice_at, AUDIO_EXTS};
+use crate::vrm_import::{remove_user_vrm_at, vrms_dir, MAX_VRM_BYTES};
+use manifest::{
+    voice_ext, Manifest, ManifestVoice, ManifestVrm, FORMAT, UNREADABLE, VERSION, VRM_ENTRY,
+};
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Seek, Write};
+use std::io::{BufWriter, Read, Seek, Write};
 use std::path::{Path, PathBuf};
-use vrm_license::VrmLicense;
+use tauri::{command, AppHandle};
+use vrm_license::{read_license, VrmLicense};
+use zip::result::ZipError;
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipArchive, ZipWriter};
+
+const MAX_MANIFEST_BYTES: u64 = 64 * 1024;
 
 /// The app-data folders a preset file reads from and claims into.
 pub(crate) struct PresetDirs {
@@ -69,37 +86,375 @@ pub(crate) struct VrmInspection {
     pub bytes: u64,
 }
 
+impl PresetDirs {
+    pub(crate) fn of(app: &AppHandle) -> Result<Self, String> {
+        Ok(Self {
+            cards: cards_dir(app)?,
+            vrms: vrms_dir(app)?,
+            references: app_data_subdir(app, "references")?,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PresetFileExportResult {
+    pub saved: bool,
+    pub vrm_included: bool,
+    pub bytes: u64,
+}
+
+/// The files one `read_preset_file` call claimed, removed when a later step fails.
+#[derive(Default)]
+struct Claimed {
+    thumbnail: Option<String>,
+    vrm: Option<String>,
+    voice: Option<String>,
+}
+
+fn unreadable() -> String {
+    UNREADABLE.to_string()
+}
+
+/// The bytes of zip entry `name`, `None` when the archive has no such entry; `cap` bounds it.
+fn entry(
+    zip: &mut ZipArchive<impl Read + Seek>,
+    name: &str,
+    cap: u64,
+) -> Result<Option<Vec<u8>>, String> {
+    match zip.by_name(name) {
+        Ok(file) => read_bounded(file, cap).map(Some),
+        Err(ZipError::FileNotFound) => Ok(None),
+        Err(e) => {
+            log::warn!("preset_file_entry_failed name={name} error={e}");
+            Err(unreadable())
+        }
+    }
+}
+
 /// Read a preset file: validate its manifest, and claim the thumbnail, VRM and voice into `dirs`.
 /// A failure after a claim removes what this call claimed.
 pub(crate) fn read_preset_file(
-    _source: impl Read + Seek,
-    _name_stem: &str,
-    _identity: &str,
-    _dirs: &PresetDirs,
-    _reserved_vrm_ids: &[String],
-    _voice_staging_id: &str,
+    source: impl Read + Seek,
+    name_stem: &str,
+    identity: &str,
+    dirs: &PresetDirs,
+    reserved_vrm_ids: &[String],
+    voice_staging_id: &str,
 ) -> Result<ImportedCardFile, String> {
-    Err("not implemented".to_string())
+    let mut zip = ZipArchive::new(source).map_err(|e| {
+        log::warn!("preset_file_open_failed error={e}");
+        unreadable()
+    })?;
+    let manifest_bytes =
+        entry(&mut zip, "manifest.json", MAX_MANIFEST_BYTES)?.ok_or_else(unreadable)?;
+    let manifest: Manifest = serde_json::from_slice(&manifest_bytes).map_err(|_| unreadable())?;
+    manifest.validate()?;
+    let json = entry(&mut zip, "card.json", MAX_JSON_BYTES)?.ok_or_else(unreadable)?;
+    let json = String::from_utf8(json).map_err(|_| "card unreadable".to_string())?;
+
+    let mut claimed = Claimed::default();
+    let ctx = ClaimCtx {
+        name_stem,
+        identity,
+        dirs,
+        reserved_vrm_ids,
+        voice_staging_id,
+    };
+    let assets = claim_assets(&mut zip, &manifest, &ctx, &mut claimed);
+    match assets {
+        Ok((thumbnail_temp_id, vrm, voice)) => Ok(ImportedCardFile {
+            source: CardSource::Yui,
+            json,
+            thumbnail_temp_id,
+            crop: manifest.crop,
+            vrm,
+            voice,
+        }),
+        Err(e) => {
+            if let Some(id) = &claimed.thumbnail {
+                let _ = remove_thumbnail_at(&dirs.cards, id);
+            }
+            if let Some(id) = &claimed.vrm {
+                let _ = remove_user_vrm_at(&dirs.vrms, id);
+            }
+            if let Some(id) = &claimed.voice {
+                let _ = remove_user_voice_at(&dirs.references, id);
+            }
+            Err(e)
+        }
+    }
+}
+
+type Assets = (
+    Option<String>,
+    Option<PresetFileVrm>,
+    Option<PresetFileVoice>,
+);
+
+/// What `claim_assets` needs to name and place the files it claims.
+struct ClaimCtx<'a> {
+    name_stem: &'a str,
+    identity: &'a str,
+    dirs: &'a PresetDirs,
+    reserved_vrm_ids: &'a [String],
+    voice_staging_id: &'a str,
+}
+
+/// Claim the thumbnail, VRM and voice entries, recording each claim in `claimed`.
+fn claim_assets(
+    zip: &mut ZipArchive<impl Read + Seek>,
+    manifest: &Manifest,
+    ctx: &ClaimCtx,
+    claimed: &mut Claimed,
+) -> Result<Assets, String> {
+    let ClaimCtx {
+        name_stem,
+        identity,
+        dirs,
+        reserved_vrm_ids,
+        voice_staging_id,
+    } = *ctx;
+    let thumbnail = match entry(zip, "thumbnail.png", MAX_PNG_BYTES)? {
+        Some(png) => {
+            let id = claim_thumbnail(&dirs.cards, name_stem, identity, &png)?;
+            claimed.thumbnail = Some(id.clone());
+            Some(id)
+        }
+        None => None,
+    };
+    let vrm = match &manifest.vrm {
+        None => None,
+        Some(ManifestVrm::Bundled { bundled }) => Some(PresetFileVrm::Bundled {
+            id: bundled.clone(),
+        }),
+        Some(ManifestVrm::File { .. }) => {
+            let file = zip.by_name(VRM_ENTRY).map_err(|_| unreadable())?;
+            let (id, dest) = claim_and_copy(
+                file,
+                &ClaimTarget {
+                    dir: &dirs.vrms,
+                    name_stem,
+                    identity,
+                    ext: "vrm",
+                    kind: SniffKind::Glb,
+                    cap: MAX_VRM_BYTES,
+                    reserved: reserved_vrm_ids,
+                },
+            )?;
+            claimed.vrm = Some(id.clone());
+            Some(PresetFileVrm::User {
+                id,
+                dest_path: dest.to_string_lossy().into_owned(),
+            })
+        }
+    };
+    let voice = match &manifest.voice {
+        None => None,
+        Some(ManifestVoice { file, label }) => {
+            let ext = voice_ext(file).ok_or_else(unreadable)?;
+            let clip = zip.by_name(file).map_err(|_| unreadable())?;
+            let staged =
+                copy_reader_into_references(&dirs.references, clip, ext, voice_staging_id)?;
+            claimed.voice = Some(staged.id.clone());
+            Some(PresetFileVoice {
+                id: staged.id,
+                ref_path: staged.ref_path,
+                label: label.clone(),
+            })
+        }
+    };
+    Ok((thumbnail, vrm, voice))
+}
+
+fn write_failed(e: impl std::fmt::Display) -> String {
+    log::error!("preset_file_write_failed error={e}");
+    "preset write failed".to_string()
+}
+
+/// `dir/<file_name>` when it is an existing file.
+fn existing_file(dir: &Path, file_name: &str) -> Result<Option<PathBuf>, String> {
+    let path = dir.join(file_name);
+    ensure_within(dir, &path)?;
+    Ok(path.is_file().then_some(path))
+}
+
+/// Add the file at `path` to the zip as `name`.
+fn add_file(zip: &mut ZipWriter<impl Write + Seek>, name: &str, path: &Path) -> Result<(), String> {
+    zip.start_file(
+        name,
+        SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
+    )
+    .map_err(write_failed)?;
+    let mut file = std::fs::File::open(path).map_err(write_failed)?;
+    std::io::copy(&mut file, zip).map_err(write_failed)?;
+    Ok(())
 }
 
 /// Write the preset `request` describes into `out`, resolving its files under `dirs`. Returns
 /// whether the VRM is represented (a bundled id, or a file whose license is not prohibited).
 pub(crate) fn write_preset_file(
-    _dirs: &PresetDirs,
-    _request: &PresetFileExportRequest,
-    _out: impl Write + Seek,
+    dirs: &PresetDirs,
+    request: &PresetFileExportRequest,
+    out: impl Write + Seek,
 ) -> Result<bool, String> {
-    Err("not implemented".to_string())
+    let mut zip = ZipWriter::new(out);
+    let mut manifest = Manifest {
+        format: FORMAT.to_string(),
+        version: VERSION,
+        crop: request.crop.clone(),
+        vrm: None,
+        voice: None,
+    };
+    let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+
+    zip.start_file("card.json", deflated)
+        .map_err(write_failed)?;
+    zip.write_all(request.card_json.as_bytes())
+        .map_err(write_failed)?;
+
+    if let Some(id) = &request.thumbnail_preset_id {
+        if let Some(png) = existing_file(&dirs.cards, &format!("{}.png", sanitize_stem(id)))? {
+            add_file(&mut zip, "thumbnail.png", &png)?;
+        }
+    }
+
+    match &request.vrm {
+        None => {}
+        Some(PresetFileVrmRef::Bundled { id }) => {
+            manifest.vrm = Some(ManifestVrm::Bundled {
+                bundled: id.clone(),
+            });
+        }
+        Some(PresetFileVrmRef::User { id }) => {
+            if let Some(vrm) = existing_file(&dirs.vrms, &format!("{}.vrm", sanitize_stem(id)))? {
+                let license = read_license(std::fs::File::open(&vrm).map_err(write_failed)?);
+                if license != VrmLicense::Prohibited {
+                    add_file(&mut zip, VRM_ENTRY, &vrm)?;
+                    manifest.vrm = Some(ManifestVrm::File {
+                        file: VRM_ENTRY.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    if let Some(voice) = &request.voice {
+        let dir = dirs.references.join(sanitize_stem(&voice.id));
+        ensure_within(&dirs.references, &dir)?;
+        let clip = AUDIO_EXTS.iter().find_map(|ext| {
+            let path = dir.join(format!("clip.{ext}"));
+            path.is_file().then_some((*ext, path))
+        });
+        if let Some((ext, path)) = clip {
+            let file = format!("voice/clip.{ext}");
+            add_file(&mut zip, &file, &path)?;
+            manifest.voice = Some(ManifestVoice {
+                file,
+                label: voice.label.clone(),
+            });
+        }
+    }
+
+    zip.start_file("manifest.json", deflated)
+        .map_err(write_failed)?;
+    zip.write_all(&serde_json::to_vec(&manifest).map_err(write_failed)?)
+        .map_err(write_failed)?;
+    zip.finish().map_err(write_failed)?;
+    Ok(manifest.vrm.is_some())
 }
 
 /// The license and size of `vrms/<sanitized id>.vrm`.
-fn inspect_vrm_at(_vrms: &Path, _id: &str) -> Result<VrmInspection, String> {
-    Err("not implemented".to_string())
+fn inspect_vrm_at(vrms: &Path, id: &str) -> Result<VrmInspection, String> {
+    let path = existing_file(vrms, &format!("{}.vrm", sanitize_stem(id)))?
+        .ok_or_else(|| "vrm not found".to_string())?;
+    let file = std::fs::File::open(&path).map_err(write_failed)?;
+    let bytes = file.metadata().map_err(write_failed)?.len();
+    Ok(VrmInspection {
+        license: read_license(file),
+        bytes,
+    })
 }
 
 /// `cards/<sanitized preset id>.png` with `card_json` written into it.
-fn card_png_bytes(_cards: &Path, _preset_id: &str, _card_json: &str) -> Result<Vec<u8>, String> {
-    Err("not implemented".to_string())
+fn card_png_bytes(cards: &Path, preset_id: &str, card_json: &str) -> Result<Vec<u8>, String> {
+    let png = existing_file(cards, &format!("{}.png", sanitize_stem(preset_id)))?
+        .ok_or_else(|| "no picture".to_string())?;
+    let bytes = read_bounded(
+        std::fs::File::open(png).map_err(write_failed)?,
+        MAX_PNG_BYTES,
+    )?;
+    png_card::with_card_chunk(&bytes, card_json)
+}
+
+/// Write the zip beside `dest` as `<dest>.partial`, then rename it onto `dest`.
+fn write_to(
+    dirs: &PresetDirs,
+    request: &PresetFileExportRequest,
+    dest: &Path,
+) -> Result<PresetFileExportResult, String> {
+    let mut partial = dest.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let written = (|| {
+        let mut out = BufWriter::new(std::fs::File::create(&partial).map_err(write_failed)?);
+        let vrm_included = write_preset_file(dirs, request, &mut out)?;
+        out.flush().map_err(write_failed)?;
+        let bytes = std::fs::metadata(&partial).map_err(write_failed)?.len();
+        std::fs::rename(&partial, dest).map_err(write_failed)?;
+        Ok(PresetFileExportResult {
+            saved: true,
+            vrm_included,
+            bytes,
+        })
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    written
+}
+
+/// The license and size of the user VRM `id`, read before the user exports it.
+#[command]
+pub fn inspect_preset_vrm(app: AppHandle, id: String) -> Result<VrmInspection, String> {
+    inspect_vrm_at(&vrms_dir(&app)?, &id)
+}
+
+/// Open the save dialog here and write the preset `request` describes as a `.yui` file, resolving
+/// its files under app data. Dismissed: `saved: false`.
+#[command]
+pub async fn export_preset_file(
+    app: AppHandle,
+    request: PresetFileExportRequest,
+) -> Result<PresetFileExportResult, String> {
+    let Some(dest) = pick_save_path(&app, &request.default_name, "Preset", &["yui"])? else {
+        return Ok(PresetFileExportResult {
+            saved: false,
+            vrm_included: false,
+            bytes: 0,
+        });
+    };
+    let dirs = PresetDirs::of(&app)?;
+    tauri::async_runtime::spawn_blocking(move || write_to(&dirs, &request, &dest))
+        .await
+        .map_err(write_failed)?
+}
+
+/// Open the save dialog here and write preset `preset_id`'s picture as a PNG card holding
+/// `card_json`. `false` when the dialog is dismissed.
+#[command]
+pub async fn export_card_png(
+    app: AppHandle,
+    default_name: String,
+    card_json: String,
+    preset_id: String,
+) -> Result<bool, String> {
+    let png = card_png_bytes(&cards_dir(&app)?, &preset_id, &card_json)?;
+    let Some(dest) = pick_save_path(&app, &default_name, "Card", &["png"])? else {
+        return Ok(false);
+    };
+    std::fs::write(&dest, png).map_err(write_failed)?;
+    Ok(true)
 }
 
 #[cfg(test)]
