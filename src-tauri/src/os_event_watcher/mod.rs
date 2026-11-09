@@ -342,6 +342,7 @@ mod tests {
             owner_name: Some("Safari".into()),
             pid: 4321,
             window_number: 8765,
+            threads_window: true,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert_eq!(v["x"], 100.0);
@@ -352,6 +353,7 @@ mod tests {
         assert_eq!(v["ownerName"], "Safari");
         assert_eq!(v["pid"], 4321);
         assert_eq!(v["windowNumber"], 8765);
+        assert_eq!(v["threadsWindow"], true);
     }
 
     #[test]
