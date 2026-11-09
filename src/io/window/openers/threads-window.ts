@@ -71,6 +71,7 @@ export function createThreadsWindowController(deps: {
     emitOpen: deps.bridge.emitThreadsOpen,
     onReady: deps.bridge.onThreadsReady,
     onError: () => closed(),
+    onSuperseded: ({ present }) => present && settle(present, "closed"),
   });
   // From a request handed to the window until its closed report: a failed request meanwhile leaves it open.
   let open = false;

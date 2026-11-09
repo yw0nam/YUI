@@ -38,6 +38,8 @@ export function createReadyWindowController<R>(deps: {
   onReady(cb: () => void): () => void;
   /** An open that failed before its request was sent or held. */
   onError?(error: unknown): void;
+  /** A held request replaced by a newer one before the window reported ready; it is never sent. */
+  onSuperseded?(request: R): void;
 }): { open(request: R): void; dispose(): void } {
   let created = false;
   let booted = false;
@@ -66,7 +68,10 @@ export function createReadyWindowController<R>(deps: {
           await ensureWindow();
           // The ready report of a reused window has already arrived; only a fresh boot holds the request.
           if (booted && !pending) deps.emitOpen(request);
-          else pending = request;
+          else {
+            if (pending) deps.onSuperseded?.(pending);
+            pending = request;
+          }
         } catch (error) {
           log.error("window_open_failed", { label: deps.label, error: String(error) });
           deps.onError?.(error);
