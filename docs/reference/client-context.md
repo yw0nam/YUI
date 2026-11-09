@@ -248,7 +248,7 @@ body: standing (for 12min)
 
 The state is `body_state.posture.state`, one of `standing`, `sitting`, `peeking`, `dragging`, `walking`, or `climbing`.
 
-The `on <label>` clause names `posture.perched_on.app`, falling back to `window_title` when the app did not resolve. It is omitted when no window is under the avatar. `standing`, `walking`, and `climbing` never carry one.
+The `on <label>` clause names `posture.perched_on.app`, falling back to `window_title` when the app did not resolve. On the Threads window the app is `YUI` and the title is `Threads`, so the clause reads `on YUI`. It is omitted when no window is under the avatar. `standing`, `walking`, and `climbing` never carry one.
 
 #### `walking` and `climbing`
 

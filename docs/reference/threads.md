@@ -210,3 +210,61 @@ Each Thread that gives a turn becomes one signal group with `delivery: "batched"
 | `last` | `{role, text}` of the newest entry, its text on one line and cut at 160 characters; only when the Thread has an entry |
 
 Thread turns run in main's pet window only. Threads reach the client only while the ingress listener runs, and while External signals is off every group is dropped. Turning Thread turns off stops new groups; groups already buffered still go.
+
+## Thread reactions
+
+Thread reactions is the device-wide switch `yui.thread-reactions`, on by default. Its row sits in the Watchers section of the settings. It does not depend on External signals. Turning it off drops every held reaction and stops a reaction in progress.
+
+A reaction is client-side. It sends nothing to the backend and gives no turn. Thread turns are independent of it: a Thread turn still reaches the backend, whether or not a reaction plays.
+
+Main's pet window compares each Threads snapshot with the one before. The first snapshot is the baseline and gives no reaction, so Threads kept on disk do not replay at launch.
+
+### Transitions
+
+A Thread that enters one of these states gives a reaction. A Thread new to the snapshot gives one when it arrives in one of them.
+
+| State | Expression |
+|---|---|
+| `input-required` | `curious` |
+| `completed` | `happy` |
+| `failed` | `sad` |
+
+`working` gives no reaction. A repeated PUT that keeps the same state gives none.
+
+### Window states
+
+The reaction reads the Threads window when it runs.
+
+| State | Meaning |
+|---|---|
+| Closed | The window has no open request from main. |
+| Covered | The window is open, and `list_windows` either does not hold it or lists a window in front of it that overlaps it. |
+| Open | Otherwise. |
+
+While it is on screen, the Threads window is a perch target. A hand drop, a stroll jump, a fall and the `look` tool all see it.
+
+### Steps
+
+Each reaction runs its steps in order. A step is skipped when it does not apply.
+
+| State | Steps |
+|---|---|
+| Closed | A `threads_open` line, the window grows out of the chip's slot, the changed Thread is selected, then she sits |
+| Covered | A `threads_raise` line, the window comes to the front without focus, then she sits |
+| Open | She sits |
+
+A line is drawn from a shuffle bag of its pool. An empty pool gives no line. With the Use interjections switch off, the pool is empty, so no line plays and she goes straight to the window. The line plays to its end. An interrupt, abort or dispose of speech cuts it and stops the reaction.
+
+The window opens or rises without keyboard focus. An open from a closed window selects the Thread. Its tab is Waiting when the Thread waits, otherwise All. A raise, or an open of a window already shown, changes no tab and no selection. The selection does not report the ask seen.
+
+She sits on the Threads window with `sit_on_window`, unless she already sits on it. A failed sit logs `reaction_sit_failed` and drops the reaction.
+
+The mapped expression plays, then eases back to neutral after `touch_emotion_hold_ms`. When speech is still owed at that moment, the speech's end eases it instead.
+
+### Held reactions
+
+One reaction is held per Thread. A newer transition for a Thread replaces its held reaction. A held reaction is dropped when its Thread is gone or has another state.
+
+Reactions run oldest first, one at a time. A reaction waits while she is not free. She is free when no turn is in the pipeline, no speech is owed, and she is neither dragged nor moved by an avatar command. While a reaction waits, the client checks again every second.
+
+A running reaction checks after each wait that its Thread still holds the reacted state and the switch is on. Otherwise it stops. A transition that arrives during a run is held and runs after it.
