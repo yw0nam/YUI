@@ -6,16 +6,29 @@ A card holds her persona: her name, who she is, how she talks, and how a convers
 
 ## Import, edit, and export
 
-1. **Import card…** on the Persona page reads JSON (`chara_card_v2`, `chara_card_v3`, or V1) or a PNG card from a SillyTavern-compatible tool. A Character.AI character needs a converter first.
-    - The preset takes the card's name, with a number added when that name is taken. It becomes the active preset and gets the card as its own card, with **Send card** on.
+1. **Import…** on the Persona page reads a [preset file](#preset-file) (`.yui`), a JSON card (`chara_card_v2`, `chara_card_v3`, or V1), or a PNG card from a SillyTavern-compatible tool. A Character.AI character needs a converter first.
+    - The new preset takes the card's name, with a number added when that name is taken. It becomes the active preset and gets the card as its own card, with **Send card** on.
     - A PNG card's image becomes the preset's photo, framed on its top square. The photo button reframes it, and removing the preset deletes the file.
 2. Edit any field below.
     - An empty field sends nothing. Name renames the preset too.
     - **Advanced** reveals Example dialogue, System prompt, and Post-history instructions.
     - **Reset to default** returns the preset to the default card.
     - With **Send card** off, the backend gets only the expression instructions.
-3. **Export card** writes `chara_card_v2` JSON through the save dialog, named after the preset. Fields that only V3 knows stay under `extensions`, and import keeps them.
+3. **Export preset (.yui)** opens the list of what the [preset file](#preset-file) carries, under the buttons.
+4. **Export card only (PNG)** writes the card into the preset's photo and saves it as a PNG card at once, with no rights check. It stays off while the preset has no photo.
+    - Both exports write the card as `chara_card_v2`, named after the preset. Fields that only V3 knows stay under `extensions`, and import keeps them.
     - Filler phrases are kept in `extensions.yui.filler`, so an exported card imports back with them.
+
+## Preset file
+
+A preset file is one `.yui` file holding the card, the photo with its framing, the VRM, and the voice's reference clip. API keys, connection settings, chat history, and relation values never go in.
+
+- **VRM.** A VRM that ships with the app goes in by name only. An imported VRM 1.0 is left out unless `allowRedistribution` is true.
+- **VRM 0.x.** It is left out under `Redistribution_Prohibited` and goes in under any other license name. With no license, or `Other`, the list shows **Check needed** and the VRM still goes in.
+- **Voice.** An imported voice's reference clip goes in. A voice with no local clip, such as the TTS server's own voice or a pasted voice id, is left out.
+- **Rights check.** **Export…** stays off until the switch "I have the right to share these files" is on.
+- **Import.** A preset file creates a new preset. Its VRM joins the VRM list and is selected for that preset. A VRM that ships with the app is selected when this app has it.
+- **Voice on import.** The clip is registered with your TTS server and selected when the provider takes reference clips (Irodori, Fish Audio). Otherwise the preset keeps the default voice, and a line under the buttons says the voice could not be registered.
 
 ::: v-pre
 

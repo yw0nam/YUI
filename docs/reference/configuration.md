@@ -104,7 +104,7 @@ Any other value is sent: on Responses as `reasoning.effort`, on Chat Completions
 
 The control appears in Chat Completions and Responses modes. On push it stays in place, disabled, with a line under it that says the backend decides how long to think on push.
 
-The **Card** section works the same way: its fields stay in place, disabled, with a reason line, because a push backend uses its own persona. **Import card…** and **Export card** stay usable.
+The **Card** section works the same way: its fields stay in place, disabled, with a reason line, because a push backend uses its own persona. **Import…**, **Export preset (.yui)**, and **Export card only (PNG)** stay usable.
 
 ## Voice
 

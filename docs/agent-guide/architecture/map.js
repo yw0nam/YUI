@@ -590,12 +590,13 @@ globalThis.YUI_MAP =
       "id": "shell/imports",
       "module": "shell",
       "label": "asset imports",
-      "role": "Native copy of user-picked VRM and voice clip files into app data, and the card file steps: a JSON or PNG card read, the PNG kept as the thumbnail copy, and the exported card write.",
+      "role": "Native copy of user-picked VRM and voice clip files into app data, and the card file steps: a JSON, PNG or preset file (.yui) read, the PNG kept as the thumbnail copy, a preset file's VRM and voice clip claimed into app data, the VRM license read from its GLB JSON chunk, the preset file zip write (a VRM whose license forbids redistribution left out), and the PNG card write.",
       "paths": [
         "src-tauri/src/import_fs.rs",
         "src-tauri/src/vrm_import.rs",
         "src-tauri/src/voice_import.rs",
-        "src-tauri/src/card_import.rs"
+        "src-tauri/src/card_import.rs",
+        "src-tauri/src/preset_file"
       ]
     },
     {
@@ -962,7 +963,7 @@ globalThis.YUI_MAP =
       "id": "io/assets",
       "module": "settings",
       "label": "assets",
-      "role": "VRM selection and import, and the card's file steps: the OS pickers for import and export, the V2 export envelope, and the thumbnail file URL the preset entry carries.",
+      "role": "VRM selection and import, and the card's file steps: the OS picker for a JSON, PNG or preset file import and the cleanup of what an unreadable one claimed, the preset file and PNG card exports with the user VRM's license read before an export, and the thumbnail file URL the preset entry carries.",
       "paths": [
         "src/io/assets"
       ]
@@ -1296,7 +1297,7 @@ globalThis.YUI_MAP =
       "id": "app/card-io",
       "module": "wiring",
       "label": "card io wiring",
-      "role": "The card's settings-panel ports: io's file steps and settings' preset creator, bound to one registry, spread by the settings window's wiring.",
+      "role": "The card's settings-panel ports: io's file steps and settings' preset creator, bound to one registry, spread by the settings window's wiring; the import registers a preset file's voice clip with the TTS provider, adds its VRM to the VRM list, names both for the new preset, and rolls back what it created when preset creation fails.",
       "paths": [
         "src/app/card-io"
       ]
@@ -3753,7 +3754,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import card\u2026 \u2192 importCardFromFile (JSON or PNG in); Export card \u2192 exportCardToFile (V2 JSON out, extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty); the photo dialog \u2192 loadPhotoSize (a photo's natural size)",
+      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM and user voice); Export card only (PNG) \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -3762,7 +3763,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import card\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
+      "carries": "Import\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -3771,7 +3772,15 @@ globalThis.YUI_MAP =
       "id": "card-shell",
       "from": "io/assets",
       "to": "shell/imports",
-      "carries": "import_card_file, retain_card_thumbnail, pick_preset_photo, remove_card_thumbnail, write_card_file",
+      "carries": "import_card_file, retain_card_thumbnail, pick_preset_photo, remove_card_thumbnail",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "preset-file-shell",
+      "from": "io/assets",
+      "to": "shell/imports",
+      "carries": "import_card_file (a .yui read, its thumbnail, VRM and voice clip claimed), inspect_preset_vrm, export_preset_file, export_card_png",
       "kind": "tauri-command",
       "transport": "shared"
     },

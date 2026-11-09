@@ -43,6 +43,7 @@ YUI/
       csp-violation.ts               # Logs every Content-Security-Policy violation the window reports
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       card-io/                       # The card's file steps bound to a preset registry
+        import-preset.ts             # The import a card section runs: native file step, copied voice registration, VRM list entry, preset creation, and rollback
         wire-card-io.ts              # The card's import, export, thumbnail, photo pick, and preset creation ports
       relations/                     # This window's relations wiring
         wire-relations.ts            # rate_relation's open-preset targets and the ingress relations RPC, over the window's store
@@ -548,7 +549,9 @@ YUI/
           card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
           card-thumbnail.ts            # Thumbnail retain (temp id → preset id, framed by its default crop), remove, and the photo pick that stores a preset's thumbnail, through the shell
           photo-size.ts                # The natural size of a photo, read by decoding it
-          card-export.ts               # Card export: OS save dialog, native write, and the export file-name sanitizer
+          card-export.ts               # The export file-name sanitizer
+        preset-file/                   # The preset file (.yui) and PNG card export steps
+          preset-file-export.ts        # VRM license read, preset file write, and PNG card write, through the shell
         user-asset-import.ts           # Lazy invoke loader and orphan cleanup shared by the voice and VRM imports
         vrm-selection.ts               # Owns the active VRM selection
         selection-store.ts             # Generic selection store behind VRM and speaker selection
@@ -759,9 +762,11 @@ YUI/
           help/                      # Help section of the General page
             help-section.ts          # One Ask button per bundled guide
           card/                      # The Persona page's card section
-            card-io.ts               # The card section's import and export actions and their inline error line
-            card-section.ts          # The card fields, send switch, reset, and greeting list
+            card-io.ts               # The card section's import and export actions and their status lines
+            card-section.ts          # The card fields, send switch, reset, greeting list, and file action row
             card-section.css         # Card field, state, and greeting row styles
+            preset-export-panel.ts   # The inline list of what a preset file carries, the rights check, and Export…
+            preset-export-panel.css  # The export panel's status inks and actions
           key-row/                   # One secret API key row
             key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows and the Listening page's STT row
           push-reason/               # Controls the push transport cannot use
@@ -877,7 +882,12 @@ YUI/
       import_fs.rs                   # Shared import filesystem helpers: sanitize, hash, dest stem candidates, bounded streamed copy, signature sniff
       vrm_import.rs                  # Native copy of a user-picked .vrm into app data
       voice_import.rs                # Native copy of a user-picked reference clip into app data
-      card_import.rs                 # Card file import (JSON or a PNG's tEXt card JSON), the thumbnail copy, the preset photo pick (a PNG or a JPEG fitted and re-encoded), and the exported card write
+      card_import.rs                 # Card file import (JSON, a PNG's tEXt card JSON, or a preset file), the thumbnail copy, and the preset photo pick (a PNG or a JPEG fitted and re-encoded)
+      preset_file/
+        mod.rs                       # Preset file (.yui) read and write, the VRM inspection, and the PNG card export commands
+        manifest.rs                  # The preset file's manifest and its validation
+        vrm_license.rs               # The redistribution rule a VRM states in its GLB JSON chunk
+        png_card.rs                  # Writes the card JSON into a PNG as one chara tEXt chunk
       tray.rs                        # System tray menu and its show and hide actions
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview
