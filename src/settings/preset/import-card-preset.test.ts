@@ -324,4 +324,69 @@ describe("createPresetFromCard", () => {
     expect(fake.removed).toEqual(["n1"]);
     expect(discardThumbnail).toHaveBeenCalledWith("n1");
   });
+
+  it("writes the imported vrm and speaker onto the new preset's keys", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+      vrmId: "mio_vrm",
+      speakerId: "myvoice",
+    });
+    expect(storage.getItem(resolveStorageKey("yui.vrm", id))).toBe("mio_vrm");
+    expect(storage.getItem(resolveStorageKey("yui.speaker", id))).toBe("myvoice");
+  });
+
+  it("a null vrm and speaker remove the copied keys", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    // What registry.create copied from the source preset before the import ran.
+    storage.setItem(resolveStorageKey("yui.vrm", "n1"), "carlotta");
+    storage.setItem(resolveStorageKey("yui.speaker", "n1"), "natsume");
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+      vrmId: null,
+      speakerId: null,
+    });
+    expect(storage.getItem(resolveStorageKey("yui.vrm", id))).toBeNull();
+    expect(storage.getItem(resolveStorageKey("yui.speaker", id))).toBeNull();
+  });
+
+  it("absent vrm and speaker keep the copied keys", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    storage.setItem(resolveStorageKey("yui.vrm", "n1"), "carlotta");
+    storage.setItem(resolveStorageKey("yui.speaker", "n1"), "natsume");
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+    });
+    expect(storage.getItem(resolveStorageKey("yui.vrm", id))).toBe("carlotta");
+    expect(storage.getItem(resolveStorageKey("yui.speaker", id))).toBe("natsume");
+  });
+
+  it("the imported crop overrides the retained thumbnail's framing", async () => {
+    const { registry, list } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const crop = { x: 0.25, y: 0.1, size: 0.5 };
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      crop,
+      retainThumbnail: async () => ({
+        url: "asset://localhost/app-data/cards/n1.png",
+        crop: { x: 0, y: 0, size: 1 },
+      }),
+      storage: memoryStorage(),
+      fillerLocale: "ja",
+    });
+    expect(list.find((e) => e.id === id)?.crop).toEqual(crop);
+  });
 });

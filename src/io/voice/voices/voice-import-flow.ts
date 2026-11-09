@@ -47,6 +47,10 @@ export function createVoiceImportFlow(deps: {
 }): {
   pickVoiceImport: () => Promise<PickedVoiceImport | null>;
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
+  registerCopiedVoice: (
+    copied: SpeakerOption & { source: "user" },
+    label: string,
+  ) => Promise<string>;
 } {
   const { getEndpoints, getApiKey, speakerSelection, log } = deps;
 
@@ -155,5 +159,12 @@ export function createVoiceImportFlow(deps: {
     }
   };
 
-  return { pickVoiceImport, commitVoiceImport };
+  const registerCopiedVoice = async (
+    _copied: SpeakerOption & { source: "user" },
+    _label: string,
+  ): Promise<string> => {
+    throw new Error("registerCopiedVoice not implemented");
+  };
+
+  return { pickVoiceImport, commitVoiceImport, registerCopiedVoice };
 }

@@ -532,4 +532,63 @@ describe("createVoiceImportFlow", () => {
       expect(onChange).toHaveBeenCalled();
     });
   });
+
+  describe("registerCopiedVoice", () => {
+    it("adds the registered voice without selecting it", async () => {
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
+      const { registerCopiedVoice, speakerSelection } = build("http://localhost:8091", "irodori");
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).resolves.toBe(voiceIdFromName("myvoice"));
+
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: voiceIdFromName("myvoice"),
+          label: "myvoice",
+          provider: "irodori",
+        }),
+      );
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
+
+    it("a taken label walks to a free name beside the existing voice", async () => {
+      const taken: SpeakerOption = { ...IMPORTED, provider: "irodori" };
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
+      const { registerCopiedVoice, speakerSelection } = build(
+        "http://localhost:8091",
+        "irodori",
+        [taken],
+      );
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).resolves.toBe(voiceIdFromName("myvoice 2"));
+
+      expect(removeUserVoice).not.toHaveBeenCalledWith(taken.id);
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({ id: voiceIdFromName("myvoice 2") }),
+      );
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
+
+    it("a superseded registration throws and leaves no option", async () => {
+      const { registerCopiedVoice, speakerSelection, endpoints } = build(
+        "http://localhost:8091",
+        "irodori",
+      );
+      upsertVoice.mockImplementation(async () => {
+        endpoints.tts_provider = "fish";
+        return undefined;
+      });
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).rejects.toThrow("voice import superseded");
+
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith("import-9");
+    });
+  });
 });

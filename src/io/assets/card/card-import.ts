@@ -40,9 +40,16 @@ async function defaultDeps(): Promise<CardImportDeps> {
  * dismissed. A payload that does not parse into a card rolls the temp thumbnail back
  * and throws `card_unreadable`.
  */
-export async function importCardFromFile(deps?: CardImportDeps): Promise<ImportedCard | null> {
+export async function importCardFromFile(
+  reservedVrmIds: string[],
+  voiceStagingId: string,
+  deps?: CardImportDeps,
+): Promise<ImportedCard | null> {
   const d = deps ?? (await defaultDeps());
-  const file = await d.invoke<ImportedCardFile | null>("import_card_file");
+  const file = await d.invoke<ImportedCardFile | null>("import_card_file", {
+    reservedVrmIds,
+    voiceStagingId,
+  });
   if (!file) return null;
 
   const { json, thumbnailTempId } = file;

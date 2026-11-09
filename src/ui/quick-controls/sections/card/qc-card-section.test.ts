@@ -368,25 +368,21 @@ describe("createQuickControls — card section", () => {
     expect(info.mock.calls.some((c) => String(c[0]).includes("card_export"))).toBe(false);
   });
 
-  it("import success creates the preset from the card and logs card_import once", async () => {
+  it("import success reports the new preset and logs card_import once", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    const importedCard = { ...EMPTY_CARD, name: "Mio", first_mes: "Hi." };
-    const importCard = vi.fn(async () => ({ card: importedCard, thumbnailTempId: "temp-1" }));
-    const createPresetFromCard = vi.fn(async () => "abcd1234");
-    build({ importCard, createPresetFromCard });
+    const importPreset = vi.fn(async () => ({ presetId: "abcd1234" }));
+    build({ importPreset });
     sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
-    await vi.waitFor(() => expect(createPresetFromCard).toHaveBeenCalledTimes(1));
-    expect(createPresetFromCard).toHaveBeenCalledWith(importedCard, "temp-1");
+    await vi.waitFor(() => expect(importPreset).toHaveBeenCalledTimes(1));
     expect(info.mock.calls.filter((c) => String(c[0]).includes("card_import"))).toHaveLength(1);
   });
 
   it("a refused preset creation shows the generic import failure and logs no success", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    const importCard = vi.fn(async () => ({ card: { ...EMPTY_CARD, name: "Mio" } }));
-    const createPresetFromCard = vi.fn(async () => {
+    const importPreset = vi.fn(async () => {
       throw new Error("preset_create_failed");
     });
-    build({ importCard, createPresetFromCard });
+    build({ importPreset });
     sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
@@ -397,10 +393,10 @@ describe("createQuickControls — card section", () => {
   });
 
   it("an unreadable payload shows the holds-no-card error", async () => {
-    const importCard = vi.fn(async () => {
+    const importPreset = vi.fn(async () => {
       throw new Error("card_unreadable");
     });
-    build({ importCard });
+    build({ importPreset });
     sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
