@@ -105,8 +105,7 @@ describe("createSettingsStores", () => {
     localStorage.clear();
     const store = createSettingsStores().threadReactionsSettings;
 
-    expect(store).toBeDefined();
-    expect(store.get().enabled).toBe(true);
+    expect(store.get()).toEqual({ enabled: true });
     store.setEnabled(false);
     expect(localStorage.getItem("yui.thread-reactions")).toBe(JSON.stringify({ enabled: false }));
     localStorage.clear();
