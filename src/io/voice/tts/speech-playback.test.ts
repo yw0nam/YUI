@@ -1384,6 +1384,22 @@ describe("createSpeechPlayback — speakAsideAndWait", () => {
     expect(result).toBe("spoken");
   });
 
+  it("stays pending through the playback end of speech queued before the line", async () => {
+    const { stub, sp } = setup();
+    stub.setOutstandingWork(true);
+    let result: string | undefined;
+    const done = sp.speakAsideAndWait("Let me open Threads.").then((r) => {
+      result = r;
+    });
+    stub.emitPlaybackEnd();
+    await Promise.resolve();
+    expect(result).toBeUndefined();
+    stub.setOutstandingWork(false);
+    stub.emitPlaybackEnd();
+    await done;
+    expect(result).toBe("spoken");
+  });
+
   it.each(["interrupt", "abort", "dispose"] as const)("resolves cut on %s", async (method) => {
     const { stub, sp } = setup();
     const done = sp.speakAsideAndWait("Let me open Threads.");
