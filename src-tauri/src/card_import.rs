@@ -1,9 +1,9 @@
-//! Tavern card import and export (native half).
+//! Tavern card import (native half).
 //!
-//! Reads a picked `.json` or `.png` card file: JSON passes through; a PNG's card JSON sits
+//! Reads a picked `.json`, `.png` or `.yui` file: JSON passes through; a PNG's card JSON sits
 //! in a `ccv3` or `chara` tEXt chunk (base64 of UTF-8 JSON, `ccv3` wins) and the image is
-//! copied into `<app_data_dir>/cards/` as the preset's thumbnail. Also retains and removes
-//! those files and writes an exported card file.
+//! copied into `<app_data_dir>/cards/` as the preset's thumbnail; a `.yui` preset file is read
+//! by `preset_file`. Also retains and removes the thumbnails and picks a preset's photo.
 
 use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, sniff_ok,
@@ -333,33 +333,6 @@ pub async fn pick_preset_photo(
 #[command]
 pub fn remove_card_thumbnail(app: AppHandle, id: String) -> Result<(), String> {
     remove_thumbnail_at(&cards_dir(&app)?, &id)
-}
-
-/// Open the save dialog here and return the picked absolute path. `None` when the dialog is
-/// dismissed.
-pub(crate) fn pick_save_path(
-    app: &AppHandle,
-    default_name: &str,
-    filter_name: &str,
-    exts: &[&str],
-) -> Result<Option<PathBuf>, String> {
-    let Some(dest_path) = app
-        .dialog()
-        .file()
-        .set_file_name(default_name)
-        .add_filter(filter_name, exts)
-        .blocking_save_file()
-    else {
-        return Ok(None);
-    };
-    let dest = dest_path.into_path().map_err(|e| {
-        log::error!("card_dest_unavailable error={e}");
-        "destination unavailable".to_string()
-    })?;
-    if !dest.is_absolute() {
-        return Err("destination must be absolute".to_string());
-    }
-    Ok(Some(dest))
 }
 
 #[cfg(test)]

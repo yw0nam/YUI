@@ -17,15 +17,34 @@ import "./preset-export-panel.css";
 type Subscribe<T> = (cb: (active: T) => void) => () => void;
 type Tone = "in" | "out" | "warn";
 type Inspected = VrmInspection["license"] | "unreadable";
-/** label, tone, status, optional sub-line */
-type Row = [string, Tone, string, string?];
+/** What one listed row says: its status word, the ink, and the optional sub-line. */
+interface RowState {
+  tone: Tone;
+  status: string;
+  sub?: string;
+}
+interface Row extends RowState {
+  label: string;
+}
 
-/** Each license read as its tone, status key and reason key (the VRM's label when none). */
-const VRM_STATUS: Record<Inspected, [Tone, string, string | null]> = {
-  allowed: ["in", "preset_export.included", null],
-  prohibited: ["out", "preset_export.left_out", "preset_export.vrm_prohibited"],
-  unknown: ["warn", "preset_export.check_needed", "preset_export.vrm_unknown"],
-  unreadable: ["out", "preset_export.left_out", "preset_export.vrm_unreadable"],
+/** Each license read as its tone, status key and reason key; no reason shows the VRM's label. */
+const VRM_STATUS: Record<Inspected, { tone: Tone; status: string; reason?: string }> = {
+  allowed: { tone: "in", status: "preset_export.included" },
+  prohibited: {
+    tone: "out",
+    status: "preset_export.left_out",
+    reason: "preset_export.vrm_prohibited",
+  },
+  unknown: {
+    tone: "warn",
+    status: "preset_export.check_needed",
+    reason: "preset_export.vrm_unknown",
+  },
+  unreadable: {
+    tone: "out",
+    status: "preset_export.left_out",
+    reason: "preset_export.vrm_unreadable",
+  },
 };
 
 export function presetExportPanelHtml(): string {
@@ -73,21 +92,20 @@ export function createPresetExportPanel(deps: {
   // The last license read, keyed by VRM id; a read for another id is dropped when it lands.
   let inspected: { id: string; license: Inspected | null } | null = null;
 
-  const vrmRow = (vrm: AvatarOption): Row => {
+  const vrmState = (vrm: AvatarOption): RowState => {
     const label = vrm.label ?? vrm.id;
     if (vrm.source === "bundled")
-      return [t("preset_export.vrm"), "in", t("preset_export.built_in"), label];
+      return { tone: "in", status: t("preset_export.built_in"), sub: label };
     if (vrm.source !== "user")
-      return [
-        t("preset_export.vrm"),
-        "out",
-        t("preset_export.left_out"),
-        t("preset_export.vrm_config"),
-      ];
+      return {
+        tone: "out",
+        status: t("preset_export.left_out"),
+        sub: t("preset_export.vrm_config"),
+      };
     const license = inspected?.id === vrm.id ? inspected.license : null;
-    if (!license) return [t("preset_export.vrm"), "in", "", label];
-    const [tone, status, sub] = VRM_STATUS[license];
-    return [t("preset_export.vrm"), tone, t(status), sub ? t(sub) : label];
+    if (!license) return { tone: "in", status: "", sub: label };
+    const { tone, status, reason } = VRM_STATUS[license];
+    return { tone, status: t(status), sub: reason ? t(reason) : label };
   };
 
   function inspect(id: string): void {
@@ -128,23 +146,29 @@ export function createPresetExportPanel(deps: {
     const vrm = deps.vrmSelection.getActive();
     if (vrm.source === "user" && inspected?.id !== vrm.id) inspect(vrm.id);
     const p = parts();
+    const included = t("preset_export.included");
     const rows: Row[] = [
-      [t("preset_export.card"), "in", t("preset_export.included"), deps.cardLabel()],
+      { label: t("preset_export.card"), tone: "in", status: included, sub: deps.cardLabel() },
       ...(p.thumbnailPresetId
-        ? [[t("preset_export.thumbnail"), "in", t("preset_export.included")] as Row]
+        ? [{ label: t("preset_export.thumbnail"), tone: "in" as const, status: included }]
         : []),
-      vrmRow(vrm),
+      { label: t("preset_export.vrm"), ...vrmState(vrm) },
       p.voice
-        ? [t("preset_export.voice"), "in", t("preset_export.included"), t("preset_export.voice_in")]
-        : [
-            t("preset_export.voice"),
-            "out",
-            t("preset_export.left_out"),
-            t("preset_export.voice_no_clip"),
-          ],
+        ? {
+            label: t("preset_export.voice"),
+            tone: "in",
+            status: included,
+            sub: t("preset_export.voice_in"),
+          }
+        : {
+            label: t("preset_export.voice"),
+            tone: "out",
+            status: t("preset_export.left_out"),
+            sub: t("preset_export.voice_no_clip"),
+          },
     ];
     items.replaceChildren(
-      ...rows.map(([label, tone, status, sub]) => {
+      ...rows.map(({ label, tone, status, sub }) => {
         const row = document.createElement("div");
         row.className = "yui-row yui-preset-export__item";
         const main = document.createElement("div");

@@ -25,7 +25,7 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
-import { CARD_IMPORT_NOTICE_KEY, type CardIoPorts, createCardIo } from "./card-io";
+import { type CardIoPorts, createCardIo } from "./card-io";
 import { createPresetExportPanel, presetExportPanelHtml } from "./preset-export-panel";
 import "./card-section.css";
 
@@ -156,13 +156,6 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
   const addRow = q<HTMLElement>(".yui-card-add-row");
   const fields = Array.from(sec.querySelectorAll<HTMLTextAreaElement>("textarea[data-card-field]"));
-  const pngBtn = q<HTMLButtonElement>(".yui-card-export-png");
-  const ioNote = q<HTMLElement>(".yui-card__io-note");
-
-  // The import's activation reload leaves a one-shot notice for this mount.
-  const notice = sessionStorage.getItem(CARD_IMPORT_NOTICE_KEY);
-  sessionStorage.removeItem(CARD_IMPORT_NOTICE_KEY);
-  q<HTMLElement>(".yui-card__io-notice").hidden = notice !== "voice";
 
   const entry = () => {
     const id = presetIdForWindow();
@@ -191,11 +184,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     const shown = entry();
     const thumb = q<HTMLElement>(".yui-card-thumb");
     thumb.hidden = !shown.thumbnail;
-    // The PNG card is written into the preset's picture; without one the note says why.
-    pngBtn.disabled = !shown.thumbnail;
-    ioNote.textContent = shown.thumbnail
-      ? t("card.io_note")
-      : t("card.png_no_picture", { note: t("card.io_note") });
+    io.reflect(Boolean(shown.thumbnail));
     if (shown.thumbnail) thumb.replaceChildren(avatarEl(shown, 36));
     switchBtn.setAttribute("aria-checked", String(a.send_card));
     // The user's Send card switch folds the body; on push the greetings stay reachable.
@@ -224,8 +213,8 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const currentCard = (): Card => agentSettings.get().card ?? base();
 
   const io = createCardIo({
-    errorEl: q<HTMLElement>(".yui-card__io-error"),
-    doneEl: q<HTMLElement>(".yui-card__io-done"),
+    root: sec,
+    openPresetPanel: () => panel.open(),
     ports: {
       importPreset: deps.importPreset,
       exportPresetFile: deps.exportPresetFile,
@@ -286,9 +275,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   function handleClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
     if (target.closest(".yui-card__io")) {
-      if (target.closest(".yui-card-import")) void io.importPreset();
-      else if (target.closest(".yui-card-export-preset")) panel.open();
-      else if (target.closest(".yui-card-export-png")) void io.exportPng();
+      io.handle(e);
       return;
     }
     if (target.closest(".yui-preset-export")) return;

@@ -7,7 +7,7 @@
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { Card } from "../../config/validators/persona/types";
 import type { ImportedCard } from "../../io/assets/card/card-import";
-import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
+import type { UserSpeakerOption } from "../../io/voice/voices/speaker-selection";
 import { coercePhotoCrop, type PhotoCrop } from "../../settings/preset/photo-crop";
 import { CARD_IMPORT_NOTICE_KEY } from "../../ui/quick-controls/sections/card/card-io";
 
@@ -22,7 +22,7 @@ export interface ImportPresetCreateInput {
 
 export interface ImportPresetDeps {
   importCard(reservedVrmIds: string[], voiceStagingId: string): Promise<ImportedCard | null>;
-  registerCopiedVoice(copied: SpeakerOption & { source: "user" }, label: string): Promise<string>;
+  registerCopiedVoice(copied: UserSpeakerOption, label: string): Promise<string>;
   /** Undoes one registered voice: the server voice and its folder, then the store entry. */
   discardVoice(id: string): Promise<void>;
   /** Deletes an imported VRM file. Idempotent. */
@@ -53,7 +53,7 @@ export async function importPreset(deps: ImportPresetDeps): Promise<ImportPreset
   let speakerId: string | null = null;
   let voiceFailed = false;
   if (imported.voice) {
-    const copied: SpeakerOption & { source: "user" } = {
+    const copied: UserSpeakerOption = {
       id: imported.voice.stagedId,
       ref_url: imported.voice.refUrl,
       source: "user",

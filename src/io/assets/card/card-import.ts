@@ -101,7 +101,6 @@ export async function importCardFromFile(
     if (read.issues.length > 0) throw new Error(read.issues.join("; "));
     card = read.card;
   } catch {
-    // Every asset the native call claimed rolls back together.
     await Promise.allSettled([
       ...(thumbnailTempId ? [d.removeThumbnail(thumbnailTempId)] : []),
       ...(vrm?.kind === "user" ? [d.removeUserVrm(vrm.id)] : []),

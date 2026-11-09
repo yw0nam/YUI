@@ -13,7 +13,7 @@ import type { Logger } from "../../../logger";
 import { voiceIdFromName } from "../../assets/safe-id";
 import { removeOrphanImport } from "../../assets/user-asset-import";
 import { selectFetch } from "../../chat/stream/chat-client";
-import { nextRevision, type SpeakerOption } from "./speaker-selection";
+import { nextRevision, type SpeakerOption, type UserSpeakerOption } from "./speaker-selection";
 import { VOICE_APIS, type VoiceApi } from "./voice-apis";
 import {
   pickVoiceFile,
@@ -33,7 +33,7 @@ interface SpeakerImportTarget {
   list: () => SpeakerOption[];
   /** Every provider's imported voices — an id another provider holds is not taken over. */
   listUser: () => SpeakerOption[];
-  addUserOption: (option: SpeakerOption & { source: "user" }) => void;
+  addUserOption: (option: UserSpeakerOption) => void;
   select: (id: string) => void;
 }
 
@@ -47,15 +47,12 @@ export function createVoiceImportFlow(deps: {
 }): {
   pickVoiceImport: () => Promise<PickedVoiceImport | null>;
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
-  registerCopiedVoice: (
-    copied: SpeakerOption & { source: "user" },
-    label: string,
-  ) => Promise<string>;
+  registerCopiedVoice: (copied: UserSpeakerOption, label: string) => Promise<string>;
 } {
   const { getEndpoints, getApiKey, speakerSelection, log } = deps;
 
   // Staged copies keyed by staging id, alive between the pick step and the commit step.
-  const staged = new Map<string, SpeakerOption & { source: "user" }>();
+  const staged = new Map<string, UserSpeakerOption>();
 
   const pickVoiceImport = async (): Promise<PickedVoiceImport | null> => {
     const stagingId = `import-${crypto.randomUUID()}`;
@@ -87,7 +84,7 @@ export function createVoiceImportFlow(deps: {
   // failure — a pre-upload check or the upload itself — deletes the staged copy and rethrows
   // without touching the store or a stored voice's clip.
   const uploadStaged = async (
-    copied: SpeakerOption & { source: "user" },
+    copied: UserSpeakerOption,
     label: string,
     chooseId: (
       api: VoiceApi,
@@ -99,7 +96,7 @@ export function createVoiceImportFlow(deps: {
     | {
         kind: "superseded";
         folder: string;
-        option: SpeakerOption & { source: "user" };
+        option: UserSpeakerOption;
         provider: TtsProviderName;
         serverVoice: string | undefined;
         /** Deletes the voice this upload created on the server it went to. */
@@ -124,7 +121,7 @@ export function createVoiceImportFlow(deps: {
 
       // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
       // the existing cross-window settings sync carries the change into other windows' filler cache key.
-      let option: SpeakerOption & { source: "user" } = {
+      let option: UserSpeakerOption = {
         ...copied,
         label,
         provider,
@@ -199,10 +196,7 @@ export function createVoiceImportFlow(deps: {
   // on the server walks `label 2`, `label 3` until its id is free, and a provider switch
   // mid-upload throws after removing the staged copy and the uploaded server voice instead of
   // re-pointing a stored voice.
-  const registerCopiedVoice = async (
-    copied: SpeakerOption & { source: "user" },
-    label: string,
-  ): Promise<string> => {
+  const registerCopiedVoice = async (copied: UserSpeakerOption, label: string): Promise<string> => {
     const shown = label.trim() || copied.id;
     const out = await uploadStaged(copied, shown, async (api, _provider, server) => {
       if (!api.keepsId) return undefined;

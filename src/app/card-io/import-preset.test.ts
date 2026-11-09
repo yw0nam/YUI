@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readCard } from "../../config/validators/persona/read-card";
 import type { Card } from "../../config/validators/persona/types";
 import type { ImportedCard } from "../../io/assets/card/card-import";
-import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
+import type { UserSpeakerOption } from "../../io/voice/voices/speaker-selection";
 import { CARD_IMPORT_NOTICE_KEY } from "../../ui/quick-controls/sections/card/card-io";
 import type { ImportPresetCreateInput } from "./import-preset";
 import { importPreset } from "./import-preset";
@@ -80,9 +80,7 @@ describe("importPreset", () => {
     await expect(importPreset(base)).resolves.toEqual({ presetId: "new1" });
 
     expect(base.registerCopiedVoice).toHaveBeenCalledWith(
-      { id: "import-9", ref_url: "asset://x/clip.wav", source: "user" } satisfies SpeakerOption & {
-        source: "user";
-      },
+      { id: "import-9", ref_url: "asset://x/clip.wav", source: "user" } satisfies UserSpeakerOption,
       "Mio",
     );
     expect(base.createPresetFromCard).toHaveBeenCalledWith(

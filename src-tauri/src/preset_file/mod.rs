@@ -6,8 +6,8 @@ mod png_card;
 mod vrm_license;
 
 use crate::card_import::{
-    cards_dir, claim_thumbnail, pick_save_path, read_bounded, remove_thumbnail_at, CardSource,
-    ImportedCardFile, MAX_JSON_BYTES, MAX_PNG_BYTES,
+    cards_dir, claim_thumbnail, read_bounded, remove_thumbnail_at, CardSource, ImportedCardFile,
+    MAX_JSON_BYTES, MAX_PNG_BYTES,
 };
 use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind,
@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufWriter, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle};
+use tauri_plugin_dialog::DialogExt;
 use vrm_license::{read_license, VrmLicense};
 use zip::result::ZipError;
 use zip::write::SimpleFileOptions;
@@ -163,7 +164,11 @@ pub(crate) fn read_preset_file(
     };
     let assets = claim_assets(&mut zip, &manifest, &ctx, &mut claimed);
     match assets {
-        Ok((thumbnail_temp_id, vrm, voice)) => Ok(ImportedCardFile {
+        Ok(Assets {
+            thumbnail_temp_id,
+            vrm,
+            voice,
+        }) => Ok(ImportedCardFile {
             source: CardSource::Yui,
             json,
             thumbnail_temp_id,
@@ -186,11 +191,12 @@ pub(crate) fn read_preset_file(
     }
 }
 
-type Assets = (
-    Option<String>,
-    Option<PresetFileVrm>,
-    Option<PresetFileVoice>,
-);
+/// The files `claim_assets` claimed out of a preset file.
+struct Assets {
+    thumbnail_temp_id: Option<String>,
+    vrm: Option<PresetFileVrm>,
+    voice: Option<PresetFileVoice>,
+}
 
 /// What `claim_assets` needs to name and place the files it claims.
 struct ClaimCtx<'a> {
@@ -215,7 +221,7 @@ fn claim_assets(
         reserved_vrm_ids,
         voice_staging_id,
     } = *ctx;
-    let thumbnail = match entry(zip, "thumbnail.png", MAX_PNG_BYTES)? {
+    let thumbnail_temp_id = match entry(zip, "thumbnail.png", MAX_PNG_BYTES)? {
         Some(png) => {
             let id = claim_thumbnail(&dirs.cards, name_stem, identity, &png)?;
             claimed.thumbnail = Some(id.clone());
@@ -264,12 +270,21 @@ fn claim_assets(
             })
         }
     };
-    Ok((thumbnail, vrm, voice))
+    Ok(Assets {
+        thumbnail_temp_id,
+        vrm,
+        voice,
+    })
 }
 
 fn write_failed(e: impl std::fmt::Display) -> String {
     log::error!("preset_file_write_failed error={e}");
     "preset write failed".to_string()
+}
+
+fn read_failed(e: impl std::fmt::Display) -> String {
+    log::error!("preset_file_read_failed error={e}");
+    "preset read failed".to_string()
 }
 
 /// `dir/<file_name>` when it is an existing file.
@@ -286,7 +301,7 @@ fn add_file(zip: &mut ZipWriter<impl Write + Seek>, name: &str, path: &Path) -> 
         SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
     )
     .map_err(write_failed)?;
-    let mut file = std::fs::File::open(path).map_err(write_failed)?;
+    let mut file = std::fs::File::open(path).map_err(read_failed)?;
     std::io::copy(&mut file, zip).map_err(write_failed)?;
     Ok(())
 }
@@ -328,7 +343,7 @@ pub(crate) fn write_preset_file(
         }
         Some(PresetFileVrmRef::User { id }) => {
             if let Some(vrm) = existing_file(&dirs.vrms, &format!("{}.vrm", sanitize_stem(id)))? {
-                let license = read_license(std::fs::File::open(&vrm).map_err(write_failed)?);
+                let license = read_license(std::fs::File::open(&vrm).map_err(read_failed)?);
                 if license != VrmLicense::Prohibited {
                     add_file(&mut zip, VRM_ENTRY, &vrm)?;
                     manifest.vrm = Some(ManifestVrm::File {
@@ -368,8 +383,8 @@ pub(crate) fn write_preset_file(
 fn inspect_vrm_at(vrms: &Path, id: &str) -> Result<VrmInspection, String> {
     let path = existing_file(vrms, &format!("{}.vrm", sanitize_stem(id)))?
         .ok_or_else(|| "vrm not found".to_string())?;
-    let file = std::fs::File::open(&path).map_err(write_failed)?;
-    let bytes = file.metadata().map_err(write_failed)?.len();
+    let file = std::fs::File::open(&path).map_err(read_failed)?;
+    let bytes = file.metadata().map_err(read_failed)?.len();
     Ok(VrmInspection {
         license: read_license(file),
         bytes,
@@ -381,7 +396,7 @@ fn card_png_bytes(cards: &Path, preset_id: &str, card_json: &str) -> Result<Vec<
     let png = existing_file(cards, &format!("{}.png", sanitize_stem(preset_id)))?
         .ok_or_else(|| "no picture".to_string())?;
     let bytes = read_bounded(
-        std::fs::File::open(png).map_err(write_failed)?,
+        std::fs::File::open(png).map_err(read_failed)?,
         MAX_PNG_BYTES,
     )?;
     png_card::with_card_chunk(&bytes, card_json)
@@ -412,6 +427,33 @@ fn write_to(
         let _ = std::fs::remove_file(&partial);
     }
     written
+}
+
+/// Open the save dialog here and return the picked absolute path. `None` when the dialog is
+/// dismissed.
+fn pick_save_path(
+    app: &AppHandle,
+    default_name: &str,
+    filter_name: &str,
+    exts: &[&str],
+) -> Result<Option<PathBuf>, String> {
+    let Some(dest_path) = app
+        .dialog()
+        .file()
+        .set_file_name(default_name)
+        .add_filter(filter_name, exts)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let dest = dest_path.into_path().map_err(|e| {
+        log::error!("save_dest_unavailable error={e}");
+        "destination unavailable".to_string()
+    })?;
+    if !dest.is_absolute() {
+        return Err("destination must be absolute".to_string());
+    }
+    Ok(Some(dest))
 }
 
 /// The license and size of the user VRM `id`, read before the user exports it.
