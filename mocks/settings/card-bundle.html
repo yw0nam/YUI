@@ -81,7 +81,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
   <header style="display:grid;gap:8px">
     <span class="mute">mocks/settings · #1937</span>
     <h1>캐릭터를 파일 하나로 내보내고 가져오기</h1>
-    <p class="lede">설정 › 페르소나 › 카드 섹션입니다. 버튼을 눌러 흐름을 따라가 보세요. 왼쪽에서 VRM 라이선스와 음성 상태를 바꾸면 내보내기 내용이 달라집니다. 주황 글씨 항목은 아직 정하지 않은 것입니다.</p>
+    <p class="lede">설정 › 페르소나 › 카드 섹션입니다. 버튼을 눌러 흐름을 따라가 보세요. 왼쪽에서 VRM 라이선스와 음성 상태를 바꾸면 내보내기 내용이 달라집니다. 버튼 배치는 L1, PNG 카드는 바로 저장(P1)으로 정했습니다(2026-11-09). 다른 선택지는 비교용으로 남겨 둡니다.</p>
   </header>
   <div class="layout">
     <aside class="side">
@@ -92,8 +92,8 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
         <div class="drow"><span class="lbl">테마</span><div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div></div>
       </div>
       <div class="dgroup">
-        <div class="drow"><span class="ask">정할 것 1 · 버튼 배치</span><div class="seg" id="segLayout"><button type="button" data-v="L1" aria-pressed="true">L1 한 줄</button><button type="button" data-v="L2">L2 가져오기 / 내보내기 두 줄</button></div><span class="mute">L1: 링크 버튼 세 개를 한 줄에. L2: 가져오기 줄과 내보내기 줄을 나눔.</span></div>
-        <div class="drow"><span class="ask">정할 것 2 · PNG 카드도 권리 확인?</span><div class="seg" id="segPng"><button type="button" data-v="P1" aria-pressed="true">P1 바로 저장</button><button type="button" data-v="P2">P2 같은 확인 후 저장</button></div><span class="mute">PNG 카드에는 카드 글과 썸네일 그림이 들어갑니다. VRM과 음성은 없습니다.</span></div>
+        <div class="drow"><span class="ask">버튼 배치 · L1로 결정</span><div class="seg" id="segLayout"><button type="button" data-v="L1" aria-pressed="true">L1 한 줄</button><button type="button" data-v="L2">L2 가져오기 / 내보내기 두 줄</button></div><span class="mute">L1: 링크 버튼 세 개를 한 줄에. L2: 가져오기 줄과 내보내기 줄을 나눔.</span></div>
+        <div class="drow"><span class="ask">PNG 카드 권리 확인 · P1로 결정</span><div class="seg" id="segPng"><button type="button" data-v="P1" aria-pressed="true">P1 바로 저장</button><button type="button" data-v="P2">P2 같은 확인 후 저장</button></div><span class="mute">PNG 카드에는 카드 글과 썸네일 그림이 들어갑니다. VRM과 음성은 없습니다.</span></div>
       </div>
     </aside>
 
