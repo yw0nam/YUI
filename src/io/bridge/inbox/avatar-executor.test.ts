@@ -690,7 +690,7 @@ describe("avatar-executor — concurrency and interruption", () => {
         release: vi.fn(),
       },
     });
-    expect(h.executor.isBusy?.()).toBe(false);
+    expect(h.executor.isBusy()).toBe(false);
 
     h.fire("command", { action: "sit_on_window", app: "Notes" });
     await flush();
