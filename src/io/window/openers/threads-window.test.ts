@@ -232,3 +232,20 @@ it("present resolves closed on dispose and ignores a report that comes after", a
   await expect(result).resolves.toBe("closed");
   b.firePresented(sentId(b));
 });
+
+it("a present replaced by a later request before the ready report resolves closed", async () => {
+  const b = bridge();
+  const controller = createThreadsWindowController({ bridge: b });
+  let settled: string | undefined;
+  void controller.present(CHIP, { thread: "t1" }).then((result) => {
+    settled = result;
+  });
+  await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalled());
+  controller.open(CHIP);
+
+  await vi.waitFor(() => expect(settled).toBe("closed"));
+  b.fire("ready");
+  await vi.waitFor(() =>
+    expect(b.sent).toEqual([{ chip: { x: 110, y: 70, width: 100, height: 30 } }]),
+  );
+});
