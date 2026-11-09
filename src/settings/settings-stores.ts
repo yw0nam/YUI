@@ -135,7 +135,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const threadTurnsSettings = createThreadTurnsSettings({
     storage: localStorageThreadTurnsStorage(),
   });
-  // Thread body reactions on/off. Default ON. Off stops the main character reacting to a Thread state change.
+  // Thread reactions on/off. Default ON. Off stops the main character reacting to a Thread state change.
   const threadReactionsSettings = createFlagSettings(true, {
     storage: localStorageStore("yui.thread-reactions"),
   });
