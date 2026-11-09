@@ -63,7 +63,6 @@ function baseDeps(imported: ImportedCard | null) {
   return {
     importCard: vi.fn(async () => imported),
     registerCopiedVoice: vi.fn(async () => "reg-voice"),
-    removeUserVoice: vi.fn(async () => {}),
     discardVoice: vi.fn(async () => {}),
     removeUserVrm: vi.fn(async () => {}),
     vrmSelection: fakeVrmSelection(),
@@ -92,19 +91,24 @@ describe("importPreset", () => {
     expect(base.notice.keys()).toEqual([]);
   });
 
-  it("a voice that cannot register clears the speaker, removes the staged folder and leaves the notice", async () => {
+  it("a voice that cannot register clears the speaker and leaves the notice, the staged folder left to the registration", async () => {
     const base = baseDeps(
       yuiCard({ voice: { stagedId: "import-9", refUrl: "asset://x/clip.wav", label: "Mio" } }),
     );
+    // The registration already removed the staged folder; a second removal that fails must not abort.
+    const removeUserVoice = vi.fn(async (_id: string) => {
+      throw new Error("remove_user_voice failed");
+    });
     const deps = {
       ...base,
+      removeUserVoice,
       registerCopiedVoice: vi.fn(async () => {
         throw new Error("voice import requires tts_base_url");
       }),
     };
     await expect(importPreset(deps)).resolves.toEqual({ presetId: "new1" });
 
-    expect(base.removeUserVoice).toHaveBeenCalledWith("import-9");
+    expect(removeUserVoice).not.toHaveBeenCalled();
     expect(base.createPresetFromCard).toHaveBeenCalledWith(
       expect.objectContaining({ speakerId: null }),
     );

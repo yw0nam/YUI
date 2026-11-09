@@ -442,18 +442,18 @@ describe("createQuickControls — card section", () => {
     expect(sec().querySelector<HTMLElement>(".yui-card__io-done")?.hidden).toBe(true);
   });
 
-  it("the action row holds Import…, Export preset (.yui) and Export card only (PNG)", () => {
+  it("the action row holds Import…, Export preset (.yui) and Export card only (PNG)…", () => {
     build();
     expect(
       [...sec().querySelectorAll<HTMLButtonElement>(".yui-card__io button")].map(
         (b) => b.textContent,
       ),
-    ).toEqual(["Import…", "Export preset (.yui)", "Export card only (PNG)"]);
+    ).toEqual(["Import…", "Export preset (.yui)", "Export card only (PNG)…"]);
   });
 
   it("Export card only (PNG) is disabled without a picture, with the reason in the note line", () => {
     build();
-    expect(ioButton("Export card only (PNG)").disabled).toBe(true);
+    expect(ioButton("Export card only (PNG)…").disabled).toBe(true);
     expect(sec().querySelector(".yui-card__io-note")!.textContent).toBe(
       "Preset file (.yui), JSON or PNG card in · preset file or PNG card out. PNG export needs a picture, and this preset has none",
     );
@@ -467,7 +467,7 @@ describe("createQuickControls — card section", () => {
     expect(sec().querySelector(".yui-card__io-note")!.textContent).toBe(
       "Preset file (.yui), JSON or PNG card in · preset file or PNG card out",
     );
-    ioButton("Export card only (PNG)").click();
+    ioButton("Export card only (PNG)…").click();
     await vi.waitFor(() => expect(exportCardPng).toHaveBeenCalledTimes(1));
     const [name, json, presetId] = exportCardPng.mock.calls[0];
     expect([name, presetId, JSON.parse(json).data.name]).toEqual([
@@ -560,6 +560,43 @@ describe("createQuickControls — card section", () => {
     await exportPreset(exportPresetFile);
     await vi.waitFor(() => expect(doneLine()).toBe(line));
     expect(sec().querySelector<HTMLElement>(".yui-preset-export")!.hidden).toBe(true);
+  });
+
+  it("a VRM from the config file is left out with its reason and is not named in the request", async () => {
+    const exportPresetFile = vi.fn(async (_r: PresetExportRequest) => "cancelled" as const);
+    const inspectPresetVrm = vi.fn(async (_id: string) => ({
+      license: "allowed" as const,
+      bytes: 1,
+    }));
+    build({
+      vrmSelection: createVrmSelection({
+        available: [{ id: "cfg", label: "Cfg", url: "/models/cfg.vrm", source: "file" }],
+        defaultValue: "/models/cfg.vrm",
+      }),
+      inspectPresetVrm,
+      exportPresetFile,
+    });
+    const request = await exportPreset(exportPresetFile);
+    expect(panelRows()[1]).toEqual([
+      "VRM",
+      "Left out",
+      "This VRM is set in the config file, so it cannot go in the preset file",
+    ]);
+    expect(["vrm" in request, inspectPresetVrm.mock.calls.length]).toEqual([false, 0]);
+  });
+
+  it("a preset file this client does not read shows the holds-no-card error", async () => {
+    const importPreset = vi.fn(async () => {
+      // A Tauri command rejects with its error string.
+      throw "preset file unreadable";
+    });
+    build({ importPreset });
+    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    await vi.waitFor(() =>
+      expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
+        "That file holds no card",
+      ),
+    );
   });
 
   it("shows the voice notice after the import reload and removes the one-shot key", () => {

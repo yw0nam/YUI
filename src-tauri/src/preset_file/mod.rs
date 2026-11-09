@@ -740,7 +740,7 @@ mod tests {
             let zip = zip_of(&[("manifest.json", manifest.as_bytes()), ("card.json", b"{}")]);
             assert_eq!(
                 read(&d, zip).map(|_| ()),
-                Err("bundle unreadable".to_string()),
+                Err("preset file unreadable".to_string()),
                 "{label}"
             );
         }
