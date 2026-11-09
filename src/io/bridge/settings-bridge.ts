@@ -97,6 +97,17 @@ export type ThreadsTab = "threads" | "terminal";
 export interface ThreadsOpen {
   chip?: ScreenRect;
   tab?: ThreadsTab;
+  /** A Thread id to select on an automatic open. */
+  thread?: string;
+  /** `false` opens or raises the window without taking keyboard focus. */
+  focus?: false;
+  /** The id of an automatic request; the window answers it with ThreadsPresented. */
+  present?: string;
+}
+
+/** The Threads window reporting that the automatic request `present` finished. */
+export interface ThreadsPresented {
+  present: string;
 }
 
 /** The unified chat window's error action, Backend command or Command reply close for one preset. */
@@ -109,6 +120,7 @@ const isString = (v: unknown): v is string => typeof v === "string";
 const isOptional = (v: unknown, test: (v: unknown) => boolean): boolean =>
   v === undefined || test(v);
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
+const isNonEmptyString = (v: unknown): v is string => isString(v) && v !== "";
 const isThreadsTab = (v: unknown): v is ThreadsTab => v === "threads" || v === "terminal";
 
 function isQuote(v: unknown): boolean {
@@ -258,14 +270,20 @@ export const channels = {
     name: "yui://threads-open",
     scope: "shared",
     read(request, deliver: (request: ThreadsOpen) => void) {
-      const { chip, tab } = (request ?? {}) as { chip?: unknown; tab?: unknown };
+      const { chip, tab, thread, focus, present } = (request ?? {}) as Record<string, unknown>;
       const { x, y, width, height } = (chip ?? {}) as Record<string, unknown>;
       const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
       if (chip !== undefined && ![x, y, width, height].every(finite)) return;
       if (tab !== undefined && !isThreadsTab(tab)) return;
+      if (thread !== undefined && !isNonEmptyString(thread)) return;
+      if (focus !== undefined && focus !== false) return;
+      if (present !== undefined && !isNonEmptyString(present)) return;
       deliver({
         ...(chip === undefined ? {} : { chip: { x, y, width, height } as ScreenRect }),
         ...(tab === undefined ? {} : { tab }),
+        ...(thread === undefined ? {} : { thread }),
+        ...(focus === undefined ? {} : { focus }),
+        ...(present === undefined ? {} : { present }),
       });
     },
   },
@@ -273,7 +291,15 @@ export const channels = {
   ThreadsReady: { name: "yui://threads-ready", scope: "shared" },
   /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
   ThreadsClosed: { name: "yui://threads-closed", scope: "shared" },
-  ThreadsPresented: { name: "yui://threads-presented", scope: "shared" },
+  /** The Threads window reporting that an automatic open or raise finished: shown and grown, or brought forward. */
+  ThreadsPresented: {
+    name: "yui://threads-presented",
+    scope: "shared",
+    read(report, deliver: (report: ThreadsPresented) => void) {
+      const present = (report as Partial<ThreadsPresented> | null)?.present;
+      if (isNonEmptyString(present)) deliver({ present });
+    },
+  },
   /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
   ThreadsOpenRequest: {
     name: "yui://threads-open-request",

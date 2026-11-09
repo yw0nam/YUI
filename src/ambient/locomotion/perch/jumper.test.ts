@@ -37,6 +37,7 @@ const HOST: WindowRect = {
   ownerName: "Notes",
   pid: 11,
   windowNumber: 42,
+  threadsWindow: false,
 };
 
 /** A foreign window with the host's shape, moved and renamed. */

@@ -39,6 +39,7 @@ function windowAt(over: Partial<WindowRect> & { x: number; y: number; width: num
     ownerName: "Notes",
     pid: 11,
     windowNumber: 1,
+    threadsWindow: false,
     ...over,
   };
 }

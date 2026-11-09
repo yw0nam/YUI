@@ -12,6 +12,7 @@ const SPAN_HOST: WindowRect = {
   ownerName: "Visual Studio Code",
   pid: 999,
   windowNumber: 42,
+  threadsWindow: false,
 };
 
 /** A window reaching across the host's top edge (y 900) at the given x span. */

@@ -35,6 +35,7 @@ export function win(over: Partial<WindowRect> = {}): WindowRect {
     ownerName: "Notes",
     pid: 11,
     windowNumber: 42,
+    threadsWindow: false,
     ...over,
   };
 }

@@ -35,6 +35,7 @@ const TARGET: WindowRect = {
   ownerName: "Messages",
   pid: 11,
   windowNumber: 5,
+  threadsWindow: false,
 };
 
 async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } = {}) {
