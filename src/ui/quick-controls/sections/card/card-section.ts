@@ -1,6 +1,6 @@
 /**
- * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default
- * and the greeting list. It owns its subscriptions, redraws and teardown.
+ * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default,
+ * the greeting list and the file action row. It owns its subscriptions, redraws and teardown.
  */
 
 import {
@@ -25,7 +25,8 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
-import { type CardIoPorts, createCardIo } from "./card-io";
+import { CARD_IMPORT_NOTICE_KEY, type CardIoPorts, createCardIo } from "./card-io";
+import { createPresetExportPanel, presetExportPanelHtml } from "./preset-export-panel";
 import "./card-section.css";
 
 type TextField =
@@ -94,14 +95,18 @@ export function cardSectionHtml(): string {
           </div>
           <div class="yui-row yui-row--action yui-card__io">
             <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
-            <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
+            <button class="yui-link-btn yui-card-export-preset" type="button">${t("card.export_preset")}</button>
+            <button class="yui-link-btn yui-card-export-png" type="button">${t("card.export_png")}</button>
           </div>
-          <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
+          <p class="yui-row__sub yui-card__io-note"></p>
+          <p class="yui-card__io-notice" hidden>${t("card.import_voice_notice")}</p>${presetExportPanelHtml()}
+          <p class="yui-card__io-done" role="status" hidden></p>
           <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
 }
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type PanelDeps = Parameters<typeof createPresetExportPanel>[0];
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
@@ -118,9 +123,11 @@ interface CardSectionDeps {
   isPushMode: () => boolean;
   /** Panel open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
+  /** The active VRM and voice the preset file names. */
+  vrmSelection: PanelDeps["vrmSelection"];
+  speakerSelection: PanelDeps["speakerSelection"];
   /** Card file steps, wired by the app layer. */
   importPreset: CardIoPorts["importPreset"];
-  exportCard: CardIoPorts["exportCard"];
   exportPresetFile: CardIoPorts["exportPresetFile"];
   exportCardPng: CardIoPorts["exportCardPng"];
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
@@ -149,6 +156,13 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
   const addRow = q<HTMLElement>(".yui-card-add-row");
   const fields = Array.from(sec.querySelectorAll<HTMLTextAreaElement>("textarea[data-card-field]"));
+  const pngBtn = q<HTMLButtonElement>(".yui-card-export-png");
+  const ioNote = q<HTMLElement>(".yui-card__io-note");
+
+  // The import's activation reload leaves a one-shot notice for this mount.
+  const notice = sessionStorage.getItem(CARD_IMPORT_NOTICE_KEY);
+  sessionStorage.removeItem(CARD_IMPORT_NOTICE_KEY);
+  q<HTMLElement>(".yui-card__io-notice").hidden = notice !== "voice";
 
   const entry = () => {
     const id = presetIdForWindow();
@@ -177,6 +191,11 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     const shown = entry();
     const thumb = q<HTMLElement>(".yui-card-thumb");
     thumb.hidden = !shown.thumbnail;
+    // The PNG card is written into the preset's picture; without one the note says why.
+    pngBtn.disabled = !shown.thumbnail;
+    ioNote.textContent = shown.thumbnail
+      ? t("card.io_note")
+      : t("card.png_no_picture", { note: t("card.io_note") });
     if (shown.thumbnail) thumb.replaceChildren(avatarEl(shown, 36));
     switchBtn.setAttribute("aria-checked", String(a.send_card));
     // The user's Send card switch folds the body; on push the greetings stay reachable.
@@ -206,16 +225,26 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   const io = createCardIo({
     errorEl: q<HTMLElement>(".yui-card__io-error"),
+    doneEl: q<HTMLElement>(".yui-card__io-done"),
     ports: {
       importPreset: deps.importPreset,
-      exportCard: deps.exportCard,
       exportPresetFile: deps.exportPresetFile,
       exportCardPng: deps.exportCardPng,
-      inspectPresetVrm: deps.inspectPresetVrm,
     },
     currentCard,
     entry,
     fillerPools: () => deps.fillerSettings.get().customPools,
+    log,
+  });
+  const panel = createPresetExportPanel({
+    root: q<HTMLElement>(".yui-preset-export"),
+    vrmSelection: deps.vrmSelection,
+    speakerSelection: deps.speakerSelection,
+    registry,
+    entry,
+    cardLabel: () => cardName(currentCard(), entry()),
+    inspectPresetVrm: deps.inspectPresetVrm,
+    exportPreset: io.exportPreset,
     log,
   });
 
@@ -257,9 +286,12 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   function handleClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
     if (target.closest(".yui-card__io")) {
-      io.handle(e);
+      if (target.closest(".yui-card-import")) void io.importPreset();
+      else if (target.closest(".yui-card-export-preset")) panel.open();
+      else if (target.closest(".yui-card-export-png")) void io.exportPng();
       return;
     }
+    if (target.closest(".yui-preset-export")) return;
     if (target.closest(".yui-card-switch")) {
       const enabled = !agentSettings.get().send_card;
       agentSettings.setSendCard(enabled);
@@ -299,6 +331,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     reflect,
     dispose(): void {
       for (const off of unsubscribes) off?.();
+      panel.dispose();
       sec.removeEventListener("input", handleInput);
       sec.removeEventListener("change", handleChange);
       sec.removeEventListener("click", handleClick);

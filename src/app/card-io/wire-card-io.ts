@@ -4,7 +4,6 @@
  */
 
 import type { AvatarOption } from "../../config/validators/avatar/types";
-import { exportCardToFile } from "../../io/assets/card/card-export";
 import { importCardFromFile } from "../../io/assets/card/card-import";
 import {
   pickPresetPhoto,
@@ -80,10 +79,9 @@ export function wireCardIo(deps: WireCardIoDeps): CardIoPorts {
           });
         },
       }),
-    exportCard: (text, fileName) => exportCardToFile(text, fileName),
     exportPresetFile: (request) => exportPresetFile(request),
-    exportCardPng: async (defaultName, cardJson, presetId) =>
-      (await exportCardPng(defaultName, cardJson, presetId)) ? "written" : "cancelled",
+    exportCardPng: (defaultName, cardJson, presetId) =>
+      exportCardPng(defaultName, cardJson, presetId),
     inspectPresetVrm: (id) => inspectPresetVrm(id),
     removeCardThumbnail: (id) => removeCardThumbnail(id),
     ...(isTauri() ? { pickPresetPhoto: (presetId: string) => pickPresetPhoto(presetId) } : {}),

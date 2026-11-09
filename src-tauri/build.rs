@@ -15,7 +15,6 @@ const COMMANDS: &[&str] = &[
     "retain_card_thumbnail",
     "pick_preset_photo",
     "remove_card_thumbnail",
-    "export_card_file",
     "inspect_preset_vrm",
     "export_preset_file",
     "export_card_png",

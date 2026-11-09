@@ -64,6 +64,22 @@
   margin: 0;
 }
 
+/* The saved line after an export, and the import's voice notice after the reload. */
+.yui-card__io-done,
+.yui-card__io-notice {
+  margin: 0.375rem 0 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+}
+
+.yui-card__io-done {
+  color: var(--yui-ok);
+}
+
+.yui-card__io-notice {
+  color: var(--yui-text-dim);
+}
+
 /* The import/export failure line, styled like the asset lists' inline errors. */
 .yui-card__io-error {
   margin: 0.375rem 0 0;

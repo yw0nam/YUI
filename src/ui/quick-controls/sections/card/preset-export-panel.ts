@@ -1,0 +1,200 @@
+/**
+ * The preset export panel: the inline group under the card section's action row that lists what
+ * the `.yui` preset file carries, the rights check, and Cancel / Export…. It owns its subscriptions,
+ * redraw and teardown.
+ */
+
+import type { AvatarOption } from "../../../../config/validators/avatar/types";
+import type { VrmInspection } from "../../../../io/assets/preset-file/preset-file-export";
+import type { SpeakerOption } from "../../../../io/voice/voices/speaker-selection";
+import type { Logger } from "../../../../logger";
+import type { PresetEntry } from "../../../../settings/preset/active-preset";
+import { t } from "../../../i18n";
+import { escapeAttr } from "../../markup";
+import type { CardIoPorts, PresetExportParts } from "./card-io";
+import "./preset-export-panel.css";
+
+type Subscribe<T> = (cb: (active: T) => void) => () => void;
+type Tone = "in" | "out" | "warn";
+type Inspected = VrmInspection["license"] | "unreadable";
+/** label, tone, status, optional sub-line */
+type Row = [string, Tone, string, string?];
+
+/** Each license read as its tone, status key and reason key (the VRM's label when none). */
+const VRM_STATUS: Record<Inspected, [Tone, string, string | null]> = {
+  allowed: ["in", "preset_export.included", null],
+  prohibited: ["out", "preset_export.left_out", "preset_export.vrm_prohibited"],
+  unknown: ["warn", "preset_export.check_needed", "preset_export.vrm_unknown"],
+  unreadable: ["out", "preset_export.left_out", "preset_export.vrm_unreadable"],
+};
+
+export function presetExportPanelHtml(): string {
+  const rights = escapeAttr(t("preset_export.rights"));
+  return `
+          <div class="yui-preset-export" hidden>
+            <p class="yui-preset-export__title">${t("preset_export.title")}</p>
+            <div class="yui-group yui-preset-export__items"></div>
+            <p class="yui-sec__foot">${t("preset_export.foot")}</p>
+            <div class="yui-group yui-preset-export__rights">
+              <div class="yui-row">
+                <div class="yui-row__main">
+                  <span class="yui-row__label">${t("preset_export.rights")}</span>
+                  <span class="yui-row__sub">${t("preset_export.rights_sub")}</span>
+                </div>
+                <button class="yui-switch" type="button" role="checkbox" aria-checked="false" aria-label="${rights}"></button>
+              </div>
+            </div>
+            <div class="yui-preset-export__acts">
+              <button class="yui-pill yui-preset-export__cancel" type="button">${t("preset_export.cancel")}</button>
+              <button class="yui-pill yui-preset-export__go" type="button" disabled>${t("preset_export.go")}</button>
+            </div>
+          </div>`;
+}
+
+export function createPresetExportPanel(deps: {
+  /** The `.yui-preset-export` element. */
+  root: HTMLElement;
+  vrmSelection: { getActive(): AvatarOption; subscribe: Subscribe<AvatarOption> };
+  speakerSelection: { getActive(): SpeakerOption; subscribe: Subscribe<SpeakerOption> };
+  /** The preset change notice; absent where the panel shows no preset strip. */
+  registry?: { subscribe(cb: () => void): () => void };
+  entry: () => PresetEntry;
+  /** The name the card goes out under. */
+  cardLabel: () => string;
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
+  /** Writes the preset file; true when it was saved. */
+  exportPreset: (parts: PresetExportParts) => Promise<boolean>;
+  log: Logger;
+}): { open(): void; dispose(): void } {
+  const { root } = deps;
+  const items = root.querySelector<HTMLElement>(".yui-preset-export__items")!;
+  const rights = root.querySelector<HTMLButtonElement>('[role="checkbox"]')!;
+  const go = root.querySelector<HTMLButtonElement>(".yui-preset-export__go")!;
+  // The last license read, keyed by VRM id; a read for another id is dropped when it lands.
+  let inspected: { id: string; license: Inspected | null } | null = null;
+
+  const vrmRow = (vrm: AvatarOption): Row => {
+    const label = vrm.label ?? vrm.id;
+    if (vrm.source !== "user")
+      return [t("preset_export.vrm"), "in", t("preset_export.built_in"), label];
+    const license = inspected?.id === vrm.id ? inspected.license : null;
+    if (!license) return [t("preset_export.vrm"), "in", "", label];
+    const [tone, status, sub] = VRM_STATUS[license];
+    return [t("preset_export.vrm"), tone, t(status), sub ? t(sub) : label];
+  };
+
+  function inspect(id: string): void {
+    inspected = { id, license: null };
+    deps.inspectPresetVrm(id).then(
+      (r) => land(id, r.license),
+      (err) => {
+        deps.log.error("preset_vrm_inspect_failed", { error: String(err) });
+        land(id, "unreadable");
+      },
+    );
+  }
+  function land(id: string, license: Inspected): void {
+    if (inspected?.id !== id) return;
+    inspected = { id, license };
+    redraw();
+  }
+
+  /** The active VRM and voice as the request names them. */
+  function parts(): PresetExportParts {
+    const e = deps.entry();
+    const vrm = deps.vrmSelection.getActive();
+    const voice = deps.speakerSelection.getActive();
+    return {
+      ...(e.thumbnail ? { thumbnailPresetId: e.id, ...(e.crop ? { crop: e.crop } : {}) } : {}),
+      vrm: { kind: vrm.source === "user" ? "user" : "bundled", id: vrm.id },
+      ...(voice.source === "user" && voice.ref_url
+        ? { voice: { id: voice.id, label: voice.label ?? voice.id } }
+        : {}),
+    };
+  }
+
+  function redraw(): void {
+    if (root.hidden) return;
+    const vrm = deps.vrmSelection.getActive();
+    if (vrm.source === "user" && inspected?.id !== vrm.id) inspect(vrm.id);
+    const p = parts();
+    const rows: Row[] = [
+      [t("preset_export.card"), "in", t("preset_export.included"), deps.cardLabel()],
+      ...(p.thumbnailPresetId
+        ? [[t("preset_export.thumbnail"), "in", t("preset_export.included")] as Row]
+        : []),
+      vrmRow(vrm),
+      p.voice
+        ? [t("preset_export.voice"), "in", t("preset_export.included"), t("preset_export.voice_in")]
+        : [
+            t("preset_export.voice"),
+            "out",
+            t("preset_export.left_out"),
+            t("preset_export.voice_no_clip"),
+          ],
+    ];
+    items.replaceChildren(
+      ...rows.map(([label, tone, status, sub]) => {
+        const row = document.createElement("div");
+        row.className = "yui-row yui-preset-export__item";
+        const main = document.createElement("div");
+        main.className = "yui-row__main";
+        const labelEl = document.createElement("span");
+        labelEl.className = "yui-row__label";
+        labelEl.textContent = label;
+        main.append(labelEl);
+        if (sub) {
+          const subEl = document.createElement("span");
+          subEl.className = tone === "in" ? "yui-row__sub" : `yui-row__sub is-${tone}`;
+          subEl.textContent = sub;
+          main.append(subEl);
+        }
+        const statusEl = document.createElement("span");
+        statusEl.className = `yui-preset-export__status is-${tone}`;
+        statusEl.textContent = status;
+        row.append(main, statusEl);
+        return row;
+      }),
+    );
+    go.disabled = rights.getAttribute("aria-checked") !== "true";
+  }
+
+  function close(): void {
+    root.hidden = true;
+  }
+
+  async function handleClick(e: MouseEvent): Promise<void> {
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="checkbox"]')) {
+      rights.setAttribute("aria-checked", String(rights.getAttribute("aria-checked") !== "true"));
+      redraw();
+    } else if (target.closest(".yui-preset-export__cancel")) {
+      close();
+    } else if (target.closest(".yui-preset-export__go") && !go.disabled) {
+      go.disabled = true;
+      if (await deps.exportPreset(parts())) close();
+      else redraw();
+    }
+  }
+  const onClick = (e: MouseEvent): void => void handleClick(e);
+
+  const unsubscribes = [
+    deps.vrmSelection.subscribe(redraw),
+    deps.speakerSelection.subscribe(redraw),
+    deps.registry?.subscribe(redraw),
+  ];
+  root.addEventListener("click", onClick);
+
+  return {
+    open(): void {
+      rights.setAttribute("aria-checked", "false");
+      inspected = null;
+      root.hidden = false;
+      redraw();
+    },
+    dispose(): void {
+      for (const off of unsubscribes) off?.();
+      root.removeEventListener("click", onClick);
+    },
+  };
+}

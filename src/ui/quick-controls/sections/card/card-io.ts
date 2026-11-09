@@ -1,6 +1,6 @@
 /**
- * The card section's import and export actions: the pick/create/save round trips, the
- * inline error line, and the logs. The section wires the clicks and owns the redraw.
+ * The card section's file actions: the import round trip, the PNG card export, the preset file
+ * export the panel asks for, the inline status lines, and the logs. The section wires the clicks.
  */
 
 import { toV2Envelope } from "../../../../config/validators/persona/serialize-card";
@@ -17,10 +17,12 @@ import { extensionsWithFiller } from "../../../../settings/voice/card-filler";
 import type { FillerSettings } from "../../../../settings/voice/filler-settings";
 import { t } from "../../../i18n";
 
+/** The one-shot notice the section reads on its next mount, after the import's activation reload. */
+export const CARD_IMPORT_NOTICE_KEY = "yui.card-import-notice";
+
 export interface CardIoPorts {
   /** Runs the whole card import through preset creation; null when the picker was dismissed. */
   importPreset: () => Promise<{ presetId: string } | null>;
-  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
   /** Opens the `.yui` save dialog; "cancelled" when dismissed. */
   exportPresetFile: (request: PresetExportRequest) => Promise<PresetFileExportResult>;
   /** Writes the card text into the preset's PNG; "cancelled" when dismissed. */
@@ -36,81 +38,110 @@ export interface CardIoPorts {
   pickPresetPhoto?: (presetId: string) => Promise<string | null>;
 }
 
+/** The parts of a `.yui` request the panel chooses; the card text and file name come from here. */
+export type PresetExportParts = Omit<PresetExportRequest, "defaultName" | "cardJson">;
+
 export interface CardIo {
-  /** Runs the import or export when the click sits on one of the action buttons. */
-  handle(e: MouseEvent): void;
+  importPreset(): Promise<void>;
+  exportPng(): Promise<void>;
+  /** Writes the preset file; true when it was saved. */
+  exportPreset(parts: PresetExportParts): Promise<boolean>;
 }
 
 export function createCardIo(deps: {
   errorEl: HTMLElement;
-  ports: Pick<
-    CardIoPorts,
-    "importPreset" | "exportCard" | "exportPresetFile" | "exportCardPng" | "inspectPresetVrm"
-  >;
+  doneEl: HTMLElement;
+  ports: Pick<CardIoPorts, "importPreset" | "exportPresetFile" | "exportCardPng">;
   currentCard: () => Card;
   entry: () => { id: string; name: string };
   /** The active preset's custom filler pools, carried in the export's extensions.yui. */
   fillerPools: () => FillerSettings["customPools"];
   log: Logger;
 }): CardIo {
-  const showError = (message: string): void => {
-    deps.errorEl.textContent = message;
-    deps.errorEl.hidden = false;
+  const show = (el: HTMLElement, message: string): void => {
+    el.textContent = message;
+    el.hidden = false;
   };
-  const clearError = (): void => {
-    deps.errorEl.hidden = true;
-    deps.errorEl.textContent = "";
+  const clear = (): void => {
+    for (const el of [deps.errorEl, deps.doneEl]) {
+      el.hidden = true;
+      el.textContent = "";
+    }
   };
 
-  async function handleImport(): Promise<void> {
-    try {
-      const imported = await deps.ports.importPreset();
-      if (!imported) return;
-      clearError();
-      // The windows reload into the new preset right after; the log line is the record.
-      deps.log.info("card_import", { preset: imported.presetId });
-    } catch (err) {
-      const name = err instanceof Error ? err.message : String(err);
-      // Only an unreadable payload means the file holds no card; everything else is a failure.
-      showError(
-        t(
-          name === "card_unreadable" || name === "no card in png"
-            ? "card.import_error"
-            : "card.import_failed",
-        ),
-      );
-      deps.log.error("card_import_failed", { error: String(err) });
-    }
+  /** The V2 envelope with the filler pools merged, and the file stem it is saved under. */
+  function cardText(): { json: string; stem: string } {
+    const card = deps.currentCard();
+    const name = cardName(card, deps.entry());
+    const envelope = toV2Envelope(card, name);
+    envelope.data.extensions = extensionsWithFiller(
+      envelope.data.extensions as Record<string, unknown>,
+      deps.fillerPools(),
+    );
+    return { json: JSON.stringify(envelope), stem: sanitizeFileStem(name) };
   }
 
-  async function handleExport(): Promise<void> {
+  async function exportWith(write: () => Promise<string | null>): Promise<boolean> {
     try {
-      const card = deps.currentCard();
-      const name = cardName(card, deps.entry());
-      const envelope = toV2Envelope(card, name);
-      envelope.data.extensions = extensionsWithFiller(
-        envelope.data.extensions as Record<string, unknown>,
-        deps.fillerPools(),
-      );
-      const result = await deps.ports.exportCard(
-        JSON.stringify(envelope),
-        `${sanitizeFileStem(name)}.json`,
-      );
-      if (result === "written") {
-        clearError();
-        deps.log.info("card_export");
-      }
+      const line = await write();
+      if (line === null) return false;
+      clear();
+      show(deps.doneEl, line);
+      deps.log.info("card_export");
+      return true;
     } catch (err) {
-      showError(t("card.export_error"));
+      clear();
+      show(deps.errorEl, t("card.export_error"));
       deps.log.error("card_export_failed", { error: String(err) });
+      return false;
     }
   }
 
   return {
-    handle(e: MouseEvent): void {
-      const target = e.target as HTMLElement;
-      if (target.closest(".yui-card-import")) void handleImport();
-      else if (target.closest(".yui-card-export")) void handleExport();
+    async importPreset(): Promise<void> {
+      try {
+        const imported = await deps.ports.importPreset();
+        if (!imported) return;
+        clear();
+        // The windows reload into the new preset right after; the log line is the record.
+        deps.log.info("card_import", { preset: imported.presetId });
+      } catch (err) {
+        const name = err instanceof Error ? err.message : String(err);
+        clear();
+        // Only an unreadable payload means the file holds no card; everything else is a failure.
+        show(
+          deps.errorEl,
+          t(
+            name === "card_unreadable" || name === "no card in png"
+              ? "card.import_error"
+              : "card.import_failed",
+          ),
+        );
+        deps.log.error("card_import_failed", { error: String(err) });
+      }
+    },
+
+    async exportPng(): Promise<void> {
+      await exportWith(async () => {
+        const { json, stem } = cardText();
+        const result = await deps.ports.exportCardPng(`${stem}.png`, json, deps.entry().id);
+        return result === "written" ? t("card.export_saved") : null;
+      });
+    },
+
+    exportPreset(parts: PresetExportParts): Promise<boolean> {
+      return exportWith(async () => {
+        const { json, stem } = cardText();
+        const result = await deps.ports.exportPresetFile({
+          defaultName: `${stem}.yui`,
+          cardJson: json,
+          ...parts,
+        });
+        if (result === "cancelled") return null;
+        return t(
+          parts.vrm && !result.vrmIncluded ? "card.export_saved_vrm_out" : "card.export_saved",
+        );
+      });
     },
   };
 }

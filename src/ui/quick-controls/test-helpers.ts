@@ -213,7 +213,6 @@ export function defaultQcArgs(mount: HTMLElement) {
     canReuploadVoices: () => true,
     canPasteVoiceId: () => false,
     importPreset: vi.fn(async () => null),
-    exportCard: vi.fn(async () => "cancelled" as const),
     exportPresetFile: vi.fn(async () => "cancelled" as const),
     exportCardPng: vi.fn(async () => "cancelled" as const),
     inspectPresetVrm: vi.fn(async () => ({ license: "allowed" as const, bytes: 0 })),

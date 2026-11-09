@@ -362,24 +362,6 @@ pub(crate) fn pick_save_path(
     Ok(Some(dest))
 }
 
-/// Open the save dialog here and write the exported card to the picked path. `false`
-/// when the dialog is dismissed.
-#[command]
-pub async fn export_card_file(
-    app: AppHandle,
-    default_name: String,
-    text: String,
-) -> Result<bool, String> {
-    let Some(dest) = pick_save_path(&app, &default_name, "Card", &["json"])? else {
-        return Ok(false);
-    };
-    std::fs::write(&dest, text).map_err(|e| {
-        log::error!("card_write_failed dest={} error={e}", dest.display());
-        "card write failed".to_string()
-    })?;
-    Ok(true)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

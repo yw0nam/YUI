@@ -12,8 +12,9 @@ import { readCard } from "../../config/validators/persona/read-card";
 import type { Card } from "../../config/validators/persona/types";
 import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
+import { CARD_IMPORT_NOTICE_KEY } from "../../ui/quick-controls/sections/card/card-io";
 import type { ImportPresetCreateInput } from "./import-preset";
-import { CARD_IMPORT_NOTICE_KEY, importPreset } from "./import-preset";
+import { importPreset } from "./import-preset";
 
 const card = (): Card =>
   readCard({

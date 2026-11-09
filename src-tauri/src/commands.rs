@@ -23,7 +23,6 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::card_import::retain_card_thumbnail,
         crate::card_import::pick_preset_photo,
         crate::card_import::remove_card_thumbnail,
-        crate::card_import::export_card_file,
         crate::preset_file::inspect_preset_vrm,
         crate::preset_file::export_preset_file,
         crate::preset_file::export_card_png,
