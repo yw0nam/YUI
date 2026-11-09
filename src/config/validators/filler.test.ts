@@ -12,6 +12,8 @@ function basePool(overrides: Record<string, unknown> = {}): Record<string, unkno
     tool: { _default: ["調べてみるね…"] },
     timeout: ["ごめん、諦めちゃった。"],
     unreachable: ["今つながらないみたい。"],
+    threads_open: ["スレッド開くね。"],
+    threads_raise: ["前に出すね。"],
     ...overrides,
   };
 }
@@ -73,6 +75,8 @@ describe("validateFiller — happy path", () => {
           tool: {},
           timeout: [],
           unreachable: [],
+          threads_open: [],
+          threads_raise: [],
         }),
       },
     });
@@ -84,6 +88,8 @@ describe("validateFiller — happy path", () => {
       tool: {},
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
     });
   });
 });
@@ -186,6 +192,18 @@ describe("validateFiller — pools", () => {
     const pool = basePool();
     delete pool.unreachable;
     expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.unreachable must be an array");
+  });
+
+  it("rejects a missing threads_open tier", () => {
+    const pool = basePool();
+    delete pool.threads_open;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.threads_open must be an array");
+  });
+
+  it("rejects a missing threads_raise tier", () => {
+    const pool = basePool();
+    delete pool.threads_raise;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.threads_raise must be an array");
   });
 
   it("rejects a missing tool tier", () => {

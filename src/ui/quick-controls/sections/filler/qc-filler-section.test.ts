@@ -214,6 +214,8 @@ describe("createQuickControls — thinking filler section", () => {
       long_wait: [],
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
       tool: {},
     });
 
@@ -242,6 +244,8 @@ describe("createQuickControls — thinking filler section", () => {
       long_wait: [],
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
       tool: {},
     });
 
@@ -266,6 +270,8 @@ describe("createQuickControls — thinking filler section", () => {
       long_wait: [],
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
       tool: {},
     });
 
@@ -322,9 +328,9 @@ describe("createQuickControls — thinking filler section", () => {
     qc.dispose();
   });
 
-  // ── "More phrases" details (long_wait / timeout / unreachable / tool) ─────────
+  // ── "More phrases" details (long_wait / timeout / unreachable / threads / tool) ─────────
 
-  it("wraps the four extra tiers in a closed-by-default <details class='yui-more'>", () => {
+  it("wraps the six extra tiers in a closed-by-default <details class='yui-more'>", () => {
     const qc = buildQc({ fillerSettings: makeFillerSettings() });
     qc.open();
 
@@ -336,6 +342,8 @@ describe("createQuickControls — thinking filler section", () => {
       ".yui-filler-long-wait-textarea",
       ".yui-filler-timeout-textarea",
       ".yui-filler-unreachable-textarea",
+      ".yui-filler-threads-open-textarea",
+      ".yui-filler-threads-raise-textarea",
       ".yui-filler-tool-textarea",
     ]) {
       expect(details.querySelector(cls)).not.toBeNull();
@@ -382,6 +390,8 @@ describe("createQuickControls — thinking filler section", () => {
       long_wait: ["まだかかりそう"],
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
       tool: {},
     });
 
@@ -404,6 +414,8 @@ describe("createQuickControls — thinking filler section", () => {
       long_wait: [],
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
       tool: { _default: ["checking..."], terminal: ["running it"] },
     });
 

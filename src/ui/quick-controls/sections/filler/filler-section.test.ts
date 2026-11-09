@@ -18,7 +18,16 @@ import { createFillerSection } from "./filler-section";
 
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
-const TEXTAREAS = ["first", "repeat", "long-wait", "timeout", "unreachable", "tool"] as const;
+const TEXTAREAS = [
+  "first",
+  "repeat",
+  "long-wait",
+  "timeout",
+  "unreachable",
+  "threads-open",
+  "threads-raise",
+  "tool",
+] as const;
 
 function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
   const settings: FillerSettings = { enabled: true, language: "ja", customPools: {}, ...over };
@@ -67,6 +76,8 @@ const EN_POOL = {
   long_wait: ["This is taking a while"],
   timeout: ["I gave up"],
   unreachable: ["No connection"],
+  threads_open: ["Opening Threads"],
+  threads_raise: ["Bringing it up"],
   tool: { web_search: ["searching"], _default: ["checking..."] },
 };
 const EN_VALUES = [
@@ -75,6 +86,8 @@ const EN_VALUES = [
   "This is taking a while",
   "I gave up",
   "No connection",
+  "Opening Threads",
+  "Bringing it up",
   "checking...\nweb_search = searching",
 ];
 
@@ -161,6 +174,8 @@ describe("createFillerSection", () => {
         long_wait: [],
         timeout: [],
         unreachable: [],
+        threads_open: [],
+        threads_raise: [],
         tool: { _default: ["checking..."], terminal: ["running it"] },
       },
     });
@@ -185,7 +200,7 @@ describe("createFillerSection", () => {
 
     fs.setCustomPool("en", EN_POOL);
     fs.setLanguage("en");
-    expect(values(root)).toEqual(["", "", "", "", "", ""]);
+    expect(values(root)).toEqual(["", "", "", "", "", "", "", ""]);
     section.reflect();
 
     const btns = langButtons(root);

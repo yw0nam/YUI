@@ -112,6 +112,15 @@ describe("createFillerSettings — priority", () => {
     expect(store.get().enabled).toBe(true);
     expect(load).toHaveBeenCalled();
   });
+
+  it("setCustomPool keeps a threads_open pool through the store's copy", () => {
+    const storage: FillerStorage = { load: () => null, save: vi.fn() };
+    const store = createFillerSettings({ storage });
+
+    store.setCustomPool("ja", { threads_open: ["開けるね"] });
+
+    expect(store.get().customPools.ja).toEqual({ threads_open: ["開けるね"] });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

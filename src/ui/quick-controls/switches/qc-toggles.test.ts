@@ -182,6 +182,17 @@ describe("createQuickControls — toggles", () => {
       },
     },
     {
+      name: "thread-reactions",
+      selector: ".yui-thread-reactions-switch",
+      ariaLabel: "스레드 보러 가기",
+      initialEnabled: true,
+      gated: true,
+      build: () => {
+        const settings = createFlagSettings(true);
+        return { settings, qc: buildQc({ threadReactionsSettings: settings }) };
+      },
+    },
+    {
       name: "one-voice",
       selector: ".yui-one-voice-switch",
       ariaLabel: "한 번에 한 명만 말하기",
