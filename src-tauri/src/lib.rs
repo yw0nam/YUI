@@ -31,6 +31,9 @@ mod voice_import;
 // Tavern card import/export (file parse, thumbnail copy, exported file write).
 mod card_import;
 
+// Preset file (.yui) read/write, VRM license rule, PNG card chunk.
+mod preset_file;
+
 // Click-through toggle (top-level + Windows child HWNDs).
 #[cfg(desktop)]
 mod passthrough;

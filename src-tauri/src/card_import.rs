@@ -9,6 +9,7 @@ use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, sniff_ok,
     ClaimTarget, SniffKind,
 };
+use crate::preset_file::{PresetFileVoice, PresetFileVrm};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::Serialize;
 use std::io::Read;
@@ -17,12 +18,12 @@ use tauri::{command, AppHandle};
 use tauri_plugin_dialog::DialogExt;
 
 /// Max accepted source size for a card JSON.
-const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
+pub(crate) const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
 
 /// Max accepted source size for a card PNG.
-const MAX_PNG_BYTES: u64 = 32 * 1024 * 1024;
+pub(crate) const MAX_PNG_BYTES: u64 = 32 * 1024 * 1024;
 
-const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+pub(crate) const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 
 /// Longest edge, in px, of a JPEG photo re-encoded as a preset's thumbnail.
 const PHOTO_EDGE: u32 = 512;
@@ -31,18 +32,47 @@ const PHOTO_EDGE: u32 = 512;
 const PHOTO_DECODE_MAX_EDGE: u32 = 8192;
 const PHOTO_DECODE_MAX_ALLOC: u64 = 256 * 1024 * 1024;
 
-/// Card file handed to the webview: the card JSON and, for a PNG, the temp thumbnail id.
+/// Which kind of file a card came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CardSource {
+    Json,
+    Png,
+    Yui,
+}
+
+/// Card file handed to the webview: the card JSON, the temp thumbnail id of a PNG or preset
+/// file, and the assets a preset file carried.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportedCardFile {
+    pub source: CardSource,
     /// The card JSON, verbatim from the file or the tEXt chunk.
     pub json: String,
-    /// Stem of the thumbnail copy under `cards/`, present for a PNG source.
+    /// Stem of the thumbnail copy under `cards/`, present for a PNG or preset-file source.
     pub thumbnail_temp_id: Option<String>,
+    /// The preset file's crop, passed through unvalidated.
+    pub crop: Option<serde_json::Value>,
+    pub vrm: Option<PresetFileVrm>,
+    pub voice: Option<PresetFileVoice>,
+}
+
+impl ImportedCardFile {
+    /// A `.json` or `.png` card: no preset-file assets.
+    fn plain(source: CardSource, json: String, thumbnail_temp_id: Option<String>) -> Self {
+        Self {
+            source,
+            json,
+            thumbnail_temp_id,
+            crop: None,
+            vrm: None,
+            voice: None,
+        }
+    }
 }
 
 /// The length of the chunk at `offset`, when its full `len + type + data + crc` fits `bytes`.
-fn chunk_len(bytes: &[u8], offset: usize) -> Option<usize> {
+pub(crate) fn chunk_len(bytes: &[u8], offset: usize) -> Option<usize> {
     let head = bytes.get(offset..offset + 4)?;
     let len = u32::from_be_bytes(head.try_into().ok()?) as usize;
     let end = offset.checked_add(12)?.checked_add(len)?;
@@ -50,7 +80,7 @@ fn chunk_len(bytes: &[u8], offset: usize) -> Option<usize> {
 }
 
 /// Split a tEXt chunk's `keyword\0text` payload.
-fn text_chunk(data: &[u8]) -> Option<(&str, &str)> {
+pub(crate) fn text_chunk(data: &[u8]) -> Option<(&str, &str)> {
     let nul = data.iter().position(|&b| b == 0)?;
     Some((
         std::str::from_utf8(data.get(..nul)?).ok()?,
@@ -60,7 +90,7 @@ fn text_chunk(data: &[u8]) -> Option<(&str, &str)> {
 
 /// The card JSON inside a PNG's `ccv3`/`chara` tEXt chunks; `ccv3` wins over `chara` regardless
 /// of chunk order. The chunk walk is bounds-checked: a truncated length is a malformed PNG.
-fn card_json_from_png(bytes: &[u8]) -> Result<String, String> {
+pub(crate) fn card_json_from_png(bytes: &[u8]) -> Result<String, String> {
     if bytes.len() < 8 || &bytes[..8] != PNG_SIGNATURE {
         return Err("png malformed".to_string());
     }
@@ -93,7 +123,7 @@ fn card_json_from_png(bytes: &[u8]) -> Result<String, String> {
 }
 
 /// Read the whole source, refusing anything over `cap` bytes.
-fn read_bounded(source: &mut std::fs::File, cap: u64) -> Result<Vec<u8>, String> {
+pub(crate) fn read_bounded(source: impl Read, cap: u64) -> Result<Vec<u8>, String> {
     let mut buf = Vec::new();
     source
         .take(cap.saturating_add(1))
@@ -109,7 +139,7 @@ fn read_bounded(source: &mut std::fs::File, cap: u64) -> Result<Vec<u8>, String>
 }
 
 /// Copy the PNG bytes into `cards/` under the first free stem and return its id.
-fn claim_thumbnail(
+pub(crate) fn claim_thumbnail(
     cards: &Path,
     name_stem: &str,
     identity: &str,
@@ -187,7 +217,7 @@ fn store_preset_photo(
 }
 
 /// Delete `cards/<sanitized id>.png` if present. Idempotent — missing is Ok.
-fn remove_thumbnail_at(cards: &Path, id: &str) -> Result<(), String> {
+pub(crate) fn remove_thumbnail_at(cards: &Path, id: &str) -> Result<(), String> {
     if !cards.exists() {
         return Ok(());
     }
@@ -202,7 +232,7 @@ fn remove_thumbnail_at(cards: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn cards_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn cards_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "cards")
 }
 
@@ -232,19 +262,17 @@ pub async fn import_card_file(app: AppHandle) -> Result<Option<ImportedCardFile>
             "json" => {
                 let bytes = read_bounded(&mut source, MAX_JSON_BYTES)?;
                 let json = String::from_utf8(bytes).map_err(|_| "card unreadable".to_string())?;
-                Ok(ImportedCardFile {
-                    json,
-                    thumbnail_temp_id: None,
-                })
+                Ok(ImportedCardFile::plain(CardSource::Json, json, None))
             }
             "png" => {
                 let bytes = read_bounded(&mut source, MAX_PNG_BYTES)?;
                 let json = card_json_from_png(&bytes)?;
                 let temp_id = claim_thumbnail(&cards, stem, &identity, &bytes)?;
-                Ok(ImportedCardFile {
+                Ok(ImportedCardFile::plain(
+                    CardSource::Png,
                     json,
-                    thumbnail_temp_id: Some(temp_id),
-                })
+                    Some(temp_id),
+                ))
             }
             _ => Err("unsupported file".to_string()),
         }

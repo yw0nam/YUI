@@ -14,13 +14,14 @@ use tauri::{command, AppHandle};
 use tauri_plugin_dialog::DialogExt;
 
 /// Allowed audio file extensions (lowercase).
-const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
+pub(crate) const AUDIO_EXTS: [&str; 8] =
+    ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
 
 /// Max accepted source size for a voice-clip import.
-const MAX_AUDIO_BYTES: u64 = 100 * 1024 * 1024;
+pub(crate) const MAX_AUDIO_BYTES: u64 = 100 * 1024 * 1024;
 
 /// True when `ext` (case-insensitive) is in the allowlist.
-fn is_allowed_audio_ext(ext: &str) -> bool {
+pub(crate) fn is_allowed_audio_ext(ext: &str) -> bool {
     let lower = ext.to_ascii_lowercase();
     AUDIO_EXTS.iter().any(|&e| e == lower)
 }
@@ -167,7 +168,7 @@ fn copy_into_references(
 
 /// Delete `references_dir/<sanitized id>/` if present. Idempotent — missing is Ok. Also clears
 /// any `.{id}.import-tmp` for the same id.
-fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
+pub(crate) fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     if !references_dir.exists() {
         return Ok(());
     }
