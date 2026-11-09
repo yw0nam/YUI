@@ -669,9 +669,9 @@ const ko: Record<string, string> = {
   "threadTurns.notable": "알릴 일이 생길 때",
   "threadTurns.every": "새 메시지마다",
   "threadTurns.disabled_reason": "외부 신호를 켜야 쓸 수 있어요.",
-  "threadReactions.label": "스레드 보러 가기",
-  "threadReactions.sub": "스레드 상태가 바뀌면 캐릭터가 스레드 창으로 이동해 앉아요.",
-  "threadReactions.aria": "스레드 보러 가기",
+  "threadReactions.label": "스레드 반응",
+  "threadReactions.sub": "스레드 상태가 바뀌면 캐릭터가 스레드 창에 앉아요.",
+  "threadReactions.aria": "스레드 반응",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

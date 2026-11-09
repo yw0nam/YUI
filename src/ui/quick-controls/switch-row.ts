@@ -51,7 +51,7 @@ interface SwitchRowOptions {
   /** While the unified chat window shows, the message window row is locked off. */
   unifiedShown?: UnifiedShown;
   relationsSwitch?: FlagSettingsStore;
-  /** Thread body-reactions on/off store. If absent, that toggle row won't render. */
+  /** Thread reactions on/off store. If absent, that toggle row won't render. */
   threadReactionsSettings?: FlagSettingsStore;
 }
 

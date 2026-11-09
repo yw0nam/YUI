@@ -252,7 +252,7 @@ interface QuickControlsOptions {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Thread turns level store. With agentNotifySettings, renders the Thread turns row in Watchers. */
   threadTurnsSettings?: ThreadTurnsSettingsStore;
-  /** Thread body-reactions on/off store. If absent, that toggle row won't render. */
+  /** Thread reactions on/off store. If absent, that toggle row won't render. */
   threadReactionsSettings?: FlagSettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;

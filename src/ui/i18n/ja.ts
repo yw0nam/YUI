@@ -675,10 +675,9 @@ const ja: Record<string, string> = {
   "threadTurns.notable": "必要なとき",
   "threadTurns.every": "メッセージごと",
   "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
-  "threadReactions.label": "スレッドを見に行く",
-  "threadReactions.sub":
-    "スレッドの状態が変わると、キャラクターがスレッドウィンドウに移動して座ります。",
-  "threadReactions.aria": "スレッドを見に行く",
+  "threadReactions.label": "スレッドリアクション",
+  "threadReactions.sub": "スレッドの状態が変わると、キャラクターがスレッドウィンドウに座ります。",
+  "threadReactions.aria": "スレッドリアクション",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",

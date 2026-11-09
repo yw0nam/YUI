@@ -674,7 +674,7 @@ const en: Record<string, string> = {
   "threadTurns.every": "Every message",
   "threadTurns.disabled_reason": "Turn on External signals to use this.",
   "threadReactions.label": "Thread reactions",
-  "threadReactions.sub": "When a Thread changes state, she moves to the Threads window.",
+  "threadReactions.sub": "When a Thread changes state, she sits on the Threads window.",
   "threadReactions.aria": "Thread reactions",
 
   // first-run onboarding hint
