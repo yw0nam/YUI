@@ -93,6 +93,17 @@ it("opens 12px beside the pet window on its first open, shown and focused, grows
   expect(setFrame).toHaveBeenCalledWith({ x: 920, y: 108, width: 880, height: 680 });
 });
 
+it("opens without focus by placing the frame and ordering it front, never showing or focusing it", async () => {
+  const { placement: p } = placement({ x: 108, y: 208, width: 640, height: 560 });
+
+  await p.open(CHIP, { focus: false });
+
+  expect(positions()).toEqual([{ type: "Logical", x: 100, y: 200 }]);
+  expect(win.show).not.toHaveBeenCalled();
+  expect(win.setFocus).not.toHaveBeenCalled();
+  expect(invoke.mock.calls).toEqual([["threads_order_front"]]);
+});
+
 it("reopens at its stored frame", async () => {
   const { placement: p } = placement({ x: 108, y: 208, width: 640, height: 560 });
 
