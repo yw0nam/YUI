@@ -40,6 +40,33 @@ pub(super) fn first_user_window(
     })
 }
 
+/// Foreign windows plus the own window numbered `threads_number`, flagged and
+/// named as YUI's Threads window; YUI's other windows are dropped, order kept.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+pub(super) fn filter_listed(
+    windows: Vec<WindowAtPoint>,
+    own_pid: i32,
+    threads_number: Option<u32>,
+) -> Vec<WindowAtPoint> {
+    windows
+        .into_iter()
+        .filter_map(|w| {
+            if w.pid != own_pid {
+                Some(w)
+            } else if Some(w.window_number) == threads_number {
+                Some(WindowAtPoint {
+                    owner_name: Some("YUI".into()),
+                    name: Some("Threads".into()),
+                    threads_window: true,
+                    ..w
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,6 +108,7 @@ mod tests {
             owner_name: owner.map(str::to_string),
             pid,
             window_number: 1,
+            threads_window: false,
         }
     }
 

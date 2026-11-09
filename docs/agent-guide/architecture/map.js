@@ -558,12 +558,13 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, and a docked window's macOS child-window link to its owner window.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, a docked window's macOS child-window link to its owner window, and the Threads window's native number and no-focus order-front.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_frame.rs",
         "src-tauri/src/passthrough.rs",
-        "src-tauri/src/window_dock.rs"
+        "src-tauri/src/window_dock.rs",
+        "src-tauri/src/threads_window.rs"
       ]
     },
     {

@@ -185,7 +185,7 @@ unsafe fn make_cfstring(s: &str) -> CFStringRef {
 //
 // After `start_dragging()` hands control to the OS-modal drag loop, a poll
 // thread detects the mouse release and emits `window_drop_release` with the
-// dragged window's label; `list_all_windows` enumerates the foreign on-screen windows.
+// dragged window's label; `platform_windows` enumerates the on-screen windows.
 
 // kCGEventSourceStateCombinedSessionState = 0; left mouse button = 0.
 const CG_EVENT_SOURCE_STATE_COMBINED: i32 = 0;
@@ -231,11 +231,19 @@ unsafe fn bounds_to_rect(bounds_dict: CFDictionaryRef) -> Option<ScreenRect> {
     })
 }
 
-/// Public window list for the `list_windows` command: every foreign on-screen
-/// window in front-to-back (topmost first) order, mapped to `WindowAtPoint`.
+/// Every foreign on-screen window in front-to-back (topmost first) order, for
+/// the frontmost-window read.
 pub fn list_all_windows() -> Vec<WindowAtPoint> {
     let own_pid = std::process::id() as i32;
     filter_foreign(enumerate_windows(), own_pid)
+        .into_iter()
+        .map(window_rect_to_at_point)
+        .collect()
+}
+
+/// Every on-screen window, YUI's own included, in front-to-back order.
+pub(super) fn platform_windows() -> Vec<WindowAtPoint> {
+    enumerate_windows()
         .into_iter()
         .map(window_rect_to_at_point)
         .collect()
@@ -268,6 +276,7 @@ fn window_rect_to_at_point(w: WindowRect) -> WindowAtPoint {
         owner_name: w.owner_name,
         pid: w.pid,
         window_number: w.window_number,
+        threads_window: false,
     }
 }
 

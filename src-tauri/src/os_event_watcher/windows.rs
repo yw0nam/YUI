@@ -4,8 +4,8 @@
 //! Implements:
 //!   - left-button state reads for the shared drop-release probe.
 //!   - `platform_frontmost`: foreground window title + owning process name.
-//!   - `list_all_windows`: enumerates foreign on-screen top-level windows for
-//!     the `list_windows` command.
+//!   - `platform_windows`: enumerates on-screen top-level windows for the
+//!     `list_windows` command.
 //!
 //! All functions must not panic; degrade gracefully.
 
@@ -36,7 +36,7 @@ use windows::Win32::{
     },
 };
 
-// Shell chrome class names excluded from `list_all_windows` (desktop + taskbars).
+// Shell chrome class names excluded from `platform_windows` (desktop + taskbars).
 const SHELL_CLASS_BLOCKLIST: &[&str] = &[
     "Progman",
     "WorkerW",
@@ -113,13 +113,8 @@ fn physical_window_to_at_point(w: &PhysicalWindow) -> Option<WindowAtPoint> {
         owner_name: None, // Enumerated Windows windows do not resolve app-owner names.
         pid: w.pid,
         window_number: w.window_number,
+        threads_window: false,
     })
-}
-
-/// Pure own-pid filter (no FFI), mirroring the macOS `filter_foreign` shape
-/// so ordering/exclusion stays unit-testable.
-fn filter_foreign(windows: Vec<PhysicalWindow>, own_pid: i32) -> Vec<PhysicalWindow> {
-    windows.into_iter().filter(|w| w.pid != own_pid).collect()
 }
 
 // ─── idle time ────────────────────────────────────────────────────────────────
@@ -205,11 +200,9 @@ fn executable_base_name(path: &str) -> Option<String> {
 
 // ─── window enumeration (list_windows) ──────────────────────────────────────
 
-/// Public window list for the `list_windows` command: every foreign on-screen
-/// top-level window in front-to-back (topmost first) order.
-pub fn list_all_windows() -> Vec<WindowAtPoint> {
-    let own_pid = std::process::id() as i32;
-    filter_foreign(enumerate_windows(), own_pid)
+/// Every on-screen top-level window, YUI's own included, in front-to-back order.
+pub(super) fn platform_windows() -> Vec<WindowAtPoint> {
+    enumerate_windows()
         .iter()
         .filter_map(physical_window_to_at_point)
         .collect()
@@ -494,31 +487,5 @@ mod tests {
     fn hwnd_from_number_sign_extends_the_32_bit_handle() {
         assert_eq!(hwnd_from_number(0x0001_0002), 0x10002);
         assert_eq!(hwnd_from_number(0xFFFF_FFF0), -16);
-    }
-
-    // ── filter_foreign (pure own-pid filter, order-preserving) ──────────────
-
-    fn win(pid: i32) -> PhysicalWindow {
-        PhysicalWindow {
-            rect: rect(0, 0, 100, 100),
-            pid,
-            name: None,
-            window_number: 0,
-            dpi: 96,
-        }
-    }
-
-    #[test]
-    fn filter_foreign_drops_own_and_preserves_order() {
-        let own = 4242;
-        let windows = vec![win(11), win(own), win(22)];
-        let kept = filter_foreign(windows, own);
-        let pids: Vec<i32> = kept.iter().map(|w| w.pid).collect();
-        assert_eq!(pids, vec![11, 22]);
-    }
-
-    #[test]
-    fn filter_foreign_empty_is_empty() {
-        assert!(filter_foreign(Vec::new(), 999).is_empty());
     }
 }
