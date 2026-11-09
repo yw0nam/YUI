@@ -546,7 +546,7 @@ YUI/
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         card/                          # The card's file steps: import, export, and the thumbnail URL
-          card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
+          card-import.ts               # Card import: OS picker, native read/parse, and the rollback of the claimed thumbnail, VRM and voice folder
           card-thumbnail.ts            # Thumbnail retain (temp id → preset id, framed by its default crop), remove, and the photo pick that stores a preset's thumbnail, through the shell
           photo-size.ts                # The natural size of a photo, read by decoding it
           card-export.ts               # The export file-name sanitizer
@@ -762,8 +762,8 @@ YUI/
           help/                      # Help section of the General page
             help-section.ts          # One Ask button per bundled guide
           card/                      # The Persona page's card section
-            card-io.ts               # The card section's import and export actions and their status lines
-            card-section.ts          # The card fields, send switch, reset, greeting list, and file action row
+            card-io.ts               # The card section's action row: click dispatch, import, PNG and preset file exports, the picture gate, the status lines and the import notice
+            card-section.ts          # The card fields, send switch, reset, and greeting list; wires the action row and the export panel
             card-section.css         # Card field, state, and greeting row styles
             preset-export-panel.ts   # The inline list of what a preset file carries, the rights check, and Export…
             preset-export-panel.css  # The export panel's status inks and actions

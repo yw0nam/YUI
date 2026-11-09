@@ -3754,7 +3754,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM and user voice); Export card only (PNG) \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size)",
+      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"

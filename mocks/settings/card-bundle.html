@@ -189,7 +189,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
     }
     const imp = linkBtn("가져오기…", () => { $("pickFile").hidden = false; closeXp(); });
     const exY = linkBtn("프리셋 내보내기 (.yui)", () => openXp("yui"));
-    const exP = linkBtn("카드만 내보내기 (PNG)", () => { if (state.png === "P1") { closeXp(); done("exportDone", "저장했어요"); } else openXp("png"); });
+    const exP = linkBtn("카드만 내보내기 (PNG)…", () => { if (state.png === "P1") { closeXp(); done("exportDone", "저장했어요"); } else openXp("png"); });
     if (state.layout === "L1") {
       host.append(el("div", { class: "yui-row yui-row--action yui-card__io" }, imp, exY, exP),
         el("p", { class: "yui-row__sub yui-card__io-note", text: "프리셋 파일(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 프리셋 파일이나 PNG 카드로 해요" }));
