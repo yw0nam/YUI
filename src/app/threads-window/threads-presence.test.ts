@@ -13,8 +13,10 @@ it("brings a shown window forward on a second open, without placing or growing i
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(CHIP);
@@ -33,8 +35,10 @@ it("opens with no chip rect from no origin on the asked tab, and a later open's 
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(undefined, "terminal");
@@ -42,8 +46,8 @@ it("opens with no chip rect from no origin on the asked tab, and a later open's 
   presence.open(CHIP, "threads");
 
   await vi.waitFor(() => expect(focus).toHaveBeenCalledTimes(2));
-  expect(show).toHaveBeenCalledWith(undefined);
-  expect(view.open).toHaveBeenCalledWith(null, "terminal");
+  expect(show).toHaveBeenCalledWith(undefined, {});
+  expect(view.open).toHaveBeenCalledWith(null, "terminal", {});
   expect(view.select.mock.calls).toEqual([["threads"]]);
 });
 
@@ -61,8 +65,10 @@ it("runs the next open after a close whose view.close rejects", async () => {
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(CHIP);

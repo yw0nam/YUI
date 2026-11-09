@@ -3,6 +3,7 @@
  * frame after that, moves by its head's native drag, and saves the frame once a user move settles.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
@@ -52,6 +53,9 @@ async function besidePet(panel: { width: number; height: number }): Promise<Scre
   if (!workArea) throw new Error("no monitor");
   return threadsWindowRect({ pet, workArea, panel });
 }
+
+/** Orders the window front without key status or app activation, showing it when hidden. */
+const orderFront = (): Promise<void> => invoke("threads_order_front");
 
 export function createThreadsPlacement(deps: {
   settings: Pick<ThreadsWindowSettingsStore, "get" | "setFrame">;
@@ -126,8 +130,8 @@ export function createThreadsPlacement(deps: {
   }
 
   return {
-    /** Places, shows and focuses the window; resolves where the grow from `chip` starts (window-local px), or null without one. */
-    async open(chip?: ScreenRect): Promise<ScreenRect | null> {
+    /** Places, shows and focuses the window (`focus: false` only orders it front); resolves where the grow from `chip` starts (window-local px), or null without one. */
+    async open(chip?: ScreenRect, opts?: { focus?: false }): Promise<ScreenRect | null> {
       const { x, y, width, height } = deps.settings.get();
       const next =
         x !== undefined && y !== undefined
@@ -135,11 +139,17 @@ export function createThreadsPlacement(deps: {
           : await besidePet({ width, height });
       await apply(next);
       save();
-      const win = getCurrentWindow();
-      await win.show();
-      await win.setFocus();
+      if (opts?.focus === false) {
+        await orderFront();
+      } else {
+        const win = getCurrentWindow();
+        await win.show();
+        await win.setFocus();
+      }
       return chip ? chipInWindow(chip, next) : null;
     },
+    /** Orders the shown window front without focus. */
+    raise: orderFront,
     /** Brings the shown window to the front where it is. */
     async focus(): Promise<void> {
       const win = getCurrentWindow();
