@@ -77,6 +77,7 @@ export function createThreadsWindowController(deps: {
   let open = false;
   const waiters = new Map<string, (result: "presented" | "closed") => void>();
   let seq = 0;
+  let disposed = false;
   function settle(id: string, result: "presented" | "closed"): void {
     const waiter = waiters.get(id);
     waiters.delete(id);
@@ -115,6 +116,7 @@ export function createThreadsWindowController(deps: {
     open: (chip, tab) => send(chip, tab ? { tab } : {}),
     isOpen: () => open,
     present(chip, opts) {
+      if (disposed) return Promise.resolve("closed");
       const id = `present-${++seq}`;
       return new Promise((resolve) => {
         waiters.set(id, resolve);
@@ -132,6 +134,7 @@ export function createThreadsWindowController(deps: {
       return () => listeners.delete(cb);
     },
     dispose() {
+      disposed = true;
       ready.dispose();
       offClosed();
       offPresented();
