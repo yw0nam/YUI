@@ -174,7 +174,7 @@ describe("importPreset", () => {
   it("a failed preset creation removes the vrm, the registered voice and the notice", async () => {
     const base = baseDeps(
       yuiCard({
-        vrm: { kind: "user", id: "mio_vrm", url: "asset://x/model.vrm" },
+        vrm: { kind: "user", id: "mio_vrm", url: "asset://x/model.vrm", label: "Mio" },
         voice: { stagedId: "import-9", refUrl: "asset://x/clip.wav", label: "Mio" },
       }),
     );

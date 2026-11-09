@@ -10,7 +10,7 @@ import type { InvokeFn } from "../user-asset-import";
 
 /** The VRM a preset file claimed: a user copy under app-data, or a bundled model named by id. */
 export type ImportedCardVrm =
-  | { kind: "user"; id: string; url: string }
+  | { kind: "user"; id: string; url: string; label: string }
   | { kind: "bundled"; id: string };
 
 /** The voice clip a preset file staged under the import's staging folder. */
@@ -51,7 +51,10 @@ interface ImportedCardFile {
   thumbnailTempId?: string | null;
   source: "json" | "png" | "yui";
   crop?: unknown;
-  vrm?: { kind: "user"; id: string; destPath: string } | { kind: "bundled"; id: string } | null;
+  vrm?:
+    | { kind: "user"; id: string; destPath: string; label: string }
+    | { kind: "bundled"; id: string }
+    | null;
   voice?: { id: string; refPath: string; label: string } | null;
 }
 
@@ -73,7 +76,7 @@ function mapVrm(
 ): ImportedCardVrm | undefined {
   if (!vrm) return undefined;
   return vrm.kind === "user"
-    ? { kind: "user", id: vrm.id, url: convertFileSrc(vrm.destPath) }
+    ? { kind: "user", id: vrm.id, url: convertFileSrc(vrm.destPath), label: vrm.label }
     : { kind: "bundled", id: vrm.id };
 }
 

@@ -44,8 +44,14 @@ pub(crate) struct PresetDirs {
     rename_all_fields = "camelCase"
 )]
 pub enum PresetFileVrm {
-    User { id: String, dest_path: String },
-    Bundled { id: String },
+    User {
+        id: String,
+        dest_path: String,
+        label: String,
+    },
+    Bundled {
+        id: String,
+    },
 }
 
 /// The voice clip a preset file carried, staged under `references/<id>/`.
@@ -60,8 +66,14 @@ pub struct PresetFileVoice {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub(crate) enum PresetFileVrmRef {
-    User { id: String },
-    Bundled { id: String },
+    /// `label` is the name the VRM list shows for it.
+    User {
+        id: String,
+        label: String,
+    },
+    Bundled {
+        id: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -234,13 +246,15 @@ fn claim_assets(
         Some(ManifestVrm::Bundled { bundled }) => Some(PresetFileVrm::Bundled {
             id: bundled.clone(),
         }),
-        Some(ManifestVrm::File { .. }) => {
+        Some(ManifestVrm::File { name, .. }) => {
+            let name = name.as_deref().filter(|n| !n.trim().is_empty());
             let file = zip.by_name(VRM_ENTRY).map_err(|_| unreadable())?;
+            // claim_and_copy sanitizes the stem; the VRM's own name wins over the picked file's.
             let (id, dest) = claim_and_copy(
                 file,
                 &ClaimTarget {
                     dir: &dirs.vrms,
-                    name_stem,
+                    name_stem: name.unwrap_or(name_stem),
                     identity,
                     ext: "vrm",
                     kind: SniffKind::Glb,
@@ -250,6 +264,7 @@ fn claim_assets(
             )?;
             claimed.vrm = Some(id.clone());
             Some(PresetFileVrm::User {
+                label: name.map_or_else(|| id.clone(), str::to_string),
                 id,
                 dest_path: dest.to_string_lossy().into_owned(),
             })
@@ -341,13 +356,14 @@ pub(crate) fn write_preset_file(
                 bundled: id.clone(),
             });
         }
-        Some(PresetFileVrmRef::User { id }) => {
+        Some(PresetFileVrmRef::User { id, label }) => {
             if let Some(vrm) = existing_file(&dirs.vrms, &format!("{}.vrm", sanitize_stem(id)))? {
                 let license = read_license(std::fs::File::open(&vrm).map_err(read_failed)?);
                 if license != VrmLicense::Prohibited {
                     add_file(&mut zip, VRM_ENTRY, &vrm)?;
                     manifest.vrm = Some(ManifestVrm::File {
                         file: VRM_ENTRY.to_string(),
+                        name: Some(label.clone()),
                     });
                 }
             }

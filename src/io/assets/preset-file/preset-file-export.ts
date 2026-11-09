@@ -8,8 +8,10 @@ import { type InvokeFn, loadInvoke } from "../user-asset-import";
 
 export type PresetExportResult = "written" | "cancelled";
 
-/** The VRM an export request names: a user file under app-data, or a bundled model. */
-export type PresetVrmRef = { kind: "user" | "bundled"; id: string };
+/** The VRM an export request names: a user file under app-data with its list name, or a bundled model. */
+export type PresetVrmRef =
+  | { kind: "user"; id: string; label: string }
+  | { kind: "bundled"; id: string };
 
 /** The `.yui` export request; camelCase over the Rust `PresetFileExportRequest`. */
 export interface PresetExportRequest {

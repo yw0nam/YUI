@@ -132,9 +132,11 @@ export function createPresetExportPanel(deps: {
     return {
       ...(e.thumbnail ? { thumbnailPresetId: e.id, ...(e.crop ? { crop: e.crop } : {}) } : {}),
       // A VRM from the config file has no copy the receiver can resolve, so it stays out.
-      ...(vrm.source === "user" || vrm.source === "bundled"
-        ? { vrm: { kind: vrm.source, id: vrm.id } }
-        : {}),
+      ...(vrm.source === "user"
+        ? { vrm: { kind: "user", id: vrm.id, label: vrm.label || vrm.id } }
+        : vrm.source === "bundled"
+          ? { vrm: { kind: "bundled", id: vrm.id } }
+          : {}),
       ...(voice.source === "user" && voice.ref_url
         ? { voice: { id: voice.id, label: voice.label ?? voice.id } }
         : {}),

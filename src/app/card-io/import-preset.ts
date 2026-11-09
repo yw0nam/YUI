@@ -71,7 +71,7 @@ export async function importPreset(deps: ImportPresetDeps): Promise<ImportPreset
   let addedVrm: AvatarOption | undefined;
   const vrm = imported.vrm;
   if (vrm?.kind === "user") {
-    addedVrm = { id: vrm.id, label: vrm.id, url: vrm.url, source: "user" };
+    addedVrm = { id: vrm.id, label: vrm.label, url: vrm.url, source: "user" };
     deps.vrmSelection.addUserOption(addedVrm);
     vrmId = vrm.id;
   } else if (vrm?.kind === "bundled" && deps.vrmSelection.list().some((o) => o.id === vrm.id)) {

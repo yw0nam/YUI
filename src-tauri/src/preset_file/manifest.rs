@@ -24,8 +24,15 @@ pub(crate) struct Manifest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(crate) enum ManifestVrm {
-    File { file: String },
-    Bundled { bundled: String },
+    /// `name` is the VRM's own name, which the receiver's copy is stored and listed under.
+    File {
+        file: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
+    Bundled {
+        bundled: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +46,7 @@ impl Manifest {
     pub(crate) fn validate(&self) -> Result<(), String> {
         let vrm_ok = match &self.vrm {
             None => true,
-            Some(ManifestVrm::File { file }) => file == VRM_ENTRY,
+            Some(ManifestVrm::File { file, .. }) => file == VRM_ENTRY,
             Some(ManifestVrm::Bundled { bundled }) => !bundled.is_empty(),
         };
         let voice_ok = self
