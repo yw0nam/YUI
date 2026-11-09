@@ -6,7 +6,11 @@
 import { toV2Envelope } from "../../../../config/validators/persona/serialize-card";
 import type { Card } from "../../../../config/validators/persona/types";
 import { sanitizeFileStem } from "../../../../io/assets/card/card-export";
-import type { ImportedCard } from "../../../../io/assets/card/card-import";
+import type {
+  PresetExportRequest,
+  PresetFileExportResult,
+  VrmInspection,
+} from "../../../../io/assets/preset-file/preset-file-export";
 import { cardName } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
 import { extensionsWithFiller } from "../../../../settings/voice/card-filler";
@@ -14,9 +18,22 @@ import type { FillerSettings } from "../../../../settings/voice/filler-settings"
 import { t } from "../../../i18n";
 
 export interface CardIoPorts {
-  importCard: () => Promise<ImportedCard | null>;
+  /** Runs the whole card import through preset creation; null when the picker was dismissed. */
+  importPreset: () => Promise<{ presetId: string } | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  /** Opens the `.yui` save dialog; "cancelled" when dismissed. */
+  exportPresetFile: (request: PresetExportRequest) => Promise<PresetFileExportResult>;
+  /** Writes the card text into the preset's PNG; "cancelled" when dismissed. */
+  exportCardPng: (
+    defaultName: string,
+    cardJson: string,
+    presetId: string,
+  ) => Promise<"written" | "cancelled">;
+  /** Reads a user VRM's license and size before an export offers it. */
+  inspectPresetVrm: (id: string) => Promise<VrmInspection>;
+  removeCardThumbnail: (id: string) => Promise<void>;
+  /** Absent outside Tauri, where there is no native picker. */
+  pickPresetPhoto?: (presetId: string) => Promise<string | null>;
 }
 
 export interface CardIo {
@@ -26,7 +43,10 @@ export interface CardIo {
 
 export function createCardIo(deps: {
   errorEl: HTMLElement;
-  ports: CardIoPorts;
+  ports: Pick<
+    CardIoPorts,
+    "importPreset" | "exportCard" | "exportPresetFile" | "exportCardPng" | "inspectPresetVrm"
+  >;
   currentCard: () => Card;
   entry: () => { id: string; name: string };
   /** The active preset's custom filler pools, carried in the export's extensions.yui. */
@@ -44,12 +64,11 @@ export function createCardIo(deps: {
 
   async function handleImport(): Promise<void> {
     try {
-      const imported = await deps.ports.importCard();
+      const imported = await deps.ports.importPreset();
       if (!imported) return;
-      const id = await deps.ports.createPresetFromCard(imported.card, imported.thumbnailTempId);
       clearError();
       // The windows reload into the new preset right after; the log line is the record.
-      deps.log.info("card_import", { preset: id });
+      deps.log.info("card_import", { preset: imported.presetId });
     } catch (err) {
       const name = err instanceof Error ? err.message : String(err);
       // Only an unreadable payload means the file holds no card; everything else is a failure.

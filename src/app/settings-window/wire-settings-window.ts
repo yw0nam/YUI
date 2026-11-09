@@ -81,6 +81,7 @@ export async function wireSettingsWindow(deps: {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
+    registerCopiedVoice,
     removeVoice,
     refreshVoiceList,
     canManageVoices,
@@ -220,7 +221,13 @@ export async function wireSettingsWindow(deps: {
       canManageVoices,
       canReuploadVoices,
       canPasteVoiceId,
-      ...wireCardIo(presetRegistry),
+      ...wireCardIo({
+        registry: presetRegistry,
+        vrmSelection,
+        speakerSelection,
+        removeVoice,
+        registerCopiedVoice,
+      }),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),

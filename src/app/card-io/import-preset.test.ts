@@ -12,7 +12,7 @@ import { readCard } from "../../config/validators/persona/read-card";
 import type { Card } from "../../config/validators/persona/types";
 import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
-import type { CreatePresetFromCardInput } from "../../settings/preset/import-card-preset";
+import type { ImportPresetCreateInput } from "./import-preset";
 import { CARD_IMPORT_NOTICE_KEY, importPreset } from "./import-preset";
 
 const card = (): Card =>
@@ -66,7 +66,7 @@ function baseDeps(imported: ImportedCard | null) {
     discardVoice: vi.fn(async () => {}),
     removeUserVrm: vi.fn(async () => {}),
     vrmSelection: fakeVrmSelection(),
-    createPresetFromCard: vi.fn(async (_input: CreatePresetFromCardInput) => "new1"),
+    createPresetFromCard: vi.fn(async (_input: ImportPresetCreateInput) => "new1"),
     noticeStorage: notice,
     notice,
   };

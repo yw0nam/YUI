@@ -555,11 +555,9 @@ describe("createVoiceImportFlow", () => {
     it("a taken label walks to a free name beside the existing voice", async () => {
       const taken: SpeakerOption = { ...IMPORTED, provider: "irodori" };
       renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
-      const { registerCopiedVoice, speakerSelection } = build(
-        "http://localhost:8091",
-        "irodori",
-        [taken],
-      );
+      const { registerCopiedVoice, speakerSelection } = build("http://localhost:8091", "irodori", [
+        taken,
+      ]);
 
       await expect(
         registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),

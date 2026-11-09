@@ -28,7 +28,7 @@ function makeDeps(over: Partial<CardImportDeps> = {}): CardImportDeps {
     removeThumbnail: vi.fn(async () => {}),
     removeUserVrm: vi.fn(async () => {}),
     removeUserVoice: vi.fn(async () => {}),
-    convertFileSrc: (path: string) => `asset://localhost/${path}`,
+    convertFileSrc: (path: string) => `asset://localhost${path}`,
     ...over,
   };
 }

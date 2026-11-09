@@ -9,7 +9,6 @@ import {
   EMPTY_CARD,
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
-import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
@@ -26,7 +25,7 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
-import { createCardIo } from "./card-io";
+import { type CardIoPorts, createCardIo } from "./card-io";
 import "./card-section.css";
 
 type TextField =
@@ -119,10 +118,12 @@ interface CardSectionDeps {
   isPushMode: () => boolean;
   /** Panel open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
-  /** Card file steps and the preset creator, wired by the app layer. */
-  importCard: () => Promise<ImportedCard | null>;
-  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  /** Card file steps, wired by the app layer. */
+  importPreset: CardIoPorts["importPreset"];
+  exportCard: CardIoPorts["exportCard"];
+  exportPresetFile: CardIoPorts["exportPresetFile"];
+  exportCardPng: CardIoPorts["exportCardPng"];
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   /** Filler pools the card export carries. */
   fillerSettings: Pick<FillerSettingsStore, "get">;
   log: Logger;
@@ -206,9 +207,11 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const io = createCardIo({
     errorEl: q<HTMLElement>(".yui-card__io-error"),
     ports: {
-      importCard: deps.importCard,
+      importPreset: deps.importPreset,
       exportCard: deps.exportCard,
-      createPresetFromCard: deps.createPresetFromCard,
+      exportPresetFile: deps.exportPresetFile,
+      exportCardPng: deps.exportCardPng,
+      inspectPresetVrm: deps.inspectPresetVrm,
     },
     currentCard,
     entry,
