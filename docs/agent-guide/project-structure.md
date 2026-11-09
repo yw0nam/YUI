@@ -917,6 +917,7 @@ YUI/
   skills/                            # Skill folders for the character's backend agent, copied into the agent's skill folder or fetched by raw URL
     README.md                        # The skills for readers: what each one teaches and how an agent takes it
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
+  mocks/                             # Standalone HTML mocks, one folder per screen; they link src/ui stylesheets by relative path (README.md)
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src

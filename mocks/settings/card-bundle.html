@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>캐릭터 묶음 목업</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Real tokens and the real settings stylesheets; the markup below uses their class names. Mock-only staging lives in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/card/card-section.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Layout: demo controls beside a settings window at its real proportions, Persona page, Card section. */
+* { box-sizing: border-box; }
+html { background: var(--yui-panel-bg); }
+body { margin: 0; background: var(--yui-panel-bg); color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 120px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+.lede { color: var(--yui-text-dim); max-width: 70ch; margin: 0; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1060px) { .layout { grid-template-columns: 320px minmax(0, 1fr); align-items: start; } }
+.side { display: grid; gap: 12px; min-width: 0; }
+.dgroup { border-radius: var(--yui-radius-group); background: var(--yui-group-bg); border: 1px solid var(--yui-edge); }
+.dgroup > * + * { border-top: 1px solid var(--yui-edge); }
+.drow { display: grid; gap: 6px; padding: 10px 12px; }
+.drow .lbl { font-weight: 600; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; width: fit-content; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.seg button:focus-visible, .btn:focus-visible { outline: 2px solid var(--yui-accent-ink); outline-offset: 2px; }
+.ask { font-size: var(--yui-fs-sub); color: var(--yui-accent-ink); font-weight: 600; }
+
+/* the settings window at its real width; the OS window owns the opaque background */
+.win { width: 100%; max-width: 820px; height: 720px; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge-strong); box-shadow: var(--yui-float); background: var(--yui-panel-bg); }
+.win .yui-quick__body { overflow-y: auto; padding: 0 1.25rem 2rem; }
+.yui-tab[aria-selected="true"] { background: var(--yui-selected); color: var(--yui-text); }
+.mock-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0.25rem 0.25rem 1.25rem; }
+.mock-preset { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 5px; border-radius: 999px; border: 1px solid var(--yui-edge); background: var(--yui-group-bg); font-weight: 500; font-size: var(--yui-fs-sub); }
+.mock-preset .face { width: 20px; height: 20px; border-radius: 50%; background: oklch(0.32 0.05 265); }
+.mock-preset.on { border-color: var(--yui-edge-strong); background: var(--yui-selected); }
+.mock-preset.new { animation: newchip 1.6s var(--yui-ease); border-color: var(--yui-accent-soft); }
+@keyframes newchip { from { box-shadow: 0 0 0 6px var(--yui-accent-faint); } to { box-shadow: 0 0 0 0 transparent; } }
+.fld { width: 14rem; max-width: 100%; height: 2rem; border-radius: 8px; border: 1px solid var(--yui-edge-strong); background: var(--yui-field); padding: 0 10px; display: flex; align-items: center; color: var(--yui-text); font-size: var(--yui-fs-body); }
+
+/* export panel: a group under the action row, never a modal (DESIGN.md § Don'ts) */
+.xp { margin-top: 0.5rem; }
+.xp[hidden] { display: none; }
+.xp-title { margin: 0.75rem 0.25rem 0.5rem; font-size: var(--yui-fs-head); font-weight: 600; }
+.st { font-size: var(--yui-fs-sub); font-weight: 600; white-space: nowrap; }
+.st.in { color: var(--yui-ok); }
+.st.out { color: var(--yui-danger); }
+.st.warn { color: var(--yui-accent-ink); }
+.yui-row__sub.danger { color: var(--yui-danger); }
+.yui-row__sub.warn { color: var(--yui-accent-ink); }
+.acts { display: flex; gap: 0.5rem; justify-content: flex-end; flex: 1; }
+.btn { font: inherit; font-size: var(--yui-fs-sub); font-weight: 600; padding: 6px 14px; border-radius: var(--yui-radius-control); border: 1px solid var(--yui-edge-strong); background: var(--yui-field); color: var(--yui-text); cursor: pointer; }
+.btn.primary { background: var(--yui-text); border-color: var(--yui-text); color: var(--yui-panel-bg); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.done-line { margin: 0.375rem 0.25rem 0; font-size: var(--yui-fs-sub); color: var(--yui-ok); }
+.done-line[hidden] { display: none; }
+.pick-file { display: flex; gap: 6px; flex-wrap: wrap; margin: 0.375rem 0.25rem 0; }
+.pick-file[hidden] { display: none; }
+.pick-file button { font: inherit; font-size: var(--yui-fs-sub); padding: 3px 10px; border-radius: 999px; border: 1px dashed var(--yui-edge-strong); background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.io-split { display: grid; }
+.io-split .yui-row { justify-content: space-between; }
+
+body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0px); }
+.dbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--yui-scrim-strong); backdrop-filter: blur(8px); border-top: 1px solid var(--yui-edge-strong); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.dbar-in { max-width: 1240px; margin: 0 auto; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.picks { display: flex; gap: 6px; flex-wrap: wrap; font-size: var(--yui-fs-sub); }
+.picks span { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); font-family: var(--yui-font-mono); }
+.status { font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/settings · #1937</span>
+    <h1>캐릭터를 파일 하나로 내보내고 가져오기</h1>
+    <p class="lede">설정 › 페르소나 › 카드 섹션입니다. 버튼을 눌러 흐름을 따라가 보세요. 왼쪽에서 VRM 라이선스와 음성 상태를 바꾸면 내보내기 내용이 달라집니다. 주황 글씨 항목은 아직 정하지 않은 것입니다.</p>
+  </header>
+  <div class="layout">
+    <aside class="side">
+      <div class="dgroup">
+        <div class="drow"><span class="lbl">비교</span><div class="seg" id="segMode"><button type="button" data-v="before">지금</button><button type="button" data-v="after" aria-pressed="true">바뀐 뒤</button></div></div>
+        <div class="drow"><span class="lbl">VRM 라이선스</span><div class="seg" id="segLic"><button type="button" data-v="cc" aria-pressed="true">0.x CC_BY</button><button type="button" data-v="v1true">1.0 허용</button><button type="button" data-v="v1none">1.0 값 없음</button><button type="button" data-v="prohibited">0.x 재배포 금지</button><button type="button" data-v="unknown">0.x 값 없음 · Other</button></div></div>
+        <div class="drow"><span class="lbl">음성</span><div class="seg" id="segVoice"><button type="button" data-v="clip" aria-pressed="true">참조 클립 있음</button><button type="button" data-v="none">클립 없음 (OpenAI 기본 음성)</button></div></div>
+        <div class="drow"><span class="lbl">테마</span><div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div></div>
+      </div>
+      <div class="dgroup">
+        <div class="drow"><span class="ask">정할 것 1 · 버튼 배치</span><div class="seg" id="segLayout"><button type="button" data-v="L1" aria-pressed="true">L1 한 줄</button><button type="button" data-v="L2">L2 가져오기 / 내보내기 두 줄</button></div><span class="mute">L1: 링크 버튼 세 개를 한 줄에. L2: 가져오기 줄과 내보내기 줄을 나눔.</span></div>
+        <div class="drow"><span class="ask">정할 것 2 · PNG 카드도 권리 확인?</span><div class="seg" id="segPng"><button type="button" data-v="P1" aria-pressed="true">P1 바로 저장</button><button type="button" data-v="P2">P2 같은 확인 후 저장</button></div><span class="mute">PNG 카드에는 카드 글과 썸네일 그림이 들어갑니다. VRM과 음성은 없습니다.</span></div>
+      </div>
+    </aside>
+
+    <div class="win">
+      <div class="yui-quick">
+        <div class="yui-quick__cols">
+          <nav class="yui-rail" aria-label="설정 탭">
+            <div class="yui-tabs" role="tablist">
+              <button class="yui-tab" type="button" role="tab">연결</button>
+              <button class="yui-tab" type="button" role="tab">음성</button>
+              <button class="yui-tab" type="button" role="tab" aria-selected="true">페르소나</button>
+              <button class="yui-tab" type="button" role="tab">몸</button>
+              <button class="yui-tab" type="button" role="tab">말걸기</button>
+              <button class="yui-tab" type="button" role="tab">동작과 데스크톱</button>
+              <button class="yui-tab" type="button" role="tab">함께</button>
+              <button class="yui-tab" type="button" role="tab">기록</button>
+              <button class="yui-tab" type="button" role="tab">플러그인</button>
+              <button class="yui-tab" type="button" role="tab" id="yui-tab-general">일반</button>
+            </div>
+          </nav>
+          <div class="yui-quick__body">
+            <div class="mock-presets" id="presets"><span class="mock-preset on"><span class="face"></span>Yui</span><span class="mock-preset"><span class="face" style="background:oklch(0.55 0.1 20)"></span>Natsume</span></div>
+
+            <div class="yui-sec yui-card">
+              <div class="yui-sec__head"><h2 class="yui-sec__title">카드</h2><span class="yui-sec__state"></span><button class="yui-reset" type="button">기본값으로</button></div>
+              <div class="yui-group yui-group--switch">
+                <div class="yui-row">
+                  <div class="yui-row__main"><span class="yui-row__label">카드 보내기</span><span class="yui-row__sub">캐릭터 페르소나가 시스템 프롬프트로 백엔드에 가요</span></div>
+                  <button class="yui-switch" type="button" role="switch" aria-checked="true" aria-label="카드 보내기"></button>
+                </div>
+                <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">이름</span></div><span class="fld">Yui</span></div>
+              </div>
+              <p class="yui-sec__foot">매크로: {{char}} = 캐릭터 이름 · {{user}} = 내 이름</p>
+
+              <div id="ioHost"></div>
+              <div class="pick-file" id="pickFile" hidden><span class="mute">예시 파일:</span><button type="button" data-f="yui">Yui.yui</button><button type="button" data-f="png">Yui.png</button><button type="button" data-f="json">card.json</button></div>
+              <p class="done-line" id="importDone" hidden></p>
+
+              <div class="xp" id="xp" hidden>
+                <p class="xp-title" id="xpTitle">묶음에 넣을 것</p>
+                <div class="yui-group" id="xpRows"></div>
+                <p class="yui-sec__foot">API 키, 연결 설정, 대화 기록, 관계 값은 넣지 않아요.</p>
+                <div class="yui-group" style="margin-top:0.5rem" id="rightsGroup">
+                  <div class="yui-row">
+                    <div class="yui-row__main"><span class="yui-row__label">이 파일들을 공유할 권리가 있어요</span><span class="yui-row__sub">모델이나 목소리가 다른 사람의 것일 수 있어요</span></div>
+                    <button class="yui-switch" id="rights" type="button" role="checkbox" aria-checked="false" aria-label="이 파일들을 공유할 권리가 있어요"></button>
+                  </div>
+                </div>
+                <div class="yui-row yui-row--action"><div class="acts"><button class="btn" type="button" id="xpCancel">취소</button><button class="btn primary" type="button" id="xpGo" disabled>내보내기…</button></div></div>
+              </div>
+              <p class="done-line" id="exportDone" hidden></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="dbar" role="region" aria-label="고른 선택지">
+  <div class="dbar-in">
+    <div class="picks" id="picks"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status" id="status"></span>
+      <button type="button" class="btn" id="copy">답변 복사</button>
+      <button type="button" class="btn primary" id="save" hidden>선택 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const state = { mode: "after", lic: "cc", voice: "clip", layout: "L1", png: "P1", xp: null, imported: 0 };
+  try { Object.assign(state, JSON.parse(localStorage.getItem("yui-mock-bundle") || "{}"), { xp: null, imported: 0 }); } catch (e) {}
+  const LIC = {
+    cc: { st: "in", label: "넣음", sub: "Yui_AUT0154.vrm · 84 MB · CC_BY" },
+    v1true: { st: "in", label: "넣음", sub: "Yui_AUT0154.vrm · 84 MB · 재배포 허용" },
+    v1none: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요. 값이 없으면 허용하지 않는 것으로 봐요", cls: "danger" },
+    prohibited: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요 (Redistribution_Prohibited)", cls: "danger" },
+    unknown: { st: "warn", label: "확인 필요", sub: "라이선스 정보가 없어요. 공유할 권리가 있을 때만 넣어요", cls: "warn" }
+  };
+  const el = (t, a, ...k) => { const n = document.createElement(t); for (const [x, v] of Object.entries(a || {})) { if (x === "class") n.className = v; else if (x === "text") n.textContent = v; else n.setAttribute(x, v); } n.append(...k.filter(Boolean)); return n; };
+  const linkBtn = (text, act) => { const b = el("button", { class: "yui-link-btn", type: "button", text }); b.addEventListener("click", act); return b; };
+
+  function renderIo() {
+    const host = $("ioHost"); host.replaceChildren();
+    if (state.mode === "before") {
+      host.append(el("div", { class: "yui-row yui-row--action yui-card__io" }, linkBtn("카드 가져오기…", () => {}), linkBtn("카드 내보내기", () => {})),
+        el("p", { class: "yui-row__sub yui-card__io-note", text: "JSON이나 PNG 카드를 가져오고, V2 JSON으로 내보내요" }));
+      return;
+    }
+    const imp = linkBtn("가져오기…", () => { $("pickFile").hidden = false; closeXp(); });
+    const exY = linkBtn("캐릭터 내보내기 (.yui)", () => openXp("yui"));
+    const exP = linkBtn("카드만 내보내기 (PNG)", () => { if (state.png === "P1") { closeXp(); done("exportDone", "Yui.png로 저장했어요 · 0.6 MB"); } else openXp("png"); });
+    if (state.layout === "L1") {
+      host.append(el("div", { class: "yui-row yui-row--action yui-card__io" }, imp, exY, exP),
+        el("p", { class: "yui-row__sub yui-card__io-note", text: "YUI 묶음(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 YUI 묶음이나 PNG 카드로 해요" }));
+    } else {
+      host.append(el("div", { class: "yui-group io-split" },
+        el("div", { class: "yui-row yui-row--action" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: "가져오기" }), el("span", { class: "yui-row__sub", text: "YUI 묶음(.yui), JSON·PNG 카드" })), imp),
+        el("div", { class: "yui-row yui-row--action" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: "내보내기" }), el("span", { class: "yui-row__sub", text: "모델과 음성까지, 또는 카드만" })), exY, exP)));
+    }
+  }
+  function done(id, text) { const p = $(id); p.textContent = text; p.hidden = false; }
+  function closeXp() { state.xp = null; $("xp").hidden = true; }
+  function openXp(kind) {
+    state.xp = kind; $("xp").hidden = false; $("exportDone").hidden = true; $("pickFile").hidden = true;
+    $("rights").setAttribute("aria-checked", "false");
+    renderXp();
+  }
+  function rowOf(label, st, stText, sub, subCls) {
+    return el("div", { class: "yui-row" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: label }), el("span", { class: "yui-row__sub" + (subCls ? " " + subCls : ""), text: sub })), el("span", { class: "st " + st, text: stText }));
+  }
+  function renderXp() {
+    if (!state.xp) return;
+    const rows = $("xpRows"); rows.replaceChildren();
+    if (state.xp === "png") {
+      $("xpTitle").textContent = "PNG 카드에 넣을 것";
+      rows.append(rowOf("카드", "in", "넣음", "Yui · 대기 대사 포함"), rowOf("썸네일 그림", "in", "넣음", "카드를 담는 그림"));
+    } else {
+      $("xpTitle").textContent = "묶음에 넣을 것";
+      const L = LIC[state.lic];
+      rows.append(rowOf("카드", "in", "넣음", "Yui · 대기 대사 포함"), rowOf("썸네일", "in", "넣음", "자르기 영역 포함"), rowOf("VRM", L.st, L.label, L.sub, L.cls),
+        state.voice === "clip" ? rowOf("음성", "in", "넣음", "yui-ref.wav · 1.2 MB · 받는 사람이 자기 TTS에 다시 등록해요") : rowOf("음성", "out", "빠짐", "로컬 클립이 없는 음성이에요 (OpenAI 기본 음성)", "danger"));
+    }
+    syncGo();
+  }
+  function syncGo() { $("xpGo").disabled = $("rights").getAttribute("aria-checked") !== "true"; }
+  $("rights").addEventListener("click", (e) => { const b = e.currentTarget; b.setAttribute("aria-checked", String(b.getAttribute("aria-checked") !== "true")); syncGo(); });
+  $("xpCancel").addEventListener("click", closeXp);
+  $("xpGo").addEventListener("click", () => {
+    const kind = state.xp; closeXp();
+    if (kind === "png") { done("exportDone", "Yui.png로 저장했어요 · 0.6 MB"); return; }
+    const vrmIn = LIC[state.lic].st !== "out";
+    const size = (vrmIn ? 84 : 0) + (state.voice === "clip" ? 1.2 : 0) + 0.6;
+    done("exportDone", `Yui.yui로 저장했어요 · ${size.toFixed(1)} MB${vrmIn ? "" : " · VRM은 빠졌어요"}`);
+  });
+  $("pickFile").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-f]"); if (!b) return;
+    $("pickFile").hidden = true; state.imported++;
+    const name = state.imported === 1 ? "Yui (2)" : `Yui (${state.imported + 1})`;
+    const chip = el("span", { class: "mock-preset new" }, el("span", { class: "face" }), name);
+    $("presets").append(chip);
+    const what = b.dataset.f === "yui" ? "카드, VRM, 음성 클립, 썸네일을 가져왔어요" : b.dataset.f === "png" ? "카드와 썸네일을 가져왔어요" : "카드를 가져왔어요";
+    done("importDone", `새 캐릭터 ${name}를 만들었어요. ${what}.`);
+  });
+
+  function setSeg(id, v) { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
+  function bind(id, key, after) {
+    setSeg(id, state[key]);
+    $(id).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; state[key] = b.dataset.v; setSeg(id, b.dataset.v); try { localStorage.setItem("yui-mock-bundle", JSON.stringify(state)); } catch (er) {} after && after(); renderPicks(); });
+  }
+  bind("segMode", "mode", () => { closeXp(); renderIo(); });
+  bind("segLic", "lic", renderXp);
+  bind("segVoice", "voice", renderXp);
+  bind("segLayout", "layout", renderIo);
+  bind("segPng", "png", () => { if (state.xp === "png" && state.png === "P1") closeXp(); });
+  $("segTheme").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("segTheme", b.dataset.v); if (b.dataset.v === "hearth") document.documentElement.setAttribute("data-theme", "hearth"); else document.documentElement.removeAttribute("data-theme"); });
+  try { if (window.matchMedia("(prefers-color-scheme: dark)").matches || document.documentElement.getAttribute("data-theme") === "dark") { document.documentElement.setAttribute("data-theme", "hearth"); setSeg("segTheme", "hearth"); } } catch (e) {}
+
+  const LBL = { L1: "L1 한 줄", L2: "L2 두 줄", P1: "P1 PNG 바로 저장", P2: "P2 PNG도 권리 확인" };
+  const answer = () => `버튼 배치: ${LBL[state.layout]}\nPNG 권리 확인: ${LBL[state.png]}`;
+  function renderPicks() { const h = $("picks"); h.replaceChildren(); for (const k of ["layout", "png"]) h.append(el("span", { text: LBL[state[k]] })); }
+  $("copy").addEventListener("click", () => { const t = answer(); try { navigator.clipboard.writeText(t).then(() => { $("status").textContent = "복사했습니다."; }, () => { $("status").textContent = t.replace(/\n/g, " · "); }); } catch (e) { $("status").textContent = t.replace(/\n/g, " · "); } });
+  (async () => {
+    let db = null;
+    try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) {}
+    if (!db) return;
+    const btn = $("save"); btn.hidden = false;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; $("status").textContent = "저장 중…";
+      try { await db.doc("picks/bundle").set({ layout: state.layout, png: state.png, text: answer(), savedAt: new Date().toISOString() }); $("status").textContent = "저장했습니다. Claude가 읽을 수 있습니다."; }
+      catch (e) { $("status").textContent = "저장하지 못했습니다. 답변 복사를 쓰세요."; }
+      btn.disabled = false;
+    });
+  })();
+  renderIo(); renderPicks();
+})();
+</script>
+</body>
+</html>

@@ -55,7 +55,7 @@ repositories** and optional — see
 - **UI: review existing → propose → mock → implement.** Read the existing
   `src/ui/` screens plus [`DESIGN.md`](DESIGN.md) and [`PRODUCT.md`](PRODUCT.md)
   before any UI work; propose the text structure, get confirmation, build a
-  standalone mock HTML, then implement.
+  standalone mock HTML in [`mocks/`](mocks/README.md), then implement.
 - **Verify before asking.** Anything observable (UI rendering, DOM state, logs)
   — verify it yourself and attach the proof to the PR's **Runtime evidence**
   section; ask the user only for what genuinely requires them (audio playback,
