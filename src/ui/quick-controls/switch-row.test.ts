@@ -124,9 +124,9 @@ describe("SwitchRow descriptor", () => {
     const button = root.querySelector<HTMLButtonElement>(".yui-thread-reactions-switch");
 
     expect(button).not.toBeNull();
-    expect(button!.closest(".yui-group")?.contains(root.querySelector(".yui-threadturns-row"))).toBe(
-      true,
-    );
+    expect(
+      button!.closest(".yui-group")?.contains(root.querySelector(".yui-threadturns-row")),
+    ).toBe(true);
     expect(button!.getAttribute("aria-checked")).toBe("true");
 
     const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });

@@ -144,7 +144,7 @@ describe("slotRect", () => {
     const seen: { hidden: boolean; measuring: boolean; mini: boolean }[] = [];
     button.getBoundingClientRect = () => {
       seen.push({
-        hidden: button.hidden,
+        hidden: button.hidden === true,
         measuring: button.classList.contains("is-measuring"),
         mini: button.classList.contains("is-mini"),
       });
@@ -162,16 +162,16 @@ describe("slotRect", () => {
     expect(button.hidden).toBe(false);
   });
 
-  it.each([false, true])(
-    "reads a hidden chip's slot unhidden through a class and leaves it hidden, folded=%s",
-    (folded) => {
-      const { chip, button, seen } = measured(folded);
-      chip.update([thread("w", "codex", 5, false)]);
+  it.each([
+    false,
+    true,
+  ])("reads a hidden chip's slot unhidden through a class and leaves it hidden, folded=%s", (folded) => {
+    const { chip, button, seen } = measured(folded);
+    chip.update([thread("w", "codex", 5, false)]);
 
-      expect(chip.slotRect()).toEqual(RECT);
-      expect(seen).toEqual([{ hidden: false, measuring: true, mini: folded }]);
-      expect(button.hidden).toBe(true);
-      expect(button.className).toBe(folded ? "yui-threadchip is-mini" : "yui-threadchip");
-    },
-  );
+    expect(chip.slotRect()).toEqual(RECT);
+    expect(seen).toEqual([{ hidden: false, measuring: true, mini: folded }]);
+    expect(button.hidden).toBe(true);
+    expect(button.className).toBe(folded ? "yui-threadchip is-mini" : "yui-threadchip");
+  });
 });

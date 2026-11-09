@@ -676,7 +676,8 @@ const ja: Record<string, string> = {
   "threadTurns.every": "メッセージごと",
   "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
   "threadReactions.label": "スレッドを見に行く",
-  "threadReactions.sub": "スレッドの状態が変わると、キャラクターがスレッドウィンドウに移動して座ります。",
+  "threadReactions.sub":
+    "スレッドの状態が変わると、キャラクターがスレッドウィンドウに移動して座ります。",
   "threadReactions.aria": "スレッドを見に行く",
 
   // first-run onboarding hint

@@ -97,8 +97,7 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
     if (longWaitTextareaEl) longWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
     if (timeoutTextareaEl) timeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
     if (unreachableTextareaEl) unreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
-    if (threadsOpenTextareaEl)
-      threadsOpenTextareaEl.value = (pool?.threads_open ?? []).join("\n");
+    if (threadsOpenTextareaEl) threadsOpenTextareaEl.value = (pool?.threads_open ?? []).join("\n");
     if (threadsRaiseTextareaEl)
       threadsRaiseTextareaEl.value = (pool?.threads_raise ?? []).join("\n");
     if (toolTextareaEl) toolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
