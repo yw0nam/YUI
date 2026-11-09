@@ -265,6 +265,6 @@ The mapped expression plays, then eases back to neutral after `touch_emotion_hol
 
 One reaction is held per Thread. A newer transition for a Thread replaces its held reaction. A held reaction is dropped when its Thread is gone or has another state.
 
-Reactions run oldest first, one at a time. A reaction waits while she is not free. She is free when no turn is in the pipeline, no speech is owed, and she is neither dragged nor moved by an avatar command. While a reaction waits, the client checks again every second.
+Reactions run oldest first, one at a time. A reaction waits while she is not free. She is free when the avatar executor exists and is not busy (she is neither dragged nor moved by an avatar command), no turn is in the pipeline, and no speech is owed. While a reaction waits, the client checks again every second.
 
 A running reaction checks after each wait that its Thread still holds the reacted state and the switch is on. Otherwise it stops. A transition that arrives during a run is held and runs after it.
