@@ -45,6 +45,8 @@ async function toScreen(rect: ScreenRect): Promise<ScreenRect> {
 export interface ThreadsWindowController {
   /** Opens the window on `tab`, grown out of `chip` (a rect in this window's viewport) when given; false where no window opens. */
   open(chip?: ScreenRect, tab?: ThreadsTab): boolean;
+  isOpen(): boolean;
+  present(chip?: ScreenRect, opts?: { thread?: string }): Promise<"presented" | "closed">;
   /** Calls `cb` with true on each open, and with false once the window is hidden again or never opened. */
   onShown(cb: (shown: boolean) => void): () => void;
   dispose(): void;
@@ -87,6 +89,8 @@ export function createThreadsWindowController(deps: {
       );
       return true;
     },
+    isOpen: () => false,
+    present: () => Promise.resolve("closed"),
     onShown(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);

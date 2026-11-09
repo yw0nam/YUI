@@ -273,6 +273,7 @@ export const channels = {
   ThreadsReady: { name: "yui://threads-ready", scope: "shared" },
   /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
   ThreadsClosed: { name: "yui://threads-closed", scope: "shared" },
+  ThreadsPresented: { name: "yui://threads-presented", scope: "shared" },
   /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
   ThreadsOpenRequest: {
     name: "yui://threads-open-request",
