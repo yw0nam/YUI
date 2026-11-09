@@ -267,7 +267,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `thread-reaction` | `reaction_present` | `threadId`, `state`, `window` | The window is asked to open or rise without focus (`debug` level). |
 | `thread-reaction` | `reaction_sit` | `threadId`, `state`, `window` | The sit command is sent (`debug` level). |
 | `thread-reaction` | `reaction_expression` | `threadId`, `state`, `window` | The mapped expression is set (`debug` level). |
-| `thread-reaction` | `reaction_sit_failed` | `threadId`, `state`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
+| `thread-reaction` | `reaction_sit.failed` | `threadId`, `state`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
 | `thread-reaction` | `reaction_failed` | `threadId`, `error` | A reaction threw (`warn` level). |
 
 ## TypeScript usage

@@ -257,7 +257,7 @@ A line is drawn from a shuffle bag of its pool. An empty pool gives no line. Wit
 
 The window opens or rises without keyboard focus. An open from a closed window selects the Thread. Its tab is Waiting when the Thread waits, otherwise All. A raise, or an open of a window already shown, changes no tab and no selection. The selection does not report the ask seen.
 
-She sits on the Threads window with `sit_on_window`, unless she already sits on it. A failed sit logs `reaction_sit_failed` and drops the reaction.
+She sits on the Threads window with `sit_on_window`, unless she already sits on it. A failed sit logs `reaction_sit.failed` and drops the reaction.
 
 The mapped expression plays, then eases back to neutral after `touch_emotion_hold_ms`. When speech is still owed at that moment, the speech's end eases it instead.
 

@@ -164,7 +164,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       log.debug("reaction_sit", fields);
       const result = await wait(executor.command({ action: "sit_on_window", app: "YUI" }));
       if (!("ok" in result) || !result.ok) {
-        log.warn("reaction_sit_failed", { ...fields, result });
+        log.warn("reaction_sit.failed", { ...fields, result });
         return;
       }
       if (!valid()) return;
