@@ -3,7 +3,7 @@
 use crate::voice_import::AUDIO_EXTS;
 use serde::{Deserialize, Serialize};
 
-pub(crate) const UNREADABLE: &str = "bundle unreadable";
+pub(crate) const UNREADABLE: &str = "preset file unreadable";
 
 pub(crate) const FORMAT: &str = "yui-preset";
 pub(crate) const VERSION: u32 = 1;
@@ -35,7 +35,7 @@ pub(crate) struct ManifestVoice {
 }
 
 impl Manifest {
-    /// Refuses a manifest this client does not read, with `bundle unreadable`.
+    /// Refuses a manifest this client does not read, with `preset file unreadable`.
     pub(crate) fn validate(&self) -> Result<(), String> {
         let vrm_ok = match &self.vrm {
             None => true,

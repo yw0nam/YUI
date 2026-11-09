@@ -89,7 +89,11 @@ export function createVoiceImportFlow(deps: {
   const uploadStaged = async (
     copied: SpeakerOption & { source: "user" },
     label: string,
-    chooseId: (api: VoiceApi, provider: TtsProviderName) => string | undefined,
+    chooseId: (
+      api: VoiceApi,
+      provider: TtsProviderName,
+      server: { baseUrl: string; fetch: typeof fetch | undefined },
+    ) => string | undefined | Promise<string | undefined>,
   ): Promise<
     | { kind: "added"; id: string }
     | {
@@ -98,6 +102,8 @@ export function createVoiceImportFlow(deps: {
         option: SpeakerOption & { source: "user" };
         provider: TtsProviderName;
         serverVoice: string | undefined;
+        /** Deletes the voice this upload created on the server it went to. */
+        removeUploaded: () => Promise<void>;
       }
   > => {
     let folder = copied.id;
@@ -109,11 +115,12 @@ export function createVoiceImportFlow(deps: {
       const api = VOICE_APIS[provider];
       const upsert = api?.upsert;
       if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
-      const finalId = chooseId(api, provider);
       const superseded = (): boolean => {
         const live = getEndpoints();
         return !live || ttsProviderOf(live) !== provider || live.tts_base_url !== baseUrl;
       };
+      const f = await selectFetch();
+      const finalId = await chooseId(api, provider, { baseUrl, fetch: f });
 
       // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
       // the existing cross-window settings sync carries the change into other windows' filler cache key.
@@ -123,7 +130,6 @@ export function createVoiceImportFlow(deps: {
         provider,
         revision: nextRevision(speakerSelection.list(), finalId ?? copied.id),
       };
-      const f = await selectFetch();
       // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
       const serverVoice = await upsert({
         baseUrl,
@@ -142,7 +148,11 @@ export function createVoiceImportFlow(deps: {
         folder = target;
       }
       if (superseded()) {
-        return { kind: "superseded", folder, option, provider, serverVoice };
+        const uploaded = serverVoice ?? finalId ?? copied.id;
+        const removeUploaded = async (): Promise<void> => {
+          await api.remove?.({ baseUrl, id: uploaded, fetch: f, getApiKey, logger: log });
+        };
+        return { kind: "superseded", folder, option, provider, serverVoice, removeUploaded };
       }
       speakerSelection.addUserOption(option);
       return { kind: "added", id: option.id };
@@ -185,29 +195,33 @@ export function createVoiceImportFlow(deps: {
   };
 
   // The preset-file import's commit: the same upload/move/add as the naming row's, but it
-  // never selects and never replaces an existing voice — a taken name walks `label 2`,
-  // `label 3` until its id is free, and a provider switch mid-upload throws after removing
-  // the staged copy instead of re-pointing a stored voice.
+  // never selects and never replaces an existing voice — a name whose id is stored or already
+  // on the server walks `label 2`, `label 3` until its id is free, and a provider switch
+  // mid-upload throws after removing the staged copy and the uploaded server voice instead of
+  // re-pointing a stored voice.
   const registerCopiedVoice = async (
     copied: SpeakerOption & { source: "user" },
     label: string,
   ): Promise<string> => {
     const shown = label.trim() || copied.id;
-    const out = await uploadStaged(copied, shown, (api) => {
+    const out = await uploadStaged(copied, shown, async (api, _provider, server) => {
       if (!api.keepsId) return undefined;
       if (!shown) throw new Error("voice name required");
+      const listed = await api.list({ ...server, getApiKey, logger: log });
+      if (listed.kind !== "ok") throw new Error(`voice list failed: ${listed.kind}`);
+      const taken = new Set([
+        ...listed.voices.map((v) => v.id),
+        ...speakerSelection.listUser().map((o) => o.id),
+      ]);
       let name = shown;
-      for (
-        let n = 2;
-        speakerSelection.listUser().some((o) => o.id === voiceIdFromName(name));
-        n++
-      ) {
-        name = `${shown} ${n}`;
-      }
+      for (let n = 2; taken.has(voiceIdFromName(name)); n++) name = `${shown} ${n}`;
       return voiceIdFromName(name);
     });
     if (out.kind === "superseded") {
       await cleanFolder(out.folder);
+      await out
+        .removeUploaded()
+        .catch((e: unknown) => log.warn("superseded_voice_remove_failed", { error: String(e) }));
       log.warn("voice_import_superseded", {
         provider: out.provider,
         server_voice: out.serverVoice ?? null,

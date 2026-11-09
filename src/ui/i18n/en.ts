@@ -304,7 +304,7 @@ const en: Record<string, string> = {
   "card.import": "Import…",
   "card.io_note": "Preset file (.yui), JSON or PNG card in · preset file or PNG card out",
   "card.export_preset": "Export preset (.yui)",
-  "card.export_png": "Export card only (PNG)",
+  "card.export_png": "Export card only (PNG)…",
   "card.png_no_picture": "{note}. PNG export needs a picture, and this preset has none",
   "card.export_saved": "Saved",
   "card.export_saved_vrm_out": "Saved · VRM left out",
@@ -322,6 +322,8 @@ const en: Record<string, string> = {
   "preset_export.vrm_prohibited": "This VRM does not allow redistribution",
   "preset_export.vrm_unknown": "No license info. It goes in only if you have the right to share it",
   "preset_export.vrm_unreadable": "The VRM file could not be read",
+  "preset_export.vrm_config":
+    "This VRM is set in the config file, so it cannot go in the preset file",
   "preset_export.voice_in": "The receiver registers it with their own TTS",
   "preset_export.voice_no_clip": "This voice has no local clip",
   "preset_export.foot":

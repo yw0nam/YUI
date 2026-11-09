@@ -20,7 +20,6 @@ import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
-import { removeUserVoice } from "../../io/voice/voices/voice-import";
 import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
@@ -49,7 +48,6 @@ export function wireCardIo(deps: WireCardIoDeps): CardIoPorts {
       importPreset({
         importCard: importCardFromFile,
         registerCopiedVoice: deps.registerCopiedVoice,
-        removeUserVoice,
         removeUserVrm,
         vrmSelection,
         // The server voice and its folder leave first; then the store entry follows.

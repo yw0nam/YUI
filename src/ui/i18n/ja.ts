@@ -307,7 +307,7 @@ const ja: Record<string, string> = {
   "card.io_note":
     "プリセットファイル (.yui) と JSON・PNG カードを読み込み、プリセットファイルか PNG カードで書き出します",
   "card.export_preset": "プリセットを書き出す (.yui)",
-  "card.export_png": "カードだけ書き出す (PNG)",
+  "card.export_png": "カードだけ書き出す (PNG)…",
   "card.png_no_picture": "{note}。このプリセットには画像がないため、PNG では書き出せません",
   "card.export_saved": "保存しました",
   "card.export_saved_vrm_out": "保存しました · VRM は含めていません",
@@ -325,6 +325,8 @@ const ja: Record<string, string> = {
   "preset_export.vrm_prohibited": "この VRM は再配布を許可していません",
   "preset_export.vrm_unknown": "ライセンス情報がありません。共有する権利があるときだけ含めます",
   "preset_export.vrm_unreadable": "VRM ファイルを読めませんでした",
+  "preset_export.vrm_config":
+    "設定ファイルで指定した VRM なので、プリセットファイルに含められません",
   "preset_export.voice_in": "受け取った人が自分の TTS に登録し直します",
   "preset_export.voice_no_clip": "ローカルのクリップがない音声です",
   "preset_export.foot": "API キー、接続設定、会話履歴、関係の値は含めません。",

@@ -306,7 +306,7 @@ const ko: Record<string, string> = {
   "card.io_note":
     "프리셋 파일(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 프리셋 파일이나 PNG 카드로 해요",
   "card.export_preset": "프리셋 내보내기 (.yui)",
-  "card.export_png": "카드만 내보내기 (PNG)",
+  "card.export_png": "카드만 내보내기 (PNG)…",
   "card.png_no_picture": "{note}. 이 프리셋에는 그림이 없어 PNG로 내보낼 수 없어요",
   "card.export_saved": "저장했어요",
   "card.export_saved_vrm_out": "저장했어요 · VRM은 빠졌어요",
@@ -323,6 +323,7 @@ const ko: Record<string, string> = {
   "preset_export.vrm_prohibited": "이 VRM은 재배포를 허용하지 않아요",
   "preset_export.vrm_unknown": "라이선스 정보가 없어요. 공유할 권리가 있을 때만 넣어요",
   "preset_export.vrm_unreadable": "VRM 파일을 읽지 못했어요",
+  "preset_export.vrm_config": "설정 파일에서 지정한 VRM이라 프리셋 파일에 넣을 수 없어요",
   "preset_export.voice_in": "받는 사람이 자기 TTS에 다시 등록해요",
   "preset_export.voice_no_clip": "로컬 클립이 없는 음성이에요",
   "preset_export.foot": "API 키, 연결 설정, 대화 기록, 관계 값은 넣지 않아요.",

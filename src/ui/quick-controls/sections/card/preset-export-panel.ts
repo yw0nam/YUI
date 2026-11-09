@@ -75,8 +75,15 @@ export function createPresetExportPanel(deps: {
 
   const vrmRow = (vrm: AvatarOption): Row => {
     const label = vrm.label ?? vrm.id;
-    if (vrm.source !== "user")
+    if (vrm.source === "bundled")
       return [t("preset_export.vrm"), "in", t("preset_export.built_in"), label];
+    if (vrm.source !== "user")
+      return [
+        t("preset_export.vrm"),
+        "out",
+        t("preset_export.left_out"),
+        t("preset_export.vrm_config"),
+      ];
     const license = inspected?.id === vrm.id ? inspected.license : null;
     if (!license) return [t("preset_export.vrm"), "in", "", label];
     const [tone, status, sub] = VRM_STATUS[license];
@@ -106,7 +113,10 @@ export function createPresetExportPanel(deps: {
     const voice = deps.speakerSelection.getActive();
     return {
       ...(e.thumbnail ? { thumbnailPresetId: e.id, ...(e.crop ? { crop: e.crop } : {}) } : {}),
-      vrm: { kind: vrm.source === "user" ? "user" : "bundled", id: vrm.id },
+      // A VRM from the config file has no copy the receiver can resolve, so it stays out.
+      ...(vrm.source === "user" || vrm.source === "bundled"
+        ? { vrm: { kind: vrm.source, id: vrm.id } }
+        : {}),
       ...(voice.source === "user" && voice.ref_url
         ? { voice: { id: voice.id, label: voice.label ?? voice.id } }
         : {}),

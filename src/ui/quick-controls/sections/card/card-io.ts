@@ -20,6 +20,9 @@ import { t } from "../../../i18n";
 /** The one-shot notice the section reads on its next mount, after the import's activation reload. */
 export const CARD_IMPORT_NOTICE_KEY = "yui.card-import-notice";
 
+/** The import errors that mean the file holds no card this client reads. */
+const UNREADABLE_ERRORS = new Set(["card_unreadable", "no card in png", "preset file unreadable"]);
+
 export interface CardIoPorts {
   /** Runs the whole card import through preset creation; null when the picker was dismissed. */
   importPreset: () => Promise<{ presetId: string } | null>;
@@ -111,11 +114,7 @@ export function createCardIo(deps: {
         // Only an unreadable payload means the file holds no card; everything else is a failure.
         show(
           deps.errorEl,
-          t(
-            name === "card_unreadable" || name === "no card in png"
-              ? "card.import_error"
-              : "card.import_failed",
-          ),
+          t(UNREADABLE_ERRORS.has(name) ? "card.import_error" : "card.import_failed"),
         );
         deps.log.error("card_import_failed", { error: String(err) });
       }

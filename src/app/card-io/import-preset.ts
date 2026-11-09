@@ -23,8 +23,6 @@ export interface ImportPresetCreateInput {
 export interface ImportPresetDeps {
   importCard(reservedVrmIds: string[], voiceStagingId: string): Promise<ImportedCard | null>;
   registerCopiedVoice(copied: SpeakerOption & { source: "user" }, label: string): Promise<string>;
-  /** Removes a staged voice folder the native step claimed. Idempotent. */
-  removeUserVoice(id: string): Promise<void>;
   /** Undoes one registered voice: the server voice and its folder, then the store entry. */
   discardVoice(id: string): Promise<void>;
   /** Deletes an imported VRM file. Idempotent. */
@@ -63,9 +61,9 @@ export async function importPreset(deps: ImportPresetDeps): Promise<ImportPreset
     try {
       speakerId = await deps.registerCopiedVoice(copied, imported.voice.label);
     } catch {
+      // The registration already removed the staged folder on every failure path.
       speakerId = null;
       voiceFailed = true;
-      await deps.removeUserVoice(imported.voice.stagedId);
     }
   }
 
