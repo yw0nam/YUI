@@ -90,6 +90,8 @@ export interface SpeechPlayback {
   onSpeech(text: string, identity: UtteranceIdentity): void;
   /** One client-side phrase (thinking filler, failure): spoken like onSpeech, never tracked as backend speech. */
   speakAside(text: string): void;
+  /** speakAside that resolves "spoken" at the line's playback end, "cut" on interrupt, abort or dispose. */
+  speakAsideAndWait(text: string): Promise<"spoken" | "cut">;
   /**
    * Forwards a per-beat cue to the pipeline. `withSpeech` marks a cue whose own sentence follows
    * it in the same stretch of work, so the motion hold has nothing to protect it from.
@@ -250,6 +252,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       delta(text, undefined, true);
       end();
     },
+    speakAsideAndWait: () => Promise.resolve(undefined as never),
     setCue(cue, options) {
       if (muted) return;
       if (motionHeld && !options?.withSpeech) {
