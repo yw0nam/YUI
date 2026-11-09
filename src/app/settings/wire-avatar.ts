@@ -20,6 +20,7 @@ import {
   localStorageUserSpeakerStorage,
   nextRevision,
   type SpeakerOption,
+  type UserSpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import { createTtsServerCheck } from "../../io/voice/voices/tts-server-check";
 import { VOICE_APIS, type VoiceApi } from "../../io/voice/voices/voice-apis";
@@ -141,6 +142,8 @@ export function wireSpeakerSelection(deps: {
   pickVoiceImport: () => Promise<PickedVoiceImport | null>;
   /** Commit step: uploads the staged copy under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
+  /** Preset-file import: uploads an already-staged copy under `label` without replacing or selecting. */
+  registerCopiedVoice: (copied: UserSpeakerOption, label: string) => Promise<string>;
   removeVoice: (id: string) => Promise<void>;
   refreshVoiceList: () => Promise<VoiceListOutcome>;
   /** Whether the TTS server answers; null when there is no TTS URL or a newer refresh took the answer. */
@@ -213,7 +216,7 @@ export function wireSpeakerSelection(deps: {
       revision: nextRevision(speakerSelection.list(), option.id),
     });
   };
-  const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+  const { pickVoiceImport, commitVoiceImport, registerCopiedVoice } = createVoiceImportFlow({
     getEndpoints,
     getApiKey,
     speakerSelection,
@@ -251,6 +254,7 @@ export function wireSpeakerSelection(deps: {
     refreshSpeaker,
     pickVoiceImport,
     commitVoiceImport,
+    registerCopiedVoice,
     removeVoice,
     refreshVoiceList,
     checkTtsServer,

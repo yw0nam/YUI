@@ -28,8 +28,11 @@ mod vrm_import;
 // Bring-your-own-voice import (reference clip copy into app-data).
 mod voice_import;
 
-// Tavern card import/export (file parse, thumbnail copy, exported file write).
+// Card import (JSON, PNG or preset file parse, thumbnail copy, preset photo pick).
 mod card_import;
+
+// Preset file (.yui) read/write, VRM license rule, PNG card chunk.
+mod preset_file;
 
 // Click-through toggle (top-level + Windows child HWNDs).
 #[cfg(desktop)]

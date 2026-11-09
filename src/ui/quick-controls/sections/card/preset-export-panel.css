@@ -1,0 +1,61 @@
+/* The preset export panel: an inline group under the card section's action row, never a modal. */
+.yui-preset-export {
+  margin-top: 0.5rem;
+}
+
+.yui-preset-export[hidden] {
+  display: none;
+}
+
+.yui-preset-export__title {
+  margin: 0.75rem 0.25rem 0.5rem;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+}
+
+.yui-preset-export__status {
+  flex: none;
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yui-preset-export__status.is-in {
+  color: var(--yui-ok);
+}
+
+.yui-preset-export .is-out {
+  color: var(--yui-danger);
+}
+
+/* "Check needed": the one status that takes Amber ink. */
+.yui-preset-export .is-warn {
+  color: var(--yui-accent-ink);
+}
+
+.yui-preset-export__rights {
+  margin-top: 0.5rem;
+}
+
+.yui-preset-export__acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+}
+
+.yui-preset-export__go {
+  background: var(--yui-text);
+  border-color: var(--yui-text);
+  color: var(--yui-panel-bg);
+}
+
+.yui-preset-export__go:hover:not(:disabled) {
+  color: var(--yui-panel-bg);
+  border-color: var(--yui-text);
+}
+
+.yui-preset-export__go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

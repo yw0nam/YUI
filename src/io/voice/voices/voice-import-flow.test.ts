@@ -1,19 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listVoices, upsertVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
-  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => ({
-    kind: "ok",
-    ids: [],
-  })),
-  upsertVoice: vi.fn<typeof import("./tts-voices").upsertVoice>(async () => undefined),
-  listFishVoices: vi.fn(async () => ({ kind: "ok", voices: [] })),
-  upsertFishVoice: vi.fn<
-    (
-      ...args: Parameters<typeof import("./fish-voices").upsertFishVoice>
-    ) => Promise<string | undefined>
-  >(async () => undefined),
-}));
-vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice: vi.fn() }));
+const { listVoices, upsertVoice, deleteVoice, listFishVoices, upsertFishVoice } = vi.hoisted(
+  () => ({
+    listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => ({
+      kind: "ok",
+      ids: [],
+    })),
+    upsertVoice: vi.fn<typeof import("./tts-voices").upsertVoice>(async () => undefined),
+    deleteVoice: vi.fn<typeof import("./tts-voices").deleteVoice>(async () => undefined),
+    listFishVoices: vi.fn(async () => ({ kind: "ok", voices: [] })),
+    upsertFishVoice: vi.fn<
+      (
+        ...args: Parameters<typeof import("./fish-voices").upsertFishVoice>
+      ) => Promise<string | undefined>
+    >(async () => undefined),
+  }),
+);
+vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice }));
 vi.mock("./fish-voices", () => ({
   listFishVoices,
   upsertFishVoice,
@@ -93,6 +96,7 @@ describe("createVoiceImportFlow", () => {
   beforeEach(() => {
     listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
+    deleteVoice.mockReset().mockResolvedValue(undefined);
     listFishVoices.mockReset().mockResolvedValue({ kind: "ok", voices: [] });
     upsertFishVoice.mockReset().mockResolvedValue(undefined);
     pickVoiceFile
@@ -530,6 +534,91 @@ describe("createVoiceImportFlow", () => {
       await commitVoiceImport(staged, "myvoice");
 
       expect(onChange).toHaveBeenCalled();
+    });
+  });
+
+  describe("registerCopiedVoice", () => {
+    it("adds the registered voice without selecting it", async () => {
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
+      const { registerCopiedVoice, speakerSelection } = build("http://localhost:8091", "irodori");
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).resolves.toBe(voiceIdFromName("myvoice"));
+
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: voiceIdFromName("myvoice"),
+          label: "myvoice",
+          provider: "irodori",
+        }),
+      );
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
+
+    it("a taken label walks to a free name beside the existing voice", async () => {
+      const taken: SpeakerOption = { ...IMPORTED, provider: "irodori" };
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
+      const { registerCopiedVoice, speakerSelection } = build("http://localhost:8091", "irodori", [
+        taken,
+      ]);
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).resolves.toBe(voiceIdFromName("myvoice 2"));
+
+      expect(removeUserVoice).not.toHaveBeenCalledWith(taken.id);
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({ id: voiceIdFromName("myvoice 2") }),
+      );
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
+
+    it("an id the TTS server already holds walks to a free name and leaves that server voice", async () => {
+      listVoices.mockResolvedValue({ kind: "ok", ids: [voiceIdFromName("myvoice")] });
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/moved/clip.wav");
+      const { registerCopiedVoice } = build("http://localhost:8091", "irodori");
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).resolves.toBe(voiceIdFromName("myvoice 2"));
+
+      expect(upsertVoice.mock.calls.map(([o]) => o.id)).toEqual([voiceIdFromName("myvoice 2")]);
+    });
+
+    it("a superseded registration removes the voice it uploaded from the first server", async () => {
+      const { registerCopiedVoice, endpoints } = build("http://localhost:8091", "irodori");
+      upsertVoice.mockImplementation(async () => {
+        endpoints.tts_base_url = "http://localhost:9999";
+        return undefined;
+      });
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).rejects.toThrow("voice import superseded");
+
+      expect(deleteVoice.mock.calls.map(([o]) => [o.baseUrl, o.id])).toEqual([
+        ["http://localhost:8091", voiceIdFromName("myvoice")],
+      ]);
+    });
+
+    it("a superseded registration throws and leaves no option", async () => {
+      const { registerCopiedVoice, speakerSelection, endpoints } = build(
+        "http://localhost:8091",
+        "irodori",
+      );
+      upsertVoice.mockImplementation(async () => {
+        endpoints.tts_provider = "fish";
+        return undefined;
+      });
+
+      await expect(
+        registerCopiedVoice({ ...IMPORTED, id: "import-9", label: "import-9" }, "myvoice"),
+      ).rejects.toThrow("voice import superseded");
+
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith("import-9");
     });
   });
 });

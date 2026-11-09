@@ -324,4 +324,44 @@ describe("createPresetFromCard", () => {
     expect(fake.removed).toEqual(["n1"]);
     expect(discardThumbnail).toHaveBeenCalledWith("n1");
   });
+
+  // Each row seeds what registry.create copied from the source preset before the import ran.
+  it.each([
+    ["writes the imported ids", { vrmId: "mio_vrm", speakerId: "myvoice" }, ["mio_vrm", "myvoice"]],
+    ["null removes the copied keys", { vrmId: null, speakerId: null }, [null, null]],
+    ["absent keeps the copied keys", {}, ["carlotta", "natsume"]],
+  ] as const)("vrm and speaker on the new preset: %s", async (_name, ids, expected) => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    storage.setItem(resolveStorageKey("yui.vrm", "n1"), "carlotta");
+    storage.setItem(resolveStorageKey("yui.speaker", "n1"), "natsume");
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+      ...ids,
+    });
+    expect([
+      storage.getItem(resolveStorageKey("yui.vrm", id)),
+      storage.getItem(resolveStorageKey("yui.speaker", id)),
+    ]).toEqual(expected);
+  });
+
+  it("the imported crop overrides the retained thumbnail's framing", async () => {
+    const { registry, list } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const crop = { x: 0.25, y: 0.1, size: 0.5 };
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      crop,
+      retainThumbnail: async () => ({
+        url: "asset://localhost/app-data/cards/n1.png",
+        crop: { x: 0, y: 0, size: 1 },
+      }),
+      storage: memoryStorage(),
+      fillerLocale: "ja",
+    });
+    expect(list.find((e) => e.id === id)?.crop).toEqual(crop);
+  });
 });

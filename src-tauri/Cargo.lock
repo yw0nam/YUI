@@ -80,6 +80,7 @@ name = "app"
 version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
+ "crc32fast",
  "http-body-util",
  "hyper",
  "hyper-util",

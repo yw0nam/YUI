@@ -1,6 +1,6 @@
 /**
- * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default
- * and the greeting list. It owns its subscriptions, redraws and teardown.
+ * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default,
+ * the greeting list and the file action row. It owns its subscriptions, redraws and teardown.
  */
 
 import {
@@ -9,7 +9,6 @@ import {
   EMPTY_CARD,
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
-import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
@@ -26,7 +25,8 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
-import { createCardIo } from "./card-io";
+import { type CardIoPorts, createCardIo } from "./card-io";
+import { createPresetExportPanel, presetExportPanelHtml } from "./preset-export-panel";
 import "./card-section.css";
 
 type TextField =
@@ -95,14 +95,18 @@ export function cardSectionHtml(): string {
           </div>
           <div class="yui-row yui-row--action yui-card__io">
             <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
-            <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
+            <button class="yui-link-btn yui-card-export-preset" type="button">${t("card.export_preset")}</button>
+            <button class="yui-link-btn yui-card-export-png" type="button">${t("card.export_png")}</button>
           </div>
-          <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
+          <p class="yui-row__sub yui-card__io-note"></p>
+          <p class="yui-card__io-notice" hidden>${t("card.import_voice_notice")}</p>${presetExportPanelHtml()}
+          <p class="yui-card__io-done" role="status" hidden></p>
           <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
 }
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type PanelDeps = Parameters<typeof createPresetExportPanel>[0];
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
@@ -119,10 +123,14 @@ interface CardSectionDeps {
   isPushMode: () => boolean;
   /** Panel open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
-  /** Card file steps and the preset creator, wired by the app layer. */
-  importCard: () => Promise<ImportedCard | null>;
-  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  /** The active VRM and voice the preset file names. */
+  vrmSelection: PanelDeps["vrmSelection"];
+  speakerSelection: PanelDeps["speakerSelection"];
+  /** Card file steps, wired by the app layer. */
+  importPreset: CardIoPorts["importPreset"];
+  exportPresetFile: CardIoPorts["exportPresetFile"];
+  exportCardPng: CardIoPorts["exportCardPng"];
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   /** Filler pools the card export carries. */
   fillerSettings: Pick<FillerSettingsStore, "get">;
   log: Logger;
@@ -176,6 +184,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     const shown = entry();
     const thumb = q<HTMLElement>(".yui-card-thumb");
     thumb.hidden = !shown.thumbnail;
+    io.reflect(Boolean(shown.thumbnail));
     if (shown.thumbnail) thumb.replaceChildren(avatarEl(shown, 36));
     switchBtn.setAttribute("aria-checked", String(a.send_card));
     // The user's Send card switch folds the body; on push the greetings stay reachable.
@@ -204,15 +213,27 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const currentCard = (): Card => agentSettings.get().card ?? base();
 
   const io = createCardIo({
-    errorEl: q<HTMLElement>(".yui-card__io-error"),
+    root: sec,
+    openPresetPanel: () => panel.open(),
     ports: {
-      importCard: deps.importCard,
-      exportCard: deps.exportCard,
-      createPresetFromCard: deps.createPresetFromCard,
+      importPreset: deps.importPreset,
+      exportPresetFile: deps.exportPresetFile,
+      exportCardPng: deps.exportCardPng,
     },
     currentCard,
     entry,
     fillerPools: () => deps.fillerSettings.get().customPools,
+    log,
+  });
+  const panel = createPresetExportPanel({
+    root: q<HTMLElement>(".yui-preset-export"),
+    vrmSelection: deps.vrmSelection,
+    speakerSelection: deps.speakerSelection,
+    registry,
+    entry,
+    cardLabel: () => cardName(currentCard(), entry()),
+    inspectPresetVrm: deps.inspectPresetVrm,
+    exportPreset: io.exportPreset,
     log,
   });
 
@@ -257,6 +278,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
       io.handle(e);
       return;
     }
+    if (target.closest(".yui-preset-export")) return;
     if (target.closest(".yui-card-switch")) {
       const enabled = !agentSettings.get().send_card;
       agentSettings.setSendCard(enabled);
@@ -296,6 +318,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     reflect,
     dispose(): void {
       for (const off of unsubscribes) off?.();
+      panel.dispose();
       sec.removeEventListener("input", handleInput);
       sec.removeEventListener("change", handleChange);
       sec.removeEventListener("click", handleClick);

@@ -12,7 +12,7 @@ use tauri::{command, AppHandle};
 use tauri_plugin_dialog::DialogExt;
 
 /// Max accepted source size for a VRM import.
-const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
+pub(crate) const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Imported VRM handle returned to the webview.
 #[derive(Debug, Clone, Serialize)]
@@ -67,7 +67,7 @@ fn import_into(
 }
 
 /// Delete `vrms_dir/<sanitized id>.vrm` if present. Idempotent — missing is Ok.
-fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
+pub(crate) fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
     if !vrms_dir.exists() {
         return Ok(());
     }
@@ -82,7 +82,7 @@ fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn vrms_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn vrms_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "vrms")
 }
 

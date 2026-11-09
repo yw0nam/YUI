@@ -1,10 +1,10 @@
 /**
  * Creates a preset from an imported card: the name with a numeric suffix, the card merged
  * into the copied `yui.agent` with the send switch on, the card's filler pools onto the
- * copied filler value, the PNG thumbnail retained onto the entry, the one-shot greeting
- * marker, and activation. The two thumbnail steps are ports the app wiring supplies from
- * io, so this module imports no io. Any failure removes the created preset and discards
- * the thumbnail before the original error rethrows.
+ * copied filler value, the imported vrm/speaker onto their copied keys, the PNG thumbnail
+ * retained onto the entry, the one-shot greeting marker, and activation. The two thumbnail
+ * steps are ports the app wiring supplies from io, so this module imports no io. Any
+ * failure removes the created preset and discards the thumbnail before the original error rethrows.
  */
 
 import type { FillerLang } from "../../config/validators/filler";
@@ -34,6 +34,12 @@ export interface CreatePresetFromCardInput {
   storage?: Storage;
   /** The filler language a preset without a copied filler value starts from. */
   fillerLocale: FillerLang;
+  /** The card's own thumbnail crop, overriding the retained thumbnail's default framing. */
+  crop?: PhotoCrop;
+  /** The imported VRM: written to the copied `yui.vrm` key, or removed for null. */
+  vrmId?: string | null;
+  /** The registered speaker: written to the copied `yui.speaker` key, or removed for null. */
+  speakerId?: string | null;
 }
 
 /** Writes the card's pools onto the copied filler value; an invalid filler keeps the copy with a warning. */
@@ -57,8 +63,21 @@ function applyCardFiller(
   kv?.setItem(key, JSON.stringify(withCustomPools(copied, filler, locale)));
 }
 
+/** Writes an imported asset id over the copied preset key; null removes the copy, absent keeps it. */
+function writeImportedAsset(
+  kv: Pick<Storage, "getItem" | "setItem" | "removeItem"> | undefined,
+  presetId: string,
+  key: "yui.vrm" | "yui.speaker",
+  id: string | null | undefined,
+): void {
+  if (id === undefined) return;
+  const storageKey = resolveStorageKey(key, presetId);
+  if (id === null) kv?.removeItem(storageKey);
+  else kv?.setItem(storageKey, id);
+}
+
 export async function createPresetFromCard(input: CreatePresetFromCardInput): Promise<string> {
-  const { registry, card, retainThumbnail, discardThumbnail } = input;
+  const { registry, card, retainThumbnail, discardThumbnail, crop } = input;
   const kv = input.storage ?? globalThis.localStorage;
   const baseName = card.name.trim() || "Card";
 
@@ -80,10 +99,12 @@ export async function createPresetFromCard(input: CreatePresetFromCardInput): Pr
     agent.card = filler === undefined ? card : cardWithoutFiller(card);
     kv?.setItem(key, JSON.stringify(agent));
     if (filler !== undefined) applyCardFiller(kv, id, filler, input.fillerLocale);
+    writeImportedAsset(kv, id, "yui.vrm", input.vrmId);
+    writeImportedAsset(kv, id, "yui.speaker", input.speakerId);
 
     if (retainThumbnail) {
-      const { url, crop } = await retainThumbnail(id);
-      if (!registry.setThumbnail(id, url, crop)) throw new Error("preset_create_failed");
+      const { url, crop: framed } = await retainThumbnail(id);
+      if (!registry.setThumbnail(id, url, crop ?? framed)) throw new Error("preset_create_failed");
     }
 
     kv?.setItem(resolveStorageKey("yui.greeting-pending", id), "1");

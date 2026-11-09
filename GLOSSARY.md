@@ -248,6 +248,10 @@ _Avoid_: default constant, fallback value, code-side default
 A named bundle of per-character client state: the backend connection and chat id, the card, the TTS voice, the conversation history, the VRM selection, the camera zoom and orbit, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
 _Avoid_: profile, character (for this bundle)
 
+**Preset file**:
+A `.yui` zip that carries one preset to another machine: a manifest, the card, and, when present, the thumbnail with its crop, the VRM (a bundled one by id, a user one unless its license forbids redistribution), and the voice's reference clip. Import always creates a new preset. Keys, connection settings, history and relations never go in.
+_Avoid_: character bundle, character file, bundle
+
 **Card**:
 The persona text of a preset in Tavern Card V2 shape. Sent as the first system message on Chat Completions and as `instructions` on Responses. Never sent on push.
 _Avoid_: character card (as a YUI term), profile, persona file

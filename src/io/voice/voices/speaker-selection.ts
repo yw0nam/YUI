@@ -29,6 +29,9 @@ export interface SpeakerOption {
   provider?: TtsProviderName;
 }
 
+/** A voice the user imported: a clip copied into app data, never a server's own voice. */
+export type UserSpeakerOption = SpeakerOption & { source: "user" };
+
 /**
  * Next revision for `id`: one past the stored one, 1 for an id the list doesn't carry yet.
  * A same-name re-import replaces the clip behind an unchanged id, and the bump is what

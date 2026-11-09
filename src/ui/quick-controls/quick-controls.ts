@@ -12,9 +12,8 @@ import { createTextSizeSection } from "./sections/appearance/text-size-section";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
-import type { Card, PersonaConfig } from "../../config/validators/persona/types";
+import type { PersonaConfig } from "../../config/validators/persona/types";
 import type { EndpointsConfig, GuideKey } from "../../contract";
-import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
@@ -86,6 +85,7 @@ import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
+import type { CardIoPorts } from "./sections/card/card-io";
 import { createCardSection } from "./sections/card/card-section";
 import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
@@ -280,13 +280,14 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** The MCP host and its managing commands. If absent, the Plugins page won't render. */
   plugins?: { host: McpHost; manage: McpHostManage };
-  /** Card file steps and the preset creator, wired by the app layer. */
-  importCard: () => Promise<ImportedCard | null>;
-  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
-  removeCardThumbnail: (id: string) => Promise<void>;
+  /** Card file steps, wired by the app layer. */
+  importPreset: CardIoPorts["importPreset"];
+  exportPresetFile: CardIoPorts["exportPresetFile"];
+  exportCardPng: CardIoPorts["exportCardPng"];
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
+  removeCardThumbnail: CardIoPorts["removeCardThumbnail"];
   /** Opens the photo picker for a preset and returns its new thumbnail URL; absent outside Tauri. */
-  pickPresetPhoto?: (presetId: string) => Promise<string | null>;
+  pickPresetPhoto?: CardIoPorts["pickPresetPhoto"];
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
@@ -404,9 +405,10 @@ export function createQuickControls({
   expressMotionSettings,
   getExpressMotions,
   plugins,
-  importCard,
-  exportCard,
-  createPresetFromCard,
+  importPreset,
+  exportPresetFile,
+  exportCardPng,
+  inspectPresetVrm,
   removeCardThumbnail,
   pickPresetPhoto,
   presetRegistry,
@@ -700,9 +702,12 @@ export function createQuickControls({
     getPersona,
     isPushMode,
     isOpen: shell.isOpen,
-    importCard,
-    exportCard,
-    createPresetFromCard,
+    vrmSelection,
+    speakerSelection,
+    importPreset,
+    exportPresetFile,
+    exportCardPng,
+    inspectPresetVrm,
     log,
   });
 

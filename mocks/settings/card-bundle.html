@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>캐릭터 묶음 목업</title>
+<title>프리셋 파일 목업</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <!-- Real tokens and the real settings stylesheets; the markup below uses their class names. Mock-only staging lives in the style block. -->
 <link rel="stylesheet" href="../../src/ui/tokens.css">
@@ -80,7 +80,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
 <main class="wrap">
   <header style="display:grid;gap:8px">
     <span class="mute">mocks/settings · #1937</span>
-    <h1>캐릭터를 파일 하나로 내보내고 가져오기</h1>
+    <h1>프리셋을 파일 하나로 내보내고 가져오기</h1>
     <p class="lede">설정 › 페르소나 › 카드 섹션입니다. 버튼을 눌러 흐름을 따라가 보세요. 왼쪽에서 VRM 라이선스와 음성 상태를 바꾸면 내보내기 내용이 달라집니다. 버튼 배치는 L1, PNG 카드는 바로 저장(P1)으로 정했습니다(2026-11-09). 다른 선택지는 비교용으로 남겨 둡니다.</p>
   </header>
   <div class="layout">
@@ -133,7 +133,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
               <p class="done-line" id="importDone" hidden></p>
 
               <div class="xp" id="xp" hidden>
-                <p class="xp-title" id="xpTitle">묶음에 넣을 것</p>
+                <p class="xp-title" id="xpTitle">프리셋 파일에 넣을 것</p>
                 <div class="yui-group" id="xpRows"></div>
                 <p class="yui-sec__foot">API 키, 연결 설정, 대화 기록, 관계 값은 넣지 않아요.</p>
                 <div class="yui-group" style="margin-top:0.5rem" id="rightsGroup">
@@ -171,10 +171,10 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
   const state = { mode: "after", lic: "cc", voice: "clip", layout: "L1", png: "P1", xp: null, imported: 0 };
   try { Object.assign(state, JSON.parse(localStorage.getItem("yui-mock-bundle") || "{}"), { xp: null, imported: 0 }); } catch (e) {}
   const LIC = {
-    cc: { st: "in", label: "넣음", sub: "Yui_AUT0154.vrm · 84 MB · CC_BY" },
-    v1true: { st: "in", label: "넣음", sub: "Yui_AUT0154.vrm · 84 MB · 재배포 허용" },
-    v1none: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요. 값이 없으면 허용하지 않는 것으로 봐요", cls: "danger" },
-    prohibited: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요 (Redistribution_Prohibited)", cls: "danger" },
+    cc: { st: "in", label: "넣음", sub: "Yui_AUT0154" },
+    v1true: { st: "in", label: "넣음", sub: "Yui_AUT0154" },
+    v1none: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요", cls: "danger" },
+    prohibited: { st: "out", label: "빠짐", sub: "이 VRM은 재배포를 허용하지 않아요", cls: "danger" },
     unknown: { st: "warn", label: "확인 필요", sub: "라이선스 정보가 없어요. 공유할 권리가 있을 때만 넣어요", cls: "warn" }
   };
   const el = (t, a, ...k) => { const n = document.createElement(t); for (const [x, v] of Object.entries(a || {})) { if (x === "class") n.className = v; else if (x === "text") n.textContent = v; else n.setAttribute(x, v); } n.append(...k.filter(Boolean)); return n; };
@@ -188,14 +188,14 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
       return;
     }
     const imp = linkBtn("가져오기…", () => { $("pickFile").hidden = false; closeXp(); });
-    const exY = linkBtn("캐릭터 내보내기 (.yui)", () => openXp("yui"));
-    const exP = linkBtn("카드만 내보내기 (PNG)", () => { if (state.png === "P1") { closeXp(); done("exportDone", "Yui.png로 저장했어요 · 0.6 MB"); } else openXp("png"); });
+    const exY = linkBtn("프리셋 내보내기 (.yui)", () => openXp("yui"));
+    const exP = linkBtn("카드만 내보내기 (PNG)…", () => { if (state.png === "P1") { closeXp(); done("exportDone", "저장했어요"); } else openXp("png"); });
     if (state.layout === "L1") {
       host.append(el("div", { class: "yui-row yui-row--action yui-card__io" }, imp, exY, exP),
-        el("p", { class: "yui-row__sub yui-card__io-note", text: "YUI 묶음(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 YUI 묶음이나 PNG 카드로 해요" }));
+        el("p", { class: "yui-row__sub yui-card__io-note", text: "프리셋 파일(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 프리셋 파일이나 PNG 카드로 해요" }));
     } else {
       host.append(el("div", { class: "yui-group io-split" },
-        el("div", { class: "yui-row yui-row--action" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: "가져오기" }), el("span", { class: "yui-row__sub", text: "YUI 묶음(.yui), JSON·PNG 카드" })), imp),
+        el("div", { class: "yui-row yui-row--action" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: "가져오기" }), el("span", { class: "yui-row__sub", text: "프리셋 파일(.yui), JSON·PNG 카드" })), imp),
         el("div", { class: "yui-row yui-row--action" }, el("div", { class: "yui-row__main" }, el("span", { class: "yui-row__label", text: "내보내기" }), el("span", { class: "yui-row__sub", text: "모델과 음성까지, 또는 카드만" })), exY, exP)));
     }
   }
@@ -216,10 +216,10 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
       $("xpTitle").textContent = "PNG 카드에 넣을 것";
       rows.append(rowOf("카드", "in", "넣음", "Yui · 대기 대사 포함"), rowOf("썸네일 그림", "in", "넣음", "카드를 담는 그림"));
     } else {
-      $("xpTitle").textContent = "묶음에 넣을 것";
+      $("xpTitle").textContent = "프리셋 파일에 넣을 것";
       const L = LIC[state.lic];
-      rows.append(rowOf("카드", "in", "넣음", "Yui · 대기 대사 포함"), rowOf("썸네일", "in", "넣음", "자르기 영역 포함"), rowOf("VRM", L.st, L.label, L.sub, L.cls),
-        state.voice === "clip" ? rowOf("음성", "in", "넣음", "yui-ref.wav · 1.2 MB · 받는 사람이 자기 TTS에 다시 등록해요") : rowOf("음성", "out", "빠짐", "로컬 클립이 없는 음성이에요 (OpenAI 기본 음성)", "danger"));
+      rows.append(rowOf("카드", "in", "넣음", "Yui"), rowOf("썸네일", "in", "넣음", ""), rowOf("VRM", L.st, L.label, L.sub, L.cls),
+        state.voice === "clip" ? rowOf("음성", "in", "넣음", "받는 사람이 자기 TTS에 다시 등록해요") : rowOf("음성", "out", "빠짐", "로컬 클립이 없는 음성이에요", "danger"));
     }
     syncGo();
   }
@@ -228,19 +228,18 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
   $("xpCancel").addEventListener("click", closeXp);
   $("xpGo").addEventListener("click", () => {
     const kind = state.xp; closeXp();
-    if (kind === "png") { done("exportDone", "Yui.png로 저장했어요 · 0.6 MB"); return; }
+    if (kind === "png") { done("exportDone", "저장했어요"); return; }
     const vrmIn = LIC[state.lic].st !== "out";
-    const size = (vrmIn ? 84 : 0) + (state.voice === "clip" ? 1.2 : 0) + 0.6;
-    done("exportDone", `Yui.yui로 저장했어요 · ${size.toFixed(1)} MB${vrmIn ? "" : " · VRM은 빠졌어요"}`);
+    done("exportDone", vrmIn ? "저장했어요" : "저장했어요 · VRM은 빠졌어요");
   });
   $("pickFile").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-f]"); if (!b) return;
     $("pickFile").hidden = true; state.imported++;
-    const name = state.imported === 1 ? "Yui (2)" : `Yui (${state.imported + 1})`;
+    const name = `Yui ${state.imported + 1}`;
     const chip = el("span", { class: "mock-preset new" }, el("span", { class: "face" }), name);
     $("presets").append(chip);
     const what = b.dataset.f === "yui" ? "카드, VRM, 음성 클립, 썸네일을 가져왔어요" : b.dataset.f === "png" ? "카드와 썸네일을 가져왔어요" : "카드를 가져왔어요";
-    done("importDone", `새 캐릭터 ${name}를 만들었어요. ${what}.`);
+    done("importDone", `새 프리셋 ${name}를 만들었어요. ${what}.`);
   });
 
   function setSeg(id, v) { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
