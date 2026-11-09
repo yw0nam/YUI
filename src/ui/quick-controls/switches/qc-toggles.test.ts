@@ -184,7 +184,7 @@ describe("createQuickControls — toggles", () => {
     {
       name: "thread-reactions",
       selector: ".yui-thread-reactions-switch",
-      ariaLabel: "스레드 보러 가기",
+      ariaLabel: "스레드 반응",
       initialEnabled: true,
       gated: true,
       build: () => {
