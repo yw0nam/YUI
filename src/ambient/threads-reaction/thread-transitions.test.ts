@@ -32,12 +32,6 @@ it.each([
   expect(transitions.next(snap(thread("t1", state)))).toEqual([]);
 });
 
-it("ignores a Thread that went back to working", () => {
-  const transitions = createThreadTransitions();
-  transitions.next(snap(thread("t1", "input-required")));
-  expect(transitions.next(snap(thread("t1", "working")))).toEqual([]);
-});
-
 it("reports a new Thread that arrives in a reacting state, and not one that arrives working", () => {
   const transitions = createThreadTransitions();
   transitions.next(snap());

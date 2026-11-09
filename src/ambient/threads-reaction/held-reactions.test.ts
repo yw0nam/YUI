@@ -31,11 +31,16 @@ it("gives held reactions back oldest first, then null", () => {
   ]);
 });
 
-it("keeps only the newest transition of a Thread", () => {
+it("keeps only the newest transition of a Thread, queued behind the Threads held before it", () => {
   const held = createHeldReactions();
   held.hold({ id: "t1", state: "input-required" });
+  held.hold({ id: "t2", state: "failed" });
   held.hold({ id: "t1", state: "completed" });
-  expect([held.take(), held.take()]).toEqual([{ id: "t1", state: "completed" }, null]);
+  expect([held.take(), held.take(), held.take()]).toEqual([
+    { id: "t2", state: "failed" },
+    { id: "t1", state: "completed" },
+    null,
+  ]);
 });
 
 it("drops a reaction whose Thread changed state or is gone", () => {

@@ -146,6 +146,7 @@ it.each([
     null,
     "input-required",
     ["line:Here, up front.", "present:-", "sit", "emotion:curious"],
+    [[]],
   ],
   [
     "open but not listed",
@@ -153,10 +154,18 @@ it.each([
     null,
     "input-required",
     ["line:Here, up front.", "present:-", "sit", "emotion:curious"],
+    [[]],
   ],
-  ["open and visible", [BESIDE, THREADS], null, "failed", ["sit", "emotion:sad"]],
-  ["open with her seated on it", [THREADS], { windowNumber: 42 }, "completed", ["emotion:happy"]],
-] as const)("%s: runs only the steps the window state needs", async (_name, windows, seat, state, expected) => {
+  ["open and visible", [BESIDE, THREADS], null, "failed", ["sit", "emotion:sad"], []],
+  [
+    "open with her seated on it",
+    [THREADS],
+    { windowNumber: 42 },
+    "completed",
+    ["emotion:happy"],
+    [],
+  ],
+] as const)("%s: runs only the steps the window state needs", async (_name, windows, seat, state, expected, presentCalls) => {
   const h = setup();
   h.state.windowOpen = true;
   h.state.windows = [...windows];
@@ -164,15 +173,7 @@ it.each([
   h.push(state);
   await flush();
   expect(h.order).toEqual(expected);
-});
-
-it("a raise opens the window without a chip or a Thread", async () => {
-  const h = setup();
-  h.state.windowOpen = true;
-  h.state.windows = [OVER, THREADS];
-  h.push("completed");
-  await flush();
-  expect(h.present).toHaveBeenCalledWith();
+  expect(h.present.mock.calls).toEqual(presentCalls);
 });
 
 it.each([
