@@ -38,12 +38,7 @@ export interface PerchProbeSource {
 export interface DropWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   scaleFactor(): Promise<number>;
-  /**
-   * Move the pet window (physical px). Only the programmatic placement path needs it;
-   * a drag-only wiring may omit it, and `placeOn` then reports `unsupported`.
-   */
-  setPositionPhysical?(x: number, y: number): Promise<void>;
-  /** Move the pet window (logical points); the follow needs it. */
+  /** Move the pet window (logical points); without it `placeOn` reports `unsupported`. */
   setPositionLogical?(x: number, y: number): Promise<void>;
 }
 
