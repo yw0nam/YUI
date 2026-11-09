@@ -5,7 +5,7 @@
 
 import "./threads-view.css";
 import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
-import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
+import type { ThreadsOpen, ThreadsTab } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
@@ -35,7 +35,7 @@ export interface ThreadsView {
   open(
     from: ScreenRect | null,
     tab?: ThreadsTab,
-    opts?: { thread?: string; focus?: false },
+    opts?: Pick<ThreadsOpen, "thread" | "focus">,
   ): Promise<void>;
   /** Shows `tab`, keeping everything else. */
   select(tab: ThreadsTab): void;

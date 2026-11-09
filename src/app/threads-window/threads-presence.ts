@@ -5,18 +5,14 @@
  */
 
 import type { ScreenRect } from "../../contract";
-import type { ThreadsTab } from "../../io/bridge/settings-bridge";
+import type { ThreadsOpen, ThreadsTab } from "../../io/bridge/settings-bridge";
 import { createSerialQueue } from "../../io/window/serial-queue";
 import { createLogger } from "../../logger";
 
 const log = createLogger("threads-presence");
 
 /** An automatic open's Thread, its `focus: false`, and the request id it reports presented. */
-export interface PresenceOpen {
-  thread?: string;
-  focus?: false;
-  present?: string;
-}
+type PresenceOpen = Pick<ThreadsOpen, "thread" | "focus" | "present">;
 
 export function createThreadsPresence(deps: {
   view: {
