@@ -22,6 +22,8 @@ export interface ThreadsChip {
   updateRequests(requests: AccessRequest[]): void;
   /** Whether the window is open; the chip hides while it is. */
   setWindowOpen(open: boolean): void;
+  /** The chip's rect in this window's viewport: where it is shown, or the slot it would take while hidden. */
+  slotRect(): ScreenRect;
   dispose(): void;
 }
 
@@ -90,6 +92,11 @@ export function createThreadsChip({
     if (arrived && !el.hidden) nod();
   }
 
+  const rect = (): ScreenRect => {
+    const { x, y, width, height } = el.getBoundingClientRect();
+    return { x, y, width, height };
+  };
+
   const fold = holdToFold(el, collapsed);
   function onClick(): void {
     if (fold.swallowClick()) return;
@@ -97,8 +104,7 @@ export function createThreadsChip({
       collapsed.setCollapsed(false);
       return;
     }
-    const { x, y, width, height } = el.getBoundingClientRect();
-    onOpen({ x, y, width, height });
+    onOpen(rect());
   }
   const onAnimationEnd = (): void => el.classList.remove("is-nod");
   el.addEventListener("click", onClick);
@@ -127,6 +133,16 @@ export function createThreadsChip({
     setWindowOpen(open) {
       windowOpen = open;
       render();
+    },
+    slotRect() {
+      if (!el.hidden) return rect();
+      // Laid out but invisible for one synchronous read; nothing paints before it is hidden again.
+      el.hidden = false;
+      el.classList.add("is-measuring");
+      const slot = rect();
+      el.classList.remove("is-measuring");
+      el.hidden = true;
+      return slot;
     },
     dispose() {
       fold.dispose();

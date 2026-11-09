@@ -93,6 +93,8 @@ export interface AvatarExecutor {
   noteUserDrag(): void;
   /** The user let go; agent commands are accepted again. */
   noteUserDragEnd(): void;
+  /** Whether a command is running or the user is dragging, so a new command would be refused. */
+  isBusy(): boolean;
 }
 
 /** A command whose required field is absent or invalid, named so the tool layer can answer `error: missing field <name>` or `error: invalid field <name>`. */
@@ -371,6 +373,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     noteUserDragEnd() {
       dragging = false;
     },
+    isBusy: () => dragging || moving,
     command,
     state: () => readState(),
     perchTargets: () => readPerchTargets(),

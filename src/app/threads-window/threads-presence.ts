@@ -1,29 +1,35 @@
 /**
  * The Threads window's open and close, one at a time: show and grow, shrink and hide, then tell
  * main. An open while it shows brings it forward, keeping its frame, selection and filters, and
- * switches to the tab it names.
+ * switches to the tab it names; an open without focus only orders it front.
  */
 
 import type { ScreenRect } from "../../contract";
-import type { ThreadsTab } from "../../io/bridge/settings-bridge";
+import type { ThreadsOpen, ThreadsTab } from "../../io/bridge/settings-bridge";
 import { createSerialQueue } from "../../io/window/serial-queue";
 import { createLogger } from "../../logger";
 
 const log = createLogger("threads-presence");
 
+/** An automatic open's Thread, its `focus: false`, and the request id it reports presented. */
+type PresenceOpen = Pick<ThreadsOpen, "thread" | "focus" | "present">;
+
 export function createThreadsPresence(deps: {
   view: {
-    open(from: ScreenRect | null, tab?: ThreadsTab): Promise<void>;
+    open(from: ScreenRect | null, tab?: ThreadsTab, opts?: PresenceOpen): Promise<void>;
     close(): Promise<void>;
     select(tab: ThreadsTab): void;
   };
   /** Places and shows the window; resolves where the grow starts (window-local px), or null with no chip. */
-  show(chip?: ScreenRect): Promise<ScreenRect | null>;
+  show(chip?: ScreenRect, opts?: PresenceOpen): Promise<ScreenRect | null>;
   /** Brings the shown window to the front where it is. */
   focus(): Promise<void>;
+  /** Orders the shown window front without focus. */
+  raise(): Promise<void>;
   hide(): Promise<void>;
   emitClosed(): void;
-}): { open(chip?: ScreenRect, tab?: ThreadsTab): void; close(): void } {
+  emitPresented(present: string): void;
+}): { open(chip?: ScreenRect, tab?: ThreadsTab, opts?: PresenceOpen): void; close(): void } {
   let shown = false;
   const queue = createSerialQueue();
 
@@ -34,23 +40,29 @@ export function createThreadsPresence(deps: {
   }
 
   return {
-    open(chip, tab) {
+    open(chip, tab, opts = {}) {
       queue(async () => {
-        if (shown) {
+        if (shown && opts.focus === false) {
+          await deps
+            .raise()
+            .catch((error) => log.warn("threads_raise_failed", { error: String(error) }));
+        } else if (shown) {
           if (tab) deps.view.select(tab);
           await deps
             .focus()
             .catch((error) => log.warn("threads_focus_failed", { error: String(error) }));
-          return;
+        } else {
+          try {
+            const from = await deps.show(chip, opts);
+            shown = true;
+            await deps.view.open(from, tab, opts);
+          } catch (error) {
+            log.error("threads_open_failed", { error: String(error) });
+            await hide();
+            return;
+          }
         }
-        try {
-          const from = await deps.show(chip);
-          shown = true;
-          await deps.view.open(from, tab);
-        } catch (error) {
-          log.error("threads_open_failed", { error: String(error) });
-          await hide();
-        }
+        if (opts.present) deps.emitPresented(opts.present);
       });
     },
     close() {

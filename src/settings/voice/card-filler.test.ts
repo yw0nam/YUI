@@ -73,6 +73,11 @@ describe("card-filler", () => {
       want: { other: {}, yui: { filler: { ja: { tool: { _default: ["x"] } } } } },
     },
     {
+      name: "with carries a threads tier phrase",
+      run: () => extensionsWithFiller({ other: {} }, { ja: { threads_open: ["x"] } }),
+      want: { other: {}, yui: { filler: { ja: { threads_open: ["x"] } } } },
+    },
+    {
       name: "with omits filler while the pools are empty",
       run: () => extensionsWithFiller({ other: {} }, {}),
       want: { other: {} },

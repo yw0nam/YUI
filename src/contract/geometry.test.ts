@@ -28,6 +28,7 @@ describe("WindowRect", () => {
       ownerName: "Safari",
       pid: 4242,
       windowNumber: 88,
+      threadsWindow: false,
     };
     const asRect: ScreenRect = win;
     expect(asRect.width).toBe(1280);
@@ -46,6 +47,7 @@ describe("WindowRect", () => {
       ownerName: null,
       pid: 1,
       windowNumber: 1,
+      threadsWindow: false,
     };
     expect(win.name).toBeNull();
   });

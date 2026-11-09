@@ -17,7 +17,15 @@ export interface FillerSettings {
 
 export type FillerStorage = PersistedStorage<FillerSettings>;
 
-const LIST_TIERS = ["first", "repeat", "long_wait", "timeout", "unreachable"] as const;
+const LIST_TIERS = [
+  "first",
+  "repeat",
+  "long_wait",
+  "timeout",
+  "unreachable",
+  "threads_open",
+  "threads_raise",
+] as const;
 
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === "string");

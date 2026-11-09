@@ -51,6 +51,8 @@ interface SwitchRowOptions {
   /** While the unified chat window shows, the message window row is locked off. */
   unifiedShown?: UnifiedShown;
   relationsSwitch?: FlagSettingsStore;
+  /** Thread reactions on/off store. If absent, that toggle row won't render. */
+  threadReactionsSettings?: FlagSettingsStore;
 }
 
 /** The speech bubble's keep-until-dismissed row. */
@@ -89,6 +91,7 @@ export function createSwitchRows({
   unifiedChatSwitch,
   unifiedShown,
   relationsSwitch,
+  threadReactionsSettings,
 }: SwitchRowOptions): SwitchRow[] {
   return [
     {
@@ -230,6 +233,22 @@ export function createSwitchRows({
       getEnabled: () => agentNotifySettings!.get().enabled,
       setEnabled: (v) => agentNotifySettings!.setEnabled(v),
       logKey: "agent_notify_toggle",
+    },
+    {
+      selector: ".yui-thread-reactions-switch",
+      labelKey: "threadReactions.label",
+      subKey: "threadReactions.sub",
+      ariaKey: "threadReactions.aria",
+      tab: "react",
+      isVisible: !!threadReactionsSettings,
+      isAvailable: !!threadReactionsSettings,
+      initialEnabled: threadReactionsSettings?.get().enabled ?? true,
+      getEnabled: () => threadReactionsSettings!.get().enabled,
+      setEnabled: (v) => threadReactionsSettings!.setEnabled(v),
+      logKey: "thread_reactions_toggle",
+      subscribe: threadReactionsSettings
+        ? (cb) => threadReactionsSettings.subscribe(cb)
+        : undefined,
     },
     {
       selector: ".yui-filler-switch",

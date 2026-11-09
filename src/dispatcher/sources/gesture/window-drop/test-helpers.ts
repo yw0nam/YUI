@@ -39,6 +39,7 @@ export const win = (over: Partial<WindowRect> = {}): WindowRect => ({
   ownerName: "Visual Studio Code",
   pid: 999,
   windowNumber: 7,
+  threadsWindow: false,
   ...over,
 });
 

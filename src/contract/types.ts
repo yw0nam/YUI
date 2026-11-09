@@ -527,4 +527,6 @@ export interface WindowRect extends ScreenRect {
   pid: number;
   /** kCGWindowNumber — stable window identity used to track the perched window across the stack. */
   windowNumber: number;
+  /** YUI's own Threads window, the one own window `list_windows` keeps. */
+  threadsWindow: boolean;
 }

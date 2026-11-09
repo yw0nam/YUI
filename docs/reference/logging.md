@@ -249,11 +249,26 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip leaves its open state (`error` level). |
 | `threads-presence` | `threads_focus_failed` | `error` | Bringing the shown window forward on a second open threw (`warn` level). |
 | `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
+| `threads-presence` | `threads_raise_failed` | `error` | Ordering the shown window front without focus threw (`warn` level). |
 | `serial-queue` | `serial_queue_step_failed` | `error` | A window open or close step rejected; the next step still runs (`warn` level). |
 | `threads-placement` | `threads_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
 | `threads-placement` | `threads_move_listen_failed` | `error` | Listening to the window's moves failed; a move is not saved (`warn` level). |
 | `threads-placement` | `threads_move_save_failed` | `error` | Reading the window's position after a move threw; the move is not saved (`warn` level). |
 | `threads-resize` | `threads_resize_failed` | `error` | Reading the window's frame or applying a resize step threw; the resize saves only what was applied (`warn` level). |
+
+## Thread reaction events
+
+`ambient/threads-reaction/thread-reaction.ts` (namespace `thread-reaction`, in main's pet window) logs each step of a Thread reaction at `debug` and its failures at `warn`. Every step line carries `threadId`, `state` and `window`, where `window` is `closed`, `covered` or `open`.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `thread-reaction` | `reaction_start` | `threadId`, `state`, `window` | A reaction starts (`debug` level). |
+| `thread-reaction` | `reaction_line` | `threadId`, `state`, `window` | A filler line starts (`debug` level). |
+| `thread-reaction` | `reaction_present` | `threadId`, `state`, `window` | The window is asked to open or rise without focus (`debug` level). |
+| `thread-reaction` | `reaction_sit` | `threadId`, `state`, `window` | The sit command is sent (`debug` level). |
+| `thread-reaction` | `reaction_expression` | `threadId`, `state`, `window` | The mapped expression is set (`debug` level). |
+| `thread-reaction` | `reaction_sit.failed` | `threadId`, `state`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
+| `thread-reaction` | `reaction_failed` | `threadId`, `error` | A reaction threw (`warn` level). |
 
 ## TypeScript usage
 

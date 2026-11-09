@@ -56,6 +56,8 @@ function pool(overrides: Partial<FillerPool> = {}): FillerPool {
     tool: {},
     timeout: [],
     unreachable: [],
+    threads_open: [],
+    threads_raise: [],
     ...overrides,
   };
 }

@@ -7,7 +7,7 @@
 //! as Electron's `NativeWindowMac::Show`/`Hide`).
 
 #[cfg(target_os = "macos")]
-mod macos {
+pub(crate) mod macos {
     use std::sync::mpsc;
 
     use objc2::MainThreadMarker;
@@ -15,7 +15,7 @@ mod macos {
     use tauri::{Manager, Runtime, WebviewWindow};
 
     /// Runs `f` on the main thread with the window's NSWindow, blocking until it returns.
-    fn with_ns_window<R: Runtime, T: Send + 'static>(
+    pub(crate) fn with_ns_window<R: Runtime, T: Send + 'static>(
         window: &WebviewWindow<R>,
         f: impl FnOnce(&NSWindow, &WebviewWindow<R>) -> Result<T, String> + Send + 'static,
     ) -> Result<T, String> {

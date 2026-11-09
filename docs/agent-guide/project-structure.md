@@ -30,7 +30,7 @@ YUI/
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
-    filler.json                      # Backed-off filler schedule + first/repeat/long_wait/tool/timeout/unreachable phrase pools
+    filler.json                      # Backed-off filler schedule + first/repeat/long_wait/tool/timeout/unreachable/threads_open/threads_raise phrase pools
     guardrails.json                  # Dispatcher cooldown/suppression + attachment caps (max_count, max_image_bytes)
     hotkeys.json                     # Global summon accelerator (empty = disabled)
     screen.json                      # Frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
@@ -100,6 +100,8 @@ YUI/
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
       signal-chips/                  # The signal chips beside the avatar
         wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
+      threads-reaction/              # Main's Thread reactions: the Threads client, the Threads window, the chip's slot, speech, the turn pipeline, the stage and the renderer
+        wire-thread-reactions.ts     # Wires the thread reaction in main; a window without a Threads client wires nothing
       threads-chip/                  # Main's ways into the Threads window: the chip, the tray's Terminal item and the quick card's requests
         wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window
         wire-threads-open-requests.ts # The tray's Terminal item and a quick card's request, opening the Threads window on their tab
@@ -127,7 +129,7 @@ YUI/
       threads-window/                # The Threads window's wiring
         wire-threads-window.ts       # Snapshots into the view, Answers to the store, the frame store into placement and resize, the list choice, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
-        threads-presence.ts          # One open or close at a time: show and grow, or focus while shown; shrink and hide, then the closed report
+        threads-presence.ts          # One open or close at a time: show and grow, or focus or raise without focus while shown; shrink and hide, then the closed report, and the presented report for an automatic request
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
@@ -319,6 +321,10 @@ YUI/
           wire-travel-frame.ts       # Real-window travel frame wiring
         sitter.ts                    # Seat transitions: crossfade and eased window move
         clip-leg.ts                  # A window leg paced by an in-place clip
+      threads-reaction/              # Thread reactions: the state change diff, one held reaction per Thread, and the reaction when she is free
+        thread-transitions.ts        # The Threads that entered input-required, completed or failed since the last snapshot
+        held-reactions.ts            # One reaction per Thread, the newest replacing an older one, dropped when its Thread moved on
+        thread-reaction.ts           # Runs a reaction when she is free: a filler line, the window open or raise without focus, her seat on it, and the expression
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
       settings-stores.ts             # Constructs and synchronises the persisted user-setting stores
@@ -500,7 +506,7 @@ YUI/
           message-window.ts            # Message-window opener, message-<id> for a bound id
           ready-window.ts              # A hidden window created once, a leftover recreated, a request held until the window reports ready
           quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id, on ready-window; its permissions are src-tauri/capabilities/quick-card.json
-          threads-window.ts            # Threads window opener on ready-window: the chip's screen rect in each open request, the closed report passed on; its permissions are src-tauri/capabilities/threads.json
+          threads-window.ts            # Threads window opener on ready-window: the chip's screen rect in each open request, the closed report passed on, present and isOpen for a Thread reaction; its permissions are src-tauri/capabilities/threads.json
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
@@ -641,7 +647,7 @@ YUI/
         boot-error.css               # Boot-failure notice styles
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
-        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one nod on arrival, hold-to-fold
+        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one nod on arrival, hold-to-fold, and its slot rect while hidden
         window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
@@ -851,6 +857,7 @@ YUI/
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       window_dock.rs                 # A docked window's macOS child-window link to its owner window: window_dock_attach, window_dock_detach
+      threads_window.rs              # The Threads window's native window number, and threads_order_front: an order-front that takes no focus
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
@@ -890,10 +897,10 @@ YUI/
         png_card.rs                  # Writes the card JSON into a PNG as one chara tEXt chunk
       tray.rs                        # System tray menu and its show and hide actions
       os_event_watcher/
-        mod.rs                       # OS polling loop that emits os_event to the webview
+        mod.rs                       # OS polling loop that emits os_event to the webview, and list_windows, which keeps the Threads window flagged
         witness.rs                   # Transition-only log of frontmost app and idle state
         drop_release.rs              # Drop-release probe that emits window_drop_release with the dragged window's label
-        pure_helpers.rs              # Idle conversion and frontmost-window pick
+        pure_helpers.rs              # Idle conversion, frontmost-window pick, and the listed windows' keep rule for the Threads window
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read

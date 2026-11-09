@@ -244,7 +244,7 @@ An empty string disables the shortcut. If another app holds the shortcut, regist
 - `gap_ms` (`7000`), `gap_jitter_ms` (`1500`) and `gap_growth` (`2`) space the repeat lines.
 - `max_repeats` (`3`) caps the repeats before one long-wait line.
 - `long_wait_ms` (`40000`) is the silence before that long-wait line.
-- `pools` holds the default lines for each language (`ja`, `en`, `ko`): a first line, repeat lines, a long-wait line, per-tool lines with a `_default`, a timeout line and an unreachable line.
+- `pools` holds the default lines for each language (`ja`, `en`, `ko`): a first line, repeat lines, a long-wait line, per-tool lines with a `_default`, a timeout line, an unreachable line, and the Threads lines `threads_open` and `threads_raise`.
 
 The **Thinking interjections** section of the **Voice** page edits these lists per language. An empty list uses the default from this file.
 

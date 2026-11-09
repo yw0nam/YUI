@@ -15,7 +15,9 @@
         "web_search": ["検索してみるね。"]
       },
       "timeout": ["ごめん、返事が来なくて諦めちゃった。もう一回言ってくれる?"],
-      "unreachable": ["今つながらないみたい。サーバー確認してくれる?"]
+      "unreachable": ["今つながらないみたい。サーバー確認してくれる?"],
+      "threads_open": ["スレッドウィンドウ開くね。", "開いてくるね。", "スレッド、見てくるね。"],
+      "threads_raise": ["はい、手前に出すね。", "前に出してくるね。", "ごめん、ちょっと通して。"]
     },
     "en": {
       "first": ["Let me think...", "Hmm..."],
@@ -27,7 +29,9 @@
         "web_search": ["Let me search for that."]
       },
       "timeout": ["Sorry, I gave up waiting for a reply — can you say that again?"],
-      "unreachable": ["I can't connect right now. Can you check the server?"]
+      "unreachable": ["I can't connect right now. Can you check the server?"],
+      "threads_open": ["Let me open Threads.", "Opening Threads.", "Hang on, pulling up Threads."],
+      "threads_raise": ["Here, bring this up front.", "Let me bring Threads forward.", "Excuse me, coming through."]
     },
     "ko": {
       "first": ["음…", "그건…"],
@@ -39,7 +43,9 @@
         "web_search": ["검색해 볼게."]
       },
       "timeout": ["미안, 답이 너무 오래 안 와서 포기했어. 다시 말해 줄래?"],
-      "unreachable": ["지금 연결이 안 돼. 서버 좀 확인해 줄래?"]
+      "unreachable": ["지금 연결이 안 돼. 서버 좀 확인해 줄래?"],
+      "threads_open": ["스레드 창 열어 볼게.", "잠깐, 열어 두고 올게.", "스레드 좀 보고 올게."],
+      "threads_raise": ["여기, 앞으로 낼게.", "스레드 창 앞으로 내올게.", "잠깐, 이리 내놓을게."]
     }
   }
 }

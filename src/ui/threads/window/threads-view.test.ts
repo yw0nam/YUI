@@ -324,6 +324,46 @@ it("reports the open ask as seen only when the user picks a Thread, and not an a
   expect(onSeen).toHaveBeenCalledExactlyOnceWith("t1", "a1");
 });
 
+it("an automatic open selects the asked Thread on the filter that holds it, unseen, and moves no focus", async () => {
+  const { view, $, onSeen } = build();
+  view.update(
+    snapshot(1, [
+      thread("t1", "codex", 3),
+      thread("t2", "codex", 2, false),
+      thread("t3", "codex", 1),
+    ]),
+  );
+
+  await view.open(null, "threads", { thread: "t2", focus: false });
+  expect($('[data-tab="all"]').getAttribute("aria-pressed")).toBe("true");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
+
+  await view.open(null, "threads", { thread: "t3", focus: false });
+  expect($('[data-tab="waiting"]').getAttribute("aria-pressed")).toBe("true");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t3");
+  expect(onSeen).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(document.body);
+});
+
+it("selects an asked Thread on the first snapshot that holds it, until a user pick or the next open", async () => {
+  const { view, $ } = build();
+  await view.open(null, "threads", { thread: "t2", focus: false });
+  view.update(snapshot(1, [thread("t1", "codex", 3)]));
+  view.update(snapshot(2, [thread("t1", "codex", 3), thread("t2", "codex", 2, false)]));
+  expect($('[data-tab="all"]').getAttribute("aria-pressed")).toBe("true");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
+
+  await view.open(null, "threads", { thread: "t9", focus: false });
+  $<HTMLButtonElement>('.yui-threads-list [data-id="t1"]').click();
+  view.update(snapshot(3, [thread("t1", "codex", 3), thread("t9", "codex", 4, false)]));
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
+
+  await view.open(null, "threads", { thread: "t8", focus: false });
+  await view.open(null);
+  view.update(snapshot(4, [thread("t1", "codex", 3), thread("t8", "codex", 5, false)]));
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
+});
+
 it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {
   const { view, $, onRead } = build();
   const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];

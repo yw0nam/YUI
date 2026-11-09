@@ -13,8 +13,10 @@ it("brings a shown window forward on a second open, without placing or growing i
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(CHIP);
@@ -33,8 +35,10 @@ it("opens with no chip rect from no origin on the asked tab, and a later open's 
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(undefined, "terminal");
@@ -42,8 +46,8 @@ it("opens with no chip rect from no origin on the asked tab, and a later open's 
   presence.open(CHIP, "threads");
 
   await vi.waitFor(() => expect(focus).toHaveBeenCalledTimes(2));
-  expect(show).toHaveBeenCalledWith(undefined);
-  expect(view.open).toHaveBeenCalledWith(null, "terminal");
+  expect(show).toHaveBeenCalledWith(undefined, {});
+  expect(view.open).toHaveBeenCalledWith(null, "terminal", {});
   expect(view.select.mock.calls).toEqual([["threads"]]);
 });
 
@@ -61,8 +65,10 @@ it("runs the next open after a close whose view.close rejects", async () => {
     view,
     show,
     focus,
+    raise: vi.fn(async () => {}),
     hide: async () => {},
     emitClosed: vi.fn(),
+    emitPresented: vi.fn(),
   });
 
   presence.open(CHIP);
@@ -72,4 +78,63 @@ it("runs the next open after a close whose view.close rejects", async () => {
   await vi.waitFor(() => expect(focus).toHaveBeenCalledOnce());
   expect(show).toHaveBeenCalledOnce();
   expect(view.open).toHaveBeenCalledOnce();
+});
+
+it("an automatic open shows without focus, opens the view on the Thread, then reports presented", async () => {
+  let grown!: () => void;
+  const view = {
+    open: vi.fn(() => new Promise<void>((resolve) => (grown = resolve))),
+    close: vi.fn(async () => {}),
+    select: vi.fn(),
+  };
+  const show = vi.fn(async () => null);
+  const emitPresented = vi.fn();
+  const presence = createThreadsPresence({
+    view,
+    show,
+    focus: vi.fn(async () => {}),
+    raise: vi.fn(async () => {}),
+    hide: async () => {},
+    emitClosed: vi.fn(),
+    emitPresented,
+  });
+
+  presence.open(CHIP, "threads", { thread: "t2", focus: false, present: "p1" });
+
+  await vi.waitFor(() => expect(view.open).toHaveBeenCalledOnce());
+  expect(show).toHaveBeenCalledWith(CHIP, { thread: "t2", focus: false, present: "p1" });
+  expect(view.open).toHaveBeenCalledWith(null, "threads", {
+    thread: "t2",
+    focus: false,
+    present: "p1",
+  });
+  expect(emitPresented).not.toHaveBeenCalled();
+  grown();
+  await vi.waitFor(() => expect(emitPresented).toHaveBeenCalledExactlyOnceWith("p1"));
+});
+
+it("a raise brings the shown window forward keeping its tab and selection, and reports presented even when it fails", async () => {
+  const view = { open: vi.fn(async () => {}), close: vi.fn(async () => {}), select: vi.fn() };
+  const focus = vi.fn(async () => {});
+  const raise = vi.fn(async () => {
+    throw new Error("no window");
+  });
+  const emitPresented = vi.fn();
+  const presence = createThreadsPresence({
+    view,
+    show: vi.fn(async () => null),
+    focus,
+    raise,
+    hide: async () => {},
+    emitClosed: vi.fn(),
+    emitPresented,
+  });
+
+  presence.open(CHIP);
+  presence.open(undefined, "terminal", { focus: false, present: "p2" });
+
+  await vi.waitFor(() => expect(raise).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(emitPresented).toHaveBeenCalledExactlyOnceWith("p2"));
+  expect(view.select).not.toHaveBeenCalled();
+  expect(focus).not.toHaveBeenCalled();
 });

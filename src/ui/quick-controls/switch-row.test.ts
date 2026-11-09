@@ -34,17 +34,18 @@ function makeSwitchRows(): SwitchRow[] {
     screenKnobSettings: createScreenKnobSettings(),
     unifiedChatSwitch: createFlagSettings(false),
     relationsSwitch: createFlagSettings(true),
+    threadReactionsSettings: createFlagSettings(true),
   });
 }
 
-function render(switchRows: readonly SwitchRow[]): HTMLElement {
+function render(switchRows: readonly SwitchRow[], showThreadTurns = false): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
     openOnQuickStart: false,
     hasSession: false,
     switchRows,
     showScreen: true,
-    showThreadTurns: false,
+    showThreadTurns,
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,
@@ -108,6 +109,29 @@ describe("SwitchRow descriptor", () => {
     const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });
     button?.click();
     expect(unifiedChatSwitch.get().enabled).toBe(true);
+    bound.dispose();
+  });
+
+  it("puts the Thread reactions row beside Thread turns in Watchers, on, and a click flips its store", () => {
+    const threadReactionsSettings = createFlagSettings(true);
+    const rows = createSwitchRows({
+      idleThrottleSettings: createFlagSettings(true),
+      vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
+      threadReactionsSettings,
+    });
+    const root = render(rows, true);
+    const button = root.querySelector<HTMLButtonElement>(".yui-thread-reactions-switch");
+
+    expect(button).not.toBeNull();
+    expect(
+      button!.closest(".yui-group")?.contains(root.querySelector(".yui-threadturns-row")),
+    ).toBe(true);
+    expect(button!.getAttribute("aria-checked")).toBe("true");
+
+    const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });
+    button!.click();
+    expect(threadReactionsSettings.get().enabled).toBe(false);
     bound.dispose();
   });
 

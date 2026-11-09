@@ -5,7 +5,7 @@
 
 import "./threads-view.css";
 import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
-import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
+import type { ThreadsOpen, ThreadsTab } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
@@ -31,8 +31,12 @@ const REFRESH_MS = 60_000;
 
 export interface ThreadsView {
   update(snapshot: ThreadsSnapshot): void;
-  /** Shows `tab` (Threads by default), resets the filters, selects the Thread an open shows, and grows out of `from` (window-local px) when there is one. */
-  open(from: ScreenRect | null, tab?: ThreadsTab): Promise<void>;
+  /** Shows `tab` (Threads by default), resets the filters, selects `thread` or the Thread an open shows, grows out of `from` (window-local px) when there is one, and focuses a field unless `focus` is false. */
+  open(
+    from: ScreenRect | null,
+    tab?: ThreadsTab,
+    opts?: Pick<ThreadsOpen, "thread" | "focus">,
+  ): Promise<void>;
   /** Shows `tab`, keeping everything else. */
   select(tab: ThreadsTab): void;
   /** Shrinks back to where the last open grew from. */
@@ -167,11 +171,12 @@ export function createThreadsView(deps: {
 
   return {
     update: threads.update,
-    async open(at, tab = "threads") {
+    async open(at, tab = "threads", opts = {}) {
       from = at;
-      threads.reset();
+      threads.reset(opts.thread);
       tabs.select(tab);
       await growOpen({ root, panel, content }, at);
+      if (opts.focus === false) return;
       if (!tabs.current().focusField?.()) layout.focusSelected();
     },
     select: tabs.show,

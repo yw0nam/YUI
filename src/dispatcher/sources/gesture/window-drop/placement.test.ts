@@ -13,18 +13,18 @@ import { makeWindow, win } from "./test-helpers";
 /** Seat at global (300, 400): seatPx (40,30) · pos (520,740) · scale 2. */
 function makeDeps(windows: WindowRect[]) {
   let pos = { x: 520, y: 740 };
-  const setPositionPhysical = vi.fn(async (x: number, y: number) => {
-    pos = { x, y };
+  const setPositionLogical = vi.fn(async (x: number, y: number) => {
+    pos = { x: x * 2, y: y * 2 };
   });
   return {
-    setPositionPhysical,
+    setPositionLogical,
     deps: {
       renderer: { getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })) },
       invoke: vi.fn(async () => windows),
       getWindow: () => ({
         outerPosition: vi.fn(async () => pos),
         scaleFactor: vi.fn(async () => 2),
-        setPositionPhysical,
+        setPositionLogical,
       }),
       getPeekConfig: () => avatarFixture().peek,
       stopFollow: vi.fn(),
@@ -36,15 +36,44 @@ function makeDeps(windows: WindowRect[]) {
 
 describe("placement", () => {
   it("moves the pet window so the seat lands on the named window's top edge", async () => {
-    const { deps, setPositionPhysical } = makeDeps([win({ ownerName: "Notes" })]);
+    const { deps, setPositionLogical } = makeDeps([win({ ownerName: "Notes" })]);
     const placeOn = createPlacement(deps);
 
     const result = await placeOn({ kind: "sit", app: "Notes" });
 
     // Desired seat = top-edge center (560, 400); seat is at (300, 400) → delta (260, 0) points.
-    // New physical origin = (520 + 260*2, 740 + 0).
-    expect(setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    // New logical origin = (520/2 + 260, 740/2 + 0).
+    expect(setPositionLogical).toHaveBeenCalledWith(520, 370);
     expect(result).toEqual({ ok: true, kind: "sit" });
+  });
+
+  it("commits with the position and scale read after a move onto a monitor of another scale", async () => {
+    // Starts at physical (520, 740) on scale 1; the move lands on a scale-2 monitor.
+    let landed = false;
+    const setPositionLogical = vi.fn(async () => {
+      landed = true;
+    });
+    const { deps } = makeDeps([win({ ownerName: "Notes" })]);
+    const placeOn = createPlacement({
+      ...deps,
+      getWindow: () => ({
+        outerPosition: async () => (landed ? { x: 1040, y: 740 } : { x: 520, y: 740 }),
+        scaleFactor: async () => (landed ? 2 : 1),
+        setPositionLogical,
+      }),
+    });
+
+    await placeOn({ kind: "sit", app: "Notes" });
+
+    // Seat (560, 770) → target (560, 400): logical origin (520, 740) moves by (0, -370).
+    expect(setPositionLogical).toHaveBeenCalledWith(520, 370);
+    expect(deps.commitSit).toHaveBeenCalledWith(
+      expect.objectContaining({ windowNumber: 7 }),
+      { x: 1040, y: 740 },
+      2,
+      200,
+      true,
+    );
   });
 
   it("reports not_found for a peek when no window is on screen", async () => {

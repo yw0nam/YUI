@@ -207,6 +207,7 @@ describe("wireLocomotion", () => {
       ownerName: "Test",
       pid: 42,
       windowNumber: 7,
+      threadsWindow: false,
     };
 
     s.fallerDeps.onWindowLand(target);

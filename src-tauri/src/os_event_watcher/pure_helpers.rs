@@ -40,6 +40,41 @@ pub(super) fn first_user_window(
     })
 }
 
+/// The transparent margin around the Threads panel, in points (`.yui-threads { padding: 8px }` in threads-view.css).
+const THREADS_WINDOW_MARGIN: f64 = 8.0;
+
+/// Foreign windows plus the own window numbered `threads_number`, flagged and
+/// named as YUI's Threads window and cut to its visible panel; YUI's other
+/// windows are dropped, order kept.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+pub(super) fn filter_listed(
+    windows: Vec<WindowAtPoint>,
+    own_pid: i32,
+    threads_number: Option<u32>,
+) -> Vec<WindowAtPoint> {
+    windows
+        .into_iter()
+        .filter_map(|w| {
+            if w.pid != own_pid {
+                Some(w)
+            } else if Some(w.window_number) == threads_number {
+                Some(WindowAtPoint {
+                    x: w.x + THREADS_WINDOW_MARGIN,
+                    y: w.y + THREADS_WINDOW_MARGIN,
+                    width: w.width - 2.0 * THREADS_WINDOW_MARGIN,
+                    height: w.height - 2.0 * THREADS_WINDOW_MARGIN,
+                    owner_name: Some("YUI".into()),
+                    name: Some("Threads".into()),
+                    threads_window: true,
+                    ..w
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,6 +116,7 @@ mod tests {
             owner_name: owner.map(str::to_string),
             pid,
             window_number: 1,
+            threads_window: false,
         }
     }
 
@@ -182,5 +218,69 @@ mod tests {
         // A dead or unreadable pid must not silently drop the window.
         let picked = first_user_window(vec![window(10, None, Some("Untitled"))], |_| None);
         assert_eq!(picked.unwrap().name.as_deref(), Some("Untitled"));
+    }
+
+    // ── listed windows: foreign ones plus YUI's Threads window ───────────────
+
+    fn numbered(pid: i32, window_number: u32) -> WindowAtPoint {
+        WindowAtPoint {
+            window_number,
+            ..window(pid, Some("app"), Some("Window"))
+        }
+    }
+
+    #[test]
+    fn listed_keeps_the_threads_window_at_its_z_position_and_drops_other_own_windows() {
+        let own = 4242;
+        let listed = filter_listed(
+            vec![
+                numbered(own, 8),
+                numbered(11, 1),
+                numbered(own, 7),
+                numbered(22, 2),
+            ],
+            own,
+            Some(7),
+        );
+        let seen: Vec<_> = listed
+            .iter()
+            .map(|w| {
+                (
+                    w.pid,
+                    w.window_number,
+                    w.threads_window,
+                    w.owner_name.as_deref(),
+                    w.name.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            seen,
+            vec![
+                (11, 1, false, Some("app"), Some("Window")),
+                (own, 7, true, Some("YUI"), Some("Threads")),
+                (22, 2, false, Some("app"), Some("Window")),
+            ]
+        );
+    }
+
+    #[test]
+    fn listed_threads_window_is_the_visible_panel_inside_its_transparent_margin() {
+        let own = 4242;
+        let listed = filter_listed(vec![numbered(own, 7)], own, Some(7));
+        let rect = (listed[0].x, listed[0].y, listed[0].width, listed[0].height);
+        assert_eq!(rect, (8.0, 8.0, 84.0, 84.0));
+    }
+
+    #[test]
+    fn listed_without_a_threads_window_holds_only_foreign_windows() {
+        let own = 4242;
+        let listed = filter_listed(
+            vec![numbered(11, 1), numbered(own, 7), numbered(22, 2)],
+            own,
+            None,
+        );
+        let pids: Vec<i32> = listed.iter().map(|w| w.pid).collect();
+        assert_eq!(pids, vec![11, 22]);
     }
 }

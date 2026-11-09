@@ -4,6 +4,7 @@
  */
 
 import type { AskAnswer, Thread, ThreadsSnapshot } from "../../../contract";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import {
   createThreadList,
@@ -18,8 +19,8 @@ import type { TabBody, TabShell } from "./threads-tabs";
 
 export interface ThreadsTabBody extends TabBody {
   update(snapshot: ThreadsSnapshot): void;
-  /** An open starts on the Waiting filter and the Thread it shows. */
-  reset(): void;
+  /** An open starts on the Waiting filter and the Thread it shows, or on `thread` and the filter that holds it once a snapshot has it; never reported seen. */
+  reset(thread?: string): void;
 }
 
 export function createThreadsTab(deps: {
@@ -50,8 +51,20 @@ export function createThreadsTab(deps: {
   let selected: string | null = null;
   let rows: Thread[] = [];
   let waiting = 0;
+  // The Thread an open asked for and the snapshot does not hold yet.
+  let wanted: string | null = null;
+
+  function applyWanted(): boolean {
+    const asked = threads.find((th) => th.id === wanted);
+    if (!asked) return false;
+    wanted = null;
+    selected = asked.id;
+    filter = { tab: isWaiting(asked) ? "waiting" : "all", kind: null };
+    return true;
+  }
 
   function select(id: string): void {
+    wanted = null;
     selected = id;
     const picked = threads.find((th) => th.id === id);
     if (picked?.ask && picked.seen_ask_id !== picked.ask.ask_id) deps.onSeen(id, picked.ask.ask_id);
@@ -94,15 +107,17 @@ export function createThreadsTab(deps: {
       pane.prune(threads);
       const marked = before && !before.read && threads.find((th) => th.id === selected)?.read;
       const hadFocus = marked && paneEl.contains(document.activeElement);
-      if (marked && selected) selected = nextWaiting(rows, threads, selected);
+      if (!applyWanted() && marked && selected) selected = nextWaiting(rows, threads, selected);
       render();
       // The rebuild removed the Mark read button that held focus.
       if (hadFocus) paneEl.querySelector("h2")?.focus();
     },
-    reset() {
+    reset(thread) {
       pane.restart();
       filter = { tab: "waiting", kind: null };
       selected = openSelection(threads);
+      wanted = thread ?? null;
+      applyWanted();
       render();
     },
     head: () => ({ count: t("threads.waiting_count", { n: waiting }), waiting: waiting > 0 }),
@@ -113,6 +128,7 @@ export function createThreadsTab(deps: {
       const at = rows.findIndex((th) => th.id === selected);
       const next = rows[Math.min(rows.length - 1, Math.max(0, at + delta))];
       if (!next) return;
+      wanted = null;
       selected = next.id;
       render();
       shell.focusSelected();

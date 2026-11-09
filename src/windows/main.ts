@@ -38,6 +38,7 @@ import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
 import { wireThreadsOpenRequests } from "../app/threads-chip/wire-threads-open-requests";
+import { wireThreadReactions } from "../app/threads-reaction/wire-thread-reactions";
 import {
   createDelegationChipMount,
   messageWindowSuppression,
@@ -342,13 +343,25 @@ async function bootstrap(): Promise<BootstrapHandle> {
       windowTools: configured.windowTools,
     });
     // After the signal chips, before the delegation chip.
+    const threadsChip = wireThreadsChip({
+      client: threads,
+      terminal,
+      threadsWindow,
+      mount: surfaces.chipColumn,
+      collapsed: configured.chipFold,
+    });
+    register(threadsChip.dispose);
     register(
-      wireThreadsChip({
-        client: threads,
-        terminal,
+      wireThreadReactions({
+        threads,
         threadsWindow,
-        mount: surfaces.chipColumn,
-        collapsed: configured.chipFold,
+        slotRect: threadsChip.slotRect,
+        dispatcher: configured.dispatcher,
+        speechPlayback: configured.voice.speechPlayback,
+        locomotion: configured.locomotion,
+        renderer,
+        settings: settingsStores,
+        config,
       }),
     );
     register(

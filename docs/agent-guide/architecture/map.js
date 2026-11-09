@@ -513,7 +513,7 @@ globalThis.YUI_MAP =
       "id": "shell/os-event-watcher",
       "module": "shell",
       "label": "os_event_watcher",
-      "role": "Polls OS idle time and the frontmost window, lists windows, probes the drag release, and writes the witness log.",
+      "role": "Polls OS idle time and the frontmost window, lists windows (YUI's Threads window among them, flagged, and YUI's other windows left out), probes the drag release, and writes the witness log.",
       "paths": [
         "src-tauri/src/os_event_watcher"
       ]
@@ -558,12 +558,13 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, and a docked window's macOS child-window link to its owner window.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, a docked window's macOS child-window link to its owner window, and the Threads window's native number and no-focus order-front.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_frame.rs",
         "src-tauri/src/passthrough.rs",
-        "src-tauri/src/window_dock.rs"
+        "src-tauri/src/window_dock.rs",
+        "src-tauri/src/threads_window.rs"
       ]
     },
     {
@@ -684,7 +685,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -837,7 +838,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/filler",
       "module": "speech",
       "label": "filler",
-      "role": "Filler phrases spoken while a turn is thinking, and the failure lines.",
+      "role": "Filler phrases spoken while a turn is thinking, the failure lines, and the Thread reaction lines (threads_open, threads_raise).",
       "paths": [
         "src/io/voice/filler"
       ]
@@ -882,7 +883,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, Threads and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card or Threads window reports ready, closes those companions and watches their owner window.",
+      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, Threads and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card or Threads window reports ready, closes those companions and watches their owner window. The Threads window's opener also opens or raises it without focus for a Thread reaction, reports whether it is open, and settles each such request on its presented report, its closed report, or a failed open or dispose.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -909,7 +910,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
+      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed, threads-presented and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1131,6 +1132,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ambient/threads-reaction",
+      "module": "ambient",
+      "label": "thread reactions",
+      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression.",
+      "paths": [
+        "src/ambient/threads-reaction"
+      ]
+    },
+    {
       "id": "ui/surfaces",
       "module": "display",
       "label": "surfaces",
@@ -1215,7 +1225,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip; an open without focus focuses no field.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1389,9 +1399,18 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, the Thread turns pick written to yui.thread-turns and announced by settings-changed, the menu redrawn from the Thread turns and External signals stores, and the stored theme, text size, language, Thread turns and External signals reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or, while it shows, only focusing it (an open for a Thread reaction, with focus false, only raises it and changes no tab or selection, and reports presented once it is shown or raised), its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, the Thread turns pick written to yui.thread-turns and announced by settings-changed, the menu redrawn from the Thread turns and External signals stores, and the stored theme, text size, language, Thread turns and External signals reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
+      ]
+    },
+    {
+      "id": "app/threads-reaction",
+      "module": "wiring",
+      "label": "thread reactions wiring",
+      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch and the filler pools into the reaction; a window without a Threads client wires nothing.",
+      "paths": [
+        "src/app/threads-reaction"
       ]
     },
     {
@@ -2683,12 +2702,84 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
+      "id": "threads-reaction-snapshot",
+      "from": "io/threads",
+      "to": "ambient/threads-reaction",
+      "carries": "subscribe and snapshot(): each Threads snapshot, the first one as the baseline",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-list-windows",
+      "from": "ambient/threads-reaction",
+      "to": "shell/os-event-watcher",
+      "carries": "list_windows → WindowRect[], with the Threads window flagged threadsWindow",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-openers",
+      "from": "ambient/threads-reaction",
+      "to": "io/window/openers",
+      "carries": "isOpen(); present(chip?, {thread?}) → presented or closed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-speech",
+      "from": "ambient/threads-reaction",
+      "to": "io/voice/tts",
+      "carries": "speakAsideAndWait(line) → spoken or cut; the line is drawn from the threads_open or threads_raise filler pool",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-executor",
+      "from": "ambient/threads-reaction",
+      "to": "io/bridge/inbox",
+      "carries": "isBusy(); command sit_on_window with app YUI, ok or failure",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-renderer",
+      "from": "ambient/threads-reaction",
+      "to": "renderer",
+      "carries": "setEmotion (curious, happy or sad); easeEmotionToNeutral after touch_emotion_hold_ms",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-reaction-pipeline",
+      "from": "dispatcher",
+      "to": "ambient/threads-reaction",
+      "carries": "isPipelineBusy() read when a reaction is due; a waiting reaction checks again each second",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
       "id": "locomotion-list-windows",
       "from": "ambient/locomotion",
       "to": "shell/os-event-watcher",
       "carries": "list_windows → WindowAtPoint[]",
       "kind": "tauri-command",
       "transport": "shared"
+    },
+    {
+      "id": "settings-thread-reactions",
+      "from": "settings",
+      "to": "ambient/threads-reaction",
+      "carries": "threadReactionsSettings: the yui.thread-reactions switch, read on each check and subscribed to",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
     },
     {
       "id": "settings-idle-tick",
@@ -3280,7 +3371,16 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\"}: place, show and focus the window, then grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
+      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\", thread?: string, focus?: false, present?: string}: place, show and focus the window, then grow out of the chip when there is one; select the tab; thread selects that Thread on open; while it shows, focus it and select the tab the request names; focus: false shows or raises the window without keyboard focus, and while it shows changes no tab or selection; present is the id that threads-presented answers",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-presented",
+      "from": "app/threads-window",
+      "to": "io/window/openers",
+      "carries": "yui://threads-presented {present}: the window finished the open or raise that the request with that id names, shown and grown or raised",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -5449,7 +5549,7 @@ globalThis.YUI_MAP =
       {
         "id": "threads",
         "label": "threads",
-        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
+        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip or ordered front without focus for a Thread reaction, and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
       },
       {
         "id": "devtools",
@@ -5600,7 +5700,7 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip?, tab?}: place, show and focus the window, grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
+        "carries": "yui://threads-open {chip?, tab?, thread?, focus?, present?}: place, show and focus the window, grow out of the chip when there is one; select the tab; thread selects that Thread on open; focus: false shows or raises it without focus; while it shows, focus it and select the tab the request names",
         "kind": "bridge"
       },
       {
@@ -5622,6 +5722,13 @@ globalThis.YUI_MAP =
         "from": "threads",
         "to": "pet",
         "carries": "yui://threads-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-presented-pet",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-presented {present}: the request with that id finished, shown and grown or raised",
         "kind": "bridge"
       },
       {

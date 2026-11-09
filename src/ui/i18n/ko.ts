@@ -378,6 +378,12 @@ const ko: Record<string, string> = {
   "filler.unreachable_label": "연결 끊김 대사",
   "filler.unreachable_sub": "서버에 연결할 수 없을 때 재생",
   "filler.unreachable_aria": "연결 끊김 대사 목록",
+  "filler.threads_open_label": "스레드 창 열기 대사",
+  "filler.threads_open_sub": "스레드 상태가 바뀌어 스레드 창을 열 때 재생",
+  "filler.threads_open_aria": "스레드 창 열기 대사 목록",
+  "filler.threads_raise_label": "스레드 창 앞으로 가져오기 대사",
+  "filler.threads_raise_sub": "가려진 스레드 창이 앞으로 나올 때 재생",
+  "filler.threads_raise_aria": "스레드 창 앞으로 가져오기 대사 목록",
   "filler.tool_label": "도구 대사",
   "filler.tool_sub":
     '한 줄에 하나씩. "terminal = 명령어 실행할게…"처럼 쓰면 특정 도구용, 그냥 쓰면 공통 대사가 돼요',
@@ -663,6 +669,9 @@ const ko: Record<string, string> = {
   "threadTurns.notable": "알릴 일이 생길 때",
   "threadTurns.every": "새 메시지마다",
   "threadTurns.disabled_reason": "외부 신호를 켜야 쓸 수 있어요.",
+  "threadReactions.label": "스레드 반응",
+  "threadReactions.sub": "스레드 상태가 바뀌면 캐릭터가 스레드 창에 앉아요.",
+  "threadReactions.aria": "스레드 반응",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

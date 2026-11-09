@@ -39,6 +39,7 @@ describe("createSettingsStores", () => {
       "userNameSettings",
       "themeSettings",
       "threadTurnsSettings",
+      "threadReactionsSettings",
       "textSizeSettings",
       "fillerSettings",
       "readingsSettings",
@@ -100,6 +101,16 @@ describe("createSettingsStores", () => {
     localStorage.clear();
   });
 
+  it("binds threadReactionsSettings to yui.thread-reactions, on by default", () => {
+    localStorage.clear();
+    const store = createSettingsStores().threadReactionsSettings;
+
+    expect(store.get()).toEqual({ enabled: true });
+    store.setEnabled(false);
+    expect(localStorage.getItem("yui.thread-reactions")).toBe(JSON.stringify({ enabled: false }));
+    localStorage.clear();
+  });
+
   it("defaults the filler language to the app locale", () => {
     localStorage.clear();
 
@@ -136,6 +147,12 @@ describe("createSettingsStores", () => {
 
     expect(broadcastSyncStores(stores)).toContain(stores.relationsSwitch);
     expect(broadcastSyncStores(stores)).toContain(stores.unifiedChatSwitch);
+  });
+
+  it("broadcasts the thread-reactions switch so a settings-window toggle reaches the pet window", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.threadReactionsSettings);
   });
 
   it("broadcasts the express-motion selection so both windows curate the same vocabulary", () => {

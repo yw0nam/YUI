@@ -13,6 +13,13 @@
  * offset are logical px, since that is what the renderer projects in.
  */
 
+import type { ScreenRect } from "../../../contract";
+
+/** Whether two rects in the same space share any area; touching edges do not. */
+export function overlaps(a: ScreenRect, b: ScreenRect): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
 /** Pet window accessors the movers read and write. Position/size reads are physical px. */
 export interface PetWindow {
   outerPosition(): Promise<{ x: number; y: number }>;

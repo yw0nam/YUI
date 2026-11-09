@@ -91,8 +91,10 @@ export async function wireThreadsWindow(deps: {
     view,
     show: placement.open,
     focus: placement.focus,
+    raise: placement.raise,
     hide: placement.hide,
     emitClosed: bridge.emitThreadsClosed,
+    emitPresented: (present) => bridge.emitThreadsPresented({ present }),
   });
 
   // Drains LIFO, so registered in reverse of the teardown order.
@@ -115,7 +117,11 @@ export async function wireThreadsWindow(deps: {
   register(applyTextScale({ store: textSizeSettings, root: document.documentElement }));
   register(client.subscribe(view.update));
   register(view.onHeadPointerDown(placement.startDrag));
-  register(bridge.onThreadsOpen(({ chip, tab }) => presence.open(chip, tab)));
+  register(
+    bridge.onThreadsOpen(({ chip, tab, thread, focus, present }) =>
+      presence.open(chip, tab, { thread, focus, present }),
+    ),
+  );
   register(
     bridge.onSettingsChanged(() => {
       reloadLocale();

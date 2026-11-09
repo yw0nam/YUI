@@ -81,6 +81,11 @@ const rows: Record<keyof typeof channels, Row> = {
   ThreadsOpen: { name: "yui://threads-open", scope: "shared", ...same({ tab: "terminal" }) },
   ThreadsReady: { name: "yui://threads-ready", scope: "shared", ...none },
   ThreadsClosed: { name: "yui://threads-closed", scope: "shared", ...none },
+  ThreadsPresented: {
+    name: "yui://threads-presented",
+    scope: "shared",
+    ...same({ present: "p1" }),
+  },
   ThreadsOpenRequest: {
     name: "yui://threads-open-request",
     scope: "shared",
@@ -345,6 +350,56 @@ describe("createSettingsBridge", () => {
     a.emitThreadsOpen({ chip, tab: "threads" });
 
     expect(cb.mock.calls).toEqual([[{ chip }], [{ tab: "terminal" }], [{ chip, tab: "threads" }]]);
+  });
+
+  it("delivers a Threads open request that names a Thread, asks for no focus and carries a present id", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "threads" });
+    const cb = vi.fn();
+    b.onThreadsOpen(cb);
+
+    a.emitThreadsOpen({ tab: "threads", thread: "t1", focus: false, present: "p1" });
+
+    expect(cb.mock.calls).toEqual([
+      [{ tab: "threads", thread: "t1", focus: false, present: "p1" }],
+    ]);
+  });
+
+  it.each([
+    [{ thread: "" }],
+    [{ thread: 7 }],
+    [{ focus: true }],
+    [{ focus: "no" }],
+    [{ present: "" }],
+    [{ present: 3 }],
+  ])("ignores a Threads open request %j with a Thread, focus or present id outside the contract", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "threads" });
+    const cb = vi.fn();
+    b.onThreadsOpen(cb);
+
+    a.emitThreadsOpen(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{}],
+    [{ present: "" }],
+    [{ present: 3 }],
+    [null],
+  ])("ignores a Threads presented report %j with no present id", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "threads" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onThreadsPresented(cb);
+
+    a.emitThreadsPresented(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
   });
 
   it.each([

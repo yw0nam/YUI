@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** threads-chip.test.ts — the Threads chip drawn from the snapshot's Threads: count, source marks, visibility, and the arrival nod. */
 
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./threads-chip.css", () => ({}));
 
@@ -130,4 +130,48 @@ it("nods only when a new Thread id starts waiting", () => {
 
   chip.setWindowOpen(false);
   expect(nodding()).toBe(false);
+});
+
+describe("slotRect", () => {
+  const RECT = { x: 12, y: 34, width: 56, height: 32 };
+
+  // jsdom has no layout, so the rect is a stub that records the chip's state at the moment of the read.
+  function measured(folded = false) {
+    const collapsed = createDelegationChipSettings();
+    collapsed.setCollapsed(folded);
+    const chip = createThreadsChip({ mount, collapsed, onOpen: vi.fn() });
+    const button = mount.querySelector<HTMLButtonElement>(".yui-threadchip")!;
+    const seen: { hidden: boolean; measuring: boolean; mini: boolean }[] = [];
+    button.getBoundingClientRect = () => {
+      seen.push({
+        hidden: button.hidden === true,
+        measuring: button.classList.contains("is-measuring"),
+        mini: button.classList.contains("is-mini"),
+      });
+      return { ...RECT, top: 0, left: 0, right: 0, bottom: 0, toJSON: () => ({}) };
+    };
+    return { chip, button, seen };
+  }
+
+  it("returns the rect of a shown chip as it is", () => {
+    const { chip, button, seen } = measured();
+    chip.update([thread("a", "codex", 5)]);
+
+    expect(chip.slotRect()).toEqual(RECT);
+    expect(seen).toEqual([{ hidden: false, measuring: false, mini: false }]);
+    expect(button.hidden).toBe(false);
+  });
+
+  it.each([
+    false,
+    true,
+  ])("reads a hidden chip's slot unhidden through a class and leaves it hidden, folded=%s", (folded) => {
+    const { chip, button, seen } = measured(folded);
+    chip.update([thread("w", "codex", 5, false)]);
+
+    expect(chip.slotRect()).toEqual(RECT);
+    expect(seen).toEqual([{ hidden: false, measuring: true, mini: folded }]);
+    expect(button.hidden).toBe(true);
+    expect(button.className).toBe(folded ? "yui-threadchip is-mini" : "yui-threadchip");
+  });
 });

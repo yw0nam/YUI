@@ -1355,6 +1355,67 @@ describe("createSpeechPlayback — onQueueDrained", () => {
   });
 });
 
+describe("createSpeechPlayback — speakAsideAndWait", () => {
+  function setup(createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline) {
+    const stub = stubPipelineFactory();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: createPipeline ?? stub.factory,
+      isStrolling: () => false,
+    });
+    return { stub, surfaces, sp };
+  }
+
+  it("speaks the line as an aside and resolves spoken at its playback end", async () => {
+    const { stub, surfaces, sp } = setup();
+    let result: string | undefined;
+    const done = sp.speakAsideAndWait("Let me open Threads.").then((r) => {
+      result = r;
+    });
+    expect(stub.calls.pushTextDelta).toEqual(["Let me open Threads."]);
+    expect(surfaces.beginSpeech).toHaveBeenCalledWith(undefined, { aside: true });
+    await Promise.resolve();
+    expect(result).toBeUndefined();
+    stub.emitPlaybackEnd();
+    await done;
+    expect(result).toBe("spoken");
+  });
+
+  it("stays pending through the playback end of speech queued before the line", async () => {
+    const { stub, sp } = setup();
+    stub.setOutstandingWork(true);
+    let result: string | undefined;
+    const done = sp.speakAsideAndWait("Let me open Threads.").then((r) => {
+      result = r;
+    });
+    stub.emitPlaybackEnd();
+    await Promise.resolve();
+    expect(result).toBeUndefined();
+    stub.setOutstandingWork(false);
+    stub.emitPlaybackEnd();
+    await done;
+    expect(result).toBe("spoken");
+  });
+
+  it.each(["interrupt", "abort", "dispose"] as const)("resolves cut on %s", async (method) => {
+    const { stub, sp } = setup();
+    const done = sp.speakAsideAndWait("Let me open Threads.");
+    expect(stub.calls.pushTextDelta).toEqual(["Let me open Threads."]);
+    sp[method]();
+    stub.emitPlaybackEnd();
+    expect(await done).toBe("cut");
+  });
+
+  it("resolves spoken when the playback end fires inside the speak call", async () => {
+    const stub = stubPipelineFactory();
+    const { sp } = setup((opts) => ({ ...stub.factory(opts), end: () => opts.onPlaybackEnd?.() }));
+    expect(await sp.speakAsideAndWait("Let me open Threads.")).toBe("spoken");
+  });
+});
+
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
   it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
     const stub = stubPipelineFactory();

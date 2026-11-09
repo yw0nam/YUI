@@ -379,6 +379,12 @@ const en: Record<string, string> = {
   "filler.unreachable_label": "Connection lost line",
   "filler.unreachable_sub": "Plays when the backend can't be reached",
   "filler.unreachable_aria": "Connection lost line list",
+  "filler.threads_open_label": "Open Threads line",
+  "filler.threads_open_sub": "Plays before the Threads window opens for a changed Thread",
+  "filler.threads_open_aria": "Open Threads line list",
+  "filler.threads_raise_label": "Raise Threads line",
+  "filler.threads_raise_sub": "Plays before a covered Threads window comes to the front",
+  "filler.threads_raise_aria": "Raise Threads line list",
   "filler.tool_label": "Tool lines",
   "filler.tool_sub":
     'One per line. "terminal = Running that..." targets a tool by id; a plain line is the shared fallback',
@@ -667,6 +673,9 @@ const en: Record<string, string> = {
   "threadTurns.notable": "When it needs me",
   "threadTurns.every": "Every message",
   "threadTurns.disabled_reason": "Turn on External signals to use this.",
+  "threadReactions.label": "Thread reactions",
+  "threadReactions.sub": "When a Thread changes state, she sits on the Threads window.",
+  "threadReactions.aria": "Thread reactions",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",

@@ -72,6 +72,17 @@ describe("effectiveFillerPool", () => {
     expect(result.unreachable).toEqual(["つながらないみたい"]);
   });
 
+  it("resolves threads_open/threads_raise the same way as first/repeat", () => {
+    const s = settings({
+      language: "ja",
+      customPools: { ja: { threads_open: ["カスタム開く"] } },
+    });
+    const result = effectiveFillerPool(s, cfg);
+    expect(result.threads_open).toEqual(["カスタム開く"]);
+    // threads_raise falls back to config because it's absent from the custom pool
+    expect(result.threads_raise).toEqual([]);
+  });
+
   it("prefers custom.tool over config.tool when custom.tool has ≥1 key", () => {
     const s = settings({
       language: "ja",
@@ -164,6 +175,11 @@ describe("fillerSubmissions", () => {
     expect(fillerSubmissions(p)).toEqual(
       new Set(["まだかかりそう。", "諦めちゃった。", "つながらないみたい。"]),
     );
+  });
+
+  it("includes the threads_open and threads_raise phrases", () => {
+    const p = pool({ threads_open: ["開くね。"], threads_raise: ["持ってくるね。"] });
+    expect(fillerSubmissions(p)).toEqual(new Set(["開くね。", "持ってくるね。"]));
   });
 
   it("includes every tool phrase across every tool_id", () => {

@@ -61,6 +61,10 @@ mod window_frame;
 #[cfg(desktop)]
 mod window_dock;
 
+// The Threads window's native number and its no-focus order-front.
+#[cfg(desktop)]
+mod threads_window;
+
 // App log sink, timezone and line format.
 mod app_log;
 

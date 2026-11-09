@@ -681,6 +681,30 @@ describe("avatar-executor — concurrency and interruption", () => {
     expect(opts?.shouldAbort?.()).toBe(true);
   });
 
+  it("reports busy while a command runs or the user drags, free otherwise", async () => {
+    const gate = deferred<PlacementResult>();
+    const h = harness({
+      perch: {
+        placeOn: vi.fn(() => gate.promise),
+        perchTargets: async () => TARGETS,
+        release: vi.fn(),
+      },
+    });
+    expect(h.executor.isBusy()).toBe(false);
+
+    h.fire("command", { action: "sit_on_window", app: "Notes" });
+    await flush();
+    expect(h.executor.isBusy()).toBe(true);
+    gate.resolve({ ok: true, kind: "sit" });
+    await flush();
+    expect(h.executor.isBusy()).toBe(false);
+
+    h.executor.noteUserDrag();
+    expect(h.executor.isBusy()).toBe(true);
+    h.executor.noteUserDragEnd();
+    expect(h.executor.isBusy()).toBe(false);
+  });
+
   it("clears moving after a command throws, so the next one is not refused as busy", async () => {
     const h = harness({
       perch: {

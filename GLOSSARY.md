@@ -70,13 +70,13 @@ The character's current physical state: `standing`, `sitting`, `peeking`, `dragg
 _Avoid_: state, pose, stance
 
 **Perch**:
-The character resting on a foreign window's edge; the supporting window is reported as `perched_on`.
+The character resting on a foreign window's edge or the Threads window's; the supporting window is reported as `perched_on`.
 
 **Ambient (Tier 1)**:
 Backend-independent idle life — blink, sway, breath. Runs always; attenuates under reduced-motion.
 
 **Filler**:
-A short client-side utterance covering the silence between a firing and the brain's first speech. It is stagecraft, not thinking, and never influences what is said.
+A short client-side utterance from a pool, covering the silence between a firing and the brain's first speech, or announcing a Thread reaction. It is stagecraft, not thinking, and never influences what the brain says.
 _Avoid_: thinking, placeholder, stall
 
 ### Relations
@@ -116,11 +116,15 @@ A Thread in `input-required` that the user has not marked read since the produce
 _Avoid_: unread, pending
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
+The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
 _Avoid_: inbox, panel, dashboard
 
 **Thread turns**:
 The device-wide setting (`off`, `notable`, `every`) by which a Thread update gives the main character a signals turn.
+
+**Thread reactions**:
+The device-wide switch `yui.thread-reactions`, on by default, and the client-side body reaction it governs: when a Thread becomes `input-required`, `completed` or `failed`, the main character says a filler line if the Threads window is closed or covered, sits on the Threads window, and shows an expression. It never reaches the brain, so it is not a Turn.
+_Avoid_: notification, alert, Thread turn (a Thread turn reaches the brain)
 
 **Threads chip**:
 The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests, and opens the Threads window; it hides while that window is open.

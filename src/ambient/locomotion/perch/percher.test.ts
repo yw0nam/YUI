@@ -144,6 +144,7 @@ const HOST: WindowRect = {
   ownerName: "Notes",
   pid: 11,
   windowNumber: 42,
+  threadsWindow: false,
 };
 
 const MONITOR: ScreenMonitor = {

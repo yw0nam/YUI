@@ -93,7 +93,7 @@ export function createPlacement(
     const probe = renderer.getPerchProbe();
     if (!probe) return { ok: false, reason: "unsupported" };
     const win = getWindow();
-    const move = win.setPositionPhysical?.bind(win);
+    const move = win.setPositionLogical?.bind(win);
     if (!move) return { ok: false, reason: "unsupported" };
 
     const [pos, scale, windows] = await Promise.all([
@@ -132,24 +132,23 @@ export function createPlacement(
     }
     const { target, seat } = chosen;
 
-    // Invert projectSeat: shift the window by the seat's global shortfall (points → physical).
+    // Invert projectSeat in points: the physical origin is read with its scale, written back logical.
     const sf = scale > 0 ? scale : 1;
     const current = projectSeat(probe, pos, scale);
     const next = {
-      x: Math.round(pos.x + (seat.x - current.x) * sf),
-      y: Math.round(pos.y + (seat.y - current.y) * sf),
+      x: pos.x / sf + (seat.x - current.x),
+      y: pos.y / sf + (seat.y - current.y),
     };
     stopFollow();
     await move(next.x, next.y);
-    // The window manager may clamp the move (menu bar, screen bounds), so the local
-    // coords have to be computed against where the window actually landed.
-    const applied = await win.outerPosition();
+    // The move may be clamped or cross onto another scale, so position and scale are read together after it.
+    const [applied, appliedScale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
     log.debug("placement.moved", {
       kind: request.kind,
       x: applied.x,
       y: applied.y,
-      requestedX: next.x,
-      requestedY: next.y,
+      requestedXPts: next.x,
+      requestedYPts: next.y,
     });
     // Last gate before any side effect: a drag that started during the move wins, and
     // abandoning here keeps the reported outcome honest — nothing was pushed or armed.
@@ -158,11 +157,11 @@ export function createPlacement(
       return { ok: false, reason: "interrupted" };
     }
     if (request.kind === "sit") {
-      const outcome = await commitSit(target, applied, scale, probe.charHpx, true);
+      const outcome = await commitSit(target, applied, appliedScale, probe.charHpx, true);
       if (outcome.kind === "interrupted") return { ok: false, reason: "interrupted" };
       if (outcome.kind === "none") return { ok: false, reason: "not_found" };
     } else {
-      commitPeek(target, request.side, applied, scale, probe.charHpx, getPeekConfig(), true);
+      commitPeek(target, request.side, applied, appliedScale, probe.charHpx, getPeekConfig(), true);
     }
     return { ok: true, kind: request.kind };
   };

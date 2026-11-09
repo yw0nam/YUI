@@ -94,28 +94,32 @@ pub struct WindowAtPoint {
     pub pid: i32,
     /// Stable CoreGraphics window identity (`kCGWindowNumber`).
     pub window_number: u32,
+    /// YUI's own Threads window, the one own window `list_windows` keeps.
+    pub threads_window: bool,
 }
 
-/// Lists every foreign on-screen window in front-to-back (topmost first) order,
-/// each in logical points (top-left origin).
+/// Lists every foreign on-screen window, plus YUI's own Threads window (as its
+/// visible panel) while it is on screen, in front-to-back (topmost first) order, each in logical points
+/// (top-left origin).
 ///
-/// Excludes YUI's own pid and platform chrome (menu bar / Dock / wallpaper on
-/// macOS; taskbar / desktop on Windows). The frontend uses the full list for
+/// Excludes YUI's other windows and platform chrome (menu bar / Dock / wallpaper
+/// on macOS; taskbar / desktop on Windows). The frontend uses the full list for
 /// the perch top-edge catch zone, whose U-band lies outside the window bounds
 /// and so cannot be resolved by a point-in-rect hit-test. Platforms without an
 /// enumeration implementation return `Ok(Vec::new())`.
 #[command]
-pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
-    #[cfg(target_os = "macos")]
+pub fn list_windows(app: AppHandle) -> Result<Vec<WindowAtPoint>, String> {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
-        Ok(macos::list_all_windows())
-    }
-    #[cfg(target_os = "windows")]
-    {
-        Ok(windows::list_all_windows())
+        Ok(pure_helpers::filter_listed(
+            platform_windows(),
+            std::process::id() as i32,
+            crate::threads_window::window_number(&app),
+        ))
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
+        let _ = app;
         Ok(Vec::new())
     }
 }
@@ -156,10 +160,10 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "macos")]
-use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
+use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, platform_windows};
 
 #[cfg(target_os = "windows")]
-use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
+use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, platform_windows};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
@@ -342,6 +346,7 @@ mod tests {
             owner_name: Some("Safari".into()),
             pid: 4321,
             window_number: 8765,
+            threads_window: true,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert_eq!(v["x"], 100.0);
@@ -352,6 +357,7 @@ mod tests {
         assert_eq!(v["ownerName"], "Safari");
         assert_eq!(v["pid"], 4321);
         assert_eq!(v["windowNumber"], 8765);
+        assert_eq!(v["threadsWindow"], true);
     }
 
     #[test]
@@ -365,6 +371,7 @@ mod tests {
             owner_name: None,
             pid: 1,
             window_number: 42,
+            threads_window: false,
         };
         let v = serde_json::to_value(&w).unwrap();
         assert!(v["name"].is_null());

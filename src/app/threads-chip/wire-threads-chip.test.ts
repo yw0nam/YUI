@@ -78,6 +78,7 @@ function bridge() {
       closed.add(cb);
       return () => closed.delete(cb);
     },
+    onThreadsPresented: () => () => {},
   };
 }
 const closed = new Set<() => void>();

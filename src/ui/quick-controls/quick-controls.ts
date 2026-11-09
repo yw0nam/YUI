@@ -252,6 +252,8 @@ interface QuickControlsOptions {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Thread turns level store. With agentNotifySettings, renders the Thread turns row in Watchers. */
   threadTurnsSettings?: ThreadTurnsSettingsStore;
+  /** Thread reactions on/off store. If absent, that toggle row won't render. */
+  threadReactionsSettings?: FlagSettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;
   /** Docked/popped message-window mode store. If absent, that toggle row won't render. */
@@ -391,6 +393,7 @@ export function createQuickControls({
   fallSettings,
   agentNotifySettings,
   threadTurnsSettings,
+  threadReactionsSettings,
   bubblePersistSettings,
   messageWindowSettings,
   presenceSettings,
@@ -450,6 +453,7 @@ export function createQuickControls({
     unifiedChatSwitch,
     unifiedShown,
     relationsSwitch,
+    threadReactionsSettings,
   });
 
   el.innerHTML = buildPanelHtml({

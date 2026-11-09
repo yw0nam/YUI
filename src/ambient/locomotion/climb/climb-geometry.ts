@@ -15,6 +15,7 @@ import {
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   logicalWorkArea,
+  overlaps,
   type ScreenMonitor,
 } from "../../../io/window/geometry/screen-geometry";
 import { type Rng, randRange } from "../../liveliness/cues";
@@ -43,10 +44,6 @@ export interface Box {
   y: number;
   width: number;
   height: number;
-}
-
-function overlaps(a: Box, b: Box): boolean {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
 function containsPoint(a: Box, p: { x: number; y: number }): boolean {
