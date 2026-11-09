@@ -821,8 +821,8 @@ describe("window-drop-source — placement over a running follow", () => {
     const target = win({ windowNumber: 55, ownerName: "Notes", x: 700 });
     let pos = { x: 520, y: 740 };
     // The host slides while the placement's move is in flight, long enough for several follow steps.
-    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
-      pos = { x, y };
+    const setPositionLogical = vi.fn(async (x: number, y: number) => {
+      pos = { x: x * 2, y: y * 2 };
       host.rect = { ...host.rect, y: host.rect.y + 60 };
       await vi.advanceTimersByTimeAsync(48);
     });
@@ -833,7 +833,7 @@ describe("window-drop-source — placement over a running follow", () => {
       getWindow: () => ({
         outerPosition: async () => pos,
         scaleFactor: async () => 2,
-        setPositionPhysical,
+        setPositionLogical,
       }),
       listen: makeListen().listen,
       windowBounds: async (n) => (n === 42 ? host.rect : null),
@@ -843,7 +843,7 @@ describe("window-drop-source — placement over a running follow", () => {
 
     await source.placeOn({ kind: "sit", app: "Notes" });
 
-    expect(setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(setPositionLogical).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1534,16 +1534,16 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
   function makePlaceWindow(initial = { x: 520, y: 740 }, scale = 2) {
     // Tracks the move like a real window: the placement re-reads the origin it landed on.
     let pos = { ...initial };
-    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
-      pos = { x, y };
+    const setPositionLogical = vi.fn(async (x: number, y: number) => {
+      pos = { x: x * scale, y: y * scale };
     });
     return {
       window: {
         outerPosition: vi.fn(async () => pos),
         scaleFactor: vi.fn(async () => scale),
-        setPositionPhysical,
+        setPositionLogical,
       },
-      setPositionPhysical,
+      setPositionLogical,
     };
   }
 
@@ -1593,7 +1593,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const result = await source.placeOn({ kind: "peek", side: "left" });
 
     // Desired seat = left edge mid-height (300, 560); delta (0, 160) points.
-    expect(pet.setPositionPhysical).toHaveBeenCalledWith(520, 1060);
+    expect(pet.setPositionLogical).toHaveBeenCalledWith(260, 530);
     expect(result).toEqual({ ok: true, kind: "peek" });
     const env = pushed.find((e) => e.event_name === "user.peek_drop")!;
     expect(env.payload?.side).toBe("left");
@@ -1632,7 +1632,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const result = await source.placeOn({ kind: "sit", app: "Notes" });
 
     expect(result).toEqual({ ok: false, reason: "blocked" });
-    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pet.setPositionLogical).not.toHaveBeenCalled();
     expect(pushed).toHaveLength(0);
   });
 
@@ -1673,7 +1673,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
 
     expect(result).toEqual({ ok: true, kind: "sit" });
     // Seat goes to the real window's top-edge center (1000, 500), not the thumbnail's.
-    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1920, 940);
+    expect(pet.setPositionLogical).toHaveBeenCalledWith(960, 470);
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.window_title).toBe("Termius");
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
@@ -1708,7 +1708,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const result = await source.placeOn({ kind: "sit", app: "Notes" });
 
     expect(result).toEqual({ ok: false, reason: "interrupted" });
-    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    expect(pet.setPositionLogical).toHaveBeenCalledWith(520, 370);
     expect(pushed).toEqual([]);
     expect(source.armedSit()).toBeNull();
   });
@@ -1747,7 +1747,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const result = await source.placeOn({ kind: "sit", app: "Termius" });
 
     expect(result).toEqual({ ok: false, reason: "blocked" });
-    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pet.setPositionLogical).not.toHaveBeenCalled();
     expect(pushed).toHaveLength(0);
   });
 
@@ -1769,7 +1769,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const result = await source.placeOn({ kind: "sit", app: "Xcode" });
 
     expect(result).toEqual({ ok: false, reason: "not_found" });
-    expect(pet.setPositionPhysical).not.toHaveBeenCalled();
+    expect(pet.setPositionLogical).not.toHaveBeenCalled();
     expect(pushed).toHaveLength(0);
   });
 
@@ -1797,22 +1797,22 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
   it("commits against where the window actually landed, not where it was asked to go", async () => {
     // The window manager clamps the move (menu bar / screen bounds).
     let pos = { x: 520, y: 740 };
-    const setPositionPhysical = vi.fn(async (x: number, y: number) => {
-      pos = { x, y: Math.min(y, 700) };
+    const setPositionLogical = vi.fn(async (x: number, y: number) => {
+      pos = { x: x * 2, y: Math.min(y * 2, 700) };
     });
     const pet = {
       window: {
         outerPosition: vi.fn(async () => pos),
         scaleFactor: vi.fn(async () => 2),
-        setPositionPhysical,
+        setPositionLogical,
       },
-      setPositionPhysical,
+      setPositionLogical,
     };
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
 
     await source.placeOn({ kind: "sit", app: "Notes" });
 
-    expect(setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    expect(setPositionLogical).toHaveBeenCalledWith(520, 370);
     // Clamped to y=700 → edge_local_ypx = 400 - 700/2 = 50, not the requested 30.
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.edge_local_ypx).toBeCloseTo(50, 6);
@@ -1826,7 +1826,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
 
     expect(result).toEqual({ ok: false, reason: "interrupted" });
     // The move already happened, but no envelope and no arming followed it.
-    expect(pet.setPositionPhysical).toHaveBeenCalled();
+    expect(pet.setPositionLogical).toHaveBeenCalled();
     expect(pushed).toHaveLength(0);
     pushed.length = 0;
     source.release();
@@ -1953,7 +1953,7 @@ describe("window-drop-source — drag miss", () => {
     const getWindow = () => ({
       outerPosition: vi.fn(async () => ({ x: 520, y: 740 })),
       scaleFactor: vi.fn(async () => 2),
-      setPositionPhysical: vi.fn(async () => {}),
+      setPositionLogical: vi.fn(async () => {}),
     });
     const { listen } = makeListen();
     const onDragMiss = vi.fn();
@@ -2064,8 +2064,8 @@ describe("window-drop-source — adoptSit", () => {
       getWindow: () => ({
         outerPosition: async () => pos,
         scaleFactor: async () => 2,
-        setPositionPhysical: async (x: number, y: number) => {
-          pos = { x, y };
+        setPositionLogical: async (x: number, y: number) => {
+          pos = { x: x * 2, y: y * 2 };
         },
       }),
       listen: makeListen().listen,
