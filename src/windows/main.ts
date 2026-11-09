@@ -349,7 +349,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         threadsWindow,
         mount: surfaces.chipColumn,
         collapsed: configured.chipFold,
-      }),
+      }).dispose,
     );
     register(
       wirePushMode({

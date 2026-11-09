@@ -92,6 +92,11 @@ export function createThreadsChip({
     if (arrived && !el.hidden) nod();
   }
 
+  const rect = (): ScreenRect => {
+    const { x, y, width, height } = el.getBoundingClientRect();
+    return { x, y, width, height };
+  };
+
   const fold = holdToFold(el, collapsed);
   function onClick(): void {
     if (fold.swallowClick()) return;
@@ -99,8 +104,7 @@ export function createThreadsChip({
       collapsed.setCollapsed(false);
       return;
     }
-    const { x, y, width, height } = el.getBoundingClientRect();
-    onOpen({ x, y, width, height });
+    onOpen(rect());
   }
   const onAnimationEnd = (): void => el.classList.remove("is-nod");
   el.addEventListener("click", onClick);
@@ -131,7 +135,14 @@ export function createThreadsChip({
       render();
     },
     slotRect() {
-      return { x: 0, y: 0, width: 0, height: 0 };
+      if (!el.hidden) return rect();
+      // Laid out but invisible for one synchronous read; nothing paints before it is hidden again.
+      el.hidden = false;
+      el.classList.add("is-measuring");
+      const slot = rect();
+      el.classList.remove("is-measuring");
+      el.hidden = true;
+      return slot;
     },
     dispose() {
       fold.dispose();

@@ -1,12 +1,13 @@
 /** Main's Threads chip: drawn from the window's Threads and terminal clients, folding with the other chips, opening the Threads window. */
 
+import type { ScreenRect } from "../../contract";
 import type { TerminalClient } from "../../io/terminal/terminal-client";
 import type { ThreadsClient } from "../../io/threads/threads-client";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";
 import type { DelegationChipSettingsStore } from "../../settings/panels/delegation-chip-settings";
 import { createThreadsChip } from "../../ui/threads/chip/threads-chip";
 
-/** Mounts the chip at the end of `mount` from the window's Threads client, and nothing without one; returns its teardown. */
+/** Mounts the chip at the end of `mount` from the window's Threads client, and nothing without one; returns its teardown and the chip's slot rect (null without a chip). */
 export function wireThreadsChip(deps: {
   client: ThreadsClient | null;
   terminal: Pick<TerminalClient, "snapshot" | "subscribe"> | null;
@@ -14,9 +15,9 @@ export function wireThreadsChip(deps: {
   mount: HTMLElement;
   /** The fold store the signal and delegation chips share. */
   collapsed: DelegationChipSettingsStore;
-}): () => void {
+}): { dispose: () => void; slotRect: (() => ScreenRect) | null } {
   // Threads belong to the main character; a window without a client draws no chip.
-  if (!deps.client || !deps.threadsWindow) return () => {};
+  if (!deps.client || !deps.threadsWindow) return { dispose: () => {}, slotRect: null };
   const { client, terminal, threadsWindow } = deps;
   // A waiting access request opens the Terminal tab; otherwise the window picks its tab.
   const requestTab = () => (terminal?.snapshot()?.requests.length ? "terminal" : undefined);
@@ -34,10 +35,13 @@ export function wireThreadsChip(deps: {
   const seededTerminal = terminal?.snapshot();
   if (seededTerminal) chip.updateRequests(seededTerminal.requests);
   const offTerminal = terminal?.subscribe((snapshot) => chip.updateRequests(snapshot.requests));
-  return () => {
-    offTerminal?.();
-    offSnapshot();
-    offShown();
-    chip.dispose();
+  return {
+    dispose() {
+      offTerminal?.();
+      offSnapshot();
+      offShown();
+      chip.dispose();
+    },
+    slotRect: chip.slotRect,
   };
 }

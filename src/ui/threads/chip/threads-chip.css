@@ -31,6 +31,11 @@
   display: none;
 }
 
+/* The slot read lays a hidden chip out without showing it. */
+.yui-threadchip.is-measuring {
+  visibility: hidden;
+}
+
 .yui-threadchip:hover {
   border-color: var(--yui-accent-soft);
   color: var(--yui-text);
