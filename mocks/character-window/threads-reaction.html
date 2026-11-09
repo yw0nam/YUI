@@ -150,7 +150,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
   <header style="display:grid;gap:8px">
     <span class="mute">mocks/character-window · #1936</span>
     <h1>Thread가 바뀌면 캐릭터가 스레드 창에 앉습니다</h1>
-    <p class="lede">왼쪽에서 상황과 애니메이션 변형을 고르고 재생해 보세요. 변형마다 ▶로 그 동작만 따로 볼 수 있습니다. "튕김" 표시는 지금 DESIGN.md가 금지하는 스프링·바운스 계열입니다. 고르시면 DESIGN.md를 고칩니다.</p>
+    <p class="lede">왼쪽에서 상황을 고르고 재생해 보세요. 고른 변형은 A5 젤리, B3 착지 바운스, C3 들썩, D3 흔들입니다(2026-11-09). 나머지 변형은 비교용으로 남겨 둡니다. 변형마다 ▶로 그 동작만 따로 볼 수 있습니다.</p>
   </header>
 
   <div class="layout">
@@ -345,7 +345,8 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
       { id: "D3", n: "흔들", tag: "bouncy", d: "좌우로 짧게 흔들림." } ] }
   ];
   const TAGTXT = { now: "지금 앱", calm: "얌전", bouncy: "튕김" };
-  const pick = { A: "A1", B: "B2", C: "C1", D: "D1" };
+  // Owner picks, 2026-11-09 (#1936)
+  const pick = { A: "A5", B: "B3", C: "C3", D: "D3" };
   try { Object.assign(pick, JSON.parse(localStorage.getItem("yui-mock-threads-picks") || "{}")); } catch (e) {}
 
   let winState = "closed", tstate = "input", speed = 1, runId = 0;
