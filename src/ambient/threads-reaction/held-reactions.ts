@@ -13,11 +13,24 @@ export function createHeldReactions(): {
   isEmpty(): boolean;
   clear(): void;
 } {
+  // Insertion order is arrival order; a replaced reaction moves to the back.
+  const held = new Map<string, ThreadTransition>();
   return {
-    hold() {},
-    prune() {},
-    take: () => undefined as never,
-    isEmpty: () => true,
-    clear() {},
+    hold(t) {
+      held.delete(t.id);
+      held.set(t.id, t);
+    },
+    prune(snapshot) {
+      const states = new Map(snapshot.threads.map((thread) => [thread.id, thread.state]));
+      for (const [id, t] of held) if (states.get(id) !== t.state) held.delete(id);
+    },
+    take() {
+      const first = held.values().next();
+      if (first.done) return null;
+      held.delete(first.value.id);
+      return first.value;
+    },
+    isEmpty: () => held.size === 0,
+    clear: () => held.clear(),
   };
 }

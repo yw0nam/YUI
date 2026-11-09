@@ -16,6 +16,7 @@ function createFakes() {
     }),
     onSpeechEnd: vi.fn(),
     speakAside: vi.fn(),
+    speakAsideAndWait: vi.fn(),
     setCue: vi.fn(),
     silentCue: vi.fn(),
     holdMotion: vi.fn(() => false),

@@ -140,6 +140,14 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let mutedReported = false;
   // Callbacks waiting for the next playback-end boundary — drained and cleared each time it fires.
   let drainedCallbacks: Array<() => void> = [];
+  // speakAsideAndWait lines waiting for their playback end — settled "cut" where drainedCallbacks are dropped.
+  let asideWaiters: Array<(result: "spoken" | "cut") => void> = [];
+
+  function settleAsides(result: "spoken" | "cut"): void {
+    const waiters = asideWaiters;
+    asideWaiters = [];
+    for (const settle of waiters) settle(result);
+  }
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
@@ -173,6 +181,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         const callbacks = drainedCallbacks;
         drainedCallbacks = [];
         for (const callback of callbacks) callback();
+        settleAsides("spoken");
       },
     });
   }
@@ -252,7 +261,13 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       delta(text, undefined, true);
       end();
     },
-    speakAsideAndWait: () => Promise.resolve(undefined as never),
+    speakAsideAndWait(text) {
+      // Registered first: an empty line ends inside end().
+      const done = new Promise<"spoken" | "cut">((resolve) => asideWaiters.push(resolve));
+      delta(text, undefined, true);
+      end();
+      return done;
+    },
     setCue(cue, options) {
       if (muted) return;
       if (motionHeld && !options?.withSpeech) {
@@ -296,6 +311,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       // The disposed pipeline never fires its boundary — a callback still waiting on it would
       // otherwise fire on whatever drains next, applying a now-superseded turn's cue.
       drainedCallbacks = [];
+      settleAsides("cut");
       heldSilentCue = null;
       // Release the held bubble immediately (not deferred).
       surfaces.endSpeech(undefined, open?.displayIdentity);
@@ -315,6 +331,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.dispose();
       // No next turn to drain them, and nothing here should still speak.
       drainedCallbacks = [];
+      settleAsides("cut");
       heldSilentCue = null;
       surfaces.endSpeech(undefined, open?.displayIdentity);
       closeTracked(split);
@@ -338,6 +355,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     dispose() {
       pipeline.dispose();
       drainedCallbacks = [];
+      settleAsides("cut");
     },
   };
 }

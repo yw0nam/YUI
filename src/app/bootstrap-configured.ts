@@ -97,6 +97,8 @@ export interface ConfiguredBootstrapHandles {
   vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
+  /** The avatar executor and her seat, which Thread reactions read. */
+  locomotion: Pick<ReturnType<typeof wireLocomotion>, "getAvatarExecutor" | "armedSit">;
   /** The tools beside generate_express: the bridge tools, and in main the avatar tools; none outside Tauri. */
   windowTools: readonly ClientTool[];
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
@@ -429,6 +431,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       summonHotkey,
       vocabulary,
       sitter: locomotion.sitter,
+      locomotion,
       windowTools,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),

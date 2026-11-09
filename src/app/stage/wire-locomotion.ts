@@ -80,6 +80,8 @@ export function wireLocomotion(deps: {
   };
   /** The avatar RPC executor once the stage created it, null until then. */
   getAvatarExecutor(): AvatarExecutor | null;
+  /** The window she is seated on, or null. */
+  armedSit(): { windowNumber: number } | null;
 } {
   const {
     bus,
@@ -257,5 +259,6 @@ export function wireLocomotion(deps: {
       listMonitors: travelFrame.listMonitors,
     },
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
+    armedSit: () => windowSources.armedSit(),
   };
 }

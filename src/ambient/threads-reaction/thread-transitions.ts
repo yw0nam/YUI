@@ -11,5 +11,15 @@ export function createThreadTransitions(): {
   /** The Threads that entered a reacting state since the last snapshot; the first call is the baseline and returns []. */
   next(snapshot: ThreadsSnapshot): ThreadTransition[];
 } {
-  return { next: () => undefined as never };
+  let seen: Map<string, Thread["state"]> | undefined;
+  return {
+    next(snapshot) {
+      const previous = seen;
+      seen = new Map(snapshot.threads.map((thread) => [thread.id, thread.state]));
+      if (!previous) return [];
+      return snapshot.threads.flatMap(({ id, state }) =>
+        state !== "working" && previous.get(id) !== state ? [{ id, state }] : [],
+      );
+    },
+  };
 }
