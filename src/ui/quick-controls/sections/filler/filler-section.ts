@@ -1,5 +1,5 @@
 /**
- * Thinking-filler section — owns the language segment and the six phrase-pool textareas: element
+ * Thinking-filler section — owns the language segment and the eight phrase-pool textareas: element
  * queries, handlers, listeners, the store subscription, and the store→DOM reflect. The shell calls
  * reflect() on open; the enable toggle is a generic switch row outside this module.
  */
@@ -55,6 +55,12 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
   const unreachableTextareaEl = el.querySelector<HTMLTextAreaElement>(
     ".yui-filler-unreachable-textarea",
   );
+  const threadsOpenTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-threads-open-textarea",
+  );
+  const threadsRaiseTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-threads-raise-textarea",
+  );
   const toolTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-tool-textarea");
   const textareaEls = [
     firstTextareaEl,
@@ -62,6 +68,8 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
     longWaitTextareaEl,
     timeoutTextareaEl,
     unreachableTextareaEl,
+    threadsOpenTextareaEl,
+    threadsRaiseTextareaEl,
     toolTextareaEl,
   ];
 
@@ -89,6 +97,10 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
     if (longWaitTextareaEl) longWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
     if (timeoutTextareaEl) timeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
     if (unreachableTextareaEl) unreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
+    if (threadsOpenTextareaEl)
+      threadsOpenTextareaEl.value = (pool?.threads_open ?? []).join("\n");
+    if (threadsRaiseTextareaEl)
+      threadsRaiseTextareaEl.value = (pool?.threads_raise ?? []).join("\n");
     if (toolTextareaEl) toolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
   }
 
@@ -129,6 +141,8 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
       long_wait: parseFillerLines(longWaitTextareaEl),
       timeout: parseFillerLines(timeoutTextareaEl),
       unreachable: parseFillerLines(unreachableTextareaEl),
+      threads_open: parseFillerLines(threadsOpenTextareaEl),
+      threads_raise: parseFillerLines(threadsRaiseTextareaEl),
       tool: parseToolLines(toolTextareaEl?.value ?? ""),
     });
   }

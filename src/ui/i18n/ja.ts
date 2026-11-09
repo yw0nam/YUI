@@ -381,6 +381,12 @@ const ja: Record<string, string> = {
   "filler.unreachable_label": "接続エラーのセリフ",
   "filler.unreachable_sub": "サーバーに接続できない時に再生",
   "filler.unreachable_aria": "接続エラーのセリフ一覧",
+  "filler.threads_open_label": "スレッドを開くセリフ",
+  "filler.threads_open_sub": "スレッドの状態が変わってスレッドウィンドウを開くときに再生",
+  "filler.threads_open_aria": "スレッドを開くセリフ一覧",
+  "filler.threads_raise_label": "スレッドを手前に出すセリフ",
+  "filler.threads_raise_sub": "見えなくなったスレッドウィンドウが手前に来るときに再生",
+  "filler.threads_raise_aria": "スレッドを手前に出すセリフ一覧",
   "filler.tool_label": "ツールのセリフ",
   "filler.tool_sub":
     "1行に1つ。「terminal = コマンドを実行するね…」のように書くと特定のツール用、それ以外は共通のフォールバックになります",
@@ -669,6 +675,9 @@ const ja: Record<string, string> = {
   "threadTurns.notable": "必要なとき",
   "threadTurns.every": "メッセージごと",
   "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
+  "threadReactions.label": "スレッドを見に行く",
+  "threadReactions.sub": "スレッドの状態が変わると、キャラクターがスレッドウィンドウに移動して座ります。",
+  "threadReactions.aria": "スレッドを見に行く",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",

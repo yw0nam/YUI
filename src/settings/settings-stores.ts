@@ -135,6 +135,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const threadTurnsSettings = createThreadTurnsSettings({
     storage: localStorageThreadTurnsStorage(),
   });
+  // Thread body reactions on/off. Default ON. Off stops the main character reacting to a Thread state change.
+  const threadReactionsSettings = createFlagSettings(true, {
+    storage: localStorageStore("yui.thread-reactions"),
+  });
   // Device-wide text size: the scale every window applies to its text tokens.
   const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
@@ -214,6 +218,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     userNameSettings,
     themeSettings,
     threadTurnsSettings,
+    threadReactionsSettings,
     textSizeSettings,
     fillerSettings,
     readingsSettings,
@@ -268,6 +273,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   userNameSettings: "broadcast",
   themeSettings: "broadcast",
   threadTurnsSettings: "broadcast",
+  threadReactionsSettings: "broadcast",
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
   readingsSettings: "broadcast",

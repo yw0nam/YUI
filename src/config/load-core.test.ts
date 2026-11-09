@@ -416,6 +416,8 @@ function goodFillerPool(overrides: Record<string, unknown> = {}): Record<string,
     tool: { _default: ["調べてみるね…"] },
     timeout: ["ごめん、諦めちゃった。"],
     unreachable: ["今つながらないみたい。"],
+    threads_open: ["スレッド開くね。"],
+    threads_raise: ["前に出すね。"],
     ...overrides,
   };
 }
@@ -520,6 +522,8 @@ describe("loadConfig — filler (accept)", () => {
           tool: {},
           timeout: [],
           unreachable: [],
+          threads_open: [],
+          threads_raise: [],
         }),
       },
     };
@@ -531,6 +535,8 @@ describe("loadConfig — filler (accept)", () => {
       tool: {},
       timeout: [],
       unreachable: [],
+      threads_open: [],
+      threads_raise: [],
     });
   });
 });

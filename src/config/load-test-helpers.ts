@@ -223,6 +223,8 @@ export function goodFixture(): Record<string, unknown> {
           tool: { _default: ["調べてみるね…"] },
           timeout: ["ごめん、諦めちゃった。"],
           unreachable: ["今つながらないみたい。"],
+          threads_open: ["スレッド開くね。"],
+          threads_raise: ["前に出すね。"],
         },
         en: {
           first: ["Let me think...", "Hmm..."],
@@ -231,6 +233,8 @@ export function goodFixture(): Record<string, unknown> {
           tool: { _default: ["Let me check…"] },
           timeout: ["Sorry, I gave up waiting."],
           unreachable: ["I can't connect right now."],
+          threads_open: ["Opening Threads."],
+          threads_raise: ["Bringing it up."],
         },
         ko: {
           first: ["음…", "그건…"],
@@ -239,6 +243,8 @@ export function goodFixture(): Record<string, unknown> {
           tool: { _default: ["잠깐 찾아볼게…"] },
           timeout: ["미안, 포기했어."],
           unreachable: ["지금 연결이 안 돼."],
+          threads_open: ["스레드 창 열게."],
+          threads_raise: ["앞으로 낼게."],
         },
       },
     },

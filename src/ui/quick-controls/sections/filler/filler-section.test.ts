@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * filler-section.test.ts — the thinking-filler section on the panel's real markup: language
- * segment, the six pool textareas, store→DOM reflect, and teardown.
+ * segment, the eight pool textareas, store→DOM reflect, and teardown.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -106,7 +106,7 @@ describe("createFillerSection", () => {
     vi.restoreAllMocks();
   });
 
-  it("a click on a language button persists it, moves aria-checked/tabindex and writes the six textareas", () => {
+  it("a click on a language button persists it, moves aria-checked/tabindex and writes the eight textareas", () => {
     const fs = seededFiller({ customPools: { ja: { first: ["うーん"] }, en: EN_POOL } });
     const root = buildRoot(fs);
     const section = createFillerSection({

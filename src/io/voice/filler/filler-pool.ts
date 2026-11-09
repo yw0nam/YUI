@@ -15,7 +15,7 @@ import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import { createSentenceSegmenter } from "../tts/sentence-segmenter";
 import { createEmojiStripper } from "../tts/strip-emoji";
 
-/** A pool with all six tiers present and empty. */
+/** A pool with every list tier present and empty. */
 export function emptyFillerPool(): FillerPool {
   return {
     first: [],
@@ -24,10 +24,20 @@ export function emptyFillerPool(): FillerPool {
     tool: {},
     timeout: [],
     unreachable: [],
+    threads_open: [],
+    threads_raise: [],
   };
 }
 
-const LIST_TIERS = ["first", "repeat", "long_wait", "timeout", "unreachable"] as const;
+const LIST_TIERS = [
+  "first",
+  "repeat",
+  "long_wait",
+  "timeout",
+  "unreachable",
+  "threads_open",
+  "threads_raise",
+] as const;
 
 export function effectiveFillerPool(settings: FillerSettings, config: FillerConfig): FillerPool {
   if (!settings.enabled) return emptyFillerPool();
@@ -67,6 +77,8 @@ export function fillerSubmissions(pool: FillerPool): Set<string> {
     ...pool.long_wait,
     ...pool.timeout,
     ...pool.unreachable,
+    ...pool.threads_open,
+    ...pool.threads_raise,
     ...Object.values(pool.tool).flat(),
   ];
   for (const phrase of phrases) {

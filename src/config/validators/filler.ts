@@ -18,6 +18,10 @@ export interface FillerPool {
   timeout: string[];
   /** Phrases spoken when a user turn fails with network_drop. */
   unreachable: string[];
+  /** Phrases spoken before the Threads window opens for a changed Thread. */
+  threads_open: string[];
+  /** Phrases spoken before a covered Threads window comes to the front. */
+  threads_raise: string[];
 }
 
 /** configs/filler.json — TTFT filler phrases + loop timing. */
@@ -37,7 +41,7 @@ export interface FillerConfig {
   pools: Partial<Record<FillerLang, FillerPool>>;
 }
 
-/** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable). Returns cleaned array or records issues. */
+/** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable, threads_open, threads_raise). Returns cleaned array or records issues. */
 function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {
   if (!Array.isArray(tier)) {
     issues.push(`${path} must be an array (got: ${JSON.stringify(tier)})`);
@@ -149,8 +153,27 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
         entry.unreachable,
         `pools.${lang}.unreachable`,
       );
+      const threads_open = validateFillerTier(
+        issues,
+        entry.threads_open,
+        `pools.${lang}.threads_open`,
+      );
+      const threads_raise = validateFillerTier(
+        issues,
+        entry.threads_raise,
+        `pools.${lang}.threads_raise`,
+      );
       const tool = validateFillerToolTier(issues, entry.tool, `pools.${lang}.tool`);
-      pools[lang] = { first, repeat, long_wait, tool, timeout, unreachable };
+      pools[lang] = {
+        first,
+        repeat,
+        long_wait,
+        tool,
+        timeout,
+        unreachable,
+        threads_open,
+        threads_raise,
+      };
     }
   }
 

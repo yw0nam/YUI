@@ -34,6 +34,7 @@ function makeSwitchRows(): SwitchRow[] {
     screenKnobSettings: createScreenKnobSettings(),
     unifiedChatSwitch: createFlagSettings(false),
     relationsSwitch: createFlagSettings(true),
+    threadReactionsSettings: createFlagSettings(true),
   });
 }
 
