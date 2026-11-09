@@ -22,6 +22,8 @@ export interface ThreadsChip {
   updateRequests(requests: AccessRequest[]): void;
   /** Whether the window is open; the chip hides while it is. */
   setWindowOpen(open: boolean): void;
+  /** The chip's rect in this window's viewport: where it is shown, or the slot it would take while hidden. */
+  slotRect(): ScreenRect;
   dispose(): void;
 }
 
@@ -127,6 +129,9 @@ export function createThreadsChip({
     setWindowOpen(open) {
       windowOpen = open;
       render();
+    },
+    slotRect() {
+      return { x: 0, y: 0, width: 0, height: 0 };
     },
     dispose() {
       fold.dispose();
