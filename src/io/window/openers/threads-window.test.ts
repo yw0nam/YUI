@@ -233,6 +233,21 @@ it("present resolves closed on dispose and ignores a report that comes after", a
   b.firePresented(sentId(b));
 });
 
+it("present after dispose resolves closed and opens nothing", async () => {
+  const b = bridge();
+  const controller = createThreadsWindowController({ bridge: b });
+  b.fire("ready");
+  controller.dispose();
+
+  const settled = Promise.race([
+    controller.present(),
+    new Promise((r) => setTimeout(r, 10, "pending")),
+  ]);
+
+  await expect(settled).resolves.toBe("closed");
+  expect(b.sent).toEqual([]);
+});
+
 it("a present replaced by a later request before the ready report resolves closed", async () => {
   const b = bridge();
   const controller = createThreadsWindowController({ bridge: b });
