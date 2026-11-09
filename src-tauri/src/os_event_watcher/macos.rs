@@ -231,16 +231,6 @@ unsafe fn bounds_to_rect(bounds_dict: CFDictionaryRef) -> Option<ScreenRect> {
     })
 }
 
-/// Every foreign on-screen window in front-to-back (topmost first) order, for
-/// the frontmost-window read.
-pub fn list_all_windows() -> Vec<WindowAtPoint> {
-    let own_pid = std::process::id() as i32;
-    filter_foreign(enumerate_windows(), own_pid)
-        .into_iter()
-        .map(window_rect_to_at_point)
-        .collect()
-}
-
 /// Every on-screen window, YUI's own included, in front-to-back order.
 pub(super) fn platform_windows() -> Vec<WindowAtPoint> {
     enumerate_windows()
@@ -255,14 +245,6 @@ pub fn window_bounds(window_number: u32) -> Option<WindowAtPoint> {
         .into_iter()
         .next()
         .map(window_rect_to_at_point)
-}
-
-/// Pure own-pid filter (no FFI), so the ordering/exclusion is unit-testable.
-///
-/// `windows` is front-to-back (topmost first); the order is preserved, only
-/// windows owned by `own_pid` (YUI itself) are dropped.
-fn filter_foreign(windows: Vec<WindowRect>, own_pid: i32) -> Vec<WindowRect> {
-    windows.into_iter().filter(|w| w.pid != own_pid).collect()
 }
 
 /// Maps an enumerated `WindowRect` into the serializable `WindowAtPoint`.
@@ -412,7 +394,9 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
 
 /// Owner app and title of the frontmost user window, `(None, None)` when none.
 pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
-    match super::pure_helpers::first_user_window(list_all_windows(), process_base_name) {
+    let own_pid = std::process::id() as i32;
+    let foreign = super::pure_helpers::filter_listed(platform_windows(), own_pid, None);
+    match super::pure_helpers::first_user_window(foreign, process_base_name) {
         Some(w) => (w.owner_name, w.name),
         None => (None, None),
     }
@@ -463,41 +447,6 @@ mod tests {
             // Empty string still round-trips through CFString itself.
             assert_eq!(result, Some("".into()));
         }
-    }
-
-    // ── filter_foreign (pure own-pid filter, order-preserving) ─────────────
-
-    fn win(x: f64, y: f64, w: f64, h: f64, pid: i32) -> WindowRect {
-        WindowRect {
-            rect: ScreenRect {
-                x,
-                y,
-                width: w,
-                height: h,
-            },
-            pid,
-            name: None,
-            owner_name: None,
-            window_number: 0,
-        }
-    }
-
-    #[test]
-    fn filter_foreign_drops_own_and_preserves_order() {
-        let own = 4242;
-        let windows = vec![
-            win(0.0, 0.0, 100.0, 100.0, 11),  // foreign, topmost
-            win(0.0, 0.0, 100.0, 100.0, own), // YUI itself — dropped
-            win(0.0, 0.0, 100.0, 100.0, 22),  // foreign, lower
-        ];
-        let kept = filter_foreign(windows, own);
-        let pids: Vec<i32> = kept.iter().map(|w| w.pid).collect();
-        assert_eq!(pids, vec![11, 22]); // front-to-back order preserved
-    }
-
-    #[test]
-    fn filter_foreign_empty_is_empty() {
-        assert!(filter_foreign(Vec::new(), 999).is_empty());
     }
 
     // ── executable name resolution (proc_pidpath) ──────────────────────────
