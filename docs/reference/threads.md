@@ -241,7 +241,7 @@ The reaction reads the Threads window when it runs.
 | Covered | The window is open, and `list_windows` either does not hold it or lists a window in front of it that overlaps it. |
 | Open | Otherwise. |
 
-While it is on screen, the Threads window is a perch target. A hand drop, a stroll jump, a fall and the `look` tool all see it.
+While it is on screen, the Threads window is a perch target, and its rect is the visible panel, inset by the window's 8-point transparent margin on every side. A hand drop, a stroll jump, a fall and the `look` tool all see it.
 
 ### Steps
 

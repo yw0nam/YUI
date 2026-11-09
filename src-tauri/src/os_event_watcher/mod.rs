@@ -98,8 +98,8 @@ pub struct WindowAtPoint {
     pub threads_window: bool,
 }
 
-/// Lists every foreign on-screen window, plus YUI's own Threads window while it
-/// is on screen, in front-to-back (topmost first) order, each in logical points
+/// Lists every foreign on-screen window, plus YUI's own Threads window (as its
+/// visible panel) while it is on screen, in front-to-back (topmost first) order, each in logical points
 /// (top-left origin).
 ///
 /// Excludes YUI's other windows and platform chrome (menu bar / Dock / wallpaper

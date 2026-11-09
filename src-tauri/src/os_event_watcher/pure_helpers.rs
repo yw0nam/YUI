@@ -40,8 +40,12 @@ pub(super) fn first_user_window(
     })
 }
 
+/// The transparent margin around the Threads panel, in points (`.yui-threads { padding: 8px }` in threads-view.css).
+const THREADS_WINDOW_MARGIN: f64 = 8.0;
+
 /// Foreign windows plus the own window numbered `threads_number`, flagged and
-/// named as YUI's Threads window; YUI's other windows are dropped, order kept.
+/// named as YUI's Threads window and cut to its visible panel; YUI's other
+/// windows are dropped, order kept.
 #[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
 pub(super) fn filter_listed(
     windows: Vec<WindowAtPoint>,
@@ -55,6 +59,10 @@ pub(super) fn filter_listed(
                 Some(w)
             } else if Some(w.window_number) == threads_number {
                 Some(WindowAtPoint {
+                    x: w.x + THREADS_WINDOW_MARGIN,
+                    y: w.y + THREADS_WINDOW_MARGIN,
+                    width: w.width - 2.0 * THREADS_WINDOW_MARGIN,
+                    height: w.height - 2.0 * THREADS_WINDOW_MARGIN,
                     owner_name: Some("YUI".into()),
                     name: Some("Threads".into()),
                     threads_window: true,
