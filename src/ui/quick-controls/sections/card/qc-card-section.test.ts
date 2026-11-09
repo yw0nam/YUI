@@ -546,7 +546,7 @@ describe("createQuickControls — card section", () => {
       defaultName: "natsume.yui",
       thumbnailPresetId: "aaaa0001",
       crop: { x: 0.1, y: 0.2, size: 0.5 },
-      vrm: { kind: "user", id: "mine" },
+      vrm: { kind: "user", id: "mine", label: "Mine" },
       voice: { id: "myvoice", label: "My voice" },
     });
   });

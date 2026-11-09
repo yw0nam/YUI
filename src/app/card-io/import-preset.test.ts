@@ -113,15 +113,17 @@ describe("importPreset", () => {
     expect(base.notice.keys()).toEqual([CARD_IMPORT_NOTICE_KEY]);
   });
 
-  it("adds a user vrm to the list and writes it as the new preset's vrm", async () => {
+  it("adds a user vrm to the list under its own name and writes it as the new preset's vrm", async () => {
     const base = baseDeps(
-      yuiCard({ vrm: { kind: "user", id: "mio_vrm", url: "asset://x/model.vrm" } }),
+      yuiCard({
+        vrm: { kind: "user", id: "mio_vrm", url: "asset://x/model.vrm", label: "Mio Summer" },
+      }),
     );
     await expect(importPreset(base)).resolves.toEqual({ presetId: "new1" });
 
     expect(base.vrmSelection.addUserOption).toHaveBeenCalledWith({
       id: "mio_vrm",
-      label: "mio_vrm",
+      label: "Mio Summer",
       url: "asset://x/model.vrm",
       source: "user",
     });

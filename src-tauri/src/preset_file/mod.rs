@@ -567,7 +567,13 @@ mod tests {
         PresetFileExportRequest {
             thumbnail_preset_id: Some("pid".into()),
             crop: Some(json!({"x": 0.1, "y": 0.2, "zoom": 1.5})),
-            vrm: Some(PresetFileVrmRef::User { id: "Mio".into() }),
+            // The VRM list names the file `Mio` "Yui Summer/Beach".
+            vrm: Some(
+                serde_json::from_value(
+                    json!({"kind": "user", "id": "Mio", "label": "Yui Summer/Beach"}),
+                )
+                .unwrap(),
+            ),
             voice: Some(PresetFileVoiceRef {
                 id: "v1".into(),
                 label: "Mio voice".into(),
@@ -599,6 +605,11 @@ mod tests {
             .collect();
         names.sort();
         names
+    }
+
+    fn manifest_json(zip: &[u8]) -> serde_json::Value {
+        let mut archive = zip::ZipArchive::new(Cursor::new(zip)).unwrap();
+        serde_json::from_reader(archive.by_name("manifest.json").unwrap()).unwrap()
     }
 
     fn manifest_of(zip: &[u8]) -> Manifest {
@@ -638,6 +649,10 @@ mod tests {
         let (written, zip) = write(&src, &full_request());
         assert_eq!(written, Ok(true));
         assert_eq!(
+            manifest_json(&zip)["vrm"],
+            json!({"file": "vrm/model.vrm", "name": "Yui Summer/Beach"})
+        );
+        assert_eq!(
             entry_names(&zip),
             [
                 "card.json",
@@ -661,19 +676,18 @@ mod tests {
             std::fs::read(dst.cards.join("mio-preset.png")).unwrap(),
             png()
         );
+        // The picked file is `mio.yui`; the claimed VRM follows the VRM's own name.
         assert_eq!(
-            got.vrm,
-            Some(PresetFileVrm::User {
-                id: "mio-preset".into(),
-                dest_path: dst
-                    .vrms
-                    .join("mio-preset.vrm")
-                    .to_string_lossy()
-                    .into_owned(),
+            serde_json::to_value(&got.vrm).unwrap(),
+            json!({
+                "kind": "user",
+                "id": "Yui Summer_Beach",
+                "destPath": dst.vrms.join("Yui Summer_Beach.vrm").to_string_lossy(),
+                "label": "Yui Summer/Beach",
             })
         );
         assert_eq!(
-            std::fs::read(dst.vrms.join("mio-preset.vrm")).unwrap(),
+            std::fs::read(dst.vrms.join("Yui Summer_Beach.vrm")).unwrap(),
             vrm_license::glb_with_json(ALLOWED)
         );
         assert_eq!(
@@ -692,6 +706,28 @@ mod tests {
         assert_eq!(
             std::fs::read(dst.references.join("stage1").join("clip.wav")).unwrap(),
             WAV
+        );
+    }
+
+    #[test]
+    fn a_vrm_with_no_name_in_the_manifest_takes_the_picked_files_stem() {
+        let manifest = br#"{"format":"yui-preset","version":1,"vrm":{"file":"vrm/model.vrm"}}"#;
+        let glb = vrm_license::glb_with_json(ALLOWED);
+        let zip = zip_of(&[
+            ("manifest.json", manifest),
+            ("card.json", CARD.as_bytes()),
+            ("vrm/model.vrm", &glb),
+        ]);
+        let dst = dirs("no_name_dst");
+        let got = read(&dst, zip).unwrap();
+        assert_eq!(
+            serde_json::to_value(&got.vrm).unwrap(),
+            json!({
+                "kind": "user",
+                "id": "mio-preset",
+                "destPath": dst.vrms.join("mio-preset.vrm").to_string_lossy(),
+                "label": "mio-preset",
+            })
         );
     }
 

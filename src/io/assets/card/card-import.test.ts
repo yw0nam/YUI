@@ -69,7 +69,7 @@ describe("importCardFromFile", () => {
         thumbnailTempId: "mio-1a2b3c",
         source: "yui",
         crop: { x: 0.25, y: 0, size: 0.5 },
-        vrm: { kind: "user", id: "mio_vrm", destPath: "/vrms/mio_vrm/model.vrm" },
+        vrm: { kind: "user", id: "mio_vrm", destPath: "/vrms/mio_vrm/model.vrm", label: "Mio" },
         voice: { id: "import-9", refPath: "/references/import-9/clip.wav", label: "Mio" },
       }),
     });
@@ -84,7 +84,12 @@ describe("importCardFromFile", () => {
       thumbnailTempId: "mio-1a2b3c",
       source: "yui",
       crop: { x: 0.25, y: 0, size: 0.5 },
-      vrm: { kind: "user", id: "mio_vrm", url: "asset://localhost/vrms/mio_vrm/model.vrm" },
+      vrm: {
+        kind: "user",
+        id: "mio_vrm",
+        url: "asset://localhost/vrms/mio_vrm/model.vrm",
+        label: "Mio",
+      },
       voice: {
         stagedId: "import-9",
         refUrl: "asset://localhost/references/import-9/clip.wav",
