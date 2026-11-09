@@ -41,7 +41,6 @@ resources/vrma/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/superpowers
-src/ui/mocks/
 # Local reference clips are not repo content — never track them.
 resources/references/
 

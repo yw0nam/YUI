@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thread 반응 목업</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Real design tokens and the real Threads chip stylesheet; only mock-only staging and the animation variants live below. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/threads/chip/threads-chip.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Layout: controls and variant pickers beside a scaled 1440×900 desktop stage; the stage holds a covering app, the Threads window and the character window. */
+* { box-sizing: border-box; }
+html { background: var(--yui-panel-bg); }
+body { margin: 0; background: var(--yui-panel-bg); color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 120px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+h2 { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+p { margin: 0; }
+.lede { color: var(--yui-text-dim); max-width: 70ch; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1100px) { .layout { grid-template-columns: 360px minmax(0, 1fr); align-items: start; } .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 140px); overflow-y: auto; } }
+.side { display: grid; gap: 14px; min-width: 0; }
+.group { border-radius: var(--yui-radius-group); background: var(--yui-group-bg); border: 1px solid var(--yui-edge); }
+.group > * + * { border-top: 1px solid var(--yui-edge); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; }
+.row .lbl { flex: 1 1 8rem; font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.btn { font: inherit; font-size: var(--yui-fs-sub); font-weight: 600; padding: 6px 14px; border-radius: var(--yui-radius-control); border: 1px solid var(--yui-edge-strong); background: var(--yui-field); color: var(--yui-text); cursor: pointer; }
+.btn.primary { background: var(--yui-accent); border-color: var(--yui-accent); color: var(--yui-ink); }
+.btn:focus-visible, .seg button:focus-visible, .var:focus-within { outline: 2px solid var(--yui-accent-ink); outline-offset: 2px; }
+.vgroup { display: grid; gap: 6px; }
+.vgroup h3 { margin: 0 2px; font-size: var(--yui-fs-sub); font-weight: 600; color: var(--yui-text-dim); display: flex; justify-content: space-between; gap: 6px; }
+.var { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 8px 10px; border-radius: var(--yui-radius-row); border: 1px solid var(--yui-edge); background: var(--yui-field); cursor: pointer; }
+.var input { margin: 0; accent-color: var(--yui-accent); }
+.var .n { font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.var .d { grid-column: 2 / 4; color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.var.sel { border-color: var(--yui-accent); background: var(--yui-accent-faint); }
+.tag { font-size: var(--yui-fs-caption); font-weight: 600; padding: 0 6px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); color: var(--yui-text-dim); white-space: nowrap; }
+.tag.bouncy { border-color: var(--yui-accent); color: var(--yui-accent-ink); }
+.tag.now { border-color: var(--yui-ok); color: var(--yui-ok); }
+.play1 { font: inherit; font-size: var(--yui-fs-caption); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.play1:hover { color: var(--yui-text); border-color: var(--yui-accent-soft); }
+
+/* stage */
+.stage-col { display: grid; gap: 10px; min-width: 0; }
+.stage-box { position: relative; width: 100%; aspect-ratio: 1440 / 900; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge); }
+.desk { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; transform-origin: 0 0; background: radial-gradient(1200px 700px at 30% 20%, oklch(0.72 0.05 230), oklch(0.48 0.05 250)); font-size: 13px; }
+.appwin { position: absolute; left: 60px; top: 60px; width: 900px; height: 620px; border-radius: 10px; background: oklch(0.22 0.01 260); box-shadow: 0 18px 50px oklch(0.15 0.03 260 / 0.45); overflow: hidden; display: grid; grid-template-rows: 30px 1fr; z-index: 2; }
+.appwin .bar { background: oklch(0.28 0.01 260); color: oklch(0.85 0.01 260); font-size: 12px; display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.appwin .bar .focus { margin-left: auto; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: oklch(0.7 0.13 150 / 0.25); color: oklch(0.92 0.06 150); }
+.appwin pre { margin: 0; padding: 16px 20px; color: oklch(0.86 0.03 250); font: 13px/1.7 var(--yui-font-mono); white-space: pre; }
+.caret { display: inline-block; width: 8px; height: 16px; background: oklch(0.85 0.03 250); vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Threads window: the panel inside an 8px transparent margin, per DESIGN.md § Threads window */
+.tw { position: absolute; left: 108px; top: 150px; width: 880px; height: 680px; padding: 8px; z-index: 3; }
+.tw[hidden] { display: none; }
+.tw.under { z-index: 1; }
+.tw__panel { width: 100%; height: 100%; border-radius: var(--yui-radius); background: color-mix(in oklch, var(--yui-threads-base) 98.5%, transparent); border: 1px solid var(--yui-edge); box-shadow: var(--yui-float); overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.tw__head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--yui-threads-head); border-bottom: 1px solid var(--yui-edge); }
+.tw__head h4 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; }
+.tw__count { flex: 1; color: var(--yui-text-dim); font-size: var(--yui-fs-sub); }
+.ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px; color: var(--yui-text-dim); border: 1px solid var(--yui-edge); }
+.ico svg { width: 15px; height: 15px; }
+.turns { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--yui-edge); color: var(--yui-text-dim); font-size: var(--yui-fs-sub); font-weight: 500; }
+.tw__body { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; }
+.tw__list { background: var(--yui-threads-side); border-right: 1px solid var(--yui-edge); padding: 10px; display: grid; gap: 8px; align-content: start; }
+.tabs { display: flex; gap: 4px; }
+.tabs span { flex: 1; text-align: center; padding: 5px 0; border-radius: 8px; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.tabs span.on { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.trow { padding: 10px; border-radius: 10px; display: grid; gap: 3px; }
+.trow.on { background: var(--yui-selected); }
+.trow .src { display: flex; gap: 6px; align-items: center; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.mark { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--yui-edge-strong); background: var(--yui-panel-bg); display: inline-grid; place-items: center; font-size: 10px; }
+.st-need { color: var(--yui-accent-ink); font-weight: 600; }
+.st-done { color: var(--yui-ok); font-weight: 600; }
+.st-fail { color: var(--yui-danger); font-weight: 600; }
+.trow .ttl { font-size: var(--yui-fs-head); font-weight: 600; }
+.trow .lab { font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+.tw__pane { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+.pane-head { padding: 14px 20px 10px; display: grid; gap: 3px; border-bottom: 1px solid var(--yui-edge); }
+.pane-head .ttl { font-size: 17px; font-weight: 600; }
+.transcript { padding: 14px 20px; display: grid; gap: 12px; align-content: start; overflow: hidden; }
+.entry .who { font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+.entry .txt { font-size: var(--yui-fs-speech); line-height: 1.8; }
+.entry code { background: var(--yui-selected); padding: 1px 5px; border-radius: 4px; font-family: var(--yui-font-mono); font-size: 0.9em; }
+.answer { background: var(--yui-threads-head); border-top: 1px solid var(--yui-edge); padding: 12px 20px 14px; display: grid; gap: 6px; }
+.answer[hidden] { display: none; }
+.answer .q { font-size: var(--yui-fs-head); font-weight: 600; }
+.choice { padding: 6px 8px; border-radius: 8px; font-size: var(--yui-fs-body); display: flex; gap: 10px; }
+.choice .k { color: var(--yui-text-mute); }
+.choice.on { background: var(--yui-selected); color: var(--yui-accent-ink); font-weight: 600; }
+.send { justify-self: end; padding: 6px 16px; border-radius: 8px; background: var(--yui-text); color: var(--yui-panel-bg); font-weight: 600; font-size: var(--yui-fs-sub); }
+
+/* Character window: 400×600, transparent; the chip column starts at calc(50% + 3.5rem) (surfaces.css) */
+.pet { position: absolute; left: 1010px; top: 300px; width: 400px; height: 600px; z-index: 10; }
+.pet__outline { position: absolute; inset: 0; border: 1px dashed oklch(1 0 0 / 0.0); border-radius: 4px; pointer-events: none; }
+.show-bounds .pet__outline { border-color: oklch(1 0 0 / 0.55); }
+.chipcol { position: absolute; left: calc(50% + 3.5rem); top: 170px; right: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.fig { position: absolute; left: 100px; top: 230px; width: 200px; height: 360px; transform-origin: 50% 78%; }
+.fig svg { width: 100%; height: 100%; overflow: visible; }
+.fig .sit { display: none; }
+.fig.sitting .stand { display: none; }
+.fig.sitting .sit { display: inline; }
+.fig .ex { display: none; }
+.fig[data-expr="neutral"] .ex-neutral, .fig[data-expr="curious"] .ex-curious, .fig[data-expr="happy"] .ex-happy, .fig[data-expr="sad"] .ex-sad { display: inline; }
+.fig .headg { transform-origin: 100px 140px; transition: transform 300ms var(--yui-ease); }
+.fig[data-expr="curious"] .headg { transform: rotate(-7deg); }
+.ember { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--yui-accent); box-shadow: 0 0 0 4px var(--yui-accent-faint); z-index: 12; pointer-events: none; }
+.ember[hidden] { display: none; }
+
+/* speech bubble, per DESIGN.md § Speech bubble: bottom-anchored at 16%, min(34ch, 78%) wide */
+.bubble { position: absolute; left: 50%; bottom: 16%; width: min(34ch, 78%); transform: translateX(-50%); font-size: var(--yui-fs-speech); }
+.bubble[hidden] { display: none; }
+.bubble__box { position: relative; background: var(--yui-scrim); backdrop-filter: blur(10px) saturate(1.1); border-radius: 14px; border: 1px solid var(--yui-accent-soft); box-shadow: var(--yui-float); padding: 26px 18px 30px; min-height: 132px; line-height: 1.75; }
+.plate { position: absolute; left: 12px; top: -15px; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 5px; border-radius: 999px; background: var(--yui-scrim-strong); border: 1px solid var(--yui-edge); box-shadow: var(--yui-float); font-size: var(--yui-fs-sub); font-weight: 500; }
+.plate .face { width: 20px; height: 20px; border-radius: 50%; background: oklch(0.32 0.05 265); }
+.plate .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yui-accent); }
+.plate .state { color: var(--yui-text-mute); }
+.tcaret { display: inline-block; width: 2px; height: 1.1em; background: var(--yui-accent); vertical-align: -0.2em; margin-left: 1px; animation: blink 0.9s steps(1) infinite; }
+.endmark { position: absolute; right: 14px; bottom: 10px; color: var(--yui-accent-ink); font-size: 11px; }
+.example { position: absolute; left: 0; right: 0; bottom: -20px; text-align: center; font-size: 11px; color: oklch(1 0 0 / 0.85); text-shadow: 0 1px 2px oklch(0 0 0 / 0.5); }
+
+/* steps + status */
+.steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.steps span { font-size: var(--yui-fs-sub); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--yui-edge); color: var(--yui-text-mute); background: var(--yui-field); }
+.steps span.on { border-color: var(--yui-accent); color: var(--yui-accent-ink); font-weight: 600; background: var(--yui-accent-faint); }
+.steps span.done { color: var(--yui-text-dim); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.facts b { color: var(--yui-text); font-weight: 600; }
+
+/* decision bar */
+body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0px); }
+.dbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--yui-scrim-strong); backdrop-filter: blur(8px); border-top: 1px solid var(--yui-edge-strong); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.dbar-in { max-width: 1320px; margin: 0 auto; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.picks { display: flex; gap: 6px; flex-wrap: wrap; font-size: var(--yui-fs-sub); }
+.picks span { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); font-family: var(--yui-font-mono); }
+.status { font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+@media (prefers-reduced-motion: reduce) { .caret, .tcaret { animation: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/character-window · #1936</span>
+    <h1>Thread가 바뀌면 캐릭터가 스레드 창에 앉습니다</h1>
+    <p class="lede">왼쪽에서 상황을 고르고 재생해 보세요. 고른 변형은 A5 젤리, B3 착지 바운스, C3 들썩, D3 흔들입니다(2026-11-09). 나머지 변형은 비교용으로 남겨 둡니다. 변형마다 ▶로 그 동작만 따로 볼 수 있습니다.</p>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <div class="group">
+        <div class="row"><span class="lbl">스레드 창</span><div class="seg" id="segWin"><button type="button" data-v="open">열림</button><button type="button" data-v="closed" aria-pressed="true">닫힘</button><button type="button" data-v="covered">가려짐</button></div></div>
+        <div class="row"><span class="lbl">Thread 상태</span><div class="seg" id="segState"><button type="button" data-v="input" aria-pressed="true">응답 필요</button><button type="button" data-v="completed">완료</button><button type="button" data-v="failed">실패</button></div></div>
+        <div class="row"><span class="lbl">속도</span><div class="seg" id="segSpeed"><button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="0.4">느리게</button></div></div>
+        <div class="row"><span class="lbl">테마</span><div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div></div>
+        <div class="row"><label class="lbl" for="rm">동작 줄이기</label><input type="checkbox" id="rm"><label class="lbl" for="bounds">캐릭터 창 경계</label><input type="checkbox" id="bounds"></div>
+        <div class="row"><button type="button" class="btn primary" id="play">전체 흐름 재생</button><button type="button" class="btn" id="reset">처음으로</button></div>
+      </div>
+      <div id="variants" style="display:grid;gap:14px"></div>
+    </aside>
+
+    <section class="stage-col">
+      <div class="stage-box" id="stageBox">
+        <div class="desk" id="desk">
+          <div class="appwin" id="app">
+            <div class="bar"><span>●  ●  ●</span><span>Visual Studio Code — grow.ts</span><span class="focus" id="focusTag">키보드 포커스</span></div>
+<pre>export async function growOpen(parts: GrowParts, from: ScreenRect | null) {
+  const { root, panel, content } = parts;
+  const animate = from !== null &amp;&amp; !prefersReducedMotion();
+  if (animate) {
+    panel.style.clipPath = clip(panel, from);
+    content.style.opacity = "0";
+  }
+  root.classList.add("is-open");<span class="caret"></span>
+}</pre>
+          </div>
+
+          <div class="tw" id="tw" hidden>
+            <div class="tw__panel" id="twPanel">
+              <div class="tw__head">
+                <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></span>
+                <h4>스레드</h4>
+                <span class="tw__count" id="twCount">응답 대기 1개</span>
+                <span class="turns"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>캐릭터 반응: 끔</span>
+                <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+              </div>
+              <div class="tw__body" id="twContent">
+                <div class="tw__list">
+                  <div class="tabs"><span class="on">응답 대기 1</span><span>전체 3</span></div>
+                  <div class="trow on"><div class="src"><span class="mark">C</span>Claude Code · <span id="rowState" class="st-need">응답 필요</span> · 방금</div><div class="ttl">YUI · feat/in-repo-mocks</div><div class="lab">mac-mini, 0:1</div></div>
+                  <div class="trow"><div class="src"><span class="mark">X</span>Codex · 작업 중 · 4분</div><div class="ttl">memory-base · fix/dedupe</div><div class="lab">ibricks43</div></div>
+                  <div class="trow"><div class="src"><span class="mark">C</span>Claude Code · <span class="st-done">완료</span> · 1시간</div><div class="ttl">YUI · docs/openclaw</div></div>
+                </div>
+                <div class="tw__pane">
+                  <div class="pane-head"><div class="mute">Claude Code · <span id="paneState" class="st-need">응답 필요</span> · 방금</div><div class="ttl">YUI · feat/in-repo-mocks</div><div class="mute">mac-mini, 0:1</div></div>
+                  <div class="transcript">
+                    <div class="entry"><div class="who">나 · 2분 전</div><div class="txt">목업 폴더를 만들고 tokens.css를 링크해 줘.</div></div>
+                    <div class="entry"><div class="who">Claude Code · 방금</div><div class="txt" id="lastText"><code>mocks/character-window/</code>를 만들었습니다. 이제 <code>git commit</code>을 실행하려고 합니다.</div></div>
+                  </div>
+                  <div class="answer" id="answer">
+                    <div class="q">Bash를 허용할까요?</div>
+                    <div class="choice on"><span class="k">1</span>허용</div>
+                    <div class="choice"><span class="k">2</span>거부</div>
+                    <span class="send">허용</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pet" id="pet">
+            <div class="pet__outline"></div>
+            <div class="chipcol">
+              <button type="button" class="yui-threadchip" id="chip" hidden>
+                <span class="yui-threadchip__marks"><span class="yui-threadchip__mark">C</span></span>
+                <span class="yui-threadchip__label">응답 대기</span>
+                <span class="yui-threadchip__count" id="chipCount">1</span>
+              </button>
+            </div>
+            <div class="fig" id="fig" data-expr="neutral">
+              <svg viewBox="0 0 200 360" aria-hidden="true">
+                <!-- twin tails behind -->
+                <path d="M52 118 C30 160 34 220 40 262 L56 256 C52 214 56 168 66 132 Z" fill="oklch(0.27 0.05 265)"/>
+                <path d="M148 118 C170 160 166 220 160 262 L144 256 C148 214 144 168 134 132 Z" fill="oklch(0.27 0.05 265)"/>
+                <path d="M40 262 L56 256 L54 272 Z M160 262 L144 256 L146 272 Z" fill="oklch(0.7 0.14 62)"/>
+                <!-- legs -->
+                <g class="stand">
+                  <rect x="80" y="276" width="15" height="66" rx="6" fill="oklch(0.42 0.05 50)"/>
+                  <rect x="105" y="276" width="15" height="66" rx="6" fill="oklch(0.42 0.05 50)"/>
+                  <ellipse cx="86" cy="346" rx="12" ry="6" fill="oklch(0.3 0.04 45)"/>
+                  <ellipse cx="114" cy="346" rx="12" ry="6" fill="oklch(0.3 0.04 45)"/>
+                </g>
+                <g class="sit">
+                  <rect x="78" y="272" width="44" height="16" rx="8" fill="oklch(0.42 0.05 50)"/>
+                  <path d="M82 284 L78 336 L92 336 L96 284 Z M104 284 L108 336 L122 336 L118 284 Z" fill="oklch(0.42 0.05 50)"/>
+                  <ellipse cx="84" cy="340" rx="11" ry="6" fill="oklch(0.3 0.04 45)"/>
+                  <ellipse cx="116" cy="340" rx="11" ry="6" fill="oklch(0.3 0.04 45)"/>
+                </g>
+                <!-- skirt -->
+                <path d="M62 232 L138 232 L152 282 L48 282 Z" fill="oklch(0.45 0.06 50)"/>
+                <path d="M70 232 L62 282 M90 232 L86 282 M110 232 L114 282 M130 232 L138 282 M56 258 L144 258" stroke="oklch(0.36 0.05 45)" stroke-width="2"/>
+                <!-- torso + arms -->
+                <rect x="66" y="156" width="68" height="84" rx="16" fill="oklch(0.55 0.07 115)"/>
+                <rect x="54" y="164" width="16" height="70" rx="8" fill="oklch(0.52 0.07 115)"/>
+                <rect x="130" y="164" width="16" height="70" rx="8" fill="oklch(0.52 0.07 115)"/>
+                <circle cx="62" cy="238" r="7" fill="oklch(0.93 0.03 60)"/>
+                <circle cx="138" cy="238" r="7" fill="oklch(0.93 0.03 60)"/>
+                <path d="M80 158 L100 172 L120 158" stroke="oklch(0.75 0.12 85)" stroke-width="3" fill="none"/>
+                <g class="headg">
+                  <rect x="92" y="138" width="16" height="20" fill="oklch(0.93 0.03 60)"/>
+                  <circle cx="100" cy="96" r="52" fill="oklch(0.93 0.03 60)"/>
+                  <path d="M47 100 C44 40 76 34 100 34 C124 34 156 40 153 100 C146 72 132 62 120 60 L116 76 L108 62 L100 78 L92 62 L84 76 L80 60 C68 62 54 72 47 100 Z" fill="oklch(0.27 0.05 265)"/>
+                  <path d="M47 100 C46 118 50 130 56 138 L60 104 Z M153 100 C154 118 150 130 144 138 L140 104 Z" fill="oklch(0.27 0.05 265)"/>
+                  <circle cx="54" cy="134" r="5" fill="oklch(0.74 0.16 62)"/>
+                  <circle cx="146" cy="134" r="5" fill="oklch(0.74 0.16 62)"/>
+                  <circle cx="72" cy="116" r="1.6" fill="oklch(0.35 0.03 40)"/>
+                  <!-- expressions -->
+                  <g class="ex ex-neutral">
+                    <ellipse cx="80" cy="100" rx="8" ry="7" fill="oklch(0.62 0.14 62)"/><ellipse cx="120" cy="100" rx="8" ry="7" fill="oklch(0.62 0.14 62)"/>
+                    <path d="M70 97 H90 M110 97 H130" stroke="oklch(0.27 0.05 265)" stroke-width="4"/>
+                    <path d="M95 122 H105" stroke="oklch(0.45 0.05 40)" stroke-width="2" stroke-linecap="round"/>
+                  </g>
+                  <g class="ex ex-curious">
+                    <ellipse cx="80" cy="99" rx="8" ry="9" fill="oklch(0.62 0.14 62)"/><ellipse cx="120" cy="99" rx="8" ry="9" fill="oklch(0.62 0.14 62)"/>
+                    <circle cx="82" cy="96" r="2.4" fill="white"/><circle cx="122" cy="96" r="2.4" fill="white"/>
+                    <path d="M70 84 Q80 78 90 84 M110 82 Q120 76 130 82" stroke="oklch(0.27 0.05 265)" stroke-width="2.5" fill="none"/>
+                    <ellipse cx="100" cy="123" rx="3.5" ry="4" fill="oklch(0.45 0.08 30)"/>
+                  </g>
+                  <g class="ex ex-happy">
+                    <path d="M72 102 Q80 94 88 102 M112 102 Q120 94 128 102" stroke="oklch(0.27 0.05 265)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    <path d="M93 120 Q101 126 108 118" stroke="oklch(0.45 0.05 40)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                    <ellipse cx="72" cy="112" rx="7" ry="3" fill="oklch(0.75 0.1 20 / 0.35)"/><ellipse cx="128" cy="112" rx="7" ry="3" fill="oklch(0.75 0.1 20 / 0.35)"/>
+                  </g>
+                  <g class="ex ex-sad">
+                    <ellipse cx="80" cy="102" rx="7.5" ry="6" fill="oklch(0.62 0.14 62)"/><ellipse cx="120" cy="102" rx="7.5" ry="6" fill="oklch(0.62 0.14 62)"/>
+                    <path d="M70 92 L90 86 M110 86 L130 92" stroke="oklch(0.27 0.05 265)" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M94 125 Q100 119 106 125" stroke="oklch(0.45 0.05 40)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                  </g>
+                </g>
+              </svg>
+            </div>
+            <div class="bubble" id="bubble" hidden>
+              <div class="bubble__box"><span class="plate"><span class="face"></span>Yui<span class="dot"></span><span class="state">말하는 중</span></span><span id="say"></span><span class="tcaret" id="tcaret"></span><span class="endmark" id="endmark" hidden>▼</span></div>
+              <div class="example">예시 문장 · 실제 문장은 filler 목록과 카드가 정합니다</div>
+            </div>
+          </div>
+          <div class="ember" id="ember" hidden></div>
+        </div>
+      </div>
+      <div class="steps" id="steps"></div>
+      <div class="facts"><span>표정: <b id="exprTag">neutral</b></span><span>키보드 포커스: <b id="focusFact">Visual Studio Code (그대로)</b></span><span>칩: <b id="chipFact">—</b></span></div>
+      <p class="mute">스레드 창 크기(880×680), 펼침 시간(280ms + 120ms), 칩 끄덕임(1 → 1.06 → 1, 320ms), 말풍선 위치와 타이핑 속도(글자당 40ms)는 현재 앱 값입니다. 캐릭터는 VRM 대신 그린 그림입니다. 앉아 있는 동안에는 모션 없이 표정만 바뀝니다.</p>
+    </section>
+  </div>
+</main>
+
+<div class="dbar" role="region" aria-label="고른 변형">
+  <div class="dbar-in">
+    <div class="picks" id="picks"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status" id="status"></span>
+      <button type="button" class="btn" id="copy">답변 복사</button>
+      <button type="button" class="btn primary" id="save" hidden>선택 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; // --yui-ease
+  const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+  const desk = $("desk"), box = $("stageBox"), tw = $("tw"), panel = $("twPanel"), content = $("twContent");
+  const pet = $("pet"), fig = $("fig"), chip = $("chip"), bubble = $("bubble"), say = $("say"), ember = $("ember"), app = $("app");
+
+  const VARIANTS = [
+    { key: "A", title: "A · 창이 칩에서 펼쳐짐", when: "닫힘", items: [
+      { id: "A1", n: "지금 앱", tag: "now", d: "칩 크기 알약에서 창 크기로 잘라 펼침 280ms, 내용 페이드 120ms." },
+      { id: "A2", n: "세로 먼저", tag: "calm", d: "머리 띠가 먼저 가로로 펼쳐지고, 본문이 아래로 내려옴." },
+      { id: "A3", n: "오버슈트 스프링", tag: "bouncy", d: "칩에서 커지며 살짝 넘쳤다가 제자리로." },
+      { id: "A4", n: "칩 찌그러짐 → 팡", tag: "bouncy", d: "칩이 눌렸다 늘어난 뒤, 창이 튀어나오듯 펼쳐짐." },
+      { id: "A5", n: "젤리", tag: "bouncy", d: "펼쳐진 뒤 창이 말랑하게 두어 번 출렁임." } ] },
+    { key: "B", title: "B · 순간이동해서 앉기", when: "모든 상황", items: [
+      { id: "B1", n: "즉시", tag: "calm", d: "애니메이션 없이 자리만 바뀜. 동작 줄이기와 같음." },
+      { id: "B2", n: "페이드", tag: "calm", d: "사라졌다가 앉을 자리에서 나타남." },
+      { id: "B3", n: "착지 바운스", tag: "bouncy", d: "자리 위에서 떨어져 내려와 통통 튀며 앉음." },
+      { id: "B4", n: "앰버 불씨", tag: "bouncy", d: "작은 앰버 불씨로 줄어 날아간 뒤, 도착점에서 톡 커짐." },
+      { id: "B5", n: "퐁", tag: "bouncy", d: "제자리에서 쏙 작아졌다가 앉을 자리에서 퐁 하고 커짐." } ] },
+    { key: "C", title: "C · 가려진 창을 앞으로", when: "가려짐", items: [
+      { id: "C1", n: "즉시", tag: "calm", d: "그냥 맨 앞으로 옴." },
+      { id: "C2", n: "그림자 들림", tag: "calm", d: "앞으로 오며 그림자가 잠깐 짙어졌다 돌아옴." },
+      { id: "C3", n: "들썩", tag: "bouncy", d: "앞으로 오며 위로 톡 튀었다가 내려앉음." },
+      { id: "C4", n: "흔들고 등장", tag: "bouncy", d: "가려진 채로 좌우로 흔들린 뒤 앞으로 옴." } ] },
+    { key: "D", title: "D · 칩 알림", when: "응답 필요일 때 칩이 보이면", items: [
+      { id: "D1", n: "지금 앱", tag: "now", d: "한 번 끄덕임: 1 → 1.06 → 1, 320ms." },
+      { id: "D2", n: "통통", tag: "bouncy", d: "위로 두 번 통통 튐." },
+      { id: "D3", n: "흔들", tag: "bouncy", d: "좌우로 짧게 흔들림." } ] }
+  ];
+  const TAGTXT = { now: "지금 앱", calm: "얌전", bouncy: "튕김" };
+  // Owner picks, 2026-11-09 (#1936)
+  const pick = { A: "A5", B: "B3", C: "C3", D: "D3" };
+  try { Object.assign(pick, JSON.parse(localStorage.getItem("yui-mock-threads-picks") || "{}")); } catch (e) {}
+
+  let winState = "closed", tstate = "input", speed = 1, runId = 0;
+  const reduced = () => $("rm").checked || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ms = (v) => v / speed;
+  const wait = (v) => new Promise((r) => setTimeout(r, ms(v)));
+  function anim(el, frames, dur, easing) {
+    if (reduced()) { const last = frames[frames.length - 1]; for (const k in last) if (k !== "offset" && k !== "easing") el.style[k] = last[k]; return Promise.resolve(); }
+    const a = el.animate(frames, { duration: ms(dur), easing: easing || EASE, fill: "forwards" });
+    return a.finished.then(() => { a.commitStyles?.(); a.cancel(); }, () => {});
+  }
+
+  /* ---------- geometry (desk px) ---------- */
+  const HOME = { x: 1010, y: 300 };
+  const SEAT_Y = 230 + 280; // fig top + skirt hem in the 200×360 drawing
+  function seatPos() { return { x: tw.offsetLeft + 8 + 880 * 0.62 - 200, y: tw.offsetTop + 8 - SEAT_Y + 2 }; }
+  function setPet(p) { pet.style.left = p.x + "px"; pet.style.top = p.y + "px"; }
+  function chipRectInPanel() {
+    const c = chip.getBoundingClientRect(), p = panel.getBoundingClientRect(), s = scale();
+    return { x: (c.left - p.left) / s, y: (c.top - p.top) / s, w: c.width / s, h: c.height / s, pw: p.width / s, ph: p.height / s };
+  }
+  function clipFrom(r) {
+    const top = Math.max(0, r.y), left = Math.max(0, Math.min(r.x, r.pw - r.w));
+    const right = Math.max(0, r.pw - left - r.w), bottom = Math.max(0, r.ph - top - r.h);
+    return `inset(${Math.min(top, r.ph - r.h)}px ${right}px ${bottom}px ${left}px round 999px)`;
+  }
+  const FULL = "inset(0px 0px 0px 0px round 14px)";
+  let s0 = 1;
+  function scale() { return s0; }
+  function fit() { s0 = box.clientWidth / 1440; desk.style.transform = `scale(${s0})`; }
+  new ResizeObserver(fit).observe(box); fit();
+
+  /* ---------- scene state ---------- */
+  const STATE_TXT = { input: ["응답 필요", "st-need"], completed: ["완료", "st-done"], failed: ["실패", "st-fail"] };
+  const EXPR = { input: "curious", completed: "happy", failed: "sad" };
+  const LINES = { closed: "잠깐, 스레드 열어 볼게.", covered: "스레드 창 가져올게." };
+  function setExpr(e) { fig.dataset.expr = e; $("exprTag").textContent = e; }
+  function applyThreadState() {
+    const [txt, cls] = STATE_TXT[tstate];
+    for (const id of ["rowState", "paneState"]) { $(id).textContent = txt; $(id).className = cls; }
+    $("answer").hidden = tstate !== "input";
+    $("lastText").innerHTML = tstate === "input" ? "<code>mocks/character-window/</code>를 만들었습니다. 이제 <code>git commit</code>을 실행하려고 합니다."
+      : tstate === "completed" ? "목업 두 개와 README를 커밋했습니다. 모든 검사가 통과했습니다." : "<code>pnpm gates</code>가 실패했습니다: style-attrs 검사 1건.";
+    $("twCount").textContent = tstate === "input" ? "응답 대기 1개" : "응답 대기 0개";
+  }
+  function resetScene() {
+    runId++;
+    for (const el of [panel, content, pet, fig, chip, tw, ember]) { el.getAnimations().forEach((a) => a.cancel()); el.style.transform = ""; el.style.opacity = ""; el.style.clipPath = ""; el.style.boxShadow = ""; }
+    tw.style.visibility = ""; tw.style.transformOrigin = "";
+    fig.classList.remove("sitting"); setExpr("neutral");
+    setPet(HOME); bubble.hidden = true; ember.hidden = true;
+    applyThreadState();
+    tw.hidden = winState === "closed";
+    tw.classList.toggle("under", winState === "covered");
+    chip.hidden = winState !== "closed";
+    $("chipFact").textContent = chip.hidden ? "숨김 (창이 열려 있으면 칩은 숨습니다)" : "보임";
+    $("focusFact").textContent = "Visual Studio Code (그대로)";
+    renderSteps(-1);
+  }
+
+  /* ---------- steps ---------- */
+  function stepList() {
+    const s = [];
+    if (winState === "closed") { s.push("Thread 상태 바뀜 · 칩 알림"); s.push("대사"); s.push("창이 칩에서 펼쳐짐"); }
+    else if (winState === "covered") { s.push("Thread 상태 바뀜"); s.push("대사"); s.push("창을 앞으로"); }
+    else s.push("Thread 상태 바뀜");
+    s.push("순간이동"); s.push("앉아서 표정");
+    return s;
+  }
+  function renderSteps(i) {
+    const host = $("steps"); host.replaceChildren();
+    stepList().forEach((t, k) => { const e = document.createElement("span"); e.textContent = `${k + 1}. ${t}`; if (k === i) e.className = "on"; else if (k < i) e.className = "done"; host.append(e); });
+  }
+
+  /* ---------- animation variants ---------- */
+  async function chipAlert(v) {
+    if (chip.hidden) return;
+    if (v === "D1") await anim(chip, [{ transform: "scale(1)" }, { transform: "scale(1.06)" }, { transform: "scale(1)" }], 320);
+    else if (v === "D2") await anim(chip, [{ transform: "translateY(0)" }, { transform: "translateY(-10px)", offset: 0.22 }, { transform: "translateY(0)", offset: 0.44 }, { transform: "translateY(-6px)", offset: 0.64 }, { transform: "translateY(0)", offset: 0.84 }, { transform: "translateY(0)" }], 620, "ease-out");
+    else await anim(chip, [{ transform: "rotate(0)" }, { transform: "rotate(-7deg)", offset: 0.2 }, { transform: "rotate(6deg)", offset: 0.4 }, { transform: "rotate(-4deg)", offset: 0.6 }, { transform: "rotate(2deg)", offset: 0.8 }, { transform: "rotate(0)" }], 520, "ease-out");
+  }
+  async function openWindow(v) {
+    tw.hidden = false; tw.classList.remove("under");
+    const r = chipRectInPanel();
+    const ox = r.x + r.w / 2, oy = r.y + r.h / 2;
+    if (reduced()) { chip.hidden = true; return; }
+    if (v === "A1") {
+      content.style.opacity = "0";
+      await anim(panel, [{ clipPath: clipFrom(r) }, { clipPath: FULL }], 280);
+      chip.hidden = true;
+      await anim(content, [{ opacity: 0 }, { opacity: 1 }], 120);
+    } else if (v === "A2") {
+      content.style.opacity = "0";
+      const headH = 55;
+      await anim(panel, [{ clipPath: clipFrom(r) }, { clipPath: `inset(0px 0px ${r.ph - headH}px 0px round 14px)` }], 200);
+      chip.hidden = true;
+      await anim(panel, [{ clipPath: `inset(0px 0px ${r.ph - headH}px 0px round 14px)` }, { clipPath: FULL }], 260);
+      await anim(content, [{ opacity: 0 }, { opacity: 1 }], 120);
+    } else if (v === "A3") {
+      tw.style.transformOrigin = `${ox}px ${oy}px`;
+      content.style.opacity = "0";
+      await Promise.all([
+        anim(panel, [{ clipPath: clipFrom(r) }, { clipPath: FULL }], 260),
+        anim(tw, [{ transform: "scale(0.86)" }, { transform: "scale(1.035)", offset: 0.62 }, { transform: "scale(0.995)", offset: 0.84 }, { transform: "scale(1)" }], 480, "ease-out")
+      ]);
+      chip.hidden = true;
+      await anim(content, [{ opacity: 0 }, { opacity: 1 }], 120);
+    } else if (v === "A4") {
+      tw.style.visibility = "hidden";
+      await anim(chip, [{ transform: "scale(1,1)" }, { transform: "scale(1.25,0.75)", offset: 0.45 }, { transform: "scale(0.85,1.25)", offset: 0.8 }, { transform: "scale(1,1)" }], 260, "ease-out");
+      chip.hidden = true; tw.style.visibility = "";
+      tw.style.transformOrigin = `${ox}px ${oy}px`;
+      content.style.opacity = "0";
+      await anim(tw, [{ transform: "scale(0.08)", opacity: 0.4 }, { transform: "scale(1.06)", opacity: 1, offset: 0.6 }, { transform: "scale(0.98)", offset: 0.82 }, { transform: "scale(1)", opacity: 1 }], 460, "ease-out");
+      await anim(content, [{ opacity: 0 }, { opacity: 1 }], 120);
+    } else {
+      content.style.opacity = "0";
+      await anim(panel, [{ clipPath: clipFrom(r) }, { clipPath: FULL }], 260);
+      chip.hidden = true;
+      tw.style.transformOrigin = "50% 0%";
+      await Promise.all([
+        anim(tw, [{ transform: "scale(1,1)" }, { transform: "scale(1.04,0.95)", offset: 0.25 }, { transform: "scale(0.98,1.03)", offset: 0.5 }, { transform: "scale(1.01,0.99)", offset: 0.75 }, { transform: "scale(1,1)" }], 560, "ease-out"),
+        anim(content, [{ opacity: 0 }, { opacity: 1 }], 160)
+      ]);
+    }
+    tw.style.transform = ""; content.style.opacity = ""; panel.style.clipPath = "";
+    $("chipFact").textContent = "숨김 (창이 열려 있으면 칩은 숨습니다)";
+  }
+  async function raiseWindow(v) {
+    if (v === "C4" && !reduced()) await anim(tw, [{ transform: "translateX(0)" }, { transform: "translateX(-12px)", offset: 0.15 }, { transform: "translateX(10px)", offset: 0.35 }, { transform: "translateX(-7px)", offset: 0.55 }, { transform: "translateX(4px)", offset: 0.75 }, { transform: "translateX(0)" }], 520, "ease-out");
+    tw.classList.remove("under");
+    if (reduced() || v === "C1" || v === "C4") return;
+    if (v === "C2") await anim(panel, [{ boxShadow: "0 10px 30px oklch(0.2 0.03 60 / 0.22)" }, { boxShadow: "0 26px 60px oklch(0.2 0.03 60 / 0.42)", offset: 0.4 }, { boxShadow: "0 10px 30px oklch(0.2 0.03 60 / 0.22)" }], 520);
+    else await anim(tw, [{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-18px) scale(1.015)", offset: 0.35 }, { transform: "translateY(3px) scale(1)", offset: 0.7 }, { transform: "translateY(0) scale(1)" }], 480, "ease-out");
+    tw.style.transform = ""; panel.style.boxShadow = "";
+  }
+  async function teleport(v) {
+    const to = seatPos();
+    const sit = () => { setPet(to); fig.classList.add("sitting"); };
+    if (reduced() || v === "B1") { sit(); return; }
+    if (v === "B2") {
+      await anim(fig, [{ opacity: 1 }, { opacity: 0 }], 160); sit();
+      await anim(fig, [{ opacity: 0 }, { opacity: 1 }], 200);
+    } else if (v === "B3") {
+      await anim(fig, [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.9)" }], 150); sit();
+      await anim(fig, [
+        { opacity: 0, transform: "translateY(-90px) scale(1,1)" },
+        { opacity: 1, transform: "translateY(0) scale(1.12,0.86)", offset: 0.42 },
+        { transform: "translateY(-22px) scale(0.96,1.05)", offset: 0.62 },
+        { transform: "translateY(0) scale(1.05,0.95)", offset: 0.8 },
+        { opacity: 1, transform: "translateY(0) scale(1,1)" }], 620, "ease-in");
+    } else if (v === "B4") {
+      const from = { x: pet.offsetLeft + 200, y: pet.offsetTop + 400 };
+      await anim(fig, [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.05)" }], 180, "ease-in");
+      ember.hidden = false; ember.style.left = from.x - 7 + "px"; ember.style.top = from.y - 7 + "px";
+      const end = { x: to.x + 200, y: to.y + SEAT_Y - 80 };
+      const mid = { x: (from.x + end.x) / 2, y: Math.min(from.y, end.y) - 140 };
+      await anim(ember, [{ transform: "translate(0,0) scale(1)" }, { transform: `translate(${mid.x - from.x}px, ${mid.y - from.y}px) scale(1.4)`, offset: 0.5 }, { transform: `translate(${end.x - from.x}px, ${end.y - from.y}px) scale(1)` }], 420);
+      ember.hidden = true; ember.getAnimations().forEach((a) => a.cancel()); ember.style.transform = "";
+      sit();
+      await anim(fig, [{ opacity: 0, transform: "scale(0.05)" }, { opacity: 1, transform: "scale(1.12)", offset: 0.6 }, { transform: "scale(0.96)", offset: 0.82 }, { opacity: 1, transform: "scale(1)" }], 420, "ease-out");
+    } else {
+      await anim(fig, [{ transform: "scale(1,1)" }, { transform: "scale(1.15,0.8)", offset: 0.35 }, { transform: "scale(0,1.4)" }], 220, "ease-in"); sit();
+      await anim(fig, [{ transform: "scale(0)" }, { transform: "scale(1.18)", offset: 0.55 }, { transform: "scale(0.94)", offset: 0.78 }, { transform: "scale(1)" }], 460, "ease-out");
+    }
+    fig.style.transform = ""; fig.style.opacity = "";
+  }
+  async function speak(line, id) {
+    bubble.hidden = false; $("endmark").hidden = true; $("tcaret").hidden = false; say.textContent = "";
+    if (!reduced()) await anim(bubble, [{ opacity: 0, transform: "translate(-50%, 6px)" }, { opacity: 1, transform: "translate(-50%, 0)" }], 200);
+    if (reduced()) say.textContent = line;
+    else for (const ch of line) { if (id !== runId) return; say.textContent += ch; await wait(40); }
+    $("tcaret").hidden = true; $("endmark").hidden = false;
+    await wait(500);
+  }
+
+  /* ---------- full flow ---------- */
+  async function play() {
+    resetScene(); const id = runId;
+    let i = 0; const step = () => renderSteps(i++);
+    await wait(350); if (id !== runId) return;
+    step();
+    if (winState === "closed") { $("chipCount").textContent = "1"; await chipAlert(pick.D); }
+    if (id !== runId) return;
+    if (winState !== "open") {
+      step(); await speak(LINES[winState], id); if (id !== runId) return;
+      step();
+      if (winState === "closed") await openWindow(pick.A); else await raiseWindow(pick.C);
+      if (id !== runId) return;
+    }
+    step(); await teleport(pick.B); if (id !== runId) return;
+    step(); setExpr(EXPR[tstate]);
+    await wait(2200); if (id === runId) bubble.hidden = true;
+    renderSteps(99);
+  }
+  async function preview(v) {
+    const g = v[0];
+    if (g === "A") { setSeg("segWin", "closed"); winState = "closed"; resetScene(); await wait(250); await openWindow(v); }
+    else if (g === "B") { setSeg("segWin", "open"); winState = "open"; resetScene(); await wait(250); await teleport(v); setExpr(EXPR[tstate]); }
+    else if (g === "C") { setSeg("segWin", "covered"); winState = "covered"; resetScene(); await wait(250); await raiseWindow(v); }
+    else { setSeg("segWin", "closed"); winState = "closed"; resetScene(); await wait(200); await chipAlert(v); }
+  }
+
+  /* ---------- controls ---------- */
+  function setSeg(id, v) { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
+  function bindSeg(id, fn) { $(id).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg(id, b.dataset.v); fn(b.dataset.v); }); }
+  bindSeg("segWin", (v) => { winState = v; resetScene(); });
+  bindSeg("segState", (v) => { tstate = v; resetScene(); });
+  bindSeg("segSpeed", (v) => { speed = Number(v); });
+  bindSeg("segTheme", (v) => { if (v === "hearth") document.documentElement.setAttribute("data-theme", "hearth"); else document.documentElement.removeAttribute("data-theme"); });
+  $("bounds").addEventListener("change", (e) => desk.classList.toggle("show-bounds", e.target.checked));
+  $("play").addEventListener("click", play);
+  $("reset").addEventListener("click", resetScene);
+  try { if (window.matchMedia("(prefers-color-scheme: dark)").matches || document.documentElement.getAttribute("data-theme") === "dark") { document.documentElement.setAttribute("data-theme", "hearth"); setSeg("segTheme", "hearth"); } } catch (e) {}
+
+  function renderVariants() {
+    const host = $("variants"); host.replaceChildren();
+    for (const g of VARIANTS) {
+      const wrap = document.createElement("div"); wrap.className = "vgroup";
+      const h = document.createElement("h3"); h.innerHTML = `<span></span><span class="mute"></span>`; h.firstChild.textContent = g.title; h.lastChild.textContent = g.when; wrap.append(h);
+      for (const it of g.items) {
+        const lab = document.createElement("label"); lab.className = "var" + (pick[g.key] === it.id ? " sel" : "");
+        const inp = document.createElement("input"); inp.type = "radio"; inp.name = "v" + g.key; inp.id = "v-" + it.id; inp.checked = pick[g.key] === it.id;
+        inp.addEventListener("change", () => { pick[g.key] = it.id; try { localStorage.setItem("yui-mock-threads-picks", JSON.stringify(pick)); } catch (e) {} renderVariants(); renderPicks(); });
+        const n = document.createElement("span"); n.className = "n"; n.textContent = `${it.id} ${it.n}`;
+        const tg = document.createElement("span"); tg.className = "tag " + it.tag; tg.textContent = TAGTXT[it.tag]; n.append(tg);
+        const pb = document.createElement("button"); pb.type = "button"; pb.className = "play1"; pb.textContent = "▶"; pb.setAttribute("aria-label", it.id + " 미리보기");
+        pb.addEventListener("click", (e) => { e.preventDefault(); preview(it.id); });
+        const d = document.createElement("span"); d.className = "d"; d.textContent = it.d;
+        lab.append(inp, n, pb, d); wrap.append(lab);
+      }
+      host.append(wrap);
+    }
+  }
+  function label(v) { for (const g of VARIANTS) for (const it of g.items) if (it.id === v) return `${it.id} ${it.n} (${TAGTXT[it.tag]})`; return v; }
+  function answer() { return ["A", "B", "C", "D"].map((k) => `${k}: ${label(pick[k])}`).join("\n"); }
+  function renderPicks() { const h = $("picks"); h.replaceChildren(); for (const k of ["A", "B", "C", "D"]) { const s = document.createElement("span"); s.textContent = label(pick[k]); h.append(s); } }
+  $("copy").addEventListener("click", () => {
+    const t = answer();
+    try { navigator.clipboard.writeText(t).then(() => { $("status").textContent = "복사했습니다."; }, () => { $("status").textContent = t.replace(/\n/g, " · "); }); } catch (e) { $("status").textContent = t.replace(/\n/g, " · "); }
+  });
+  (async () => {
+    let db = null;
+    try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) {}
+    if (!db) return;
+    const btn = $("save"); btn.hidden = false;
+    try { const d = (await db.doc("picks/threads").get()).data(); if (d && d.pick) { Object.assign(pick, d.pick); renderVariants(); renderPicks(); $("status").textContent = "저장된 선택을 불러왔습니다."; } } catch (e) {}
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; $("status").textContent = "저장 중…";
+      try { await db.doc("picks/threads").set({ pick: { ...pick }, text: answer(), savedAt: new Date().toISOString() }); $("status").textContent = "저장했습니다. Claude가 읽을 수 있습니다."; }
+      catch (e) { $("status").textContent = "저장하지 못했습니다. 답변 복사를 쓰세요."; }
+      btn.disabled = false;
+    });
+  })();
+
+  renderVariants(); renderPicks(); resetScene();
+})();
+</script>
+</body>
+</html>
