@@ -257,6 +257,14 @@ mod tests {
     }
 
     #[test]
+    fn listed_threads_window_is_the_visible_panel_inside_its_transparent_margin() {
+        let own = 4242;
+        let listed = filter_listed(vec![numbered(own, 7)], own, Some(7));
+        let rect = (listed[0].x, listed[0].y, listed[0].width, listed[0].height);
+        assert_eq!(rect, (8.0, 8.0, 84.0, 84.0));
+    }
+
+    #[test]
     fn listed_without_a_threads_window_holds_only_foreign_windows() {
         let own = 4242;
         let listed = filter_listed(
