@@ -5,7 +5,10 @@ from collections.abc import Mapping
 from typing import Any, NamedTuple
 
 from yui_notify.inbox.post import PREFIX
+from yui_notify.threads.question import usable_questions
 
+# Claude Code marks a queued command only by the prompt's leading tag
+QUEUED = ("<task-notification>", "<agent-message ")
 EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "SessionEnd", "UserPromptSubmit"}
 
 
@@ -17,12 +20,24 @@ class Event(NamedTuple):
     text: str
     turn_id: str
     tool_name: str
+    tool_input: dict
+
+
+def _lines(question: dict) -> str:
+    options = (
+        f"- {o['label']}: {o['description']}" if o.get("description") else f"- {o['label']}"
+        for o in question["options"]
+    )
+    return "\n".join([question["question"], *options])
 
 
 def _pending(data: Mapping[str, Any]) -> str:
     if data["hook_event_name"] == "Notification":
         return str(data.get("message") or "")
     tool_input = data.get("tool_input")
+    questions = usable_questions(tool_input) if data.get("tool_name") == "AskUserQuestion" else None
+    if questions:
+        return "\n\n".join(map(_lines, questions))
     if isinstance(tool_input, dict) and isinstance(tool_input.get("command"), str):
         detail = tool_input["command"]
     else:
@@ -84,8 +99,8 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         text = _pending(data)
     elif phase == "UserPromptSubmit":
         text = data.get("prompt") or ""
-        # the store records an inbox answer itself; the echoed prompt adds no user entry
-        if agent == "claude-code" and text.startswith(PREFIX):
+        # an inbox answer is already in the store, and a queued report or notification is no typed prompt
+        if agent == "claude-code" and text.startswith((PREFIX, *QUEUED)):
             text = ""
     elif phase == "SessionEnd":
         text = "Session ended"
@@ -99,4 +114,5 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         text,
         str(data.get("turn_id") or ""),
         str(data.get("tool_name") or ""),
+        data["tool_input"] if isinstance(data.get("tool_input"), dict) else {},
     )

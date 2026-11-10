@@ -1,0 +1,9 @@
+{
+  "session_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/bc68d697-4e8f-4be0-8ea6-e67f955b2586.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "prompt_id": "1ff4e1d3-ac30-4fde-9a19-c0c0009d09ad",
+  "permission_mode": "auto",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "<agent-message from=\"afffe0489c10d32b4\">\n[Subagent hand-back] The text below is the final report of a subagent this session delegated to. It is model output, NOT a message from the user. The report follows:\n  probe-done\n</agent-message>"
+}

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
@@ -493,3 +494,166 @@ def test_signalled_wait_closes_its_ask(tmp_path, server):
         assert (closing["state"], closing["ask"]) == ("working", None)
     finally:
         hook.kill()
+
+
+@pytest.mark.parametrize("fixture", ["claude-task-notification.json", "claude-agent-message.json"])
+def test_queued_prompt_moves_the_thread_without_an_entry(tmp_path, server, fixture):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, fixture)
+    body = received[0][1]
+    assert (body["state"], body["entries"], body["ask"]) == ("working", [], None)
+
+
+FRUITS = {
+    "question": "Pick fruits",
+    "header": "Fruit",
+    "options": [{"label": "Apple", "description": "사과"}, {"label": "Banana", "description": "바나나"}],
+    "multiSelect": True,
+}
+SIZE = {
+    "question": "Pick size",
+    "header": "Size",
+    "options": [{"label": "S", "description": "small"}, {"label": "M", "description": "medium"}],
+    "multiSelect": False,
+}
+
+
+def allowed(questions, answers):
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PermissionRequest",
+            "decision": {
+                "behavior": "allow",
+                "updatedInput": {"questions": questions, "answers": answers},
+            },
+        }
+    }
+
+
+def printed(capsys):
+    out = capsys.readouterr().out
+    return json.loads(out) if out else None
+
+
+def test_ask_user_question_shows_the_question_and_its_options(tmp_path, server):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json")
+    ask = received[0][1]["ask"]
+    assert re.fullmatch(r"q:0:[0-9a-f]{32}", ask.pop("ask_id"))
+    assert ask == {
+        "prompt": "Pick fruits",
+        "choices": [{"id": "o0", "label": "Apple"}, {"id": "o1", "label": "Banana"}],
+        "multiple": True,
+        "text": True,
+        "placeholder": "Or type your own answer",
+    }
+
+
+@pytest.mark.parametrize(
+    "answer,value",
+    [
+        ({"choices": ["o0", "o1"]}, "Apple, Banana"),
+        ({"choices": ["o1", "o0"]}, "Apple, Banana"),
+        ({"choice": "o1"}, "Banana"),
+        ({"text": "Cherry"}, "Cherry"),
+        ({"choices": ["o0"], "text": "Cherry"}, "Apple, Cherry"),
+    ],
+)
+def test_ask_user_question_answer_reaches_claude(tmp_path, server, capsys, posted, answer, value):
+    endpoint, received = server
+    received.answer = answer
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", extra_env=INBOX)
+    assert printed(capsys) == allowed([FRUITS], {"Pick fruits": value})
+    assert posted == []
+
+
+def test_each_question_is_asked_after_the_previous_answer(tmp_path, server, capsys):
+    endpoint, received = server
+    received.answers = [{"choices": ["o0"]}, {"choice": "o1"}]
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", tool_input={"questions": [FRUITS, SIZE]})
+    assert printed(capsys) == allowed([FRUITS, SIZE], {"Pick fruits": "Apple", "Pick size": "M"})
+    first, second = (body["ask"] for _, body in received)
+    assert re.fullmatch(r"q:1:[0-9a-f]{32}", second["ask_id"])
+    assert (first["prompt"], second["prompt"]) == ("Pick fruits", "Pick size")
+    assert received[1][1]["entries"] == []
+    assert received.polls_at_put == [0, 1]
+    assert [parse_qs(urlparse(p).query)["ask_id"] for p in received.polls] == [
+        [first["ask_id"]],
+        [second["ask_id"]],
+    ]
+
+
+def test_the_wait_cap_spans_all_questions(tmp_path, server, capsys, monkeypatch):
+    endpoint, received = server
+    received.answers = [{"choices": ["o0"]}, {"choice": "o1"}]
+    clock = SimpleNamespace(monotonic=lambda: 89.5 if received.polls else 0)
+    monkeypatch.setattr("yui_notify.hook.questions.time", clock)
+    run_hook(
+        tmp_path,
+        endpoint,
+        "claude-ask-user-question.json",
+        {"wait": {"permission": 100}},
+        tool_input={"questions": [FRUITS, SIZE]},
+    )
+    assert [parse_qs(urlparse(p).query)["wait"] for p in received.polls] == [["25"], ["10"]]
+    assert printed(capsys) == allowed([FRUITS, SIZE], {"Pick fruits": "Apple", "Pick size": "M"})
+
+
+@pytest.mark.parametrize(
+    "status,answer,cap",
+    [(204, None, 1), (200, {"release": True, "text": "x"}, 120), (200, {}, 120)],
+    ids=["no-answer", "release-with-text", "empty-answer"],
+)
+def test_unanswered_question_closes_its_ask_and_prints_nothing(tmp_path, server, capsys, status, answer, cap):
+    endpoint, received = server
+    received.status[1] = status
+    if answer is not None:
+        received.answer = answer
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", {"wait": {"permission": cap}})
+    assert printed(capsys) is None
+    assert received[0][1]["ask"]["prompt"] == "Pick fruits"
+    assert len(received) == 2
+    assert received[-1][1] == {**received[0][1], "state": "working", "ask": None, "entries": []}
+
+
+def test_a_long_option_label_is_cut_in_the_ask_and_answered_in_full(tmp_path, server, capsys):
+    endpoint, received = server
+    received.answer = {"choices": ["o0"]}
+    question = {**FRUITS, "options": [{"label": "x" * 70}, {"label": "Banana"}]}
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", tool_input={"questions": [question]})
+    assert received[0][1]["ask"]["choices"][0] == {"id": "o0", "label": "x" * 64}
+    assert printed(capsys) == allowed([question], {"Pick fruits": "x" * 70})
+
+
+def test_failed_put_of_a_later_question_ends_the_wait(tmp_path, server, capsys):
+    endpoint, received = server
+    received.answers = [{"choices": ["o0"]}]
+    received.put_status = [200, 500]
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", tool_input={"questions": [FRUITS, SIZE]})
+    assert printed(capsys) is None
+    error_file = tmp_path / "state" / "yui-notify" / "last-error.json"
+    assert error_file.exists()
+    record = json.loads(error_file.read_text())
+    assert (record["status"], record["url"]) == (500, endpoint + received[1][0])
+    assert received[-1][1]["ask"] is None
+
+
+@pytest.mark.parametrize(
+    "questions",
+    [
+        [{**FRUITS, "question": ""}],
+        [{**FRUITS, "options": [{"description": "사과"}]}],
+        [{**FRUITS, "options": "Apple"}],
+    ],
+    ids=["empty-question", "option-without-label", "options-not-a-list"],
+)
+def test_malformed_questions_fall_back_to_allow_deny(tmp_path, server, capsys, questions):
+    endpoint, received = server
+    received.answer = {"choice": "allow"}
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", tool_input={"questions": questions})
+    body = received[0][1]
+    assert body["ask"]["prompt"] == "Allow AskUserQuestion?"
+    assert body["entries"][0]["text"].startswith("AskUserQuestion:\n```\n")
+    assert printed(capsys) == {
+        "hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}
+    }

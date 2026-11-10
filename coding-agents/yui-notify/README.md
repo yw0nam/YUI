@@ -55,11 +55,16 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Both | `UserPromptSubmit` | `working` | `user`: prompt | Closes |
 | Claude Code | `Stop` | `input-required` with an inbox socket; otherwise `completed` | `agent`: last assistant message | “What next?” with text, with an inbox socket |
 | Claude Code | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
+| Claude Code | `PermissionRequest` (`AskUserQuestion`) | `input-required` | `system`: each question with its options | One ask per question: its options, plus text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Codex | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
 | Codex | `SessionEnd` | `completed` | `system`: Session ended | Closes |
+
+A Claude Code prompt that starts with `<task-notification>` or `<agent-message ` adds no entry
+and only sets the Thread `working`. Claude Code marks a queued subagent report or background-task
+notification by that leading tag alone, so a typed prompt that starts the same way adds no entry either.
 
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
@@ -119,10 +124,17 @@ wait at once.
 - Permission Allow returns an allow decision. Deny returns a deny decision with any text
   as its message. Text alone denies and gives the agent that instruction; Claude Code also
   receives the text through its inbox.
+- `AskUserQuestion` posts one ask per question, in order: the question is the prompt, its options
+  are the choices (several may be picked when the question allows it), and text answers outside the
+  options. Picked labels and the typed text join with `, ` into that question's answer. After the
+  last answer the hook returns an allow decision that echoes the questions and carries every answer;
+  the answer never reaches the inbox. A question list that is malformed takes the permission ask.
 - Stop text returns `{"decision":"block","reason":"<text>"}` to continue the turn.
   The continuation's Stop posts another ask, so instructions can be chained.
 - Release prints nothing and closes the ask: Stop becomes `completed`; permission stays
   `working` while Codex uses its terminal approval prompt.
+- Release, or an answer with no pick and no text, on any `AskUserQuestion` question prints nothing
+  and closes the ask, so the terminal dialog stays the answer path.
 - A wait cap, closed ask (410), error, or SIGTERM, SIGINT, or SIGHUP prints nothing and
   closes the ask with a final PUT: `completed` for Stop, `working` for permission fallback
   to the terminal. Claude Code sends SIGTERM on Esc.
@@ -160,6 +172,8 @@ A missing, unreadable, or invalid file uses defaults; invalid values use their k
   "wait": { "stop": 600, "permission": 120 }
 }
 ```
+
+`wait.permission` bounds an `AskUserQuestion` call as a whole, all its questions together.
 
 An endpoint with any path is invalid and uses the default. An explicit probe endpoint with a path reports the problem.
 Values outside 1–600 use the default. Poll deadlines use a monotonic clock. Each poll's
