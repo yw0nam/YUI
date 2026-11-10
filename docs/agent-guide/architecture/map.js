@@ -641,7 +641,7 @@ globalThis.YUI_MAP =
       "id": "renderer",
       "module": "renderer",
       "label": "renderer core",
-      "role": "The three.js scene and frame loop, VRM load and hot swap, and the routing of a control envelope into emotion and motion.",
+      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the landing bounce on the canvas after a sit (land()).",
       "paths": [
         "src/renderer"
       ]
