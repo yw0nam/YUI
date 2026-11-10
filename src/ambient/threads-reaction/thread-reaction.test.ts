@@ -47,6 +47,7 @@ const snap = (state: Thread["state"]): ThreadsSnapshot => ({
 
 function setup() {
   const order: string[] = [];
+  const turns: string[] = [];
   let snapshot = snap("working");
   const snapshotListeners = new Set<(s: ThreadsSnapshot) => void>();
   let enabled = true;
@@ -98,10 +99,16 @@ function setup() {
     setEmotion: (signal) => order.push(`emotion:${signal.id}`),
     easeEmotionToNeutral: () => order.push("neutral"),
     holdMs: () => 4000,
+    turn: {
+      hold: (id) => turns.push(`hold:${id}`),
+      fire: (id) => turns.push(`fire:${id}`),
+      release: (id) => turns.push(`release:${id}`),
+    },
   };
   const reaction = createThreadReaction(deps);
   return {
     order,
+    turns,
     state,
     command,
     present,
@@ -313,4 +320,49 @@ it("dispose clears the retry timer", async () => {
   expect(vi.getTimerCount()).toBe(1);
   h.reaction.dispose();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("a transition holds its Thread's turn, and a reaction that sits and sets the expression fires it once", async () => {
+  const h = setup();
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.push("completed");
+  await vi.advanceTimersByTimeAsync(4000);
+  expect(h.turns).toEqual(["hold:t1", "fire:t1"]);
+});
+
+it("a refused sit releases the Thread's turn", async () => {
+  const h = setup();
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.command.mockImplementation(async () => ({ ok: false, reason: "busy" }));
+  h.push("completed");
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "release:t1"]);
+});
+
+it("switching reactions off releases a held Thread's turn", async () => {
+  const h = setup();
+  h.state.pipelineBusy = true;
+  h.push("completed");
+  await flush();
+  h.setEnabled(false);
+  expect(h.turns).toEqual(["hold:t1", "release:t1"]);
+});
+
+it("a run cut by its Thread's next transition leaves the turn held for the newer reaction", async () => {
+  let spoken: (result: "spoken") => void = () => {};
+  const h = setup();
+  h.speak.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        spoken = resolve;
+      }),
+  );
+  h.push("input-required");
+  await flush();
+  h.push("failed");
+  spoken("spoken");
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "hold:t1", "fire:t1"]);
 });

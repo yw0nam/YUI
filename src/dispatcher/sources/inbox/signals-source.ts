@@ -49,6 +49,14 @@ export interface SignalsSource {
   restore(env: BusEnvelope): void;
   /** Routes a client-built group like an inbox arrival, without `onArrival`. */
   offer(group: SignalGroup): void;
+  /** Removes the buffered batched group with this event id and event type. */
+  withdraw(eventId: string, eventType: string): void;
+  /** Keeps the batched group with this event id out of every delivery until `release` or `fireNow`. */
+  hold(eventId: string): void;
+  /** Lifts the hold; the group joins the next catch-up or timer firing. */
+  release(eventId: string): void;
+  /** Lifts the hold and sends the buffered group with this event id as its own ungated turn; true when pushed. */
+  fireNow(eventId: string): boolean;
 }
 
 type RoutedGroup = {
@@ -288,5 +296,15 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     clearBatchTimer();
   }
 
-  return { start, stop, drain, restore, offer };
+  return {
+    start,
+    stop,
+    drain,
+    restore,
+    offer,
+    withdraw: () => {},
+    hold: () => {},
+    release: () => {},
+    fireNow: () => false,
+  };
 }

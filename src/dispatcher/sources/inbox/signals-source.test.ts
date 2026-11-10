@@ -8,6 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SignalGroup } from "../../../contract";
 import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
@@ -957,5 +958,132 @@ describe("signals_source — offer", () => {
     await vi.advanceTimersByTimeAsync(300_000);
     expect(pushed).toEqual([]);
     expect(src.drain()).toEqual([]);
+  });
+});
+
+describe("signals_source — a reacting Thread's group", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const group = (event_id: string, event_type = "thread.ask"): SignalGroup => ({
+    envelope: { ...ENVELOPE, event_id, event_type },
+    items: [{ thread_id: event_id }],
+  });
+
+  async function started(isEnabled: () => boolean = () => true) {
+    const pushed: BusEnvelope[] = [];
+    let accepting = true;
+    const bus: Pick<EventBus, "push"> = {
+      push: vi.fn((e: BusEnvelope) => {
+        pushed.push(e);
+        return accepting;
+      }),
+    };
+    const busy = fakePipelineBusy(true);
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox } = fakeInbox();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled,
+      onInbox,
+      listen,
+      now: () => 7,
+      isPipelineBusy: busy.isPipelineBusy,
+      subscribePipelineBusy: busy.subscribePipelineBusy,
+    });
+    await src.start();
+    return {
+      src,
+      pushed,
+      busy,
+      emitIdle,
+      accept: (next: boolean) => {
+        accepting = next;
+      },
+    };
+  }
+
+  const sent = (pushed: BusEnvelope[]) =>
+    pushed.map((e) => [
+      e.event_name,
+      (e.payload?.signals as SignalGroup[]).map((g) => g.envelope.event_id),
+    ]);
+
+  it("a held group stays out of the busy-to-idle catch-up, the batch timer and drain, while an unheld group goes", async () => {
+    const s = await started();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.src.hold("thread:t1");
+    s.src.offer(group("thread:t1"));
+    s.src.offer(group("run-1"));
+    s.busy.setBusy(false);
+    s.src.offer(group("run-2"));
+    await vi.advanceTimersByTimeAsync(300_000);
+    s.src.offer(group("run-3"));
+    expect(s.src.drain()).toEqual([group("run-3")]);
+    expect(sent(s.pushed)).toEqual([
+      ["signals.catchup", ["run-1"]],
+      ["signals.batch", ["run-2"]],
+    ]);
+  });
+
+  it("fireNow sends that one group as a signals.batch turn while she is away, and nothing once signals are off", async () => {
+    let enabled = true;
+    const s = await started(() => enabled);
+    s.src.hold("thread:t1");
+    s.src.offer(group("run-1"));
+    s.src.offer(group("thread:t1"));
+    s.src.offer(group("thread:t2"));
+    expect(s.src.fireNow("thread:t1")).toBe(true);
+    enabled = false;
+    expect(s.src.fireNow("thread:t2")).toBe(false);
+    expect(s.pushed).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "signals.batch",
+        ts: 7,
+        payload: { signals: [group("thread:t1")] },
+      },
+    ]);
+    expect(s.src.drain()).toEqual([group("run-1"), group("thread:t2")]);
+  });
+
+  it("a rejected fireNow push leaves the group for the next catch-up", async () => {
+    const s = await started();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.src.hold("thread:t1");
+    s.src.offer(group("thread:t1"));
+    s.accept(false);
+    expect(s.src.fireNow("thread:t1")).toBe(false);
+    s.accept(true);
+    s.busy.setBusy(false);
+    expect(sent(s.pushed)).toEqual([
+      ["signals.batch", ["thread:t1"]],
+      ["signals.catchup", ["thread:t1"]],
+    ]);
+  });
+
+  it("release returns a held group to the next catch-up", async () => {
+    const s = await started();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.src.hold("thread:t1");
+    s.src.offer(group("thread:t1"));
+    s.busy.setBusy(false);
+    expect(s.pushed).toEqual([]);
+    s.busy.setBusy(true);
+    s.src.release("thread:t1");
+    s.busy.setBusy(false);
+    expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t1"]]]);
+  });
+
+  it("withdraw drops the buffered thread.ask group and keeps a thread.failed group with that event id", async () => {
+    const s = await started();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.src.offer(group("thread:t1"));
+    s.src.offer(group("thread:t2", "thread.failed"));
+    s.src.withdraw("thread:t1", "thread.ask");
+    s.src.withdraw("thread:t2", "thread.ask");
+    s.busy.setBusy(false);
+    expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t2"]]]);
   });
 });
