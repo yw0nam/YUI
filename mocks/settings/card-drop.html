@@ -59,7 +59,7 @@ h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: bal
 @keyframes newchip { from { box-shadow: 0 0 0 6px var(--yui-accent-faint); } to { box-shadow: 0 0 0 0 transparent; } }
 .fld { width: 14rem; max-width: 100%; height: 2rem; border-radius: 8px; border: 1px solid var(--yui-edge-strong); background: var(--yui-field); padding: 0 10px; display: flex; align-items: center; color: var(--yui-text); font-size: var(--yui-fs-body); }
 
-/* Variant A: the drop overlay over the whole window. Amber is the dashed line and the glyph only, never a fill. */
+/* Variant A: the drop cover over the whole window. Amber is the dashed line and the glyph only, never a fill. */
 .veil { position: absolute; inset: 0; z-index: 5; display: grid; padding: 10px; background: color-mix(in oklab, var(--yui-panel-bg) 90%, transparent); opacity: 0; visibility: hidden; transition: opacity var(--yui-dur) var(--yui-ease), visibility 0s linear var(--yui-dur); }
 .veil.is-on { opacity: 1; visibility: visible; transition: opacity var(--yui-dur) var(--yui-ease), visibility 0s; }
 .veil__in { display: grid; place-items: center; border: 1.5px dashed var(--yui-accent); border-radius: var(--yui-radius-group); transform: translateY(4px); transition: transform var(--yui-dur) var(--yui-ease), border-color var(--yui-dur-fast) var(--yui-ease); }
@@ -328,7 +328,7 @@ body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0
     startImport(names[0]);
   }
 
-  // E1: the overlay holds the line a moment on any page. E2 (and B): Persona › Card's own error line.
+  // E1: the drop cover holds the line a moment on any page. E2 (and B): Persona › Card's own error line.
   function showMessage(kind, state, tail) {
     const text = MSG[kind];
     if (ui.variant === "A" && ui.err === "E1") {
