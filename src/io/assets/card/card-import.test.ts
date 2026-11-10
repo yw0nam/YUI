@@ -4,13 +4,14 @@
  * Pins src/io/assets/card/card-import.ts: the Rust `import_card_file` command (which
  * opens the OS picker itself) → the card reader, the reserved-id and staging-id arguments,
  * the `.yui` result mapping, and the rollback of every claimed asset when the payload
- * holds no readable card. Deps are injectable so the suite never touches a real Tauri
+ * holds no readable card; the `import_dropped_card` command for a file dropped onto the
+ * settings window. Deps are injectable so the suite never touches a real Tauri
  * runtime.
  */
 
 import { describe, expect, it, vi } from "vitest";
 import type { CardImportDeps } from "./card-import";
-import { importCardFromFile } from "./card-import";
+import { importCardFromDrop, importCardFromFile } from "./card-import";
 
 const V2_JSON = JSON.stringify({
   spec: "chara_card_v2",
@@ -124,5 +125,30 @@ describe("importCardFromFile", () => {
     expect(deps.removeThumbnail).toHaveBeenCalledWith("mio-1a2b3c");
     expect(deps.removeUserVrm).toHaveBeenCalledWith("mio_vrm");
     expect(deps.removeUserVoice).toHaveBeenCalledWith("import-9");
+  });
+});
+
+describe("importCardFromDrop", () => {
+  it("invokes import_dropped_card with no path and returns the card", async () => {
+    const deps = makeDeps();
+    const out = await importCardFromDrop(["carlotta"], "import-9", deps);
+
+    expect(deps.invoke).toHaveBeenCalledWith("import_dropped_card", {
+      reservedVrmIds: ["carlotta"],
+      voiceStagingId: "import-9",
+    });
+    expect(out).toEqual({
+      card: expect.objectContaining({ name: "Mio", description: "picked card" }),
+      thumbnailTempId: "mio-1a2b3c",
+      source: "png",
+    });
+  });
+
+  it("rolls the temp thumbnail back and throws card_unreadable on an unreadable payload", async () => {
+    const deps = makeDeps({
+      invoke: invokeReturning({ json: "not json", thumbnailTempId: "mio-1a2b3c", source: "png" }),
+    });
+    await expect(importCardFromDrop([], "import-0", deps)).rejects.toThrow("card_unreadable");
+    expect(deps.removeThumbnail).toHaveBeenCalledWith("mio-1a2b3c");
   });
 });

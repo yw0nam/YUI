@@ -8,6 +8,15 @@ import { readCard } from "../../../config/validators/persona/read-card";
 import type { Card } from "../../../config/validators/persona/types";
 import type { InvokeFn } from "../user-asset-import";
 
+/** Read the file dropped onto this settings window. */
+export async function importCardFromDrop(
+  _reservedVrmIds: string[],
+  _voiceStagingId: string,
+  _deps?: CardImportDeps,
+): Promise<ImportedCard> {
+  return {} as ImportedCard;
+}
+
 /** The VRM a preset file claimed: a user copy under app-data, or a bundled model named by id. */
 export type ImportedCardVrm =
   | { kind: "user"; id: string; url: string; label: string }
