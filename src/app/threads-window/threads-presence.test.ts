@@ -156,7 +156,15 @@ it("a raise brings the shown window forward keeping its tab and selection, and r
   expect(focus).not.toHaveBeenCalled();
 });
 
-function shownPresence() {
+it.each([
+  [
+    "an automatic open of a shown window raises it, hops the panel, then reports presented",
+    undefined,
+    { focus: false, present: "p3" },
+    ["raise", "hop", "presented:p3"],
+  ],
+  ["a user's open of a shown window brings it forward without a hop", CHIP, {}, ["focus"]],
+] as const)("%s", async (_name, chip, opts, expected) => {
   const order: string[] = [];
   const view = {
     open: vi.fn(async () => {}),
@@ -180,21 +188,8 @@ function shownPresence() {
     emitPresented: (present) => order.push(`presented:${present}`),
   });
   presence.open(CHIP);
-  return { order, presence };
-}
 
-it("an automatic open of a shown window raises it, hops the panel, then reports presented", async () => {
-  const { order, presence } = shownPresence();
+  presence.open(chip, undefined, opts);
 
-  presence.open(undefined, undefined, { focus: false, present: "p3" });
-
-  await vi.waitFor(() => expect(order).toEqual(["raise", "hop", "presented:p3"]));
-});
-
-it("a user's open of a shown window brings it forward without a hop", async () => {
-  const { order, presence } = shownPresence();
-
-  presence.open(CHIP);
-
-  await vi.waitFor(() => expect(order).toEqual(["focus"]));
+  await vi.waitFor(() => expect(order).toEqual(expected));
 });

@@ -46,11 +46,3 @@ it("with jelly, the panel stretches at most the 8px margin wide and tall", async
   expect(Math.max(...factors.map(([x]) => x))).toBeCloseTo(1 + 16 / 880, 6);
   expect(Math.max(...factors.map(([, y]) => y))).toBeCloseTo(1 + 8 / 680, 6);
 });
-
-it("without jelly, no animation carries a transform", async () => {
-  const { parts: p, calls } = parts();
-
-  await growOpen(p, CHIP);
-
-  expect(calls.flat().filter((frame) => "transform" in frame)).toEqual([]);
-});

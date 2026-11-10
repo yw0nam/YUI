@@ -590,12 +590,11 @@ async function opensWithScale(opts?: { focus: false }): Promise<boolean> {
   );
 }
 
-it("an automatic open grows with the jelly", async () => {
-  expect(await opensWithScale({ focus: false })).toBe(true);
-});
-
-it("a user's open grows without the jelly", async () => {
-  expect(await opensWithScale()).toBe(false);
+it.each([
+  ["an automatic open", { focus: false }, "with", true],
+  ["a user's open", undefined, "without", false],
+] as const)("%s grows %s the jelly", async (_name, opts, _with, jelly) => {
+  expect(await opensWithScale(opts)).toBe(jelly);
 });
 
 const entries = (n: number, from = 1): Thread["entries"] =>

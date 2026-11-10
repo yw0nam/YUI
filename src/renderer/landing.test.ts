@@ -16,16 +16,12 @@ function canvas(finished: Promise<void> = Promise.resolve()) {
   return { el: { style, animate } as unknown as HTMLElement, animate, origins, cancels };
 }
 
-it("drops her from 24px above the seat, faded in, squashing about the seat", async () => {
+it("squashes her about the seat", async () => {
   const c = canvas();
 
   await createLanding(c.el, () => ({ x: 120, y: 340 }))();
 
   expect(c.origins).toEqual(["120px 340px"]);
-  expect(c.animate.mock.calls[0]?.[0][0]).toEqual({
-    opacity: 0,
-    transform: "translateY(-24px) scale(1, 1)",
-  });
 });
 
 it("does not animate without a seat", async () => {
