@@ -6,8 +6,9 @@
  * delivers `urgent` groups (handle now) behind the raw busy predicate — a proactive gap never
  * holds them. Each group routes to exactly one core, so urgent and batched groups never share
  * a catch-up turn.
- * This module owns envelope validation, delivery routing, buffer caps, and the lazy
- * batched-delivery timer. Signal item contents remain opaque.
+ * This module owns envelope validation, delivery routing, buffer caps, the lazy
+ * batched-delivery timer, and the held batched groups a Thread reaction fires or releases.
+ * Signal item contents remain opaque.
  */
 
 import type { SignalEnvelope, SignalGroup } from "../../../contract";
@@ -97,6 +98,12 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   let nextSequence = 0;
   let frontSequence = 0;
   let batchTimer: ReturnType<typeof setTimeout> | undefined;
+  const heldIds = new Set<string>();
+  const now = deps.now ?? Date.now;
+
+  const isHeld = (entry: BufferedGroup): boolean => heldIds.has(entry.group.envelope.event_id);
+  const deliverable = (): SignalGroup[] =>
+    batchBuffer.filter((entry) => !isHeld(entry)).map(({ group }) => group);
 
   function clearBatchTimer(): void {
     if (batchTimer !== undefined) clearTimeout(batchTimer);
@@ -104,7 +111,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   function clearBatchBuffer(): void {
-    batchBuffer.length = 0;
+    batchBuffer.splice(0, batchBuffer.length, ...batchBuffer.filter(isHeld));
     clearBatchTimer();
   }
 
@@ -190,12 +197,10 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (batchTimer !== undefined || batchBuffer.length === 0) return;
     batchTimer = setTimeout(() => {
       batchTimer = undefined;
-      if (batchBuffer.length === 0) return;
-      const firing: InboxFiring = {
-        event_name: "signals.batch",
-        payload: { signals: batchBuffer.map(({ group }) => group) },
-      };
-      if (core.fireIfEligible(firing)) batchBuffer.length = 0;
+      const signals = deliverable();
+      if (signals.length === 0) return;
+      const firing: InboxFiring = { event_name: "signals.batch", payload: { signals } };
+      if (core.fireIfEligible(firing)) clearBatchBuffer();
     }, BATCH_INTERVAL_MS);
   }
 
@@ -204,7 +209,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   function bufferAdd(item: RoutedGroup): void {
-    const wasEmpty = batchBuffer.length === 0;
+    const wasEmpty = deliverable().length === 0;
     appendCapped(batchBuffer, item.group);
     if (wasEmpty) armBatchTimer();
   }
@@ -212,14 +217,49 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   function buildCatchup(): InboxFiring {
     return {
       event_name: "signals.catchup",
-      payload: { signals: batchBuffer.map(({ group }) => group) },
+      payload: { signals: deliverable() },
     };
   }
 
   function drain(): SignalGroup[] {
-    const groups = batchBuffer.map(({ group }) => group);
+    const groups = deliverable();
     clearBatchBuffer();
     return groups;
+  }
+
+  function withdraw(eventId: string, eventType: string): void {
+    const at = batchBuffer.findIndex(
+      ({ group }) => group.envelope.event_id === eventId && group.envelope.event_type === eventType,
+    );
+    if (at < 0) return;
+    batchBuffer.splice(at, 1);
+    if (batchBuffer.length === 0) clearBatchTimer();
+  }
+
+  function release(eventId: string): void {
+    heldIds.delete(eventId);
+    armBatchTimer();
+  }
+
+  // Ungated: the reaction that fires it already waited for an idle pipeline.
+  function fireNow(eventId: string): boolean {
+    release(eventId);
+    const at = batchBuffer.findIndex(({ group }) => group.envelope.event_id === eventId);
+    if (!deps.isEnabled() || at < 0) return false;
+    const [entry] = batchBuffer.splice(at, 1);
+    const pushed = deps.bus.push({
+      source: "os_event_watcher",
+      event_name: "signals.batch",
+      ts: now(),
+      payload: { signals: [entry.group] },
+    });
+    if (!pushed) {
+      batchBuffer.splice(at, 0, entry);
+      return false;
+    }
+    if (batchBuffer.length === 0) clearBatchTimer();
+    log.info("fire_now", { event_id: eventId });
+    return true;
   }
 
   // Restored groups go ahead of buffered ones; a group already buffered keeps the buffered copy.
@@ -278,7 +318,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     log,
     parse: (item) => item,
     bufferAdd,
-    bufferEmpty: () => batchBuffer.length === 0,
+    bufferEmpty: () => deliverable().length === 0,
     bufferClear: clearBatchBuffer,
     buildCatchup,
   });
@@ -302,9 +342,11 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     drain,
     restore,
     offer,
-    withdraw: () => {},
-    hold: () => {},
-    release: () => {},
-    fireNow: () => false,
+    withdraw,
+    hold: (eventId) => {
+      heldIds.add(eventId);
+    },
+    release,
+    fireNow,
   };
 }

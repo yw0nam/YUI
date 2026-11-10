@@ -1,4 +1,4 @@
-/** Main only: Thread reactions read the window's Threads client, the Threads window and chip, speech, the turn pipeline and the stage; a window without a Threads client wires nothing. */
+/** Main only: Thread reactions read the window's Threads client, the Threads window and chip, speech, the turn pipeline and the stage, and hold or fire each Thread's buffered turn; a window without a Threads client wires nothing. */
 
 import { invoke } from "@tauri-apps/api/core";
 import { createThreadReaction } from "../../ambient/threads-reaction/thread-reaction";
@@ -24,6 +24,7 @@ export function wireThreadReactions(deps: {
   renderer: Pick<Renderer, "setEmotion" | "easeEmotionToNeutral">;
   settings: Pick<SettingsStores, "threadReactionsSettings" | "fillerSettings">;
   config: Pick<ConfigStore, "get">;
+  threadTurn: ConfiguredBootstrapHandles["threadTurn"];
 }): () => void {
   const { threads, threadsWindow, slotRect, speechPlayback, locomotion, renderer, settings } = deps;
   if (!threads || !threadsWindow) return () => {};
@@ -42,6 +43,7 @@ export function wireThreadReactions(deps: {
     setEmotion: (signal) => renderer.setEmotion(signal),
     easeEmotionToNeutral: () => renderer.easeEmotionToNeutral(),
     holdMs: () => deps.config.get().avatar.tap.touch_emotion_hold_ms,
+    turn: deps.threadTurn,
   });
   return reaction.dispose;
 }

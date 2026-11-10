@@ -1,5 +1,6 @@
 import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
+import type { ThreadReactionDeps } from "../ambient/threads-reaction/thread-reaction";
 import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { BusEnvelope } from "../dispatcher/core/event-bus";
@@ -109,6 +110,8 @@ export interface ConfiguredBootstrapHandles {
   greetLocal: () => void;
   /** The fold store the signal chips and the delegation chip share. */
   chipFold: DelegationChipSettingsStore;
+  /** A Thread's buffered turn, by Thread id: Thread reactions hold it, fire it, or release it. */
+  threadTurn: ThreadReactionDeps["turn"];
   dispose(): void;
 }
 
@@ -292,6 +295,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         threads: phase1.threads,
         level: () => settings.threadTurnsSettings.get().level,
         offer: signalsSource.offer,
+        withdraw: signalsSource.withdraw,
       }),
     );
     register(milestoneSource.stop);
@@ -437,6 +441,11 @@ const realFactories: ConfiguredBootstrapFactories = {
       noteInteraction: () => proactiveSource.noteInteraction(),
       greetLocal: greeting.greetLocal,
       chipFold: signalChips.collapsed,
+      threadTurn: {
+        hold: (id) => signalsSource.hold(`thread:${id}`),
+        fire: (id) => signalsSource.fireNow(`thread:${id}`),
+        release: (id) => signalsSource.release(`thread:${id}`),
+      },
     };
   },
 };

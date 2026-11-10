@@ -1,4 +1,4 @@
-/** thread-reaction — the main character's reaction to a Thread state change: a line, the Threads window, her seat on it, an expression. */
+/** thread-reaction — the main character's reaction to a Thread state change: a line, the Threads window, her seat on it, an expression, then the Thread's turn. */
 
 import type { FillerPool } from "../../config/validators/filler";
 import type { EmotionId, ScreenRect, ThreadsSnapshot, WindowRect } from "../../contract";
@@ -38,6 +38,12 @@ export interface ThreadReactionDeps {
   easeEmotionToNeutral(): void;
   /** How long the expression holds before it eases back to neutral. */
   holdMs(): number;
+  /** The Thread's buffered turn: held while its reaction waits or runs, fired when she finishes, released on any other end. */
+  turn: {
+    hold(threadId: string): void;
+    fire(threadId: string): void;
+    release(threadId: string): void;
+  };
 }
 
 const EXPRESSION: Record<ThreadTransition["state"], EmotionId> = {
@@ -83,7 +89,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
   }
 
   function stop(): void {
-    held.clear();
+    for (const id of held.clear()) deps.turn.release(id);
     clearRetry();
     halt?.();
   }
@@ -113,8 +119,9 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     });
     halted.catch(() => {});
     const wait = <T>(work: Promise<T>): Promise<T> => Promise.race([work, halted]);
+    let finished = false;
     try {
-      await perform(reaction, wait);
+      finished = await perform(reaction, wait);
     } catch (error) {
       if (error !== HALTED)
         log.warn("reaction_failed", { threadId: reaction.id, error: String(error) });
@@ -122,17 +129,19 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       running = false;
       halt = null;
     }
+    // A newer reaction held for the same Thread keeps its turn held.
+    if (!finished && !held.has(reaction.id)) deps.turn.release(reaction.id);
     tryRun();
   }
 
   async function perform(
     { id, state }: ThreadTransition,
     wait: <T>(work: Promise<T>) => Promise<T>,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const valid = (): boolean =>
       !disposed && enabled() && snapshot?.threads.find((t) => t.id === id)?.state === state;
     const windows = deps.threadsWindow.isOpen() ? await wait(deps.listWindows()) : null;
-    if (!valid()) return;
+    if (!valid()) return false;
     const entry = windows?.find((w) => w.threadsWindow);
     const front = entry && windows ? windows.slice(0, windows.indexOf(entry)) : [];
     const where = !windows
@@ -148,7 +157,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
         where === "closed" ? openBag.draw(pool.threads_open) : raiseBag.draw(pool.threads_raise);
       if (line) {
         log.debug("reaction_line", fields);
-        if ((await wait(deps.speak(line))) === "cut" || !valid()) return;
+        if ((await wait(deps.speak(line))) === "cut" || !valid()) return false;
       }
       log.debug("reaction_present", fields);
       const presented = await wait(
@@ -156,33 +165,38 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
           ? deps.threadsWindow.present(deps.slotRect(), { thread: id })
           : deps.threadsWindow.present(),
       );
-      if (presented === "closed" || !valid()) return;
+      if (presented === "closed" || !valid()) return false;
     }
     if (!entry || deps.armedSit()?.windowNumber !== entry.windowNumber) {
       const executor = deps.getExecutor();
-      if (!executor) return;
+      if (!executor) return false;
       log.debug("reaction_sit", fields);
       const result = await wait(executor.command({ action: "sit_on_window", app: "YUI" }));
       if (!("ok" in result) || !result.ok) {
         log.warn("reaction_sit.failed", { ...fields, result });
-        return;
+        return false;
       }
-      if (!valid()) return;
+      if (!valid()) return false;
     }
     log.debug("reaction_expression", fields);
     deps.setEmotion({ id: EXPRESSION[state] });
+    deps.turn.fire(id);
     if (revertTimer !== null) clearTimeout(revertTimer);
     // While speech plays, its cues own the expression and its end eases it to neutral.
     revertTimer = setTimeout(() => {
       revertTimer = null;
       if (!deps.hasOutstandingSpeech()) deps.easeEmotionToNeutral();
     }, deps.holdMs());
+    return true;
   }
 
   function onSnapshot(next: ThreadsSnapshot): void {
     snapshot = next;
-    for (const t of transitions.next(next)) held.hold(t);
-    held.prune(next);
+    for (const t of transitions.next(next)) {
+      held.hold(t);
+      deps.turn.hold(t.id);
+    }
+    for (const id of held.prune(next)) deps.turn.release(id);
     tryRun();
   }
 
