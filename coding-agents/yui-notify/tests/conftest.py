@@ -14,6 +14,9 @@ class Received(list):
     status: list
     answer: dict
     polls: list
+    answers: list
+    put_status: list
+    polls_at_put: list
 
 
 @pytest.fixture
@@ -22,11 +25,15 @@ def server():
     received.status = [200, 200]
     received.answer = {"release": True}
     received.polls = []
+    received.answers = []  # answers handed out one per poll before `answer` applies
+    received.put_status = []  # PUT statuses handed out one per PUT before `status[0]` applies
+    received.polls_at_put = []
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_PUT(self):
             received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
-            self.reply(received.status[0], {})
+            received.polls_at_put.append(len(received.polls))
+            self.reply(received.put_status.pop(0) if received.put_status else received.status[0], {})
 
         def do_GET(self):
             received.polls.append(self.path)
@@ -40,7 +47,7 @@ def server():
             if received.status[1] == 0:
                 self.connection.close()
                 return
-            self.reply(received.status[1], received.answer)
+            self.reply(received.status[1], received.answers.pop(0) if received.answers else received.answer)
 
         def reply(self, status, data):
             raw = json.dumps(data).encode()

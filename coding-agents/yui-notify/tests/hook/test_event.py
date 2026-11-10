@@ -124,6 +124,26 @@ def load(fixture, rollout=NO_ROLLOUT):
             ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
         ),
         (
+            "claude-task-notification.json",
+            CLAUDE_ENV,
+            ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
+        ),
+        (
+            "claude-agent-message.json",
+            CLAUDE_ENV,
+            ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
+        ),
+        (
+            "claude-ask-user-question.json",
+            CLAUDE_ENV,
+            (
+                "claude-code",
+                "PermissionRequest",
+                "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+                "Pick fruits\n- Apple: 사과\n- Banana: 바나나",
+            ),
+        ),
+        (
             "claude-session-end.json",
             CLAUDE_ENV,
             ("claude-code", "SessionEnd", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", "Session ended"),
@@ -160,6 +180,9 @@ def load(fixture, rollout=NO_ROLLOUT):
         "claude-stop-without-env",
         "claude-user-prompt",
         "claude-inbox-prompt-no-entry",
+        "claude-task-notification-no-entry",
+        "claude-agent-message-no-entry",
+        "claude-ask-user-question",
         "claude-session-end",
         "claude-start-synthetic",
         "claude-start-sdk-skipped",
