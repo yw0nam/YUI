@@ -126,6 +126,8 @@ All four are `broker_publish: false`.
 
 The client's sitter crossfades the body and eases the window on every seat entry and on the voluntary seat exits.
 
+The renderer draws no frame while the pet window is hidden. A transition that starts then moves the window to its end at once. One that is running when the window hides stops where it is.
+
 Seat entries are:
 
 - a drag drop onto a window top
