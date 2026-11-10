@@ -206,14 +206,14 @@ describe("buildVrmParticipants", () => {
   describe("gaze participant", () => {
     it("step forwards to gaze.step(ctx.dt)", () => {
       const deps = makeDeps();
-      const [, gazeParticipant] = buildVrmParticipants(deps);
+      const [, , gazeParticipant] = buildVrmParticipants(deps);
       gazeParticipant.step(ctx);
       expect(deps.gaze.step).toHaveBeenCalledExactlyOnceWith(ctx.dt);
     });
 
     it("onVrmLoaded/onVrmDisposed forward to gaze.onVrmLoaded/onVrmDisposed", () => {
       const deps = makeDeps();
-      const [, gazeParticipant] = buildVrmParticipants(deps);
+      const [, , gazeParticipant] = buildVrmParticipants(deps);
       gazeParticipant.onVrmLoaded?.(fakeVrm);
       gazeParticipant.onVrmDisposed?.();
       expect(deps.gaze.onVrmLoaded).toHaveBeenCalledExactlyOnceWith(fakeVrm);
@@ -223,7 +223,7 @@ describe("buildVrmParticipants", () => {
     it("isConverging forwards gaze.isConverging's return value", () => {
       const deps = makeDeps();
       deps.gaze.isConverging = vi.fn(() => true);
-      const [, gazeParticipant] = buildVrmParticipants(deps);
+      const [, , gazeParticipant] = buildVrmParticipants(deps);
       expect(gazeParticipant.isConverging?.()).toBe(true);
     });
   });
@@ -231,21 +231,21 @@ describe("buildVrmParticipants", () => {
   describe("emotion participant", () => {
     it("step forwards to emotion.step(ctx.dt)", () => {
       const deps = makeDeps();
-      const [, , emotionParticipant] = buildVrmParticipants(deps);
+      const [, , , emotionParticipant] = buildVrmParticipants(deps);
       emotionParticipant.step(ctx);
       expect(deps.emotion.step).toHaveBeenCalledExactlyOnceWith(ctx.dt);
     });
 
     it("onVrmLoaded forwards to emotion.onVrmLoaded (no-arg)", () => {
       const deps = makeDeps();
-      const [, , emotionParticipant] = buildVrmParticipants(deps);
+      const [, , , emotionParticipant] = buildVrmParticipants(deps);
       emotionParticipant.onVrmLoaded?.(fakeVrm);
       expect(deps.emotion.onVrmLoaded).toHaveBeenCalledTimes(1);
     });
 
     it("onVrmDisposed forwards to emotion.reset — not some other method", () => {
       const deps = makeDeps();
-      const [, , emotionParticipant] = buildVrmParticipants(deps);
+      const [, , , emotionParticipant] = buildVrmParticipants(deps);
       emotionParticipant.onVrmDisposed?.();
       expect(deps.emotion.reset).toHaveBeenCalledTimes(1);
       expect(deps.emotion.step).not.toHaveBeenCalled();
@@ -255,11 +255,11 @@ describe("buildVrmParticipants", () => {
     it("isConverging forwards emotion.isFading's return value — mutation: `() => false` must fail this", () => {
       const deps = makeDeps();
       deps.emotion.isFading = vi.fn(() => true);
-      const [, , emotionParticipant] = buildVrmParticipants(deps);
+      const [, , , emotionParticipant] = buildVrmParticipants(deps);
       expect(emotionParticipant.isConverging?.()).toBe(true);
 
       deps.emotion.isFading = vi.fn(() => false);
-      const [, , emotionParticipant2] = buildVrmParticipants(deps);
+      const [, , , emotionParticipant2] = buildVrmParticipants(deps);
       expect(emotionParticipant2.isConverging?.()).toBe(false);
     });
   });
@@ -269,14 +269,14 @@ describe("buildVrmParticipants", () => {
       const deps = makeDeps();
       const expressionManager = {};
       const vrmWithExpr = { expressionManager } as unknown as VRM;
-      const [, , , mouthParticipant] = buildVrmParticipants(deps);
+      const [, , , , mouthParticipant] = buildVrmParticipants(deps);
       mouthParticipant.step({ vrm: vrmWithExpr, dt: 0.016, elapsed: 1 });
       expect(deps.mouth.step).toHaveBeenCalledExactlyOnceWith(0.016, expressionManager);
     });
 
     it("step no-ops when the VRM has no expressionManager", () => {
       const deps = makeDeps();
-      const [, , , mouthParticipant] = buildVrmParticipants(deps);
+      const [, , , , mouthParticipant] = buildVrmParticipants(deps);
       mouthParticipant.step({ vrm: {} as VRM, dt: 0.016, elapsed: 1 });
       expect(deps.mouth.step).not.toHaveBeenCalled();
     });
@@ -284,17 +284,17 @@ describe("buildVrmParticipants", () => {
     it("isConverging is true only once mouth.openValue() clears the active epsilon", () => {
       const deps = makeDeps();
       deps.mouth.openValue = vi.fn(() => 0.3);
-      const [, , , mouthParticipant] = buildVrmParticipants(deps);
+      const [, , , , mouthParticipant] = buildVrmParticipants(deps);
       expect(mouthParticipant.isConverging?.()).toBe(true);
 
       deps.mouth.openValue = vi.fn(() => 0.0005);
-      const [, , , mouthParticipant2] = buildVrmParticipants(deps);
+      const [, , , , mouthParticipant2] = buildVrmParticipants(deps);
       expect(mouthParticipant2.isConverging?.()).toBe(false);
     });
 
     it("has no onVrmLoaded/onVrmDisposed — mouth is untouched by VRM lifecycle", () => {
       const deps = makeDeps();
-      const [, , , mouthParticipant] = buildVrmParticipants(deps);
+      const [, , , , mouthParticipant] = buildVrmParticipants(deps);
       expect(mouthParticipant.onVrmLoaded).toBeUndefined();
       expect(mouthParticipant.onVrmDisposed).toBeUndefined();
     });

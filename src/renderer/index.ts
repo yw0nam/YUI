@@ -38,6 +38,7 @@ import { SEAT_DROP_DEFAULT } from "./geometry/probe/perch-geometry";
 import { createScreenProbes } from "./geometry/probe/screen-probes";
 import { createLanding } from "./landing";
 import { createClipLibrary } from "./motion/clip/clip-library";
+import { createGrounding } from "./motion/grounding/grounding";
 import { createMotionPlayback } from "./motion/playback/motion-playback";
 import { createRootYaw } from "./motion/yaw/root-yaw";
 import { createPinController, type PinController } from "./pin-controller";
@@ -84,7 +85,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Fit-to-bounds state: full-body framing recomputed on load/swap/resize.
   let modelBox: THREE.Box3 | undefined;
 
-  // Owns both pin state machines + scene-position apply.
+  // Owns both pin state machines, the scene x/z apply, and the perch offset the grounding writes.
   const pins: PinController = createPinController({
     log,
     mountWidth: () => mount.clientWidth || 1,
@@ -188,14 +189,19 @@ export function createRenderer(options: RendererOptions): Renderer {
   });
 
   // ── VrmParticipant unification ──────────────────────────────────────────
-  // pins/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
+  // pins/grounding/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
   // step before vrm.update, drop on dispose, report convergence) under mismatched
   // vocabularies (onVrmLoaded/onVrmDisposed/reset; step; isConverging/isFading/
   // openValue). buildVrmParticipants adapts each once here (not per frame, so the
   // per-frame step loop stays monomorphic) into the fixed order animate() already
-  // ran them in: bones (pins/gaze) before expression weights (emotion/mouth), all
+  // ran them in: scene and bones (pins/grounding/gaze) before expression weights (emotion/mouth), all
   // before vrm.update. Order + adapter wiring is unit-tested in vrm-participant.test.ts.
-  const participants = buildVrmParticipants({ pins, gaze, emotion, mouth, camera });
+  const grounding = createGrounding({
+    groundedWeight: () => motion.groundedWeight(),
+    perchOffsetY: () => pins.perchOffsetY(),
+    log,
+  });
+  const participants = buildVrmParticipants({ pins, grounding, gaze, emotion, mouth, camera });
 
   const frameLoop: FrameLoop = createFrameLoop({
     participants,

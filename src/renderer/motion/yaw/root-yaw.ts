@@ -12,7 +12,7 @@ export interface RootYaw extends VrmParticipant {
 
 export function createRootYaw(deps: { getElapsedMs: () => number }): RootYaw {
   // vrm.scene.rotation.y is a channel nothing else writes after load — the mixer
-  // animates bones and the pins own scene.position — so the eased yaw is applied
+  // animates bones and the pins and grounding own scene.position — so the eased yaw is applied
   // on top of the model's own base rotation (π for VRM0, 0 for VRM1).
   let baseYaw = 0;
   let bodyYaw = 0;
