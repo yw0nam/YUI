@@ -297,13 +297,13 @@ export function createMotionPlayback(deps: {
     groundedWeight() {
       let grounded = 0;
       let all = 0;
-      for (const [action, isGrounded] of actionGrounded) {
+      actionGrounded.forEach((isGrounded, action) => {
         // A stopped action keeps its last weight; only scheduled ones contribute to the pose.
-        if (!action.enabled || !action.isScheduled()) continue;
+        if (!action.enabled || !action.isScheduled()) return;
         const w = action.getEffectiveWeight();
         all += w;
         if (isGrounded) grounded += w;
-      }
+      });
       // The mixer normalises only when the weights sum above 1.
       return grounded / Math.max(1, all);
     },
