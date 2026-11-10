@@ -81,6 +81,11 @@ describe("createCardDrop", () => {
       ["/a/notes.txt"],
       "That file can't be imported. Drop a preset file (.yui), or a JSON or PNG card",
     ],
+    [
+      "a dotfile named .yui",
+      ["/a/.yui"],
+      "That file can't be imported. Drop a preset file (.yui), or a JSON or PNG card",
+    ],
   ])("a drop of %s shows its refusal and reads nothing", (_label, paths, message) => {
     const s = setup();
     s.emit({ type: "drop", paths });
