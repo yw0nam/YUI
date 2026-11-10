@@ -32,12 +32,17 @@ it("does not animate without a seat", async () => {
   expect(c.animate).not.toHaveBeenCalled();
 });
 
-it("a second landing cancels the one still running", () => {
+it.each([
+  ["with a seat", { x: 80, y: 300 }, [1, 0], "80px 300px"],
+  ["without a seat", null, [1], ""],
+] as const)("a second landing %s cancels the one still running", (_name, seat, cancels, origin) => {
   const c = canvas(new Promise(() => {}));
-  const land = createLanding(c.el, () => ({ x: 120, y: 340 }));
+  const seats = [{ x: 120, y: 340 }, seat];
+  const land = createLanding(c.el, () => seats.shift() ?? null);
 
   void land();
   void land();
 
-  expect(c.cancels.map((cancel) => cancel.mock.calls.length)).toEqual([1, 0]);
+  expect(c.cancels.map((cancel) => cancel.mock.calls.length)).toEqual(cancels);
+  expect(c.el.style.transformOrigin).toBe(origin);
 });
