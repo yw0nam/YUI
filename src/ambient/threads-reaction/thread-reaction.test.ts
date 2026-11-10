@@ -366,3 +366,24 @@ it("a run cut by its Thread's next transition leaves the turn held for the newer
   await flush();
   expect(h.turns).toEqual(["hold:t1", "hold:t1", "fire:t1"]);
 });
+
+it("a run that finishes while a newer reaction for its Thread is held does not fire; the newer one fires after it runs", async () => {
+  const lines: Array<(result: "spoken") => void> = [];
+  const h = setup();
+  h.speak.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        lines.push(resolve);
+      }),
+  );
+  h.push("input-required");
+  await flush();
+  h.push("working");
+  h.push("input-required");
+  lines[0]?.("spoken");
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "hold:t1"]);
+  lines[1]?.("spoken");
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "hold:t1", "fire:t1"]);
+});
