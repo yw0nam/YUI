@@ -9,12 +9,17 @@ import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../logger";
+import { createGrounding } from "./motion/grounding/grounding";
 import { createPinController, type PinController } from "./pin-controller";
 
-/** One frame of the pins, then the scene-Y write the grounding makes at grounding weight 0. */
+/** One frame of the pins, then the grounding's scene-Y write at grounding weight 0. */
 function stepPins(pins: PinController, camera: THREE.PerspectiveCamera, scene: THREE.Object3D) {
   pins.step(camera);
-  scene.position.y = pins.perchOffsetY();
+  createGrounding({
+    groundedWeight: () => 0,
+    perchOffsetY: () => pins.perchOffsetY(),
+    log: { debug: vi.fn() },
+  }).step({ vrm: { scene } as unknown as VRM, dt: 0, elapsed: 0 });
 }
 
 function createFixture() {

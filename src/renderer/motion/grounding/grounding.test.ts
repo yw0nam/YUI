@@ -1,10 +1,9 @@
 import { type VRM, type VRMHumanBones, VRMHumanoid } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
-import { soleOffset } from "./sole-offset";
-import { extractSoleBones } from "./sole-points";
+import { describe, expect, it, vi } from "vitest";
+import { createGrounding } from "./grounding";
 
-/** A left leg with a non-humanoid SmallToe under leftToes and a non-humanoid chain under leftUpperLeg. */
+/** A left leg with a non-humanoid SmallToe under leftToes and a non-humanoid chain under leftUpperLeg, lowest in rest. */
 function makeVrm(): VRM {
   const scene = new THREE.Object3D();
   const bone = (name: string, parent: THREE.Object3D, x: number, y: number, z: number) => {
@@ -30,7 +29,7 @@ function makeVrm(): VRM {
     [foot, 0.1, 0.1, 0],
     [toes, 0.1, 0.005, 0.14],
     [smallToe, 0.1, 0, 0.17],
-    [chain, 0.15, -0.02, 0],
+    [chain, 0.15, -0.2, 0],
   ];
   const bones = [hips, upperLeg, lowerLeg, foot, toes, smallToe, chain];
   const geometry = new THREE.BufferGeometry();
@@ -72,39 +71,39 @@ function makeVrm(): VRM {
   return { scene, humanoid } as unknown as VRM;
 }
 
-const round = (n: number) => Math.round(n * 1e6) / 1e6 + 0;
-
-describe("sole grounding", () => {
-  it("keeps the foot, toes and SmallToe points and drops the chain point", () => {
-    const soles = extractSoleBones(makeVrm()).map(({ bone, points }) => ({
-      bone: bone.name,
-      points: points.map((p) => p.clone().applyMatrix4(bone.matrixWorld).toArray().map(round)),
-    }));
-    expect(soles).toEqual([
-      {
-        bone: "Normalized_leftFoot",
-        points: [
-          [0.1, 0, -0.05],
-          [0.1, 0.002, 0.08],
-        ],
-      },
-      {
-        bone: "Normalized_leftToes",
-        points: [
-          [0.1, 0, 0.17],
-          [0.1, 0.005, 0.14],
-        ],
-      },
-    ]);
-  });
-
-  it.each([0, 0.3])("puts the lowest posed sole on the floor with the scene at y=%s", (sceneY) => {
+describe("createGrounding", () => {
+  // Foot rest: ankle at y=0.1; heel 0.1 below it and 0.05 back; SmallToe 0.1 below and 0.17 ahead.
+  it.each([
+    // Toes down 30°: the SmallToe point goes lowest, 0.0716025 below the floor.
+    ["a grounded pose lifts the lowest sole onto the floor", Math.PI / 6, 0, 1, 0, 0, 0.0716025],
+    ["the offset ignores the scene Y written last frame", Math.PI / 6, 0, 1, 0, 0.3, 0.0716025],
+    ["weight 0 leaves the perch offset alone", Math.PI / 6, 0, 0, 0.2, 0, 0.2],
+    ["a half weight adds half the offset to the perch", Math.PI / 6, 0, 0.5, 0.1, 0, 0.1358013],
+    // Only the toes down 30°: SmallToe follows leftToes to 0.0323205 below the floor.
+    ["a non-humanoid toe bone follows its toes bone", 0, Math.PI / 6, 1, 0, 0, 0.0323205],
+    // Foot flipped: the instep vertex 0.1 above the sole band sits at 0.1, the toe tip lowest at 0.195.
+    [
+      "a vertex above the sole band never grounds, and a floating sole is lowered",
+      Math.PI,
+      0,
+      1,
+      0,
+      0,
+      -0.195,
+    ],
+  ])("%s", (_title, footPitch, toesPitch, weight, perch, lastSceneY, expected) => {
     const vrm = makeVrm();
-    const soles = extractSoleBones(vrm);
-    vrm.scene.position.y = sceneY;
-    vrm.scene.updateMatrixWorld(true);
-    // Toes down 30°: the SmallToe point, 0.1 below and 0.17 ahead of the ankle at y=0.1, goes lowest.
-    vrm.humanoid.getNormalizedBoneNode("leftFoot")!.rotation.x = Math.PI / 6;
-    expect(soleOffset(vrm, soles)).toBeCloseTo(0.0716025, 6);
+    const grounding = createGrounding({
+      groundedWeight: () => weight,
+      perchOffsetY: () => perch,
+      log: { debug: vi.fn() },
+    });
+    grounding.onVrmLoaded?.(vrm);
+    vrm.humanoid.getNormalizedBoneNode("leftFoot")!.rotation.x = footPitch;
+    vrm.humanoid.getNormalizedBoneNode("leftToes")!.rotation.x = toesPitch;
+    // Written after the last matrix update, as the previous frame's write is.
+    vrm.scene.position.y = lastSceneY;
+    grounding.step({ vrm, dt: 1 / 30, elapsed: 0 });
+    expect(vrm.scene.position.y).toBeCloseTo(expected, 6);
   });
 });
