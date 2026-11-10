@@ -132,6 +132,27 @@ describe("createSitter", () => {
   });
 
   it.each([
+    {
+      name: "sits",
+      run: (h: ReturnType<typeof makeHarness>) => h.sitter.sitDown({ win: h.win, scale: 2 }),
+      y: 840,
+    },
+    {
+      name: "stands",
+      run: (h: ReturnType<typeof makeHarness>) => h.sitter.standUp(h.win, 400),
+      y: 400,
+    },
+  ])("$name at once when the document is already hidden", async ({ run, y }) => {
+    const h = makeHarness();
+    h.sitter.start();
+    h.hide();
+    const done = run(h);
+    await h.flush();
+    expect(await outcome(done)).toBe("done");
+    expect(h.positions).toEqual([{ x: 1000, y }]);
+  });
+
+  it.each([
     { name: "cancel", end: (h: ReturnType<typeof makeHarness>) => h.sitter.cancel() },
     { name: "stop", end: (h: ReturnType<typeof makeHarness>) => h.sitter.stop() },
     { name: "the document hiding", end: (h: ReturnType<typeof makeHarness>) => h.hide() },
