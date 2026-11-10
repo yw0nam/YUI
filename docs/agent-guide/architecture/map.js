@@ -1145,7 +1145,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression unless a newer reaction for the Thread is held, and releases it on any other end.",
+      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression unless a newer reaction for the Thread is held, and releases it on any other end.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1235,7 +1235,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip; an open without focus focuses no field.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no field.",
       "paths": [
         "src/ui/threads"
       ]
@@ -2760,7 +2760,7 @@ globalThis.YUI_MAP =
       "id": "threads-reaction-renderer",
       "from": "ambient/threads-reaction",
       "to": "renderer",
-      "carries": "setEmotion (curious, happy or sad); easeEmotionToNeutral after touch_emotion_hold_ms",
+      "carries": "setEmotion (curious, happy or sad); easeEmotionToNeutral after touch_emotion_hold_ms; land() after a sit, unless reduced motion",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
@@ -3354,7 +3354,7 @@ globalThis.YUI_MAP =
       "id": "threads-chip-snapshot",
       "from": "io/threads",
       "to": "ui/threads",
-      "carries": "the snapshot's Threads → the chip's waiting count, newest source marks and arrival nod",
+      "carries": "the snapshot's Threads → the chip's waiting count, newest source marks and arrival wiggle",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-chip.ts"

@@ -196,6 +196,7 @@ YUI/
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
       frame-gate.ts                  # Pure idle and active frame-throttle decision
       frame-loop.ts                  # The rAF loop with its clock, hidden-document pause, and idle-throttle gate
+      landing.ts                     # Her landing bounce on the canvas after a sit, about the live seat
       pin-controller.ts              # Stateful perch and peek pin apply layer
       vrm-loading.ts                 # VRM optimisation of a loaded glTF and the display-name read
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
@@ -647,14 +648,15 @@ YUI/
         boot-error.css               # Boot-failure notice styles
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
-        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one nod on arrival, hold-to-fold, and its slot rect while hidden
+        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect while hidden
         window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/entry-markdown.ts     # An entry's text as Markdown nodes: https images only, no list formatting whitespace
-        window/grow.ts               # The grow out of the chip and the shrink back
+        window/grow.ts               # The grow out of the chip, with a jelly on an automatic open, and the shrink back
+        window/hop.ts                # The panel's hop inside its margin when a Thread reaction raises the window
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
         window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
