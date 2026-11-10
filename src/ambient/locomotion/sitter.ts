@@ -104,6 +104,8 @@ export function createSitter(deps: SitterDeps): Sitter {
     log.debug("transition", { sit, fromY: Math.round(from.y), toY: Math.round(toY) });
     return new Promise((settle) => {
       ease = { sit, win, x: from.x, fromY: from.y, toY, elapsedMs: 0, settle };
+      // No tick runs while hidden and no visibilitychange will come: finish in one step.
+      if (doc?.visibilityState === "hidden") step(SEAT_EASE_MS / 1000);
     });
   }
 
