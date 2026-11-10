@@ -180,7 +180,8 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     }
     log.debug("reaction_expression", fields);
     deps.setEmotion({ id: EXPRESSION[state] });
-    deps.turn.fire(id);
+    // A newer reaction held for this Thread fires the turn after its own line.
+    if (!held.has(id)) deps.turn.fire(id);
     if (revertTimer !== null) clearTimeout(revertTimer);
     // While speech plays, its cues own the expression and its end eases it to neutral.
     revertTimer = setTimeout(() => {
