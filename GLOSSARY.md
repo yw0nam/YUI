@@ -72,6 +72,10 @@ _Avoid_: state, pose, stance
 **Perch**:
 The character resting on a foreign window's edge or the Threads window's; the supporting window is reported as `perched_on`.
 
+**Grounded motion**:
+A motion whose clip keeps the character standing on the floor. While one plays, the renderer moves the whole model up or down so its lowest sole sits on the floor.
+_Avoid_: floor motion, standing motion
+
 **Ambient (Tier 1)**:
 Backend-independent idle life — blink, sway, breath. Runs always; attenuates under reduced-motion.
 
