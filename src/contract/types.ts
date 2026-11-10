@@ -90,6 +90,8 @@ export interface MotionRegistryEntry {
   root_lock_y?: boolean;
   /** Keeps the clip's horizontal hips translation instead of mean-centring it — for a clip whose frame is shared with a prop. */
   root_keep_xz?: boolean;
+  /** Keep the lowest sole on the floor while this motion plays (see docs/guide/motions.md § Grounding). */
+  grounded?: boolean;
   kind: MotionKind;
   loop: boolean;
   /** 0~100, higher is higher priority. */
