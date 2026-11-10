@@ -10,6 +10,7 @@ import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-se
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
+import { hop } from "./hop";
 import { createListSplitter } from "./list-splitter";
 import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
@@ -41,6 +42,8 @@ export interface ThreadsView {
   select(tab: ThreadsTab): void;
   /** Shrinks back to where the last open grew from. */
   close(): Promise<void>;
+  /** Hops the panel inside its window, for a Thread reaction's raise. */
+  hop(): Promise<void>;
   /** The head is the window's drag handle; its × keeps its click. */
   onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
   /** Draws the stored level on the head's Thread turns button. */
@@ -175,12 +178,13 @@ export function createThreadsView(deps: {
       from = at;
       threads.reset(opts.thread);
       tabs.select(tab);
-      await growOpen({ root, panel, content }, at);
+      await growOpen({ root, panel, content }, at, { jelly: opts.focus === false });
       if (opts.focus === false) return;
       if (!tabs.current().focusField?.()) layout.focusSelected();
     },
     select: tabs.show,
     close: () => shrinkClose({ root, panel, content }, from),
+    hop: () => hop(panel),
     onHeadPointerDown(cb) {
       headListeners.add(cb);
       return () => headListeners.delete(cb);

@@ -1,7 +1,7 @@
 /**
  * The Threads window's open and close, one at a time: show and grow, shrink and hide, then tell
  * main. An open while it shows brings it forward, keeping its frame, selection and filters, and
- * switches to the tab it names; an open without focus only orders it front.
+ * switches to the tab it names; an open without focus only orders it front and hops the panel.
  */
 
 import type { ScreenRect } from "../../contract";
@@ -19,6 +19,7 @@ export function createThreadsPresence(deps: {
     open(from: ScreenRect | null, tab?: ThreadsTab, opts?: PresenceOpen): Promise<void>;
     close(): Promise<void>;
     select(tab: ThreadsTab): void;
+    hop(): Promise<void>;
   };
   /** Places and shows the window; resolves where the grow starts (window-local px), or null with no chip. */
   show(chip?: ScreenRect, opts?: PresenceOpen): Promise<ScreenRect | null>;
@@ -46,6 +47,7 @@ export function createThreadsPresence(deps: {
           await deps
             .raise()
             .catch((error) => log.warn("threads_raise_failed", { error: String(error) }));
+          await deps.view.hop();
         } else if (shown) {
           if (tab) deps.view.select(tab);
           await deps
