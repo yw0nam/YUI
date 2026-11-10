@@ -29,20 +29,18 @@ const BESIDE: WindowRect = { ...OVER, x: 600 };
 
 type Executor = NonNullable<ReturnType<ThreadReactionDeps["getExecutor"]>>;
 
-const snap = (state: Thread["state"]): ThreadsSnapshot => ({
+const snap = (...states: Thread["state"][]): ThreadsSnapshot => ({
   revision: 1,
-  threads: [
-    {
-      id: "t1",
-      source: "codex",
-      title: "Build",
-      state,
-      entries: [],
-      created_at: 1,
-      updated_at: 1,
-      entry_count: 0,
-    },
-  ],
+  threads: states.map((state, at) => ({
+    id: `t${at + 1}`,
+    source: "codex",
+    title: "Build",
+    state,
+    entries: [],
+    created_at: 1,
+    updated_at: 1,
+    entry_count: 0,
+  })),
 });
 
 function setup() {
@@ -59,6 +57,7 @@ function setup() {
     pipelineBusy: false,
     speechOwed: false,
     executorBusy: false,
+    busyAfterFire: false,
   };
   const command = vi.fn<Executor["command"]>(async () => {
     order.push("sit");
@@ -101,7 +100,14 @@ function setup() {
     holdMs: () => 4000,
     turn: {
       hold: (id) => turns.push(`hold:${id}`),
-      fire: (id) => turns.push(`fire:${id}`),
+      fire: (id) => {
+        turns.push(`fire:${id}`);
+        // The dispatcher takes a pushed turn up later, not within the firing tick.
+        if (state.busyAfterFire)
+          setTimeout(() => {
+            state.pipelineBusy = true;
+          }, 0);
+      },
       release: (id) => turns.push(`release:${id}`),
     },
   };
@@ -114,8 +120,8 @@ function setup() {
     present,
     speak,
     reaction,
-    push(next: Thread["state"]) {
-      snapshot = snap(next);
+    push(...next: Thread["state"][]) {
+      snapshot = snap(...next);
       for (const cb of snapshotListeners) cb(snapshot);
     },
     setEnabled(next: boolean) {
@@ -386,4 +392,22 @@ it("a run that finishes while a newer reaction for its Thread is held does not f
   lines[1]?.("spoken");
   await flush();
   expect(h.turns).toEqual(["hold:t1", "hold:t1", "fire:t1"]);
+});
+
+it("after a reaction fires its turn, the next held reaction waits for that turn's pipeline and runs on the retry once it is idle", async () => {
+  const h = setup();
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.state.seat = { windowNumber: 42 };
+  h.state.busyAfterFire = true;
+  h.push("completed", "failed");
+  await flush();
+  expect(h.order).toEqual(["emotion:happy"]);
+  h.state.busyAfterFire = false;
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["emotion:happy"]);
+  h.state.pipelineBusy = false;
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["emotion:happy", "emotion:sad"]);
+  expect(h.turns).toEqual(["hold:t1", "hold:t2", "fire:t1", "fire:t2"]);
 });
