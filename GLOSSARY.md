@@ -123,7 +123,7 @@ _Avoid_: inbox, panel, dashboard
 The device-wide setting (`off`, `notable`, `every`) by which a Thread update gives the main character a signals turn.
 
 **Thread reactions**:
-The device-wide switch `yui.thread-reactions`, on by default, and the client-side body reaction it governs: when a Thread becomes `input-required`, `completed` or `failed`, the main character says a filler line if the Threads window is closed or covered, sits on the Threads window, and shows an expression. It never reaches the brain, so it is not a Turn.
+The device-wide switch `yui.thread-reactions`, on by default, and the client-side body reaction it governs: when a Thread becomes `input-required`, `completed` or `failed`, the main character says a filler line if the Threads window is closed or covered, sits on the Threads window, and shows an expression. The reaction itself gives no Turn; when it finishes, it sends that Thread's buffered Thread turn, if there is one.
 _Avoid_: notification, alert, Thread turn (a Thread turn reaches the brain)
 
 **Threads chip**:

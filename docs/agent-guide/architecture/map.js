@@ -1082,7 +1082,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireNow sends it alone as an ungated signals.batch turn or release returns it to normal delivery.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1145,7 +1145,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression.",
+      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression unless a newer reaction for the Thread is held, and releases it on any other end.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1308,7 +1308,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns and every group it returns is offered to the signals source.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.ask group of a Thread whose ask closed is withdrawn.",
       "paths": [
         "src/app/turn"
       ]
@@ -1418,7 +1418,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-reaction",
       "module": "wiring",
       "label": "thread reactions wiring",
-      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch and the filler pools into the reaction; a window without a Threads client wires nothing.",
+      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch, the filler pools and the Thread turn handle into the reaction; a window without a Threads client wires nothing.",
       "paths": [
         "src/app/threads-reaction"
       ]
@@ -2766,6 +2766,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
     },
     {
+      "id": "threads-reaction-turn",
+      "from": "ambient/threads-reaction",
+      "to": "dispatcher/sources/inbox",
+      "carries": "hold, fireNow and release on thread:<id>: held when a transition is held, fired once she sits with the expression set, released on any other end",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
       "id": "threads-reaction-pipeline",
       "from": "dispatcher",
       "to": "ambient/threads-reaction",
@@ -2832,6 +2841,15 @@ globalThis.YUI_MAP =
       "from": "dispatcher/sources/threads",
       "to": "dispatcher/sources/inbox",
       "carries": "offer(group): one batched thread.ask, thread.failed or thread.entry group per Thread, event_id thread:<id>",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-thread-turns.ts"
+    },
+    {
+      "id": "thread-turns-withdraw",
+      "from": "dispatcher/sources/threads",
+      "to": "dispatcher/sources/inbox",
+      "carries": "withdraw(thread:<id>, thread.ask) for each Thread whose open ask closed or that is gone",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-thread-turns.ts"

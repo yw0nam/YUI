@@ -6,12 +6,14 @@ import type { ThreadTransition } from "./thread-transitions";
 export function createHeldReactions(): {
   /** Holds `t`, replacing the Thread's older reaction. */
   hold(t: ThreadTransition): void;
-  /** Drops each reaction whose Thread is gone or in another state. */
-  prune(snapshot: ThreadsSnapshot): void;
+  /** Drops each reaction whose Thread is gone or in another state, and returns their Thread ids. */
+  prune(snapshot: ThreadsSnapshot): string[];
   /** Removes and returns the oldest held reaction, or null. */
   take(): ThreadTransition | null;
   isEmpty(): boolean;
-  clear(): void;
+  has(id: string): boolean;
+  /** Drops every reaction and returns their Thread ids. */
+  clear(): string[];
 } {
   // Insertion order is arrival order; a replaced reaction moves to the back.
   const held = new Map<string, ThreadTransition>();
@@ -22,7 +24,11 @@ export function createHeldReactions(): {
     },
     prune(snapshot) {
       const states = new Map(snapshot.threads.map((thread) => [thread.id, thread.state]));
-      for (const [id, t] of held) if (states.get(id) !== t.state) held.delete(id);
+      const dropped = [...held.values()]
+        .filter((t) => states.get(t.id) !== t.state)
+        .map((t) => t.id);
+      for (const id of dropped) held.delete(id);
+      return dropped;
     },
     take() {
       const first = held.values().next();
@@ -31,6 +37,11 @@ export function createHeldReactions(): {
       return first.value;
     },
     isEmpty: () => held.size === 0,
-    clear: () => held.clear(),
+    has: (id) => held.has(id),
+    clear() {
+      const ids = [...held.keys()];
+      held.clear();
+      return ids;
+    },
   };
 }

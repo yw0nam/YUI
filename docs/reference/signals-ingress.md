@@ -147,13 +147,15 @@ A batched group that misses its deadline starts no second timer. It leaves on th
 
 ### Disabled signals
 
-While signals are disabled, the client drops every group that arrives, and the next OS idle tick clears the groups already buffered.
+While signals are disabled, the client drops every group that arrives, and the next OS idle tick clears the groups already buffered. A group a Thread reaction holds survives that clear, and leaves when its reaction fires or releases it.
 
 ### Catch-up and drains
 
 Returning to present or transitioning from busy to idle emits one catch-up containing the batched groups in their original arrival order. Returning before a batched group's deadline therefore includes it in that catch-up.
 
-Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group in arrival order, and a drain empties the batch buffer.
+Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds, in arrival order, and removes those groups from the batch buffer.
+
+A Thread reaction is the third client path, and it takes one group. Its Thread's group stays out of every catch-up, timer firing and drain while the reaction is held or running. When the reaction finishes, that group leaves alone as a `signals.batch` turn; a reaction that ends any other way releases it to normal delivery ([Threads](./threads.md#closed-asks-and-reactions)).
 
 ### Groups that go back
 

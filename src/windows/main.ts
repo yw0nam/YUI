@@ -362,6 +362,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         renderer,
         settings: settingsStores,
         config,
+        threadTurn: configured.threadTurn,
       }),
     );
     register(

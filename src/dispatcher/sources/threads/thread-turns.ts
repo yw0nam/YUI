@@ -1,15 +1,25 @@
-/** thread-turns — diffs Thread snapshots and returns the signal groups a Thread turns level asks for. */
+/** thread-turns — diffs Thread snapshots and returns the signal groups a Thread turns level asks for, and the Threads whose ask closed. */
 
 import type { SignalGroup, SignalItem, Thread, ThreadsSnapshot } from "../../../contract";
 import { oneLine } from "../../../io/chat/one-line";
 import { LAST_CUT } from "../../../io/chat/tools/threads/thread-text";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 
-type Seen = { askIds: Set<string>; state?: Thread["state"]; entryCount: number };
+export const THREAD_ASK = "thread.ask";
+
+/** The signal `event_id` of a Thread's group. */
+export const threadEventId = (threadId: string): string => `thread:${threadId}`;
+
+type Seen = {
+  askIds: Set<string>;
+  openAskId?: string;
+  state?: Thread["state"];
+  entryCount: number;
+};
 
 function eventType(thread: Thread, seen: Seen, level: ThreadTurnsLevel): string | undefined {
   if (level === "notable") {
-    if (thread.ask && !seen.askIds.has(thread.ask.ask_id)) return "thread.ask";
+    if (thread.ask && !seen.askIds.has(thread.ask.ask_id)) return THREAD_ASK;
     if (thread.state === "failed" && seen.state !== "failed") return "thread.failed";
   }
   if (level === "every") {
@@ -35,7 +45,7 @@ function groupOf(thread: Thread, event_type: string): SignalGroup {
       source: thread.source,
       event_type,
       delivery: "batched",
-      event_id: `thread:${thread.id}`,
+      event_id: threadEventId(thread.id),
       occurred_at: thread.updated_at,
       label: thread.title,
     },
@@ -44,8 +54,11 @@ function groupOf(thread: Thread, event_type: string): SignalGroup {
 }
 
 export function createThreadTurns(): {
-  /** Diffs `snapshot` against the last one seen and returns the groups `level` asks for. The first call is the baseline and returns []. */
-  next(snapshot: ThreadsSnapshot, level: ThreadTurnsLevel): SignalGroup[];
+  /** Diffs `snapshot` against the last one seen: the groups `level` asks for, and the Threads whose open ask closed or that are gone. The first call is the baseline and returns both empty. */
+  next(
+    snapshot: ThreadsSnapshot,
+    level: ThreadTurnsLevel,
+  ): { groups: SignalGroup[]; closed: string[] };
 } {
   let seenById: Map<string, Seen> | undefined;
   return {
@@ -54,14 +67,22 @@ export function createThreadTurns(): {
       const previous = seenById ?? new Map<string, Seen>();
       seenById = new Map();
       const groups: SignalGroup[] = [];
+      const closed: string[] = [];
       for (const thread of snapshot.threads) {
         const seen = previous.get(thread.id) ?? { askIds: new Set(), entryCount: 0 };
         const type = baseline ? undefined : eventType(thread, seen, level);
         if (type) groups.push(groupOf(thread, type));
+        if (seen.openAskId && !thread.ask) closed.push(thread.id);
         if (thread.ask) seen.askIds.add(thread.ask.ask_id);
-        seenById.set(thread.id, { ...seen, state: thread.state, entryCount: thread.entry_count });
+        seenById.set(thread.id, {
+          ...seen,
+          openAskId: thread.ask?.ask_id,
+          state: thread.state,
+          entryCount: thread.entry_count,
+        });
       }
-      return groups;
+      for (const [id, seen] of previous) if (seen.openAskId && !seenById.has(id)) closed.push(id);
+      return { groups, closed };
     },
   };
 }
