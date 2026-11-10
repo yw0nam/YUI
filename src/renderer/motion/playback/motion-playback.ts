@@ -33,6 +33,8 @@ export interface MotionPlayback extends VrmParticipant {
   currentTime(): number | null;
   setRegistry(registry: MotionRegistry): void;
   setIdleVariants(paths: readonly string[]): void;
+  /** Share of the pose (0..1) coming from grounded actions — follows the crossfade. */
+  groundedWeight(): number;
 }
 
 export function createMotionPlayback(deps: {
@@ -288,5 +290,8 @@ export function createMotionPlayback(deps: {
     },
     setRegistry,
     setIdleVariants,
+    groundedWeight() {
+      return 0;
+    },
   };
 }

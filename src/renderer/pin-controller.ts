@@ -42,6 +42,8 @@ export interface PinController {
   isConverging(): boolean;
   /** One frame of both pins — no-op without an adopted VRM, hips bone, or target. */
   step(camera: THREE.PerspectiveCamera): void;
+  /** World-Y offset the perch pin wants on vrm.scene; 0 when not perched. */
+  perchOffsetY(): number;
 }
 
 export function createPinController(deps: {
@@ -209,6 +211,9 @@ export function createPinController(deps: {
     step(camera) {
       stepPerch(camera);
       stepPeek(camera);
+    },
+    perchOffsetY() {
+      return 0;
     },
   };
 }

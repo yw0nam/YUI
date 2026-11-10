@@ -127,7 +127,9 @@ describe("buildVrmParticipants", () => {
       isPeeking: vi.fn(() => false),
       isConverging: vi.fn(() => false),
       step: vi.fn(),
+      perchOffsetY: vi.fn(() => 0),
     };
+    const grounding: VrmParticipant = { step: vi.fn() };
     const gaze: CursorGaze = {
       step: vi.fn(),
       onVrmLoaded: vi.fn(),
@@ -153,13 +155,14 @@ describe("buildVrmParticipants", () => {
       openValue: vi.fn(() => 0),
     };
     const camera = {} as PerspectiveCamera;
-    return { pins, gaze, emotion, mouth, camera };
+    return { pins, grounding, gaze, emotion, mouth, camera };
   }
 
-  it("orders participants pins, gaze, emotion, mouth — mutation: reversing the array must fail this", () => {
+  it("orders participants pins, grounding, gaze, emotion, mouth — mutation: reversing the array must fail this", () => {
     const deps = makeDeps();
     const order: string[] = [];
     deps.pins.step = vi.fn(() => order.push("pins"));
+    deps.grounding.step = vi.fn(() => order.push("grounding"));
     deps.gaze.step = vi.fn(() => order.push("gaze"));
     deps.emotion.step = vi.fn(() => order.push("emotion"));
     deps.mouth.step = vi.fn(() => order.push("mouth"));
@@ -170,8 +173,8 @@ describe("buildVrmParticipants", () => {
     const participants = buildVrmParticipants(deps);
     stepParticipants(participants, { ...ctx, vrm: vrmWithExpr });
 
-    expect(participants).toHaveLength(4);
-    expect(order).toEqual(["pins", "gaze", "emotion", "mouth"]);
+    expect(participants).toHaveLength(5);
+    expect(order).toEqual(["pins", "grounding", "gaze", "emotion", "mouth"]);
   });
 
   describe("pins participant", () => {
