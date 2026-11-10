@@ -27,6 +27,8 @@ const UNREADABLE_ERRORS = new Set(["card_unreadable", "no card in png", "preset 
 export interface CardIoPorts {
   /** Runs the whole card import through preset creation; null when the picker was dismissed. */
   importPreset: () => Promise<{ presetId: string } | null>;
+  importDroppedPreset: () => Promise<{ presetId: string } | "busy">;
+  importBusy: { isBusy(): boolean; subscribe(listener: () => void): () => void };
   /** Opens the `.yui` save dialog; "cancelled" when dismissed. */
   exportPresetFile: (request: PresetExportRequest) => Promise<PresetFileExportResult>;
   /** Writes the card text into the preset's PNG; "cancelled" when dismissed. */
@@ -52,6 +54,7 @@ export interface CardIo {
   reflect(hasPicture: boolean): void;
   /** Writes the preset file; true when it was saved. */
   exportPreset(parts: PresetExportParts): Promise<boolean>;
+  importDropped(): Promise<"imported" | "busy" | "unreadable" | "failed">;
 }
 
 export function createCardIo(deps: {
@@ -153,6 +156,8 @@ export function createCardIo(deps: {
         ? t("card.io_note")
         : t("card.png_no_picture", { note: t("card.io_note") });
     },
+
+    importDropped: async () => undefined as never,
 
     exportPreset(parts: PresetExportParts): Promise<boolean> {
       return exportWith(async () => {

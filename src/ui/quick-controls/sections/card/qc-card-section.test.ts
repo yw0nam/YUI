@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createImportGate } from "../../../../app/card-io/import-gate";
 import { readCard } from "../../../../config/validators/persona/read-card";
 import {
   type Card,
@@ -645,6 +646,19 @@ describe("createQuickControls — card section", () => {
         "That file holds no card",
       ),
     );
+  });
+
+  it("Import… is disabled while the window's import runs, from mount on, and enables when it ends", async () => {
+    const gate = createImportGate();
+    let finish!: () => void;
+    const pending = gate.run(() => new Promise<void>((resolve) => (finish = resolve)));
+    build({ importBusy: gate });
+    const importBtn = () => sec().querySelector<HTMLButtonElement>(".yui-card-import")!;
+    expect(importBtn().disabled).toBe(true);
+
+    finish();
+    await pending;
+    expect(importBtn().disabled).toBe(false);
   });
 
   it("keeps the action row visible with the send switch off", () => {
