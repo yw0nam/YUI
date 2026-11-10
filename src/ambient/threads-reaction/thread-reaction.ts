@@ -94,6 +94,13 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     halt?.();
   }
 
+  function retryLater(): void {
+    retryTimer ??= setTimeout(() => {
+      retryTimer = null;
+      tryRun();
+    }, RETRY_MS);
+  }
+
   function tryRun(): void {
     if (disposed) return;
     if (!enabled()) {
@@ -102,10 +109,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     }
     if (running || held.isEmpty()) return;
     if (!isFree()) {
-      retryTimer ??= setTimeout(() => {
-        retryTimer = null;
-        tryRun();
-      }, RETRY_MS);
+      retryLater();
       return;
     }
     const next = held.take();
@@ -129,9 +133,16 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       running = false;
       halt = null;
     }
-    // A newer reaction held for the same Thread keeps its turn held.
-    if (!finished && !held.has(reaction.id)) deps.turn.release(reaction.id);
-    tryRun();
+    // A newer reaction held for the same Thread keeps its turn held and fires it after its own line.
+    if (held.has(reaction.id)) tryRun();
+    else if (finished) {
+      deps.turn.fire(reaction.id);
+      // The fired turn reaches the pipeline after this tick, so the next reaction checks on the retry.
+      retryLater();
+    } else {
+      deps.turn.release(reaction.id);
+      tryRun();
+    }
   }
 
   async function perform(
@@ -180,8 +191,6 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     }
     log.debug("reaction_expression", fields);
     deps.setEmotion({ id: EXPRESSION[state] });
-    // A newer reaction held for this Thread fires the turn after its own line.
-    if (!held.has(id)) deps.turn.fire(id);
     if (revertTimer !== null) clearTimeout(revertTimer);
     // While speech plays, its cues own the expression and its end eases it to neutral.
     revertTimer = setTimeout(() => {
