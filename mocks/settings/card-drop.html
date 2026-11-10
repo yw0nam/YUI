@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>카드 드롭 목업</title>
+<!-- Real tokens and the real settings stylesheets; the markup below uses their class names. Mock-only staging lives in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/preset/preset.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/card/card-section.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/quick-start/quick-start.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Layout: demo controls beside a settings window at its real proportions (same staging as card-bundle.html). */
+* { box-sizing: border-box; }
+html { background: var(--yui-panel-bg); }
+body { margin: 0; background: var(--yui-panel-bg); color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 120px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+.lede { color: var(--yui-text-dim); max-width: 74ch; margin: 0; }
+.lede ol { margin: 6px 0 0; padding-left: 1.3em; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1060px) { .layout { grid-template-columns: 320px minmax(0, 1fr); align-items: start; } }
+.side { display: grid; gap: 12px; min-width: 0; }
+.dgroup { border-radius: var(--yui-radius-group); background: var(--yui-group-bg); border: 1px solid var(--yui-edge); }
+.dgroup > * + * { border-top: 1px solid var(--yui-edge); }
+.drow { display: grid; gap: 6px; padding: 10px 12px; }
+.drow .lbl { font-weight: 600; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; width: fit-content; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.seg button:focus-visible, .btn:focus-visible { outline: 2px solid var(--yui-accent-ink); outline-offset: 2px; }
+.ask { font-size: var(--yui-fs-sub); color: var(--yui-accent-ink); font-weight: 600; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { font: inherit; font-size: var(--yui-fs-sub); font-weight: 600; padding: 5px 12px; border-radius: var(--yui-radius-control); border: 1px solid var(--yui-edge-strong); background: var(--yui-field); color: var(--yui-text); cursor: pointer; }
+
+/* mock-only state caption over the window: names the state and variant the owner sees */
+.stage { display: grid; gap: 8px; min-width: 0; }
+.cap { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0; font-size: var(--yui-fs-sub); }
+.cap b { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); font-family: var(--yui-font-mono); font-weight: 600; }
+.cap b.st { border-color: var(--yui-accent-soft); color: var(--yui-accent-ink); }
+.note { margin: 0; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); max-width: 820px; min-height: 1.4em; }
+
+/* the settings window at its real width; the OS window owns the opaque background */
+.win { position: relative; width: 100%; max-width: 820px; height: 720px; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge-strong); box-shadow: var(--yui-float); background: var(--yui-panel-bg); }
+.win .yui-quick__body { overflow-y: auto; padding: 0 1.25rem 2rem; }
+.win .yui-quick { transition: opacity 90ms var(--yui-ease); }
+.win.is-reloading .yui-quick { opacity: 0; }
+.yui-tab[aria-selected="true"] { background: var(--yui-selected); color: var(--yui-text); }
+.mock-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0.25rem 0.25rem 1.25rem; }
+.mock-preset { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 5px; border-radius: 999px; border: 1px solid var(--yui-edge); background: var(--yui-group-bg); font-weight: 500; font-size: var(--yui-fs-sub); }
+.mock-preset .face { width: 20px; height: 20px; border-radius: 50%; background: oklch(0.32 0.05 265); }
+.mock-preset.on { border-color: var(--yui-edge-strong); background: var(--yui-selected); }
+.mock-preset.new { animation: newchip 1.6s var(--yui-ease); border-color: var(--yui-accent-soft); }
+@keyframes newchip { from { box-shadow: 0 0 0 6px var(--yui-accent-faint); } to { box-shadow: 0 0 0 0 transparent; } }
+.fld { width: 14rem; max-width: 100%; height: 2rem; border-radius: 8px; border: 1px solid var(--yui-edge-strong); background: var(--yui-field); padding: 0 10px; display: flex; align-items: center; color: var(--yui-text); font-size: var(--yui-fs-body); }
+
+/* Variant A: the drop overlay over the whole window. Amber is the dashed line and the glyph only, never a fill. */
+.veil { position: absolute; inset: 0; z-index: 5; display: grid; padding: 10px; background: color-mix(in oklab, var(--yui-panel-bg) 90%, transparent); opacity: 0; visibility: hidden; transition: opacity var(--yui-dur) var(--yui-ease), visibility 0s linear var(--yui-dur); }
+.veil.is-on { opacity: 1; visibility: visible; transition: opacity var(--yui-dur) var(--yui-ease), visibility 0s; }
+.veil__in { display: grid; place-items: center; border: 1.5px dashed var(--yui-accent); border-radius: var(--yui-radius-group); transform: translateY(4px); transition: transform var(--yui-dur) var(--yui-ease), border-color var(--yui-dur-fast) var(--yui-ease); }
+.veil.is-on .veil__in { transform: none; }
+.veil.is-busy .veil__in { border-color: var(--yui-edge-strong); }
+.veil.is-refused .veil__in { border-color: var(--yui-danger-soft); }
+.veil__msg, .veil .yui-start__err { grid-area: 1 / 1; transition: opacity var(--yui-dur-fast) var(--yui-ease); }
+.veil__msg { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 0 1.5rem; }
+.veil__msg svg { width: 1.75rem; height: 1.75rem; color: var(--yui-accent-ink); }
+.veil.is-busy .veil__msg svg { color: var(--yui-text-mute); }
+.veil__title { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+.veil__sub { margin: 0; font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+.veil .yui-start__err { max-width: 22rem; opacity: 0; }
+.veil.is-refused .veil__msg { opacity: 0; }
+.veil.is-refused .yui-start__err { opacity: 1; }
+
+/* Variant B: only the Card section takes an outline while a file is over the window. */
+.yui-sec.yui-card { border-radius: var(--yui-radius-group); outline: 1.5px dashed transparent; outline-offset: 8px; transition: outline-color var(--yui-dur-fast) var(--yui-ease); }
+.yui-sec.yui-card.is-dragover { outline-color: var(--yui-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .veil__in, .veil.is-on .veil__in { transform: none; }
+  .mock-preset.new { animation: none; }
+  .win .yui-quick { transition: none; }
+}
+/* the same, previewed with the demo toggle */
+:root.rm .veil__in, :root.rm .veil.is-on .veil__in { transform: none; }
+:root.rm .mock-preset.new { animation: none; }
+:root.rm .win .yui-quick, :root.rm .yui-tabpanel { transition: none; animation: none; }
+
+body::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0px); }
+.dbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--yui-scrim-strong); backdrop-filter: blur(8px); border-top: 1px solid var(--yui-edge-strong); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.dbar-in { max-width: 1240px; margin: 0 auto; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.picks { display: flex; gap: 6px; flex-wrap: wrap; font-size: var(--yui-fs-sub); }
+.picks span { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); font-family: var(--yui-font-mono); }
+.status { font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/settings · #1940</span>
+    <h1>프리셋 파일이나 카드를 끌어다 놓아 가져오기</h1>
+    <div class="lede">
+      설정 창에 파일을 끌어다 놓으면 가져오기… 버튼과 똑같이 가져옵니다. 왼쪽 버튼으로 상태를 따라가거나, 바탕화면의 파일을 이 창에 직접 끌어 와 보세요(개수와 확장자가 상태를 정합니다). 정해진 것(2026-11-10):
+      <ol>
+        <li>드롭 대상은 설정 창 전체입니다. 카드 섹션만이 아닙니다.</li>
+        <li>파일이 창 위에 있는 동안 창 전체에 점선 덮개와 받는 파일 종류를 보여 줍니다.</li>
+        <li>파일을 여러 개 놓으면 거절하고 아무것도 읽지 않습니다.</li>
+        <li>.yui, .png, .json 밖의 확장자는 거절하고 아무것도 읽지 않습니다.</li>
+        <li>가져오기에 성공하면 버튼과 같은 흐름입니다: 새 프리셋이 켜지고 창이 새로 고쳐져 페르소나 페이지에서 열립니다. 성공 알림은 따로 없고, 일회성 알림은 음성 등록이 실패했을 때만 나옵니다.</li>
+        <li><b>제안</b>: 가져오는 동안에는 덮개가 바쁘다고 알리고 드롭을 무시하며, 같은 동안 가져오기… 버튼도 비활성입니다. 지금 버튼에는 바쁜 상태가 없습니다.</li>
+      </ol>
+      열린 질문은 둘입니다: <b>A / B</b> (끄는 동안 보이는 모습), <b>E1 / E2</b> (다른 페이지가 열려 있을 때 거절·실패 문구를 어디에 보여 줄지).
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="side">
+      <div class="dgroup">
+        <div class="drow"><span class="lbl">흐름 재생</span>
+          <div class="acts">
+            <button type="button" class="btn" id="bEnter">끌어서 올리기</button>
+            <button type="button" class="btn" id="bLeave">창 밖으로 빼기</button>
+          </div>
+          <div class="acts">
+            <button type="button" class="btn" id="bYui">Mio.yui 놓기 (성공)</button>
+            <button type="button" class="btn" id="bTwo">파일 2개 놓기 (거절)</button>
+            <button type="button" class="btn" id="bTxt">notes.txt 놓기 (거절)</button>
+            <button type="button" class="btn" id="bEmpty">empty.json 놓기 (카드 없음)</button>
+            <button type="button" class="btn" id="bBusy">가져오는 중에 놓기 (제안)</button>
+          </div>
+          <div class="acts"><button type="button" class="btn" id="bReset">처음으로</button></div>
+        </div>
+        <div class="drow"><span class="lbl">열린 페이지</span><div class="seg" id="segPage"><button type="button" data-v="persona" aria-pressed="true">페르소나</button><button type="button" data-v="general">일반</button></div><span class="mute">창 왼쪽의 페이지 이름을 눌러도 바뀝니다.</span></div>
+        <div class="drow"><span class="lbl">음성 등록 (.yui만)</span><div class="seg" id="segVoice"><button type="button" data-v="ok" aria-pressed="true">성공</button><button type="button" data-v="fail">실패 → 일회성 알림</button></div></div>
+        <div class="drow"><span class="lbl">테마</span><div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div></div>
+        <div class="drow"><span class="lbl">움직임 줄이기 미리보기</span><div class="seg" id="segRm"><button type="button" data-v="off" aria-pressed="true">끔</button><button type="button" data-v="on">켬</button></div><span class="mute">OS 설정 prefers-reduced-motion도 그대로 따릅니다. 켜면 덮개는 미끄러지지 않고 불투명도만 바뀌며, 새로 고침의 깜빡임도 없습니다.</span></div>
+      </div>
+      <div class="dgroup">
+        <div class="drow"><span class="ask">끄는 동안 보이는 모습</span><div class="seg" id="segVariant"><button type="button" data-v="A" aria-pressed="true">A 창 전체 덮개 (추천)</button><button type="button" data-v="B">B 카드 섹션 윤곽선</button></div><span class="mute">A: 어느 페이지에서든 보입니다. B: 카드 섹션에만 윤곽선이 생깁니다. 다른 페이지가 열려 있으면 B는 보여 줄 곳이 없고, 덮개가 없으니 문구는 E2처럼 카드 섹션의 오류 줄로 갑니다.</span></div>
+        <div class="drow"><span class="ask">다른 페이지에서 거절·실패했을 때</span><div class="seg" id="segErr"><button type="button" data-v="E1" aria-pressed="true">E1 덮개 안에 잠깐 표시 (추천)</button><button type="button" data-v="E2">E2 페르소나 › 카드로 이동해 오류 줄에 표시</button></div><span class="mute">지금 오류 줄(이 파일에는 카드가 없어요 · 그 카드를 가져오지 못했어요)은 페르소나 페이지의 카드 섹션 안에 있어서 다른 페이지에서는 보이지 않습니다. E1은 페이지와 상관없이 덮개 안에 문구를 2.4초 보여 주고 사라집니다.</span></div>
+      </div>
+    </aside>
+
+    <div class="stage">
+      <p class="cap" id="cap"></p>
+      <div class="win" id="win">
+        <div class="yui-quick">
+          <div class="yui-quick__cols">
+            <nav class="yui-rail" aria-label="설정 탭">
+              <div class="yui-tabs" role="tablist" id="tabs">
+                <button class="yui-tab" type="button" role="tab">연결</button>
+                <button class="yui-tab" type="button" role="tab">음성</button>
+                <button class="yui-tab" type="button" role="tab" data-page="persona" aria-selected="true">페르소나</button>
+                <button class="yui-tab" type="button" role="tab">몸</button>
+                <button class="yui-tab" type="button" role="tab">말걸기</button>
+                <button class="yui-tab" type="button" role="tab">동작과 데스크톱</button>
+                <button class="yui-tab" type="button" role="tab">함께</button>
+                <button class="yui-tab" type="button" role="tab">기록</button>
+                <button class="yui-tab" type="button" role="tab">플러그인</button>
+                <button class="yui-tab" type="button" role="tab" data-page="general">일반</button>
+              </div>
+            </nav>
+            <div class="yui-quick__body">
+              <div class="mock-presets" id="presets"><span class="mock-preset on"><span class="face"></span>Yui</span><span class="mock-preset"><span class="face" style="background:oklch(0.55 0.1 20)"></span>Natsume</span></div>
+
+              <div class="yui-tabpanel" id="pagePersona">
+                <p class="yui-tabpanel__scope" id="scopeLine">Yui에만 적용</p>
+                <h2 class="yui-tabpanel__title">페르소나</h2>
+                <div class="yui-sec yui-card" id="cardSec">
+                  <div class="yui-sec__head"><h2 class="yui-sec__title">카드</h2><span class="yui-sec__state"></span><button class="yui-reset" type="button">기본값으로</button></div>
+                  <div class="yui-group yui-group--switch">
+                    <div class="yui-row">
+                      <div class="yui-row__main"><span class="yui-row__label">카드 보내기</span><span class="yui-row__sub">캐릭터 페르소나가 시스템 프롬프트로 백엔드에 가요</span></div>
+                      <button class="yui-switch" type="button" role="switch" aria-checked="true" aria-label="카드 보내기"></button>
+                    </div>
+                    <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">이름</span></div><span class="fld" id="nameFld">Yui</span></div>
+                  </div>
+                  <p class="yui-sec__foot">매크로: {{char}} = 그녀의 이름 · {{user}} = 내 이름</p>
+                  <div class="yui-row yui-row--action yui-card__io">
+                    <button class="yui-link-btn yui-card-import" type="button" id="importBtn">가져오기…</button>
+                    <button class="yui-link-btn yui-card-export-preset" type="button">프리셋 내보내기 (.yui)</button>
+                    <button class="yui-link-btn yui-card-export-png" type="button">카드만 내보내기 (PNG)…</button>
+                  </div>
+                  <p class="yui-row__sub yui-card__io-note">프리셋 파일(.yui)과 JSON·PNG 카드를 가져와요. 내보내기는 프리셋 파일이나 PNG 카드로 해요</p>
+                  <p class="yui-card__io-notice" id="cardNotice" hidden>음성을 내 TTS에 등록하지 못해서 새 프리셋은 기본 음성을 써요</p>
+                  <p class="yui-card__io-done" role="status" hidden></p>
+                  <p class="yui-card__io-error" role="status" id="cardError" hidden></p>
+                </div>
+              </div>
+
+              <div class="yui-tabpanel" id="pageGeneral" hidden>
+                <p class="yui-tabpanel__scope">모든 캐릭터에 적용</p>
+                <h2 class="yui-tabpanel__title">일반</h2>
+                <div class="yui-sec">
+                  <div class="yui-group">
+                    <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">언어</span><span class="yui-row__sub">이 앱의 표시 언어</span></div>
+                      <div class="yui-seg" role="radiogroup" aria-label="표시 언어"><button class="yui-seg__btn" type="button" role="radio" aria-checked="false">日本語</button><button class="yui-seg__btn" type="button" role="radio" aria-checked="false">English</button><button class="yui-seg__btn" type="button" role="radio" aria-checked="true">한국어</button></div></div>
+                    <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">외관</span><span class="yui-row__sub">Dawn은 밝은 유리, Hearth는 어두운 스크림</span></div>
+                      <div class="yui-seg" role="radiogroup" aria-label="외관"><button class="yui-seg__btn" type="button" role="radio" aria-checked="true">Dawn</button><button class="yui-seg__btn" type="button" role="radio" aria-checked="false">Hearth</button><button class="yui-seg__btn" type="button" role="radio" aria-checked="false">시스템 따르기</button></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="veil" id="veil" aria-hidden="true">
+          <div class="veil__in">
+            <div class="veil__msg">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v10M8 10.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 15v2.8c0 .9.8 1.7 1.7 1.7h11.6c.9 0 1.7-.8 1.7-1.7V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <p class="veil__title" id="veilTitle">놓으면 가져와요</p>
+              <p class="veil__sub" id="veilSub">프리셋 파일(.yui)이나 JSON·PNG 카드 하나</p>
+            </div>
+            <div class="yui-start__err" role="alert"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div id="veilErr"></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="note" id="note"></p>
+    </div>
+  </div>
+</main>
+
+<div class="dbar" role="region" aria-label="고른 선택지">
+  <div class="dbar-in">
+    <div class="picks" id="picks"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status" id="status"></span>
+      <button type="button" class="btn" id="copy">답변 복사</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const ACCEPTED = ["yui", "png", "json"];
+  // multi and ext are new lines for the drop; noCard is the app's card.import_error.
+  const MSG = {
+    multi: "한 번에 파일 하나만 가져올 수 있어요",
+    ext: "이 파일은 가져올 수 없어요. 프리셋 파일(.yui)이나 JSON·PNG 카드를 놓아 주세요",
+    noCard: "이 파일에는 카드가 없어요"
+  };
+  const OVER = { title: "놓으면 가져와요", sub: "프리셋 파일(.yui)이나 JSON·PNG 카드 하나" };
+  const BUSY = { title: "가져오는 중이에요", sub: "끝난 뒤에 다시 놓아 주세요" };
+  const STATES = {
+    S0: "S0 대기",
+    S1: "S1 끌어서 올림",
+    S2: "S2 가져오는 중",
+    S3: "S3 가져옴 (새로 고침 뒤 페르소나)",
+    S3v: "S3v 가져옴 + 음성 실패 알림",
+    S4: "S4 거절: 파일 여러 개",
+    S5: "S5 거절: 확장자",
+    S5f: "S5f 실패: 카드 없음",
+    S6: "S6 가져오는 중에 끌어 옴 (제안)",
+    S6d: "S6d 가져오는 중에 놓음, 무시 (제안)"
+  };
+  const LBL = { A: "A 창 전체 덮개", B: "B 카드 섹션 윤곽선", E1: "E1 덮개 안에 잠깐 표시", E2: "E2 페르소나 › 카드로 이동" };
+  const ui = { variant: "A", err: "E1", page: "persona", voice: "ok" };
+  try { const saved = JSON.parse(localStorage.getItem("yui-mock-card-drop") || "{}"); for (const k of Object.keys(ui)) if (saved[k]) ui[k] = saved[k]; } catch (e) {}
+  let st = "S0";
+  let running = false;  // proposed: one import at a time, the drop and the Import… button both wait
+  let refuseTimer = 0;
+  const timers = new Set();
+  const later = (ms, fn) => { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; };
+  const reduced = () => document.documentElement.classList.contains("rm") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function caption(state, note) {
+    st = state;
+    const cap = $("cap"); cap.replaceChildren();
+    const b = (cls, text) => { const n = document.createElement("b"); n.className = cls; n.textContent = text; cap.append(n); };
+    b("st", STATES[state]); b("", LBL[ui.variant]); b("", ui.variant === "B" ? "B는 E2처럼" : LBL[ui.err]);
+    b("", ui.page === "persona" ? "페르소나 페이지" : "일반 페이지");
+    $("note").textContent = note || "";
+  }
+  const recaption = () => caption(st, $("note").textContent);
+
+  function showPage(page) {
+    ui.page = page; save();
+    $("pagePersona").hidden = page !== "persona";
+    $("pageGeneral").hidden = page !== "general";
+    for (const t of $("tabs").querySelectorAll(".yui-tab")) t.setAttribute("aria-selected", String(t.dataset.page === page));
+    setSeg("segPage", page);
+  }
+  $("tabs").addEventListener("click", (e) => { const t = e.target.closest(".yui-tab[data-page]"); if (t) { showPage(t.dataset.page); recaption(); } });
+
+  // ── drag visuals ──
+  function veilText(m) { $("veilTitle").textContent = m.title; $("veilSub").textContent = m.sub; }
+  function dragOn() {
+    clearMessage();
+    const v = $("veil");
+    if (running) {
+      if (ui.variant === "A") { veilText(BUSY); v.classList.add("is-on", "is-busy"); }
+      caption("S6", ui.variant === "A" ? "제안: 가져오는 동안 덮개는 바쁘다고 알립니다. 점선은 앰버가 아닌 Hairline strong으로 바뀌어 받지 않는다는 것을 보여 줍니다." : "제안: B에서는 가져오는 동안 윤곽선을 켜지 않습니다. 가져오기… 버튼은 비활성입니다.");
+      return;
+    }
+    if (ui.variant === "A") { veilText(OVER); v.classList.remove("is-busy"); v.classList.add("is-on"); }
+    else $("cardSec").classList.add("is-dragover");
+    caption("S1", ui.variant === "B" && ui.page !== "persona"
+      ? "B: 카드 섹션이 화면에 없어서 아무 표시도 없습니다. 창 전체가 대상인데 보이는 신호가 없는 것이 B의 약점입니다."
+      : "덮개는 --yui-dur(200ms) ease-out으로 나타나고 글자는 4px 올라옵니다. 바운스 없음.");
+  }
+  function dragOff() {
+    $("veil").classList.remove("is-on");
+    $("cardSec").classList.remove("is-dragover");
+  }
+  function clearMessage() {
+    clearTimeout(refuseTimer);
+    $("veil").classList.remove("is-refused");
+    $("cardError").hidden = true; $("cardError").textContent = "";
+  }
+
+  // ── drop: while busy the drop is ignored; otherwise count and extension decide before anything is read ──
+  function drop(names) {
+    if (running) {
+      dragOff();
+      later(200, () => $("veil").classList.remove("is-busy"));
+      caption("S6d", "제안: 드롭을 무시하고 아무것도 읽지 않습니다. 덮개는 사라지고 진행 중인 가져오기가 이어집니다.");
+      return;
+    }
+    dragOff();
+    if (names.length !== 1) return showMessage("multi", "S4", "파일을 읽지 않습니다.");
+    const ext = names[0].includes(".") ? names[0].split(".").pop().toLowerCase() : "";
+    if (!ACCEPTED.includes(ext)) return showMessage("ext", "S5", "파일을 읽지 않습니다.");
+    startImport(names[0]);
+  }
+
+  // E1: the overlay holds the line a moment on any page. E2 (and B): Persona › Card's own error line.
+  function showMessage(kind, state, tail) {
+    const text = MSG[kind];
+    if (ui.variant === "A" && ui.err === "E1") {
+      $("veilErr").textContent = text;
+      const v = $("veil"); v.classList.add("is-on", "is-refused");
+      refuseTimer = setTimeout(() => { v.classList.remove("is-on"); later(200, () => v.classList.remove("is-refused")); }, 2400);
+      caption(state, "E1: 덮개가 그 자리에서 문구로 바뀌고 2.4초 뒤 사라집니다(누르면 바로 닫힘). 문구 모양은 빠른 시작의 거절 줄(.yui-start__err)입니다. 열린 페이지는 그대로입니다. " + tail);
+    } else {
+      const moved = ui.page !== "persona";
+      showPage("persona");
+      $("cardError").textContent = text; $("cardError").hidden = false;
+      caption(state, (moved ? "E2: 창이 페르소나 › 카드로 옮겨 가고, " : "") + "카드 섹션의 오류 줄(.yui-card__io-error)에 나옵니다. 가져오기… 버튼의 실패 줄과 같은 자리입니다. " + tail);
+    }
+  }
+  $("veil").addEventListener("click", () => { if ($("veil").classList.contains("is-refused")) { clearTimeout(refuseTimer); $("veil").classList.remove("is-on", "is-refused"); } });
+
+  function setRunning(on) { running = on; $("importBtn").disabled = on; }
+  function startImport(name) {
+    setRunning(true);
+    const stem = name.replace(/\.[^.]+$/, "") || "card";
+    const ext = name.split(".").pop().toLowerCase();
+    caption("S2", `${name}을(를) 읽는 중입니다. 지금 코드에는 진행 표시가 없습니다. 제안: 같은 동안 가져오기… 버튼이 비활성이 되고, 이때 끌어 온 파일은 받지 않습니다.`);
+    later(2600, () => (stem === "empty" ? fail() : finish(stem, ext)));
+  }
+  function fail() {
+    setRunning(false);
+    showMessage("noCard", "S5f", "파일을 읽었지만 카드가 없어서 아무것도 만들지 않았습니다.");
+  }
+
+  // The new preset activates and every unbound window reloads into it; the reloaded settings window opens on Persona.
+  function finish(stem, ext) {
+    const apply = () => {
+      setRunning(false); clearMessage();
+      for (const c of $("presets").querySelectorAll(".mock-preset")) c.classList.remove("on", "new");
+      const chip = document.createElement("span"); chip.className = "mock-preset on new";
+      const face = document.createElement("span"); face.className = "face"; face.style.background = "oklch(0.5 0.09 150)";
+      chip.append(face, stem); $("presets").append(chip);
+      $("nameFld").textContent = stem; $("scopeLine").textContent = `${stem}에만 적용`;
+      const from = ui.page;
+      showPage("persona");
+      const voiceFailed = ext === "yui" && ui.voice === "fail";
+      $("cardNotice").hidden = !voiceFailed;
+      let n = `새 프리셋 ${stem}이(가) 켜지고 창이 새로 고쳐져 페르소나 페이지에서 열립니다(가져오기… 버튼과 같음).`;
+      if (from !== "persona") n += " 일반 페이지에서 놓았어도 새로 고친 창은 페르소나에서 열립니다.";
+      n += voiceFailed ? " 음성을 등록하지 못해 카드 섹션에 일회성 알림이 한 번 나옵니다." : " 성공 알림은 따로 없습니다. 위쪽 캐릭터 줄의 새 프리셋이 결과입니다.";
+      caption(voiceFailed ? "S3v" : "S3", n);
+    };
+    if (reduced()) { apply(); return; }
+    $("win").classList.add("is-reloading");
+    later(120, () => { apply(); $("win").classList.remove("is-reloading"); });
+  }
+
+  // ── demo buttons: a drop always follows a drag ──
+  const playDrop = (names) => { dragOn(); later(700, () => drop(names)); };
+  $("bEnter").addEventListener("click", dragOn);
+  $("bLeave").addEventListener("click", () => {
+    dragOff(); later(200, () => $("veil").classList.remove("is-busy"));
+    caption(running ? "S2" : "S0", running ? "덮개만 사라지고 진행 중인 가져오기는 이어집니다." : "덮개가 같은 곡선으로 사라집니다. 아무것도 읽지 않았습니다.");
+  });
+  $("bYui").addEventListener("click", () => playDrop(["Mio.yui"]));
+  $("bTwo").addEventListener("click", () => playDrop(["Mio.yui", "Rin.png"]));
+  $("bTxt").addEventListener("click", () => playDrop(["notes.txt"]));
+  $("bEmpty").addEventListener("click", () => playDrop(["empty.json"]));
+  $("bBusy").addEventListener("click", () => {
+    if (running) { playDrop(["Rin.png"]); return; }
+    dragOn(); later(500, () => drop(["Mio.yui"]));
+    later(1300, () => { dragOn(); later(900, () => drop(["Rin.png"])); });
+  });
+  $("bReset").addEventListener("click", () => {
+    for (const id of timers) clearTimeout(id); timers.clear();
+    setRunning(false); dragOff(); clearMessage(); $("veil").classList.remove("is-busy");
+    $("presets").querySelectorAll(".mock-preset").forEach((c, i) => { if (i > 1) c.remove(); else c.classList.toggle("on", i === 0); });
+    $("nameFld").textContent = "Yui"; $("scopeLine").textContent = "Yui에만 적용";
+    $("cardNotice").hidden = true;
+    caption("S0", "");
+  });
+
+  // ── a real file dragged from the desktop maps to the same states ──
+  let depth = 0;
+  const hasFiles = (e) => Array.from(e.dataTransfer ? e.dataTransfer.types : []).includes("Files");
+  document.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (depth++ === 0) dragOn(); });
+  document.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; if (--depth <= 0) { depth = 0; dragOff(); caption(running ? "S2" : "S0", ""); } });
+  document.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; drop(Array.from(e.dataTransfer.files).map((f) => f.name)); });
+
+  // ── toggles ──
+  function setSeg(id, v) { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
+  function save() { try { localStorage.setItem("yui-mock-card-drop", JSON.stringify(ui)); } catch (e) {} }
+  function bind(id, key, after) {
+    setSeg(id, ui[key]);
+    $(id).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ui[key] = b.dataset.v; setSeg(id, b.dataset.v); save(); if (after) after(); renderPicks(); recaption(); });
+  }
+  bind("segVariant", "variant", () => { dragOff(); clearMessage(); });
+  bind("segErr", "err");
+  bind("segVoice", "voice");
+  $("segPage").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { showPage(b.dataset.v); recaption(); } });
+  $("segTheme").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("segTheme", b.dataset.v); if (b.dataset.v === "hearth") document.documentElement.setAttribute("data-theme", "hearth"); else document.documentElement.removeAttribute("data-theme"); });
+  try { if (matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.setAttribute("data-theme", "hearth"); setSeg("segTheme", "hearth"); } } catch (e) {}
+  $("segRm").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("segRm", b.dataset.v); document.documentElement.classList.toggle("rm", b.dataset.v === "on"); });
+
+  const answer = () => `끄는 동안: ${LBL[ui.variant]}\n다른 페이지에서 거절·실패: ${LBL[ui.err]}`;
+  function renderPicks() { const h = $("picks"); h.replaceChildren(); for (const k of ["variant", "err"]) { const s = document.createElement("span"); s.textContent = LBL[ui[k]]; h.append(s); } }
+  $("copy").addEventListener("click", () => { const t = answer(); try { navigator.clipboard.writeText(t).then(() => { $("status").textContent = "복사했습니다."; }, () => { $("status").textContent = t.replace(/\n/g, " · "); }); } catch (e) { $("status").textContent = t.replace(/\n/g, " · "); } });
+
+  showPage(ui.page); renderPicks(); caption("S0", "");
+})();
+</script>
+</body>
+</html>

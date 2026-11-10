@@ -9,6 +9,7 @@ A card holds her persona: her name, who she is, how she talks, and how a convers
 1. **Import…** on the Persona page reads a [preset file](#preset-file) (`.yui`), a JSON card (`chara_card_v2`, `chara_card_v3`, or V1), or a PNG card from a SillyTavern-compatible tool. A Character.AI character needs a converter first.
     - The new preset takes the card's name, with a number added when that name is taken. It becomes the active preset and gets the card as its own card, with **Send card** on.
     - A PNG card's image becomes the preset's photo, framed on its top square. The photo button reframes it, and removing the preset deletes the file.
+    - The same files can be dropped onto the settings window on any page, one at a time. A refused or failed drop shows its reason in the window.
 2. Edit any field below.
     - An empty field sends nothing. Name renames the preset too.
     - **Advanced** reveals Example dialogue, System prompt, and Post-history instructions.
