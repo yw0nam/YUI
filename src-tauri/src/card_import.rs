@@ -294,6 +294,11 @@ pub async fn import_card_file(
     .map(Some)
 }
 
+/// The one dropped card file, refused unless it is a single `.json`, `.png` or `.yui` file.
+fn check_dropped_card(_paths: &[PathBuf]) -> Result<&Path, String> {
+    Err(String::new())
+}
+
 /// Move a PNG card's temp thumbnail to the importing preset's id, returning the dest path.
 #[command]
 pub fn retain_card_thumbnail(
@@ -414,6 +419,22 @@ mod tests {
             card_json_from_png(&png).unwrap_err(),
             "card unreadable".to_string()
         );
+    }
+
+    #[test]
+    fn a_dropped_card_is_one_json_png_or_yui_file() {
+        let one = [PathBuf::from("a/Mio.YUI")];
+        assert_eq!(check_dropped_card(&one), Ok(Path::new("a/Mio.YUI")));
+        for (paths, err) in [
+            (vec![], "no dropped file"),
+            (
+                vec![PathBuf::from("a.png"), PathBuf::from("b.png")],
+                "multiple files",
+            ),
+            (vec![PathBuf::from("notes.txt")], "unsupported file"),
+        ] {
+            assert_eq!(check_dropped_card(&paths), Err(err.to_string()));
+        }
     }
 
     #[test]
