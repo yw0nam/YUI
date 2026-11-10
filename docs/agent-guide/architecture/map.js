@@ -1145,7 +1145,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression, and releases it on any other end.",
+      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression unless a newer reaction for the Thread is held, and releases it on any other end.",
       "paths": [
         "src/ambient/threads-reaction"
       ]

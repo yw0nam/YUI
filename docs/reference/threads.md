@@ -215,7 +215,9 @@ Thread turns run in main's pet window only. Threads reach the client only while 
 
 A buffered `thread.ask` group is dropped when its ask closes before delivery: the Thread shows no open ask, or the Thread is gone. A newer ask replaces the group instead, and a `thread.failed` group for the same Thread stays.
 
-While a [Thread reaction](#thread-reactions) for the Thread is held or running, its group stays in the batch buffer, and no catch-up, timer firing or drain carries it. When the reaction finishes, the group leaves at once as its own `signals.batch` turn, so the line, the sit and the speech play in that order.
+While a [Thread reaction](#thread-reactions) for the Thread is held or running, its group stays in the batch buffer, and no catch-up, timer firing or drain carries it. The five-group cap of the batch buffer can still push it out.
+
+When the reaction finishes, the group leaves at once as its own `signals.batch` turn, so the line, the sit and the speech play in that order. When a newer reaction for the same Thread is held, the finished one leaves the group to it.
 
 That turn waits for neither presence nor the proactive gap. When signals are off, or the bus refuses the turn, the group stays buffered for normal delivery. A reaction that ends any other way, or that the switch drops, returns the group to normal delivery.
 
