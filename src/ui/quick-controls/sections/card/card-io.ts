@@ -28,7 +28,7 @@ export interface CardIoPorts {
   /** Runs the whole card import through preset creation; null when the picker was dismissed. */
   importPreset: () => Promise<{ presetId: string } | null | "busy">;
   /** Runs the whole import of one dropped file through preset creation. */
-  importDroppedPreset: () => Promise<{ presetId: string } | "busy">;
+  importDroppedPreset: () => Promise<{ presetId: string } | null | "busy">;
   /** Whether this window's one card import is running, and its changes. */
   importBusy: { isBusy(): boolean; subscribe(listener: () => void): () => void };
   /** Opens the `.yui` save dialog; "cancelled" when dismissed. */
@@ -184,7 +184,8 @@ export function createCardIo(deps: {
 
     isImporting: () => importBusy.isBusy(),
 
-    importDropped: () => runImport(deps.ports.importDroppedPreset),
+    // A dropped file has no picker to dismiss, so a null result is a failure.
+    importDropped: async () => (await runImport(deps.ports.importDroppedPreset)) ?? "failed",
 
     dispose: unsubscribeBusy,
 

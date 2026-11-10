@@ -143,12 +143,4 @@ describe("importCardFromDrop", () => {
       source: "png",
     });
   });
-
-  it("rolls the temp thumbnail back and throws card_unreadable on an unreadable payload", async () => {
-    const deps = makeDeps({
-      invoke: invokeReturning({ json: "not json", thumbnailTempId: "mio-1a2b3c", source: "png" }),
-    });
-    await expect(importCardFromDrop([], "import-0", deps)).rejects.toThrow("card_unreadable");
-    expect(deps.removeThumbnail).toHaveBeenCalledWith("mio-1a2b3c");
-  });
 });

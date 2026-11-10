@@ -64,8 +64,10 @@ export function createCardDrop(deps: {
       deps.log.warn("card_drop_refused", { reason: "multi" });
       return refuse("card.drop_multi");
     }
-    const name = paths[0]!;
-    const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
+    // As Rust's `Path::extension`: a file name whose only dot leads it has no extension.
+    const name = paths[0]!.split(/[\\/]/).pop()!;
+    const dot = name.lastIndexOf(".");
+    const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
     if (!CARD_EXTENSIONS.has(ext)) {
       deps.log.warn("card_drop_refused", { reason: "extension" });
       return refuse("card.drop_extension");
@@ -89,7 +91,10 @@ export function createCardDrop(deps: {
   }
 
   el.addEventListener("click", hide);
-  const unlisten = deps.subscribe(onEvent);
+  const unlisten = deps.subscribe(onEvent).catch((err: unknown) => {
+    deps.log.warn("file_drop_listen_failed", { error: String(err) });
+    return () => {};
+  });
 
   return {
     dispose(): void {

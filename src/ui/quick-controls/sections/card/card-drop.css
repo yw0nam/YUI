@@ -45,7 +45,7 @@
 }
 
 .yui-card-drop__msg,
-.yui-card-drop .yui-card-drop__err {
+.yui-card-drop__err {
   grid-area: 1 / 1;
   transition: opacity var(--yui-dur-fast) var(--yui-ease);
 }
@@ -80,9 +80,26 @@
   color: var(--yui-text-mute);
 }
 
-.yui-card-drop .yui-card-drop__err {
+.yui-card-drop__err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
   max-width: 22rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-danger-faint);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text);
   opacity: 0;
+}
+
+.yui-card-drop__err svg {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.08rem;
+  color: var(--yui-danger);
 }
 
 .yui-card-drop.is-refused .yui-card-drop__msg {
@@ -93,9 +110,10 @@
   opacity: 1;
 }
 
+/* Under reduced motion only the opacity changes. */
 @media (prefers-reduced-motion: reduce) {
-  .yui-card-drop__frame,
-  .yui-card-drop.is-on .yui-card-drop__frame {
+  .yui-card-drop__frame {
     transform: none;
+    transition: none;
   }
 }

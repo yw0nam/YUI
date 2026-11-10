@@ -27,6 +27,9 @@ pub(crate) const MAX_PNG_BYTES: u64 = 32 * 1024 * 1024;
 
 pub(crate) const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 
+/// The card file extensions the picker offers and a dropped file must have.
+const CARD_EXTENSIONS: &[&str] = &["json", "png", "yui"];
+
 /// Longest edge, in px, of a JPEG photo re-encoded as a preset's thumbnail.
 const PHOTO_EDGE: u32 = 512;
 
@@ -297,7 +300,7 @@ pub async fn import_card_file(
     let Some(src_path) = app
         .dialog()
         .file()
-        .add_filter("Card", &["json", "png", "yui"])
+        .add_filter("Card", CARD_EXTENSIONS)
         .blocking_pick_file()
     else {
         return Ok(None);
@@ -307,20 +310,25 @@ pub async fn import_card_file(
         .map(Some)
 }
 
-/// The one dropped card file, refused unless it is a single `.json`, `.png` or `.yui` file.
+/// The one dropped card file, refused (and the refusal logged) unless it is a single file with
+/// one of `CARD_EXTENSIONS`.
 fn check_dropped_card(paths: &[PathBuf]) -> Result<&Path, String> {
+    let refuse = |reason: &str, error: &str| {
+        log::warn!("card_drop_refused reason={reason}");
+        Err(error.to_string())
+    };
     let path = match paths {
-        [] => return Err("no dropped file".to_string()),
+        [] => return refuse("none", "no dropped file"),
         [path] => path,
-        _ => return Err("multiple files".to_string()),
+        _ => return refuse("multi", "multiple files"),
     };
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase());
-    match ext.as_deref() {
-        Some("json" | "png" | "yui") => Ok(path),
-        _ => Err("unsupported file".to_string()),
+    match ext {
+        Some(e) if CARD_EXTENSIONS.contains(&e.as_str()) => Ok(path),
+        _ => refuse("extension", "unsupported file"),
     }
 }
 
@@ -334,10 +342,7 @@ pub async fn import_dropped_card(
     voice_staging_id: String,
 ) -> Result<ImportedCardFile, String> {
     let paths = app.state::<DroppedFiles>().take(window.label());
-    let path = check_dropped_card(&paths).map_err(|e| {
-        log::warn!("card_drop_refused reason={e}");
-        e
-    })?;
+    let path = check_dropped_card(&paths)?;
     import_card_at(
         app,
         FilePath::from(path.to_path_buf()),

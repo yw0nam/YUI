@@ -41,7 +41,7 @@ export interface WireCardIoDeps {
 
 export function wireCardIo(deps: WireCardIoDeps): CardIoPorts {
   const { registry, vrmSelection, gate } = deps;
-  const shared: Omit<ImportPresetDeps, "importCard"> = {
+  const importDeps: Omit<ImportPresetDeps, "importCard"> = {
     registerCopiedVoice: deps.registerCopiedVoice,
     removeUserVrm,
     vrmSelection,
@@ -72,14 +72,10 @@ export function wireCardIo(deps: WireCardIoDeps): CardIoPorts {
     },
   };
   return {
-    importPreset: () => gate.run(() => importPreset({ ...shared, importCard: importCardFromFile })),
+    importPreset: () =>
+      gate.run(() => importPreset({ ...importDeps, importCard: importCardFromFile })),
     importDroppedPreset: () =>
-      gate.run(async () => {
-        const imported = await importPreset({ ...shared, importCard: importCardFromDrop });
-        // A dropped file has no picker to dismiss, so no import ends without a result.
-        if (!imported) throw new Error("import failed");
-        return imported;
-      }),
+      gate.run(() => importPreset({ ...importDeps, importCard: importCardFromDrop })),
     importBusy: gate,
     exportPresetFile: (request) => exportPresetFile(request),
     exportCardPng: (defaultName, cardJson, presetId) =>
