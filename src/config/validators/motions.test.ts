@@ -310,6 +310,17 @@ describe("validateMotions — root_lock_y", () => {
   });
 });
 
+describe("validateMotions — grounded", () => {
+  it("passes grounded through", () => {
+    const out = validateMotions(FILE, { idle: baseEntry({ grounded: true }) });
+    expect(out.idle.grounded).toBe(true);
+  });
+
+  it("rejects a non-boolean grounded", () => {
+    expectIssue({ idle: baseEntry({ grounded: "true" }) }, "idle.grounded must be a boolean");
+  });
+});
+
 describe("validateMotions — root_keep_xz", () => {
   it("passes root_keep_xz through", () => {
     const out = validateMotions(FILE, { idle: baseEntry({ root_keep_xz: true }) });

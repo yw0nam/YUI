@@ -9,7 +9,18 @@ import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../logger";
-import { createPinController } from "./pin-controller";
+import { createGrounding } from "./motion/grounding/grounding";
+import { createPinController, type PinController } from "./pin-controller";
+
+/** One frame of the pins, then the grounding's scene-Y write at grounding weight 0. */
+function stepPins(pins: PinController, camera: THREE.PerspectiveCamera, scene: THREE.Object3D) {
+  pins.step(camera);
+  createGrounding({
+    groundedWeight: () => 0,
+    perchOffsetY: () => pins.perchOffsetY(),
+    log: { debug: vi.fn() },
+  }).step({ vrm: { scene } as unknown as VRM, dt: 0, elapsed: 0 });
+}
 
 function createFixture() {
   const hips = new THREE.Object3D();
@@ -93,21 +104,21 @@ describe("createPinController — state and conflicts", () => {
   it("updates active numeric targets even when the state does not change", () => {
     const { camera, pins, scene } = createFixture();
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    pins.step(camera);
+    stepPins(pins, camera, scene);
     const firstY = scene.position.y;
 
     expect(pins.setPerchTarget({ edgeLocalYpx: 90 })).toBe(false);
-    pins.step(camera);
+    stepPins(pins, camera, scene);
 
     expect(scene.position.y).toBeLessThan(firstY);
 
     pins.setPerchTarget(null);
     pins.setPeekTarget({ targetXpx: 10 });
-    pins.step(camera);
+    stepPins(pins, camera, scene);
     const firstX = scene.position.x;
 
     expect(pins.setPeekTarget({ targetXpx: 90 })).toBe(false);
-    pins.step(camera);
+    stepPins(pins, camera, scene);
 
     expect(scene.position.x).toBeGreaterThan(firstX);
   });
@@ -115,33 +126,33 @@ describe("createPinController — state and conflicts", () => {
 
 describe("createPinController — stepping", () => {
   it("tracks convergence while either pin approaches its target", () => {
-    const { camera, pins } = createFixture();
+    const { camera, pins, scene } = createFixture();
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    pins.step(camera);
+    stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(true);
 
-    for (let i = 0; i < 20; i += 1) pins.step(camera);
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(false);
 
     pins.setPerchTarget(null);
     pins.setPeekTarget({ targetXpx: 90 });
-    pins.step(camera);
+    stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(true);
 
-    for (let i = 0; i < 20; i += 1) pins.step(camera);
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(false);
   });
 
-  it("writes perch and peek offsets to the owned scene-position channels", () => {
+  it("converges the perch offset and writes the peek offset to scene x/z", () => {
     const { camera, pins, scene } = createFixture();
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    for (let i = 0; i < 20; i += 1) pins.step(camera);
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(false);
     expect(scene.position.y).toBeGreaterThan(0);
 
     pins.setPerchTarget(null);
     pins.setPeekTarget({ targetXpx: 90 });
-    for (let i = 0; i < 20; i += 1) pins.step(camera);
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
     expect(pins.isConverging()).toBe(false);
     expect(scene.position.x).toBeGreaterThan(0);
     expect(scene.position.z).toBeCloseTo(0);
@@ -198,7 +209,7 @@ describe("createPinController — lifecycle", () => {
   it("preserves the perch target but clears offsets, peek state, and cached refs on dispose", () => {
     const { camera, pins, scene } = createFixture();
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    pins.step(camera);
+    stepPins(pins, camera, scene);
     scene.position.x = 3;
     scene.position.z = 4;
     const pinnedY = scene.position.y;
@@ -219,12 +230,12 @@ describe("createPinController — lifecycle", () => {
     } as unknown as VRM;
     pins.onVrmLoaded(nextVrm);
     nextScene.updateWorldMatrix(true, true);
-    pins.step(camera);
+    stepPins(pins, camera, nextScene);
     expect(nextScene.position.y).toBeCloseTo(pinnedY);
 
     pins.setPerchTarget(null);
     pins.setPeekTarget({ targetXpx: 90 });
-    pins.step(camera);
+    stepPins(pins, camera, nextScene);
     const peekFirstX = nextScene.position.x;
     expect(pins.isPeeking()).toBe(true);
     expect(pins.isConverging()).toBe(true);
@@ -245,7 +256,7 @@ describe("createPinController — lifecycle", () => {
     } as unknown as VRM);
     finalScene.updateWorldMatrix(true, true);
     pins.setPeekTarget({ targetXpx: 90 });
-    pins.step(camera);
+    stepPins(pins, camera, finalScene);
     expect(finalScene.position.x).toBeCloseTo(peekFirstX);
   });
 });

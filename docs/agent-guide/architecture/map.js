@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "renderer/motion",
       "module": "renderer",
       "label": "motion",
-      "role": "Clip cache, motion scheduling and playback, holds, and root yaw.",
+      "role": "Clip cache, motion scheduling and playback, holds, root yaw, and sole grounding.",
       "paths": [
         "src/renderer/motion"
       ]
@@ -2113,7 +2113,7 @@ globalThis.YUI_MAP =
       "id": "renderer-motion",
       "from": "renderer",
       "to": "renderer/motion",
-      "carries": "playMotion, setIdleVariants, setBodyYaw",
+      "carries": "playMotion, setIdleVariants, setBodyYaw, grounding participant (reads perchOffsetY)",
       "kind": "call",
       "transport": "shared"
     },

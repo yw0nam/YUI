@@ -33,6 +33,8 @@ export interface MotionPlayback extends VrmParticipant {
   currentTime(): number | null;
   setRegistry(registry: MotionRegistry): void;
   setIdleVariants(paths: readonly string[]): void;
+  /** Share of the pose (0..1) coming from grounded actions — follows the crossfade. */
+  groundedWeight(): number;
 }
 
 export function createMotionPlayback(deps: {
@@ -69,6 +71,8 @@ export function createMotionPlayback(deps: {
   let lastStateMotionId: string | null = null;
   /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
   const actionToId = new Map<THREE.AnimationAction, string>();
+  /** Whether each started action plays a grounded motion. */
+  const actionGrounded = new Map<THREE.AnimationAction, boolean>();
   const motionStartGeneration = createMotionStartGeneration();
   /** Scheduler for dwell (settling frame hold) before cycle motion variant swap — startMotion is cancel chokepoint. */
   const cycleDwell = createCycleDwell();
@@ -122,6 +126,7 @@ export function createMotionPlayback(deps: {
       clip = deps.clips.playbackClip(clip, prev ? prev.getClip() : null, fadeMs);
 
       const action = mixer.clipAction(clip);
+      actionGrounded.set(action, motion.grounded);
       action.timeScale = motion.speed;
       if (motion.loop && !motion.cycle) {
         // plain loop or single-variant pingpong (continuous).
@@ -255,6 +260,7 @@ export function createMotionPlayback(deps: {
         mixer = undefined;
       }
       actionToId.clear();
+      actionGrounded.clear();
       currentAction = undefined;
       currentActionId = undefined;
       // Controller has no simple no-op reset, so recreate to empty current/queue.
@@ -288,5 +294,18 @@ export function createMotionPlayback(deps: {
     },
     setRegistry,
     setIdleVariants,
+    groundedWeight() {
+      let grounded = 0;
+      let all = 0;
+      actionGrounded.forEach((isGrounded, action) => {
+        // A stopped action keeps its last weight; only scheduled ones contribute to the pose.
+        if (!action.enabled || !action.isScheduled()) return;
+        const w = action.getEffectiveWeight();
+        all += w;
+        if (isGrounded) grounded += w;
+      });
+      // The mixer normalises only when the weights sum above 1.
+      return grounded / Math.max(1, all);
+    },
   };
 }

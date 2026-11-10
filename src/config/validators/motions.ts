@@ -103,6 +103,16 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         root_keep_xz = rawRootKeepXz;
       }
     }
+    // grounded: keep the lowest sole on the floor while the motion plays.
+    const rawGrounded = entry.grounded;
+    let grounded: boolean | undefined;
+    if (rawGrounded !== undefined) {
+      if (typeof rawGrounded !== "boolean") {
+        issues.push(`${id}.grounded must be a boolean`);
+      } else {
+        grounded = rawGrounded;
+      }
+    }
     // cycle_dwell_ms: ms to hold the settled frame before a cycle motion swaps to the next variant.
     const rawCycleDwell = entry.cycle_dwell_ms;
     let cycle_dwell_ms: number | undefined;
@@ -197,6 +207,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       ...(broker_publish !== undefined ? { broker_publish } : {}),
       ...(root_lock_y !== undefined ? { root_lock_y } : {}),
       ...(root_keep_xz !== undefined ? { root_keep_xz } : {}),
+      ...(grounded !== undefined ? { grounded } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
       priority: entry.priority as number,

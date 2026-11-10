@@ -311,6 +311,18 @@ The flag rides in the clip-cache key, so two entries sharing one `.vrma` can dis
 
 `root_keep_xz` defaults to `false`. The loader leaves the clip's hips X/Z where the clip authored them, for a clip whose horizontal travel is part of its authored motion. It rides in the clip-cache key like `root_lock_y`, and is combinable with `root_lock_y`.
 
+### Grounding
+
+`grounded` defaults to `false`. While a `true` entry plays, the renderer moves the whole model up or down so its lowest sole sits on the floor: it lifts a sole that sinks and lowers one that floats.
+
+A sole is a skinned vertex whose strongest skin weight is on `leftFoot`, `rightFoot`, `leftToes` or `rightToes`, or on a non-humanoid bone under one of them. A skirt or a spring chain hung from a leg is never a sole. The renderer reads the sole points from each VRM once, at load, in its rest pose.
+
+No smoothing filter runs while a grounded motion plays. When the playing motion changes between grounded and not grounded, the applied share of the offset follows the mixer's crossfade over the incoming motion's `fade_ms`. A motion that is not grounded keeps the scene height the perch gives it.
+
+The grounded entries are `idle`, `idle_lively`, `head_pat`, `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`, `thinking`, `walk`, `sulk` and `dance`.
+
+The clips sink without it because `createVRMAnimationClip` scales only the hips translation to the model and copies the leg rotations as authored. A model whose leg length or sole height differs from the clip's source rig sinks or floats.
+
 ### Missing-clip fallback
 
 Any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM, for example a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle`, so the failed id never pins controller state or blocks a later idle by priority.

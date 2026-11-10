@@ -58,6 +58,8 @@ export interface ResolvedMotion {
   root_lock_y: boolean;
   /** Keep the clip's horizontal hips translation instead of mean-centring it. */
   root_keep_xz: boolean;
+  /** Keep the lowest sole on the floor while this motion plays. */
+  grounded: boolean;
 }
 
 type MotionDecision =
@@ -271,6 +273,7 @@ export function createMotionController(
       interrupt_policy: entry.interrupt_policy,
       root_lock_y: !!entry.root_lock_y,
       root_keep_xz: !!entry.root_keep_xz,
+      grounded: !!entry.grounded,
     };
   }
 

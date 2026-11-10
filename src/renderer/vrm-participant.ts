@@ -1,6 +1,6 @@
 /**
  * VrmParticipant — the shared per-frame lifecycle every VRM-bound sub-controller
- * (perch/peek pins, cursor gaze, emotion crossfade, mouth lipsync) implements, so
+ * (perch/peek pins, sole grounding, cursor gaze, emotion crossfade, mouth lipsync) implements, so
  * animate()/loadVRM/disposeCurrent/the frame gate hand-sequence one fixed-order
  * array instead of mismatched vocabularies (onVrmLoaded/onVrmDisposed/reset;
  * step; isConverging/isFading/openValue).
@@ -62,9 +62,11 @@ export function anyConverging(participants: readonly VrmParticipant[]): boolean 
   return false;
 }
 
-/** The four sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
+/** The sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
 interface VrmParticipantSubControllers {
   pins: PinController;
+  /** Writes vrm.scene.position.y from the perch offset pins have just updated. */
+  grounding: VrmParticipant;
   gaze: CursorGaze;
   emotion: EmotionCrossfade;
   mouth: MouthLipsync;
@@ -73,14 +75,14 @@ interface VrmParticipantSubControllers {
 }
 
 /**
- * Build the fixed-order VrmParticipant array — pins/gaze (bones) before
- * emotion/mouth (expression weights): pins.step → gaze.step →
+ * Build the fixed-order VrmParticipant array — pins/grounding/gaze (scene and bones) before
+ * emotion/mouth (expression weights): pins.step → grounding.step → gaze.step →
  * emotion.step → mouth.step, all before vrm.update. Each sub-controller's methods are closures
  * (no `this`), so referencing them unbound (`pins.onVrmLoaded` rather than
  * `(v) => pins.onVrmLoaded(v)`) is safe.
  */
 export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmParticipant[] {
-  const { pins, gaze, emotion, mouth, camera } = deps;
+  const { pins, grounding, gaze, emotion, mouth, camera } = deps;
 
   const pinsParticipant: VrmParticipant = {
     onVrmLoaded: pins.onVrmLoaded,
@@ -107,5 +109,5 @@ export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmPar
     isConverging: () => isMouthConverging(mouth.openValue()),
   };
 
-  return [pinsParticipant, gazeParticipant, emotionParticipant, mouthParticipant];
+  return [pinsParticipant, grounding, gazeParticipant, emotionParticipant, mouthParticipant];
 }

@@ -27,7 +27,7 @@ export interface PinController {
   onVrmLoaded(vrm: VRM): void;
   /**
    * Drop the cached VRM/hips refs, clear pin offsets and convergence, clear the
-   * peek target, and restore scene x/z while preserving the perch target and y.
+   * peek target, and restore scene x/z while preserving the perch target.
    */
   onVrmDisposed(): void;
   /** Cached hips bone — shared with the probe/tap projections. Null when unloaded. */
@@ -42,6 +42,8 @@ export interface PinController {
   isConverging(): boolean;
   /** One frame of both pins — no-op without an adopted VRM, hips bone, or target. */
   step(camera: THREE.PerspectiveCamera): void;
+  /** World-Y offset the perch pin wants on vrm.scene; 0 when not perched. */
+  perchOffsetY(): number;
 }
 
 export function createPinController(deps: {
@@ -56,8 +58,7 @@ export function createPinController(deps: {
   // ── Window-sit perch state ──────────────────────────────────────────────────
   // Active target's top-edge in pet-window-local px (null = not perched).
   let perchTargetYpx: number | null = null;
-  // Dedicated additive vertical offset we fully own — never clobbers root-motion
-  // recentering. Applied onto vrm.scene.position.y after the mixer writes each frame.
+  // Vertical offset the perch wants on vrm.scene; the grounding writes it into scene.position.y.
   let perchOffsetY = 0;
   // Cached hips bone for the per-frame pin (refreshed on load; no per-frame lookup).
   let perchHipsBone: THREE.Object3D | null = null;
@@ -81,11 +82,10 @@ export function createPinController(deps: {
   /**
    * One frame of seat-pin alignment — called after mixer.update, before vrm.update.
    * Projects the live hips (+SEAT_DROP) seat to px, measures how far it is from the
-   * target edge in world-Y, and steps a dedicated additive vertical offset toward it.
+   * target edge in world-Y, and steps the perch offset toward it.
    *
-   * The VRMA clip animates the hips *bone*, never vrm.scene.position — so scene.position.y
-   * is a channel we fully own (no clobbering root recentering). We set it absolutely from
-   * the accumulated offset. Proportional step (PERCH_PIN_RATE) ⇒ converges in ~1-2 frames
+   * The seat is read from the scene as last written, so the loop closes through whatever
+   * writes scene.position.y. Proportional step (PERCH_PIN_RATE) ⇒ converges in ~1-2 frames
    * and re-pins for free across window_sit variant swaps (each new pose's seat re-aligns).
    * No-op when unset.
    */
@@ -109,7 +109,6 @@ export function createPinController(deps: {
       perchConverging = Math.abs(delta) > wpp;
       // Proportional step toward the target offset (converges in a couple frames).
       perchOffsetY += delta * PERCH_PIN_RATE;
-      currentVrm.scene.position.y = perchOffsetY;
     } catch (err) {
       log.error("step_perch", { error: String(err) });
     }
@@ -168,7 +167,6 @@ export function createPinController(deps: {
         perchTargetYpx = null;
         perchOffsetY = 0;
         perchConverging = false;
-        if (currentVrm) currentVrm.scene.position.y = 0; // restore baseline.
         return wasPerched;
       }
       if (peekTarget !== null) {
@@ -209,6 +207,9 @@ export function createPinController(deps: {
     step(camera) {
       stepPerch(camera);
       stepPeek(camera);
+    },
+    perchOffsetY() {
+      return perchOffsetY;
     },
   };
 }

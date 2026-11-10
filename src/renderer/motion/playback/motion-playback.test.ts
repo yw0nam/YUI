@@ -16,6 +16,7 @@ const registry: MotionRegistry = {
     priority: 0,
     interrupt_policy: "replace",
     fade_ms: 0,
+    grounded: true,
   },
   wave: {
     vrma_path: WAVE_PATH,
@@ -24,6 +25,23 @@ const registry: MotionRegistry = {
     priority: 70,
     interrupt_policy: "replace",
     fade_ms: 0,
+  },
+  sit: {
+    vrma_path: "/motions/sit.vrma",
+    kind: "oneshot",
+    loop: false,
+    priority: 70,
+    interrupt_policy: "replace",
+    fade_ms: 200,
+  },
+  nod: {
+    vrma_path: "/motions/nod.vrma",
+    kind: "oneshot",
+    loop: false,
+    priority: 80,
+    interrupt_policy: "replace",
+    fade_ms: 200,
+    grounded: true,
   },
 };
 
@@ -90,5 +108,34 @@ describe("createMotionPlayback", () => {
       "motion_fallback_to_idle",
       expect.objectContaining({ failed_id: "wave" }),
     );
+  });
+});
+
+describe("groundedWeight", () => {
+  // idle is grounded (no fade), sit is not (200 ms fade), nod is grounded (200 ms fade), wave is not (no fade).
+  it.each([
+    ["a grounded motion at rest", [0.1], [1]],
+    [
+      "a 200 ms fade to an ungrounded motion, mid-fade and past its end",
+      ["sit", 0.1, 0.15],
+      [0.5, 0],
+    ],
+    ["a grounded motion interrupting that fade 50 ms in", ["sit", 0.05, "nod", 0.05], [0.75, 0.5]],
+    ["a zero-fade switch to an ungrounded motion", [0.1, "wave", 0.1], [1, 0]],
+  ] as const)("follows the crossfade: %s", async (_title, steps, expected) => {
+    const { motion, vrm } = makePlayback();
+    motion.onVrmLoaded(vrm);
+    await flush();
+    const weights: number[] = [];
+    for (const s of steps) {
+      if (typeof s === "string") {
+        motion.playMotion({ id: s });
+        await flush();
+      } else {
+        motion.step({ dt: s });
+        weights.push(Math.round(motion.groundedWeight() * 1e6) / 1e6);
+      }
+    }
+    expect(weights).toEqual(expected);
   });
 });
