@@ -46,6 +46,8 @@ def question_ask(ask_id: str, question: dict) -> dict:
 
 
 def answer_value(question: dict, answer: dict) -> str | None:
+    if answer.get("release"):
+        return None
     choices = answer.get("choices")
     picked = [answer.get("choice"), *(choices if isinstance(choices, list) else [])]
     parts = [o["label"] for i, o in enumerate(question["options"]) if f"o{i}" in picked]
