@@ -5,6 +5,11 @@ import { oneLine } from "../../../io/chat/one-line";
 import { LAST_CUT } from "../../../io/chat/tools/threads/thread-text";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 
+export const THREAD_ASK = "thread.ask";
+
+/** The signal `event_id` of a Thread's group. */
+export const threadEventId = (threadId: string): string => `thread:${threadId}`;
+
 type Seen = {
   askIds: Set<string>;
   openAskId?: string;
@@ -14,7 +19,7 @@ type Seen = {
 
 function eventType(thread: Thread, seen: Seen, level: ThreadTurnsLevel): string | undefined {
   if (level === "notable") {
-    if (thread.ask && !seen.askIds.has(thread.ask.ask_id)) return "thread.ask";
+    if (thread.ask && !seen.askIds.has(thread.ask.ask_id)) return THREAD_ASK;
     if (thread.state === "failed" && seen.state !== "failed") return "thread.failed";
   }
   if (level === "every") {
@@ -40,7 +45,7 @@ function groupOf(thread: Thread, event_type: string): SignalGroup {
       source: thread.source,
       event_type,
       delivery: "batched",
-      event_id: `thread:${thread.id}`,
+      event_id: threadEventId(thread.id),
       occurred_at: thread.updated_at,
       label: thread.title,
     },

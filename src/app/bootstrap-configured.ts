@@ -9,6 +9,7 @@ import type { Dispatcher } from "../dispatcher/dispatcher";
 import { createAddressedProducer } from "../dispatcher/sources/addressed/addressed-producer";
 import type { SignalsSource } from "../dispatcher/sources/inbox/signals-source";
 import { createUserTurnDone } from "../dispatcher/sources/routed/user-turn-done";
+import { threadEventId } from "../dispatcher/sources/threads/thread-turns";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
 import type {
   CharacterAddressed,
@@ -442,9 +443,9 @@ const realFactories: ConfiguredBootstrapFactories = {
       greetLocal: greeting.greetLocal,
       chipFold: signalChips.collapsed,
       threadTurn: {
-        hold: (id) => signalsSource.hold(`thread:${id}`),
-        fire: (id) => signalsSource.fireNow(`thread:${id}`),
-        release: (id) => signalsSource.release(`thread:${id}`),
+        hold: (id) => signalsSource.hold(threadEventId(id)),
+        fire: (id) => signalsSource.fireNow(threadEventId(id)),
+        release: (id) => signalsSource.release(threadEventId(id)),
       },
     };
   },

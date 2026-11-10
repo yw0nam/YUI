@@ -7,7 +7,7 @@
  * holds them. Each group routes to exactly one core, so urgent and batched groups never share
  * a catch-up turn.
  * This module owns envelope validation, delivery routing, buffer caps, the lazy
- * batched-delivery timer, and the held batched groups a Thread reaction fires or releases.
+ * batched-delivery timer, and the held batched groups that a caller fires or releases.
  * Signal item contents remain opaque.
  */
 
@@ -110,7 +110,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     batchTimer = undefined;
   }
 
-  function clearBatchBuffer(): void {
+  function clearDeliverable(): void {
     batchBuffer.splice(0, batchBuffer.length, ...batchBuffer.filter(isHeld));
     clearBatchTimer();
   }
@@ -200,7 +200,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       const signals = deliverable();
       if (signals.length === 0) return;
       const firing: InboxFiring = { event_name: "signals.batch", payload: { signals } };
-      if (core.fireIfEligible(firing)) clearBatchBuffer();
+      if (core.fireIfEligible(firing)) clearDeliverable();
     }, BATCH_INTERVAL_MS);
   }
 
@@ -223,7 +223,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
 
   function drain(): SignalGroup[] {
     const groups = deliverable();
-    clearBatchBuffer();
+    clearDeliverable();
     return groups;
   }
 
@@ -247,6 +247,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     const at = batchBuffer.findIndex(({ group }) => group.envelope.event_id === eventId);
     if (!deps.isEnabled() || at < 0) return false;
     const [entry] = batchBuffer.splice(at, 1);
+    // os_event_watcher is unpaced, so the proactive gap does not hold it; a drop (its guardrail debounce too) returns the group through restoreSignals.
     const pushed = deps.bus.push({
       source: "os_event_watcher",
       event_name: "signals.batch",
@@ -319,7 +320,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     parse: (item) => item,
     bufferAdd,
     bufferEmpty: () => deliverable().length === 0,
-    bufferClear: clearBatchBuffer,
+    bufferClear: clearDeliverable,
     buildCatchup,
   });
 
