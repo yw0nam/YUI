@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
@@ -585,7 +586,8 @@ def test_each_question_is_asked_after_the_previous_answer(tmp_path, server, caps
 def test_the_wait_cap_spans_all_questions(tmp_path, server, capsys, monkeypatch):
     endpoint, received = server
     received.answers = [{"choices": ["o0"]}, {"choice": "o1"}]
-    monkeypatch.setattr("time.monotonic", lambda: 90 if received.polls else 0)
+    clock = SimpleNamespace(monotonic=lambda: 89.5 if received.polls else 0)
+    monkeypatch.setattr("yui_notify.hook.questions.time", clock)
     run_hook(
         tmp_path,
         endpoint,
@@ -594,17 +596,33 @@ def test_the_wait_cap_spans_all_questions(tmp_path, server, capsys, monkeypatch)
         tool_input={"questions": [FRUITS, SIZE]},
     )
     assert [parse_qs(urlparse(p).query)["wait"] for p in received.polls] == [["25"], ["10"]]
-    assert printed(capsys) is not None
+    assert printed(capsys) == allowed([FRUITS, SIZE], {"Pick fruits": "Apple", "Pick size": "M"})
 
 
-def test_unanswered_question_closes_its_ask_and_prints_nothing(tmp_path, server, capsys):
+@pytest.mark.parametrize(
+    "status,answer,cap",
+    [(204, None, 1), (200, {"release": True, "text": "x"}, 120), (200, {}, 120)],
+    ids=["no-answer", "release-with-text", "empty-answer"],
+)
+def test_unanswered_question_closes_its_ask_and_prints_nothing(tmp_path, server, capsys, status, answer, cap):
     endpoint, received = server
-    received.status[1] = 204
-    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", {"wait": {"permission": 1}})
+    received.status[1] = status
+    if answer is not None:
+        received.answer = answer
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", {"wait": {"permission": cap}})
     assert printed(capsys) is None
     assert received[0][1]["ask"]["prompt"] == "Pick fruits"
     assert len(received) == 2
     assert received[-1][1] == {**received[0][1], "state": "working", "ask": None, "entries": []}
+
+
+def test_a_long_option_label_is_cut_in_the_ask_and_answered_in_full(tmp_path, server, capsys):
+    endpoint, received = server
+    received.answer = {"choices": ["o0"]}
+    question = {**FRUITS, "options": [{"label": "x" * 70}, {"label": "Banana"}]}
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json", tool_input={"questions": [question]})
+    assert received[0][1]["ask"]["choices"][0] == {"id": "o0", "label": "x" * 64}
+    assert printed(capsys) == allowed([question], {"Pick fruits": "x" * 70})
 
 
 def test_failed_put_of_a_later_question_ends_the_wait(tmp_path, server, capsys):
