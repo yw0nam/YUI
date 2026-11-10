@@ -1,21 +1,13 @@
 /**
  * Tavern card import — the Rust `import_card_file` command (which opens the OS picker
- * itself) → the card for a new preset. Deps are injectable so tests never touch a real
+ * itself) or `import_dropped_card` (the file dropped onto the settings window) → the card
+ * for a new preset. Deps are injectable so tests never touch a real
  * Tauri runtime; the real Tauri API is lazily imported (non-Tauri/test envs never load it).
  */
 
 import { readCard } from "../../../config/validators/persona/read-card";
 import type { Card } from "../../../config/validators/persona/types";
 import type { InvokeFn } from "../user-asset-import";
-
-/** Read the file dropped onto this settings window. */
-export async function importCardFromDrop(
-  _reservedVrmIds: string[],
-  _voiceStagingId: string,
-  _deps?: CardImportDeps,
-): Promise<ImportedCard> {
-  return {} as ImportedCard;
-}
 
 /** The VRM a preset file claimed: a user copy under app-data, or a bundled model named by id. */
 export type ImportedCardVrm =
@@ -54,7 +46,7 @@ export interface CardImportDeps {
   convertFileSrc(path: string): string;
 }
 
-/** The `import_card_file` result shape. */
+/** The `import_card_file` and `import_dropped_card` result shape. */
 interface ImportedCardFile {
   json: string;
   thumbnailTempId?: string | null;
@@ -89,23 +81,8 @@ function mapVrm(
     : { kind: "bundled", id: vrm.id };
 }
 
-/**
- * Run the card picker and read the chosen file. Returns null when the picker is
- * dismissed. A payload that does not parse into a card rolls every asset the native
- * call claimed back and throws `card_unreadable`.
- */
-export async function importCardFromFile(
-  reservedVrmIds: string[],
-  voiceStagingId: string,
-  deps?: CardImportDeps,
-): Promise<ImportedCard | null> {
-  const d = deps ?? (await defaultDeps());
-  const file = await d.invoke<ImportedCardFile | null>("import_card_file", {
-    reservedVrmIds,
-    voiceStagingId,
-  });
-  if (!file) return null;
-
+/** The card a native read returned; an unreadable payload rolls every claimed asset back. */
+async function readImportedCard(file: ImportedCardFile, d: CardImportDeps): Promise<ImportedCard> {
   const { json, thumbnailTempId, source, crop, vrm, voice } = file;
   let card: Card;
   try {
@@ -136,4 +113,40 @@ export async function importCardFromFile(
         }
       : {}),
   };
+}
+
+/**
+ * Run the card picker and read the chosen file. Returns null when the picker is
+ * dismissed. A payload that does not parse into a card rolls every asset the native
+ * call claimed back and throws `card_unreadable`.
+ */
+export async function importCardFromFile(
+  reservedVrmIds: string[],
+  voiceStagingId: string,
+  deps?: CardImportDeps,
+): Promise<ImportedCard | null> {
+  const d = deps ?? (await defaultDeps());
+  const file = await d.invoke<ImportedCardFile | null>("import_card_file", {
+    reservedVrmIds,
+    voiceStagingId,
+  });
+  if (!file) return null;
+  return readImportedCard(file, d);
+}
+
+/**
+ * Read the file just dropped onto this settings window; Rust holds its path, so none is sent.
+ * Throws as `importCardFromFile` does, and on a refused drop.
+ */
+export async function importCardFromDrop(
+  reservedVrmIds: string[],
+  voiceStagingId: string,
+  deps?: CardImportDeps,
+): Promise<ImportedCard> {
+  const d = deps ?? (await defaultDeps());
+  const file = await d.invoke<ImportedCardFile>("import_dropped_card", {
+    reservedVrmIds,
+    voiceStagingId,
+  });
+  return readImportedCard(file, d);
 }

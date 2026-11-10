@@ -872,6 +872,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/window/file-drop",
+      "module": "window",
+      "label": "file drop",
+      "role": "This webview's native file drag events as enter, drop and leave with the dragged paths.",
+      "paths": [
+        "src/io/window/file-drop"
+      ]
+    },
+    {
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
