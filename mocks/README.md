@@ -11,3 +11,4 @@ Standalone HTML mocks of YUI screens, kept so the next change to a screen starts
 |---|---|---|
 | [`character-window/threads-reaction.html`](character-window/threads-reaction.html) | Character window and Threads window: the character sits on the Threads window when a Thread changes state; animation variants | #1936 |
 | [`settings/card-bundle.html`](settings/card-bundle.html) | Settings, Persona page, Card section: export and import a preset as one `.yui` file, PNG card export | #1937 |
+| [`settings/card-drop.html`](settings/card-drop.html) | Settings window: import a preset file or card by dropping it onto the window; drop cover variants, refusal placement, the proposed busy rule | #1940 |

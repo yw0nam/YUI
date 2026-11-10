@@ -11,6 +11,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     app.manage(crate::agent_ingress::PresetIds::default());
+    app.manage(crate::dropped_files::DroppedFiles::default());
 
     let (log_dir, log_offset) = app_log::init(app)?;
     crate::threads::setup(app, log_offset)?;

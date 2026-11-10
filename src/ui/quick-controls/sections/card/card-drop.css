@@ -1,0 +1,119 @@
+/* The drop cover over the whole settings window. Amber is the dashed line and the glyph only, never a fill. */
+.yui-card-drop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  padding: 10px;
+  background: color-mix(in oklab, var(--yui-panel-bg) 90%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    visibility 0s linear var(--yui-dur);
+}
+
+.yui-card-drop.is-on {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    visibility 0s;
+}
+
+.yui-card-drop__frame {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--yui-accent);
+  border-radius: var(--yui-radius-group);
+  transform: translateY(4px);
+  transition:
+    transform var(--yui-dur) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-card-drop.is-on .yui-card-drop__frame {
+  transform: none;
+}
+
+.yui-card-drop.is-busy .yui-card-drop__frame {
+  border-color: var(--yui-edge-strong);
+}
+
+.yui-card-drop.is-refused .yui-card-drop__frame {
+  border-color: var(--yui-danger-soft);
+}
+
+.yui-card-drop__msg,
+.yui-card-drop__err {
+  grid-area: 1 / 1;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-card-drop__msg {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.yui-card-drop__msg svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--yui-accent-ink);
+}
+
+.yui-card-drop.is-busy .yui-card-drop__msg svg {
+  color: var(--yui-text-mute);
+}
+
+.yui-card-drop__title {
+  margin: 0;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+}
+
+.yui-card-drop__sub {
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+}
+
+.yui-card-drop__err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  max-width: 22rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-danger-faint);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text);
+  opacity: 0;
+}
+
+.yui-card-drop__err svg {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.08rem;
+  color: var(--yui-danger);
+}
+
+.yui-card-drop.is-refused .yui-card-drop__msg {
+  opacity: 0;
+}
+
+.yui-card-drop.is-refused .yui-card-drop__err {
+  opacity: 1;
+}
+
+/* Under reduced motion only the opacity changes. */
+@media (prefers-reduced-motion: reduce) {
+  .yui-card-drop__frame {
+    transform: none;
+    transition: none;
+  }
+}

@@ -12,6 +12,7 @@ const COMMANDS: &[&str] = &[
     "remove_user_voice",
     "rename_user_voice",
     "import_card_file",
+    "import_dropped_card",
     "retain_card_thumbnail",
     "pick_preset_photo",
     "remove_card_thumbnail",

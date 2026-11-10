@@ -7,6 +7,7 @@ import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
 import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
+import { subscribeFileDrop } from "../../io/window/file-drop/file-drop";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
@@ -18,6 +19,7 @@ import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { createImportGate } from "../card-io/import-gate";
 import { wireCardIo } from "../card-io/wire-card-io";
 import type { Disposers } from "../disposers";
 import { wirePetWindowsSync } from "../pet-windows/wire-pet-windows-sync";
@@ -166,6 +168,8 @@ export async function wireSettingsWindow(deps: {
   const mcpHost = isTauri() ? createMcpHost() : undefined;
   if (mcpHost) register(mcpHost.dispose);
 
+  const cardImportGate = createImportGate();
+
   // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
   const openOnQuickStart = opensOnQuickStart(shared.getEndpoints());
 
@@ -229,7 +233,9 @@ export async function wireSettingsWindow(deps: {
         speakerSelection,
         removeVoice,
         registerCopiedVoice,
+        gate: cardImportGate,
       }),
+      ...(isTauri() ? { subscribeFileDrop } : {}),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),

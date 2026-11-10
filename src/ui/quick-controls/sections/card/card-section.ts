@@ -1,6 +1,7 @@
 /**
  * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default,
- * the greeting list and the file action row. It owns its subscriptions, redraws and teardown.
+ * the greeting list, the file action row and the drop cover. It owns its subscriptions, redraws
+ * and teardown.
  */
 
 import {
@@ -10,6 +11,7 @@ import {
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
+import type { SubscribeFileDrop } from "../../../../io/window/file-drop/file-drop";
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
@@ -25,6 +27,7 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
+import { createCardDrop } from "./card-drop";
 import { type CardIoPorts, createCardIo } from "./card-io";
 import { createPresetExportPanel, presetExportPanelHtml } from "./preset-export-panel";
 import "./card-section.css";
@@ -128,11 +131,15 @@ interface CardSectionDeps {
   speakerSelection: PanelDeps["speakerSelection"];
   /** Card file steps, wired by the app layer. */
   importPreset: CardIoPorts["importPreset"];
+  importDroppedPreset: CardIoPorts["importDroppedPreset"];
+  importBusy: CardIoPorts["importBusy"];
   exportPresetFile: CardIoPorts["exportPresetFile"];
   exportCardPng: CardIoPorts["exportCardPng"];
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   /** Filler pools the card export carries. */
   fillerSettings: Pick<FillerSettingsStore, "get">;
+  /** This window's file drag events; absent outside Tauri, and then no drop cover. */
+  subscribeFileDrop?: SubscribeFileDrop;
   log: Logger;
 }
 
@@ -217,6 +224,8 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     openPresetPanel: () => panel.open(),
     ports: {
       importPreset: deps.importPreset,
+      importDroppedPreset: deps.importDroppedPreset,
+      importBusy: deps.importBusy,
       exportPresetFile: deps.exportPresetFile,
       exportCardPng: deps.exportCardPng,
     },
@@ -225,6 +234,15 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     fillerPools: () => deps.fillerSettings.get().customPools,
     log,
   });
+  const drop =
+    deps.subscribeFileDrop &&
+    createCardDrop({
+      root,
+      subscribe: deps.subscribeFileDrop,
+      isImporting: io.isImporting,
+      importDropped: io.importDropped,
+      log,
+    });
   const panel = createPresetExportPanel({
     root: q<HTMLElement>(".yui-preset-export"),
     vrmSelection: deps.vrmSelection,
@@ -318,6 +336,8 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     reflect,
     dispose(): void {
       for (const off of unsubscribes) off?.();
+      io.dispose();
+      drop?.dispose();
       panel.dispose();
       sec.removeEventListener("input", handleInput);
       sec.removeEventListener("change", handleChange);

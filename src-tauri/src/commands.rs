@@ -20,6 +20,7 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::voice_import::remove_user_voice,
         crate::voice_import::rename_user_voice,
         crate::card_import::import_card_file,
+        crate::card_import::import_dropped_card,
         crate::card_import::retain_card_thumbnail,
         crate::card_import::pick_preset_photo,
         crate::card_import::remove_card_thumbnail,

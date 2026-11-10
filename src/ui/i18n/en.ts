@@ -339,6 +339,13 @@ const en: Record<string, string> = {
   "push.to_transport": "Change transport",
   "card.import_failed": "Could not import that card",
   "card.import_error": "That file holds no card",
+  "card.drop_title": "Drop to import",
+  "card.drop_sub": "One preset file (.yui), or one JSON or PNG card",
+  "card.drop_busy_title": "Importing",
+  "card.drop_busy_sub": "Drop it again when this one is done",
+  "card.drop_multi": "Drop one file at a time",
+  "card.drop_extension":
+    "That file can't be imported. Drop a preset file (.yui), or a JSON or PNG card",
   "card.export_error": "Could not write the file",
   "card.user_name": "Your name",
   "card.user_name_sub": "Shared by every preset",

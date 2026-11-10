@@ -31,6 +31,9 @@ mod voice_import;
 // Card import (JSON, PNG or preset file parse, thumbnail copy, preset photo pick).
 mod card_import;
 
+// The files last dropped onto each settings window.
+mod dropped_files;
+
 // Preset file (.yui) read/write, VRM license rule, PNG card chunk.
 mod preset_file;
 
@@ -84,6 +87,8 @@ pub fn run() {
         .on_window_event(|_window, _event| {
             #[cfg(desktop)]
             mcp_host::on_window_event(_window, _event);
+            #[cfg(desktop)]
+            dropped_files::on_window_event(_window, _event);
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
