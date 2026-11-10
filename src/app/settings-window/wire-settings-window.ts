@@ -7,6 +7,7 @@ import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
 import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
+import { subscribeFileDrop } from "../../io/window/file-drop/file-drop";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
@@ -234,6 +235,7 @@ export async function wireSettingsWindow(deps: {
         registerCopiedVoice,
         gate: cardImportGate,
       }),
+      ...(isTauri() ? { subscribeFileDrop } : {}),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),

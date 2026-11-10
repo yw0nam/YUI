@@ -65,7 +65,8 @@
   }
 }
 
-.yui-start__err {
+.yui-start__err,
+.yui-card-drop__err {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
@@ -77,7 +78,8 @@
   color: var(--yui-text);
 }
 
-.yui-start__err svg {
+.yui-start__err svg,
+.yui-card-drop__err svg {
   flex: none;
   width: 0.85rem;
   height: 0.85rem;

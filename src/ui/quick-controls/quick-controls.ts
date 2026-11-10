@@ -28,6 +28,7 @@ import type {
 } from "../../io/voice/voices/speaker-selection";
 import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
+import type { SubscribeFileDrop } from "../../io/window/file-drop/file-drop";
 import { createLogger } from "../../logger";
 import type { ExpressMotionSettingsStore } from "../../settings/avatar/express-motion-settings";
 import type {
@@ -292,6 +293,8 @@ interface QuickControlsOptions {
   removeCardThumbnail: CardIoPorts["removeCardThumbnail"];
   /** Opens the photo picker for a preset and returns its new thumbnail URL; absent outside Tauri. */
   pickPresetPhoto?: CardIoPorts["pickPresetPhoto"];
+  /** This window's file drag events; absent outside Tauri, and then no drop cover. */
+  subscribeFileDrop?: SubscribeFileDrop;
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
@@ -418,6 +421,7 @@ export function createQuickControls({
   inspectPresetVrm,
   removeCardThumbnail,
   pickPresetPhoto,
+  subscribeFileDrop,
   presetRegistry,
   petWindows,
   relationsStore,
@@ -718,6 +722,7 @@ export function createQuickControls({
     exportPresetFile,
     exportCardPng,
     inspectPresetVrm,
+    subscribeFileDrop,
     log,
   });
 

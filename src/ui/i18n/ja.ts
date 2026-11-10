@@ -341,6 +341,13 @@ const ja: Record<string, string> = {
   "push.to_transport": "トランスポートを変更",
   "card.import_failed": "そのカードは読み込めませんでした",
   "card.import_error": "このファイルにカードが入っていません",
+  "card.drop_title": "ドロップして読み込む",
+  "card.drop_sub": "プリセットファイル(.yui)か JSON・PNG カードを一つ",
+  "card.drop_busy_title": "読み込み中です",
+  "card.drop_busy_sub": "終わってからもう一度ドロップしてください",
+  "card.drop_multi": "一度に読み込めるファイルは一つです",
+  "card.drop_extension":
+    "このファイルは読み込めません。プリセットファイル(.yui)か JSON・PNG カードをドロップしてください",
   "card.export_error": "ファイルを書き出せませんでした",
   "card.user_name": "あなたの名前",
   "card.user_name_sub": "すべてのプリセットで共通です",

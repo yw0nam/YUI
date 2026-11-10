@@ -338,6 +338,13 @@ const ko: Record<string, string> = {
   "push.to_transport": "전송 방식 바꾸기",
   "card.import_failed": "그 카드를 가져오지 못했어요",
   "card.import_error": "이 파일에는 카드가 없어요",
+  "card.drop_title": "놓으면 가져와요",
+  "card.drop_sub": "프리셋 파일(.yui)이나 JSON·PNG 카드 하나",
+  "card.drop_busy_title": "가져오는 중이에요",
+  "card.drop_busy_sub": "끝난 뒤에 다시 놓아 주세요",
+  "card.drop_multi": "한 번에 파일 하나만 가져올 수 있어요",
+  "card.drop_extension":
+    "이 파일은 가져올 수 없어요. 프리셋 파일(.yui)이나 JSON·PNG 카드를 놓아 주세요",
   "card.export_error": "파일을 쓰지 못했어요",
   "card.user_name": "내 이름",
   "card.user_name_sub": "모든 프리셋이 함께 써요",

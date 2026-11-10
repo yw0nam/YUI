@@ -102,10 +102,9 @@ describe("createCardDrop", () => {
     vi.useFakeTimers();
     const s = setup({ outcome: async () => "failed" });
     s.emit({ type: "drop", paths: ["/a/Mio.yui"] });
-    await vi.waitFor(() =>
-      expect(s.cover.querySelector(".yui-card-drop__err")?.textContent).toBe(
-        "Could not import that card",
-      ),
+    await vi.advanceTimersByTimeAsync(0);
+    expect(s.cover.querySelector(".yui-card-drop__err")?.textContent).toBe(
+      "Could not import that card",
     );
     expect(s.shown()).toEqual([true, "false"]);
 
