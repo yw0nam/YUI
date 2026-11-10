@@ -8,11 +8,11 @@ from uuid import uuid4
 from yui_notify.hook.event import Event
 from yui_notify.host.claude_pid import claude_pid
 from yui_notify.host.label import make_label, short_hostname
+from yui_notify.threads.question import PROMPT_MAX, new_ask_id, question_ask, usable_questions
 
 ENTRY_MAX = 16384
 BODY_MAX_BYTES = 65536
 TITLE_MAX = 200
-PROMPT_MAX = 500
 
 
 def terminal_state(phase: str) -> str:
@@ -40,6 +40,11 @@ def permission_ask(ask_id: str, tool: str, agent: str) -> dict:
             {"id": "deny", "label": "Deny", "tone": "danger"},
         ],
     }
+
+
+def asked_questions(event: Event) -> list | None:
+    claude_ask = event.agent == "claude-code" and event.phase == "PermissionRequest"
+    return usable_questions(event.tool_input) if claude_ask and event.tool_name == "AskUserQuestion" else None
 
 
 def next_ask(ask_id: str) -> dict:
@@ -74,7 +79,12 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool, inbox: bool)
     elif event.agent == "claude-code" and event.phase == "Stop":
         body["ask"] = next_ask("next:" + uuid4().hex)
     elif event.agent == "claude-code" and event.phase == "PermissionRequest":
-        body["ask"] = permission_ask("perm:" + uuid4().hex, event.tool_name, "Claude")
+        questions = asked_questions(event)
+        body["ask"] = (
+            question_ask(new_ask_id(0), questions[0])
+            if questions
+            else permission_ask("perm:" + uuid4().hex, event.tool_name, "Claude")
+        )
     elif event.agent == "codex" and (event.phase == "Stop" or not front):
         body["ask"] = _ask(event)
     fit_entries(body)

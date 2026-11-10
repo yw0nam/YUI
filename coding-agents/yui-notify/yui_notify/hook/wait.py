@@ -10,17 +10,25 @@ from yui_notify.threads.body import terminal_state
 from yui_notify.threads.client import put
 
 
-def wait_for_answer(url: str, body: dict, phase: str, cap: float, env: Mapping[str, str]) -> dict | None:
+def interrupt_on_signals() -> None:
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, signal.default_int_handler)
+
+
+def close_ask(url: str, body: dict, phase: str, env: Mapping[str, str]) -> None:
+    closing = {**body, "state": terminal_state(phase), "ask": None, "entries": []}
+    status, _, error = put(url, closing)
+    if error:
+        config.write_error(env, url, status, error)
+
+
+def wait_for_answer(url: str, body: dict, phase: str, cap: float, env: Mapping[str, str]) -> dict | None:
+    interrupt_on_signals()
     try:
         answer = wait_answer(url, body["ask"]["ask_id"], cap, env)
         if isinstance(answer, dict) and answer and not answer.get("release"):
             return hook_output(phase, answer)
     except KeyboardInterrupt:  # SIGINT, SIGTERM, SIGHUP: close the ask below
         pass
-    closing = {**body, "state": terminal_state(phase), "ask": None, "entries": []}
-    status, _, error = put(url, closing)
-    if error:
-        config.write_error(env, url, status, error)
+    close_ask(url, body, phase, env)
     return None
