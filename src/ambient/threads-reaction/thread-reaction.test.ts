@@ -71,6 +71,7 @@ function setup() {
     order.push(`line:${text}`);
     return "spoken";
   });
+  const land = vi.fn<ThreadReactionDeps["land"]>(async () => {});
   const deps: ThreadReactionDeps = {
     threads: {
       snapshot: () => snapshot,
@@ -97,6 +98,7 @@ function setup() {
     lines: () => ({ threads_open: ["Let me open Threads."], threads_raise: ["Here, up front."] }),
     setEmotion: (signal) => order.push(`emotion:${signal.id}`),
     easeEmotionToNeutral: () => order.push("neutral"),
+    land,
     holdMs: () => 4000,
     turn: {
       hold: (id) => turns.push(`hold:${id}`),
@@ -119,6 +121,7 @@ function setup() {
     command,
     present,
     speak,
+    land,
     reaction,
     push(...next: Thread["state"][]) {
       snapshot = snap(...next);
@@ -139,6 +142,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 it("closed: speaks the open line, opens the window on the Thread, sits, shows the expression, then reverts it", async () => {
@@ -410,4 +414,52 @@ it("after a reaction fires its turn, the next held reaction waits for that turn'
   await vi.advanceTimersByTimeAsync(1000);
   expect(h.order).toEqual(["emotion:happy", "emotion:sad"]);
   expect(h.turns).toEqual(["hold:t1", "hold:t2", "fire:t1", "fire:t2"]);
+});
+
+it("a reaction that sits lands after the sit and before the expression", async () => {
+  const h = setup();
+  h.land.mockImplementation(async () => {
+    h.order.push("land");
+  });
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.push("completed");
+  await flush();
+  expect(h.order).toEqual(["sit", "land", "emotion:happy"]);
+});
+
+it.each([
+  ["already seated on the window", { windowNumber: 42 }, false, ["emotion:happy"]],
+  ["under reduced motion", null, true, ["sit", "emotion:happy"]],
+] as const)("%s: she does not land", async (_name, seat, reduced, expected) => {
+  if (reduced) vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  const h = setup();
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.state.seat = seat;
+  h.push("completed");
+  await flush();
+  expect(h.order).toEqual(expected);
+  expect(h.land).not.toHaveBeenCalled();
+});
+
+it("the switch turned off during the landing releases the Thread's turn and never fires it", async () => {
+  let landed: () => void = () => {};
+  const h = setup();
+  h.land.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        landed = resolve;
+      }),
+  );
+  h.state.windowOpen = true;
+  h.state.windows = [THREADS];
+  h.push("completed");
+  await flush();
+  h.setEnabled(false);
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "release:t1"]);
+  landed();
+  await flush();
+  expect(h.turns).toEqual(["hold:t1", "release:t1"]);
 });

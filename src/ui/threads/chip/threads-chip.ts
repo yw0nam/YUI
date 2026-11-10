@@ -1,7 +1,7 @@
 /**
  * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked,
  * and access requests, and opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
- * hidden while nothing waits or the window is open; one nod when a Thread or a request starts
+ * hidden while nothing waits or the window is open; one wiggle when a Thread or a request starts
  * waiting; a held press folds it with the other chips.
  */
 
@@ -56,11 +56,11 @@ export function createThreadsChip({
   let waitingIds: Set<string> | null = null;
   let windowOpen = false;
 
-  function nod(): void {
-    el.classList.remove("is-nod");
-    // A reflow restarts the animation when a nod lands mid-nod.
+  function wiggle(): void {
+    el.classList.remove("is-wiggle");
+    // A reflow restarts the animation when a wiggle lands mid-wiggle.
     void el.offsetWidth;
-    el.classList.add("is-nod");
+    el.classList.add("is-wiggle");
   }
 
   function render(): void {
@@ -82,14 +82,14 @@ export function createThreadsChip({
     el.hidden = n === 0 || windowOpen;
   }
 
-  // The first snapshot sets what already waits; only a later arrival nods.
+  // The first snapshot sets what already waits; only a later arrival wiggles.
   function track(kind: keyof typeof keys, ids: string[]): void {
     const before = waitingIds;
     keys[kind] = ids.map((id) => `${kind}:${id}`);
     const arrived = before !== null && keys[kind].some((key) => !before.has(key));
     waitingIds = new Set([...keys.thread, ...keys.request]);
     render();
-    if (arrived && !el.hidden) nod();
+    if (arrived && !el.hidden) wiggle();
   }
 
   const rect = (): ScreenRect => {
@@ -106,7 +106,7 @@ export function createThreadsChip({
     }
     onOpen(rect());
   }
-  const onAnimationEnd = (): void => el.classList.remove("is-nod");
+  const onAnimationEnd = (): void => el.classList.remove("is-wiggle");
   el.addEventListener("click", onClick);
   el.addEventListener("animationend", onAnimationEnd);
   const offCollapsed = collapsed.subscribe((s) => el.classList.toggle("is-mini", s.collapsed));

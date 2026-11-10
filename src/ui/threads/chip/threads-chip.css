@@ -46,14 +46,29 @@
   outline-offset: 2px;
 }
 
-/* One nod when a Thread starts waiting; the chip never pulses. */
-.yui-threadchip.is-nod {
-  animation: yui-threadchip-nod 320ms var(--yui-ease);
+/* One wiggle when a Thread starts waiting; the chip never pulses. */
+.yui-threadchip.is-wiggle {
+  animation: yui-threadchip-wiggle 520ms ease-out;
 }
 
-@keyframes yui-threadchip-nod {
-  50% {
-    transform: scale(1.06);
+@keyframes yui-threadchip-wiggle {
+  0% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-7deg);
+  }
+  40% {
+    transform: rotate(6deg);
+  }
+  60% {
+    transform: rotate(-4deg);
+  }
+  80% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(0);
   }
 }
 
@@ -125,7 +140,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-threadchip.is-nod {
+  .yui-threadchip.is-wiggle {
     animation: none;
   }
 }

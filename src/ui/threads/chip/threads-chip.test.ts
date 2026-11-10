@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** threads-chip.test.ts — the Threads chip drawn from the snapshot's Threads: count, source marks, visibility, and the arrival nod. */
+/** threads-chip.test.ts — the Threads chip drawn from the snapshot's Threads: count, source marks, visibility, and the arrival wiggle. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -52,7 +52,7 @@ it("hides at zero waiting and shows the count otherwise", () => {
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
 });
 
-it("skips a waiting Thread whose open ask the user picked, and counts and nods a new ask on it", () => {
+it("skips a waiting Thread whose open ask the user picked, and counts and wiggles a new ask on it", () => {
   const { chip, button } = build();
   const seen = (ask_id: string, updated_at: number): Thread => ({
     ...thread("a", "codex", updated_at),
@@ -66,7 +66,7 @@ it("skips a waiting Thread whose open ask the user picked, and counts and nods a
   chip.update([seen("a2", 2)]);
   expect(button().hidden).toBe(false);
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
-  expect(button().classList.contains("is-nod")).toBe(true);
+  expect(button().classList.contains("is-wiggle")).toBe(true);
 });
 
 it("hides while the window is open, at any count, and returns on close while something waits", () => {
@@ -107,29 +107,29 @@ it("marks the distinct sources of the newest waiting Threads, at most three", ()
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("5");
 });
 
-it("nods only when a new Thread id starts waiting", () => {
+it("wiggles only when a new Thread id starts waiting", () => {
   const { chip, button } = build();
-  const nodding = () => button().classList.contains("is-nod");
+  const wiggling = () => button().classList.contains("is-wiggle");
 
   chip.update([thread("a", "codex", 1)]);
-  expect(nodding()).toBe(false);
+  expect(wiggling()).toBe(false);
 
   chip.update([thread("a", "codex", 2)]);
-  expect(nodding()).toBe(false);
+  expect(wiggling()).toBe(false);
 
   chip.update([thread("b", "slack", 3), thread("a", "codex", 2)]);
-  expect(nodding()).toBe(true);
+  expect(wiggling()).toBe(true);
 
   button().dispatchEvent(new Event("animationend"));
   chip.update([thread("b", "slack", 3)]);
-  expect(nodding()).toBe(false);
+  expect(wiggling()).toBe(false);
 
   chip.setWindowOpen(true);
   chip.update([thread("c", "claude-code", 4)]);
-  expect(nodding()).toBe(false);
+  expect(wiggling()).toBe(false);
 
   chip.setWindowOpen(false);
-  expect(nodding()).toBe(false);
+  expect(wiggling()).toBe(false);
 });
 
 describe("slotRect", () => {

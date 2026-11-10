@@ -1,4 +1,4 @@
-/** thread-reaction — the main character's reaction to a Thread state change: a line, the Threads window, her seat on it, an expression, then the Thread's turn. */
+/** thread-reaction — the main character's reaction to a Thread state change: a line, the Threads window, her seat on it and landing, an expression, then the Thread's turn. */
 
 import type { FillerPool } from "../../config/validators/filler";
 import type { EmotionId, ScreenRect, ThreadsSnapshot, WindowRect } from "../../contract";
@@ -8,6 +8,7 @@ import { createShuffleBag } from "../../io/voice/filler/shuffle-bag";
 import { overlaps } from "../../io/window/geometry/screen-geometry";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";
 import { createLogger } from "../../logger";
+import { prefersReducedMotion } from "../liveliness/tier1";
 import { createHeldReactions } from "./held-reactions";
 import { createThreadTransitions, type ThreadTransition } from "./thread-transitions";
 
@@ -35,6 +36,8 @@ export interface ThreadReactionDeps {
   speak(text: string): Promise<"spoken" | "cut">;
   lines(): Pick<FillerPool, "threads_open" | "threads_raise">;
   setEmotion(signal: { id: EmotionId }): void;
+  /** Her landing bounce after a sit; resolves when it ends. */
+  land(): Promise<void>;
   easeEmotionToNeutral(): void;
   /** How long the expression holds before it eases back to neutral. */
   holdMs(): number;
@@ -186,6 +189,10 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       if (!("ok" in result) || !result.ok) {
         log.warn("reaction_sit.failed", { ...fields, result });
         return false;
+      }
+      if (!prefersReducedMotion()) {
+        log.debug("reaction_land", fields);
+        await wait(deps.land());
       }
       if (!valid()) return false;
     }

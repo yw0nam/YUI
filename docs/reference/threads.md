@@ -259,15 +259,15 @@ Each reaction runs its steps in order. A step is skipped when it does not apply.
 
 | State | Steps |
 |---|---|
-| Closed | A `threads_open` line, the window grows out of the chip's slot, the changed Thread is selected, then she sits |
-| Covered | A `threads_raise` line, the window comes to the front without focus, then she sits |
+| Closed | A `threads_open` line, the window grows out of the chip's slot with a jelly, the changed Thread is selected, then she sits |
+| Covered | A `threads_raise` line, the window comes to the front without focus and hops, then she sits |
 | Open | She sits |
 
 A line is drawn from a shuffle bag of its pool. An empty pool gives no line. With the Use interjections switch off, the pool is empty, so no line plays and she goes straight to the window. The line plays to its end. An interrupt, abort or dispose of speech cuts it and stops the reaction.
 
 The window opens or rises without keyboard focus. An open from a closed window selects the Thread. Its tab is Waiting when the Thread waits, otherwise All. A raise, or an open of a window already shown, changes no tab and no selection. The selection does not report the ask seen.
 
-She sits on the Threads window with `sit_on_window`, unless she already sits on it. A failed sit logs `reaction_sit.failed` and drops the reaction.
+She sits on the Threads window with `sit_on_window` and lands with a short bounce, unless she already sits on it. A failed sit logs `reaction_sit.failed` and drops the reaction. Under reduced motion the jelly, the hop and the landing do not play.
 
 The mapped expression plays, and the Thread's buffered group fires as its turn. The expression eases back to neutral after `touch_emotion_hold_ms`. When speech is still owed at that moment, the speech's end eases it instead.
 

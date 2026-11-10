@@ -36,6 +36,7 @@ import { type AlphaHitTest, createAlphaHitTest } from "./geometry/hit/alpha-hit-
 import { clientToStage } from "./geometry/hit/stage-coords";
 import { SEAT_DROP_DEFAULT } from "./geometry/probe/perch-geometry";
 import { createScreenProbes } from "./geometry/probe/screen-probes";
+import { createLanding } from "./landing";
 import { createClipLibrary } from "./motion/clip/clip-library";
 import { createMotionPlayback } from "./motion/playback/motion-playback";
 import { createRootYaw } from "./motion/yaw/root-yaw";
@@ -339,6 +340,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       alphaHitTest.setThreshold(threshold);
     },
     getPerchProbe: probes.getPerchProbe,
+    land: createLanding(renderer.domElement, () => probes.getPerchProbe()?.seatPx ?? null),
     getTapPoints: probes.getTapPoints,
     getHandAnchors: probes.getHandAnchors,
     setPerchTarget(target) {

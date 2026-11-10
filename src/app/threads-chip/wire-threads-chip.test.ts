@@ -133,7 +133,7 @@ it("seeds the chip from a preloaded client without a new snapshot", () => {
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("2");
 });
 
-it("does not nod on the first snapshot after a null seed", () => {
+it("does not wiggle on the first snapshot after a null seed", () => {
   const client = fakeClient(null);
   wireThreadsChip({
     client,
@@ -146,7 +146,7 @@ it("does not nod on the first snapshot after a null seed", () => {
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.hidden).toBe(false);
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("1");
-  expect(chip.classList.contains("is-nod")).toBe(false);
+  expect(chip.classList.contains("is-wiggle")).toBe(false);
 });
 
 it("hides the chip from its tap until the Threads window reports closed", () => {

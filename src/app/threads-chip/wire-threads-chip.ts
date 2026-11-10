@@ -28,7 +28,7 @@ export function wireThreadsChip(deps: {
   });
   const offShown = threadsWindow.onShown(chip.setWindowOpen);
   // subscribe does not replay, so the chip draws the snapshot the client already holds;
-  // a null snapshot seeds nothing, leaving the nod baseline to the first real one.
+  // a null snapshot seeds nothing, leaving the wiggle baseline to the first real one.
   const seeded = client.snapshot();
   if (seeded) chip.update(seeded.threads);
   const offSnapshot = client.subscribe((snapshot) => chip.update(snapshot.threads));

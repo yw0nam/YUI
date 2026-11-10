@@ -21,7 +21,7 @@ export function wireThreadReactions(deps: {
   dispatcher: Pick<Dispatcher, "isPipelineBusy">;
   speechPlayback: Pick<SpeechPlayback, "hasOutstandingSpeech" | "speakAsideAndWait">;
   locomotion: ConfiguredBootstrapHandles["locomotion"];
-  renderer: Pick<Renderer, "setEmotion" | "easeEmotionToNeutral">;
+  renderer: Pick<Renderer, "setEmotion" | "easeEmotionToNeutral" | "land">;
   settings: Pick<SettingsStores, "threadReactionsSettings" | "fillerSettings">;
   config: Pick<ConfigStore, "get">;
   threadTurn: ConfiguredBootstrapHandles["threadTurn"];
@@ -42,6 +42,7 @@ export function wireThreadReactions(deps: {
     lines: () => effectiveFillerPool(settings.fillerSettings.get(), deps.config.get().filler),
     setEmotion: (signal) => renderer.setEmotion(signal),
     easeEmotionToNeutral: () => renderer.easeEmotionToNeutral(),
+    land: () => renderer.land(),
     holdMs: () => deps.config.get().avatar.tap.touch_emotion_hold_ms,
     turn: deps.threadTurn,
   });
