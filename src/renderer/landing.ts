@@ -18,8 +18,11 @@ export function createLanding(
 ): () => Promise<void> {
   let running: Animation | null = null;
   return async () => {
-    running?.cancel();
-    running = null;
+    if (running) {
+      running.cancel();
+      running = null;
+      canvas.style.transformOrigin = "";
+    }
     const seat = getSeatPx();
     if (!seat || typeof canvas.animate !== "function") return;
     canvas.style.transformOrigin = `${seat.x}px ${seat.y}px`;

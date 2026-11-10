@@ -161,7 +161,7 @@ export interface Renderer {
    * is loaded or bones/projection are unavailable.
    */
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
-  /** The landing bounce on the canvas, its origin at the live seat; resolves when it ends. */
+  /** The landing bounce on the canvas, its origin at the live seat; resolves when it ends. The caller skips it under reduced motion. */
   land(): Promise<void>;
   /**
    * Live hand positions in pet-window logical px, projected the same way the feet and
