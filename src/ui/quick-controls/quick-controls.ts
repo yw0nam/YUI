@@ -284,6 +284,8 @@ interface QuickControlsOptions {
   plugins?: { host: McpHost; manage: McpHostManage };
   /** Card file steps, wired by the app layer. */
   importPreset: CardIoPorts["importPreset"];
+  importDroppedPreset: CardIoPorts["importDroppedPreset"];
+  importBusy: CardIoPorts["importBusy"];
   exportPresetFile: CardIoPorts["exportPresetFile"];
   exportCardPng: CardIoPorts["exportCardPng"];
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
@@ -409,6 +411,8 @@ export function createQuickControls({
   getExpressMotions,
   plugins,
   importPreset,
+  importDroppedPreset,
+  importBusy,
   exportPresetFile,
   exportCardPng,
   inspectPresetVrm,
@@ -709,6 +713,8 @@ export function createQuickControls({
     vrmSelection,
     speakerSelection,
     importPreset,
+    importDroppedPreset,
+    importBusy,
     exportPresetFile,
     exportCardPng,
     inspectPresetVrm,

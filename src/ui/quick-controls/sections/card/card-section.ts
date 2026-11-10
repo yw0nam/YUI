@@ -128,6 +128,8 @@ interface CardSectionDeps {
   speakerSelection: PanelDeps["speakerSelection"];
   /** Card file steps, wired by the app layer. */
   importPreset: CardIoPorts["importPreset"];
+  importDroppedPreset: CardIoPorts["importDroppedPreset"];
+  importBusy: CardIoPorts["importBusy"];
   exportPresetFile: CardIoPorts["exportPresetFile"];
   exportCardPng: CardIoPorts["exportCardPng"];
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
@@ -217,6 +219,8 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     openPresetPanel: () => panel.open(),
     ports: {
       importPreset: deps.importPreset,
+      importDroppedPreset: deps.importDroppedPreset,
+      importBusy: deps.importBusy,
       exportPresetFile: deps.exportPresetFile,
       exportCardPng: deps.exportCardPng,
     },
@@ -318,6 +322,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     reflect,
     dispose(): void {
       for (const off of unsubscribes) off?.();
+      io.dispose();
       panel.dispose();
       sec.removeEventListener("input", handleInput);
       sec.removeEventListener("change", handleChange);

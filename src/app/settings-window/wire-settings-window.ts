@@ -18,6 +18,7 @@ import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { createImportGate } from "../card-io/import-gate";
 import { wireCardIo } from "../card-io/wire-card-io";
 import type { Disposers } from "../disposers";
 import { wirePetWindowsSync } from "../pet-windows/wire-pet-windows-sync";
@@ -166,6 +167,8 @@ export async function wireSettingsWindow(deps: {
   const mcpHost = isTauri() ? createMcpHost() : undefined;
   if (mcpHost) register(mcpHost.dispose);
 
+  const cardImportGate = createImportGate();
+
   // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
   const openOnQuickStart = opensOnQuickStart(shared.getEndpoints());
 
@@ -229,6 +232,7 @@ export async function wireSettingsWindow(deps: {
         speakerSelection,
         removeVoice,
         registerCopiedVoice,
+        gate: cardImportGate,
       }),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),

@@ -39,8 +39,8 @@ function mount(importDroppedPreset: CardIoPorts["importDroppedPreset"]) {
 describe("createCardIo — importDropped", () => {
   beforeEach(() => setLocale("en"));
 
-  it.each([
-    ["a busy gate", async () => "busy" as const, "busy"],
+  it.each<[string, CardIoPorts["importDroppedPreset"], string]>([
+    ["a busy gate", async () => "busy", "busy"],
     ["a created preset", async () => ({ presetId: "abcd1234" }), "imported"],
     [
       "an unreadable card",
@@ -56,7 +56,7 @@ describe("createCardIo — importDropped", () => {
       },
       "failed",
     ],
-  ] as const)("%s answers its outcome and writes no error line", async (_label, port, outcome) => {
+  ])("%s answers its outcome and writes no error line", async (_label, port, outcome) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { io, errorEl } = mount(vi.fn(port));
 

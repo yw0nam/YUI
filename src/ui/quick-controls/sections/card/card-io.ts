@@ -26,8 +26,10 @@ const UNREADABLE_ERRORS = new Set(["card_unreadable", "no card in png", "preset 
 
 export interface CardIoPorts {
   /** Runs the whole card import through preset creation; null when the picker was dismissed. */
-  importPreset: () => Promise<{ presetId: string } | null>;
+  importPreset: () => Promise<{ presetId: string } | null | "busy">;
+  /** Runs the whole import of one dropped file through preset creation. */
   importDroppedPreset: () => Promise<{ presetId: string } | "busy">;
+  /** Whether this window's one card import is running, and its changes. */
   importBusy: { isBusy(): boolean; subscribe(listener: () => void): () => void };
   /** Opens the `.yui` save dialog; "cancelled" when dismissed. */
   exportPresetFile: (request: PresetExportRequest) => Promise<PresetFileExportResult>;
@@ -54,13 +56,20 @@ export interface CardIo {
   reflect(hasPicture: boolean): void;
   /** Writes the preset file; true when it was saved. */
   exportPreset(parts: PresetExportParts): Promise<boolean>;
+  /** True while an import (picker or drop) runs in this window. */
+  isImporting(): boolean;
+  /** Imports one dropped file under the window's one-at-a-time rule; the drop cover shows the outcome. */
   importDropped(): Promise<"imported" | "busy" | "unreadable" | "failed">;
+  dispose(): void;
 }
 
 export function createCardIo(deps: {
   /** The card section holding the action row and its lines. */
   root: HTMLElement;
-  ports: Pick<CardIoPorts, "importPreset" | "exportPresetFile" | "exportCardPng">;
+  ports: Pick<
+    CardIoPorts,
+    "importPreset" | "importDroppedPreset" | "importBusy" | "exportPresetFile" | "exportCardPng"
+  >;
   openPresetPanel: () => void;
   currentCard: () => Card;
   entry: () => { id: string; name: string };
@@ -75,6 +84,13 @@ export function createCardIo(deps: {
   const doneEl = q<HTMLElement>(".yui-card__io-done");
   const pngBtn = q<HTMLButtonElement>(".yui-card-export-png");
   const noteEl = q<HTMLElement>(".yui-card__io-note");
+  const importBtn = q<HTMLButtonElement>(".yui-card-import");
+  const { importBusy } = deps.ports;
+  const reflectBusy = (): void => {
+    importBtn.disabled = importBusy.isBusy();
+  };
+  reflectBusy();
+  const unsubscribeBusy = importBusy.subscribe(reflectBusy);
 
   const notices = deps.noticeStorage ?? sessionStorage;
   const notice = notices.getItem(CARD_IMPORT_NOTICE_KEY);
@@ -120,20 +136,29 @@ export function createCardIo(deps: {
     }
   }
 
-  async function importPreset(): Promise<void> {
+  /** Runs one import port; the windows reload into the new preset right after, so the log line is the record. */
+  async function runImport<Skip extends null | "busy">(
+    port: () => Promise<{ presetId: string } | Skip>,
+  ): Promise<Skip | "imported" | "unreadable" | "failed"> {
     try {
-      const imported = await deps.ports.importPreset();
-      if (!imported) return;
-      clear();
-      // The windows reload into the new preset right after; the log line is the record.
+      const imported = await port();
+      if (imported === null || imported === "busy") return imported;
       deps.log.info("card_import", { preset: imported.presetId });
+      return "imported";
     } catch (err) {
-      const name = err instanceof Error ? err.message : String(err);
-      clear();
-      // Only an unreadable payload means the file holds no card; everything else is a failure.
-      show(errorEl, t(UNREADABLE_ERRORS.has(name) ? "card.import_error" : "card.import_failed"));
       deps.log.error("card_import_failed", { error: String(err) });
+      const name = err instanceof Error ? err.message : String(err);
+      // Only an unreadable payload means the file holds no card; everything else is a failure.
+      return UNREADABLE_ERRORS.has(name) ? "unreadable" : "failed";
     }
+  }
+
+  async function importPreset(): Promise<void> {
+    const outcome = await runImport(deps.ports.importPreset);
+    if (outcome === null || outcome === "busy") return;
+    clear();
+    if (outcome !== "imported")
+      show(errorEl, t(outcome === "unreadable" ? "card.import_error" : "card.import_failed"));
   }
 
   return {
@@ -157,7 +182,11 @@ export function createCardIo(deps: {
         : t("card.png_no_picture", { note: t("card.io_note") });
     },
 
-    importDropped: async () => undefined as never,
+    isImporting: () => importBusy.isBusy(),
+
+    importDropped: () => runImport(deps.ports.importDroppedPreset),
+
+    dispose: unsubscribeBusy,
 
     exportPreset(parts: PresetExportParts): Promise<boolean> {
       return exportWith(async () => {

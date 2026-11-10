@@ -3,7 +3,7 @@
  * registry. The settings window's wiring spreads this result.
  */
 
-import { importCardFromFile } from "../../io/assets/card/card-import";
+import { importCardFromDrop, importCardFromFile } from "../../io/assets/card/card-import";
 import {
   pickPresetPhoto,
   removeCardThumbnail,
@@ -24,6 +24,7 @@ import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
 import { getLocale } from "../../ui/i18n";
 import type { CardIoPorts } from "../../ui/quick-controls/sections/card/card-io";
+import type { ImportGate } from "./import-gate";
 import { type ImportPresetDeps, importPreset } from "./import-preset";
 
 export interface WireCardIoDeps {
@@ -34,43 +35,52 @@ export interface WireCardIoDeps {
   /** Deletes a voice's server entry and its local clip. */
   removeVoice(id: string): Promise<void>;
   registerCopiedVoice(copied: UserSpeakerOption, label: string): Promise<string>;
+  /** This window's one card import at a time, shared by the picker and the dropped file. */
+  gate: ImportGate;
 }
 
 export function wireCardIo(deps: WireCardIoDeps): CardIoPorts {
-  const { registry, vrmSelection } = deps;
+  const { registry, vrmSelection, gate } = deps;
+  const shared: Omit<ImportPresetDeps, "importCard"> = {
+    registerCopiedVoice: deps.registerCopiedVoice,
+    removeUserVrm,
+    vrmSelection,
+    discardVoice: async (id) => {
+      await deps.removeVoice(id);
+      deps.speakerSelection.removeUserOption(id);
+    },
+    createPresetFromCard: (input) => {
+      const { thumbnailTempId } = input;
+      return createPresetFromCard({
+        ...input,
+        registry,
+        fillerLocale: getLocale(),
+        ...(thumbnailTempId
+          ? {
+              retainThumbnail: (presetId: string) =>
+                retainFramedThumbnail(thumbnailTempId, presetId),
+              discardThumbnail: async (presetId: string) => {
+                // One failed removal must not skip the other.
+                await Promise.allSettled([
+                  removeCardThumbnail(thumbnailTempId),
+                  removeCardThumbnail(presetId),
+                ]);
+              },
+            }
+          : {}),
+      });
+    },
+  };
   return {
-    importPreset: () =>
-      importPreset({
-        importCard: importCardFromFile,
-        registerCopiedVoice: deps.registerCopiedVoice,
-        removeUserVrm,
-        vrmSelection,
-        discardVoice: async (id) => {
-          await deps.removeVoice(id);
-          deps.speakerSelection.removeUserOption(id);
-        },
-        createPresetFromCard: (input) => {
-          const { thumbnailTempId } = input;
-          return createPresetFromCard({
-            ...input,
-            registry,
-            fillerLocale: getLocale(),
-            ...(thumbnailTempId
-              ? {
-                  retainThumbnail: (presetId: string) =>
-                    retainFramedThumbnail(thumbnailTempId, presetId),
-                  discardThumbnail: async (presetId: string) => {
-                    // One failed removal must not skip the other.
-                    await Promise.allSettled([
-                      removeCardThumbnail(thumbnailTempId),
-                      removeCardThumbnail(presetId),
-                    ]);
-                  },
-                }
-              : {}),
-          });
-        },
+    importPreset: () => gate.run(() => importPreset({ ...shared, importCard: importCardFromFile })),
+    importDroppedPreset: () =>
+      gate.run(async () => {
+        const imported = await importPreset({ ...shared, importCard: importCardFromDrop });
+        // A dropped file has no picker to dismiss, so no import ends without a result.
+        if (!imported) throw new Error("import failed");
+        return imported;
       }),
+    importBusy: gate,
     exportPresetFile: (request) => exportPresetFile(request),
     exportCardPng: (defaultName, cardJson, presetId) =>
       exportCardPng(defaultName, cardJson, presetId),

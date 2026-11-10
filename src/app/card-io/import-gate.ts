@@ -8,9 +8,26 @@ export interface ImportGate {
 }
 
 export function createImportGate(): ImportGate {
+  let busy = false;
+  const listeners = new Set<() => void>();
+  const set = (next: boolean): void => {
+    busy = next;
+    for (const listener of listeners) listener();
+  };
   return {
-    run: (task) => task(),
-    isBusy: () => false,
-    subscribe: () => () => {},
+    async run(task) {
+      if (busy) return "busy";
+      set(true);
+      try {
+        return await task();
+      } finally {
+        set(false);
+      }
+    },
+    isBusy: () => busy,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
   };
 }
