@@ -87,6 +87,8 @@ pub fn run() {
         .on_window_event(|_window, _event| {
             #[cfg(desktop)]
             mcp_host::on_window_event(_window, _event);
+            #[cfg(desktop)]
+            dropped_files::on_window_event(_window, _event);
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

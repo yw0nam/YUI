@@ -2,19 +2,51 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
+use tauri::{DragDropEvent, Manager, Window, WindowEvent};
 
 /// The files last dropped onto each settings window, kept until `import_dropped_card` takes them.
 #[derive(Default)]
 pub struct DroppedFiles(Mutex<HashMap<String, Vec<PathBuf>>>);
 
 impl DroppedFiles {
-    pub fn record(&self, _label: &str, _paths: Vec<PathBuf>) {}
+    /// Replaces that window's entry.
+    pub fn record(&self, label: &str, paths: Vec<PathBuf>) {
+        self.entries().insert(label.to_string(), paths);
+    }
 
-    pub fn clear(&self, _label: &str) {}
+    pub fn clear(&self, label: &str) {
+        self.entries().remove(label);
+    }
 
-    pub fn take(&self, _label: &str) -> Vec<PathBuf> {
-        Vec::new()
+    /// Removes and returns that window's entry; empty when none.
+    pub fn take(&self, label: &str) -> Vec<PathBuf> {
+        self.entries().remove(label).unwrap_or_default()
+    }
+
+    fn entries(&self) -> MutexGuard<'_, HashMap<String, Vec<PathBuf>>> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+/// Records a drop onto a settings window and forgets it when a new drag enters or the window closes.
+pub fn on_window_event(window: &Window, event: &WindowEvent) {
+    let label = window.label();
+    if label != "settings" && !label.starts_with("settings-") {
+        return;
+    }
+    let Some(files) = window.try_state::<DroppedFiles>() else {
+        return;
+    };
+    match event {
+        WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => {
+            log::debug!("card_drop_recorded count={}", paths.len());
+            files.record(label, paths.clone());
+        }
+        WindowEvent::DragDrop(DragDropEvent::Enter { .. }) | WindowEvent::Destroyed => {
+            files.clear(label)
+        }
+        _ => {}
     }
 }
 

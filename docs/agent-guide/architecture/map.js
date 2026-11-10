@@ -597,6 +597,7 @@ globalThis.YUI_MAP =
         "src-tauri/src/vrm_import.rs",
         "src-tauri/src/voice_import.rs",
         "src-tauri/src/card_import.rs",
+        "src-tauri/src/dropped_files.rs",
         "src-tauri/src/preset_file"
       ]
     },

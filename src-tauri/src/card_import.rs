@@ -1,10 +1,11 @@
 //! Tavern card import (native half).
 //!
-//! Reads a picked `.json`, `.png` or `.yui` file: JSON passes through; a PNG's card JSON sits
-//! in a `ccv3` or `chara` tEXt chunk (base64 of UTF-8 JSON, `ccv3` wins) and the image is
+//! Reads a picked or dropped `.json`, `.png` or `.yui` file: JSON passes through; a PNG's card
+//! JSON sits in a `ccv3` or `chara` tEXt chunk (base64 of UTF-8 JSON, `ccv3` wins) and the image is
 //! copied into `<app_data_dir>/cards/` as the preset's thumbnail; a `.yui` preset file is read
 //! by `preset_file`. Also retains and removes the thumbnails and picks a preset's photo.
 
+use crate::dropped_files::DroppedFiles;
 use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, sniff_ok,
     ClaimTarget, SniffKind,
@@ -14,8 +15,9 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::Serialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use tauri::{command, AppHandle};
+use tauri::{command, AppHandle, Manager, Window};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_fs::FilePath;
 
 /// Max accepted source size for a card JSON.
 pub(crate) const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
@@ -236,24 +238,13 @@ pub(crate) fn cards_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "cards")
 }
 
-/// Open the card picker here and read the picked file: a `.json`, a `.png` with its card JSON in
-/// a tEXt chunk (copied into `cards/` under a temp id for the preset thumbnail), or a `.yui`
-/// preset file (its thumbnail, VRM and voice clip claimed under `reserved_vrm_ids` and
-/// `voice_staging_id`). `None` when the picker is dismissed.
-#[command]
-pub async fn import_card_file(
+/// Read a `.json`, `.png` or `.yui` card file at `src_path`.
+async fn import_card_at(
     app: AppHandle,
+    src_path: FilePath,
     reserved_vrm_ids: Vec<String>,
     voice_staging_id: String,
-) -> Result<Option<ImportedCardFile>, String> {
-    let Some(src_path) = app
-        .dialog()
-        .file()
-        .add_filter("Card", &["json", "png", "yui"])
-        .blocking_pick_file()
-    else {
-        return Ok(None);
-    };
+) -> Result<ImportedCardFile, String> {
     let dirs = PresetDirs::of(&app)?;
     open_and_import(app, src_path, move |name, identity, mut source| {
         let name = Path::new(name.as_deref().unwrap_or(""));
@@ -291,12 +282,69 @@ pub async fn import_card_file(
         }
     })
     .await
-    .map(Some)
+}
+
+/// Open the card picker here and read the picked file: a `.json`, a `.png` with its card JSON in
+/// a tEXt chunk (copied into `cards/` under a temp id for the preset thumbnail), or a `.yui`
+/// preset file (its thumbnail, VRM and voice clip claimed under `reserved_vrm_ids` and
+/// `voice_staging_id`). `None` when the picker is dismissed.
+#[command]
+pub async fn import_card_file(
+    app: AppHandle,
+    reserved_vrm_ids: Vec<String>,
+    voice_staging_id: String,
+) -> Result<Option<ImportedCardFile>, String> {
+    let Some(src_path) = app
+        .dialog()
+        .file()
+        .add_filter("Card", &["json", "png", "yui"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    import_card_at(app, src_path, reserved_vrm_ids, voice_staging_id)
+        .await
+        .map(Some)
 }
 
 /// The one dropped card file, refused unless it is a single `.json`, `.png` or `.yui` file.
-fn check_dropped_card(_paths: &[PathBuf]) -> Result<&Path, String> {
-    Err(String::new())
+fn check_dropped_card(paths: &[PathBuf]) -> Result<&Path, String> {
+    let path = match paths {
+        [] => return Err("no dropped file".to_string()),
+        [path] => path,
+        _ => return Err("multiple files".to_string()),
+    };
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase());
+    match ext.as_deref() {
+        Some("json" | "png" | "yui") => Ok(path),
+        _ => Err("unsupported file".to_string()),
+    }
+}
+
+/// Read the file just dropped onto this settings window, as `import_card_file` reads a picked one.
+/// The path comes from the native drop event, never from the webview; one drop is read once.
+#[command]
+pub async fn import_dropped_card(
+    app: AppHandle,
+    window: Window,
+    reserved_vrm_ids: Vec<String>,
+    voice_staging_id: String,
+) -> Result<ImportedCardFile, String> {
+    let paths = app.state::<DroppedFiles>().take(window.label());
+    let path = check_dropped_card(&paths).map_err(|e| {
+        log::warn!("card_drop_refused reason={e}");
+        e
+    })?;
+    import_card_at(
+        app,
+        FilePath::from(path.to_path_buf()),
+        reserved_vrm_ids,
+        voice_staging_id,
+    )
+    .await
 }
 
 /// Move a PNG card's temp thumbnail to the importing preset's id, returning the dest path.
