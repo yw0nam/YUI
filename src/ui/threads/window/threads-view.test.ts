@@ -576,6 +576,28 @@ it("opens on the asked tab without the grow when the open has no origin", async 
   delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
 });
 
+/** Whether any animation an open out of the chip runs carries a scale. */
+async function opensWithScale(opts?: { focus: false }): Promise<boolean> {
+  const animate = vi.fn((_frames: Keyframe[]) => ({
+    finished: Promise.resolve(),
+  }));
+  HTMLElement.prototype.animate = animate as never;
+  const { view } = build();
+  await view.open({ x: 700, y: 640, width: 150, height: 32 }, "threads", opts);
+  delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+  return animate.mock.calls.some(([frames]) =>
+    frames.some((frame) => String(frame.transform ?? "").includes("scale(")),
+  );
+}
+
+it("an automatic open grows with the jelly", async () => {
+  expect(await opensWithScale({ focus: false })).toBe(true);
+});
+
+it("a user's open grows without the jelly", async () => {
+  expect(await opensWithScale()).toBe(false);
+});
+
 const entries = (n: number, from = 1): Thread["entries"] =>
   Array.from({ length: n }, (_, i) => {
     const at = from + i;
