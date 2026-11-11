@@ -152,6 +152,7 @@ export function createSignalChips({
     if (items.length === 0) {
       openId = null;
       expanded = false;
+      renderDetails(undefined, 0);
       setVisible(false);
       return;
     }
