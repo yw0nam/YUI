@@ -115,6 +115,15 @@ describe("createSignalChips", () => {
     expect(model.list().map((i) => i.group.envelope.event_id)).toEqual(["e1"]);
   });
 
+  it("Dismiss in the last chip's details closes the sheet at once", () => {
+    build([group(1)]);
+    click(opener(0));
+
+    click(mount.querySelector(".yui-sigdetails__dismiss")!);
+
+    expect(mount.querySelector(".yui-sigdetails")).toBeNull();
+  });
+
   it("a tap opens the details with what YUI said and the raw items; Escape closes it", () => {
     history.rows = [
       {
