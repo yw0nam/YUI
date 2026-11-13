@@ -291,4 +291,4 @@ One reaction runs at a time. It waits while she is not free: the avatar executor
 
 A running reaction checks after each wait that its cause still holds: the switch is on, a tap's window did not close, a wait's Thread is still counted, a count still has counted Threads. Otherwise it stops and fires nothing; the held groups stay held for the next reaction.
 
-A tap whose window is not listed yet — the chip's open is still in flight — goes back to the slot and retries every second until it is listed.
+A tap whose window is not listed yet — the chip's open is still in flight — goes back to the slot and retries every second; after ten unlisted tries it is dropped.

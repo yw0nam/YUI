@@ -268,6 +268,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `thread-reaction` | `reaction_sit` | `cause`, `threadId?`, `window` | The sit command is sent (`debug` level). |
 | `thread-reaction` | `reaction_expression` | `cause`, `threadId?`, `window` | The `curious` expression is set (`debug` level). |
 | `thread-reaction` | `reaction_sit.failed` | `cause`, `threadId?`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
+| `thread-reaction` | `reaction_tap.unlisted` | `cause` | The Threads window never got listed under a tap; the tap is dropped after ten tries (`debug` level). |
 | `thread-reaction` | `reaction_failed` | `cause`, `threadId?`, `error` | A reaction threw (`warn` level). |
 
 ## TypeScript usage

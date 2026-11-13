@@ -64,6 +64,7 @@ type PendingReaction = { cause: "tap" } | { cause: "count" } | { cause: "wait"; 
 type RunResult = "done" | "stopped" | "not-ready";
 
 const RETRY_MS = 1000;
+const TAP_UNLISTED_CAP = 10;
 
 /** Rejects a run's wait when the switch turns off or the reaction is disposed. */
 const HALTED = Symbol("halted");
@@ -96,6 +97,8 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
   let halt: (() => void) | null = null;
   // Set when the Threads window closes under the running tap.
   let cancelled = false;
+  // Consecutive not-ready runs of the current tap.
+  let tapUnlisted = 0;
 
   const enabled = (): boolean => deps.enabled.get().enabled;
 
@@ -185,8 +188,14 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       // The fired turn reaches the pipeline after this tick, so the next reaction checks on the retry.
       retryLater();
     } else if (finished === "not-ready") {
-      // The chip's open is still in flight; the tap goes back to the slot for the retry.
-      if (pending?.cause !== "tap") pending = cause;
+      // The chip's open is still in flight; the tap goes back to the slot for the retry, ten tries at most.
+      tapUnlisted += 1;
+      if (tapUnlisted >= TAP_UNLISTED_CAP) {
+        log.debug("reaction_tap.unlisted", { cause: cause.cause });
+        tapUnlisted = 0;
+      } else if (pending?.cause !== "tap") {
+        pending = cause;
+      }
       retryLater();
     } else {
       tryRun();
@@ -324,6 +333,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
   const offTaps = deps.chipTaps(() => {
     if (!enabled()) return;
     pending = { cause: "tap" };
+    tapUnlisted = 0;
     tryRun();
   });
   const offThresholds = deps.thresholds.subscribe(() => thresholds.recheck());
