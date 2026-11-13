@@ -1,26 +1,62 @@
 /** thread-reaction-thresholds-settings — the waiting count and wait at which a Thread reaction starts without a chip tap. Device-wide. */
 
-import type { PersistedStorage } from "../persisted-store";
+import {
+  createPersistedStore,
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "../persisted-store";
+
+/** Waiting-Threads count options; `0` is Off. */
+export const REACTION_COUNTS = [0, 2, 3, 5] as const;
+export type ReactionCount = (typeof REACTION_COUNTS)[number];
+/** Wait options in minutes; `0` is Off. */
+export const REACTION_WAITS = [0, 5, 10, 30] as const;
+export type ReactionWait = (typeof REACTION_WAITS)[number];
 
 export interface ThreadReactionThresholdsSettings {
-  count: number;
-  wait_min: number;
+  count: ReactionCount;
+  wait_min: ReactionWait;
 }
 export type ThreadReactionThresholdsStorage = PersistedStorage<ThreadReactionThresholdsSettings>;
 
-export function createThreadReactionThresholdsSettings(_opts?: {
+export function createThreadReactionThresholdsSettings(opts?: {
   storage?: ThreadReactionThresholdsStorage;
 }) {
+  const core = createPersistedStore<ThreadReactionThresholdsSettings>({
+    storage: opts?.storage,
+    defaults: { count: 3, wait_min: 10 },
+    parse: (value) => {
+      if (!isPlainObject(value)) return null;
+      const count = (value as ThreadReactionThresholdsSettings).count;
+      const wait_min = (value as ThreadReactionThresholdsSettings).wait_min;
+      return {
+        count: REACTION_COUNTS.includes(count) ? count : 3,
+        wait_min: REACTION_WAITS.includes(wait_min) ? wait_min : 10,
+      };
+    },
+    equals: (a, b) => a.count === b.count && a.wait_min === b.wait_min,
+  });
   return {
-    get: (): ThreadReactionThresholdsSettings => ({ count: 3, wait_min: 10 }),
-    setCount(_count: number): void {},
-    setWait(_wait_min: number): void {},
-    reloadFromStorage(): void {},
-    subscribe: (_cb: () => void) => () => {},
-    dispose(): void {},
+    get: core.get,
+    setCount(count: ReactionCount): void {
+      core.commit({ ...core.current(), count });
+    },
+    setWait(wait_min: ReactionWait): void {
+      core.commit({ ...core.current(), wait_min });
+    },
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
   };
 }
 
 export type ThreadReactionThresholdsSettingsStore = ReturnType<
   typeof createThreadReactionThresholdsSettings
 >;
+
+export function localStorageThreadReactionThresholdsStorage(
+  key = "yui.thread-reaction-thresholds",
+): ThreadReactionThresholdsStorage {
+  return localStorageStore<ThreadReactionThresholdsSettings>(key);
+}

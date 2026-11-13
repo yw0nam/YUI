@@ -54,6 +54,10 @@ import {
 } from "./persisted-store";
 import { createRelationsSwitch } from "./relations/relations-switch";
 import {
+  createThreadReactionThresholdsSettings,
+  localStorageThreadReactionThresholdsStorage,
+} from "./threads/thread-reaction-thresholds-settings";
+import {
   createThreadTurnsSettings,
   localStorageThreadTurnsStorage,
 } from "./threads/thread-turns-settings";
@@ -139,6 +143,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const threadReactionsSettings = createFlagSettings(true, {
     storage: localStorageStore("yui.thread-reactions"),
   });
+  // Device-wide Reaction thresholds: the waiting count and wait that start a Thread reaction without a chip tap.
+  const threadReactionThresholdsSettings = createThreadReactionThresholdsSettings({
+    storage: localStorageThreadReactionThresholdsStorage(),
+  });
   // Device-wide text size: the scale every window applies to its text tokens.
   const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
@@ -219,6 +227,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     themeSettings,
     threadTurnsSettings,
     threadReactionsSettings,
+    threadReactionThresholdsSettings,
     textSizeSettings,
     fillerSettings,
     readingsSettings,
@@ -274,6 +283,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   themeSettings: "broadcast",
   threadTurnsSettings: "broadcast",
   threadReactionsSettings: "broadcast",
+  threadReactionThresholdsSettings: "broadcast",
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
   readingsSettings: "broadcast",
