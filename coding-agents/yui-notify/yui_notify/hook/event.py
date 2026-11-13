@@ -83,9 +83,6 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         agent = "codex"
     else:
         return None
-    # PostToolUse only closes a permission ask after a terminal Yes; Codex posts no such hook
-    if phase in ("PostToolUse", "PostToolUseFailure") and agent != "claude-code":
-        return None
     tasks = data.get("background_tasks")
     running = isinstance(tasks, list) and any(
         isinstance(t, dict) and t.get("status") == "running" for t in tasks
