@@ -35,8 +35,16 @@ export function wireThreadReactions(deps: {
   config: Pick<ConfigStore, "get">;
   threadTurn: ConfiguredBootstrapHandles["threadTurn"];
 }): () => void {
-  const { threads, threadsWindow, slotRect, chipTaps, speechPlayback, locomotion, renderer, settings } =
-    deps;
+  const {
+    threads,
+    threadsWindow,
+    slotRect,
+    chipTaps,
+    speechPlayback,
+    locomotion,
+    renderer,
+    settings,
+  } = deps;
   if (!threads || !threadsWindow) return () => {};
   const presence = createPresence({
     threshold: () => settings.presenceSettings.get().value,

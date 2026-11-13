@@ -1,7 +1,7 @@
 /** presence — the last OS idle tick read against the away threshold, for main's pet window. */
 
 import { createLogger } from "../../logger";
-import { subscribeOsEvent, type OsEventListen, type OsEventPayload } from "../window/tauri-listen";
+import { type OsEventListen, type OsEventPayload, subscribeOsEvent } from "../window/tauri-listen";
 
 const log = createLogger("presence");
 

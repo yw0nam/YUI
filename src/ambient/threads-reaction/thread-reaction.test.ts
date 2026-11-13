@@ -331,13 +331,7 @@ it.each([
     [[]],
   ],
   ["open and visible", [BESIDE, THREADS], null, ["sit", "emotion:curious"], []],
-  [
-    "open with her seated on it",
-    [THREADS],
-    { windowNumber: 42 },
-    ["emotion:curious"],
-    [],
-  ],
+  ["open with her seated on it", [THREADS], { windowNumber: 42 }, ["emotion:curious"], []],
 ] as const)("%s: a count reach runs only the steps the window state needs", async (_name, windows, seat, expected, presentCalls) => {
   const h = setup();
   h.setThresholds({ count: 2 });

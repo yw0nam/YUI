@@ -2,10 +2,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
 import { createGuardrailsSettings } from "../../../../settings/backend/guardrails-settings";
+import { createFlagSettings } from "../../../../settings/persisted-store";
 import { createPacerGapStore, createPresenceStore } from "../../../../settings/settings-stores";
 import { createThreadReactionThresholdsSettings } from "../../../../settings/threads/thread-reaction-thresholds-settings";
 import { createThreadTurnsSettings } from "../../../../settings/threads/thread-turns-settings";
-import { createFlagSettings } from "../../../../settings/persisted-store";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import {

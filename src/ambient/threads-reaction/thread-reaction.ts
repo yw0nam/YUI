@@ -1,13 +1,7 @@
 /** thread-reaction — the main character's Thread reaction: started by a chip tap, the waiting count, or a long wait; a line, the Threads window, her seat on it, an expression, then every held Thread turn. */
 
 import type { FillerPool } from "../../config/validators/filler";
-import type {
-  EmotionId,
-  ScreenRect,
-  Thread,
-  ThreadsSnapshot,
-  WindowRect,
-} from "../../contract";
+import type { EmotionId, ScreenRect, Thread, ThreadsSnapshot, WindowRect } from "../../contract";
 import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { ThreadsClient } from "../../io/threads/threads-client";
 import { isUnseenWaiting } from "../../io/threads/threads-waiting";
