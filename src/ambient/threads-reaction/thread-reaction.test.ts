@@ -309,6 +309,9 @@ it("a pending wait whose Thread stops being counted is dropped", async () => {
   h.state.pipelineBusy = false;
   await vi.advanceTimersByTimeAsync(2000);
   expect(h.order).toEqual([]);
+  expect(h.turns).toEqual(["hold:t1"]);
+
+  h.push([]);
   expect(h.turns).toEqual(["hold:t1", "release:t1"]);
 });
 
