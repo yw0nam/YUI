@@ -444,7 +444,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       chipFold: signalChips.collapsed,
       threadTurn: {
         hold: (id) => signalsSource.hold(threadEventId(id)),
-        fire: (id) => signalsSource.fireNow(threadEventId(id)),
+        fire: (ids) => signalsSource.fireHeld(ids.map(threadEventId)),
         release: (id) => signalsSource.release(threadEventId(id)),
       },
     };

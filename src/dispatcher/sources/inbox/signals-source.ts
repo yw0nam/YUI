@@ -52,13 +52,11 @@ export interface SignalsSource {
   offer(group: SignalGroup): void;
   /** Removes the buffered batched group with this event id and event type. */
   withdraw(eventId: string, eventType: string): void;
-  /** Keeps the batched group with this event id out of every delivery until `release` or `fireNow`. */
+  /** Keeps the batched group with this event id out of every delivery until `release` or `fireHeld`. */
   hold(eventId: string): void;
   /** Lifts the hold; the group joins the next catch-up or timer firing. */
   release(eventId: string): void;
-  /** Lifts the hold and sends the buffered group with this event id as its own ungated turn; true when pushed. */
-  fireNow(eventId: string): boolean;
-  /** Sends every buffered batched group with these event ids as one ungated turn; true when pushed. */
+  /** Sends every buffered batched group with these event ids as one ungated turn, without lifting the holds; true when pushed. */
   fireHeld(eventIds: readonly string[]): boolean;
 }
 
@@ -244,24 +242,23 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   // Ungated: the reaction that fires it already waited for an idle pipeline.
-  function fireNow(eventId: string): boolean {
-    release(eventId);
-    const at = batchBuffer.findIndex(({ group }) => group.envelope.event_id === eventId);
-    if (!deps.isEnabled() || at < 0) return false;
-    const [entry] = batchBuffer.splice(at, 1);
-    // os_event_watcher is unpaced, so the proactive gap does not hold it; a drop (its guardrail debounce too) returns the group through restoreSignals.
+  function fireHeld(eventIds: readonly string[]): boolean {
+    const ids = new Set(eventIds);
+    const at = batchBuffer
+      .map((entry, index) => (ids.has(entry.group.envelope.event_id) ? index : -1))
+      .filter((index) => index >= 0);
+    if (!deps.isEnabled() || at.length === 0) return false;
+    // os_event_watcher is unpaced, so the proactive gap does not hold it; a drop (its guardrail debounce too) returns the groups through restoreSignals.
     const pushed = deps.bus.push({
       source: "os_event_watcher",
       event_name: "signals.batch",
       ts: now(),
-      payload: { signals: [entry.group] },
+      payload: { signals: at.map((index) => batchBuffer[index]!.group) },
     });
-    if (!pushed) {
-      batchBuffer.splice(at, 0, entry);
-      return false;
-    }
+    if (!pushed) return false;
+    for (const index of at.reverse()) batchBuffer.splice(index, 1);
     if (batchBuffer.length === 0) clearBatchTimer();
-    log.info("fire_now", { event_id: eventId });
+    log.info("fire_held", { event_ids: [...ids] });
     return true;
   }
 
@@ -350,7 +347,6 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       heldIds.add(eventId);
     },
     release,
-    fireNow,
-    fireHeld: () => false,
+    fireHeld,
   };
 }
