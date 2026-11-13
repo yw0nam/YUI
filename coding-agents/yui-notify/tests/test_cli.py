@@ -505,7 +505,8 @@ def test_queued_prompt_moves_the_thread_without_an_entry(tmp_path, server, fixtu
 
 
 def marker_path(tmp_path):
-    return tmp_path / "state" / "yui-notify" / f"claude-code:{socket.gethostname().split('.')[0]}:8864.json"
+    # the marker is named after the hook input's session_id
+    return tmp_path / "state" / "yui-notify" / "bc68d697-4e8f-4be0-8ea6-e67f955b2586.json"
 
 
 def fire_post_tool_use_while_waiting(tmp_path, endpoint, received, drop_marker=False, **updates):

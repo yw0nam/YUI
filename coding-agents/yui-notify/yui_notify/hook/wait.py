@@ -36,7 +36,7 @@ def close_matched_ask(env: Mapping[str, str], thread: str, tool_name: str, tool_
 
 
 def wait_for_answer(
-    url: str, body: dict, phase: str, cap: float, env: Mapping[str, str], thread: str
+    url: str, body: dict, phase: str, cap: float, env: Mapping[str, str], session: str
 ) -> dict | None:
     interrupt_on_signals()
     answered = None
@@ -50,5 +50,5 @@ def wait_for_answer(
     # a closed ask (410) needs no closing PUT: whoever closed it already updated the Thread
     if answered is None and not gone:
         close_ask(url, body, phase, env)
-    ask_marker.remove_if_own(env, thread, body["ask"]["ask_id"])
+    ask_marker.remove_if_own(env, session, body["ask"]["ask_id"])
     return answered

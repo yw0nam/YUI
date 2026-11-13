@@ -34,10 +34,9 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
         return
     if event.phase in ("PostToolUse", "PostToolUseFailure"):
         # a terminal Yes never reaches the waiting hook: close its ask once the tool ran
-        close_matched_ask(env, thread_id(event, env), event.tool_name, event.tool_input)
+        close_matched_ask(env, event.session_id, event.tool_name, event.tool_input)
         return
-    thread = thread_id(event, env)
-    url = cfg["endpoint"] + "/threads/" + thread
+    url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
     front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
     body = build_thread(event, context(event.cwd, env), front, bool(env.get(SOCKET_ENV)))
     status, _, error = put(url, body)
@@ -57,8 +56,8 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     else:
         if event.agent == "claude-code":
             # the marker lets the session's PostToolUse hook close this ask after a terminal Yes
-            ask_marker.write(env, thread, url, body, event.tool_name, event.tool_input)
-        output = wait_for_answer(url, body, event.phase, cap, env, thread)
+            ask_marker.write(env, event.session_id, url, body, event.tool_name, event.tool_input)
+        output = wait_for_answer(url, body, event.phase, cap, env, event.session_id)
     if output:
         print(json.dumps(output))
         decision = output.get("hookSpecificOutput", {}).get("decision", {})
