@@ -9,7 +9,16 @@ from yui_notify.threads.question import usable_questions
 
 # Claude Code marks a queued command only by the prompt's leading tag
 QUEUED = ("<task-notification>", "<agent-message ")
-EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "SessionEnd", "UserPromptSubmit"}
+EVENTS = {
+    "Stop",
+    "PermissionRequest",
+    "Notification",
+    "SessionStart",
+    "SessionEnd",
+    "UserPromptSubmit",
+    "PostToolUse",
+    "PostToolUseFailure",
+}
 
 
 class Event(NamedTuple):

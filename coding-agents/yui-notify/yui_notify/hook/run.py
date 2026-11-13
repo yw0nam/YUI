@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import TextIO
 
 from yui_notify import config
+from yui_notify.hook import ask_marker
 from yui_notify.hook.event import parse_event
 from yui_notify.hook.focus import host_app_in_front
 from yui_notify.hook.questions import answer_questions
@@ -31,6 +32,11 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
         if failure:
             print(json.dumps({"systemMessage": f"yui-notify: {failure}"}))
         return
+    if event.phase in ("PostToolUse", "PostToolUseFailure"):
+        ask_marker.close_matched_ask(
+            env, event.session_id, event.tool_name, event.tool_input, cfg["wait"]["permission"]
+        )
+        return
     url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
     front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
     body = build_thread(event, context(event.cwd, env), front, bool(env.get(SOCKET_ENV)))
@@ -49,7 +55,10 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     if questions:
         output = answer_questions(url, body, questions, cap, env)
     else:
-        output = wait_for_answer(url, body, event.phase, cap, env)
+        if event.agent == "claude-code":
+            # the marker lets the session's PostToolUse hook close this ask after a terminal Yes
+            ask_marker.write(env, event.session_id, url, body, event.tool_name, event.tool_input)
+        output = wait_for_answer(url, body, event.phase, cap, env, event.session_id)
     if output:
         print(json.dumps(output))
         decision = output.get("hookSpecificOutput", {}).get("decision", {})

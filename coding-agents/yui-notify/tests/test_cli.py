@@ -6,6 +6,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -177,7 +178,6 @@ def test_codex_answers(tmp_path, server, capsys, fixture, answer, expected):
 @pytest.mark.parametrize(
     "fixture,state,status",
     [
-        ("codex-stop.json", "completed", 410),
         ("codex-permission.json", "working", 503),
         ("codex-stop.json", "completed", 204),
         ("codex-permission.json", "working", 0),
@@ -504,6 +504,123 @@ def test_queued_prompt_moves_the_thread_without_an_entry(tmp_path, server, fixtu
     assert (body["state"], body["entries"], body["ask"]) == ("working", [], None)
 
 
+def marker_path(tmp_path):
+    # the marker is named after the hook input's session_id
+    return tmp_path / "state" / "yui-notify" / "bc68d697-4e8f-4be0-8ea6-e67f955b2586.json"
+
+
+def fire_post_tool_use_while_waiting(tmp_path, endpoint, received, drop_marker=False, **updates):
+    # a PermissionRequest hook waits on 204 while a PostToolUse hook fires once the ask marker exists; the wait ends on 410
+    received.status[1] = 204
+    marker = marker_path(tmp_path)
+    seen = []
+
+    def fire():
+        deadline = time.time() + 10
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        seen.append(marker.exists())
+        if drop_marker:
+            marker.unlink(missing_ok=True)
+        run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse", **updates)
+        received.status[1] = 410
+
+    worker = threading.Thread(target=fire)
+    worker.start()
+    code = run_hook(tmp_path, endpoint, "claude-permission.json")
+    worker.join(10)
+    assert seen == [True], "the permission hook wrote no ask marker"
+    return code
+
+
+def test_a_matching_tool_run_closes_the_ask_and_removes_its_marker(tmp_path, server):
+    endpoint, received = server
+    assert fire_post_tool_use_while_waiting(tmp_path, endpoint, received) == 0
+    assert len(received) == 2
+    assert received[1][0] == received[0][0]
+    assert received[1][1] == {**received[0][1], "state": "working", "ask": None, "entries": []}
+    assert not marker_path(tmp_path).exists()
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [{"tool_name": "Edit"}, {"tool_input": {"command": "rm -rf build"}}],
+    ids=["other-tool", "other-input"],
+)
+def test_a_tool_run_that_matches_nothing_puts_nothing(tmp_path, server, updates):
+    endpoint, received = server
+    fire_post_tool_use_while_waiting(tmp_path, endpoint, received, **updates)
+    assert len(received) == 1
+    assert not marker_path(tmp_path).exists()
+
+
+def test_a_tool_run_without_its_marker_puts_nothing(tmp_path, server):
+    endpoint, received = server
+    fire_post_tool_use_while_waiting(tmp_path, endpoint, received, drop_marker=True)
+    assert len(received) == 1
+    assert not marker_path(tmp_path).exists()
+
+
+def test_a_wait_that_ends_on_410_makes_no_closing_put(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 410
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    assert len(received) == 1
+    assert not marker_path(tmp_path).exists()
+
+
+def test_a_stale_marker_makes_the_tool_run_put_nothing(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 204
+    marker = marker_path(tmp_path)
+    seen = []
+
+    def age_marker():
+        deadline = time.time() + 10
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        seen.append(marker.exists())
+        stale = json.loads(marker.read_text())
+        stale["written_at"] = time.time() - 9999
+        marker.write_text(json.dumps(stale))
+        run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
+        received.status[1] = 410
+
+    worker = threading.Thread(target=age_marker)
+    worker.start()
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    worker.join(10)
+    assert seen == [True], "the permission hook wrote no ask marker"
+    assert len(received) == 1
+    assert not marker_path(tmp_path).exists()
+
+
+def test_a_waiter_keeps_a_marker_holding_another_ask(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 204
+    marker = marker_path(tmp_path)
+    seen = []
+
+    def replace_marker():
+        deadline = time.time() + 10
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        seen.append(marker.exists())
+        newer = json.loads(marker.read_text())
+        newer["ask_id"] = "perm:replaced:" + "0" * 32
+        marker.write_text(json.dumps(newer))
+        received.status[1] = 410
+
+    worker = threading.Thread(target=replace_marker)
+    worker.start()
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    worker.join(10)
+    assert seen == [True], "the permission hook wrote no ask marker"
+    assert len(received) == 1
+    assert json.loads(marker.read_text())["ask_id"] == "perm:replaced:" + "0" * 32
+    assert marker_path(tmp_path).stat().st_mode & 0o777 == 0o600
+
+
 FRUITS = {
     "question": "Pick fruits",
     "header": "Fruit",
@@ -614,6 +731,14 @@ def test_unanswered_question_closes_its_ask_and_prints_nothing(tmp_path, server,
     assert received[0][1]["ask"]["prompt"] == "Pick fruits"
     assert len(received) == 2
     assert received[-1][1] == {**received[0][1], "state": "working", "ask": None, "entries": []}
+
+
+def test_an_ask_user_question_wait_that_ends_on_410_makes_no_closing_put(tmp_path, server, capsys):
+    endpoint, received = server
+    received.status[1] = 410
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json")
+    assert printed(capsys) is None
+    assert len(received) == 1
 
 
 def test_a_long_option_label_is_cut_in_the_ask_and_answered_in_full(tmp_path, server, capsys):

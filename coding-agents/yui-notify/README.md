@@ -56,6 +56,8 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Claude Code | `Stop` | `input-required` with an inbox socket; otherwise `completed` | `agent`: last assistant message | “What next?” with text, with an inbox socket |
 | Claude Code | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
 | Claude Code | `PermissionRequest` (`AskUserQuestion`) | `input-required` | `system`: each question with its options | One ask per question: its options, plus text |
+| Claude Code | `PostToolUse` | `working` only when the session's permission marker matches the tool name and input; nothing sent otherwise | None added | Closes the ask when the marker matches |
+| Claude Code | `PostToolUseFailure` | `working` only when the session's permission marker matches the tool name and input; nothing sent otherwise | None added | Closes the ask when the marker matches |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
@@ -124,6 +126,12 @@ wait at once.
 - Permission Allow returns an allow decision. Deny returns a deny decision with any text
   as its message. Text alone denies and gives the agent that instruction; Claude Code also
   receives the text through its inbox.
+- Claude Code only: a prompt answered "Yes" in the terminal never reaches this hook. The
+  PermissionRequest hook leaves a marker file in the state dir (where `last-error.json` lives)
+  naming its ask, and Claude Code spawns the async `PostToolUse` hook after each tool run; the
+  hook PUTs `working` with no ask when the marker matches the tool name and input, so the ask
+  closes once the tool finishes and the waiting hook ends on the closed ask without another PUT.
+  A tool still running past the permission wait cap closes the ask at the cap, as today.
 - `AskUserQuestion` posts one ask per question, in order: the question is the prompt, its options
   are the choices (several may be picked when the question allows it), and text answers outside the
   options. Picked labels and the typed text join with `, ` into that question's answer. After the
@@ -135,9 +143,10 @@ wait at once.
   `working` while Codex uses its terminal approval prompt.
 - Release, or an answer with no pick and no text, on any `AskUserQuestion` question prints nothing
   and closes the ask, so the terminal dialog stays the answer path.
-- A wait cap, closed ask (410), error, or SIGTERM, SIGINT, or SIGHUP prints nothing and
-  closes the ask with a final PUT: `completed` for Stop, `working` for permission fallback
-  to the terminal. Claude Code sends SIGTERM on Esc.
+- A wait cap, error, or SIGTERM, SIGINT, or SIGHUP prints nothing and closes the ask with a final
+  PUT: `completed` for Stop, `working` for permission fallback to the terminal. Claude Code sends
+  SIGTERM on Esc. A closed or replaced ask (410) ends the wait without a closing PUT: whoever
+  closed it already updated the Thread.
 
 When Codex's host app is frontmost on macOS, permission posts without an ask and exits
 immediately, letting the terminal prompt appear. Stop still asks. The check compares

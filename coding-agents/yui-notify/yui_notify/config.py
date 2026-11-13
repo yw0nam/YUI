@@ -46,6 +46,10 @@ def load(env: Mapping[str, str]) -> dict:
     return cfg
 
 
+def state_dir(env: Mapping[str, str]) -> str:
+    return _dir(env, "XDG_STATE_HOME", "~/.local/state")
+
+
 def write_error(env: Mapping[str, str], url: str, status: int | None, error: str | None) -> None:
     record: Any = {
         "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -54,7 +58,7 @@ def write_error(env: Mapping[str, str], url: str, status: int | None, error: str
         "error": error,
     }
     try:
-        state = _dir(env, "XDG_STATE_HOME", "~/.local/state")
+        state = state_dir(env)
         os.makedirs(state, exist_ok=True)
         with open(os.path.join(state, "last-error.json"), "w") as f:
             json.dump(record, f)
