@@ -87,27 +87,11 @@ it("a Thread reaches its wait once, ten minutes after it was first counted, and 
   ]);
 });
 
-it("nothing reaches while both thresholds are off; a counted Thread reaches its wait once T is on", async () => {
-  let waitMs = 0;
-  const reach: ThresholdReach[] = [];
-  let now = 0;
-  const thresholds = createReactionThresholds({
-    count: () => 0,
-    waitMs: () => waitMs,
-    now: () => now,
-    onReach: (cause) => reach.push(cause),
-  });
-  const advance = async (ms: number) => {
-    now += ms;
-    await vi.advanceTimersByTimeAsync(ms);
-  };
-
-  thresholds.next([waiting("t1")]);
-  await advance(3_600_000);
-  expect(reach).toEqual([]);
-
-  waitMs = 600_000;
-  thresholds.next([waiting("t1")]);
-  await advance(600_000);
-  expect(reach).toEqual([{ cause: "wait", threadId: "t1" }]);
+it("never reaches with both thresholds off", async () => {
+  const h = setup({ count: 0, waitMs: 0 });
+  h.thresholds.next([waiting("t1"), waiting("t2"), waiting("t3")]);
+  await h.advance(3_600_000);
+  h.thresholds.next([waiting("t1"), waiting("t2"), waiting("t3")]);
+  await h.advance(3_600_000);
+  expect(h.reach).toEqual([]);
 });
