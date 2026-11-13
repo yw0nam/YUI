@@ -733,6 +733,14 @@ def test_unanswered_question_closes_its_ask_and_prints_nothing(tmp_path, server,
     assert received[-1][1] == {**received[0][1], "state": "working", "ask": None, "entries": []}
 
 
+def test_an_ask_user_question_wait_that_ends_on_410_makes_no_closing_put(tmp_path, server, capsys):
+    endpoint, received = server
+    received.status[1] = 410
+    run_hook(tmp_path, endpoint, "claude-ask-user-question.json")
+    assert printed(capsys) is None
+    assert len(received) == 1
+
+
 def test_a_long_option_label_is_cut_in_the_ask_and_answered_in_full(tmp_path, server, capsys):
     endpoint, received = server
     received.answer = {"choices": ["o0"]}
