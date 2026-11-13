@@ -58,6 +58,8 @@ export interface SignalsSource {
   release(eventId: string): void;
   /** Lifts the hold and sends the buffered group with this event id as its own ungated turn; true when pushed. */
   fireNow(eventId: string): boolean;
+  /** Sends every buffered batched group with these event ids as one ungated turn; true when pushed. */
+  fireHeld(eventIds: readonly string[]): boolean;
 }
 
 type RoutedGroup = {
@@ -349,5 +351,6 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     },
     release,
     fireNow,
+    fireHeld: () => false,
   };
 }
