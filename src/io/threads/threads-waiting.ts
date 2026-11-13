@@ -8,6 +8,11 @@ export function isWaiting(thread: Thread): boolean {
   return thread.state === "input-required" && !thread.read;
 }
 
+/** A Thread the chip counts: waiting, and its open ask is not the one the user already picked. */
+export function isUnseenWaiting(thread: Thread): boolean {
+  return isWaiting(thread) && !(thread.ask && thread.ask.ask_id === thread.seen_ask_id);
+}
+
 /** Counts the Threads waiting for the user's answer, grouped by source, count desc then source name. */
 export function threadsWaiting(threads: Thread[]): NonNullable<ClientContext["threads_waiting"]> {
   const counts = new Map<string, number>();
