@@ -36,6 +36,7 @@ export function threadReactionThresholdsRowHtml(): string {
             <div class="yui-row__main">
               <span class="yui-row__label">${t("threadReactionThresholds.count_label")}</span>
               <span class="yui-row__sub">${t("threadReactionThresholds.count_sub")}</span>
+              <span class="yui-row__sub yui-reaction-thresholds-reason" hidden>${t("threadReactionThresholds.disabled_reason")}</span>
             </div>
             <div class="yui-seg yui-reaction-thresholds-count-seg" role="radiogroup" aria-label="${t("threadReactionThresholds.count_label")}">${countCells}</div>
           </div>
@@ -45,8 +46,7 @@ export function threadReactionThresholdsRowHtml(): string {
               <span class="yui-row__sub">${t("threadReactionThresholds.wait_sub")}</span>
             </div>
             <div class="yui-seg yui-reaction-thresholds-wait-seg" role="radiogroup" aria-label="${t("threadReactionThresholds.wait_label")}">${waitCells}</div>
-          </div>
-          <span class="yui-row__sub yui-reaction-thresholds-reason" hidden>${t("threadReactionThresholds.disabled_reason")}</span>`;
+          </div>`;
 }
 
 /** Binds both Reaction thresholds segments to their store; the cells and the reason follow the Thread reactions switch. */
