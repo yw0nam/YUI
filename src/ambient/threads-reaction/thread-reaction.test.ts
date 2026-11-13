@@ -76,6 +76,7 @@ function setup() {
     return "spoken";
   });
   const land = vi.fn<ThreadReactionDeps["land"]>(async () => {});
+  const listWindows = vi.fn<ThreadReactionDeps["listWindows"]>(async () => state.windows);
   const deps: ThreadReactionDeps = {
     threads: {
       snapshot: () => snapshot,
@@ -116,7 +117,7 @@ function setup() {
       },
     },
     slotRect: () => SLOT,
-    listWindows: async () => state.windows,
+    listWindows,
     speak,
     lines: () => ({ threads_open: ["Let me open Threads."], threads_raise: ["Here, up front."] }),
     setEmotion: (signal) => order.push(`emotion:${signal.id}`),
@@ -145,6 +146,7 @@ function setup() {
     present: presentFn,
     speak,
     land,
+    listWindows,
     reaction,
     push(threads: Thread[]) {
       snapshot = snap(threads);
@@ -311,6 +313,18 @@ it("a tap whose window is not listed yet retries and sits once it is listed; the
   await vi.advanceTimersByTimeAsync(2000);
   expect(h.command).toHaveBeenCalledTimes(1);
   expect(h.order).toEqual(["sit", "emotion:curious"]);
+});
+
+it("a tap whose window is never listed retries ten times and is then dropped", async () => {
+  const h = setup();
+  h.push([waiting("t1")]);
+  h.tap();
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(h.listWindows).toHaveBeenCalledTimes(10);
+
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(h.listWindows).toHaveBeenCalledTimes(10);
+  expect(h.command).not.toHaveBeenCalled();
 });
 
 it.each([
