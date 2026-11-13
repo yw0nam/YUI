@@ -618,6 +618,7 @@ def test_a_waiter_keeps_a_marker_holding_another_ask(tmp_path, server):
     assert seen == [True], "the permission hook wrote no ask marker"
     assert len(received) == 1
     assert json.loads(marker.read_text())["ask_id"] == "perm:replaced:" + "0" * 32
+    assert marker_path(tmp_path).stat().st_mode & 0o777 == 0o600
 
 
 FRUITS = {
