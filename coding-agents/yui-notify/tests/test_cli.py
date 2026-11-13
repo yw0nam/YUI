@@ -569,6 +569,32 @@ def test_a_wait_that_ends_on_410_makes_no_closing_put(tmp_path, server):
     assert not marker_path(tmp_path).exists()
 
 
+def test_a_stale_marker_makes_the_tool_run_put_nothing(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 204
+    marker = marker_path(tmp_path)
+    seen = []
+
+    def age_marker():
+        deadline = time.time() + 10
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        seen.append(marker.exists())
+        stale = json.loads(marker.read_text())
+        stale["written_at"] = time.time() - 9999
+        marker.write_text(json.dumps(stale))
+        run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
+        received.status[1] = 410
+
+    worker = threading.Thread(target=age_marker)
+    worker.start()
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    worker.join(10)
+    assert seen == [True], "the permission hook wrote no ask marker"
+    assert len(received) == 1
+    assert not marker_path(tmp_path).exists()
+
+
 def test_a_waiter_keeps_a_marker_holding_another_ask(tmp_path, server):
     endpoint, received = server
     received.status[1] = 204
