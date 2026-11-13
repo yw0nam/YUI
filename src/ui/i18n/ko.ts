@@ -677,8 +677,16 @@ const ko: Record<string, string> = {
   "threadTurns.every": "새 메시지마다",
   "threadTurns.disabled_reason": "외부 신호를 켜야 쓸 수 있어요.",
   "threadReactions.label": "스레드 반응",
-  "threadReactions.sub": "스레드 상태가 바뀌면 캐릭터가 스레드 창에 앉아요.",
+  "threadReactions.sub": "칩을 누르거나 스레드가 쌓이면 캐릭터가 스레드 창에 앉아요.",
   "threadReactions.aria": "스레드 반응",
+  "threadReactionThresholds.count_label": "기다리는 스레드 수",
+  "threadReactionThresholds.count_sub": "칩의 숫자가 이만큼 되면 캐릭터가 스레드 창에 앉아요.",
+  "threadReactionThresholds.wait_label": "오래 기다린 스레드",
+  "threadReactionThresholds.wait_sub": "한 스레드가 이만큼 기다리면 캐릭터가 스레드 창에 앉아요.",
+  "threadReactionThresholds.off": "끔",
+  "threadReactionThresholds.count_value": "{n}개",
+  "threadReactionThresholds.wait_value": "{n}분",
+  "threadReactionThresholds.disabled_reason": "스레드 반응을 켜야 쓸 수 있어요.",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

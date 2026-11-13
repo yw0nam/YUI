@@ -683,8 +683,16 @@ const ja: Record<string, string> = {
   "threadTurns.every": "メッセージごと",
   "threadTurns.disabled_reason": "外部シグナルをオンにすると使えます。",
   "threadReactions.label": "スレッドリアクション",
-  "threadReactions.sub": "スレッドの状態が変わると、キャラクターがスレッドウィンドウに座ります。",
+  "threadReactions.sub": "チップを押すか、スレッドがたまると、キャラクターがスレッドウィンドウに座ります。",
   "threadReactions.aria": "スレッドリアクション",
+  "threadReactionThresholds.count_label": "待っているスレッドの数",
+  "threadReactionThresholds.count_sub": "チップの数がここまで増えると、キャラクターがスレッドウィンドウに座ります。",
+  "threadReactionThresholds.wait_label": "長く待っているスレッド",
+  "threadReactionThresholds.wait_sub": "ひとつのスレッドがこれだけ待つと、キャラクターがスレッドウィンドウに座ります。",
+  "threadReactionThresholds.off": "オフ",
+  "threadReactionThresholds.count_value": "{n}件",
+  "threadReactionThresholds.wait_value": "{n}分",
+  "threadReactionThresholds.disabled_reason": "スレッドリアクションをオンにすると使えます。",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",

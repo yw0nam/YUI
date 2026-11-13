@@ -9,10 +9,12 @@ import type {
   GuardrailsSettingsStore,
   RateLimitOverrides,
 } from "../../../../settings/backend/guardrails-settings";
-import type { ClampedIntSettingsStore } from "../../../../settings/persisted-store";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../../../settings/persisted-store";
+import type { ThreadReactionThresholdsSettingsStore } from "../../../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../../../settings/threads/thread-turns-settings";
 import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
 import { RATE_LIMIT_FIELDS } from "../../constants";
+import { createThreadReactionThresholdsRow } from "./thread-reaction-thresholds-row";
 import { createThreadTurnsRow } from "./thread-turns-row";
 
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -25,6 +27,10 @@ interface ReactionsSectionDeps {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** Thread turns level store. Absent when its row isn't rendered. */
   threadTurnsSettings?: ThreadTurnsSettingsStore;
+  /** Reaction thresholds store. Absent when its rows aren't rendered. */
+  threadReactionThresholdsSettings?: ThreadReactionThresholdsSettingsStore;
+  /** Thread reactions switch. With the thresholds store, renders the Reaction thresholds rows. */
+  threadReactionsSettings?: FlagSettingsStore;
   /** Away detection store. Absent when the presence row isn't rendered. */
   presenceSettings?: ClampedIntSettingsStore;
   /** Global proactive gap store. Absent when that row isn't rendered. */
@@ -51,6 +57,8 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     root: el,
     agentNotifySettings,
     threadTurnsSettings,
+    threadReactionThresholdsSettings,
+    threadReactionsSettings,
     presenceSettings,
     pacerGapSettings,
     rateLimitSettings,
@@ -101,6 +109,16 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   const threadTurns =
     agentNotifySettings && threadTurnsSettings
       ? createThreadTurnsRow({ root: el, threadTurnsSettings, agentNotifySettings, isOpen })
+      : undefined;
+
+  const reactionThresholds =
+    threadReactionThresholdsSettings && threadReactionsSettings
+      ? createThreadReactionThresholdsRow({
+          root: el,
+          settings: threadReactionThresholdsSettings,
+          threadReactionsSettings,
+          isOpen,
+        })
       : undefined;
 
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
@@ -160,12 +178,14 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   return {
     reflect(): void {
       reflectAgentNotify();
+      reactionThresholds?.reflect();
       threadTurns?.reflect();
       reflectPresence();
       reflectPacerGap();
       reflectRateLimits();
     },
     dispose(): void {
+      reactionThresholds?.dispose();
       threadTurns?.dispose();
       unsubscribeAgentNotify?.();
       unsubscribePresence?.();

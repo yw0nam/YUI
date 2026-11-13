@@ -6,6 +6,7 @@
 
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
+import type { ThreadReactionThresholdsSettingsStore } from "../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../settings/threads/thread-turns-settings";
 import { createAppearanceSection } from "./sections/appearance/appearance-section";
 import { createTextSizeSection } from "./sections/appearance/text-size-section";
@@ -255,6 +256,8 @@ interface QuickControlsOptions {
   threadTurnsSettings?: ThreadTurnsSettingsStore;
   /** Thread reactions on/off store. If absent, that toggle row won't render. */
   threadReactionsSettings?: FlagSettingsStore;
+  /** Reaction thresholds store. With threadReactionsSettings, renders the Reaction thresholds rows in Watchers. */
+  threadReactionThresholdsSettings?: ThreadReactionThresholdsSettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;
   /** Docked/popped message-window mode store. If absent, that toggle row won't render. */
@@ -399,6 +402,7 @@ export function createQuickControls({
   agentNotifySettings,
   threadTurnsSettings,
   threadReactionsSettings,
+  threadReactionThresholdsSettings,
   bubblePersistSettings,
   messageWindowSettings,
   presenceSettings,
@@ -471,6 +475,7 @@ export function createQuickControls({
     openOnQuickStart,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showThreadTurns: !!threadTurnsSettings && !!agentNotifySettings,
+    showReactionThresholds: !!threadReactionThresholdsSettings && !!threadReactionsSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
@@ -674,6 +679,8 @@ export function createQuickControls({
     root: el,
     agentNotifySettings,
     threadTurnsSettings,
+    threadReactionThresholdsSettings,
+    threadReactionsSettings,
     presenceSettings,
     pacerGapSettings,
     rateLimitSettings,
