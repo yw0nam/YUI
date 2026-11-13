@@ -14,8 +14,6 @@ import { createReactionThresholds } from "./reaction-thresholds";
 
 const log = createLogger("thread-reaction");
 
-export type ReactionCause = "tap" | "count" | "wait";
-
 export interface ThreadReactionDeps {
   threads: Pick<ThreadsClient, "snapshot" | "subscribe">;
   /** The Thread reactions switch. */
@@ -304,9 +302,6 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     counted = next.threads.filter(isUnseenWaiting).sort((a, b) => b.updated_at - a.updated_at);
     if (enabled()) holdSnapshot(next);
     thresholds.next(counted);
-    const waitPending = pending?.cause === "wait" ? pending : null;
-    if (waitPending && !counted.some((thread) => thread.id === waitPending.threadId))
-      pending = null;
     tryRun();
   }
 

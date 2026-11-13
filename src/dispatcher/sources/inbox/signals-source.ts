@@ -244,19 +244,22 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   // Ungated: the reaction that fires it already waited for an idle pipeline.
   function fireHeld(eventIds: readonly string[]): boolean {
     const ids = new Set(eventIds);
-    const at = batchBuffer
-      .map((entry, index) => (ids.has(entry.group.envelope.event_id) ? index : -1))
-      .filter((index) => index >= 0);
-    if (!deps.isEnabled() || at.length === 0) return false;
+    const fired: SignalGroup[] = [];
+    const kept: BufferedGroup[] = [];
+    for (const entry of batchBuffer) {
+      if (ids.has(entry.group.envelope.event_id)) fired.push(entry.group);
+      else kept.push(entry);
+    }
+    if (!deps.isEnabled() || fired.length === 0) return false;
     // os_event_watcher is unpaced, so the proactive gap does not hold it; a drop (its guardrail debounce too) returns the groups through restoreSignals.
     const pushed = deps.bus.push({
       source: "os_event_watcher",
       event_name: "signals.batch",
       ts: now(),
-      payload: { signals: at.map((index) => batchBuffer[index]!.group) },
+      payload: { signals: fired },
     });
     if (!pushed) return false;
-    for (const index of at.reverse()) batchBuffer.splice(index, 1);
+    batchBuffer.splice(0, batchBuffer.length, ...kept);
     if (batchBuffer.length === 0) clearBatchTimer();
     log.info("fire_held", { event_ids: [...ids] });
     return true;

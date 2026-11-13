@@ -20,19 +20,20 @@ export interface ThreadReactionThresholdsSettings {
 }
 export type ThreadReactionThresholdsStorage = PersistedStorage<ThreadReactionThresholdsSettings>;
 
+const DEFAULTS: ThreadReactionThresholdsSettings = { count: 3, wait_min: 10 };
+
 export function createThreadReactionThresholdsSettings(opts?: {
   storage?: ThreadReactionThresholdsStorage;
 }) {
   const core = createPersistedStore<ThreadReactionThresholdsSettings>({
     storage: opts?.storage,
-    defaults: { count: 3, wait_min: 10 },
+    defaults: DEFAULTS,
     parse: (value) => {
       if (!isPlainObject(value)) return null;
-      const count = (value as ThreadReactionThresholdsSettings).count;
-      const wait_min = (value as ThreadReactionThresholdsSettings).wait_min;
+      const raw = value as ThreadReactionThresholdsSettings;
       return {
-        count: REACTION_COUNTS.includes(count) ? count : 3,
-        wait_min: REACTION_WAITS.includes(wait_min) ? wait_min : 10,
+        count: REACTION_COUNTS.includes(raw.count) ? raw.count : DEFAULTS.count,
+        wait_min: REACTION_WAITS.includes(raw.wait_min) ? raw.wait_min : DEFAULTS.wait_min,
       };
     },
     equals: (a, b) => a.count === b.count && a.wait_min === b.wait_min,

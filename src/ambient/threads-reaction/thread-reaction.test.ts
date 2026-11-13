@@ -313,23 +313,6 @@ it("a tap whose window is not listed yet retries and sits once it is listed; the
   expect(h.order).toEqual(["sit", "emotion:curious"]);
 });
 
-it("a pending wait whose Thread stops being counted is dropped", async () => {
-  const h = setup();
-  h.push([waiting("t1")]);
-  h.state.pipelineBusy = true;
-  await vi.advanceTimersByTimeAsync(600_000);
-  expect(h.order).toEqual([]);
-
-  h.push([inState("t1", "working")]);
-  h.state.pipelineBusy = false;
-  await vi.advanceTimersByTimeAsync(2000);
-  expect(h.order).toEqual([]);
-  expect(h.turns).toEqual(["hold:t1"]);
-
-  h.push([]);
-  expect(h.turns).toEqual(["hold:t1", "release:t1"]);
-});
-
 it.each([
   [
     "covered by a window in front",

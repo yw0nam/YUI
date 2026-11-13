@@ -16,15 +16,21 @@ const countLabel = (n: ReactionCount): string =>
 const waitLabel = (n: ReactionWait): string =>
   n === 0 ? t("threadReactionThresholds.off") : t("threadReactionThresholds.wait_value", { n });
 
+const cells = <T extends number>(
+  values: readonly T[],
+  attr: string,
+  label: (n: T) => string,
+): string =>
+  values
+    .map(
+      (n) =>
+        `<button class="yui-seg__btn" type="button" role="radio" ${attr}="${n}" aria-checked="false" tabindex="-1">${label(n)}</button>`,
+    )
+    .join("");
+
 export function threadReactionThresholdsRowHtml(): string {
-  const countCells = REACTION_COUNTS.map(
-    (n) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-count="${n}" aria-checked="false" tabindex="-1">${countLabel(n)}</button>`,
-  ).join("");
-  const waitCells = REACTION_WAITS.map(
-    (n) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-wait="${n}" aria-checked="false" tabindex="-1">${waitLabel(n)}</button>`,
-  ).join("");
+  const countCells = cells(REACTION_COUNTS, "data-count", countLabel);
+  const waitCells = cells(REACTION_WAITS, "data-wait", waitLabel);
   return `
           <div class="yui-row yui-reaction-thresholds-row">
             <div class="yui-row__main">
