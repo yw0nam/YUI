@@ -17,6 +17,7 @@ def answer_questions(
     deadline = time.monotonic() + cap
     interrupt_on_signals()
     answers = {}
+    gone = False
     try:
         for index, question in enumerate(questions):
             if index:
@@ -25,7 +26,7 @@ def answer_questions(
                 if error:
                     config.write_error(env, url, status, error)
                     break
-            answer, _ = wait_answer(url, body["ask"]["ask_id"], deadline - time.monotonic(), env)
+            answer, gone = wait_answer(url, body["ask"]["ask_id"], deadline - time.monotonic(), env)
             value = answer_value(question, answer) if isinstance(answer, dict) else None
             if value is None:
                 break
@@ -35,5 +36,7 @@ def answer_questions(
             return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}}
     except KeyboardInterrupt:  # SIGINT, SIGTERM, SIGHUP: close the ask below
         pass
-    close_ask(url, body, "PermissionRequest", env)
+    # a closed ask (410) needs no closing PUT: whoever closed it already updated the Thread
+    if not gone:
+        close_ask(url, body, "PermissionRequest", env)
     return None
