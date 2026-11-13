@@ -238,6 +238,21 @@ it("a count reach fires the held ids after the closed-window steps", async () =>
   expect(h.turns).toEqual(["hold:t1", "hold:t2", "fire:t1", "fire:t2"]);
 });
 
+it("a thresholds change disarms the count edge: with 3 counted, N 5 → 2 reaches nothing, nor does the next snapshot at 4", async () => {
+  const h = setup();
+  h.setThresholds({ count: 5 });
+  h.push([waiting("t1"), waiting("t2"), waiting("t3")]);
+  await flush();
+
+  h.setThresholds({ count: 2 });
+  await flush();
+  expect(h.order).toEqual([]);
+
+  h.push([waiting("t1"), waiting("t2"), waiting("t3"), waiting("t4")]);
+  await flush();
+  expect(h.order).toEqual([]);
+});
+
 it("a wait reach presents its own Thread", async () => {
   const h = setup();
   h.push([waiting("t1")]);
