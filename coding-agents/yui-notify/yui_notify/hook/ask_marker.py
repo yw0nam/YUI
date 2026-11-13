@@ -32,7 +32,9 @@ def write(
     }
     try:
         os.makedirs(config.state_dir(env), exist_ok=True)
-        with open(_path(env, session), "w") as f:
+        # the marker holds the command text, so it is readable by its owner only
+        fd = os.open(_path(env, session), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             json.dump(record, f)
     except OSError:
         pass
