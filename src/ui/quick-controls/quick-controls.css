@@ -305,13 +305,15 @@
   display: none;
 }
 
-/* Dims the Thread turns row while its cells are disabled (External signals off). */
-.yui-threadturns-row:has(:disabled) {
+/* Dims the Thread turns and Reaction thresholds rows while their cells are disabled. */
+.yui-threadturns-row:has(:disabled),
+.yui-reaction-thresholds-row:has(:disabled) {
   opacity: 0.55;
 }
 
 /* The row sub-line's display would otherwise beat the hidden attribute. */
-.yui-threadturns-reason[hidden] {
+.yui-threadturns-reason[hidden],
+.yui-reaction-thresholds-reason[hidden] {
   display: none;
 }
 
