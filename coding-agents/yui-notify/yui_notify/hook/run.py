@@ -9,7 +9,7 @@ from yui_notify.hook import ask_marker
 from yui_notify.hook.event import parse_event
 from yui_notify.hook.focus import host_app_in_front
 from yui_notify.hook.questions import answer_questions
-from yui_notify.hook.wait import close_matched_ask, wait_for_answer
+from yui_notify.hook.wait import wait_for_answer
 from yui_notify.host.claude_pid import SOCKET_ENV, claude_pid
 from yui_notify.host.label import context
 from yui_notify.inbox.post import post
@@ -33,8 +33,9 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
             print(json.dumps({"systemMessage": f"yui-notify: {failure}"}))
         return
     if event.phase in ("PostToolUse", "PostToolUseFailure"):
-        # a terminal Yes never reaches the waiting hook: close its ask once the tool ran
-        close_matched_ask(env, event.session_id, event.tool_name, event.tool_input, cfg["wait"]["permission"])
+        ask_marker.close_matched_ask(
+            env, event.session_id, event.tool_name, event.tool_input, cfg["wait"]["permission"]
+        )
         return
     url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
     front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
