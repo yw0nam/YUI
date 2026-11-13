@@ -258,17 +258,17 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 
 ## Thread reaction events
 
-`ambient/threads-reaction/thread-reaction.ts` (namespace `thread-reaction`, in main's pet window) logs each step of a Thread reaction at `debug` and its failures at `warn`. Every step line carries `threadId`, `state` and `window`, where `window` is `closed`, `covered` or `open`.
+`ambient/threads-reaction/thread-reaction.ts` (namespace `thread-reaction`, in main's pet window) logs each step of a Thread reaction at `debug` and its failures at `warn`. Every step line carries `cause` — `tap`, `count` or `wait` — and `window`, which is `closed`, `covered` or `open`; a wait also carries `threadId`.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `thread-reaction` | `reaction_start` | `threadId`, `state`, `window` | A reaction starts (`debug` level). |
-| `thread-reaction` | `reaction_line` | `threadId`, `state`, `window` | A filler line starts (`debug` level). |
-| `thread-reaction` | `reaction_present` | `threadId`, `state`, `window` | The window is asked to open or rise without focus (`debug` level). |
-| `thread-reaction` | `reaction_sit` | `threadId`, `state`, `window` | The sit command is sent (`debug` level). |
-| `thread-reaction` | `reaction_expression` | `threadId`, `state`, `window` | The mapped expression is set (`debug` level). |
-| `thread-reaction` | `reaction_sit.failed` | `threadId`, `state`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
-| `thread-reaction` | `reaction_failed` | `threadId`, `error` | A reaction threw (`warn` level). |
+| `thread-reaction` | `reaction_start` | `cause`, `threadId?`, `window` | A reaction starts (`debug` level). |
+| `thread-reaction` | `reaction_line` | `cause`, `threadId?`, `window` | A filler line starts (`debug` level). |
+| `thread-reaction` | `reaction_present` | `cause`, `threadId?`, `window` | The window is asked to open or rise without focus (`debug` level). |
+| `thread-reaction` | `reaction_sit` | `cause`, `threadId?`, `window` | The sit command is sent (`debug` level). |
+| `thread-reaction` | `reaction_expression` | `cause`, `threadId?`, `window` | The `curious` expression is set (`debug` level). |
+| `thread-reaction` | `reaction_sit.failed` | `cause`, `threadId?`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
+| `thread-reaction` | `reaction_failed` | `cause`, `threadId?`, `error` | A reaction threw (`warn` level). |
 
 ## TypeScript usage
 

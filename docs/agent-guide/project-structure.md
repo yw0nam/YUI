@@ -100,10 +100,10 @@ YUI/
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
       signal-chips/                  # The signal chips beside the avatar
         wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
-      threads-reaction/              # Main's Thread reactions: the Threads client, the Threads window, the chip's slot, speech, the turn pipeline, the stage and the renderer
+      threads-reaction/              # Main's Thread reactions: the Threads client, the Threads window, the chip's taps, presence, speech, the turn pipeline, the stage and the renderer
         wire-thread-reactions.ts     # Wires the thread reaction in main; a window without a Threads client wires nothing
       threads-chip/                  # Main's ways into the Threads window: the chip, the tray's Terminal item and the quick card's requests
-        wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window
+        wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window and reporting its taps
         wire-threads-open-requests.ts # The tray's Terminal item and a quick card's request, opening the Threads window on their tab
       pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
@@ -322,10 +322,9 @@ YUI/
           wire-travel-frame.ts       # Real-window travel frame wiring
         sitter.ts                    # Seat transitions: crossfade and eased window move
         clip-leg.ts                  # A window leg paced by an in-place clip
-      threads-reaction/              # Thread reactions: the state change diff, one held reaction per Thread, and the reaction when she is free
-        thread-transitions.ts        # The Threads that entered input-required, completed or failed since the last snapshot
-        held-reactions.ts            # One reaction per Thread, the newest replacing an older one, dropped when its Thread moved on
-        thread-reaction.ts           # Runs a reaction when she is free: a filler line, the window open or raise without focus, her seat on it, and the expression
+      threads-reaction/              # Thread reactions: the count-edge and long-wait thresholds, and the reaction when she is free
+        reaction-thresholds.ts       # The waiting count's rising edge and the per-Thread long wait that start a reaction without a chip tap
+        thread-reaction.ts           # Runs a reaction on a chip tap, the count edge or a long wait when she is free: the filler line, the window open or raise without focus, her seat on it, and the expression
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
       settings-stores.ts             # Constructs and synchronises the persisted user-setting stores
@@ -380,6 +379,7 @@ YUI/
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
       threads/                       # The Threads window's own state
         threads-window-settings.ts   # Its panel frame and list choice under yui.threads-window, per device; the minimum panel
+        thread-reaction-thresholds-settings.ts # The waiting count and wait that start a Thread reaction without a chip tap under yui.thread-reaction-thresholds, device-wide
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
@@ -444,6 +444,8 @@ YUI/
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       threads/                         # The Thread store's client
         threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, thread_answer, thread_seen and thread_read
+      presence/                        # The user's presence for main's pet window
+        presence.ts                    # The last os_idle_tick idle ms read against the away threshold
       mcp-host/                        # The MCP host client and enabled plugin summaries and skills
         mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
@@ -794,8 +796,9 @@ YUI/
             screenshot-section.ts    # Attach switch, its subscription and redraw, and the monitor-list load
           screen/                    # Screen-watch thresholds and the min-gap the screen source fires on
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
-          reactions/                 # Agent notification, presence, pacer gap, and rate-limit cap rows
+          reactions/                 # Agent notification, presence, pacer gap, Reaction thresholds, and rate-limit cap rows
             reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
+            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, dimmed with a reason while the Thread reactions switch is off
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
