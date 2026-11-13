@@ -70,7 +70,7 @@ def send_test(endpoint: str, env: Mapping[str, str]) -> int:
     print(f"sent: HTTP {status}; answer it in YUI's Threads window within {ANSWER_WAIT} s", flush=True)
     answer = None
     try:
-        answer = wait_answer(url, ask_id, ANSWER_WAIT, env)
+        answer, _ = wait_answer(url, ask_id, ANSWER_WAIT, env)
     except KeyboardInterrupt:
         return 1
     finally:

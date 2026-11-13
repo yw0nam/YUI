@@ -25,7 +25,7 @@ def answer_questions(
                 if error:
                     config.write_error(env, url, status, error)
                     break
-            answer = wait_answer(url, body["ask"]["ask_id"], deadline - time.monotonic(), env)
+            answer, _ = wait_answer(url, body["ask"]["ask_id"], deadline - time.monotonic(), env)
             value = answer_value(question, answer) if isinstance(answer, dict) else None
             if value is None:
                 break

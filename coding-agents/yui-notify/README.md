@@ -124,6 +124,9 @@ wait at once.
 - Permission Allow returns an allow decision. Deny returns a deny decision with any text
   as its message. Text alone denies and gives the agent that instruction; Claude Code also
   receives the text through its inbox.
+- A prompt answered "Yes" in the terminal never reaches this hook: once the tool runs, its async
+  `PostToolUse` hook PUTs `working` with no ask when the Thread holds a matching permission marker,
+  and the waiting hook then ends on the closed ask without another PUT.
 - `AskUserQuestion` posts one ask per question, in order: the question is the prompt, its options
   are the choices (several may be picked when the question allows it), and text answers outside the
   options. Picked labels and the typed text join with `, ` into that question's answer. After the
@@ -135,9 +138,10 @@ wait at once.
   `working` while Codex uses its terminal approval prompt.
 - Release, or an answer with no pick and no text, on any `AskUserQuestion` question prints nothing
   and closes the ask, so the terminal dialog stays the answer path.
-- A wait cap, closed ask (410), error, or SIGTERM, SIGINT, or SIGHUP prints nothing and
-  closes the ask with a final PUT: `completed` for Stop, `working` for permission fallback
-  to the terminal. Claude Code sends SIGTERM on Esc.
+- A wait cap, error, or SIGTERM, SIGINT, or SIGHUP prints nothing and closes the ask with a final
+  PUT: `completed` for Stop, `working` for permission fallback to the terminal. Claude Code sends
+  SIGTERM on Esc. A closed or replaced ask (410) ends the wait without a closing PUT: whoever
+  closed it already updated the Thread.
 
 When Codex's host app is frontmost on macOS, permission posts without an ask and exits
 immediately, letting the terminal prompt appear. Stop still asks. The check compares

@@ -9,7 +9,16 @@ from yui_notify.threads.question import usable_questions
 
 # Claude Code marks a queued command only by the prompt's leading tag
 QUEUED = ("<task-notification>", "<agent-message ")
-EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "SessionEnd", "UserPromptSubmit"}
+EVENTS = {
+    "Stop",
+    "PermissionRequest",
+    "Notification",
+    "SessionStart",
+    "SessionEnd",
+    "UserPromptSubmit",
+    "PostToolUse",
+    "PostToolUseFailure",
+}
 
 
 class Event(NamedTuple):
@@ -73,6 +82,9 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     elif phase == "SessionStart":
         agent = "codex"
     else:
+        return None
+    # PostToolUse only closes a permission ask after a terminal Yes; Codex posts no such hook
+    if phase in ("PostToolUse", "PostToolUseFailure") and agent != "claude-code":
         return None
     tasks = data.get("background_tasks")
     running = isinstance(tasks, list) and any(

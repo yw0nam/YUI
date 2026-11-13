@@ -178,7 +178,6 @@ def test_codex_answers(tmp_path, server, capsys, fixture, answer, expected):
 @pytest.mark.parametrize(
     "fixture,state,status",
     [
-        ("codex-stop.json", "completed", 410),
         ("codex-permission.json", "working", 503),
         ("codex-stop.json", "completed", 204),
         ("codex-permission.json", "working", 0),
@@ -571,6 +570,7 @@ def test_a_wait_that_ends_on_410_makes_no_closing_put(tmp_path, server):
 
 def test_a_waiter_keeps_a_marker_holding_another_ask(tmp_path, server):
     endpoint, received = server
+    received.status[1] = 204
     marker = marker_path(tmp_path)
     seen = []
 
