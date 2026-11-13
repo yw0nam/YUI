@@ -1091,7 +1091,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireNow sends it alone as an ungated signals.batch turn or release returns it to normal delivery.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
