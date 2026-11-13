@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -27,6 +28,7 @@ def write(
         "ask_id": body["ask"]["ask_id"],
         "tool_name": tool_name,
         "tool_input_sha256": tool_input_sha256(tool_input),
+        "written_at": time.time(),
     }
     try:
         os.makedirs(config.state_dir(env), exist_ok=True)

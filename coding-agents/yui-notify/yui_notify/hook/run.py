@@ -34,7 +34,7 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
         return
     if event.phase in ("PostToolUse", "PostToolUseFailure"):
         # a terminal Yes never reaches the waiting hook: close its ask once the tool ran
-        close_matched_ask(env, event.session_id, event.tool_name, event.tool_input)
+        close_matched_ask(env, event.session_id, event.tool_name, event.tool_input, cfg["wait"]["permission"])
         return
     url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
     front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
