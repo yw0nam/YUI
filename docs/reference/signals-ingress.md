@@ -155,7 +155,11 @@ Returning to present or transitioning from busy to idle emits one catch-up conta
 
 Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds, in arrival order, and removes those groups from the batch buffer.
 
-A Thread reaction is the third client path, and it takes one group. Its Thread's group stays out of every catch-up, timer firing and drain while the reaction is held or running. When the reaction finishes, that group leaves alone as a `signals.batch` turn; a reaction that ends any other way releases it to normal delivery ([Threads](./threads.md#closed-asks-and-reactions)).
+With the Thread reactions switch on, a Thread reaction holds every Thread turn group. The held groups stay out of every catch-up, timer firing and drain.
+
+When a reaction finishes, every held, buffered group leaves together as one `signals.batch` turn; a turn the bus refuses leaves them held for the next reaction.
+
+The five-group cap of the batch buffer can still push a held group out, and the switch going off releases every held group to normal delivery ([Threads](./threads.md#closed-asks-and-reactions)).
 
 ### Groups that go back
 

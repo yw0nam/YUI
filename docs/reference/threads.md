@@ -215,31 +215,43 @@ Thread turns run in main's pet window only. Threads reach the client only while 
 
 A buffered `thread.ask` group is dropped when its ask closes before delivery: the Thread shows no open ask, or the Thread is gone. A newer ask replaces the group instead, and a `thread.failed` group for the same Thread stays.
 
-While a [Thread reaction](#thread-reactions) for the Thread is held or running, its group stays in the batch buffer, and no catch-up, timer firing or drain carries it. The five-group cap of the batch buffer can still push it out.
+While the Thread reactions switch is on, every Thread turn group stays held in the batch buffer, counted or not: no catch-up, timer firing or drain carries it.
 
-When the reaction finishes, the group leaves at once as its own `signals.batch` turn, so the line, the sit and the speech play in that order. When a newer reaction for the same Thread is held, the finished one leaves the group to it.
+A group the bus refuses, or one restored after a guardrail drop, stays held for the next reaction. The five-group cap of the batch buffer can still push a held group out.
 
-That turn waits for neither presence nor the proactive gap. When signals are off, or the bus refuses the turn, the group stays buffered for normal delivery. A reaction that ends any other way, or that the switch drops, returns the group to normal delivery.
+The holds follow the snapshot. A Thread that leaves it releases its group to normal delivery, and so does the switch going off.
+
+When a Thread reaction finishes, every held, buffered group leaves together as one `signals.batch` turn, so the line, the sit and the speech play before it ([Thread reactions](#thread-reactions)).
+
+That turn waits for neither presence nor the proactive gap. When signals are off, or the bus refuses the turn, the groups stay held for the next reaction.
 
 ## Thread reactions
 
-Thread reactions is the device-wide switch `yui.thread-reactions`, on by default. Its row sits in the Watchers section of the settings. It does not depend on External signals. Turning it off drops every held reaction and stops a reaction in progress.
+Thread reactions is the device-wide switch `yui.thread-reactions`, on by default. Its row sits in the Watchers section of the settings. It does not depend on External signals. Turning it off releases every held turn group, clears the pending cause and stops a reaction in progress; a chip tap then only opens the window.
 
-A reaction is client-side and sends nothing to the backend itself. It ends by firing its Thread's buffered group, when Thread turns gave one ([Closed asks and reactions](#closed-asks-and-reactions)). A Thread turn still reaches the backend whether or not a reaction plays.
+A Thread update alone gives no reaction. The Threads chip redraws and wiggles; no line, window, seat or Thread turn follows. `completed` and `failed` alone never start a reaction.
 
-Main's pet window compares each Threads snapshot with the one before. The first snapshot is the baseline and gives no reaction, so Threads kept on disk do not replay at launch.
+A reaction is client-side and sends nothing to the backend itself. It ends by firing the held turn groups, when Thread turns gave some ([Closed asks and reactions](#closed-asks-and-reactions)). A Thread turn still reaches the backend whether or not a reaction plays.
 
-### Transitions
+### Causes
 
-A Thread that enters one of these states gives a reaction. A Thread new to the snapshot gives one when it arrives in one of them.
+A reaction starts on one of three causes.
 
-| State | Expression |
+| Cause | Starts when |
 |---|---|
-| `input-required` | `curious` |
-| `completed` | `happy` |
-| `failed` | `sad` |
+| `tap` | The user taps the Threads chip. |
+| `count` | The chip's count of counted Threads reaches N on the rise; it starts again only after the count fell below N. |
+| `wait` | One counted Thread has waited T minutes, once per Thread per wait. |
 
-`working` gives no reaction. A repeated PUT that keeps the same state gives none.
+A counted Thread is one the chip counts: waiting, and its open ask is not the seen one.
+
+The thresholds are the device-wide setting `yui.thread-reaction-thresholds`, two rows under the switch in the Watchers section. N is Off, 2, 3 or 5, default 3. T is Off, 5, 10 or 30 minutes, default 10. With both Off the chip tap is the only cause. The rows are dimmed while the switch is off.
+
+The first snapshot after launch is the baseline: it starts no count. A Thread already waiting at launch reaches its wait T minutes after launch if it still waits.
+
+A count or wait reaction waits while the user is away and runs on the return; a tap does not wait.
+
+A cause arriving while a reaction runs waits in one slot and runs after it. A tap replaces a pending count or wait; a count or wait never replaces a pending tap. A pending or running tap is cancelled when the Threads window closes.
 
 ### Window states
 
@@ -257,26 +269,26 @@ While it is on screen, the Threads window is a perch target, and its rect is the
 
 Each reaction runs its steps in order. A step is skipped when it does not apply.
 
-| State | Steps |
+| Window | Steps |
 |---|---|
-| Closed | A `threads_open` line, the window grows out of the chip's slot with a jelly, the changed Thread is selected, then she sits |
+| Closed | A `threads_open` line, the window grows out of the chip's slot with a jelly, then she sits |
 | Covered | A `threads_raise` line, the window comes to the front without focus and hops, then she sits |
 | Open | She sits |
 
+A tap plays no line and opens nothing: the chip has already opened the window, so she only sits.
+
 A line is drawn from a shuffle bag of its pool. An empty pool gives no line. With the Use interjections switch off, the pool is empty, so no line plays and she goes straight to the window. The line plays to its end. An interrupt, abort or dispose of speech cuts it and stops the reaction.
 
-The window opens or rises without keyboard focus. An open from a closed window selects the Thread. Its tab is Waiting when the Thread waits, otherwise All. A raise, or an open of a window already shown, changes no tab and no selection. The selection does not report the ask seen.
+The window opens or rises without keyboard focus. An open from a closed window selects a Thread: for a wait reaction the Thread that waited out T, for a count reaction the newest counted one. A raise, or an open of a window already shown, changes no tab and no selection. The selection does not report the ask seen.
 
 She sits on the Threads window with `sit_on_window` and lands with a short bounce, unless she already sits on it. A failed sit logs `reaction_sit.failed` and drops the reaction. Under reduced motion the jelly, the hop and the landing do not play.
 
-The mapped expression plays, and the Thread's buffered group fires as its turn. The expression eases back to neutral after `touch_emotion_hold_ms`. When speech is still owed at that moment, the speech's end eases it instead.
+The expression is always `curious`. When the reaction finishes, every held, buffered turn group fires as one turn. The expression eases back to neutral after `touch_emotion_hold_ms`. When speech is still owed at that moment, the speech's end eases it instead.
 
-### Held reactions
+### Running one at a time
 
-One reaction is held per Thread. A newer transition for a Thread replaces its held reaction. A held reaction is dropped when its Thread is gone or has another state.
+One reaction runs at a time. It waits while she is not free: the avatar executor missing or busy (she is dragged or moved by an avatar command), a turn in the pipeline, or speech owed. While it waits, the client checks again every second; a count or wait also checks presence.
 
-Reactions run oldest first, one at a time. A reaction waits while she is not free. She is free when the avatar executor exists and is not busy (she is neither dragged nor moved by an avatar command), no turn is in the pipeline, and no speech is owed. While a reaction waits, the client checks again every second.
+A running reaction checks after each wait that its cause still holds: the switch is on, a tap's window did not close, a wait's Thread is still counted, a count still has counted Threads. Otherwise it stops and fires nothing; the held groups stay held for the next reaction.
 
-A running reaction checks after each wait that its Thread still holds the reacted state and the switch is on. Otherwise it stops. A transition that arrives during a run is held and runs after it.
-
-A reaction that ends without firing a turn lets the next one check at once. After a reaction fires its Thread's turn, the next one checks on the one-second retry, so the fired turn's pipeline and speech come before it.
+A tap whose window is not listed yet — the chip's open is still in flight — goes back to the slot and retries every second; after ten unlisted tries it is dropped.

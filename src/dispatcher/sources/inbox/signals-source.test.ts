@@ -1027,39 +1027,44 @@ describe("signals_source — a reacting Thread's group", () => {
     ]);
   });
 
-  it("fireNow sends that one group as a signals.batch turn while she is away, and nothing once signals are off", async () => {
+  it("fireHeld sends the held Thread groups as one signals.batch turn while she is away, and the third group stays", async () => {
     let enabled = true;
     const s = await started(() => enabled);
     s.src.hold("thread:t1");
+    s.src.hold("thread:t2");
     s.src.offer(group("run-1"));
     s.src.offer(group("thread:t1"));
     s.src.offer(group("thread:t2"));
-    expect(s.src.fireNow("thread:t1")).toBe(true);
+    expect(s.src.fireHeld(["thread:t1", "thread:t2"])).toBe(true);
     enabled = false;
-    expect(s.src.fireNow("thread:t2")).toBe(false);
+    expect(s.src.fireHeld(["thread:t1", "thread:t2"])).toBe(false);
     expect(s.pushed).toEqual([
       {
         source: "os_event_watcher",
         event_name: "signals.batch",
         ts: 7,
-        payload: { signals: [group("thread:t1")] },
+        payload: { signals: [group("thread:t1"), group("thread:t2")] },
       },
     ]);
-    expect(s.src.drain()).toEqual([group("run-1"), group("thread:t2")]);
+    expect(s.src.drain()).toEqual([group("run-1")]);
   });
 
-  it("a rejected fireNow push leaves the group for the next catch-up", async () => {
+  it("a refused fireHeld push leaves both held groups buffered for the next reaction", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
     s.src.hold("thread:t1");
+    s.src.hold("thread:t2");
     s.src.offer(group("thread:t1"));
+    s.src.offer(group("thread:t2"));
     s.accept(false);
-    expect(s.src.fireNow("thread:t1")).toBe(false);
+    expect(s.src.fireHeld(["thread:t1", "thread:t2"])).toBe(false);
     s.accept(true);
+    s.src.release("thread:t1");
+    s.src.release("thread:t2");
     s.busy.setBusy(false);
     expect(sent(s.pushed)).toEqual([
-      ["signals.batch", ["thread:t1"]],
-      ["signals.catchup", ["thread:t1"]],
+      ["signals.batch", ["thread:t1", "thread:t2"]],
+      ["signals.catchup", ["thread:t1", "thread:t2"]],
     ]);
   });
 

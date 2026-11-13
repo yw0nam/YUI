@@ -681,8 +681,19 @@ const en: Record<string, string> = {
   "threadTurns.every": "Every message",
   "threadTurns.disabled_reason": "Turn on External signals to use this.",
   "threadReactions.label": "Thread reactions",
-  "threadReactions.sub": "When a Thread changes state, she sits on the Threads window.",
+  "threadReactions.sub":
+    "When you tap the chip or Threads pile up, she sits on the Threads window.",
   "threadReactions.aria": "Thread reactions",
+  "threadReactionThresholds.count_label": "Waiting Threads",
+  "threadReactionThresholds.count_sub":
+    "When the chip counts this many, she sits on the Threads window.",
+  "threadReactionThresholds.wait_label": "Long wait",
+  "threadReactionThresholds.wait_sub":
+    "When one Thread has waited this long, she sits on the Threads window.",
+  "threadReactionThresholds.off": "Off",
+  "threadReactionThresholds.count_value": "{n}",
+  "threadReactionThresholds.wait_value": "{n} min",
+  "threadReactionThresholds.disabled_reason": "Turn on Thread reactions to use this.",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",

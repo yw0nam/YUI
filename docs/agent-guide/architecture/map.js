@@ -686,7 +686,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -752,6 +752,15 @@ globalThis.YUI_MAP =
       "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer and the open ask the user picked through thread_seen and a Thread the user marked read through thread_read; inert outside Tauri.",
       "paths": [
         "src/io/threads"
+      ]
+    },
+    {
+      "id": "io/presence",
+      "module": "display",
+      "label": "presence",
+      "role": "Reads the last os_idle_tick's idle ms against the away threshold for main's pet window; inert outside Tauri.",
+      "paths": [
+        "src/io/presence"
       ]
     },
     {
@@ -1082,7 +1091,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireNow sends it alone as an ungated signals.batch turn or release returns it to normal delivery.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1145,7 +1154,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Diffs each Threads snapshot for Threads that became input-required, completed or failed, holds one reaction per Thread, and when she is free runs it: a filler line when the window is closed or covered, the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the mapped expression; it holds the Thread's buffered turn while the reaction waits or runs, fires it after the expression unless a newer reaction for the Thread is held, and releases it on any other end.",
+      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1346,7 +1355,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip hides from the open until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, opens the Threads window from its tap, and passes each tap on to the reaction wiring; the chip hides from the open until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -1418,7 +1427,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-reaction",
       "module": "wiring",
       "label": "thread reactions wiring",
-      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch, the filler pools and the Thread turn handle into the reaction; a window without a Threads client wires nothing.",
+      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect and taps, the presence reader, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch, the Reaction thresholds, the filler pools and the Thread turn handle into the reaction; a window without a Threads client wires nothing.",
       "paths": [
         "src/app/threads-reaction"
       ]
@@ -2670,6 +2679,14 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "os-reaction-presence",
+      "from": "io/window/os-events",
+      "to": "io/presence",
+      "carries": "subscribeOsEvent: presence for the Thread reactions",
+      "kind": "call",
+      "transport": "shared"
+    },
+    {
       "id": "drop-release-pet",
       "from": "shell/os-event-watcher",
       "to": "io/window/pet",
@@ -2760,7 +2777,7 @@ globalThis.YUI_MAP =
       "id": "threads-reaction-renderer",
       "from": "ambient/threads-reaction",
       "to": "renderer",
-      "carries": "setEmotion (curious, happy or sad); easeEmotionToNeutral after touch_emotion_hold_ms; land() after a sit, unless reduced motion",
+      "carries": "setEmotion (always curious); easeEmotionToNeutral after touch_emotion_hold_ms; land() after a sit, unless reduced motion",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
@@ -2769,7 +2786,7 @@ globalThis.YUI_MAP =
       "id": "threads-reaction-turn",
       "from": "ambient/threads-reaction",
       "to": "dispatcher/sources/inbox",
-      "carries": "hold, fireNow and release on thread:<id>: held when a transition is held, fired once she sits with the expression set, released on any other end",
+      "carries": "hold, fireHeld and release on thread:<id>: held while the switch is on for every Thread in the snapshot, fired together once she sits with the expression set, released when the Thread leaves the snapshot or the switch goes off",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2780,6 +2797,42 @@ globalThis.YUI_MAP =
       "to": "ambient/threads-reaction",
       "carries": "isPipelineBusy() read when a reaction is due; a waiting reaction checks again each second",
       "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "reaction-presence",
+      "from": "io/presence",
+      "to": "ambient/threads-reaction",
+      "carries": "isPresent(): the last idle tick against the away threshold; a count or wait reaction waits for it, a tap does not",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "threads-chip-tap",
+      "from": "app/threads-chip",
+      "to": "app/threads-reaction",
+      "carries": "each Threads-chip tap, after the chip's open: the reaction starts from the tap with no line",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "settings-reaction-thresholds",
+      "from": "settings",
+      "to": "ambient/threads-reaction",
+      "carries": "threadReactionThresholdsSettings: the yui.thread-reaction-thresholds count and wait, subscribed to for a recheck",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "settings-reaction-presence",
+      "from": "settings",
+      "to": "io/presence",
+      "carries": "presenceSettings.value: the away threshold in ms, read on each check",
+      "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
     },

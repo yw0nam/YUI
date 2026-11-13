@@ -2,7 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
 import { createGuardrailsSettings } from "../../../../settings/backend/guardrails-settings";
+import { createFlagSettings } from "../../../../settings/persisted-store";
 import { createPacerGapStore, createPresenceStore } from "../../../../settings/settings-stores";
+import { createThreadReactionThresholdsSettings } from "../../../../settings/threads/thread-reaction-thresholds-settings";
 import { createThreadTurnsSettings } from "../../../../settings/threads/thread-turns-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
@@ -440,6 +442,34 @@ describe("createQuickControls — reactions section", () => {
     cells[1].click();
     expect(threadTurnsSettings.get()).toEqual({ level: "notable" });
     expect(cells.map((c) => c.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
+    qc.dispose();
+  });
+
+  it("sets the Reaction thresholds count from its segment, dimmed with a reason while Thread reactions is off", () => {
+    setLocale("ko");
+    const threadReactionsSettings = createFlagSettings(true);
+    const threadReactionThresholdsSettings = createThreadReactionThresholdsSettings();
+    const qc = buildQc({ threadReactionsSettings, threadReactionThresholdsSettings });
+    const countCells = [
+      ...qc.el.querySelectorAll<HTMLButtonElement>(
+        ".yui-reaction-thresholds-count-seg [data-count]",
+      ),
+    ];
+    const reason = qc.el.querySelector<HTMLElement>(".yui-reaction-thresholds-reason")!;
+    qc.open();
+    expect(countCells.map((c) => c.dataset.count)).toEqual(["0", "2", "3", "5"]);
+
+    threadReactionsSettings.setEnabled(false);
+    expect(countCells.map((c) => c.disabled)).toEqual([true, true, true, true]);
+    expect(reason.hidden).toBe(false);
+    expect(reason.textContent).toBe("스레드 반응을 켜야 쓸 수 있어요.");
+
+    threadReactionsSettings.setEnabled(true);
+    expect(countCells.map((c) => c.disabled)).toEqual([false, false, false, false]);
+    expect(reason.hidden).toBe(true);
+
+    countCells[3].click();
+    expect(threadReactionThresholdsSettings.get()).toEqual({ count: 5, wait_min: 10 });
     qc.dispose();
   });
 

@@ -1,4 +1,4 @@
-/** Main's Threads chip: drawn from the window's Threads and terminal clients, folding with the other chips, opening the Threads window. */
+/** Main's Threads chip: drawn from the window's Threads and terminal clients, folding with the other chips, opening the Threads window and reporting its taps. */
 
 import type { ScreenRect } from "../../contract";
 import type { TerminalClient } from "../../io/terminal/terminal-client";
@@ -7,7 +7,7 @@ import type { ThreadsWindowController } from "../../io/window/openers/threads-wi
 import type { DelegationChipSettingsStore } from "../../settings/panels/delegation-chip-settings";
 import { createThreadsChip } from "../../ui/threads/chip/threads-chip";
 
-/** Mounts the chip at the end of `mount` from the window's Threads client, and nothing without one; returns its teardown and the chip's slot rect (null without a chip). */
+/** Mounts the chip at the end of `mount` from the window's Threads client, and nothing without one; returns its teardown, the chip's slot rect (null without a chip) and its tap subscription. */
 export function wireThreadsChip(deps: {
   client: ThreadsClient | null;
   terminal: Pick<TerminalClient, "snapshot" | "subscribe"> | null;
@@ -15,16 +15,25 @@ export function wireThreadsChip(deps: {
   mount: HTMLElement;
   /** The fold store the signal and delegation chips share. */
   collapsed: DelegationChipSettingsStore;
-}): { dispose: () => void; slotRect: (() => ScreenRect) | null } {
+}): {
+  dispose: () => void;
+  slotRect: (() => ScreenRect) | null;
+  onTap: (cb: () => void) => () => void;
+} {
   // Threads belong to the main character; a window without a client draws no chip.
-  if (!deps.client || !deps.threadsWindow) return { dispose: () => {}, slotRect: null };
+  if (!deps.client || !deps.threadsWindow)
+    return { dispose: () => {}, slotRect: null, onTap: () => () => {} };
   const { client, terminal, threadsWindow } = deps;
+  const taps = new Set<() => void>();
   // A waiting access request opens the Terminal tab; otherwise the window picks its tab.
   const requestTab = () => (terminal?.snapshot()?.requests.length ? "terminal" : undefined);
   const chip = createThreadsChip({
     mount: deps.mount,
     collapsed: deps.collapsed,
-    onOpen: (rect) => threadsWindow.open(rect, requestTab()),
+    onOpen: (rect) => {
+      threadsWindow.open(rect, requestTab());
+      for (const cb of taps) cb();
+    },
   });
   const offShown = threadsWindow.onShown(chip.setWindowOpen);
   // subscribe does not replay, so the chip draws the snapshot the client already holds;
@@ -43,5 +52,9 @@ export function wireThreadsChip(deps: {
       chip.dispose();
     },
     slotRect: chip.slotRect,
+    onTap(cb) {
+      taps.add(cb);
+      return () => taps.delete(cb);
+    },
   };
 }

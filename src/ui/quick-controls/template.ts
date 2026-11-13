@@ -31,6 +31,7 @@ import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
+import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
 import { readingsSectionHtml } from "./sections/readings/readings-section";
 import { speakerPickerHtml } from "./sections/speaker/speaker-list";
@@ -62,6 +63,8 @@ interface PanelHtmlOptions {
   showScreen: boolean;
   /** Whether the Thread turns row renders in Watchers — true with its store and External signals' store. */
   showThreadTurns: boolean;
+  /** Whether the Reaction thresholds rows render in Watchers — true with their store and the Thread reactions switch's store. */
+  showReactionThresholds?: boolean;
   showPresence: boolean;
   showPacerGap: boolean;
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
@@ -87,6 +90,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     switchRows,
     showScreen,
     showThreadTurns,
+    showReactionThresholds = false,
     showPresence,
     showPacerGap,
     showRateLimits,
@@ -164,7 +168,7 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
     ? `
       <div class="yui-sec">
         ${secHeadHtml(t("reactions.watchers_title"))}
-        <div class="yui-group">${watcherRowsHtml}${showThreadTurns ? threadTurnsRowHtml() : ""}
+        <div class="yui-group">${watcherRowsHtml}${showReactionThresholds ? threadReactionThresholdsRowHtml() : ""}${showThreadTurns ? threadTurnsRowHtml() : ""}
         </div>
       </div>`
     : "";

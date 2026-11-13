@@ -127,11 +127,15 @@ _Avoid_: inbox, panel, dashboard
 The device-wide setting (`off`, `notable`, `every`) by which a Thread update gives the main character a signals turn.
 
 **Thread reactions**:
-The device-wide switch `yui.thread-reactions`, on by default, and the client-side body reaction it governs: when a Thread becomes `input-required`, `completed` or `failed`, the main character says a filler line if the Threads window is closed or covered, sits on the Threads window, and shows an expression. The reaction itself gives no Turn; when it finishes, it sends that Thread's buffered Thread turn, if there is one.
+The device-wide switch `yui.thread-reactions`, on by default, and the client-side body reaction it governs: on a Threads-chip tap, on the chip's waiting count reaching its threshold, or on one Thread waiting out its threshold, the main character says a filler line if the Threads window is closed or covered (a tap says none), sits on the Threads window, and shows an expression. The reaction itself gives no Turn; when it finishes, it sends every buffered Thread turn it holds as one turn.
 _Avoid_: notification, alert, Thread turn (a Thread turn reaches the brain)
 
+**Reaction thresholds**:
+The device-wide setting `yui.thread-reaction-thresholds`: the waiting count (Off, 2, 3 or 5, default 3) and the wait in minutes (Off, 5, 10 or 30, default 10) at which a Thread reaction starts without a chip tap.
+_Avoid_: trigger (a Trigger is a turn's cause), summon
+
 **Threads chip**:
-The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests, and opens the Threads window; it hides while that window is open.
+The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests; tapping it opens the Threads window and starts a Thread reaction; it hides while that window is open.
 _Avoid_: badge, notification pill
 
 ### Terminal

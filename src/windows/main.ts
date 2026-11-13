@@ -356,6 +356,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         threads,
         threadsWindow,
         slotRect: threadsChip.slotRect,
+        chipTaps: threadsChip.onTap,
         dispatcher: configured.dispatcher,
         speechPlayback: configured.voice.speechPlayback,
         locomotion: configured.locomotion,

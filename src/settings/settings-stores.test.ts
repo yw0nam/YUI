@@ -40,6 +40,7 @@ describe("createSettingsStores", () => {
       "themeSettings",
       "threadTurnsSettings",
       "threadReactionsSettings",
+      "threadReactionThresholdsSettings",
       "textSizeSettings",
       "fillerSettings",
       "readingsSettings",
