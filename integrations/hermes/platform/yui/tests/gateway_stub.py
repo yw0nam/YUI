@@ -129,7 +129,6 @@ class ClarifyStub:
     def __init__(self):
         self.entries = {}
         self.calls = []
-        self.coerced = "coerced"
         self.timeout = 3600
 
     def get_pending(self, clarify_id):
@@ -138,10 +137,6 @@ class ClarifyStub:
     def mark_awaiting_text(self, clarify_id):
         self.calls.append(("mark", clarify_id))
         return clarify_id in self.entries
-
-    def coerce(self, entry, text):
-        self.calls.append(("coerce", entry, text))
-        return self.coerced
 
     def attempt(self, clarify_id, text):
         self.calls.append(("attempt", clarify_id, text))
@@ -392,7 +387,6 @@ def install_stubs() -> None:
     clarify.resolve_gateway_clarify = CLARIFY.resolve
     clarify.mark_awaiting_text = CLARIFY.mark_awaiting_text
     clarify.get_pending = CLARIFY.get_pending
-    clarify._coerce_text_response = CLARIFY.coerce
     clarify.attempt_text_response = CLARIFY.attempt
     clarify.TEXT_RESOLVED = "resolved"
     clarify.get_clarify_timeout = lambda: CLARIFY.timeout

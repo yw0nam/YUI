@@ -4,6 +4,8 @@
 the whole install, one checked step at a time. The rest of this section is the reference the skill
 draws on.
 
+The plugin needs Hermes Agent v0.23.2 or later.
+
 The gateway loads plugins from `~/.hermes/plugins/`, and from
 `~/.hermes/profiles/<profile>/plugins/` for one profile alone. Link this directory in:
 
