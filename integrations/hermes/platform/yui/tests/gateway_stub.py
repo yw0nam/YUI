@@ -143,6 +143,10 @@ class ClarifyStub:
         self.calls.append(("coerce", entry, text))
         return self.coerced
 
+    def attempt(self, clarify_id, text):
+        self.calls.append(("attempt", clarify_id, text))
+        return "resolved"
+
     def resolve(self, clarify_id, value):
         self.calls.append(("resolve", clarify_id, value))
         return True
@@ -389,6 +393,8 @@ def install_stubs() -> None:
     clarify.mark_awaiting_text = CLARIFY.mark_awaiting_text
     clarify.get_pending = CLARIFY.get_pending
     clarify._coerce_text_response = CLARIFY.coerce
+    clarify.attempt_text_response = CLARIFY.attempt
+    clarify.TEXT_RESOLVED = "resolved"
     clarify.get_clarify_timeout = lambda: CLARIFY.timeout
     clarify_tool = types.ModuleType("tools.clarify_tool")
     clarify_tool.strip_recommended = lambda text: str(text).strip().removesuffix("(Recommended)").strip()
