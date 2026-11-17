@@ -6,7 +6,8 @@ from collections.abc import Callable
 
 from agent.i18n import t
 from tools.clarify_gateway import (
-    _coerce_text_response,
+    TEXT_RESOLVED,
+    attempt_text_response,
     get_pending,
     mark_awaiting_text,
     resolve_gateway_clarify,
@@ -44,20 +45,17 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             values = [label for i, label in enumerate(choices, 1) if str(i) in selection]
             if text is not None:
                 values.append(text)
-            value = json.dumps(values, ensure_ascii=False)
+            resolved = resolve_gateway_clarify(clarify_id, json.dumps(values, ensure_ascii=False))
         elif selection is not None:
             value = choices[int(selection) - 1]
             if text is not None:
                 # Hermes strips its recommendation label only from an answer that is the label alone.
                 value = f"{strip_recommended(value)}\n{text}"
+            resolved = resolve_gateway_clarify(clarify_id, value)
         else:
             mark_awaiting_text(clarify_id)
-            entry = get_pending(clarify_id)
-            if entry is None:
-                return
-            # The public resolve_text_response_for_session answers the oldest pending clarify, not this one.
-            value = _coerce_text_response(entry, text)
-        if not resolve_gateway_clarify(clarify_id, value):
+            resolved = attempt_text_response(clarify_id, text) == TEXT_RESOLVED
+        if not resolved:
             logger.debug("yui: clarify %s is no longer pending", clarify_id)
 
     return body, resolve

@@ -2575,26 +2575,12 @@ async def test_clarify_choice(client, adapter, multi):
     assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
 
 
-@pytest.mark.parametrize(
-    "multi,text,coerced",
-    [
-        (False, "skip", "\x00skipped"),
-        (True, "skip", "\x00skipped"),
-        (True, "1, 3", '["A", "C"]'),
-        (True, "why", "why"),
-    ],
-)
-async def test_clarify_text(client, adapter, multi, text, coerced):
+async def test_clarify_text(client, adapter):
     ws = await ready(client, accepts=["ask"])
-    await clarify(adapter, choices=["A", "B", "C"], multi=multi)
+    await clarify(adapter, choices=["A", "B", "C"])
     await recv(ws)
-    CLARIFY.coerced = coerced
-    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": text})
-    assert CLARIFY.calls == [
-        ("mark", "clarify-1"),
-        ("coerce", CLARIFY.entries["clarify-1"], text),
-        ("resolve", "clarify-1", coerced),
-    ]
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": "why"})
+    assert CLARIFY.calls == [("mark", "clarify-1"), ("attempt", "clarify-1", "why")]
 
 
 async def test_clarify_choice_and_text(client, adapter):
