@@ -532,3 +532,62 @@ describe("schedule_source — off-Tauri degrade", () => {
     expect(pushed).toHaveLength(0);
   });
 });
+
+describe("schedule_source — do-not-disturb hold", () => {
+  it("does not latch a cue due during DND, and fires it once on the first tick after DND ends within the window", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    let held = true;
+    let t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      isHeld: () => held,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+
+    held = false;
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("schedule.morning");
+
+    // The fired latch now holds for the rest of the day.
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+  });
+
+  it("does not fire a cue whose window passed while DND stayed on", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    let held = true;
+    let t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      isHeld: () => held,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+
+    // 09:00 + GRACE_MINUTES (120) = 11:00; 11:01 is past the window.
+    t = at(2026, 5, 15, 11, 1);
+    held = false;
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+  });
+});

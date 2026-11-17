@@ -52,6 +52,7 @@ function setup() {
   let thresholds = { count: 3, wait_min: 10 };
   const thresholdsListeners = new Set<(s: { count: number; wait_min: number }) => void>();
   let present = true;
+  let dndOn = false;
   const tapListeners = new Set<() => void>();
   const shownListeners = new Set<(shown: boolean) => void>();
   const state = {
@@ -100,6 +101,7 @@ function setup() {
       },
     },
     isPresent: () => present,
+    isDndOn: () => dndOn,
     chipTaps: (cb) => {
       tapListeners.add(cb);
       return () => tapListeners.delete(cb);
@@ -162,6 +164,9 @@ function setup() {
     },
     setPresent(next: boolean) {
       present = next;
+    },
+    setDnd(next: boolean) {
+      dndOn = next;
     },
     tap() {
       for (const cb of tapListeners) cb();
@@ -434,4 +439,46 @@ it("dispose clears the timers", async () => {
   expect(vi.getTimerCount()).toBe(2);
   h.reaction.dispose();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("a count reach during DND waits, and runs on the retry once DND turns off", async () => {
+  const h = setup();
+  h.setDnd(true);
+  h.setThresholds({ count: 2 });
+  h.push([waiting("t1"), waiting("t2", 2)]);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(h.order).toEqual([]);
+
+  h.setDnd(false);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["line:Let me open Threads.", "present:t2", "sit", "emotion:curious"]);
+});
+
+it("DND turning on while the run awaits listWindows stops it before speak, and it runs again after DND turns off", async () => {
+  const h = setup();
+  let resolveWindows: (w: WindowRect[]) => void = () => {};
+  let first = true;
+  h.listWindows.mockImplementation(() => {
+    if (first) {
+      first = false;
+      return new Promise((res) => {
+        resolveWindows = res;
+      });
+    }
+    return Promise.resolve(h.state.windows);
+  });
+  h.state.windows = [];
+  h.setThresholds({ count: 2 });
+  h.state.windowOpen = true;
+  h.push([waiting("t1"), waiting("t2")]);
+  await flush();
+
+  h.setDnd(true);
+  resolveWindows([]);
+  await flush();
+  expect(h.speak).not.toHaveBeenCalled();
+
+  h.setDnd(false);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["line:Here, up front.", "present:-", "sit", "emotion:curious"]);
 });
