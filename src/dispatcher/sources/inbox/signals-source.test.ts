@@ -1174,6 +1174,31 @@ describe("signals_source — a reacting Thread's group", () => {
     expect(s.src.drain()).toEqual([group("run-1")]);
   });
 
+  it("fireHeld with byUser pushes dnd_override on the envelope, without it the envelope stays bare", async () => {
+    const s = await started();
+    s.src.hold("thread:t1");
+    s.src.hold("thread:t2");
+    s.src.offer(group("thread:t1"));
+    s.src.offer(group("thread:t2"));
+    expect(s.src.fireHeld(["thread:t1"], true)).toBe(true);
+    expect(s.src.fireHeld(["thread:t2"])).toBe(true);
+    expect(s.pushed).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "signals.batch",
+        ts: 7,
+        payload: { signals: [group("thread:t1")] },
+        dnd_override: true,
+      },
+      {
+        source: "os_event_watcher",
+        event_name: "signals.batch",
+        ts: 7,
+        payload: { signals: [group("thread:t2")] },
+      },
+    ]);
+  });
+
   it("a refused fireHeld push leaves both held groups buffered for the next reaction", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
