@@ -226,9 +226,9 @@ describe("wireDispatcherSources", () => {
     drainQueue.push(group);
 
     // The gesture turn still fires; the held signals wait for the catch-up.
-    expect(result.drainSignals?.()).toEqual([]);
+    expect(result.drainSignals()).toEqual([]);
     dnd.setEnabled(false);
-    expect(result.drainSignals?.()).toEqual([group]);
+    expect(result.drainSignals()).toEqual([group]);
   });
 
   it("gates the screen source on its own flag and re-anchors idle cues on a fire", () => {

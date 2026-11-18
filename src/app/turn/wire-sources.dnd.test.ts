@@ -126,3 +126,45 @@ it("pushes no due schedule cue while DND is on, and pushes it on the first tick 
   expect(scheduled().map((e) => e.event_name)).toEqual(["schedule.morning"]);
   stop();
 });
+
+it("buffers an urgent and a batched group while DND is on, and fires each catch-up once when it turns off", async () => {
+  const dnd = createFlagSettings(true);
+  const { pushed, stop } = wireWithDnd(dnd);
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(0);
+  const envelope = (event_id: string, delivery: "batched" | "urgent") => ({
+    source: "n8n",
+    event_type: "workflow_done",
+    delivery,
+    event_id,
+    occurred_at: 1_787_449_000_000,
+  });
+
+  channel.emit("os_event", idleTick(500));
+  channel.emit("signals-inbox", {
+    signals: [{ id: 1 }],
+    ts: 1000,
+    envelope: envelope("u1", "urgent"),
+  });
+  channel.emit("signals-inbox", {
+    signals: [{ id: 2 }],
+    ts: 2000,
+    envelope: envelope("b2", "batched"),
+  });
+  expect(pushed).toEqual([]);
+
+  dnd.setEnabled(false);
+  expect(pushed.map((e) => [e.source, e.event_name]).sort()).toEqual([
+    ["timer_scheduler", "signals.catchup"],
+    ["urgent_signal_source", "signals.urgent_catchup"],
+  ]);
+  expect(pushed.find((e) => e.event_name === "signals.catchup")!.payload).toEqual({
+    signals: [{ envelope: envelope("b2", "batched"), items: [{ id: 2 }] }],
+  });
+
+  // A second DND cycle with an empty buffer fires nothing further.
+  dnd.setEnabled(true);
+  dnd.setEnabled(false);
+  expect(pushed).toHaveLength(2);
+  stop();
+});

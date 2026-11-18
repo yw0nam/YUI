@@ -8,49 +8,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { wireDispatcherSources } from "../../../app/turn/wire-sources";
 import type { SignalGroup } from "../../../contract";
 import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
-import { createFlagSettings } from "../../../settings/persisted-store";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 import { composePacedPipelineBusy } from "../../core/paced-pipeline-busy";
 import { createSignalsSource } from "./signals-source";
-
-// A fake Tauri channel the DND wiring test drives; the resolver mock only hands it out while
-// `active` is set, so every other test keeps the real off-Tauri resolver.
-const channel = vi.hoisted(() => {
-  const handlers = new Map<string, Set<(e: { payload: OsEventPayload }) => void>>();
-  return {
-    active: false,
-    listen: (async (event: string, handler: (e: { payload: OsEventPayload }) => void) => {
-      let set = handlers.get(event);
-      if (!set) {
-        set = new Set();
-        handlers.set(event, set);
-      }
-      set.add(handler);
-      return () => {
-        set.delete(handler);
-      };
-    }) as OsEventListen,
-    emit: (event: string, payload: unknown) => {
-      for (const h of handlers.get(event) ?? []) h({ payload: payload as OsEventPayload });
-    },
-    reset: () => handlers.clear(),
-  };
-});
-
-vi.mock("../../../io/window/tauri-listen", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../io/window/tauri-listen")>();
-  return {
-    ...actual,
-    resolveTauriListen: async () => (channel.active ? channel.listen : actual.resolveTauriListen()),
-    // The real subscribeOsEvent closes over the real resolver, so inject the fake listen directly.
-    subscribeOsEvent: (params: Parameters<typeof actual.subscribeOsEvent>[0]) =>
-      actual.subscribeOsEvent(channel.active ? { ...params, listen: channel.listen } : params),
-  };
-});
 
 const PRESENT_MAX = 10_000;
 const LOW_IDLE = 500; // present
@@ -469,94 +432,6 @@ describe("signals_source — global pacer composed into the busy predicate (#689
 
     expect(s.pushed).toHaveLength(0);
     s.src.stop();
-  });
-});
-
-describe("signals_source — do-not-disturb composed into both busy predicates", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    channel.active = true;
-    channel.reset();
-  });
-  afterEach(() => {
-    channel.active = false;
-    channel.reset();
-    vi.useRealTimers();
-  });
-
-  const screenConfig = {
-    prev_dwell_ms: 600000,
-    settle_ms: 90000,
-    long_session_ms: 2700000,
-    min_gap_ms: 300000,
-    quiet_after_turn_ms: 180000,
-    recent_cap: 5,
-  };
-  const URGENT_ENVELOPE = { ...ENVELOPE, delivery: "urgent" as const, event_id: "run-urgent-1" };
-
-  /** Wires the real sources the way bootstrap does, handing the signals source the DND store. */
-  function wireWithDnd(dnd: ReturnType<typeof createFlagSettings>) {
-    const { bus, pushed } = fakeBus();
-    const pipelineBusy = fakePipelineBusy(false);
-    const sources = wireDispatcherSources({
-      bus: bus as never,
-      presenceSettings: { get: () => ({ value: PRESENT_MAX }) },
-      proactiveSettings: { get: () => ({ enabled: false, entries: [] }) },
-      scheduleSettings: { get: () => ({ enabled: false, entries: [] }) },
-      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
-      screenSettings: { get: () => ({ enabled: false }) },
-      getScreenConfig: () => screenConfig,
-      subscribeBusy: () => () => {},
-      pipelineBusy: {
-        isBusy: pipelineBusy.isPipelineBusy,
-        subscribe: pipelineBusy.subscribePipelineBusy,
-      },
-      pacer: fakePacer(false),
-      dndSettings: dnd,
-      onCharacterAddressed: () => () => {},
-      onUserTurnRouted: () => () => {},
-      submitUser: vi.fn(),
-      selfPresetId: "natsume",
-    });
-    return { pushed, sources };
-  }
-
-  it("buffers an urgent and a batched group while DND is on, and fires each catch-up once when it turns off", async () => {
-    const dnd = createFlagSettings(true);
-    const { pushed, sources } = wireWithDnd(dnd);
-    // Let the fire-and-forget source starts subscribe to the fake channel.
-    await vi.advanceTimersByTimeAsync(0);
-    await vi.advanceTimersByTimeAsync(0);
-
-    channel.emit("os_event", idleTick(LOW_IDLE));
-    channel.emit("signals-inbox", batch([{ id: 1 }], 1000, URGENT_ENVELOPE));
-    channel.emit("signals-inbox", batch([{ id: 2 }], 2000, envelopeOf(2)));
-    expect(pushed).toHaveLength(0);
-
-    dnd.setEnabled(false);
-    expect(pushed.map((e) => e.event_name).sort()).toEqual([
-      "signals.catchup",
-      "signals.urgent_catchup",
-    ]);
-    expect(pushed.find((e) => e.event_name === "signals.urgent_catchup")!.source).toBe(
-      "urgent_signal_source",
-    );
-    expect(pushed.find((e) => e.event_name === "signals.catchup")!.payload).toEqual({
-      signals: [{ envelope: envelopeOf(2), items: [{ id: 2 }] }],
-    });
-
-    // A second DND cycle with an empty buffer fires nothing further.
-    dnd.setEnabled(true);
-    dnd.setEnabled(false);
-    expect(pushed).toHaveLength(2);
-
-    sources.signalsSource.stop();
-    sources.proactiveSource.stop();
-    sources.scheduleSource.stop();
-    sources.milestoneSource.stop();
-    sources.screenSource.stop();
-    sources.addressedSource.stop();
-    sources.routedUserSource.stop();
   });
 });
 

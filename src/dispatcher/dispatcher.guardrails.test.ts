@@ -858,7 +858,7 @@ describe("dispatcher — do-not-disturb gate", () => {
     d.stop();
   });
 
-  it("holds a timer cue while DND is on and fires it once DND turns off", async () => {
+  it("holds a timer cue while DND is on, and lets the next timer cue reach the backend once DND is off", async () => {
     const d = make();
     bus.push(timerCue());
     await vi.advanceTimersByTimeAsync(20);
