@@ -7,6 +7,7 @@ use tauri::{
 #[derive(Debug, PartialEq, Eq)]
 enum TrayAction {
     ToggleVisibility,
+    ToggleDnd,
     OpenSettings,
     OpenTerminal,
     Quit,
@@ -128,6 +129,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
                     log::warn!("tray_terminal_open_emit_failed error={error}");
                 }
             }
+            Some(TrayAction::ToggleDnd) => {}
             Some(TrayAction::Quit) => app.exit(0),
             None => {}
         });
@@ -188,6 +190,11 @@ mod tests {
             action_for("toggle-visibility"),
             Some(TrayAction::ToggleVisibility)
         );
+    }
+
+    #[test]
+    fn action_for_maps_dnd() {
+        assert_eq!(action_for("dnd"), Some(TrayAction::ToggleDnd));
     }
 
     #[test]

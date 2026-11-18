@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./status-pill.css", () => ({}));
 
 import { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
+import { createFlagSettings } from "../../settings/persisted-store";
 import { setLocale, t } from "../i18n";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createStatusPill } from "./status-pill";
@@ -27,8 +28,14 @@ function opacityTransitionEnd(el: HTMLElement): void {
 }
 
 function setup(
-  opts: { capture?: boolean; withCaptureSetting?: boolean; withToggle?: boolean } = {},
+  opts: {
+    capture?: boolean;
+    withCaptureSetting?: boolean;
+    withToggle?: boolean;
+    dnd?: ReturnType<typeof createFlagSettings>;
+  } = {},
 ) {
+  const dnd = opts.dnd;
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const settings = createScreenshotSettings();
@@ -44,6 +51,14 @@ function setup(
     onOpenSettings,
     onFixVoice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
+    ...(dnd
+      ? {
+          dnd: {
+            get: () => dnd.get().enabled,
+            subscribe: (cb: () => void) => dnd.subscribe(() => cb()),
+          },
+        }
+      : {}),
   });
   flushFrames();
   const q = <T extends Element>(sel: string): T => mount.querySelector<T>(sel)!;
@@ -103,6 +118,21 @@ describe("status pill — nothing to report", () => {
     expect(p.root().hidden).toBe(true);
     expect(p.root().getAttribute("role")).toBe("status");
     expect(p.root().getAttribute("aria-live")).toBe("polite");
+  });
+});
+
+describe("status pill — do-not-disturb", () => {
+  it("shows a still Do not disturb segment while DND is on, and hides with nothing else once it is off", () => {
+    const dnd = createFlagSettings(true);
+    const p = setup({ dnd });
+
+    expect(p.root().hidden).toBe(false);
+    expect(p.mount.querySelector(".yui-status__quiet")!.textContent).toBe("Do not disturb");
+    expectSegmentHidden(p);
+
+    dnd.setEnabled(false);
+    opacityTransitionEnd(p.root());
+    expect(p.root().hidden).toBe(true);
   });
 });
 
