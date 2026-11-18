@@ -59,7 +59,11 @@ fn toggle_visibility(app: &AppHandle) {
 }
 
 fn toggle_dnd(app: &AppHandle) {
-    let item = &app.state::<TrayDnd>().0;
+    let Some(dnd) = app.try_state::<TrayDnd>() else {
+        log::warn!("tray_dnd_state_missing");
+        return;
+    };
+    let item = &dnd.0;
     // muda flips the check before it sends the menu event.
     let checked = match item.is_checked() {
         Ok(checked) => checked,
@@ -68,16 +72,20 @@ fn toggle_dnd(app: &AppHandle) {
             return;
         }
     };
-    let Some(window) = app.get_webview_window("main") else {
-        log::warn!("tray_main_window_not_found window=main");
-        // No store took the click, so the check goes back.
+    let emitted = match app.get_webview_window("main") {
+        Some(window) => window
+            .emit("tray-dnd", checked)
+            .map_err(|error| log::warn!("tray_dnd_emit_failed enabled={checked} error={error}")),
+        None => {
+            log::warn!("tray_main_window_not_found window=main");
+            Err(())
+        }
+    };
+    // No store took the click, so the check goes back.
+    if emitted.is_err() {
         if let Err(error) = item.set_checked(!checked) {
             log::warn!("tray_dnd_revert_failed error={error}");
         }
-        return;
-    };
-    if let Err(error) = window.emit("tray-dnd", checked) {
-        log::warn!("tray_dnd_emit_failed enabled={checked} error={error}");
     }
 }
 
