@@ -151,7 +151,7 @@ describe("slotRect", () => {
   function measured(folded = false) {
     const collapsed = createDelegationChipSettings();
     collapsed.setCollapsed(folded);
-    const chip = createThreadsChip({ mount, collapsed, onOpen: vi.fn() });
+    const chip = createThreadsChip({ mount, collapsed, onOpen: vi.fn(), isDndOn: () => false });
     const button = mount.querySelector<HTMLButtonElement>(".yui-threadchip")!;
     const seen: { hidden: boolean; measuring: boolean; mini: boolean }[] = [];
     button.getBoundingClientRect = () => {

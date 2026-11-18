@@ -15,6 +15,8 @@ export function wireThreadsChip(deps: {
   mount: HTMLElement;
   /** The fold store the signal and delegation chips share. */
   collapsed: DelegationChipSettingsStore;
+  /** Whether do-not-disturb is on: a Thread that arrives then does not wiggle the chip. */
+  isDndOn: () => boolean;
 }): {
   dispose: () => void;
   slotRect: (() => ScreenRect) | null;
@@ -30,6 +32,7 @@ export function wireThreadsChip(deps: {
   const chip = createThreadsChip({
     mount: deps.mount,
     collapsed: deps.collapsed,
+    isDndOn: deps.isDndOn,
     onOpen: (rect) => {
       threadsWindow.open(rect, requestTab());
       for (const cb of taps) cb();

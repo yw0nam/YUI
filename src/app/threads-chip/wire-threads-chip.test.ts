@@ -181,6 +181,7 @@ it("counts a waiting access request and opens the Terminal tab while one waits",
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: b }),
     terminal: terminalOf(1),
+    isDndOn: () => false,
   });
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("2");

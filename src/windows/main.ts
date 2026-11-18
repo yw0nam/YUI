@@ -353,6 +353,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       threadsWindow,
       mount: surfaces.chipColumn,
       collapsed: configured.chipFold,
+      isDndOn: () => settingsStores.dndSettings.get().enabled,
     });
     register(threadsChip.dispose);
     register(

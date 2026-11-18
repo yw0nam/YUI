@@ -46,13 +46,9 @@
   outline-offset: 2px;
 }
 
-/* One wiggle when a Thread starts waiting; the chip stays still during do-not-disturb. */
+/* One wiggle when a Thread starts waiting; the chip never pulses. */
 .yui-threadchip.is-wiggle {
   animation: yui-threadchip-wiggle 520ms ease-out;
-}
-
-:root[data-yui-dnd] .yui-threadchip.is-wiggle {
-  animation: none;
 }
 
 @keyframes yui-threadchip-wiggle {
