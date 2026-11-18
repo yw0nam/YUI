@@ -128,11 +128,15 @@
   box-shadow: 0 0 0 3px var(--yui-accent-faint);
 }
 
-/* The urgent dot's halo pulses while the chip shows: the signal needs the user now, a deliberate exception to calm-by-default. */
+/* The urgent dot's halo pulses while the chip shows: the signal needs the user now, a deliberate exception to calm-by-default; the dot stays still during do-not-disturb. */
 .yui-sigchip--urgent .yui-sigchip__dot {
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);
   animation: yui-sigchip-beat 1.8s var(--yui-ease) infinite;
+}
+
+:root[data-yui-dnd] .yui-sigchip--urgent .yui-sigchip__dot {
+  animation: none;
 }
 
 @keyframes yui-sigchip-beat {

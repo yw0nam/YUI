@@ -2,9 +2,15 @@
 
 import type { FlagSettingsStore } from "../../settings/persisted-store";
 
-export function wireDndRoot(_deps: {
+export function wireDndRoot(deps: {
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
   root: HTMLElement;
 }): () => void {
-  return () => {};
+  const { dnd, root } = deps;
+  const sync = (): void => {
+    if (dnd.get().enabled) root.setAttribute("data-yui-dnd", "");
+    else root.removeAttribute("data-yui-dnd");
+  };
+  sync();
+  return dnd.subscribe(sync);
 }

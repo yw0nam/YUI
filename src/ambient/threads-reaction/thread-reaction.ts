@@ -28,7 +28,7 @@ export interface ThreadReactionDeps {
   };
   /** Whether the user is at the machine; a count or wait reaction waits for it, a tap does not. */
   isPresent(): boolean;
-  /** Whether do-not-disturb is on; a reaction waits for it to turn off. */
+  /** Whether do-not-disturb is on; a count or wait reaction waits for it, a tap does not. */
   isDndOn(): boolean;
   /** Subscribes to Threads-chip taps; the chip has already opened the window, so a tap plays no line. */
   chipTaps(cb: () => void): () => void;
@@ -56,7 +56,8 @@ export interface ThreadReactionDeps {
   turn: {
     hold(threadId: string): void;
     release(threadId: string): void;
-    fire(threadIds: string[]): void;
+    /** True for a tap's fire: the user started it, so it passes do-not-disturb. */
+    fire(threadIds: string[], byUser: boolean): void;
   };
 }
 
@@ -110,8 +111,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       executor !== null &&
       !executor.isBusy() &&
       !deps.isPipelineBusy() &&
-      !deps.hasOutstandingSpeech() &&
-      !deps.isDndOn()
+      !deps.hasOutstandingSpeech()
     );
   }
 
@@ -153,6 +153,11 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       retryLater();
       return;
     }
+    // A count or wait also waits for do-not-disturb to turn off; a tap does not.
+    if (pending.cause !== "tap" && deps.isDndOn()) {
+      retryLater();
+      return;
+    }
     if (!isFree()) {
       retryLater();
       return;
@@ -187,7 +192,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
       halt = null;
     }
     if (finished === "done") {
-      if (held.size > 0) deps.turn.fire([...held]);
+      if (held.size > 0) deps.turn.fire([...held], cause.cause === "tap");
       // The fired turn reaches the pipeline after this tick, so the next reaction checks on the retry.
       retryLater();
     } else if (finished === "not-ready") {
@@ -200,7 +205,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
         pending = cause;
       }
       retryLater();
-    } else if (deps.isDndOn()) {
+    } else if (cause.cause !== "tap" && deps.isDndOn()) {
       // Do-not-disturb stopped the run: it runs again once DND is off; a pending tap still wins.
       setPending(cause);
       retryLater();
@@ -249,7 +254,8 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     wait: <T>(work: Promise<T>) => Promise<T>,
   ): Promise<RunResult> {
     const valid = (): boolean => {
-      if (disposed || !enabled() || deps.isDndOn()) return false;
+      // A tap passes do-not-disturb; a count or wait does not.
+      if (disposed || !enabled() || (cause.cause !== "tap" && deps.isDndOn())) return false;
       if (cause.cause === "tap") return !cancelled;
       if (cause.cause === "wait") return counted.some((thread) => thread.id === cause.threadId);
       return counted.length > 0;

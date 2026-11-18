@@ -41,6 +41,7 @@ import { isMacOS, isTauri, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
+import { wireDndRoot } from "./dnd/wire-dnd-root";
 import { wireTrayDnd } from "./dnd/wire-tray-dnd";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
@@ -393,6 +394,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         );
       }
     }
+    // Every pet window marks its root: do-not-disturb holds the chips' motion.
+    register(wireDndRoot({ dnd: settings.dndSettings, root: document.documentElement }));
     register(wireIngressDeadNotice({ surfaces, t }));
     const { vocabulary, stopTurn } = await core.connect({
       onSubmit: () => {
@@ -459,7 +462,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       chipFold: signalChips.collapsed,
       threadTurn: {
         hold: (id) => signalsSource.hold(threadEventId(id)),
-        fire: (ids) => signalsSource.fireHeld(ids.map(threadEventId)),
+        fire: (ids, byUser) => signalsSource.fireHeld(ids.map(threadEventId), byUser),
         release: (id) => signalsSource.release(threadEventId(id)),
       },
     };

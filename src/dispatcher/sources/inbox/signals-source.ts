@@ -56,8 +56,8 @@ export interface SignalsSource {
   hold(eventId: string): void;
   /** Lifts the hold; the group joins the next catch-up or timer firing. */
   release(eventId: string): void;
-  /** Sends every buffered batched group with these event ids as one ungated turn, without lifting the holds; true when pushed. */
-  fireHeld(eventIds: readonly string[]): boolean;
+  /** Sends every buffered batched group with these event ids as one ungated turn, without lifting the holds; true when pushed. byUser marks the envelope dnd_override: a user-started fire passes do-not-disturb. */
+  fireHeld(eventIds: readonly string[], byUser?: boolean): boolean;
 }
 
 type RoutedGroup = {
@@ -242,7 +242,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   // Ungated: the reaction that fires it already waited for an idle pipeline.
-  function fireHeld(eventIds: readonly string[]): boolean {
+  function fireHeld(eventIds: readonly string[], byUser = false): boolean {
     const ids = new Set(eventIds);
     const fired: SignalGroup[] = [];
     const kept: BufferedGroup[] = [];
@@ -257,6 +257,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       event_name: "signals.batch",
       ts: now(),
       payload: { signals: fired },
+      ...(byUser ? { dnd_override: true } : {}),
     });
     if (!pushed) return false;
     batchBuffer.splice(0, batchBuffer.length, ...kept);
