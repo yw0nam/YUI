@@ -136,6 +136,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
     mount: root,
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
+    dnd: {
+      get: () => settingsStores.dndSettings.get().enabled,
+      subscribe: (cb) => settingsStores.dndSettings.subscribe(() => cb()),
+    },
     onOpenSettings: () => openSettings(),
     onFixVoice: createVoiceFix({
       openConnection: () => openSettings("conn"),

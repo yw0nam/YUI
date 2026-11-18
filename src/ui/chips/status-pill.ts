@@ -1,5 +1,5 @@
 /**
- * Status pill — the capture, voice and tool tells in one pill at the top of the character window.
+ * Status pill — the capture, voice, tool and do-not-disturb tells in one pill at the top of the character window.
  *
  * Pure renderer — firing ≠ judgment: it draws what the screenshot setting, the voice status and
  * the backend's tool calls report. No brain, persona, or mode branching lives here.
@@ -38,6 +38,8 @@ interface StatusPillOptions {
   onFixVoice: () => void;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
   onToggleVoice?: () => void;
+  /** The do-not-disturb switch behind the still moon segment; without it the segment is absent. */
+  dnd?: { get(): boolean; subscribe(cb: () => void): () => void };
 }
 
 const TOOL_DONE_HOLD_MS = 1500;
@@ -58,6 +60,7 @@ export function createStatusPill({
   onOpenSettings,
   onFixVoice,
   onToggleVoice,
+  dnd,
 }: StatusPillOptions): StatusPill {
   const el = document.createElement("div");
   el.className = "yui-status";
@@ -88,6 +91,11 @@ export function createStatusPill({
     <span class="yui-status__sep" hidden aria-hidden="true"></span>
     <span class="yui-status__dot" hidden aria-hidden="true"></span>
     <span class="yui-status__label" hidden></span>
+    <span class="yui-status__sep" data-quiet hidden aria-hidden="true"></span>
+    <span class="yui-status__quiet" hidden><svg class="yui-status__icon" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7Z"
+      /></svg><span class="yui-status__quiet-label"></span></span>
     <svg class="yui-status__fix-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="8" cy="8" r="2.2" />
@@ -99,6 +107,9 @@ export function createStatusPill({
   const sepEl = el.querySelector<HTMLElement>(".yui-status__sep")!;
   const dotEl = el.querySelector<HTMLElement>(".yui-status__dot")!;
   const labelEl = el.querySelector<HTMLElement>(".yui-status__label")!;
+  const quietSepEl = el.querySelector<HTMLElement>(".yui-status__sep[data-quiet]")!;
+  const quietEl = el.querySelector<HTMLElement>(".yui-status__quiet")!;
+  const quietLabelEl = el.querySelector<HTMLElement>(".yui-status__quiet-label")!;
   mount.appendChild(el);
 
   let tool: { state: "running" | "done" | "failed"; label: string } | null = null;
@@ -110,7 +121,8 @@ export function createStatusPill({
   function render(): void {
     const captureOn = settings ? settings.get().enabled : false;
     const snapshot = voice.get();
-    const shown = captureOn || snapshot.visible || tool !== null;
+    const dndOn = dnd?.get() === true;
+    const shown = captureOn || snapshot.visible || tool !== null || dndOn;
     // A leaving pill keeps its last content through the fade, but no longer offers the fix.
     if (!shown) {
       delete el.dataset.fix;
@@ -146,6 +158,10 @@ export function createStatusPill({
     labelEl.hidden = !segment;
     dotEl.hidden = !segment;
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
+    // A still segment: no dot, no pulse; it follows the other tells after its own separator.
+    quietEl.hidden = !dndOn;
+    quietLabelEl.textContent = t("status.dnd");
+    quietSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
 
     // The fix link only exists while the voice owns the segment.
     const messaged = !tool && !fixable && snapshot.state === "error" && Boolean(snapshot.message);
@@ -240,6 +256,7 @@ export function createStatusPill({
   render();
   const unsubscribeSettings = settings?.subscribe(render) ?? ((): void => {});
   const unsubscribeVoice = voice.subscribe(render);
+  const unsubscribeDnd = dnd?.subscribe(render) ?? ((): void => {});
   const unsubscribeLocale = subscribeLocale(render);
   el.addEventListener("click", handleClick);
 
@@ -251,6 +268,7 @@ export function createStatusPill({
     cancelFade = null;
     unsubscribeSettings();
     unsubscribeVoice();
+    unsubscribeDnd();
     unsubscribeLocale();
     el.removeEventListener("click", handleClick);
     el.remove();

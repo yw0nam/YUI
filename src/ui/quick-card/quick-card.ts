@@ -1,4 +1,4 @@
-/** The quick card in its own window beside the character: its head, tiles and rows, and how it opens and closes. */
+/** The quick card in its own window beside the character: its head, Quiet group, tiles and rows, and how it opens and closes. */
 
 import "./quick-card.css";
 import type { ThreadsTab } from "../../io/bridge/settings-bridge";
@@ -10,6 +10,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { CROSS_SVG } from "../quick-controls/constants";
 import type { SwitchRow } from "../quick-controls/switch-row";
 import { avatarEl } from "../unified/avatar";
+import { createQuietGroup, type DndPort } from "./quiet-group";
 import { createRows, type PickerPort } from "./rows";
 import { createThreadsButtons } from "./threads-buttons";
 import { createTiles, type ListenPort } from "./tiles";
@@ -47,6 +48,8 @@ export function createQuickCard(deps: {
   openAllSettings(): void;
   /** Requests main to open the Threads window on `tab`. */
   openThreads(tab: ThreadsTab): void;
+  /** The device-wide do-not-disturb switch. */
+  dnd: DndPort;
 }): QuickCard {
   const el = document.createElement("div");
   el.className = "yui-qcard";
@@ -73,6 +76,7 @@ export function createQuickCard(deps: {
       <button class="yui-qcard__all" type="button">${t("quick_card.all_settings")}</button>
     </div>`;
     const q = <T extends Element>(selector: string): T => el.querySelector<T>(selector)!;
+    const quiet = createQuietGroup({ dnd: deps.dnd, log });
     const tiles = createTiles({ rows: deps.tiles, listen: deps.listen, log });
     const rows = createRows({
       body: deps.body,
@@ -90,7 +94,7 @@ export function createQuickCard(deps: {
       deps.openThreads(tab);
       close();
     });
-    q(".yui-qcard__body").prepend(tiles.el, opens, rows.el);
+    q(".yui-qcard__body").prepend(quiet.el, tiles.el, opens, rows.el);
     q(".yui-qcard__all").addEventListener("click", () => {
       deps.openAllSettings();
       close();
@@ -107,6 +111,7 @@ export function createQuickCard(deps: {
       transport: q<HTMLElement>(".yui-qcard__transport"),
       rows,
       dispose: () => {
+        quiet.dispose();
         tiles.dispose();
         rows.dispose();
       },

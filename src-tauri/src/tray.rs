@@ -1,8 +1,11 @@
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
+
+/// The tray's Do Not Disturb check; the main webview's store owns the state.
+struct TrayDnd(CheckMenuItem<tauri::Wry>);
 
 #[derive(Debug, PartialEq, Eq)]
 enum TrayAction {
@@ -22,6 +25,7 @@ fn tray_icon() -> tauri::Result<tauri::image::Image<'static>> {
 fn action_for(menu_id: &str) -> Option<TrayAction> {
     match menu_id {
         "toggle-visibility" => Some(TrayAction::ToggleVisibility),
+        "dnd" => Some(TrayAction::ToggleDnd),
         "settings" => Some(TrayAction::OpenSettings),
         "terminal" => Some(TrayAction::OpenTerminal),
         "quit" => Some(TrayAction::Quit),
@@ -52,6 +56,38 @@ fn toggle_visibility(app: &AppHandle) {
         }
         Err(error) => log::warn!("tray_read_main_window_visibility_failed error={error}"),
     }
+}
+
+fn toggle_dnd(app: &AppHandle) {
+    let item = &app.state::<TrayDnd>().0;
+    // muda flips the check before it sends the menu event.
+    let checked = match item.is_checked() {
+        Ok(checked) => checked,
+        Err(error) => {
+            log::warn!("tray_dnd_read_failed error={error}");
+            return;
+        }
+    };
+    let Some(window) = app.get_webview_window("main") else {
+        log::warn!("tray_main_window_not_found window=main");
+        // No store took the click, so the check goes back.
+        if let Err(error) = item.set_checked(!checked) {
+            log::warn!("tray_dnd_revert_failed error={error}");
+        }
+        return;
+    };
+    if let Err(error) = window.emit("tray-dnd", checked) {
+        log::warn!("tray_dnd_emit_failed enabled={checked} error={error}");
+    }
+}
+
+/// Sets the tray's Do Not Disturb check to the main webview's store value.
+#[tauri::command]
+pub fn set_tray_dnd(app: AppHandle, on: bool) -> Result<(), String> {
+    let dnd = app
+        .try_state::<TrayDnd>()
+        .ok_or_else(|| "tray not set up".to_string())?;
+    dnd.0.set_checked(on).map_err(|e| e.to_string())
 }
 
 /// `--yui-panel-bg` (src/ui/tokens.css) in sRGB for the theme in effect: the window's first frame.
@@ -113,10 +149,23 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
+    let dnd = CheckMenuItem::with_id(app, "dnd", "Do Not Disturb", true, false, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let terminal = MenuItem::with_id(app, "terminal", "Terminal", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit YUI", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&toggle, &settings, &terminal, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &toggle,
+            &PredefinedMenuItem::separator(app)?,
+            &dnd,
+            &PredefinedMenuItem::separator(app)?,
+            &settings,
+            &terminal,
+            &quit,
+        ],
+    )?;
+    app.manage(TrayDnd(dnd.clone()));
 
     let mut builder = TrayIconBuilder::new()
         .menu(&menu)
@@ -129,7 +178,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
                     log::warn!("tray_terminal_open_emit_failed error={error}");
                 }
             }
-            Some(TrayAction::ToggleDnd) => {}
+            Some(TrayAction::ToggleDnd) => toggle_dnd(app),
             Some(TrayAction::Quit) => app.exit(0),
             None => {}
         });

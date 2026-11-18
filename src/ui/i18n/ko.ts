@@ -103,6 +103,7 @@ const ko: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "화면 보는 중",
+  "status.dnd": "방해금지",
 
   // cue-list internal labels
   "cue.time_aria": "시각",
@@ -146,6 +147,8 @@ const ko: Record<string, string> = {
   "quick_card.open_threads": "스레드 창 열기",
   "quick_card.open_terminal": "터미널 탭 열기",
   "quick_card.close": "닫기",
+  "quick_card.quiet": "조용히",
+  "quick_card.dnd": "방해금지",
   "settings.title": "YUI 설정",
   "help.section": "도움말",
   "help.controls.label": "조작법",

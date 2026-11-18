@@ -104,6 +104,7 @@ const en: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "Watching your screen",
+  "status.dnd": "Do not disturb",
 
   // cue-list internal labels
   "cue.time_aria": "Time",
@@ -147,6 +148,8 @@ const en: Record<string, string> = {
   "quick_card.open_threads": "Open the Threads window",
   "quick_card.open_terminal": "Open the Terminal tab",
   "quick_card.close": "Close",
+  "quick_card.quiet": "Quiet",
+  "quick_card.dnd": "Do not disturb",
   "settings.title": "YUI Settings",
   "help.section": "Help",
   "help.controls.label": "Controls",

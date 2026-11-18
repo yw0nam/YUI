@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { ThreadReactionDeps } from "../ambient/threads-reaction/thread-reaction";
@@ -28,6 +29,7 @@ import { createUnifiedWindowController } from "../io/window/openers/unified-wind
 import { createCursorSource } from "../io/window/pet/cursor-source";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
+import { setTrayDnd } from "../io/window/tray-dnd";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
@@ -35,10 +37,11 @@ import type { SettingsPage } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
-import { isMacOS, isWindows } from "../tauri-env";
+import { isMacOS, isTauri, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
+import { wireTrayDnd } from "./dnd/wire-tray-dnd";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import { wireStageGestures } from "./stage/wire-gestures";
@@ -371,7 +374,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     register(() => void summonHotkey.dispose());
-    // Main alone owns the unified chat window; a bound pet window never opens it.
+    // Main alone owns the unified chat window and the tray; a bound pet window never touches them.
     if (phase1.bound !== true) {
       register(
         wireUnifiedWindow({
@@ -379,6 +382,16 @@ const realFactories: ConfiguredBootstrapFactories = {
           window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
+      if (isTauri()) {
+        register(
+          wireTrayDnd({
+            dnd: settings.dndSettings,
+            win: getCurrentWindow(),
+            setTray: setTrayDnd,
+            log,
+          }),
+        );
+      }
     }
     register(wireIngressDeadNotice({ surfaces, t }));
     const { vocabulary, stopTurn } = await core.connect({
