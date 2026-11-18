@@ -582,7 +582,7 @@ globalThis.YUI_MAP =
       "id": "shell/tray",
       "module": "shell",
       "label": "tray",
-      "role": "System tray menu with its show, hide, settings, and quit actions.",
+      "role": "System tray menu with its show, hide, settings, and quit actions, and a Do Not Disturb check item that mirrors the do-not-disturb store.",
       "paths": [
         "src-tauri/src/tray.rs"
       ]
@@ -686,7 +686,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -1028,7 +1028,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher",
       "module": "dispatcher",
       "label": "dispatcher",
-      "role": "The router: pumps the bus, classifies each envelope, and runs one backend call at a time, taking the cross-window turn lock first.",
+      "role": "The router: pumps the bus, classifies each envelope, drops the self-fired ones that do-not-disturb holds, and runs one backend call at a time, taking the cross-window turn lock first.",
       "paths": [
         "src/dispatcher"
       ]
@@ -1037,7 +1037,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/core",
       "module": "dispatcher",
       "label": "bus and gates",
-      "role": "The event bus, tier classification, guardrails, the proactive pacer, and the turn gate.",
+      "role": "The event bus, tier classification and the do-not-disturb source table, guardrails, the proactive pacer, and the turn gate.",
       "paths": [
         "src/dispatcher/core"
       ]
@@ -1091,7 +1091,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1100,7 +1100,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/gesture",
       "module": "sources",
       "label": "gesture sources",
-      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch, the follow of a moved or resized host, and placement.",
+      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch, the follow of a moved or resized host, and placement. A spam-count tap turn takes the buffered signal groups with it, and takes none while do-not-disturb is on.",
       "paths": [
         "src/dispatcher/sources/gesture"
       ]
@@ -1154,7 +1154,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off.",
+      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off. It does not run while do-not-disturb is on, and a run that do-not-disturb stops runs again once it is off.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1208,7 +1208,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action and shows a moon while do-not-disturb is on, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1235,7 +1235,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-card",
       "module": "settings",
       "label": "quick card",
-      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Threads and Terminal buttons that ask main to open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
+      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), a Do not disturb switch above the tiles, the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Threads and Terminal buttons that ask main to open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
       "paths": [
         "src/ui/quick-card"
       ]
@@ -1430,6 +1430,15 @@ globalThis.YUI_MAP =
       "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect and taps, the presence reader, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch, the Reaction thresholds, the filler pools and the Thread turn handle into the reaction; a window without a Threads client wires nothing.",
       "paths": [
         "src/app/threads-reaction"
+      ]
+    },
+    {
+      "id": "app/dnd",
+      "module": "wiring",
+      "label": "do-not-disturb wiring",
+      "role": "Main only: keeps the tray's Do Not Disturb check in step with the do-not-disturb store, and writes the store when the tray item is clicked.",
+      "paths": [
+        "src/app/dnd"
       ]
     },
     {
@@ -2857,7 +2866,7 @@ globalThis.YUI_MAP =
       "id": "settings-idle-tick",
       "from": "settings",
       "to": "dispatcher/sources/idle-tick",
-      "carries": "cue lists, presence threshold, screen-watch thresholds",
+      "carries": "cue lists, presence threshold, screen-watch thresholds, and the do-not-disturb switch as the schedule source's hold (isHeld)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -2933,6 +2942,69 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-gestures.ts"
+    },
+    {
+      "id": "settings-dnd-gate",
+      "from": "settings",
+      "to": "dispatcher",
+      "carries": "isDndOn: the do-not-disturb store, read per envelope; a held self-fired envelope is dropped with reason dnd, and queued or lock-waiting ones too when it turns on",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "settings-dnd-inbox",
+      "from": "settings",
+      "to": "dispatcher/sources/inbox",
+      "carries": "dndSettings as a hold in composePacedPipelineBusy for both inbox instances: busy while on, so its end flushes the catch-up",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "settings-dnd-reaction",
+      "from": "settings",
+      "to": "ambient/threads-reaction",
+      "carries": "isDndOn: the do-not-disturb store, read when a reaction is due, mid-run and when it is free",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
+    },
+    {
+      "id": "settings-dnd-pill",
+      "from": "settings",
+      "to": "ui/chips",
+      "carries": "dnd get and subscribe → the status pill's moon segment while on",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "signals-drain-gesture",
+      "from": "dispatcher/sources/inbox",
+      "to": "dispatcher/sources/gesture",
+      "carries": "drainSignals(): the buffered signal groups for a spam-count tap turn; none while do-not-disturb is on",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "tray-dnd",
+      "from": "shell/tray",
+      "to": "app/dnd",
+      "carries": "tray-dnd (boolean): the Do Not Disturb item's new checked state, sent to the main window, which writes the store",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/app/dnd/wire-tray-dnd.ts"
+    },
+    {
+      "id": "set-tray-dnd",
+      "from": "app/dnd",
+      "to": "shell/tray",
+      "carries": "set_tray_dnd {on}: the check follows the store on start and on each change; a failed call is logged",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "signals-drain",
@@ -3220,7 +3292,7 @@ globalThis.YUI_MAP =
       "id": "quick-card-stores",
       "from": "ui/quick-card",
       "to": "settings",
-      "carries": "a tile flips the store of its settings row (TTS on, keep bubble, the Unified chat switch) and repaints on its change; Turn off → petWindows.close(id)",
+      "carries": "the Do not disturb switch and a tile flip their store (yui.dnd, TTS on, keep bubble, the Unified chat switch) and repaint on its change; Turn off → petWindows.close(id)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-ports.ts"
@@ -5425,10 +5497,18 @@ globalThis.YUI_MAP =
         },
         {
           "from": "dispatcher",
-          "label": "Classifies each envelope as tier 1 or tier 2; tier 2 passes the pacer gap and the guardrails",
+          "label": "Classifies each envelope as tier 1 or tier 2; tier 2 passes the do-not-disturb hold, the pacer gap and the guardrails",
           "edges": [
             "bus-dispatcher"
           ]
+        },
+        {
+          "from": "settings",
+          "label": "do-not-disturb on: the gate drops self-fired envelopes before the pacer",
+          "edges": [
+            "settings-dnd-gate"
+          ],
+          "to": "dispatcher"
         },
         {
           "from": "dispatcher",
