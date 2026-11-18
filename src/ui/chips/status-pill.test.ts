@@ -127,7 +127,7 @@ describe("status pill — do-not-disturb", () => {
     const p = setup({ dnd });
 
     expect(p.root().hidden).toBe(false);
-    expect(p.mount.querySelector(".yui-status__quiet")!.textContent).toBe("Do not disturb");
+    expect(p.mount.querySelector(".yui-status__dnd")!.textContent).toBe("Do not disturb");
     expectSegmentHidden(p);
 
     dnd.setEnabled(false);

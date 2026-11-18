@@ -33,6 +33,6 @@ describe("wireTrayDnd", () => {
 
     expect(win.listen).toHaveBeenCalledWith("tray-dnd", expect.any(Function));
     expect(dnd.get()).toEqual({ enabled: true });
-    expect(log.info).toHaveBeenCalledWith("dnd", { enabled: true, via: "tray" });
+    expect(log.info).toHaveBeenCalledWith("dnd_toggle", { enabled: true, via: "tray" });
   });
 });

@@ -1,9 +1,13 @@
-import type { ProactivePacer } from "./proactive-pacer";
-
 /** The busy predicate a buffered-inbox source takes: the pipeline's own, plus any hold composed on it. */
 export interface PacedPipelineBusy {
   isBusy: () => boolean;
   subscribe: (cb: (busy: boolean) => void) => () => void;
+}
+
+/** A hold the busy predicate takes on: the proactive gap or do-not-disturb. */
+export interface BusyHold {
+  isHolding(): boolean;
+  subscribe(cb: (holding: boolean) => void): () => void;
 }
 
 /**
@@ -13,7 +17,7 @@ export interface PacedPipelineBusy {
  */
 export function composePacedPipelineBusy(deps: {
   pipelineBusy: PacedPipelineBusy;
-  hold: Pick<ProactivePacer, "isHolding" | "subscribe">;
+  hold: BusyHold;
 }): PacedPipelineBusy {
   const { pipelineBusy, hold } = deps;
   const paced: PacedPipelineBusy = {

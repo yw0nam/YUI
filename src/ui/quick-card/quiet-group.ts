@@ -27,7 +27,7 @@ export function createQuietGroup(deps: { dnd: DndPort; log: Logger }): {
   button.addEventListener("click", () => {
     const enabled = !dnd.get();
     dnd.set(enabled);
-    log.info("dnd", { enabled, via: "quick_card" });
+    log.info("dnd_toggle", { enabled, via: "quick_card" });
   });
   paint();
   return { el, dispose: dnd.subscribe(paint) };

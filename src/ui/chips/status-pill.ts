@@ -91,11 +91,11 @@ export function createStatusPill({
     <span class="yui-status__sep" hidden aria-hidden="true"></span>
     <span class="yui-status__dot" hidden aria-hidden="true"></span>
     <span class="yui-status__label" hidden></span>
-    <span class="yui-status__sep" data-quiet hidden aria-hidden="true"></span>
-    <span class="yui-status__quiet" hidden><svg class="yui-status__icon" viewBox="0 0 24 24"
+    <span class="yui-status__sep" data-dnd hidden aria-hidden="true"></span>
+    <span class="yui-status__dnd" hidden><svg class="yui-status__icon" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
       stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7Z"
-      /></svg><span class="yui-status__quiet-label"></span></span>
+      /></svg><span class="yui-status__dnd-label"></span></span>
     <svg class="yui-status__fix-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="8" cy="8" r="2.2" />
@@ -107,9 +107,9 @@ export function createStatusPill({
   const sepEl = el.querySelector<HTMLElement>(".yui-status__sep")!;
   const dotEl = el.querySelector<HTMLElement>(".yui-status__dot")!;
   const labelEl = el.querySelector<HTMLElement>(".yui-status__label")!;
-  const quietSepEl = el.querySelector<HTMLElement>(".yui-status__sep[data-quiet]")!;
-  const quietEl = el.querySelector<HTMLElement>(".yui-status__quiet")!;
-  const quietLabelEl = el.querySelector<HTMLElement>(".yui-status__quiet-label")!;
+  const dndSepEl = el.querySelector<HTMLElement>(".yui-status__sep[data-dnd]")!;
+  const dndEl = el.querySelector<HTMLElement>(".yui-status__dnd")!;
+  const dndLabelEl = el.querySelector<HTMLElement>(".yui-status__dnd-label")!;
   mount.appendChild(el);
 
   let tool: { state: "running" | "done" | "failed"; label: string } | null = null;
@@ -159,9 +159,9 @@ export function createStatusPill({
     dotEl.hidden = !segment;
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
     // A still segment: no dot, no pulse; it follows the other tells after its own separator.
-    quietEl.hidden = !dndOn;
-    quietLabelEl.textContent = t("status.dnd");
-    quietSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
+    dndEl.hidden = !dndOn;
+    dndLabelEl.textContent = t("status.dnd");
+    dndSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
 
     // The fix link only exists while the voice owns the segment.
     const messaged = !tool && !fixable && snapshot.state === "error" && Boolean(snapshot.message);

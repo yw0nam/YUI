@@ -110,13 +110,13 @@
 }
 
 /* Do-not-disturb: a still moon in Text mute, no dot, so the One-Pulse Rule holds. */
-.yui-status__quiet {
+.yui-status__dnd {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.yui-status__quiet .yui-status__icon {
+.yui-status__dnd .yui-status__icon {
   color: var(--yui-text-mute);
 }
 

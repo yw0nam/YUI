@@ -1,4 +1,4 @@
-/** Marks the window root with data-yui-dnd while do-not-disturb is on, so the chips' motion CSS can hold. */
+/** Marks the window root with data-yui-dnd while do-not-disturb is on, so the urgent signal chip's pulse can hold. */
 
 import type { FlagSettingsStore } from "../../settings/persisted-store";
 
