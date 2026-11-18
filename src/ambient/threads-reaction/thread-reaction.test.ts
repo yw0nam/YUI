@@ -444,17 +444,20 @@ it("dispose clears the timers", async () => {
   expect(vi.getTimerCount()).toBe(0);
 });
 
-it("a count reach during DND waits, and runs on the retry once DND turns off", async () => {
+it("a count reach during DND never starts its run, and runs on the retry once DND turns off", async () => {
   const h = setup();
   h.setDnd(true);
+  h.state.windowOpen = true;
   h.setThresholds({ count: 2 });
   h.push([waiting("t1"), waiting("t2", 2)]);
   await vi.advanceTimersByTimeAsync(2000);
+  // A started run would list the windows first.
+  expect(h.listWindows).not.toHaveBeenCalled();
   expect(h.order).toEqual([]);
 
   h.setDnd(false);
   await vi.advanceTimersByTimeAsync(1000);
-  expect(h.order).toEqual(["line:Let me open Threads.", "present:t2", "sit", "emotion:curious"]);
+  expect(h.order).toEqual(["line:Here, up front.", "present:-", "sit", "emotion:curious"]);
 });
 
 it("a tap during DND runs at once and fires the held ids as the user's own turn", async () => {

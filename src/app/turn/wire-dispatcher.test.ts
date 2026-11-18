@@ -23,10 +23,15 @@ import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/back
 import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
 import type { ClientTool } from "../../io/chat/tools/client-tools";
+import { createFlagSettings } from "../../settings/persisted-store";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (windowTools?: ClientTool[], endpoints = {} as EndpointsConfig) => {
+  const setup = (
+    windowTools?: ClientTool[],
+    endpoints = {} as EndpointsConfig,
+    dndSettings = createFlagSettings(false),
+  ) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -35,6 +40,7 @@ describe("wireDispatcher", () => {
     let dispatcherDeps:
       | {
           peek?: { enter(): Promise<void>; exit(): Promise<void> };
+          isDndOn?: () => boolean;
           onTurnAdmitted?: (turn: Turn) => void;
           onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
           onUserTurnFailed?: (
@@ -90,7 +96,7 @@ describe("wireDispatcher", () => {
         get: () => ({ value: 0 }),
         subscribe: vi.fn(() => pacerGapUnsubscribe),
       } as never,
-      dndSettings: { get: () => ({ enabled: false }) } as never,
+      dndSettings,
       oneVoiceSettings: { get: () => ({ enabled: false }) } as never,
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
@@ -159,6 +165,16 @@ describe("wireDispatcher", () => {
         .definitions()
         .map((d: { function: { name: string } }) => d.function.name),
     ).toEqual(["generate_express"]);
+  });
+
+  // The dispatcher's routing gate holds a self-fired cue while this reads true.
+  it("hands the dispatcher the do-not-disturb store, read live", () => {
+    const dnd = createFlagSettings(false);
+    const s = setup(undefined, {} as EndpointsConfig, dnd);
+
+    expect(s.dispatcherDeps.isDndOn?.()).toBe(false);
+    dnd.setEnabled(true);
+    expect(s.dispatcherDeps.isDndOn?.()).toBe(true);
   });
 
   it("setPeek reaches the dispatcher's peek enter/exit", async () => {

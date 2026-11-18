@@ -772,10 +772,12 @@ describe("dispatcher — do-not-disturb gate", () => {
   let dndOn = true;
   let onTurnDropped: Mock<NonNullable<DispatcherDeps["onTurnDropped"]>>;
   let onTurnFailed: Mock<NonNullable<DispatcherDeps["onTurnFailed"]>>;
+  let onTurnAdmitted: Mock<NonNullable<DispatcherDeps["onTurnAdmitted"]>>;
 
   function make(over: Partial<DispatcherDeps> = {}): Dispatcher {
     onTurnDropped = vi.fn<NonNullable<DispatcherDeps["onTurnDropped"]>>();
     onTurnFailed = vi.fn<NonNullable<DispatcherDeps["onTurnFailed"]>>();
+    onTurnAdmitted = vi.fn<NonNullable<DispatcherDeps["onTurnAdmitted"]>>();
     dispatcher = createDispatcher({
       bus,
       renderer: renderer as never,
@@ -790,6 +792,7 @@ describe("dispatcher — do-not-disturb gate", () => {
       isDndOn: () => dndOn,
       onTurnDropped,
       onTurnFailed,
+      onTurnAdmitted,
       ...over,
     });
     dispatcher.start();
@@ -822,6 +825,8 @@ describe("dispatcher — do-not-disturb gate", () => {
     expect(backendCaller.call).not.toHaveBeenCalled();
     expect(d.recentDrops()).toContainEqual(expect.objectContaining({ event_name, reason: "dnd" }));
     expect(onTurnDropped).toHaveBeenCalledWith(expect.objectContaining({ event_name }), "dnd");
+    // Held at the routing gate: the fire never becomes a turn.
+    expect(onTurnAdmitted).not.toHaveBeenCalled();
     d.stop();
   });
 
@@ -890,6 +895,8 @@ describe("dispatcher — do-not-disturb gate", () => {
       expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
     );
     expect(backendCaller.call).toHaveBeenCalledOnce();
+    // Purged from the queue: only the first user turn was ever admitted.
+    expect(onTurnAdmitted).toHaveBeenCalledOnce();
 
     bus.push({ ...userEnv("second"), ts: NOW + 2 });
     await vi.advanceTimersByTimeAsync(20);
@@ -897,6 +904,27 @@ describe("dispatcher — do-not-disturb gate", () => {
     expect(vi.mocked(backendCaller.call).mock.calls[1]![0].trigger.event_name).toBe(
       "user.text_submitted",
     );
+    d.stop();
+  });
+
+  it("drops a self-fired cue queued behind an in-flight call as dnd when DND turns on before the call ends", async () => {
+    dndOn = false;
+    const d = make();
+    bus.push(userEnv("first"));
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(timerCue(NOW + 1));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.queue().some((e) => e.event_name === "proactive.short_break")).toBe(true);
+
+    dndOn = true;
+    callDeferred[0]!.resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(d.recentDrops()).toContainEqual(
+      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
+    );
+    expect(onTurnAdmitted).toHaveBeenCalledOnce();
+    expect(backendCaller.call).toHaveBeenCalledOnce();
     d.stop();
   });
 
