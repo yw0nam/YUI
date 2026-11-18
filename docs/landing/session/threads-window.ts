@@ -11,6 +11,7 @@ const box = createThreadsBox({ win: threadsWin, desk, pet: readPet });
 const chip = createThreadsChip({
   mount: surfaces.chipColumn,
   collapsed: createDelegationChipSettings(),
+  isDndOn: () => false,
   async onOpen(r) {
     const at = box.open(r);
     chip.setWindowOpen(true);
