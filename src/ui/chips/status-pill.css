@@ -109,6 +109,17 @@
   background: var(--yui-edge-strong);
 }
 
+/* Do-not-disturb: a still moon in Text mute, no dot, so the One-Pulse Rule holds. */
+.yui-status__dnd {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.yui-status__dnd .yui-status__icon {
+  color: var(--yui-text-mute);
+}
+
 /* A server message widens the pill to the window's width less its gutters; what still does not fit
    ends in an ellipsis. */
 .yui-status[data-message] {

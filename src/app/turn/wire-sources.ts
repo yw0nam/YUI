@@ -37,7 +37,7 @@ import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
 import type { ScheduleSettings } from "../../settings/cues/schedule-settings";
-import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
@@ -57,8 +57,10 @@ export function wireDispatcherSources(deps: {
   /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
   subscribeBusy: (cb: (busy: boolean) => void) => () => void;
   pipelineBusy: PacedPipelineBusy;
-  /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
+  /** This pet window's proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
+  /** Do-not-disturb — holds the schedule cues and reads as busy to both signals inboxes. */
+  dndSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
   /** Subscribes to the character-addressed bridge events this preset is named in. */
   onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
   /** Subscribes to the unified chat window's messages routed to this preset. */
@@ -77,6 +79,8 @@ export function wireDispatcherSources(deps: {
   screenSource: ScreenSource;
   addressedSource: AddressedSource;
   routedUserSource: ReturnType<typeof createRoutedUserSource>;
+  /** The gestures' drain: empty during do-not-disturb, so the held signals wait for the catch-up. */
+  drainSignals: () => SignalGroup[];
 } {
   const {
     bus,
@@ -89,8 +93,18 @@ export function wireDispatcherSources(deps: {
     subscribeBusy,
     pipelineBusy,
     pacer,
+    dndSettings,
   } = deps;
-  const pacedPipelineBusy = composePacedPipelineBusy({ pipelineBusy, pacer });
+  const dndHold = {
+    isHolding: () => dndSettings.get().enabled,
+    subscribe: (cb: (holding: boolean) => void) =>
+      dndSettings.subscribe(() => cb(dndSettings.get().enabled)),
+  };
+  const pacedPipelineBusy = composePacedPipelineBusy({
+    pipelineBusy: composePacedPipelineBusy({ pipelineBusy, hold: pacer }),
+    hold: dndHold,
+  });
+  const urgentPipelineBusy = composePacedPipelineBusy({ pipelineBusy, hold: dndHold });
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -103,6 +117,7 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     getCues: () => scheduleSettings.get().entries,
     isEnabled: () => scheduleSettings.get().enabled,
+    isHeld: () => dndSettings.get().enabled,
   });
   void scheduleSource.start();
   const signalsSource = createSignalsSource({
@@ -111,8 +126,8 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => agentNotifySettings.get().enabled,
     isPipelineBusy: pacedPipelineBusy.isBusy,
     subscribePipelineBusy: pacedPipelineBusy.subscribe,
-    isUrgentPipelineBusy: pipelineBusy.isBusy,
-    subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
+    isUrgentPipelineBusy: urgentPipelineBusy.isBusy,
+    subscribeUrgentPipelineBusy: urgentPipelineBusy.subscribe,
     onArrival: deps.onSignalArrival,
   });
   void signalsSource.start();
@@ -154,5 +169,6 @@ export function wireDispatcherSources(deps: {
     screenSource,
     addressedSource,
     routedUserSource,
+    drainSignals: () => (dndSettings.get().enabled ? [] : signalsSource.drain()),
   };
 }

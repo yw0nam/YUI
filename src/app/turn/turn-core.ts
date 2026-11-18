@@ -221,6 +221,7 @@ export async function wireTurnCore(
     getCardText: deps.getCardText,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,
+    dndSettings: settings.dndSettings,
     oneVoiceSettings: settings.oneVoiceSettings,
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,

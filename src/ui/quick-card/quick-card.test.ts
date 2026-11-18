@@ -35,6 +35,7 @@ function build(over: Record<string, unknown> = {}) {
   const ttsSettings = createFlagSettings(true);
   const bubblePersistSettings = createFlagSettings(false);
   const unifiedChatSwitch = createFlagSettings(false);
+  const dndSettings = createFlagSettings(false);
   const rows = createSwitchRows({
     idleThrottleSettings: createFlagSettings(false),
     vad: createVadSettings(),
@@ -87,6 +88,11 @@ function build(over: Record<string, unknown> = {}) {
     turnOff: vi.fn() as (() => void) | null,
     openAllSettings: vi.fn(),
     openThreads: vi.fn(),
+    dnd: {
+      get: () => dndSettings.get().enabled,
+      set: (on: boolean) => dndSettings.setEnabled(on),
+      subscribe: (cb: () => void) => dndSettings.subscribe(() => cb()),
+    },
     ...over,
   };
   const card = createQuickCard(deps as Parameters<typeof createQuickCard>[0]);
@@ -105,6 +111,7 @@ function build(over: Record<string, unknown> = {}) {
     ttsSettings,
     bubblePersistSettings,
     unifiedChatSwitch,
+    dndSettings,
     mount,
   };
 }
@@ -160,6 +167,33 @@ describe("createQuickCard", () => {
     setLocale("en");
     card.open();
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("Voice");
+  });
+
+  it("puts the Quiet group above the tiles, its Do not disturb switch reading, writing and following the store", () => {
+    const { card, q, dndSettings } = build();
+    card.open();
+
+    expect([...q(".yui-qcard__body").children].map((child) => child.className)).toEqual([
+      "yui-qcard__quiet",
+      "yui-qcard__tiles",
+      "yui-qcard__opens",
+      "yui-qcard__rows",
+      "yui-qcard__all",
+    ]);
+    const quiet = q<HTMLElement>(".yui-qcard__quiet");
+    const sw = quiet.querySelector<HTMLButtonElement>(".yui-switch")!;
+    expect(quiet.querySelector(".yui-qcard__quiet-title")!.textContent).toBe("Quiet");
+    expect(quiet.querySelector(".yui-qcard__row")!.textContent).toBe("Do not disturb");
+    expect(sw.getAttribute("role")).toBe("switch");
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    sw.click();
+    expect(dndSettings.get().enabled).toBe(true);
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+
+    // A change from another window repaints the switch.
+    dndSettings.setEnabled(false);
+    expect(sw.getAttribute("aria-checked")).toBe("false");
   });
 
   it("disables Listen and reads Main only on another character's card", () => {

@@ -104,3 +104,28 @@ export const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
   urgent_signal_source: false,
   addressed_source: false,
 };
+
+/**
+ * Which sources do-not-disturb holds whole. Record forces a new source value to answer
+ * held-or-not at compile time. os_event_watcher is partial: only its self-fired milestone and
+ * signals prefixes are held (see isDndHeld); its gesture cues pass.
+ */
+const DND_HELD_SOURCES: Record<BusEnvelope["source"], boolean> = {
+  timer_scheduler: true,
+  screen_watcher: true,
+  os_event_watcher: false,
+  user_input_source: false,
+  urgent_signal_source: true,
+  addressed_source: false,
+};
+
+/** Whether do-not-disturb holds this envelope: every self-fired trigger, never user input or gestures. */
+export function isDndHeld(env: BusEnvelope): boolean {
+  if (env.dnd_override === true) return false;
+  if (DND_HELD_SOURCES[env.source]) return true;
+  // os_event_watcher also carries the once-a-day milestone and the Thread turns a reaction fires.
+  return (
+    env.source === "os_event_watcher" &&
+    (env.event_name.startsWith("time_milestone.") || env.event_name.startsWith("signals."))
+  );
+}

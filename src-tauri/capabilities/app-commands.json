@@ -35,6 +35,7 @@
     "allow-export-preset-file",
     "allow-export-card-png",
     "allow-set-click-through",
+    "allow-set-tray-dnd",
     "allow-start-agent-ingress",
     "allow-sync-preset-ids",
     "allow-avatar-rpc-response",

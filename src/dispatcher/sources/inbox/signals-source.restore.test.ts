@@ -69,7 +69,7 @@ it("restores signals after a failed milestone turn is dropped", async () => {
     isBusy: dispatcher.isPipelineBusy,
     subscribe: dispatcher.subscribePipelineBusy,
   };
-  const paced = composePacedPipelineBusy({ pipelineBusy, pacer });
+  const paced = composePacedPipelineBusy({ pipelineBusy, hold: pacer });
   signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: 10_000,
@@ -148,7 +148,7 @@ it("restores a signals catch-up dropped at the global gap", async () => {
     isBusy: dispatcher.isPipelineBusy,
     subscribe: dispatcher.subscribePipelineBusy,
   };
-  const paced = composePacedPipelineBusy({ pipelineBusy, pacer });
+  const paced = composePacedPipelineBusy({ pipelineBusy, hold: pacer });
   const proactive = createProactiveSource({
     bus,
     present_max_idle_ms: 10_000,

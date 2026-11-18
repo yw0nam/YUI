@@ -39,6 +39,10 @@ _Avoid_: transfer, delegation, forward
 The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
 _Avoid_: filter, policy, throttle
 
+**Do-not-disturb**:
+The device-wide switch, set on the Quick card or from the tray's Do Not Disturb item, that holds every self-fired trigger in every character window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, the dropped cue of a fall she started herself, and signals, urgent ones included. Idle cues, screen watch and the once-a-day milestone are dropped, not delivered later, and the milestone's day is used up. A schedule cue fires late if it is still within 120 minutes of its time that day. A count or wait reaction waits until it is off. Held signals go out as catch-up turns, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held.
+_Avoid_: quiet mode, mute
+
 **Chain cap**:
 The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable on the Together page. The next one is dropped with reason `addressed_cap`.
 _Avoid_: ping-pong cap, chain limit, addressed limit
@@ -171,7 +175,7 @@ The unified chat window's chip for one open preset in its head row, the recipien
 _Avoid_: avatar pill, presence badge, recipient chip
 
 **Quick card**:
-The card a right-click on the character opens beside her in its own window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, Threads and Terminal buttons that open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
+The card a right-click on the character opens beside her in its own window: her face, name and transport line, a Do-not-disturb switch above four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, Threads and Terminal buttons that open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
 _Avoid_: quick panel, popover
 
 **Aside**:

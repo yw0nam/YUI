@@ -31,11 +31,12 @@ beforeEach(() => {
   document.body.appendChild(mount);
 });
 
-function build() {
+function build(isDndOn: () => boolean = () => false) {
   const chip = createThreadsChip({
     mount,
     collapsed: createDelegationChipSettings(),
     onOpen: vi.fn(),
+    isDndOn,
   });
   const button = () => mount.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   return { chip, button };
@@ -107,6 +108,17 @@ it("marks the distinct sources of the newest waiting Threads, at most three", ()
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("5");
 });
 
+it("does not wiggle for a Thread that starts waiting during do-not-disturb", () => {
+  let dnd = false;
+  const { chip, button } = build(() => dnd);
+  chip.update([thread("a", "codex", 5)]);
+
+  dnd = true;
+  chip.update([thread("a", "codex", 5), thread("b", "codex", 6)]);
+
+  expect(button().classList.contains("is-wiggle")).toBe(false);
+});
+
 it("wiggles only when a new Thread id starts waiting", () => {
   const { chip, button } = build();
   const wiggling = () => button().classList.contains("is-wiggle");
@@ -139,7 +151,7 @@ describe("slotRect", () => {
   function measured(folded = false) {
     const collapsed = createDelegationChipSettings();
     collapsed.setCollapsed(folded);
-    const chip = createThreadsChip({ mount, collapsed, onOpen: vi.fn() });
+    const chip = createThreadsChip({ mount, collapsed, onOpen: vi.fn(), isDndOn: () => false });
     const button = mount.querySelector<HTMLButtonElement>(".yui-threadchip")!;
     const seen: { hidden: boolean; measuring: boolean; mini: boolean }[] = [];
     button.getBoundingClientRect = () => {

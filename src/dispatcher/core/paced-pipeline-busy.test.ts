@@ -15,7 +15,7 @@ describe("composePacedPipelineBusy", () => {
           return () => listeners.pipeline.delete(cb);
         },
       },
-      pacer: {
+      hold: {
         isHolding: () => false,
         subscribe: (cb) => {
           listeners.pacer.add(cb);

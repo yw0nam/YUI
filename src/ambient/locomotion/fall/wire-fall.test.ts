@@ -38,7 +38,9 @@ const TARGET: WindowRect = {
   threadsWindow: false,
 };
 
-async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } = {}) {
+async function wire(
+  opts: { isEnabled?: () => boolean; isDndOn?: () => boolean; ready?: Promise<void> } = {},
+) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
   fallerDrop.mockClear();
@@ -47,6 +49,7 @@ async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } =
   const onWindowLand = vi.fn();
   const handle = wireFaller({
     isEnabled: opts.isEnabled ?? (() => true),
+    isDndOn: opts.isDndOn ?? (() => false),
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
     travelFrame: { getWindow: () => ({}) as never, ready: opts.ready ?? Promise.resolve() },
@@ -66,6 +69,7 @@ async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } =
     get deps() {
       return createFaller.mock.calls[0][0] as unknown as {
         onLand(landing: { heightPx: number; surface: unknown; fell: boolean }): void;
+        onCue(heightPx: number, byUser: boolean): void;
       };
     },
     pushed,
@@ -167,5 +171,26 @@ describe("wireFaller — landing", () => {
 
     expect(pushed).toEqual([]);
     expect(onWindowLand).toHaveBeenCalledWith(TARGET);
+  });
+});
+
+describe("wireFaller — the dropped cue under do-not-disturb", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("holds the dropped cue of a fall she started herself while do-not-disturb is on, lets the user's own through, and pushes again once it is off", async () => {
+    let dndOn = true;
+    const { deps, pushed } = await wire({ isDndOn: () => dndOn });
+
+    deps.onCue(400, false);
+    expect(pushed).toEqual([]);
+
+    deps.onCue(400, true);
+    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.dropped"]);
+
+    dndOn = false;
+    deps.onCue(400, false);
+    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.dropped", "proactive.dropped"]);
   });
 });

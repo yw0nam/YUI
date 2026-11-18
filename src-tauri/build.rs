@@ -20,6 +20,7 @@ const COMMANDS: &[&str] = &[
     "export_preset_file",
     "export_card_png",
     "set_click_through",
+    "set_tray_dnd",
     "start_agent_ingress",
     "sync_preset_ids",
     "avatar_rpc_response",

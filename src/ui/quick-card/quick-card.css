@@ -169,6 +169,30 @@
   color: var(--yui-text-dim);
 }
 
+/* ── Quiet: a caption over a hairline-edged group of rows ── */
+.yui-qcard__quiet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yui-qcard__quiet-title {
+  margin: 0 8px;
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  color: var(--yui-text-mute);
+}
+
+.yui-qcard__quiet-group {
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-group);
+  padding: 2px 0;
+}
+
+.yui-qcard__quiet-group .yui-qcard__row {
+  padding: 0 6px 0 12px;
+}
+
 /* ── rows ── */
 .yui-qcard__rows {
   display: flex;

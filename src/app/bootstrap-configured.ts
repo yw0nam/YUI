@@ -39,6 +39,8 @@ import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
+import { wireDndRoot } from "./dnd/wire-dnd-root";
+import { wireTrayDnd } from "./dnd/wire-tray-dnd";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import { wireStageGestures } from "./stage/wire-gestures";
@@ -156,6 +158,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       gazeSettings,
       climbSettings,
       fallSettings,
+      dndSettings,
       hintSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
@@ -266,6 +269,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenSource,
       addressedSource,
       routedUserSource,
+      drainSignals,
     } = wireDispatcherSources({
       bus,
       presenceSettings,
@@ -280,6 +284,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         subscribe: dispatcher.subscribePipelineBusy,
       },
       pacer,
+      dndSettings: settings.dndSettings,
       onCharacterAddressed: phase1.onCharacterAddressed,
       onUserTurnRouted: phase1.onUserTurnRouted,
       submitUser: phase1.userInput.submit,
@@ -328,6 +333,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekActive: () => peekState?.active() ?? false,
       fallSettings,
       climbSettings,
+      dndSettings,
       agentNotifySettings,
       vrmSelection,
       onStrollEnd: (bodyReleased) => {
@@ -344,7 +350,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       bus,
       renderer,
       getConfig: () => config.get(),
-      drainSignals: () => signalsSource.drain(),
+      drainSignals,
       hitTest,
       locomotion,
       cameraSettings: settings.cameraSettings,
@@ -369,7 +375,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     register(() => void summonHotkey.dispose());
-    // Main alone owns the unified chat window; a bound pet window never opens it.
+    // Main alone owns the unified chat window and the tray; a bound pet window never touches them.
     if (phase1.bound !== true) {
       register(
         wireUnifiedWindow({
@@ -377,7 +383,10 @@ const realFactories: ConfiguredBootstrapFactories = {
           window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
+      register(wireTrayDnd({ dnd: settings.dndSettings, log }));
     }
+    // Every pet window marks its root: do-not-disturb stills the urgent chip pulse.
+    register(wireDndRoot({ dnd: settings.dndSettings, root: document.documentElement }));
     register(wireIngressDeadNotice({ surfaces, t }));
     const { vocabulary, stopTurn } = await core.connect({
       onSubmit: () => {
@@ -444,7 +453,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       chipFold: signalChips.collapsed,
       threadTurn: {
         hold: (id) => signalsSource.hold(threadEventId(id)),
-        fire: (ids) => signalsSource.fireHeld(ids.map(threadEventId)),
+        fire: (ids, byUser) => signalsSource.fireHeld(ids.map(threadEventId), byUser),
         release: (id) => signalsSource.release(threadEventId(id)),
       },
     };

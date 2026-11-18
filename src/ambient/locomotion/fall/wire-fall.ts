@@ -19,6 +19,8 @@ export function wireFaller(deps: {
   travelFrame: Pick<TravelFrameHandle, "getWindow" | "ready">;
   /** The user's fall switch. Off leaves a mid-air character where she hangs. */
   isEnabled: () => boolean;
+  /** Whether do-not-disturb is on; a fall she started herself then pushes no dropped cue. */
+  isDndOn: () => boolean;
   getFallConfig: () => FallConfig;
   /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
@@ -85,7 +87,9 @@ export function wireFaller(deps: {
         }
         if (target) deps.onWindowLand(target);
       },
-      onCue: (heightPx) => {
+      onCue: (heightPx: number, byUser: boolean) => {
+        // A fall she started herself is ambient chatter; do-not-disturb holds it.
+        if (!byUser && deps.isDndOn()) return;
         const cue = deps.getGestureCues().dropped;
         bus.push({
           source: "os_event_watcher",

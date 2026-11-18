@@ -29,6 +29,8 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::preset_file::export_card_png,
         #[cfg(desktop)]
         crate::passthrough::set_click_through,
+        #[cfg(desktop)]
+        crate::tray::set_tray_dnd,
         crate::agent_ingress::start_agent_ingress,
         crate::agent_ingress::sync_preset_ids,
         crate::agent_ingress::avatar_rpc::avatar_rpc_response,

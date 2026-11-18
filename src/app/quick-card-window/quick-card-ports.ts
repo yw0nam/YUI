@@ -53,6 +53,7 @@ export function createQuickCardPorts(deps: {
     | "idleThrottleSettings"
     | "vadSettings"
     | "fillerSettings"
+    | "dndSettings"
   >;
   conversation: Pick<
     ConversationStores,
@@ -109,6 +110,11 @@ export function createQuickCardPorts(deps: {
             subscribe: (cb) => voiceInputStatus.subscribe(() => cb()),
           }
         : null,
+    dnd: {
+      get: () => stores.dndSettings.get().enabled,
+      set: (on) => stores.dndSettings.setEnabled(on),
+      subscribe: (cb) => stores.dndSettings.subscribe(() => cb()),
+    },
     body: pickerOf(deps.vrm.vrmSelection, deps.vrm.swapVrm),
     voice: pickerOf(deps.speaker.speakerSelection, deps.speaker.swapSpeaker),
     resetConversation: () =>

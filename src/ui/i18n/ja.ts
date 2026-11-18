@@ -104,6 +104,7 @@ const ja: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "画面を見ています",
+  "status.dnd": "おやすみモード",
 
   // cue-list internal labels
   "cue.time_aria": "時刻",
@@ -147,6 +148,8 @@ const ja: Record<string, string> = {
   "quick_card.open_threads": "スレッドウィンドウを開く",
   "quick_card.open_terminal": "ターミナルタブを開く",
   "quick_card.close": "閉じる",
+  "quick_card.quiet": "静かに",
+  "quick_card.dnd": "おやすみモード",
   "settings.title": "YUI 設定",
   "help.section": "ヘルプ",
   "help.controls.label": "操作方法",

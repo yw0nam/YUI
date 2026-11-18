@@ -45,6 +45,7 @@ const snap = (threads: Thread[]): ThreadsSnapshot => ({ revision: 1, threads });
 function setup() {
   const order: string[] = [];
   const turns: string[] = [];
+  const fires: Array<{ ids: string[]; byUser: boolean }> = [];
   let snapshot = snap([]);
   const snapshotListeners = new Set<(s: ThreadsSnapshot) => void>();
   let enabled = true;
@@ -52,6 +53,7 @@ function setup() {
   let thresholds = { count: 3, wait_min: 10 };
   const thresholdsListeners = new Set<(s: { count: number; wait_min: number }) => void>();
   let present = true;
+  let dndOn = false;
   const tapListeners = new Set<() => void>();
   const shownListeners = new Set<(shown: boolean) => void>();
   const state = {
@@ -100,6 +102,7 @@ function setup() {
       },
     },
     isPresent: () => present,
+    isDndOn: () => dndOn,
     chipTaps: (cb) => {
       tapListeners.add(cb);
       return () => tapListeners.delete(cb);
@@ -126,7 +129,8 @@ function setup() {
     holdMs: () => 4000,
     turn: {
       hold: (id) => turns.push(`hold:${id}`),
-      fire: (ids) => {
+      fire: (ids, byUser) => {
+        fires.push({ ids: [...ids], byUser });
         for (const id of ids) turns.push(`fire:${id}`);
         // The dispatcher takes a pushed turn up later, not within the firing tick.
         if (state.busyAfterFire)
@@ -141,6 +145,7 @@ function setup() {
   return {
     order,
     turns,
+    fires,
     state,
     command,
     present: presentFn,
@@ -162,6 +167,9 @@ function setup() {
     },
     setPresent(next: boolean) {
       present = next;
+    },
+    setDnd(next: boolean) {
+      dndOn = next;
     },
     tap() {
       for (const cb of tapListeners) cb();
@@ -434,4 +442,61 @@ it("dispose clears the timers", async () => {
   expect(vi.getTimerCount()).toBe(2);
   h.reaction.dispose();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("a count reach during DND never starts its run, and runs on the retry once DND turns off", async () => {
+  const h = setup();
+  h.setDnd(true);
+  h.state.windowOpen = true;
+  h.setThresholds({ count: 2 });
+  h.push([waiting("t1"), waiting("t2", 2)]);
+  await vi.advanceTimersByTimeAsync(2000);
+  // A started run would list the windows first.
+  expect(h.listWindows).not.toHaveBeenCalled();
+  expect(h.order).toEqual([]);
+
+  h.setDnd(false);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["line:Here, up front.", "present:-", "sit", "emotion:curious"]);
+});
+
+it("a tap during DND runs at once and fires the held ids as the user's own turn", async () => {
+  const h = setup();
+  h.setDnd(true);
+  h.state.windows = [THREADS];
+  h.push([waiting("t1"), waiting("t2")]);
+  await flush();
+  h.tap();
+  await flush();
+  expect(h.order).toEqual(["sit", "emotion:curious"]);
+  expect(h.fires).toEqual([{ ids: ["t1", "t2"], byUser: true }]);
+});
+
+it("DND turning on while the run awaits listWindows stops it before speak, and it runs again after DND turns off", async () => {
+  const h = setup();
+  let resolveWindows: (w: WindowRect[]) => void = () => {};
+  let first = true;
+  h.listWindows.mockImplementation(() => {
+    if (first) {
+      first = false;
+      return new Promise((res) => {
+        resolveWindows = res;
+      });
+    }
+    return Promise.resolve(h.state.windows);
+  });
+  h.state.windows = [];
+  h.setThresholds({ count: 2 });
+  h.state.windowOpen = true;
+  h.push([waiting("t1"), waiting("t2")]);
+  await flush();
+
+  h.setDnd(true);
+  resolveWindows([]);
+  await flush();
+  expect(h.speak).not.toHaveBeenCalled();
+
+  h.setDnd(false);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(h.order).toEqual(["line:Here, up front.", "present:-", "sit", "emotion:curious"]);
 });

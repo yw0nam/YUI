@@ -115,6 +115,7 @@ it("draws no chip without a client", () => {
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
+    isDndOn: () => false,
   });
   expect(document.querySelector(".yui-threadchip")).toBeNull();
 });
@@ -127,6 +128,7 @@ it("seeds the chip from a preloaded client without a new snapshot", () => {
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
+    isDndOn: () => false,
   });
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.hidden).toBe(false);
@@ -141,6 +143,7 @@ it("does not wiggle on the first snapshot after a null seed", () => {
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
+    isDndOn: () => false,
   });
   client.fire(snapshotOf(1));
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
@@ -157,6 +160,7 @@ it("hides the chip from its tap until the Threads window reports closed", () => 
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
+    isDndOn: () => false,
   });
   client.fire(snapshotOf(1));
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
@@ -177,6 +181,7 @@ it("counts a waiting access request and opens the Terminal tab while one waits",
     collapsed: createDelegationChipSettings(),
     threadsWindow: createThreadsWindowController({ bridge: b }),
     terminal: terminalOf(1),
+    isDndOn: () => false,
   });
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("2");

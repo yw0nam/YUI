@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>방해금지 목업</title>
+<!-- Real design tokens and the real Quick card, switch and status pill stylesheets; only mock-only staging and the native tray menu live below. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-card/quick-card.css">
+<link rel="stylesheet" href="../../src/ui/unified/avatar.css">
+<link rel="stylesheet" href="../../src/ui/chips/status-pill.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Page: a column of parts, each a row of real-size frames over a flat desktop stand-in. */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--yui-panel-bg); }
+body { color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 24px 16px 80px; display: grid; gap: 32px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; }
+h2 { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+p { margin: 0; }
+.lede { color: var(--yui-text-dim); max-width: 72ch; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.part { display: grid; gap: 12px; }
+.frames { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.frame { display: grid; gap: 6px; max-width: 100%; }
+.frame > .mute { font-weight: 600; }
+.seg { justify-self: start; display: inline-flex; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+:root { --mock-desk-a: oklch(0.86 0.01 250); --mock-desk-b: oklch(0.42 0.05 240); --mock-sil: oklch(0.45 0.02 60 / 0.35); --mock-menu-bg: oklch(0.97 0 0 / 0.94); --mock-menu-text: oklch(0.2 0 0); --mock-menu-sep: oklch(0.2 0 0 / 0.12); }
+:root[data-theme="hearth"] { --mock-desk-a: oklch(0.3 0.006 250); --mock-desk-b: oklch(0.6 0.05 230); --mock-sil: oklch(0.7 0.02 70 / 0.45); --mock-menu-bg: oklch(0.27 0.004 250 / 0.94); --mock-menu-text: oklch(0.96 0 0); --mock-menu-sep: oklch(0.96 0 0 / 0.12); }
+/* The transparent window: a dashed box over the desktop stand-in. */
+.desk { position: relative; background: var(--mock-desk-a); border-radius: 6px; outline: 1px dashed var(--yui-edge-strong); outline-offset: -1px; }
+.petwin { width: 400px; height: 600px; overflow: hidden; }
+.petwin__b { position: absolute; inset: 0 0 0 52%; background: var(--mock-desk-b); }
+.petwin__sil { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 230px; height: 520px; color: var(--mock-sil); }
+/* The native macOS tray menu, drawn by the OS: mock-only. */
+.menubar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; height: 24px; padding: 0 12px; border-radius: 6px 6px 0 0; background: oklch(0.5 0.01 250 / 0.12); font: 13px -apple-system, system-ui, sans-serif; color: var(--mock-menu-text); }
+.menubar__tray { display: grid; place-items: center; width: 22px; height: 20px; border-radius: 4px; background: oklch(0.5 0.01 250 / 0.22); }
+.menubar__tray svg { width: 14px; height: 14px; }
+.mmenu-wrap { display: flex; justify-content: flex-end; padding: 2px 24px 8px 6px; }
+.mmenu { width: 236px; padding: 5px; border-radius: 8px; background: var(--mock-menu-bg); box-shadow: 0 0 0 0.5px oklch(0 0 0 / 0.25), 0 10px 30px oklch(0 0 0 / 0.25); font: 13px/1 -apple-system, system-ui, sans-serif; color: var(--mock-menu-text); }
+.mmenu__item { position: relative; display: flex; align-items: center; height: 22px; padding: 0 10px 0 22px; border-radius: 4px; white-space: nowrap; }
+.mmenu__check { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); width: 11px; height: 11px; }
+.mmenu__sep { height: 1px; margin: 5px 10px; background: var(--mock-menu-sep); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/character-window · #1961</span>
+    <h1>방해금지: 빠른 카드, 상태 알약, 트레이</h1>
+    <p class="lede">방해금지는 모든 캐릭터에 걸리는 스위치 하나입니다. 빠른 카드의 "조용히" 묶음과 트레이에서 켜고 끄고, 켜져 있는 동안 캐릭터 창 위쪽 상태 알약이 멈춘 달 하나로 알려 줍니다. 승인된 안: 빠른 카드 변형 2, 상태 알약 (ii), 트레이 C. 집중과 활동 시간은 #1962, #1963에서 다룹니다.</p>
+    <div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div>
+  </header>
+
+  <section class="part">
+    <h2>A. 빠른 카드 — "조용히" 묶음</h2>
+    <p class="lede">캡션 아래 가는 테두리 묶음 하나에 36px 행 하나: 방해금지와 설정 패널의 스위치. 타일 위에 놓이고, 네 타일은 그대로입니다. 스위치를 눌러 볼 수 있습니다.</p>
+    <div class="frames" id="cards"></div>
+  </section>
+
+  <section class="part">
+    <h2>B. 캐릭터 창 (400×600) — 상태 알약</h2>
+    <p class="lede">방해금지가 켜져 있으면 다른 알림이 없어도 알약이 보입니다. 달은 Text mute로 멈춰 있고 점도 깜빡임도 없습니다(One-Pulse Rule). 화면 보기와 함께면 알약의 구분선 뒤에 붙습니다.</p>
+    <div class="frames" id="pets"></div>
+  </section>
+
+  <section class="part">
+    <h2>C. 트레이 메뉴 (macOS)</h2>
+    <p class="lede">상태 토글은 창 명령과 앱 명령 사이 자기 묶음에 구분선으로 나뉘어 놓입니다. Do Not Disturb는 체크 항목입니다. 라벨은 출시된 대로 영어입니다.</p>
+    <div class="frames" id="trays"></div>
+  </section>
+</main>
+<script>
+// Glyphs copied from src/ui (quick-controls/constants.ts CROSS_SVG, threads/glyphs.ts, chips/status-pill.ts).
+const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+const glyph = (p) => `<svg class="yui-threads-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const THREADS_GLYPH = glyph('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>');
+const TERMINAL_GLYPH = glyph('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3"/><path d="M12.5 15H17"/>');
+const CAPTURE_ICON = `<svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"/><circle cx="12" cy="12" r="2.4"/></svg>`;
+const MOON_ICON = `<svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7Z"/></svg>`;
+
+// A. The card as quick-card.ts, quiet-group.ts and tiles.ts build it.
+const tile = (label, on) => `<button class="yui-qcard__tile" type="button" role="switch" aria-checked="${on}"><span class="yui-qcard__tile-label">${label}</span><span class="yui-qcard__tile-state">${on ? "켜짐" : "꺼짐"}</span></button>`;
+const card = (dnd) => `<div class="yui-qcard" role="dialog">
+  <div class="yui-qcard__head">
+    <span class="yui-qcard__face"><span class="yui-uc__dot" style="--yui-uc-size:30px;background:oklch(var(--yui-avatar-l) var(--yui-avatar-c) 40)"></span></span>
+    <span class="yui-qcard__id"><span class="yui-qcard__name">유이</span><span class="yui-qcard__transport">Responses</span></span>
+    <button class="yui-qcard__close" type="button" aria-label="닫기">${CROSS_SVG}</button>
+  </div>
+  <div class="yui-qcard__body">
+    <div class="yui-qcard__quiet">
+      <p class="yui-qcard__quiet-title">조용히</p>
+      <div class="yui-qcard__quiet-group">
+        <div class="yui-qcard__row"><span>방해금지</span><button class="yui-switch" type="button" role="switch" aria-label="방해금지" aria-checked="${dnd}"></button></div>
+      </div>
+    </div>
+    <div class="yui-qcard__tiles">${tile("음성", true)}${tile("듣기", false)}${tile("말풍선 유지", false)}${tile("통합 채팅창", false)}</div>
+    <div class="yui-qcard__opens">
+      <button class="yui-qcard__open" type="button" aria-label="스레드 창 열기">${THREADS_GLYPH}스레드</button>
+      <button class="yui-qcard__open" type="button" aria-label="터미널 탭 열기">${TERMINAL_GLYPH}터미널</button>
+    </div>
+    <div class="yui-qcard__rows">
+      <label class="yui-qcard__row"><span>몸</span><select class="yui-qcard__select"><option>AvatarSample_A</option></select></label>
+      <label class="yui-qcard__row"><span>참조 음성</span><select class="yui-qcard__select"><option>없음</option></select></label>
+      <div class="yui-qcard__row"><span>대화</span><button class="yui-qcard__reset" type="button">초기화…</button></div>
+    </div>
+    <button class="yui-qcard__all" type="button">모든 설정…</button>
+  </div>
+</div>`;
+document.getElementById("cards").innerHTML = [[false, "방해금지 꺼짐"], [true, "방해금지 켜짐"]].map(([on, name]) =>
+  `<div class="frame"><span class="mute">${name} — 288px 창</span><div class="desk" style="width:288px;padding-bottom:1px">${card(on)}</div></div>`).join("");
+document.getElementById("cards").addEventListener("click", (e) => {
+  const sw = e.target.closest(".yui-switch"); if (!sw) return;
+  sw.setAttribute("aria-checked", String(sw.getAttribute("aria-checked") !== "true"));
+});
+
+// B. The pill as status-pill.ts renders it; hidden parts are left out.
+const silhouette = `<svg class="petwin__sil" viewBox="0 0 230 520" fill="currentColor" aria-hidden="true"><ellipse cx="115" cy="92" rx="54" ry="60"/><path d="M70 168c-22 10-34 40-38 92l-6 98h28l12-110 4 262h40l5-170 5 170h40l4-262 12 110h28l-6-98c-4-52-16-82-38-92-14 8-30 12-45 12s-31-4-45-12Z"/></svg>`;
+const dndSeg = `<span class="yui-status__dnd">${MOON_ICON}<span class="yui-status__dnd-label">방해금지</span></span>`;
+const PILLS = [
+  ["방해금지만", dndSeg],
+  ["화면 보기 + 방해금지", `<button class="yui-status__capture" type="button" aria-label="화면 보는 중">${CAPTURE_ICON}<span class="yui-status__capture-dot" aria-hidden="true"></span></button><span class="yui-status__sep" aria-hidden="true"></span>${dndSeg}`],
+];
+document.getElementById("pets").innerHTML = PILLS.map(([name, inner]) =>
+  `<div class="frame"><span class="mute">${name} — 400×600</span><div class="desk petwin"><div class="petwin__b"></div>${silhouette}<div class="yui-status is-visible" role="status">${inner}</div></div></div>`).join("");
+
+// C. The menu tray.rs builds.
+const CHECK = `<svg class="mmenu__check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5 5 9.5 10 3"/></svg>`;
+const item = (text, check = false) => `<div class="mmenu__item">${check ? CHECK : ""}${text}</div>`;
+const sep = `<div class="mmenu__sep"></div>`;
+const trayIcon = `<span class="menubar__tray"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5.2" r="2.8"/><path d="M3 14c.6-3 2.6-4.6 5-4.6s4.4 1.6 5 4.6Z"/></svg></span>`;
+document.getElementById("trays").innerHTML = [[false, "방해금지 꺼짐"], [true, "방해금지 켜짐"]].map(([on, name]) =>
+  `<div class="frame"><span class="mute">${name}</span><div class="desk" style="width:400px"><div class="menubar"><span>Wi-Fi</span>${trayIcon}<span>화 11월 17일 14:05</span></div>
+  <div class="mmenu-wrap"><div class="mmenu">${item("Show / Hide Character")}${sep}${item("Do Not Disturb", on)}${sep}${item("Settings…")}${item("Terminal")}${item("Quit YUI")}</div></div></div></div>`).join("");
+
+document.getElementById("segTheme").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.v === "hearth") document.documentElement.dataset.theme = "hearth"; else delete document.documentElement.dataset.theme;
+  for (const x of e.currentTarget.children) x.setAttribute("aria-pressed", String(x === b));
+});
+</script>
+</body>
+</html>

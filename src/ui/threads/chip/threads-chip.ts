@@ -2,7 +2,7 @@
  * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked,
  * and access requests, and opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
  * hidden while nothing waits or the window is open; one wiggle when a Thread or a request starts
- * waiting; a held press folds it with the other chips.
+ * waiting outside do-not-disturb; a held press folds it with the other chips.
  */
 
 import "./threads-chip.css";
@@ -31,11 +31,14 @@ export function createThreadsChip({
   mount,
   collapsed,
   onOpen,
+  isDndOn,
 }: {
   mount: HTMLElement;
   collapsed: DelegationChipSettingsStore;
   /** The chip's rect in this window's viewport. */
   onOpen(chip: ScreenRect): void;
+  /** Whether do-not-disturb is on: an arrival then never wiggles. */
+  isDndOn: () => boolean;
 }): ThreadsChip {
   const el = document.createElement("button");
   el.type = "button";
@@ -89,7 +92,7 @@ export function createThreadsChip({
     const arrived = before !== null && keys[kind].some((key) => !before.has(key));
     waitingIds = new Set([...keys.thread, ...keys.request]);
     render();
-    if (arrived && !el.hidden) wiggle();
+    if (arrived && !el.hidden && !isDndOn()) wiggle();
   }
 
   const rect = (): ScreenRect => {
