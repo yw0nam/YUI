@@ -40,7 +40,7 @@ The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, de
 _Avoid_: filter, policy, throttle
 
 **Do-not-disturb**:
-The device-wide switch, set on the Quick card or from the tray's Do Not Disturb item, that holds every self-fired trigger in every character window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, and signals, urgent ones included. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. Held signals go out as catch-up turns when it turns off. A backend-started push turn is never held.
+The device-wide switch, set on the Quick card or from the tray's Do Not Disturb item, that holds every self-fired trigger in every character window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, and signals, urgent ones included. Idle cues, screen watch and the once-a-day milestone are dropped, not delivered later, and the milestone's day is used up. A schedule cue fires late if it is still within 120 minutes of its time that day. A count or wait reaction waits until it is off. Held signals go out as catch-up turns, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held.
 _Avoid_: quiet mode, mute
 
 **Chain cap**:

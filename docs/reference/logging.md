@@ -65,6 +65,7 @@ The level comes from the reason:
 | `degraded_drop` | `warn` | A non-user turn reached the gate during the degraded state. |
 | `global_gap` | `info` | The global proactive gap held the fire back. |
 | `addressed_cap` | `info` | The third addressed turn in a row without a user turn; the cap is `rate_limit.addressed_chain_max`. |
+| `dnd` | `info` | Do-not-disturb held the trigger: a self-fired one, one still queued when it turned on, or a fire waiting for the turn lock. |
 
 `recentDrops(n)` returns the last n records.
 
@@ -157,6 +158,7 @@ Field notes for `route`:
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `quick-controls`, `quick-card` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or tile. |
+| `quick-card`, `bootstrap` | `dnd_toggle` | `enabled`, `via` | The user flipped the Do not disturb switch on the quick card (`via` is `quick_card`) or the tray's Do Not Disturb item (`via` is `tray`). |
 | `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
 | `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. |
 
@@ -270,6 +272,19 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `thread-reaction` | `reaction_sit.failed` | `cause`, `threadId?`, `window`, `result` | The sit command did not return ok, and the reaction is dropped (`warn` level). |
 | `thread-reaction` | `reaction_tap.unlisted` | `cause` | The Threads window never got listed under a tap; the tap is dropped after ten tries (`debug` level). |
 | `thread-reaction` | `reaction_failed` | `cause`, `threadId?`, `error` | A reaction threw (`warn` level). |
+
+## Do-not-disturb tray
+
+`app/dnd/wire-tray-dnd.ts` logs through the `bootstrap` namespace, in main's pet window. `src-tauri/src/tray.rs` logs the tray check's clicks. Rust events carry no namespace.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `bootstrap` | `tray_dnd_set_failed` | `on`, `error` | `set_tray_dnd` rejected, so the tray check may not match the store (`warn` level). |
+| `bootstrap` | `tray_dnd_listen_failed` | `error` | Listening to `tray-dnd` failed, so a tray click does not reach the store (`warn` level). |
+| Rust `tray.rs` | `tray_dnd_state_missing` | none | The tray's check item is not in managed state, so the click does nothing (`warn` level). |
+| Rust `tray.rs` | `tray_dnd_read_failed` | `error` | Reading the check's state after a click failed, so the click does nothing (`warn` level). |
+| Rust `tray.rs` | `tray_dnd_emit_failed` | `enabled`, `error` | Sending `tray-dnd` to the main window failed, so the check goes back (`warn` level). |
+| Rust `tray.rs` | `tray_dnd_revert_failed` | `error` | Putting the check back threw after a missing main window or a failed emit (`warn` level). |
 
 ## TypeScript usage
 

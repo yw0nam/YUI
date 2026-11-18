@@ -1154,7 +1154,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off. It does not run while do-not-disturb is on, and a run that do-not-disturb stops runs again once it is off.",
+      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off. A count or wait reaction does not run while do-not-disturb is on, and one that do-not-disturb stops runs again once it is off; a tap's reaction runs during it.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1436,7 +1436,7 @@ globalThis.YUI_MAP =
       "id": "app/dnd",
       "module": "wiring",
       "label": "do-not-disturb wiring",
-      "role": "Main only: keeps the tray's Do Not Disturb check in step with the do-not-disturb store, and writes the store when the tray item is clicked.",
+      "role": "Keeps the tray's Do Not Disturb check in step with the do-not-disturb store and writes the store when the tray item is clicked, in main only; marks the window root of every pet window while do-not-disturb is on.",
       "paths": [
         "src/app/dnd"
       ]
@@ -2795,7 +2795,7 @@ globalThis.YUI_MAP =
       "id": "threads-reaction-turn",
       "from": "ambient/threads-reaction",
       "to": "dispatcher/sources/inbox",
-      "carries": "hold, fireHeld and release on thread:<id>: held while the switch is on for every Thread in the snapshot, fired together once she sits with the expression set, released when the Thread leaves the snapshot or the switch goes off",
+      "carries": "hold, fireHeld and release on thread:<id>: held while the switch is on for every Thread in the snapshot, fired together once she sits with the expression set, released when the Thread leaves the snapshot or the switch goes off; a tap's fire carries dnd_override, so it passes do-not-disturb",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2965,7 +2965,7 @@ globalThis.YUI_MAP =
       "id": "settings-dnd-reaction",
       "from": "settings",
       "to": "ambient/threads-reaction",
-      "carries": "isDndOn: the do-not-disturb store, read when a reaction is due, mid-run and when it is free",
+      "carries": "isDndOn: the do-not-disturb store, read when a count or wait reaction is due, mid-run and when it stops; a tap does not read it",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
@@ -3004,7 +3004,25 @@ globalThis.YUI_MAP =
       "carries": "set_tray_dnd {on}: the check follows the store on start and on each change; a failed call is logged",
       "kind": "tauri-command",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/dnd/wire-tray-dnd.ts"
+    },
+    {
+      "id": "settings-dnd-root",
+      "from": "settings",
+      "to": "ui/chips",
+      "carries": "the do-not-disturb store → data-yui-dnd on every pet window's root, which stops the urgent signal chip's dot pulse",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/dnd/wire-dnd-root.ts"
+    },
+    {
+      "id": "settings-dnd-threads-chip",
+      "from": "settings",
+      "to": "ui/threads",
+      "carries": "isDndOn: the do-not-disturb store, read when a Thread arrives; an arrival during it does not wiggle the Threads chip",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
     },
     {
       "id": "signals-drain",
