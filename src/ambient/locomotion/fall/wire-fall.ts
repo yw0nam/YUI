@@ -87,7 +87,9 @@ export function wireFaller(deps: {
         }
         if (target) deps.onWindowLand(target);
       },
-      onCue: (heightPx) => {
+      onCue: (heightPx: number, byUser: boolean) => {
+        // A fall she started herself is ambient chatter; do-not-disturb holds it.
+        if (!byUser && deps.isDndOn()) return;
         const cue = deps.getGestureCues().dropped;
         bus.push({
           source: "os_event_watcher",

@@ -38,7 +38,9 @@ const TARGET: WindowRect = {
   threadsWindow: false,
 };
 
-async function wire(opts: { isEnabled?: () => boolean; isDndOn?: () => boolean; ready?: Promise<void> } = {}) {
+async function wire(
+  opts: { isEnabled?: () => boolean; isDndOn?: () => boolean; ready?: Promise<void> } = {},
+) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
   fallerDrop.mockClear();

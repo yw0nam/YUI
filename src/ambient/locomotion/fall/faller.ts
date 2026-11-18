@@ -163,8 +163,8 @@ export interface FallerDeps {
   onStart(): void;
   /** Touchdown, carrying the height fallen in logical px and the surface she is on. */
   onLand(landing: FallLanding): void;
-  /** Touchdown outside the cue cooldown — the speech candidate the backend judges. */
-  onCue(heightPx: number): void;
+  /** Touchdown outside the cue cooldown — the speech candidate the backend judges; byUser says the drop followed the user's own drag release. */
+  onCue(heightPx: number, byUser: boolean): void;
   /** The descent landed, was cancelled, or lost the clip. */
   onEnd(): void;
 }
@@ -252,6 +252,8 @@ interface Fall {
   roomPx: number | null;
   minStandingTop: number;
   surface: LandingSurface;
+  /** The drop followed the user's own drag release. */
+  byUser: boolean;
   /** Seconds since the last stack read, against the poll cadence. */
   sinceReadS: number;
   /** A stack read is out; the next cadence tick leaves it alone. */
@@ -292,7 +294,12 @@ export function createFaller(deps: FallerDeps): Faller {
    * Report the touchdown: the signal always, the speech candidate on its own cooldown and
    * only for a drop long enough to have been a fall.
    */
-  function reportLanding(heightPx: number, surface: LandingSurface, fell: boolean): void {
+  function reportLanding(
+    heightPx: number,
+    surface: LandingSurface,
+    fell: boolean,
+    byUser: boolean,
+  ): void {
     log.info("fall_landed", {
       landed_on: surface.kind,
       windowNumber: surface.kind === "window" ? surface.target.windowNumber : null,
@@ -304,7 +311,7 @@ export function createFaller(deps: FallerDeps): Faller {
     const t = now();
     if (t - lastCueAtMs < deps.getConfig().cue_cooldown_ms) return;
     lastCueAtMs = t;
-    deps.onCue(heightPx);
+    deps.onCue(heightPx, byUser);
   }
 
   /** Drop the descent and its frame hook; false when none was running. */
@@ -386,7 +393,7 @@ export function createFaller(deps: FallerDeps): Faller {
     const heightPx = surface.y - s.startFeetY;
     clear();
     renderer.playMotion({ id: LAND_MOTION_ID });
-    reportLanding(heightPx, surface, true);
+    reportLanding(heightPx, surface, true, s.byUser);
     deps.onEnd();
   }
 
@@ -466,7 +473,7 @@ export function createFaller(deps: FallerDeps): Faller {
     if (opts.place || plan.kind === "snap" || reducedMotion()) {
       await win.setPositionLogical(pos.x / scale, toY / scale);
       if (!opts.place && (plan.kind === "fall" || surface.kind === "window")) {
-        reportLanding(plan.heightPx, surface, plan.kind === "fall");
+        reportLanding(plan.heightPx, surface, plan.kind === "fall", opts.byUser ?? false);
       }
       return "settled";
     }
@@ -487,6 +494,7 @@ export function createFaller(deps: FallerDeps): Faller {
       roomPx,
       minStandingTop,
       surface,
+      byUser: opts.byUser ?? false,
       sinceReadS: 0,
       reading: false,
       settle,

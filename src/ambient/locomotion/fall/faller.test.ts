@@ -539,7 +539,7 @@ describe("createFaller", () => {
     expect(h.positions).toEqual([{ x: WINDOW_POS.x, y: GROUNDED_Y }]);
     expect(h.motions).toEqual([]);
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
-    expect(h.cues).toHaveBeenCalledWith(780);
+    expect(h.cues).toHaveBeenCalledWith(780, false);
     expect(h.starts).not.toHaveBeenCalled();
   });
 

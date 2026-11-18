@@ -158,6 +158,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       gazeSettings,
       climbSettings,
       fallSettings,
+      dndSettings,
       hintSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
@@ -332,6 +333,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekActive: () => peekState?.active() ?? false,
       fallSettings,
       climbSettings,
+      dndSettings,
       agentNotifySettings,
       vrmSelection,
       onStrollEnd: (bodyReleased) => {

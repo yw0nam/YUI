@@ -55,6 +55,7 @@ export function wireLocomotion(deps: {
   peekActive: () => boolean;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
+  dndSettings: FlagSettingsStore;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
   vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "getActive">;
   onStrollEnd: (bodyReleased: boolean) => void;
@@ -92,6 +93,7 @@ export function wireLocomotion(deps: {
     peekActive,
     fallSettings,
     climbSettings,
+    dndSettings,
     agentNotifySettings,
     vrmSelection,
     onStrollEnd,
@@ -144,6 +146,7 @@ export function wireLocomotion(deps: {
     renderer,
     travelFrame,
     isEnabled: () => fallSettings.get().enabled,
+    isDndOn: () => dndSettings.get().enabled,
     getFallConfig: () => getConfig().avatar.fall,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     getFloorTolerancePx: () => getConfig().avatar.walk.floor_tolerance_px,
@@ -177,7 +180,7 @@ export function wireLocomotion(deps: {
       // A cancelled climb or stroll may still be unparking its travel.
       return travelFrame.abort();
     },
-    onDragMiss: () => faller.drop({ landOnSeam: true }),
+    onDragMiss: () => faller.drop({ landOnSeam: true, byUser: true }),
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
