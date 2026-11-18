@@ -176,6 +176,8 @@ export interface DropOptions {
    * Off by default: a step-off standing exactly on the seam falls through it.
    */
   landOnSeam?: boolean;
+  /** The drop follows the user's own drag release. */
+  byUser?: boolean;
   /**
    * Put her on the floor line where she stands, as at launch: no fall clip, no window top
    * to catch her, no landing report. Nothing fell, so there is nothing to tell the backend.

@@ -556,6 +556,16 @@ describe("createFaller", () => {
     expect(h.cues).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["the user's own drag release", { byUser: true }, true],
+    ["a drop she started herself", {}, false],
+  ] as const)("a drop that falls reports onCue(heightPx, byUser) for %s", async (_name, opts, byUser) => {
+    const h = makeHarness({ reducedMotion: true });
+    await h.faller.drop(opts);
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
+    expect(h.cues).toHaveBeenCalledWith(780, byUser);
+  });
+
   it("keeps descending while the pickup clip holds the body — the drag start ends it", async () => {
     const h = makeHarness();
     const { done } = await h.beginFall();
