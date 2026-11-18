@@ -7,7 +7,7 @@
  *    gesture cue or a user turn, and never spends a guardrail slot on a held fire.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import type { Logger } from "../logger";
 import type { BackendCaller } from "./backend/backend-caller";
@@ -770,12 +770,12 @@ describe("dispatcher — urgent signals guardrails (urgent_max)", () => {
 
 describe("dispatcher — do-not-disturb gate", () => {
   let dndOn = true;
-  let onTurnDropped: ReturnType<typeof vi.fn>;
-  let onTurnFailed: ReturnType<typeof vi.fn>;
+  let onTurnDropped: Mock<NonNullable<DispatcherDeps["onTurnDropped"]>>;
+  let onTurnFailed: Mock<NonNullable<DispatcherDeps["onTurnFailed"]>>;
 
   function make(over: Partial<DispatcherDeps> = {}): Dispatcher {
-    onTurnDropped = vi.fn();
-    onTurnFailed = vi.fn();
+    onTurnDropped = vi.fn<NonNullable<DispatcherDeps["onTurnDropped"]>>();
+    onTurnFailed = vi.fn<NonNullable<DispatcherDeps["onTurnFailed"]>>();
     dispatcher = createDispatcher({
       bus,
       renderer: renderer as never,
@@ -813,51 +813,45 @@ describe("dispatcher — do-not-disturb gate", () => {
     ["urgent_signal_source", "signals.urgent"],
     ["os_event_watcher", "time_milestone.first_activity"],
     ["os_event_watcher", "signals.batch"],
-  ] as const)(
-    "holds %s %s as dnd, reporting the drop and never calling the backend",
-    async (source, event_name) => {
-      const d = make();
-      const trigger: BusEnvelope = { source, event_name, ts: NOW, payload: {} };
-      bus.push(trigger);
-      await vi.advanceTimersByTimeAsync(20);
+  ] as const)("holds %s %s as dnd, reporting the drop and never calling the backend", async (source, event_name) => {
+    const d = make();
+    const trigger: BusEnvelope = { source, event_name, ts: NOW, payload: {} };
+    bus.push(trigger);
+    await vi.advanceTimersByTimeAsync(20);
 
-      expect(backendCaller.call).not.toHaveBeenCalled();
-      expect(d.recentDrops()).toContainEqual(expect.objectContaining({ event_name, reason: "dnd" }));
-      expect(onTurnDropped).toHaveBeenCalledWith(expect.objectContaining({ event_name }), "dnd");
-      d.stop();
-    },
-  );
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(d.recentDrops()).toContainEqual(expect.objectContaining({ event_name, reason: "dnd" }));
+    expect(onTurnDropped).toHaveBeenCalledWith(expect.objectContaining({ event_name }), "dnd");
+    d.stop();
+  });
 
   it.each([
     ["user_input_source", "user.text_submitted", { text: "hi" }],
     ["os_event_watcher", "proactive.head_pat", { cue_id: "head_pat", label: "head patted" }],
     ["addressed_source", "addressed.character", { from: "perlica", name: "Perlica", line: "hi" }],
-  ] as const)(
-    "lets %s %s through while a self-fired cue is held",
-    async (source, event_name, payload) => {
-      const d = make();
-      // A held control cue proves the gate is active before the candidate is judged.
-      bus.push(timerCue());
-      await vi.advanceTimersByTimeAsync(20);
-      expect(d.recentDrops()).toContainEqual(
-        expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
-      );
+  ] as const)("lets %s %s through while a self-fired cue is held", async (source, event_name, payload) => {
+    const d = make();
+    // A held control cue proves the gate is active before the candidate is judged.
+    bus.push(timerCue());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(d.recentDrops()).toContainEqual(
+      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
+    );
 
-      bus.push({
-        source,
-        event_name,
-        ts: NOW + 1,
-        payload,
-        ...(source === "user_input_source" ? { dnd_override: true } : {}),
-      });
-      await vi.advanceTimersByTimeAsync(20);
+    bus.push({
+      source,
+      event_name,
+      ts: NOW + 1,
+      payload,
+      ...(source === "user_input_source" ? { dnd_override: true } : {}),
+    });
+    await vi.advanceTimersByTimeAsync(20);
 
-      expect(backendCaller.call).toHaveBeenCalledOnce();
-      expect(vi.mocked(backendCaller.call).mock.calls[0]![0].trigger.event_name).toBe(event_name);
-      expect(d.recentDrops().some((r) => r.event_name === event_name)).toBe(false);
-      d.stop();
-    },
-  );
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(vi.mocked(backendCaller.call).mock.calls[0]![0].trigger.event_name).toBe(event_name);
+    expect(d.recentDrops().some((r) => r.event_name === event_name)).toBe(false);
+    d.stop();
+  });
 
   it("holds a timer cue while DND is on and fires it once DND turns off", async () => {
     const d = make();

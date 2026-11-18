@@ -8,10 +8,11 @@ export type TurnOutcome =
   | "network_drop"
   | "network_stall"
   | "http_4xx_drop"
-  | "superseded_by_user";
+  | "superseded_by_user"
+  | "dnd";
 
 /** The server's own failure text for a failed turn, with the HTTP status when the failure had one. */
 export type TurnErrorDetail = { status?: number; message: string };
 
-/** Every outcome except success — what a drop record and the UI error surface deal in. */
-export type TurnFailure = Exclude<TurnOutcome, "ok">;
+/** Every outcome except success and the do-not-disturb hold — what a drop record and the UI error surface deal in. */
+export type TurnFailure = Exclude<TurnOutcome, "ok" | "dnd">;

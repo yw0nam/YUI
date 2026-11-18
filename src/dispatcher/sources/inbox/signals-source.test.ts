@@ -8,11 +8,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { wireDispatcherSources } from "../../../app/turn/wire-sources";
 import type { SignalGroup } from "../../../contract";
 import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import { createFlagSettings } from "../../../settings/persisted-store";
-import { wireDispatcherSources } from "../../../app/turn/wire-sources";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 import { composePacedPipelineBusy } from "../../core/paced-pipeline-busy";
 import { createSignalsSource } from "./signals-source";
@@ -45,8 +45,7 @@ vi.mock("../../../io/window/tauri-listen", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../io/window/tauri-listen")>();
   return {
     ...actual,
-    resolveTauriListen: async () =>
-      channel.active ? channel.listen : actual.resolveTauriListen(),
+    resolveTauriListen: async () => (channel.active ? channel.listen : actual.resolveTauriListen()),
     // The real subscribeOsEvent closes over the real resolver, so inject the fake listen directly.
     subscribeOsEvent: (params: Parameters<typeof actual.subscribeOsEvent>[0]) =>
       actual.subscribeOsEvent(channel.active ? { ...params, listen: channel.listen } : params),
@@ -415,7 +414,7 @@ describe("signals_source — global pacer composed into the busy predicate (#689
         isBusy: pipelineBusy.isPipelineBusy,
         subscribe: pipelineBusy.subscribePipelineBusy,
       },
-      pacer,
+      hold: pacer,
     });
     const src = createSignalsSource({
       bus,
@@ -576,7 +575,7 @@ describe("signals_source — urgent delivery class", () => {
         isBusy: pipelineBusy.isPipelineBusy,
         subscribe: pipelineBusy.subscribePipelineBusy,
       },
-      pacer,
+      hold: pacer,
     });
     const src = createSignalsSource({
       bus,

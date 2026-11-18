@@ -32,6 +32,8 @@ interface ScheduleSourceDeps {
   getCues: () => ScheduledCue[];
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
+  /** Do-not-disturb: a held cue is not latched, so it fires on the first tick after the hold inside its window. */
+  isHeld?: () => boolean;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;
   /** Injectable clock; defaults to Date.now. */
@@ -46,7 +48,7 @@ export interface ScheduleSource {
 }
 
 export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
-  const { bus, present_max_idle_ms, getCues, isEnabled } = deps;
+  const { bus, present_max_idle_ms, getCues, isEnabled, isHeld } = deps;
   const now = deps.now ?? Date.now;
   const firedStorage =
     deps.firedStorage ?? localStorageStore<Record<string, string>>("yui.schedule-fired");
@@ -72,6 +74,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     const nowMinutes = d.getHours() * 60 + d.getMinutes();
 
     if (!isEnabled()) return;
+    if (isHeld?.()) return;
 
     let firedAny = false;
     for (const cue of getCues()) {

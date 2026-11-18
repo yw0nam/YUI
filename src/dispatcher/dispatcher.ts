@@ -46,6 +46,7 @@ import type { AddressedChain } from "./core/addressed-chain";
 import {
   classify,
   isAddressedEvent,
+  isDndHeld,
   PACED_SOURCES,
   sendIdOf,
   type UserTurnSource,
@@ -89,6 +90,8 @@ export interface DispatcherDeps {
    * loop cues, schedule and the buffered inboxes this is the only gate.
    */
   pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
+  /** Whether do-not-disturb is on: holds every self-fired trigger at the routing gate, the deferred queue and the lock wait. */
+  isDndOn?: () => boolean;
   /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
   appendSkipRecord?: (record: PacerSkipRecord) => void;
   /**
@@ -142,7 +145,8 @@ interface DropRecord {
     | "stale_pending"
     | "degraded_drop"
     | "global_gap"
-    | "addressed_cap";
+    | "addressed_cap"
+    | "dnd";
   ts: number;
 }
 
@@ -159,6 +163,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   degraded_drop: "warn",
   global_gap: "info",
   addressed_cap: "info",
+  dnd: "info",
 };
 
 /** in_flight_backend_call. */
@@ -309,6 +314,18 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     return PACED_SOURCES[env.source] && deps.pacer?.isHolding() === true;
   }
 
+  /** Whether do-not-disturb holds this fire back. */
+  function heldByDnd(env: BusEnvelope): boolean {
+    return deps.isDndOn?.() === true && isDndHeld(env);
+  }
+
+  /** Drop every deferred fire do-not-disturb now holds; what is left drains as before. */
+  function dropDndHeldPending(): void {
+    for (let i = pending.length - 1; i >= 0; i--) {
+      if (heldByDnd(pending[i]!)) recordDrop(pending.splice(i, 1)[0]!, "dnd");
+    }
+  }
+
   function dropForPacer(env: BusEnvelope): void {
     recordDrop(env, "global_gap");
     try {
@@ -393,6 +410,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         // An abort while the gate waited means the turn was superseded before it began.
         if (abort.signal.aborted) return "superseded_by_user";
         gateHeld = true;
+        // Do-not-disturb turned on while the turn waited for the lock.
+        if (heldByDnd(env)) return "dnd";
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
@@ -404,6 +423,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
           return;
         }
         if (outcome === "superseded_by_user") return;
+        if (outcome === "dnd") {
+          recordDrop(env, "dnd");
+          return;
+        }
         recordDrop(env, outcome);
         deps.onTurnFailed?.(turn, outcome);
         noteCallFailure();
@@ -424,6 +447,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         // If there is a deferred item to drain right away, replace with the next call instead of freeing the slot,
         // keeping busy at true→true (no boundary notification).
         if (inFlight && inFlight.trigger === env) {
+          dropDndHeldPending();
           if (canDrain()) {
             if (shouldHoldForPlayback(pending[0]!)) {
               // Playing — free the slot only and keep pending. pump drains it after playback ends.
@@ -493,6 +517,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Start the held pending if it can start (retried on the next tick after playback ends). */
   function drainPending(): void {
+    dropDndHeldPending();
     if (inFlight || !canDrain()) return;
     if (shouldHoldForPlayback(pending[0]!)) return;
     startBackendCall(pending.shift()!);
@@ -523,6 +548,11 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       // same reason.
       if (isAddressedEvent(env) && !deps.addressedChain.canAdmit()) {
         recordDrop(env, "addressed_cap");
+        return;
+      }
+      // Before the pacer and the guardrail: a held fire spends no rate-limit slot and writes no skip record.
+      if (heldByDnd(env)) {
+        recordDrop(env, "dnd");
         return;
       }
       if (heldByPacer(env)) {

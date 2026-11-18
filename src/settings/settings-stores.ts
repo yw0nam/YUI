@@ -143,6 +143,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const threadReactionsSettings = createFlagSettings(true, {
     storage: localStorageStore("yui.thread-reactions"),
   });
+  // Do-not-disturb on/off. Default OFF. Device-wide: holds every self-fired trigger in every window.
+  const dndSettings = createFlagSettings(false, { storage: localStorageStore("yui.dnd") });
   // Device-wide Reaction thresholds: the waiting count and wait that start a Thread reaction without a chip tap.
   const threadReactionThresholdsSettings = createThreadReactionThresholdsSettings({
     storage: localStorageThreadReactionThresholdsStorage(),
@@ -227,6 +229,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     themeSettings,
     threadTurnsSettings,
     threadReactionsSettings,
+    dndSettings,
     threadReactionThresholdsSettings,
     textSizeSettings,
     fillerSettings,
@@ -283,6 +286,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   themeSettings: "broadcast",
   threadTurnsSettings: "broadcast",
   threadReactionsSettings: "broadcast",
+  dndSettings: "broadcast",
   threadReactionThresholdsSettings: "broadcast",
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",

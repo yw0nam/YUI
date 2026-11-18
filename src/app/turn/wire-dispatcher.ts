@@ -94,6 +94,7 @@ export function wireDispatcher(deps: {
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
+  dndSettings: SettingsStores["dndSettings"];
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
@@ -142,6 +143,7 @@ export function wireDispatcher(deps: {
     getCardText,
     guardrailsSettings,
     pacerGapSettings,
+    dndSettings,
     oneVoiceSettings,
     screenshotSettings,
     screenCapturer,
@@ -263,6 +265,7 @@ export function wireDispatcher(deps: {
     turnGate: createTurnGate({ enabled: () => oneVoiceSettings.get().enabled }),
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
+    isDndOn: () => dndSettings.get().enabled,
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
     onTurnDropped: deps.onTurnDropped,

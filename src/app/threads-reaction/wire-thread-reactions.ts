@@ -31,6 +31,7 @@ export function wireThreadReactions(deps: {
     | "threadReactionThresholdsSettings"
     | "presenceSettings"
     | "fillerSettings"
+    | "dndSettings"
   >;
   config: Pick<ConfigStore, "get">;
   threadTurn: ConfiguredBootstrapHandles["threadTurn"];
@@ -54,6 +55,7 @@ export function wireThreadReactions(deps: {
     enabled: settings.threadReactionsSettings,
     thresholds: settings.threadReactionThresholdsSettings,
     isPresent: () => presence.isPresent(),
+    isDndOn: () => settings.dndSettings.get().enabled,
     chipTaps,
     isPipelineBusy: deps.dispatcher.isPipelineBusy,
     hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),

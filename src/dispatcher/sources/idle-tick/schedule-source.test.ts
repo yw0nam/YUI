@@ -538,7 +538,7 @@ describe("schedule_source — do-not-disturb hold", () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     let held = true;
-    let t = at(2026, 5, 15, 9, 30);
+    const t = at(2026, 5, 15, 9, 30);
     const src = createScheduleSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
