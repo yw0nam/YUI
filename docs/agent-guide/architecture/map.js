@@ -3170,9 +3170,18 @@ globalThis.YUI_MAP =
       "id": "locomotion-bus",
       "from": "ambient/locomotion",
       "to": "dispatcher/core",
-      "carries": "bus.push: avatar.walk_start, avatar.walk_end, avatar.climb_start, avatar.climb_end, avatar.jump, avatar.window_sit, user.fall_land, proactive.dropped",
+      "carries": "bus.push: avatar.walk_start, avatar.walk_end, avatar.climb_start, avatar.climb_end, avatar.jump, avatar.window_sit, user.fall_land, proactive.dropped (a fall she started herself pushes none while do-not-disturb is on, a drag-release fall still does)",
       "kind": "call",
       "transport": "shared"
+    },
+    {
+      "id": "settings-dnd-fall",
+      "from": "settings",
+      "to": "ambient/locomotion",
+      "carries": "isDndOn: the do-not-disturb store, read when a fall's dropped cue is due; a fall she started herself then pushes no dropped cue, a drag-release fall still does",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-locomotion.ts"
     },
     {
       "id": "locomotion-hit-test",
@@ -3187,7 +3196,7 @@ globalThis.YUI_MAP =
       "id": "drop-fall",
       "from": "dispatcher/sources/gesture",
       "to": "ambient/locomotion",
-      "carries": "onDragMiss, onSitLost → faller.drop",
+      "carries": "onDragMiss → faller.drop({ byUser: true }), onSitLost → faller.drop",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-locomotion.ts"
