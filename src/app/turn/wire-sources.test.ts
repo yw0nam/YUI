@@ -50,6 +50,7 @@ vi.mock("../../dispatcher/sources/routed/routed-user-source", () => ({
 }));
 
 import { createScreenKnobSettings, mergeScreen } from "../../settings/capture/screen-settings";
+import { createFlagSettings } from "../../settings/persisted-store";
 import { wireDispatcherSources } from "./wire-sources";
 
 describe("wireDispatcherSources", () => {
@@ -102,6 +103,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy,
       pacer: fakePacer(),
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -110,6 +112,7 @@ describe("wireDispatcherSources", () => {
 
     expect(Object.keys(result).sort()).toEqual([
       "addressedSource",
+      "drainSignals",
       "milestoneSource",
       "proactiveSource",
       "routedUserSource",
@@ -155,6 +158,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -183,6 +187,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -198,6 +203,34 @@ describe("wireDispatcherSources", () => {
     expect(result.signalsSource.drain()).toEqual([]);
   });
 
+  it("hands the gestures a drain that leaves the signals buffered while DND is on", () => {
+    const dnd = createFlagSettings(true);
+    const result = wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: true, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: false }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
+      dndSettings: dnd,
+      onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
+      selfPresetId: "natsume",
+    });
+    const group = { items: [{ id: 1 }] };
+    drainQueue.push(group);
+
+    // The gesture turn still fires; the held signals wait for the catch-up.
+    expect(result.drainSignals?.()).toEqual([]);
+    dnd.setEnabled(false);
+    expect(result.drainSignals?.()).toEqual([group]);
+  });
+
   it("gates the screen source on its own flag and re-anchors idle cues on a fire", () => {
     const subscribeBusy = vi.fn(() => vi.fn());
     const result = wireDispatcherSources({
@@ -211,6 +244,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -247,6 +281,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -273,6 +308,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer,
+      dndSettings: { get: () => ({ enabled: false }), subscribe: () => () => {} },
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
