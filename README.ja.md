@@ -27,7 +27,7 @@
 
 用意するもの: Apple Silicon搭載のMac、またはWindows x64のPC。ターミナルもコーディングエージェントも要りません。
 
-1. [Releasesページ](https://github.com/yw0nam/YUI/releases/latest)からインストーラーをダウンロードします。macOSは `.dmg`、Windowsは `-setup.exe` か `.msi` です。macOS版はアドホック署名なので、初回起動時にシステム設定 → プライバシーとセキュリティ → このまま開く を選んでください。
+1. [Releasesページ](https://github.com/yw0nam/YUI/releases/latest)からインストーラーをダウンロードします。macOSは `.dmg`（macOS 11以降・Safari 16以降が必要です。画面の表示にはシステムのWebKitを使います）、Windowsは `-setup.exe` か `.msi` です。macOS版はアドホック署名なので、初回起動時にシステム設定 → プライバシーとセキュリティ → このまま開く を選んでください。
 2. YUIを開きます。画面にキャラクターが現れて、まだ接続していないと伝えてきます。**接続する** を選びます。
 3. **クイックスタート**で **キーのページを開く** を選び、Google AI StudioでGoogle Geminiの無料キーを作って貼り付け、**接続する** を選びます。彼女があいさつしてくれます。無料枠には1日の上限があり、送った内容はGoogleがサービス改善に使うことがあります。
 4. `/`(または `Cmd/Ctrl+Shift+Y`)を押して、話しかけてみてください。
