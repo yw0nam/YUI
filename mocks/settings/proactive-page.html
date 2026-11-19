@@ -15,6 +15,8 @@
 <link rel="stylesheet" href="../../src/ui/quick-controls/plugins/plugins-page.css">
 <link rel="stylesheet" href="../../src/ui/message/cue-list.css">
 <style>
+  /* After: entry fields keep an inset Hairline at rest (DESIGN.md key-field rule). */
+  .win:not([data-frame="before"]) .yui-num-input, .win:not([data-frame="before"]) .yui-time-input { box-shadow: inset 0 0 0 1px var(--yui-edge); }
 @font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
 /* Staging: demo controls above three settings windows at the real 760px width (src-tauri/src/tray.rs). */
 * { box-sizing: border-box; }
@@ -110,7 +112,9 @@ h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: bal
         <tr><td>Scheduled greeting (section, its switch, four entries, Add greeting)</td><td>Scheduled greetings › Greeting times (folded); the sub line adds the day's first hello, which this switch already turns on and off</td><td><span class="tag">renamed</span> <span class="tag">moved</span></td></tr>
         <tr><td>Watchers (section title)</td><td>Dropped; its rows go to Threads and External signals</td><td><span class="tag tag--removed">removed</span></td></tr>
         <tr><td>External signals · Listener port · Ingress URL</td><td>External signals › Port and address (folded)</td><td><span class="tag">moved</span></td></tr>
-        <tr><td>Thread reactions</td><td>Threads</td><td><span class="tag">renamed</span></td></tr>
+        <tr><td>Thread reactions</td><td>Same label, heading its group</td><td><span class="tag">kept</span></td></tr>
+        <tr><td>Each check-in and greeting entry: switch at the row's left</td><td>Switch at the right, before ×, where every other row keeps its control</td><td><span class="tag">moved</span></td></tr>
+        <tr><td>Minute and time fields: no edge at rest, invisible on Dawn's light group</td><td>An inset Hairline at rest, as the key field has</td><td><span class="tag">changed</span></td></tr>
         <tr><td>Waiting Threads · Long wait · Thread turns</td><td>Threads › When she steps in (folded)</td><td><span class="tag">moved</span></td></tr>
         <tr><td>Workflows</td><td>Unchanged, under What she reacts to</td><td><span class="tag">kept</span></td></tr>
         <tr><td>Shared (section title)</td><td>Dropped</td><td><span class="tag tag--removed">removed</span></td></tr>
@@ -176,13 +180,13 @@ h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: bal
   const segCells = (cells, checked, disabled) => cells.map((c) => `<button class="yui-seg__btn" type="button" role="radio" aria-checked="${c === checked}" tabindex="-1"${disabled ? " disabled" : ""}>${c}</button>`).join("");
   const segRow = ({ cls, label, sub, cells, checked, reason, disabled }) =>
     `<div class="yui-row ${cls}" data-m="segment row"><div class="yui-row__main"><span class="yui-row__label">${label}</span><span class="yui-row__sub">${sub}</span>${reason ? `<span class="yui-row__sub">${reason}</span>` : ""}</div><div class="yui-seg" role="radiogroup" aria-label="${esc(label)}">${segCells(cells, checked, disabled)}</div></div>`;
-  const cueRow = (c, kind) => {
+  const cueRow = (c, kind, after) => {
     const trig = kind === "time"
       ? `<input type="time" class="yui-time-input" aria-label="Time" value="${c.time}">`
       : `<span class="yui-cue__minutes-label">Inactive</span><input type="number" class="yui-num-input" min="1" max="999" aria-label="Inactive minutes" value="${c.min}"><span class="yui-cue__suffix">min</span>`;
-    return `<div class="yui-cue"><div class="yui-cue__collapsed" data-m="list entry row">${sw("Toggle " + c.label, true)}<button type="button" class="yui-cue__label" aria-expanded="false"><span class="yui-cue__chevron" aria-hidden="true">${CUE_CHEV}</span><span class="yui-cue__name">${esc(c.label)}</span><span class="yui-cue__ctx-preview">${esc(c.ctx)}</span></button><div class="yui-cue__trigger">${trig}</div><button type="button" class="yui-cue__delete" aria-label="Delete">${CROSS}</button></div></div>`;
+    return `<div class="yui-cue"><div class="yui-cue__collapsed" data-m="list entry row">${after ? "" : sw("Toggle " + c.label, true)}<button type="button" class="yui-cue__label" aria-expanded="false"><span class="yui-cue__chevron" aria-hidden="true">${CUE_CHEV}</span><span class="yui-cue__name">${esc(c.label)}</span><span class="yui-cue__ctx-preview">${esc(c.ctx)}</span></button><div class="yui-cue__trigger">${trig}</div>${after ? sw("Toggle " + c.label, true) : ""}<button type="button" class="yui-cue__delete" aria-label="Delete">${CROSS}</button></div></div>`;
   };
-  const cueRows = (list, kind) => `<div class="yui-cue-list">${list.map((c) => cueRow(c, kind)).join("")}</div>`;
+  const cueRows = (list, kind, after) => `<div class="yui-cue-list">${list.map((c) => cueRow(c, kind, after)).join("")}</div>`;
   const addRow = (label) => `<div class="yui-row yui-row--action"><button class="yui-add-btn" type="button">${PLUS}${label}</button></div>`;
 
   // Rows shared by Before and After.
@@ -269,18 +273,18 @@ h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: bal
       <div class="yui-sec">${head("What she reacts to")}
         <div class="yui-group">
           ${switchRow("Quiet for a while", S.loopSub, true, "source switch row")}
-          ${fold("quiet", "Check-ins", "5 · 10 · 30 min", cueRows(LOOP, "minutes") + addRow("Add reaction"), q)}
+          ${fold("quiet", "Check-ins", "5 · 10 · 30 min", cueRows(LOOP, "minutes", true) + addRow("Add reaction"), q)}
         </div>
         <div class="yui-group">
           ${switchRow("Scheduled greetings", S.schedSub, true, "source switch row", "", '<span class="yui-row__sub">Also says the day\'s first hello when you sit down.</span>')}
-          ${fold("schedule", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", cueRows(SCHEDULE, "time") + addRow("Add greeting"), false)}
+          ${fold("schedule", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", cueRows(SCHEDULE, "time", true) + addRow("Add greeting"), false)}
         </div>
         <div class="yui-group">
           ${switchRow("Screen changes", S.screenSub, true, "source switch row")}
           ${fold("screen", "Timing", "4 settings", screenKnobs().join("") + recentCap() + `<p class="yui-field-hint">${S.screenFoot}</p>`, false)}
         </div>
         <div class="yui-group">
-          ${switchRow("Threads", S.threadsSub, true, "source switch row")}
+          ${switchRow("Thread reactions", S.threadsSub, true, "source switch row")}
           ${fold("threads", "When she steps in", "3 waiting · 10 min", waitingRow() + longWaitRow() + turnsRow(), false)}
         </div>
         <div class="yui-group">
