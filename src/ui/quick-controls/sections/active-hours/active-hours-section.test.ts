@@ -140,4 +140,28 @@ describe("createActiveHoursSection", () => {
     expect(reset.hidden).toBe(true);
     section.dispose();
   });
+
+  it("disables Add time span with its reason at 8 spans, and a removal re-enables it", () => {
+    const { host, store } = build();
+    store.setSpans(
+      ["00", "03", "06", "09", "12", "15", "18"].map((h) => ({
+        start: `${h}:00`,
+        end: `${h}:30`,
+        pace: "normal" as const,
+      })),
+    );
+    const add = host.querySelector<HTMLButtonElement>(".yui-add-btn")!;
+    const reason = () =>
+      host.querySelector<HTMLElement>(".yui-hours__limit:not([hidden])")?.textContent ?? null;
+    expect(add.disabled).toBe(false);
+    expect(reason()).toBeNull();
+    add.click();
+    expect(rows(host)).toHaveLength(8);
+    expect(add.disabled).toBe(true);
+    expect(reason()).toBe("Up to 8 time spans");
+    rows(host)[0]!.querySelector<HTMLButtonElement>(".yui-cue__delete")!.click();
+    expect(rows(host)).toHaveLength(7);
+    expect(add.disabled).toBe(false);
+    expect(reason()).toBeNull();
+  });
 });
