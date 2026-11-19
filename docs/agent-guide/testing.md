@@ -41,3 +41,13 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 11. A `vi.mock` factory of a YUI module is typed against the real module: `vi.mocked(...)` on the imported binding, `vi.fn<typeof import("...").name>(impl)` for a mock built in `vi.hoisted`, or `importOriginal<typeof import("...")>()` for a partial mock.
 12. A test that reaches a real service is a `*.live.test.ts` file gated by `YUI_LIVE=1` and the service's key. CI skips it.
 13. A mock's default behaviour is given in `vi.fn(impl)` or set in `beforeEach`. The config's `mockReset` runs before each test and erases an implementation or return value set on a mock at module level, including inside `vi.hoisted` and `vi.mock` factories.
+
+## Visual regression
+
+`pnpm test:vrt` runs the `vrt` Vitest project: each `*.vrt.test.ts` mounts one surface at its window size in headless Playwright WebKit and compares a screenshot per theme (`dawn`, `hearth`) with a committed reference. It covers the quick card, the General settings page, the speech bubble, and the Threads window.
+
+`pnpm test` runs only the `unit` project. WebKit is not WKWebView, so native dock, drag, and focus stay with the verify bundle.
+
+References are Linux-only: `__screenshots__/<test file>/<name>-webkit-linux.png` beside each test. Fonts and anti-aliasing differ by platform, so a `-darwin.png` made by a local run is gitignored and never committed. A mismatch beyond 1% of pixels fails the `vrt` CI job, which uploads the actual and diff images as the `vrt-attachments` artifact.
+
+To refresh the references, run the `Refresh VRT references` workflow from the Actions tab, download its `vrt-references` artifact, extract it into `src/`, review the images, and commit them. A surface with no reference fails the `vrt` job and leaves its new image in that job's `vrt-references` artifact, to extract and commit the same way.
