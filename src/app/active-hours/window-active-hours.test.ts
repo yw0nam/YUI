@@ -1,8 +1,8 @@
 /**
  * window-active-hours.test.ts — one pet window's pacing and hold.
  *
- * Pins the gap the current span scales, the minute-boundary recompute, the off
- * span's do-not-disturb, edited spans over the card, and per-window independence.
+ * Pins the gap the base and span paces scale, the minute-boundary recompute, the
+ * off span's do-not-disturb, edited spans over the card, and per-window independence.
  */
 
 import { readFileSync } from "node:fs";
@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validatePersona } from "../../config/validators/persona/persona";
 import type { PersonaConfig } from "../../config/validators/persona/types";
 import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
+import { createBasePaceSettings, type BasePace } from "../../settings/active-hours/base-pace-settings";
 import type { Span } from "../../settings/active-hours/spans";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
@@ -35,22 +36,25 @@ function memoryStorage<T>(): PersistedStorage<T> {
 
 const handles: WindowActiveHours[] = [];
 
-function build(opts: { spans?: Span[]; dnd?: boolean; gapMs?: number } = {}) {
+function build(opts: { spans?: Span[]; dnd?: boolean; gapMs?: number; base?: BasePace } = {}) {
   const activeHoursSettings = createActiveHoursSettings({ storage: memoryStorage() });
+  const basePaceSettings = createBasePaceSettings({ storage: memoryStorage() });
   const agentSettings = createAgentSettings({ storage: memoryStorage() });
   const pacerGapSettings = createPacerGapStore(memoryStorage());
   const dndSettings = createFlagSettings(opts.dnd ?? false, { storage: memoryStorage() });
   if (opts.gapMs !== undefined) pacerGapSettings.set(opts.gapMs);
   if (opts.spans) activeHoursSettings.setSpans(opts.spans);
+  if (opts.base) basePaceSettings.setPace(opts.base);
   const handle = createWindowActiveHours({
     activeHoursSettings,
+    basePaceSettings,
     agentSettings,
     pacerGapSettings,
     dndSettings,
   });
   handle.setPersona(PERSONA);
   handles.push(handle);
-  return { handle, activeHoursSettings, agentSettings, pacerGapSettings, dndSettings };
+  return { handle, activeHoursSettings, basePaceSettings, agentSettings, pacerGapSettings, dndSettings };
 }
 
 beforeEach(() => {
@@ -153,6 +157,27 @@ describe("createWindowActiveHours", () => {
 
     expect(a.handle.gapMs()).toBe(300_000);
     expect(b.handle.gapMs()).toBe(1_800_000);
+  });
+
+  it("a low base pace and the 23:00 span read a 1.5 factor and a 15-minute gap", () => {
+    vi.setSystemTime(new Date(2026, 10, 19, 23, 0, 0));
+    const { handle } = build({ gapMs: 600_000, base: "low" });
+
+    expect(handle.paceFactor()).toBe(1.5);
+    expect(handle.gapMs()).toBe(900_000);
+  });
+
+  it("a base pace change fires subscribeGap once and rescales the gap", () => {
+    vi.setSystemTime(new Date(2026, 10, 19, 23, 0, 0));
+    const { handle, basePaceSettings } = build({ gapMs: 600_000 });
+    const cb = vi.fn();
+    handle.subscribeGap(cb);
+    expect(handle.gapMs()).toBe(300_000);
+
+    basePaceSettings.setPace("low");
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(handle.gapMs()).toBe(900_000);
   });
 
   it("a gap store edit fires subscribeGap with the scaled value", () => {
