@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proactive Page Mock</title>
+<!-- Real tokens and the real settings stylesheets; the markup below uses their class names. Mock-only staging, and the proposed classes (mock-fold*), live in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/endpoints-section.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/preset/preset.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/workflows/workflows-section.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/push-reason/push-reason.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/plugins/plugins-page.css">
+<link rel="stylesheet" href="../../src/ui/message/cue-list.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Staging: demo controls above three settings windows at the real 760px width (src-tauri/src/tray.rs). */
+* { box-sizing: border-box; }
+html { background: var(--yui-panel-bg); }
+body { margin: 0; background: var(--yui-panel-bg); color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+.lede { color: var(--yui-text-dim); max-width: 78ch; margin: 0; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.side { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.dgroup { border-radius: var(--yui-radius-group); background: var(--yui-group-bg); border: 1px solid var(--yui-edge); min-width: 0; }
+.dgroup > * + * { border-top: 1px solid var(--yui-edge); }
+.drow { display: grid; gap: 6px; padding: 10px 12px; }
+.drow .lbl { font-weight: 600; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; width: fit-content; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--yui-accent-ink); outline-offset: 2px; }
+.meas { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-family: var(--yui-font-mono); font-size: var(--yui-fs-caption); color: var(--yui-text-dim); }
+.meas .bad { color: var(--yui-danger); font-weight: 600; }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.frame { min-width: 0; max-width: 100%; }
+.frame-cap { margin: 0 0 6px; font-size: var(--yui-fs-sub); color: var(--yui-text-mute); }
+.frame-cap b { color: var(--yui-text); font-weight: 600; }
+
+/* The settings window, unrolled: 760px wide inside a 1px mock edge, the page drawn to its full height,
+   with a dashed line where the 680px window ends. The rail keeps the window's height. */
+.win { position: relative; width: 762px; max-width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge-strong); box-shadow: var(--yui-float); background: var(--yui-panel-bg); }
+.win .yui-quick { height: auto; }
+.win .yui-quick__cols { align-items: flex-start; }
+.win .yui-rail { height: 652px; }
+.win .yui-quick__body { overflow: visible; }
+.fold-line { position: absolute; left: 0; right: 0; top: 680px; border-top: 1.5px dashed var(--yui-edge-strong); pointer-events: none; }
+.fold-line span { position: absolute; left: 8px; top: -18px; font-size: var(--yui-fs-caption); color: var(--yui-text-mute); background: var(--yui-panel-bg); padding: 0 4px; border-radius: 4px; }
+
+.legend { display: grid; gap: 10px; max-width: 1200px; }
+.legend h2 { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+.legend table { width: 100%; border-collapse: collapse; font-size: var(--yui-fs-sub); background: var(--yui-group-bg); border-radius: var(--yui-radius-group); overflow: hidden; }
+.legend th, .legend td { text-align: left; vertical-align: top; padding: 7px 10px; border-top: 1px solid var(--yui-edge); }
+.legend thead th { border-top: 0; color: var(--yui-text-mute); font-weight: 600; }
+.legend td:first-child { color: var(--yui-text-dim); }
+.legend .tag { display: inline-block; padding: 0 6px; border-radius: 999px; border: 1px solid var(--yui-edge); color: var(--yui-text-dim); font-size: var(--yui-fs-caption); white-space: nowrap; }
+.legend .tag--removed { color: var(--yui-danger); border-color: var(--yui-danger-soft); }
+.legend .tag--new { color: var(--yui-accent-ink); border-color: var(--yui-accent-soft); }
+.legend-scroll { overflow-x: auto; }
+
+/* ── Proposed (After only). None of these classes exist in src/ yet. ── */
+/* A source's disclosure: the plugins page's .yui-plg-disc row as its summary, the folded rows under it. */
+.mock-fold__aside { margin-left: auto; padding-left: 0.75rem; min-width: 0; overflow: hidden; color: var(--yui-text-mute); font-weight: 400; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.mock-fold__body { border-top: 1px solid var(--yui-edge); }
+.mock-fold__body[hidden] { display: none; }
+.mock-fold__body > * + * { border-top: 1px solid var(--yui-edge); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/settings · #1978</span>
+    <h1>Proactive page, reorganized</h1>
+    <p class="lede">Settings › Proactive. Before is the page on main today; After puts one control for how often she speaks up on top, one switch per source with its details folded under it, and the raw wait, presence and hourly limits under Advanced. The two Screen watch waits are gone. Each window is drawn to its full height; the dashed line is where the 680px window ends.</p>
+  </header>
+
+  <div class="side">
+    <div class="dgroup">
+      <div class="drow"><span class="lbl">Theme</span><div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div></div>
+    </div>
+    <div class="dgroup" style="flex:1 1 520px">
+      <div class="drow"><span class="lbl">Row width per row type (widest used / available)</span><ul class="meas" id="meas"></ul></div>
+    </div>
+  </div>
+
+  <div class="frames">
+    <section class="frame" id="frame-before"><p class="frame-cap"><b>Before</b> · today's page, top to bottom (Screen watch on, so its knobs show)</p><div class="win" data-frame="before"></div></section>
+    <section class="frame" id="frame-folded"><p class="frame-cap"><b>After</b> · first view, every disclosure folded</p><div class="win" data-frame="folded"></div></section>
+    <section class="frame" id="frame-open"><p class="frame-cap"><b>After</b> · Quiet for a while and Advanced unfolded</p><div class="win" data-frame="open"></div></section>
+  </div>
+
+  <section class="legend">
+    <h2>What moved, what was removed, what was renamed</h2>
+    <p class="mute" style="margin:0">Every row of the Before page, and where it is in After. Labels not listed keep their wording.</p>
+    <div class="legend-scroll">
+    <table>
+      <thead><tr><th>Before</th><th>After</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr><td>—</td><td>How often she speaks up: Less / Normal / More, a line on what it changes, and "Per character and time of day: Persona › Active hours"</td><td><span class="tag tag--new">new</span></td></tr>
+        <tr><td>Screen watch (section) · React to screen changes (switch)</td><td>What she reacts to › Screen changes</td><td><span class="tag">renamed</span> <span class="tag">moved</span></td></tr>
+        <tr><td>Screen watch's ? hint</td><td>Dropped; the switch's sub line and the foot line under Timing say the same</td><td><span class="tag tag--removed">removed</span></td></tr>
+        <tr><td>Minimum gap between cues (slider, 5 min)</td><td>Gone. The wait after a conversation already holds every screen reaction</td><td><span class="tag tag--removed">removed</span></td></tr>
+        <tr><td>Stay quiet after a turn for (3 min)</td><td>Gone, for the same reason</td><td><span class="tag tag--removed">removed</span></td></tr>
+        <tr><td>Counts as an app switch after · New app settles after · Notices a long stretch every · Remembers up to · the Permissions / do-not-disturb line</td><td>Screen changes › Timing (folded)</td><td><span class="tag">moved</span></td></tr>
+        <tr><td>Loop reaction (section, its switch, three entries, Add reaction)</td><td>Quiet for a while (switch) › Check-ins (folded)</td><td><span class="tag">renamed</span> <span class="tag">moved</span></td></tr>
+        <tr><td>Scheduled greeting (section, its switch, four entries, Add greeting)</td><td>Scheduled greetings › Greeting times (folded); the sub line adds the day's first hello, which this switch already turns on and off</td><td><span class="tag">renamed</span> <span class="tag">moved</span></td></tr>
+        <tr><td>Watchers (section title)</td><td>Dropped; its rows go to Threads and External signals</td><td><span class="tag tag--removed">removed</span></td></tr>
+        <tr><td>External signals · Listener port · Ingress URL</td><td>External signals › Port and address (folded)</td><td><span class="tag">moved</span></td></tr>
+        <tr><td>Thread reactions</td><td>Threads</td><td><span class="tag">renamed</span></td></tr>
+        <tr><td>Waiting Threads · Long wait · Thread turns</td><td>Threads › When she steps in (folded)</td><td><span class="tag">moved</span></td></tr>
+        <tr><td>Workflows</td><td>Unchanged, under What she reacts to</td><td><span class="tag">kept</span></td></tr>
+        <tr><td>Shared (section title)</td><td>Dropped</td><td><span class="tag tag--removed">removed</span></td></tr>
+        <tr><td>Present when idle for · "Treat the session as present if the idle gap is below this"</td><td>Advanced › Present when idle for · "You count as at your desk while your last input is this recent"</td><td><span class="tag">moved</span> <span class="tag">sub reworded</span></td></tr>
+        <tr><td>Proactive gap · "Minimum quiet gap after any turn before YUI speaks up on her own" · "Each character's active hours scale this wait and the quiet-for-a-while reactions."</td><td>Advanced › Wait after a conversation · "How long she waits after any conversation before speaking up on her own. Normal uses this; Less and More scale it." The active-hours line becomes the top control's link line</td><td><span class="tag">renamed</span> <span class="tag">moved</span></td></tr>
+        <tr><td>Limits (section, ? hint, note)</td><td>Advanced, the note as the foot line; the ? hint repeated the note and is dropped</td><td><span class="tag">moved</span></td></tr>
+        <tr><td>Cues per hour · "Proactive, schedule, agent, signal, milestone, and addressed turns together"</td><td>Times she speaks up per hour · "Quiet-for-a-while, greetings, signals and answers to another character, together"</td><td><span class="tag">renamed</span></td></tr>
+        <tr><td>Total self-started turns per hour · "Crossing it holds every cue for a cooldown"</td><td>Same label · "Crossing it pauses every source for 5 minutes"</td><td><span class="tag">sub reworded</span></td></tr>
+        <tr><td>Urgent signal turns per hour · "Signals a producer marked urgent; the cooldown never holds them"</td><td>Same label · "Signals marked urgent; that pause never holds them"</td><td><span class="tag">sub reworded</span></td></tr>
+        <tr><td>Section icons (screen, sparkle, clock)</td><td>Dropped, so the five source rows line up</td><td><span class="tag tag--removed">removed</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+
+  // Icons as src/ui writes them.
+  const SCREEN_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M12 16v3.5M8.5 20h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.5"/></svg>';
+  const CLOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.5v4.8l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const SPARKLE_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  const CUE_CHEV = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const MORE_CHEV = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const DISC_CHEV = '<svg class="yui-plg-chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const PLUS = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const CROSS = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+  // Seeds (src/settings/cues/*-seeds.ts, en) and defaults (configs/screen.json, configs/guardrails.json, settings stores).
+  const LOOP = [
+    { label: "Quick break", ctx: "It's been quiet for over 5 minutes. Gently suggest looking up and getting a bit of fresh air.", min: 5 },
+    { label: "Check-in", ctx: "No word for over 10 minutes. Casually ask how the work is going. Keep it light, not pushy.", min: 10 },
+    { label: "Long focus", ctx: "It's been a whole 30 minutes. Suggest a short break — sitting that long is rough on the body.", min: 30 },
+  ];
+  const SCHEDULE = [
+    { label: "Morning", ctx: "A morning greeting to start the day. Lightly ask how they're doing as they settle in.", time: "09:00" },
+    { label: "Lunch", ctx: "It's lunchtime. Casually ask if they've eaten and how the morning went.", time: "12:00" },
+    { label: "Evening", ctx: "Time to wrap up the day. Lightly ask how today went.", time: "18:00" },
+    { label: "Late night", ctx: "It's really late. Gently suggest getting some rest — tell them not to push too hard.", time: "23:00" },
+  ];
+  const S = {
+    screenSub: "Notices app switches and long stretches, then speaks up first",
+    screenFoot: "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
+    restart: "Restart the app to apply this change",
+    signalsSub: "Speaks up when a coding agent, a workflow, or another program on your machine sends a signal.",
+    threadsSub: "When you tap the chip or Threads pile up, she sits on the Threads window.",
+    loopSub: "Checks in on a repeating schedule if you've been quiet at work",
+    schedSub: "Greets you first if you're at your desk at the set time",
+  };
+
+  // ── Markup helpers, mirroring src/ui/quick-controls/markup.ts and switches/switch-rows.ts ──
+  const head = (title, aside = "") => `<div class="yui-sec__head"><h2 class="yui-sec__title">${title}</h2>${aside}</div>`;
+  const hintDot = (text) => `<button type="button" class="yui-hint-dot" aria-label="${esc(text)}">?</button>`;
+  const sw = (label, on) => `<button class="yui-switch" type="button" role="switch" aria-checked="${on}" aria-label="${esc(label)}"></button>`;
+  const switchRow = (label, sub, on, m = "switch row", icon = "", extraSub = "") =>
+    `<div class="yui-row" data-m="${m}"><div class="yui-row__main"><span class="yui-row__label">${icon}${label}</span><span class="yui-row__sub">${sub}</span>${extraSub}</div>${sw(label, on)}</div>`;
+  const numRow = ({ label, sub, hints = [], value, max, suffix }) =>
+    `<div class="yui-row" data-m="number row"><div class="yui-row__main"><label class="yui-input-row__label">${label}</label>${sub ? `<span class="yui-input-row__sub">${sub}</span>` : ""}${hints.map((h) => `<span class="yui-row__sub">${h}</span>`).join("")}</div><div class="yui-num"><input class="yui-num-input" type="number" min="0" max="${max}" data-digits="${String(max).length}" value="${value}" aria-label="${esc(label)}" />${suffix ? `<span class="yui-cue__suffix">${suffix}</span>` : ""}</div></div>`;
+  const segCells = (cells, checked, disabled) => cells.map((c) => `<button class="yui-seg__btn" type="button" role="radio" aria-checked="${c === checked}" tabindex="-1"${disabled ? " disabled" : ""}>${c}</button>`).join("");
+  const segRow = ({ cls, label, sub, cells, checked, reason, disabled }) =>
+    `<div class="yui-row ${cls}" data-m="segment row"><div class="yui-row__main"><span class="yui-row__label">${label}</span><span class="yui-row__sub">${sub}</span>${reason ? `<span class="yui-row__sub">${reason}</span>` : ""}</div><div class="yui-seg" role="radiogroup" aria-label="${esc(label)}">${segCells(cells, checked, disabled)}</div></div>`;
+  const cueRow = (c, kind) => {
+    const trig = kind === "time"
+      ? `<input type="time" class="yui-time-input" aria-label="Time" value="${c.time}">`
+      : `<span class="yui-cue__minutes-label">Inactive</span><input type="number" class="yui-num-input" min="1" max="999" aria-label="Inactive minutes" value="${c.min}"><span class="yui-cue__suffix">min</span>`;
+    return `<div class="yui-cue"><div class="yui-cue__collapsed" data-m="list entry row">${sw("Toggle " + c.label, true)}<button type="button" class="yui-cue__label" aria-expanded="false"><span class="yui-cue__chevron" aria-hidden="true">${CUE_CHEV}</span><span class="yui-cue__name">${esc(c.label)}</span><span class="yui-cue__ctx-preview">${esc(c.ctx)}</span></button><div class="yui-cue__trigger">${trig}</div><button type="button" class="yui-cue__delete" aria-label="Delete">${CROSS}</button></div></div>`;
+  };
+  const cueRows = (list, kind) => `<div class="yui-cue-list">${list.map((c) => cueRow(c, kind)).join("")}</div>`;
+  const addRow = (label) => `<div class="yui-row yui-row--action"><button class="yui-add-btn" type="button">${PLUS}${label}</button></div>`;
+
+  // Rows shared by Before and After.
+  const screenKnobs = () => [
+    numRow({ label: "Counts as an app switch after", sub: "Only when the app you left was held this long", value: 10, max: 240, suffix: "min" }),
+    numRow({ label: "New app settles after", sub: "A quick glance is ignored", value: 90, max: 600, suffix: "s" }),
+    numRow({ label: "Notices a long stretch every", sub: "One app held this long counts as a long session", value: 45, max: 480, suffix: "min" }),
+  ];
+  const recentCap = () => numRow({ label: "Remembers up to", sub: "How many app switches held during a pause carry into the next screen turn", value: 5, max: 20, suffix: "entries" });
+  const portRow = () => numRow({ label: "Listener port", sub: "Port the completion hook server listens on", hints: [S.restart], value: 8770, max: 65535 });
+  const ingressRow = () => `<div class="yui-stack yui-input-row" data-m="address row"><span class="yui-input-row__label">Ingress URL</span><span class="yui-row__sub">Send signals to this window.</span><code class="yui-quick__ingress-url">http://127.0.0.1:8770/signals</code><span class="yui-row__sub">${S.restart}</span></div>`;
+  const waitingRow = () => segRow({ cls: "yui-reaction-thresholds-row", label: "Waiting Threads", sub: "When the chip counts this many, she sits on the Threads window.", cells: ["Off", "2", "3", "5"], checked: "3" });
+  const longWaitRow = () => segRow({ cls: "yui-reaction-thresholds-row", label: "Long wait", sub: "When one Thread has waited this long, she sits on the Threads window.", cells: ["Off", "5 min", "10 min", "30 min"], checked: "10 min" });
+  // External signals is off by default, so Thread turns rests disabled with its reason.
+  const turnsRow = () => segRow({ cls: "yui-threadturns-row", label: "Thread turns", sub: "Tell the main character about Thread updates. The character decides whether to speak.", cells: ["Off", "When it needs me", "Every message"], checked: "Off", reason: "Turn on External signals to use this.", disabled: true });
+  const workflowsSec = () => `
+      <div class="yui-sec">${head("Workflows")}<p class="yui-sec__note">Fire a saved endpoint on demand; ▶ runs it, and the first run doubles as your connection test.</p>
+        <div class="yui-group yui-wf-list"><p class="yui-wf-empty">No workflows yet; add one below.</p></div>
+        <div class="yui-group yui-wf-add">
+          <div class="yui-row yui-input-row" data-m="text field row"><div class="yui-row__main"><label class="yui-input-row__label">Label</label></div><div class="yui-input-wrap"><input class="yui-ep-input" type="text" placeholder="e.g. Morning digest" /></div></div>
+          <div class="yui-row yui-input-row" data-m="text field row"><div class="yui-row__main"><label class="yui-input-row__label">URL</label></div><div class="yui-input-wrap"><input class="yui-ep-input" type="text" placeholder="https://…" /></div></div>
+          <div class="yui-row yui-row--action"><button class="yui-add-btn" type="button" disabled>${PLUS}Add</button></div>
+        </div>
+      </div>`;
+
+  // ── Before: the react panel in template.ts order ──
+  function beforePanel() {
+    return `
+      <div class="yui-sec">${head(`Screen watch${hintDot("Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle on the Permissions page.")}`)}
+        <div class="yui-group">
+          ${switchRow("React to screen changes", S.screenSub, true, "switch row", SCREEN_SVG)}
+          <div class="yui-screen-knobs">
+            <div class="yui-gain" data-m="slider row"><div class="yui-gain__head"><span class="yui-gain__label">Minimum gap between cues</span><span class="yui-gain__value">5 min</span></div><input class="yui-gain__slider" type="range" min="1" max="60" step="1" value="5" style="--fill:${(5 - 1) / 59}" aria-label="Minimum gap between screen-watch cues" /></div>
+            ${screenKnobs().join("")}
+            ${numRow({ label: "Stay quiet after a turn for", sub: "So a cue never piles onto what was just said", value: 3, max: 120, suffix: "min" })}
+            ${recentCap()}
+            <p class="yui-field-hint">${S.screenFoot}</p>
+          </div>
+        </div>
+      </div>
+      <div class="yui-sec">${head(`${SPARKLE_SVG}Loop reaction`, sw("Loop reaction", true))}<p class="yui-sec__note">${S.loopSub}</p>
+        <div class="yui-group">${cueRows(LOOP, "minutes")}${addRow("Add reaction")}</div>
+      </div>
+      <div class="yui-sec">${head(`${CLOCK_SVG}Scheduled greeting`, sw("Scheduled greeting", true))}<p class="yui-sec__note">${S.schedSub}</p>
+        <div class="yui-group">${cueRows(SCHEDULE, "time")}${addRow("Add greeting")}</div>
+      </div>
+      <div class="yui-sec">${head("Watchers")}
+        <div class="yui-group">
+          ${switchRow("External signals", S.signalsSub, false)}${portRow()}${ingressRow()}
+          ${switchRow("Thread reactions", S.threadsSub, true)}${waitingRow()}${longWaitRow()}${turnsRow()}
+        </div>
+      </div>${workflowsSec()}
+      <div class="yui-sec">${head("Shared")}
+        <div class="yui-group">
+          ${numRow({ label: "Present when idle for", sub: "Treat the session as present if the idle gap is below this", hints: [S.restart], value: 180, max: 3600, suffix: "s" })}
+          ${numRow({ label: "Proactive gap", sub: "Minimum quiet gap after any turn before YUI speaks up on her own", hints: ["0 lets every source speak up without waiting.", "Each character's active hours scale this wait and the quiet-for-a-while reactions."], value: 10, max: 180, suffix: "min" })}
+        </div>
+      </div>
+      <div class="yui-sec">${head(`Limits${hintDot("Ceilings on how often YUI may speak up on her own. Turns you start are never counted.")}`)}<p class="yui-sec__note">Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.</p>
+        <div class="yui-group">
+          ${numRow({ label: "Cues per hour", sub: "Proactive, schedule, agent, signal, milestone, and addressed turns together", value: 24, max: 999 })}
+          ${numRow({ label: "Urgent signal turns per hour", sub: "Signals a producer marked urgent; the cooldown never holds them", value: 120, max: 999 })}
+          ${numRow({ label: "Total self-started turns per hour", sub: "Crossing it holds every cue for a cooldown", value: 40, max: 999 })}
+        </div>
+      </div>`;
+  }
+
+  // ── After ──
+  const PACES = ["Less", "Normal", "More"];
+  function speakUpControl() {
+    return `<div class="yui-stack" data-m="speak-up control"><div class="yui-seg" role="radiogroup" aria-label="How often she speaks up">${segCells(PACES, "Normal")}</div></div>`;
+  }
+  const fold = (key, title, aside, body, open) =>
+    `<div class="mock-fold" data-fold="${key}"><button type="button" class="yui-plg-disc" aria-expanded="${open}" data-m="disclosure row">${DISC_CHEV}<span>${title}</span><span class="mock-fold__aside">${aside}</span></button><div class="mock-fold__body"${open ? "" : " hidden"}>${body}</div></div>`;
+
+  function afterPanel(open) {
+    const q = open === "open";
+    return `
+      <div class="yui-sec" data-speakup>${head("How often she speaks up")}
+        <div class="yui-group">${speakUpControl()}</div>
+        <p class="yui-sec__foot">Changes the wait after a conversation and the quiet-for-a-while reactions. More: about twice as often when you're idle. Less: about a third as often.</p>
+        <p class="yui-sec__foot">Per character and time of day: <button class="yui-link-btn yui-push-reason__link" type="button">Persona › Active hours</button></p>
+      </div>
+      <div class="yui-sec">${head("What she reacts to")}
+        <div class="yui-group">
+          ${switchRow("Quiet for a while", S.loopSub, true, "source switch row")}
+          ${fold("quiet", "Check-ins", "5 · 10 · 30 min", cueRows(LOOP, "minutes") + addRow("Add reaction"), q)}
+        </div>
+        <div class="yui-group">
+          ${switchRow("Scheduled greetings", S.schedSub, true, "source switch row", "", '<span class="yui-row__sub">Also says the day\'s first hello when you sit down.</span>')}
+          ${fold("schedule", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", cueRows(SCHEDULE, "time") + addRow("Add greeting"), false)}
+        </div>
+        <div class="yui-group">
+          ${switchRow("Screen changes", S.screenSub, true, "source switch row")}
+          ${fold("screen", "Timing", "4 settings", screenKnobs().join("") + recentCap() + `<p class="yui-field-hint">${S.screenFoot}</p>`, false)}
+        </div>
+        <div class="yui-group">
+          ${switchRow("Threads", S.threadsSub, true, "source switch row")}
+          ${fold("threads", "When she steps in", "3 waiting · 10 min", waitingRow() + longWaitRow() + turnsRow(), false)}
+        </div>
+        <div class="yui-group">
+          ${switchRow("External signals", S.signalsSub, false, "source switch row")}
+          ${fold("signals", "Port and address", "8770", portRow() + ingressRow(), false)}
+        </div>
+      </div>${workflowsSec()}
+      <div class="yui-sec">
+        <details class="yui-more"${q ? " open" : ""}><summary data-m="advanced summary">${MORE_CHEV}Advanced</summary>
+          <div class="yui-group">
+            ${numRow({ label: "Wait after a conversation", sub: "How long she waits after any conversation before speaking up on her own. Normal uses this; Less and More scale it.", hints: ["0 lets every source speak up without waiting."], value: 10, max: 180, suffix: "min" })}
+            ${numRow({ label: "Present when idle for", sub: "You count as at your desk while your last input is this recent", hints: [S.restart], value: 180, max: 3600, suffix: "s" })}
+          </div>
+          <div class="yui-group">
+            ${numRow({ label: "Times she speaks up per hour", sub: "Quiet-for-a-while, greetings, signals and answers to another character, together", value: 24, max: 999 })}
+            ${numRow({ label: "Urgent signal turns per hour", sub: "Signals marked urgent; that pause never holds them", value: 120, max: 999 })}
+            ${numRow({ label: "Total self-started turns per hour", sub: "Crossing it pauses every source for 5 minutes", value: 40, max: 999 })}
+          </div>
+          <p class="yui-sec__foot">Hourly limits are a backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.</p>
+        </details>
+      </div>`;
+  }
+
+  const RAIL = [["Yui"], "Connection", "Voice", "Persona", "Body", "History", ["Every character"], "Together", "Listening and bubble", "Permissions", "Plugins", "Proactive", "Motion and desktop", "General"];
+  const rail = () => `<div class="yui-rail"><div class="yui-tabs" role="tablist">${RAIL.map((r) => Array.isArray(r)
+    ? `<p class="yui-tabs__group" role="presentation">${r[0]}</p>`
+    : `<button class="yui-tab" type="button" role="tab" aria-selected="${r === "Proactive"}"${r === "General" ? ' id="yui-tab-general"' : ""}><span class="yui-tab__label">${r}</span></button>`).join("")}</div></div>`;
+  const windowHtml = (panel) => `<div class="yui-quick"><div class="yui-quick__cols">${rail()}<div class="yui-quick__body"><div class="yui-tabpanel" role="tabpanel"><p class="yui-tabpanel__scope">Applies to every character</p><h1 class="yui-tabpanel__title">Proactive</h1>${panel}</div></div></div></div><div class="fold-line" aria-hidden="true"><span>680px · window bottom</span></div>`;
+
+  function render() {
+    for (const win of document.querySelectorAll(".win")) {
+      const f = win.dataset.frame;
+      win.innerHTML = windowHtml(f === "before" ? beforePanel() : afterPanel(f));
+    }
+    measure();
+  }
+
+  // Disclosures fold and unfold in place.
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".yui-plg-disc");
+    if (!b) return;
+    const open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", String(open));
+    b.nextElementSibling.hidden = !open;
+    measure();
+  });
+  document.addEventListener("toggle", () => measure(), true);
+
+  // Mock-only: per row type, the width a row needs on one line (its label text, its controls and the gaps)
+  // against its content box; any child past the content edge, or a clipped label, counts as overflow.
+  // Rows inside folded disclosures are measured too (they are unfolded for the measure, then folded back).
+  function measure() {
+    const out = $("meas"); if (!out) return;
+    const theme = document.documentElement.getAttribute("data-theme") || "dawn";
+    // Unfold everything in the After frames for the measure.
+    const restore = [];
+    for (const body of document.querySelectorAll(".mock-fold__body[hidden]")) { body.hidden = false; restore.push(() => { body.hidden = true; }); }
+    for (const d of document.querySelectorAll("details.yui-more:not([open])")) { d.open = true; restore.push(() => { d.open = false; }); }
+    const range = document.createRange();
+    const textW = (node) => { range.selectNodeContents(node); return range.getBoundingClientRect().width; };
+    const groups = new Map();
+    for (const row of document.querySelectorAll("[data-m]")) {
+      const frame = row.closest(".win").dataset.frame === "before" ? "before" : "after";
+      const type = `${frame} · ${row.dataset.m}`;
+      const cs = getComputedStyle(row);
+      // A summary shrinks to its text, so it is measured against the disclosure that holds it.
+      const box = row.matches("summary") ? row.parentElement : row;
+      const bcs = getComputedStyle(box);
+      const r = box.getBoundingClientRect();
+      const left = r.left + parseFloat(bcs.borderLeftWidth) + parseFloat(bcs.paddingLeft);
+      const avail = box.clientWidth - parseFloat(bcs.paddingLeft) - parseFloat(bcs.paddingRight);
+      const right = left + avail;
+      const kids = [...row.children].filter((k) => getComputedStyle(k).display !== "none" && k.getBoundingClientRect().width > 0);
+      const isFlex = cs.display.includes("flex");
+      let used;
+      if (row.matches("summary")) {
+        used = textW(row) + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      } else if (isFlex) {
+        const gap = parseFloat(cs.columnGap) || 0;
+        used = kids.reduce((w, k) => {
+          const lbl = k.matches(".yui-row__main, .yui-cue__label") ? k.querySelector(".yui-row__label, .yui-input-row__label, .yui-cue__name") : null;
+          const kw = lbl ? textW(lbl) + (k.matches(".yui-cue__label") ? 16 : 0) : k.matches(".mock-fold__aside, span:not([class])") ? textW(k) : k.getBoundingClientRect().width;
+          return w + kw;
+        }, 0) + gap * Math.max(0, kids.length - 1);
+      } else {
+        used = Math.max(0, ...kids.map((k) => k.getBoundingClientRect().width));
+      }
+      // Wrapped: a child starts below the first child's box (align-items: center keeps a short control inside it).
+      const firstBottom = kids.length ? kids[0].getBoundingClientRect().bottom : 0;
+      const wrappedRow = kids.slice(1).some((k) => k.getBoundingClientRect().top >= firstBottom - 1);
+      const past = kids.some((k) => k.getBoundingClientRect().right > right + 0.5) || row.scrollWidth > row.clientWidth + 0.5;
+      const clipped = [...row.querySelectorAll(".yui-row__label, .yui-input-row__label, .yui-seg__btn, .yui-cue__name")].some((n) => n.scrollWidth > n.clientWidth + 0.5);
+      const segOver = [...row.querySelectorAll(".yui-seg")].some((s) => s.scrollWidth > s.clientWidth + 0.5);
+      const g = groups.get(type) || { n: 0, used: 0, avail: avail, wrapped: 0, bad: 0 };
+      g.n++; g.used = Math.max(g.used, used); g.avail = Math.min(g.avail, avail);
+      if (isFlex && wrappedRow) g.wrapped++;
+      if (past || clipped || segOver) g.bad++;
+      groups.set(type, g);
+    }
+    // Plain words: none of these may appear in After's visible text.
+    const banned = [];
+    for (const win of document.querySelectorAll('.win:not([data-frame="before"])')) {
+      const m = win.innerText.match(/\b(pacer|tiers?|cues?|gaps?)\b/gi);
+      if (m) banned.push(...m);
+    }
+    for (const undo of restore) undo();
+    out.replaceChildren();
+    const lines = [`[proactive] theme=${theme}`];
+    for (const [type, g] of groups) {
+      const line = `${type} (${g.n}): ${g.used.toFixed(1)} / ${g.avail.toFixed(1)}px${g.wrapped ? `, ${g.wrapped} wrapped` : ""}`;
+      lines.push(`[proactive] ${line}${g.bad ? ` OVERFLOW ${g.bad}` : ""}`);
+      const li = document.createElement("li"); li.textContent = line + (g.bad ? ` overflow ${g.bad}` : ""); if (g.bad) li.className = "bad"; out.append(li);
+    }
+    const bl = `After text check (pacer, tier, cue, gap): ${banned.length ? banned.join(", ") : "none"}`;
+    lines.push(`[proactive] ${bl}`);
+    const li = document.createElement("li"); li.textContent = bl; if (banned.length) li.className = "bad"; out.append(li);
+    document.documentElement.dataset.measured = lines.join(" | ");
+  }
+
+  function setSeg(id, v) { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v)); }
+  function setTheme(v) {
+    setSeg("segTheme", v);
+    if (v === "hearth") document.documentElement.setAttribute("data-theme", "hearth"); else document.documentElement.removeAttribute("data-theme");
+    requestAnimationFrame(measure);
+  }
+  $("segTheme").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setTheme(b.dataset.v); });
+
+  // ?theme=hearth opens the mock in Hearth (used for headless screenshots).
+  const q = new URLSearchParams(location.search);
+  render();
+  if (q.get("theme") === "hearth") setTheme("hearth");
+  document.fonts && document.fonts.ready.then(measure);
+})();
+</script>
+</body>
+</html>
