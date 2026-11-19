@@ -283,6 +283,19 @@ describe("createQuickCard", () => {
     expect(document.activeElement).toBe(q(".yui-qcard__reset"));
   });
 
+  it("reopens on Reset…, not on the confirm it was closed over", () => {
+    const { card, q } = build();
+    act(() => card.open());
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__reset"));
+    expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(false);
+
+    act(() => card.close());
+    act(() => card.open());
+
+    expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
+    expect(q<HTMLElement>(".yui-qcard__reset").hidden).toBe(false);
+  });
+
   it("names no voice None when the voice list is empty", () => {
     const { card } = build({ voice: picker([]) });
     act(() => card.open());
