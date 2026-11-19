@@ -8,8 +8,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type Card, EMPTY_CARD } from "../../../../config/validators/persona/types";
-import type { Span } from "../../../../settings/active-hours/spans";
 import { createLogger } from "../../../../logger";
+import type { Span } from "../../../../settings/active-hours/spans";
 import { setLocale } from "../../../i18n";
 import { type CardIoPorts, createCardIo } from "./card-io";
 import { cardSectionHtml } from "./card-section";
@@ -31,6 +31,7 @@ function mount(importDroppedPreset: CardIoPorts["importDroppedPreset"]) {
     currentCard: () => EMPTY_CARD,
     entry: () => ({ id: "abcd1234", name: "Mio" }),
     fillerPools: () => ({}),
+    activeHoursSpans: () => null,
     noticeStorage: { getItem: () => null, removeItem: () => {} },
     log: createLogger("card-io"),
   });
@@ -90,7 +91,7 @@ describe("createCardIo — export", () => {
         importBusy: { isBusy: () => false, subscribe: () => () => {} },
         exportPresetFile: vi.fn(async (req: { cardJson: string }) => {
           cardJson = req.cardJson;
-          return "written" as const;
+          return { vrmIncluded: true, bytes: 1 };
         }),
         exportCardPng: vi.fn(async () => "cancelled" as const),
       },

@@ -119,16 +119,19 @@ export function numRowHtml(opts: {
   max: number;
   suffixKey?: string;
   hintKey?: string;
+  /** A second hint line under the first; the pacer gap's active-hours note alone uses it. */
+  hint2Key?: string;
 }): string {
-  const { id, labelKey, subKey, min, max, suffixKey, hintKey } = opts;
+  const { id, labelKey, subKey, min, max, suffixKey, hintKey, hint2Key } = opts;
   const subHtml = subKey ? `<span class="yui-input-row__sub">${t(subKey)}</span>` : "";
   const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
   const hintHtml = hintKey ? `<span class="yui-row__sub">${t(hintKey)}</span>` : "";
+  const hint2Html = hint2Key ? `<span class="yui-row__sub">${t(hint2Key)}</span>` : "";
   return `
           <div class="yui-row">
             <div class="yui-row__main">
               <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
-              ${subHtml}${hintHtml}
+              ${subHtml}${hintHtml}${hint2Html}
             </div>
             <div class="yui-num">
               <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" data-digits="${String(max).length}" />

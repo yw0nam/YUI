@@ -13,14 +13,14 @@ import {
   EMPTY_CARD,
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
+import { createLogger } from "../../../../logger";
 import {
-  createActiveHoursSettings,
   type ActiveHoursSettingsStore,
+  createActiveHoursSettings,
 } from "../../../../settings/active-hours/active-hours-settings";
 import type { Span } from "../../../../settings/active-hours/spans";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { PersistedStorage } from "../../../../settings/persisted-store";
-import { createLogger } from "../../../../logger";
 import { setLocale } from "../../../i18n";
 import { activeHoursSectionHtml, createActiveHoursSection } from "./active-hours-section";
 
@@ -52,7 +52,11 @@ function memoryStorage<T>(): PersistedStorage<T> {
   };
 }
 
-function build(): { host: HTMLElement; store: ActiveHoursSettingsStore; section: { dispose(): void } } {
+function build(): {
+  host: HTMLElement;
+  store: ActiveHoursSettingsStore;
+  section: { dispose(): void };
+} {
   const store = createActiveHoursSettings({ storage: memoryStorage() });
   const agentSettings = createAgentSettings({ storage: memoryStorage() });
   const host = document.createElement("div");

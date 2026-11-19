@@ -456,7 +456,9 @@ describe("createQuickControls — Reactions tab layout", () => {
     const qc = buildQc({ pacerGapSettings: inMemoryPacerGapStore() });
     qc.open();
     const row = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!.closest(".yui-row")!;
-    const subs = [...row.querySelectorAll<HTMLElement>(".yui-row__sub")].map((el) => el.textContent);
+    const subs = [...row.querySelectorAll<HTMLElement>(".yui-row__sub")].map(
+      (el) => el.textContent,
+    );
     expect(subs).toContain(
       "Each character's active hours scale this wait and the quiet-for-a-while reactions.",
     );

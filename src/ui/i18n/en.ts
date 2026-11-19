@@ -283,6 +283,22 @@ const en: Record<string, string> = {
   "reasoning.low": "Low",
   "reasoning.medium": "Medium",
 
+  // active hours
+  "active_hours.label": "Active hours",
+  "active_hours.note": "How often she speaks up first at each time of day.",
+  "active_hours.pace_high": "More",
+  "active_hours.pace_normal": "Normal",
+  "active_hours.pace_low": "Less",
+  "active_hours.pace_off": "Off",
+  "active_hours.foot":
+    "More: about twice as often when you're idle. Less: about a third as often. Off: she only replies. Unset hours are Normal.",
+  "active_hours.add": "Add time span",
+  "active_hours.next_day": "next day",
+  "active_hours.start_aria": "Start time",
+  "active_hours.end_aria": "End time",
+  "active_hours.pace_aria": "Pace",
+  "active_hours.remove_aria": "Remove time span",
+
   // card
   "card.label": "Card",
   "card.help_aria": "About cards",
@@ -761,6 +777,8 @@ const en: Record<string, string> = {
   "reactions.pacer_gap_label": "Proactive gap",
   "reactions.pacer_gap_sub": "Minimum quiet gap after any turn before YUI speaks up on her own",
   "reactions.pacer_gap_hint": "0 lets every source speak up without waiting.",
+  "reactions.pacer_gap_hours_hint":
+    "Each character's active hours scale this wait and the quiet-for-a-while reactions.",
   "reactions.minutes_suffix": "min",
   "reactions.rate_title": "Limits",
   "reactions.rate_hint":
