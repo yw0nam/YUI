@@ -50,4 +50,6 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 
 References are Linux-only: `__screenshots__/<test file>/<name>-webkit-linux.png` beside each test. Fonts and anti-aliasing differ by platform, so a `-darwin.png` made by a local run is gitignored and never committed. A mismatch beyond 1% of pixels fails the `vrt` CI job, which uploads the actual and diff images as the `vrt-attachments` artifact.
 
-To refresh the references, run the `Refresh VRT references` workflow from the Actions tab, download its `vrt-references` artifact, extract it into `src/`, review the images, and commit them. A surface with no reference fails the `vrt` job and leaves its new image in that job's `vrt-references` artifact, to extract and commit the same way.
+To refresh the references, run the `Refresh VRT references` workflow from the Actions tab, download its `vrt-references` artifact, run `tar -xzf vrt-references.tgz` at the repo root, review the images, and commit them.
+
+A surface with no reference fails the `vrt` job. Its new image is in that job's `vrt-attachments` artifact as `<name>-reference-webkit-linux.png`; to adopt it, drop `-reference` and place it under `__screenshots__/<test file>/`.
