@@ -10,7 +10,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["src/**/*.test.ts", "tests/**/*.test.ts", "docs/landing/**/*.test.ts"],
+          include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.ts", "docs/landing/**/*.test.ts"],
           exclude: [...configDefaults.exclude, "src/**/*.vrt.test.ts"],
           mockReset: true,
         },

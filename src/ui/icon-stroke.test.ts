@@ -13,7 +13,7 @@ describe("icon stroke widths", () => {
     const failures: string[] = [];
     let attrs = 0;
     for (const entry of readdirSync(SRC, { recursive: true, withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
+      if (!entry.isFile() || !/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name))
         continue;
       const file = `${entry.parentPath}/${entry.name}`;
       for (const [, value] of readFileSync(file, "utf8").matchAll(STROKE_ATTR)) {

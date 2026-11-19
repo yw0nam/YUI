@@ -13,7 +13,7 @@ function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const path = join(dir, e.name);
     if (e.isDirectory()) return sourceFiles(path);
-    return /\.ts$/.test(e.name) && !/\.test\.ts$/.test(e.name) ? [path] : [];
+    return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [path] : [];
   });
 }
 
