@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { findInlineStyleWrites } from "../../scripts/ci/style-attributes.mjs";
 
 describe("style-attributes check", () => {
@@ -29,5 +33,25 @@ describe("style-attributes check", () => {
     "const style = { color: 'red' };",
   ])("passes %s", (text) => {
     expect(findInlineStyleWrites(text)).toEqual([]);
+  });
+});
+
+describe("style-attributes check on root pages", () => {
+  const script = resolve("scripts/ci/style-attributes.mjs");
+  let root = "";
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  // The check reads `src/` and `*.html` from its working directory.
+  const run = (pages: Record<string, string>) => {
+    root = mkdtempSync(join(tmpdir(), "style-attrs-"));
+    mkdirSync(join(root, "src"));
+    for (const [name, html] of Object.entries(pages)) writeFileSync(join(root, name), html);
+    return spawnSync("node", [script], { cwd: root, encoding: "utf8" });
+  };
+
+  it("fails and lists a root page with an inline style element", () => {
+    const res = run({ "page.html": "<head>\n<style>\nbody {}\n</style>\n</head>" });
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("page.html:2: <style");
   });
 });
