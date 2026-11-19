@@ -3888,6 +3888,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
+      "id": "active-hours-edit",
+      "from": "ui/quick-controls",
+      "to": "settings",
+      "carries": "the Persona page's Active hours rows → activeHoursSettings.setSpans(the whole row list) on any edit, add or remove; Reset to default → reset() (null, the card's spans apply); the pet window of that preset reads it over the broadcast",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/quick-controls.ts"
+    },
+    {
       "id": "active-hours-card-export",
       "from": "settings",
       "to": "ui/quick-controls",
