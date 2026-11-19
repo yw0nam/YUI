@@ -56,6 +56,10 @@ A preset file is one `.yui` file holding the card, the photo with its framing, t
 
 The client replaces these three and leaves any other `{{…}}` text as written.
 
+## Active hours
+
+The card's `extensions.yui.active_hours` carries the character's spans. An exported card imports back with them. The Persona page edits the spans per character.
+
 ## Tips
 
 - A preset starts on the default card, Yui in the UI language, and follows a language change. Editing a field gives it its own card. That card stays as you wrote it. Only YUI's framing sentence and the `{{user}}` fallback follow the language.

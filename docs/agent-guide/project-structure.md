@@ -42,6 +42,8 @@ YUI/
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       csp-violation.ts               # Logs every Content-Security-Policy violation the window reports
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
+      active-hours/                  # One pet window's active hours: the pacer gap and idle cue scale, and the window's do-not-disturb
+        window-active-hours.ts       # Scales the gap and idle cue minutes by the current span's pace; holds do-not-disturb during an off span
       card-io/                       # The card's file steps bound to a preset registry
         import-preset.ts             # The import a card section runs: native file step, copied voice registration, VRM list entry, preset creation, and rollback
         wire-card-io.ts              # The card's import, export, thumbnail, photo pick, and preset creation ports
@@ -344,6 +346,10 @@ YUI/
         proactive-seeds.ts           # Per-locale default proactive cues seeded on a first run
         schedule-settings.ts         # Clock-time schedule cue list and its on/off flag
         schedule-seeds.ts            # Per-locale default schedule cues seeded on a first run
+      active-hours/                  # Each character's active-hours spans and the card's spans they fall back to
+        spans.ts                     # Span and pace rules: the four paces, their gap factors, and which span holds a minute
+        card-active-hours.ts         # The card's extensions.yui.active_hours, the spans in use, and the export transform
+        active-hours-settings.ts     # The per-character store of edited spans under yui.active-hours
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
@@ -771,6 +777,9 @@ YUI/
             appearance-section.ts    # The Appearance page's theme segment and the click that writes it
           help/                      # Help section of the General page
             help-section.ts          # One Ask button per bundled guide
+          active-hours/              # The Persona page's active hours section
+            active-hours-section.ts  # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
+            active-hours-section.css # Span row styles
           card/                      # The Persona page's card section
             card-io.ts               # The card section's action row: click dispatch, import, PNG and preset file exports, the picture gate, the status lines and the import notice
             card-section.ts          # The card fields, send switch, reset, and greeting list; wires the action row and the export panel

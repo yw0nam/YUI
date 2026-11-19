@@ -65,6 +65,7 @@ The backend can pick all 10 emotions and 8 of the motions. Each emotion has a fa
 | Screen watch | App switches after 10 minutes, and every 45 minutes in one app; off by default |
 | First activity of the day | A cue on your first activity of the day |
 | Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute quiet gap |
+| Active hours | Per-character time spans that make her speak up first more or less often, or not at all |
 | Loopback ingress | A local listener for hooks, signals, and avatar RPC; off by default |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
 | Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/skills/yui-daily-briefing/SKILL.md)) |

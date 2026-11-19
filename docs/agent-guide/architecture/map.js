@@ -686,7 +686,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, each preset's edited active-hours spans live in its yui.active-hours key (null while the card's spans apply),the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -1308,7 +1308,7 @@ globalThis.YUI_MAP =
       "id": "app/active-hours",
       "module": "wiring",
       "label": "active hours",
-      "role": "One handle per pet window: scales the device-wide proactive gap by the pace of the character's current active-hours span, and holds the window's self-fired triggers like do-not-disturb during an off span, recomputing on every input change and at each minute boundary.",
+      "role": "One handle per pet window: the pacer gap is the device-wide proactive gap times the pace of the character's current span (More halves it, Less triples it), the idle cues' minutes take the same factor, and the window's do-not-disturb is on while the device switch is on or an Off span holds; the spans come from the character's active-hours store, else her card, and the handle recomputes on each input change and each minute boundary.",
       "paths": [
         "src/app/active-hours"
       ]
@@ -1445,7 +1445,7 @@ globalThis.YUI_MAP =
       "id": "app/dnd",
       "module": "wiring",
       "label": "do-not-disturb wiring",
-      "role": "Keeps the tray's Do Not Disturb check in step with the do-not-disturb store and writes the store when the tray item is clicked, in main only; marks the window root of every pet window while do-not-disturb is on.",
+      "role": "Keeps the tray's Do Not Disturb check in step with the do-not-disturb store and writes the store when the tray item is clicked, in main only; marks the window root of every pet window while that window's do-not-disturb is on.",
       "paths": [
         "src/app/dnd"
       ]
@@ -2875,7 +2875,7 @@ globalThis.YUI_MAP =
       "id": "settings-idle-tick",
       "from": "settings",
       "to": "dispatcher/sources/idle-tick",
-      "carries": "cue lists, presence threshold, screen-watch thresholds, and the do-not-disturb switch as the schedule source's hold (isHeld)",
+      "carries": "cue lists, presence threshold, and screen-watch thresholds",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -2954,34 +2954,34 @@ globalThis.YUI_MAP =
     },
     {
       "id": "settings-dnd-gate",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "dispatcher",
-      "carries": "isDndOn: the do-not-disturb store, read per envelope; a held self-fired envelope is dropped with reason dnd, and queued or lock-waiting ones too when it turns on",
+      "carries": "isDndOn: the pet window's do-not-disturb (the device switch, or an off span now), read per envelope; a held self-fired envelope is dropped with reason dnd, and queued or lock-waiting ones too when it turns on",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {
       "id": "settings-dnd-inbox",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "dispatcher/sources/inbox",
-      "carries": "dndSettings as a hold in composePacedPipelineBusy for both inbox instances: busy while on, so its end flushes the catch-up",
+      "carries": "dnd as a hold in composePacedPipelineBusy for both inbox instances: busy while on, so its end flushes the catch-up",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
       "id": "settings-dnd-reaction",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "ambient/threads-reaction",
-      "carries": "isDndOn: the do-not-disturb store, read when a count or wait reaction is due, mid-run and when it stops; a tap does not read it",
+      "carries": "isDndOn: the pet window's do-not-disturb, read when a count or wait reaction is due, mid-run and when it stops; a tap does not read it",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
     },
     {
       "id": "settings-dnd-pill",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "ui/chips",
       "carries": "dnd get and subscribe → the status pill's moon segment while on",
       "kind": "callback",
@@ -3017,18 +3017,18 @@ globalThis.YUI_MAP =
     },
     {
       "id": "settings-dnd-root",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "ui/chips",
-      "carries": "the do-not-disturb store → data-yui-dnd on every pet window's root, which stops the urgent signal chip's dot pulse",
+      "carries": "the pet window's do-not-disturb → data-yui-dnd on its own root, which stops the urgent signal chip's dot pulse",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/dnd/wire-dnd-root.ts"
     },
     {
       "id": "settings-dnd-threads-chip",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "ui/threads",
-      "carries": "isDndOn: the do-not-disturb store, read when a Thread arrives; an arrival during it does not wiggle the Threads chip",
+      "carries": "isDndOn: the pet window's do-not-disturb, read when a Thread arrives; an arrival during it does not wiggle the Threads chip",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -3185,9 +3185,9 @@ globalThis.YUI_MAP =
     },
     {
       "id": "settings-dnd-fall",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "ambient/locomotion",
-      "carries": "isDndOn: the do-not-disturb store, read when a fall's dropped cue is due; a fall she started herself then pushes no dropped cue, a drag-release fall still does",
+      "carries": "isDndOn: the pet window's do-not-disturb, read when a fall's dropped cue is due; a fall she started herself then pushes no dropped cue, a drag-release fall still does",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-locomotion.ts"
@@ -3853,12 +3853,48 @@ globalThis.YUI_MAP =
     },
     {
       "id": "settings-pacer",
-      "from": "settings",
+      "from": "app/active-hours",
       "to": "dispatcher/core",
-      "carries": "pacer gap → pacer.noteIntervalChanged()",
+      "carries": "gapMs() as the pacer's interval, the gap store × the current span's pace factor; subscribeGap → pacer.noteIntervalChanged()",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "settings-active-hours",
+      "from": "settings",
+      "to": "app/active-hours",
+      "carries": "activeHoursSettings spans, agentSettings card (null means the UI language's default), the pacer gap store and the device-wide do-not-disturb store: each change, and each minute, recomputes the handle",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "config-active-hours",
+      "from": "config",
+      "to": "app/active-hours",
+      "carries": "setPersona(config.persona): the default card of each UI language, read while the agent card is null",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "active-hours-idle-tick",
+      "from": "app/active-hours",
+      "to": "dispatcher/sources/idle-tick",
+      "carries": "paceFactor(): multiplies each proactive cue's idle_min on every getCues() call; dnd as the schedule source's hold (isHeld)",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "active-hours-card-export",
+      "from": "settings",
+      "to": "ui/quick-controls",
+      "carries": "activeHoursSettings spans → the card export's extensions.yui.active_hours (extensionsWithActiveHours; null keeps the card's own key)",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/sections/card/card-section.ts"
     },
     {
       "id": "settings-turn-gate",
@@ -5539,8 +5575,8 @@ globalThis.YUI_MAP =
           ]
         },
         {
-          "from": "settings",
-          "label": "do-not-disturb on: the gate drops self-fired envelopes before the pacer",
+          "from": "wiring",
+          "label": "the pet window's do-not-disturb on (device switch or off span): the gate drops self-fired envelopes before the pacer",
           "edges": [
             "settings-dnd-gate"
           ],
@@ -5619,9 +5655,24 @@ globalThis.YUI_MAP =
         },
         {
           "from": "settings",
-          "label": "subscribed: guardrail caps, pacer gap",
+          "label": "subscribed: guardrail caps",
           "edges": [
-            "settings-guardrails",
+            "settings-guardrails"
+          ],
+          "to": "dispatcher"
+        },
+        {
+          "from": "settings",
+          "label": "subscribed: active-hours spans, card and pacer gap recompute each pet window's active hours",
+          "edges": [
+            "settings-active-hours"
+          ],
+          "to": "wiring"
+        },
+        {
+          "from": "wiring",
+          "label": "subscribed: pacer gap",
+          "edges": [
             "settings-pacer"
           ],
           "to": "dispatcher"
