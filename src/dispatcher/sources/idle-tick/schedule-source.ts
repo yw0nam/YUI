@@ -32,7 +32,7 @@ interface ScheduleSourceDeps {
   getCues: () => ScheduledCue[];
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
-  /** Do-not-disturb: a held cue is not latched, so it fires on the first tick after the hold inside its window. */
+  /** Do-not-disturb or the proactive gap: a held cue is not latched, so it fires on the first tick after the hold inside its window. */
   isHeld?: () => boolean;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;

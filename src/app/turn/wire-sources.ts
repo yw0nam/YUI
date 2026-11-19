@@ -124,7 +124,7 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     getCues: () => scheduleSettings.get().entries,
     isEnabled: () => scheduleSettings.get().enabled,
-    isHeld: () => dnd.get().enabled,
+    isHeld: () => dnd.get().enabled || pacer.isHolding(),
   });
   void scheduleSource.start();
   const signalsSource = createSignalsSource({

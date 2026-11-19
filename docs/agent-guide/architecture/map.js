@@ -3070,6 +3070,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
+      "id": "pacer-schedule-hold",
+      "from": "dispatcher/core",
+      "to": "dispatcher/sources/idle-tick",
+      "carries": "pacer.isHolding as the schedule source's hold (isHeld), beside do-not-disturb: a cue due inside the gap is not latched and fires on the first tick after it opens, inside its window",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
       "id": "busy-inbox-urgent",
       "from": "dispatcher/core",
       "to": "dispatcher/sources/inbox",
