@@ -336,7 +336,7 @@
       }
     },
     {
-      "includes": ["src/**/*.test.ts", "src/**/*test-helpers*.ts"],
+      "includes": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*test-helpers*.ts"],
       "linter": {
         "rules": {
           "style": {
