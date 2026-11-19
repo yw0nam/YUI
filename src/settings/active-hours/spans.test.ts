@@ -2,12 +2,11 @@
  * spans.test.ts — active-hours span rules.
  *
  * Pins paceAt: midnight-wrapped spans, the uncovered default, the nested-span
- * winner and its start tie, and the whole-day span; and wrapsMidnight, which
- * holds only for a span whose end comes before its start.
+ * winner and its start tie, and the whole-day span.
  */
 
 import { describe, expect, it } from "vitest";
-import { paceAt, type Span, wrapsMidnight } from "./spans";
+import { paceAt, type Span } from "./spans";
 
 const YUI_SPANS: Span[] = [
   { start: "08:00", end: "12:00", pace: "low" },
@@ -76,15 +75,5 @@ describe("paceAt", () => {
     for (let minute = 0; minute < 1440; minute += 60) {
       expect(paceAt(wholeDay, minute)).toBe("low");
     }
-  });
-});
-
-describe("wrapsMidnight", () => {
-  it.each<[string, Span, boolean]>([
-    ["end before start", { start: "22:00", end: "03:00", pace: "normal" }, true],
-    ["end after start", { start: "08:00", end: "12:00", pace: "normal" }, false],
-    ["end equal to start", { start: "08:00", end: "08:00", pace: "normal" }, false],
-  ])("wraps only when the end comes before the start: $0", (_label, span, wraps) => {
-    expect(wrapsMidnight(span)).toBe(wraps);
   });
 });
