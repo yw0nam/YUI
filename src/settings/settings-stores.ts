@@ -3,6 +3,10 @@ import {
   localStorageActiveHoursStorage,
 } from "./active-hours/active-hours-settings";
 import {
+  createBasePaceSettings,
+  localStorageBasePaceStorage,
+} from "./active-hours/base-pace-settings";
+import {
   createTextSizeSettings,
   localStorageTextSizeStorage,
 } from "./appearance/text-size-settings";
@@ -164,6 +168,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const activeHoursSettings = createActiveHoursSettings({
     storage: localStorageActiveHoursStorage(),
   });
+  // Device-wide base pace: multiplies each pet window's span pace.
+  const basePaceSettings = createBasePaceSettings({
+    storage: localStorageBasePaceStorage(),
+  });
   // Device-wide reading dictionary: rewrites the text sent to the TTS service, never the bubble.
   const readingsSettings = createReadingsSettings({ storage: localStorageReadingsStorage() });
   // Speech bubble persistence: when on, speech holds until dismissed instead of fading after dwell. Default OFF.
@@ -242,6 +250,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     textSizeSettings,
     fillerSettings,
     activeHoursSettings,
+    basePaceSettings,
     readingsSettings,
     bubblePersistSettings,
     messageWindowSettings,
@@ -300,6 +309,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
   activeHoursSettings: "broadcast",
+  basePaceSettings: "broadcast",
   readingsSettings: "broadcast",
   bubblePersistSettings: "broadcast",
   messageWindowSettings: "broadcast",

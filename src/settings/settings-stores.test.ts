@@ -45,6 +45,7 @@ describe("createSettingsStores", () => {
       "textSizeSettings",
       "fillerSettings",
       "activeHoursSettings",
+      "basePaceSettings",
       "readingsSettings",
       "bubblePersistSettings",
       "messageWindowSettings",

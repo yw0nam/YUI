@@ -6,7 +6,7 @@
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
-import type { Pace } from "./spans";
+import { PACES, type Pace } from "./spans";
 
 /** The paces a base pace may hold: a span pace without off. */
 export type BasePace = Exclude<Pace, "off">;
@@ -21,8 +21,16 @@ export function createBasePaceSettings(opts?: { storage?: BasePaceStorage }) {
   const core = createPersistedStore<BasePaceSettings>({
     storage: opts?.storage,
     defaults: { pace: "normal" },
-    parse: (v) =>
-      v !== null && typeof v === "object" && !Array.isArray(v) ? (v as BasePaceSettings) : null,
+    // The stored JSON is the value shape: pace must be a span pace without off.
+    parse: (v) => {
+      if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
+      const pace = (v as { pace?: unknown }).pace;
+      return typeof pace === "string" &&
+        pace !== "off" &&
+        (PACES as readonly string[]).includes(pace)
+        ? { pace: pace as BasePace }
+        : null;
+    },
     equals: (a, b) => a.pace === b.pace,
   });
 

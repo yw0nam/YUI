@@ -24,6 +24,7 @@ import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
 import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
+import { createBasePaceSettings } from "../../settings/active-hours/base-pace-settings";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
 import { createPacerGapStore } from "../../settings/settings-stores";
@@ -88,6 +89,7 @@ describe("wireDispatcher", () => {
     const activeHoursGapSettings = createPacerGapStore(memoryStorage());
     const activeHours = createWindowActiveHours({
       activeHoursSettings,
+      basePaceSettings: createBasePaceSettings({ storage: memoryStorage() }),
       agentSettings: createAgentSettings({ storage: memoryStorage() }),
       pacerGapSettings: activeHoursGapSettings,
       dndSettings,

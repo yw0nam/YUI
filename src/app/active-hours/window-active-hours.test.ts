@@ -11,7 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validatePersona } from "../../config/validators/persona/persona";
 import type { PersonaConfig } from "../../config/validators/persona/types";
 import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
-import { createBasePaceSettings, type BasePace } from "../../settings/active-hours/base-pace-settings";
+import {
+  type BasePace,
+  createBasePaceSettings,
+} from "../../settings/active-hours/base-pace-settings";
 import type { Span } from "../../settings/active-hours/spans";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
@@ -54,7 +57,14 @@ function build(opts: { spans?: Span[]; dnd?: boolean; gapMs?: number; base?: Bas
   });
   handle.setPersona(PERSONA);
   handles.push(handle);
-  return { handle, activeHoursSettings, basePaceSettings, agentSettings, pacerGapSettings, dndSettings };
+  return {
+    handle,
+    activeHoursSettings,
+    basePaceSettings,
+    agentSettings,
+    pacerGapSettings,
+    dndSettings,
+  };
 }
 
 beforeEach(() => {

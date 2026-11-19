@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { PersistedStorage } from "../persisted-store";
-import { createBasePaceSettings, type BasePaceSettings } from "./base-pace-settings";
+import { type BasePaceSettings, createBasePaceSettings } from "./base-pace-settings";
 
 function inMemoryStorage(
   initial: unknown = null,
@@ -22,11 +22,11 @@ function inMemoryStorage(
 }
 
 describe("createBasePaceSettings", () => {
-  it.each([["off"], ["nope"]] as const)(
-    "an invalid stored pace %s loads as the normal default",
-    (pace) => {
-      const store = createBasePaceSettings({ storage: inMemoryStorage({ pace }) });
-      expect(store.get()).toEqual({ pace: "normal" });
-    },
-  );
+  it.each([
+    ["off"],
+    ["nope"],
+  ] as const)("an invalid stored pace %s loads as the normal default", (pace) => {
+    const store = createBasePaceSettings({ storage: inMemoryStorage({ pace }) });
+    expect(store.get()).toEqual({ pace: "normal" });
+  });
 });
