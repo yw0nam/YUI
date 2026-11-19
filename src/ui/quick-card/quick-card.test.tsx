@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { within } from "@solidjs/testing-library";
+import { flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
@@ -9,7 +11,7 @@ import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
 import { createSwitchRows } from "../quick-controls/switch-row";
-import { createQuickCard } from "./quick-card";
+import { createQuickCard, type QuickCard } from "./quick-card";
 
 vi.mock("./quick-card.css", () => ({}));
 vi.mock("../unified/avatar.css", () => ({}));
@@ -96,11 +98,13 @@ function build(over: Record<string, unknown> = {}) {
     ...over,
   };
   const card = createQuickCard(deps as Parameters<typeof createQuickCard>[0]);
+  cards.push(card);
   const q = <T extends Element>(selector: string) => card.el.querySelector<T>(selector)!;
   const tile = (n: number) => card.el.querySelectorAll<HTMLButtonElement>(".yui-qcard__tile")[n]!;
   const setTransport = (next: typeof transport) => {
     transport = next;
     for (const cb of transportSubs) cb();
+    flush();
   };
   return {
     card,
@@ -116,8 +120,10 @@ function build(over: Record<string, unknown> = {}) {
   };
 }
 
+const cards: QuickCard[] = [];
 beforeEach(() => setLocale("en"));
 afterEach(() => {
+  for (const card of cards.splice(0)) card.dispose();
   document.body.innerHTML = "";
 });
 
@@ -143,6 +149,7 @@ describe("createQuickCard", () => {
     expect(deps.listen.set).toHaveBeenCalledWith(true);
     bubblePersistSettings.setEnabled(true);
     unifiedChatSwitch.setEnabled(true);
+    flush();
     expect([0, 1, 2, 3].map((n) => tile(n).getAttribute("aria-checked"))).toEqual([
       "false",
       "true",
@@ -151,14 +158,15 @@ describe("createQuickCard", () => {
     ]);
   });
 
-  it("rebuilds in the new language when the display language changes, an open card keeping focus", () => {
+  it("shows the new language when the display language changes, an open card keeping focus", () => {
     const { card, tile } = build();
     card.open();
     tile(0).focus();
 
     setLocale("ko");
+    flush();
 
-    // An open card rebuilds in place; the window around it stays, and so does Escape.
+    // An open card updates in place; the window around it stays, and so does Escape.
     expect(card.isOpen()).toBe(true);
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("음성");
     expect(card.el.contains(document.activeElement)).toBe(true);
@@ -181,18 +189,20 @@ describe("createQuickCard", () => {
       "yui-qcard__all",
     ]);
     const quiet = q<HTMLElement>(".yui-qcard__quiet");
-    const sw = quiet.querySelector<HTMLButtonElement>(".yui-switch")!;
+    const sw = within(quiet).getByRole("switch", { name: "Do not disturb" });
     expect(quiet.querySelector(".yui-qcard__quiet-title")!.textContent).toBe("Quiet");
     expect(quiet.querySelector(".yui-qcard__row")!.textContent).toBe("Do not disturb");
     expect(sw.getAttribute("role")).toBe("switch");
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
     sw.click();
+    flush();
     expect(dndSettings.get().enabled).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("true");
 
     // A change from another window repaints the switch.
     dndSettings.setEnabled(false);
+    flush();
     expect(sw.getAttribute("aria-checked")).toBe("false");
   });
 
@@ -245,14 +255,18 @@ describe("createQuickCard", () => {
     card.open();
 
     q<HTMLButtonElement>(".yui-qcard__reset").click();
+    flush();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(false);
     expect(q(".yui-qcard__confirm").textContent).toContain("Reset this conversation?");
     q<HTMLButtonElement>(".yui-qcard__cancel").click();
+    flush();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
     expect(deps.resetConversation).not.toHaveBeenCalled();
 
     q<HTMLButtonElement>(".yui-qcard__reset").click();
+    flush();
     q<HTMLButtonElement>(".yui-qcard__confirm-go").click();
+    flush();
     expect(deps.resetConversation).toHaveBeenCalledOnce();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
     // A reset is not one of the card's closes.
@@ -264,8 +278,10 @@ describe("createQuickCard", () => {
     card.open();
 
     q<HTMLButtonElement>(".yui-qcard__reset").click();
+    flush();
     expect(document.activeElement).toBe(q(".yui-qcard__cancel"));
     q<HTMLButtonElement>(".yui-qcard__cancel").click();
+    flush();
     expect(document.activeElement).toBe(q(".yui-qcard__reset"));
   });
 
@@ -365,6 +381,27 @@ describe("createQuickCard", () => {
     expect(h.card.isOpen()).toBe(false);
     expect(h.mount.contains(h.card.el)).toBe(false);
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it("paints her avatar in the head and swaps it when her entry changes", () => {
+    let entry: { id: string; name: string; thumbnail?: string } = { id: "yui", name: "Yui" };
+    const subs = new Set<() => void>();
+    const { card, q } = build({
+      entry: () => entry,
+      subscribeEntry: (cb: () => void) => {
+        subs.add(cb);
+        return () => subs.delete(cb);
+      },
+    });
+    card.open();
+    expect(q(".yui-qcard__face").firstElementChild!.className).toBe("yui-uc__dot");
+
+    entry = { id: "yui", name: "Yui", thumbnail: "file:///yui.png" };
+    for (const cb of subs) cb();
+    flush();
+
+    expect(q(".yui-qcard__face").firstElementChild!.className).toBe("yui-uc__avatar");
+    expect(q(".yui-qcard__face").children).toHaveLength(1);
   });
 
   it("selects no text on its head, the drag handle", () => {
