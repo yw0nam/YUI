@@ -8,15 +8,12 @@ import type { PersonaConfig } from "../../../../config/validators/persona/types"
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
 import { spansInUse } from "../../../../settings/active-hours/card-active-hours";
-import { PACES, type Pace, type Span } from "../../../../settings/active-hours/spans";
+import { PACES, type Pace, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 import { getLocale, t } from "../../../i18n";
 import { CROSS_SVG, PLUS_SVG } from "../../constants";
 import { secHeadHtml } from "../../markup";
 import "./active-hours-section.css";
-
-/** The same HH:MM shape the spans module stores; an empty or partial time input is not one. */
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function activeHoursSectionHtml(): string {
   return `

@@ -17,7 +17,8 @@ export interface Span {
   pace: Pace;
 }
 
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** The HH:MM 24-hour shape every span time and every active-hours time input holds. */
+export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function isSpan(v: unknown): v is Span {
   if (v === null || typeof v !== "object") return false;
@@ -45,7 +46,7 @@ function covers(s: Span, t: number): boolean {
   return start < end ? start <= t && t < end : start > end ? t >= start || t < end : true;
 }
 
-/** The pace at minute-of-day `t`: the covering span that starts shortest before it, the later one on a tie; normal uncovered. */
+/** The pace at `minute` (minute of day 0..1439): the covering span that starts shortest before it, the later one on a tie; normal uncovered. */
 export function paceAt(spans: readonly Span[], minute: number): Pace {
   let pace: Pace | undefined;
   let shortest = Number.POSITIVE_INFINITY;
