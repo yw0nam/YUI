@@ -1,6 +1,7 @@
 /** The quick-card window's placement and motion: docked beside her, following her, detached by a head drag, snapped back. */
 
 import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
+import { invokeCommand } from "../../io/tauri-commands/invoke-command";
 import { attachQuickCard, detachQuickCard } from "../../io/window/geometry/quick-card-link";
 import {
   clampQuickCard,
@@ -16,7 +17,6 @@ import {
   monitorAtLogical,
   toScreenMonitor,
 } from "../../io/window/geometry/screen-geometry";
-import { invokeDragWindow } from "../../io/window/pet/gesture/window-drag";
 import { createLogger } from "../../logger";
 import { isTauri } from "../../tauri-env";
 
@@ -203,7 +203,7 @@ export function wireQuickCardDock(deps: {
     // Unlinked first: a child window's drag would otherwise still answer to her moves.
     void (async () => {
       await detachQuickCard();
-      await invokeDragWindow();
+      await invokeCommand("drag_window");
     })().catch((error) => {
       dragArmed = false;
       log.warn("quick_card_drag_failed", { error: String(error) });

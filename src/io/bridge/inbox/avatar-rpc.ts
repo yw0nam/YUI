@@ -10,6 +10,7 @@
 import type { Posture } from "../../../contract";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
+import { invokeCommand } from "../../tauri-commands/invoke-command";
 import type { PerchTargets } from "../../window/geometry/perch";
 import { createInbox } from "./create-inbox";
 
@@ -70,12 +71,6 @@ type AvatarRpcInvoke = (
   args: { id: string; result: unknown },
 ) => Promise<unknown>;
 
-async function resolveInvoke(): Promise<AvatarRpcInvoke | undefined> {
-  if (!isTauri()) return undefined;
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke as unknown as AvatarRpcInvoke;
-}
-
 /**
  * Answer one bridged request by id. Never throws: an unanswered request simply
  * rides out its ingress deadline and becomes a 503.
@@ -86,12 +81,15 @@ export async function respondAvatarRpc(
   deps?: { invoke?: AvatarRpcInvoke },
 ): Promise<void> {
   try {
-    const invoke = deps?.invoke ?? (await resolveInvoke());
-    if (!invoke) {
+    if (deps?.invoke) {
+      await deps.invoke("avatar_rpc_response", { id, result });
+      return;
+    }
+    if (!isTauri()) {
       log.debug("invoke_unavailable", { degrade: true });
       return;
     }
-    await invoke("avatar_rpc_response", { id, result });
+    await invokeCommand("avatar_rpc_response", { id, result });
   } catch (err) {
     log.debug("respond_failed", { degrade: true, error: String(err) });
   }

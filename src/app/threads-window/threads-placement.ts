@@ -3,11 +3,11 @@
  * frame after that, moves by its head's native drag, and saves the frame once a user move settles.
  */
 
-import { invoke } from "@tauri-apps/api/core";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import type { ScreenRect } from "../../contract";
+import { invokeCommand } from "../../io/tauri-commands/invoke-command";
 import { type ScreenMonitor, toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import {
   chipInWindow,
@@ -16,7 +16,6 @@ import {
   THREADS_PANEL_INSET_PX,
   threadsWindowRect,
 } from "../../io/window/geometry/threads-position";
-import { invokeDragWindow } from "../../io/window/pet/gesture/window-drag";
 import { createLogger } from "../../logger";
 import type { ThreadsWindowSettingsStore } from "../../settings/threads/threads-window-settings";
 import { isTauri } from "../../tauri-env";
@@ -55,7 +54,7 @@ async function besidePet(panel: { width: number; height: number }): Promise<Scre
 }
 
 /** Orders the window front without key status or app activation, showing it when hidden. */
-const orderFront = (): Promise<void> => invoke("threads_order_front");
+const orderFront = (): Promise<void> => invokeCommand("threads_order_front");
 
 export function createThreadsPlacement(deps: {
   settings: Pick<ThreadsWindowSettingsStore, "get" | "setFrame">;
@@ -167,7 +166,7 @@ export function createThreadsPlacement(deps: {
     /** Starts the native drag; called from the head's pointerdown, while the button is held. */
     startDrag(): void {
       if (!isTauri()) return;
-      invokeDragWindow().catch((error) =>
+      invokeCommand("drag_window").catch((error) =>
         log.warn("threads_drag_failed", { error: String(error) }),
       );
     },

@@ -8,7 +8,7 @@
  */
 
 import type { AvatarOption } from "../../config/validators/avatar/types";
-import { loadInvoke } from "./user-asset-import";
+import { invokeCommand } from "../tauri-commands/invoke-command";
 import type { createVrmSelection } from "./vrm-selection";
 
 export interface VrmImportDeps {
@@ -57,6 +57,9 @@ export async function importVrmFromFile(
 
 /** Delete an imported VRM's file from app-data. Idempotent on the native side. */
 export async function removeUserVrm(id: string, deps?: VrmRemoveDeps): Promise<void> {
-  const d = deps ?? { invoke: await loadInvoke() };
-  await d.invoke("remove_user_vrm", { id });
+  if (deps) {
+    await deps.invoke("remove_user_vrm", { id });
+    return;
+  }
+  await invokeCommand("remove_user_vrm", { id });
 }

@@ -8,12 +8,12 @@
  * after a drag.
  */
 
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { createLogger } from "../../../../logger";
 import type { OrbitDelta } from "../../../../settings/avatar/camera-gestures";
 import { isTauri } from "../../../../tauri-env";
 import { exceedsPressTravel } from "../../../stage/press-travel";
+import { invokeCommand } from "../../../tauri-commands/invoke-command";
 import { attachClickGesture, type PatGesture } from "./click-gesture";
 import { attachOrbitGesture } from "./orbit-gesture";
 
@@ -28,14 +28,6 @@ export function wasWindowDragging(): boolean {
   if (!dragArmed) return false;
   dragArmed = false;
   return true;
-}
-
-/**
- * Invoke the Rust `drag_window` command to start an OS-native window drag.
- * Should be called from a primary-button `pointerdown` handler.
- */
-export async function invokeDragWindow(): Promise<void> {
-  return invoke("drag_window");
 }
 
 /**
@@ -143,7 +135,7 @@ export async function initDrag(
     // grab a button that is no longer held.
     if (ended) return;
     dragArmed = true;
-    invokeDragWindow().catch((err: unknown) => {
+    invokeCommand("drag_window").catch((err: unknown) => {
       dragArmed = false;
       log.warn("drag_window_invoke_failed", { error: String(err) });
     });

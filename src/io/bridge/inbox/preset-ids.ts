@@ -1,5 +1,7 @@
 /** Synchronizes the preset ids main exposes to the loopback ingress. */
+
 import { isTauri } from "../../../tauri-env";
+import { invokeCommand } from "../../tauri-commands/invoke-command";
 
 type PresetInvoke = (command: "sync_preset_ids", args: { ids: string[] }) => Promise<unknown>;
 
@@ -8,9 +10,12 @@ export async function syncPresetIds(
   deps?: { invoke?: PresetInvoke },
 ): Promise<string | null> {
   try {
-    if (!deps?.invoke && !isTauri()) return null;
-    const invoke = deps?.invoke ?? (await import("@tauri-apps/api/core")).invoke;
-    await invoke("sync_preset_ids", { ids });
+    if (deps?.invoke) {
+      await deps.invoke("sync_preset_ids", { ids });
+      return null;
+    }
+    if (!isTauri()) return null;
+    await invokeCommand("sync_preset_ids", { ids });
     return null;
   } catch (error) {
     return String(error);

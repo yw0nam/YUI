@@ -6,8 +6,8 @@
  * Environment: node (vitest default — no jsdom dependency).
  *
  * Strategy:
- * - `invokeDragWindow` is a thin wrapper around `@tauri-apps/api/core` `invoke`.
- *   We mock invoke so tests run without a real Tauri runtime.
+ * - The drag command runs through the typed Tauri command facade; we mock `@tauri-apps/api/core`
+ *   `invoke` so tests run without a real Tauri runtime.
  * - `initDrag` attaches a `pointerdown` listener to an EventTarget.  We use a
  *   plain `EventTarget` (available in Node 18+) to test the listener contract
  *   without a full DOM / jsdom.
@@ -31,25 +31,15 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import type { OrbitDelta } from "../../../../settings/avatar/camera-gestures";
-import { initDrag, invokeDragWindow } from "./window-drag";
+import { initDrag } from "./window-drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
-// ─── invokeDragWindow ────────────────────────────────────────────────────────
-
-describe("invokeDragWindow", () => {
-  it("calls invoke with drag_window command", async () => {
-    mockInvoke.mockResolvedValueOnce(undefined);
-    await invokeDragWindow();
-    expect(mockInvoke).toHaveBeenCalledOnce();
-    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
-  });
-
-  it("propagates errors from invoke", async () => {
-    mockInvoke.mockRejectedValueOnce(new Error("OS drag failed"));
-    await expect(invokeDragWindow()).rejects.toThrow("OS drag failed");
-  });
-});
+/** The facade loads the core API lazily, so a command lands one microtask after the gesture. */
+const invokeSettled = async (): Promise<void> => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
 
 // ─── initDrag ────────────────────────────────────────────────────────────────
 // Uses plain EventTarget (Node 18+) — no jsdom required.
@@ -102,8 +92,7 @@ describe("initDrag", () => {
   it("calls drag_window once after a pointermove crosses the threshold", async () => {
     down(0, 0);
     move(100, 0);
-    await Promise.resolve();
-    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    await vi.waitFor(() => expect(mockInvoke).toHaveBeenCalledWith("drag_window"));
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 
@@ -220,7 +209,7 @@ describe("initDrag — onDragStart", () => {
   it("fires onDragStart + invoke once when the move crosses the threshold", async () => {
     down(0, 0);
     move(100, 0);
-    await Promise.resolve();
+    await invokeSettled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
     expect(mockInvoke).toHaveBeenCalledTimes(1);
@@ -248,7 +237,7 @@ describe("initDrag — onDragStart", () => {
     move(100, 0);
     move(200, 0);
     move(300, 0);
-    await Promise.resolve();
+    await invokeSettled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
@@ -268,7 +257,7 @@ describe("initDrag — onDragStart", () => {
     // A fresh gesture still works and fires exactly once (no double-fire).
     down(0, 0);
     move(100, 0);
-    await Promise.resolve();
+    await invokeSettled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
@@ -662,7 +651,7 @@ describe("initDrag — window_drop_release", () => {
   it("no phantom drag: a hover move after a window_drop_release end starts no new drag", async () => {
     down(0, 0);
     move(100, 0);
-    await Promise.resolve();
+    await invokeSettled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     // OS swallowed pointerup; the gesture ends via the Tauri event, which detaches
@@ -741,7 +730,7 @@ describe("initDrag — orbit gesture (Shift + left-drag)", () => {
   it("plain left-drag (no Shift) does NOT orbit — window-move still engages", async () => {
     down(0, 0, 1, false);
     move(100, 0, false);
-    await Promise.resolve();
+    await invokeSettled();
     expect(onOrbit).not.toHaveBeenCalled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
@@ -850,7 +839,7 @@ describe.each([
   it("cancels the pat when the press crosses the drag threshold first", async () => {
     pointer("pointerdown");
     pointer("pointermove", { clientX: 10 });
-    await Promise.resolve();
+    await invokeSettled();
     vi.advanceTimersByTime(PAT_HOLD_MS);
     expect(onStart).not.toHaveBeenCalled();
     expect(onEnd).not.toHaveBeenCalled();

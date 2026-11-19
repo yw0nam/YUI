@@ -7,6 +7,7 @@ import {
 } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
+import { invokeCommand } from "../../io/tauri-commands/invoke-command";
 import {
   attachKeepOnScreen,
   createKeepOnScreenPause,
@@ -155,8 +156,7 @@ export function wireWindowSources(deps: {
       wasDragging: wasWindowDragging,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
-      windowBounds: (windowNumber) =>
-        invoke("window_bounds", { windowNumber }) as Promise<WindowRect | null>,
+      windowBounds: (windowNumber) => invokeCommand("window_bounds", { windowNumber }),
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       setGuardPaused: (paused) => keepOnScreenPause.setPaused("perch_follow", paused),
     });
