@@ -162,6 +162,10 @@
   cursor: pointer;
 }
 
+.yui-qcard__glyph {
+  display: contents;
+}
+
 .yui-qcard__open svg {
   flex: none;
   width: 16px;

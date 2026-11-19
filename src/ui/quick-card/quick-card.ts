@@ -1,20 +1,19 @@
 /** The quick card in its own window beside the character: its head, Quiet group, tiles and rows, and how it opens and closes. */
 
+import { createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import "./quick-card.css";
 import type { ThreadsTab } from "../../io/bridge/settings-bridge";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import { createLogger } from "../../logger";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
 import type { PresetEntry } from "../../settings/preset/active-preset";
-import { subscribe as subscribeLocale, t } from "../i18n";
-import { CROSS_SVG } from "../quick-controls/constants";
 import type { SwitchRow } from "../quick-controls/switch-row";
-import { avatarEl } from "../unified/avatar";
-import { createQuietGroup, type DndPort } from "./quiet-group";
-import { createRows, type PickerPort } from "./rows";
-import { createThreadsButtons } from "./threads-buttons";
-import { createTiles, type ListenPort } from "./tiles";
-import { transportLine } from "./transport-line";
+import { QuickCardView } from "./quick-card-view";
+import type { DndPort } from "./quiet-group";
+import type { PickerPort } from "./rows";
+import type { ListenPort } from "./tiles";
 
 const log = createLogger("quick-card");
 
@@ -31,7 +30,7 @@ export interface QuickCard {
   dispose(): void;
 }
 
-export function createQuickCard(deps: {
+export interface QuickCardDeps {
   mount: HTMLElement;
   entry(): PresetEntry;
   subscribeEntry(cb: () => void): () => void;
@@ -50,81 +49,38 @@ export function createQuickCard(deps: {
   openThreads(tab: ThreadsTab): void;
   /** The device-wide do-not-disturb switch. */
   dnd: DndPort;
-}): QuickCard {
+}
+
+export function createQuickCard(deps: QuickCardDeps): QuickCard {
   const el = document.createElement("div");
   el.className = "yui-qcard";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-labelledby", "yui-qcard-name");
   el.tabIndex = -1;
+  const root = createRoot(el);
   let open = false;
   let disposed = false;
+  // A new key at each close mounts the contents afresh, so a reopen never lands on the destructive button.
+  let generation = 0;
   const closeListeners = new Set<() => void>();
   const headListeners = new Set<(event: PointerEvent) => void>();
 
-  // The card's contents, rebuilt in the new language on a locale change.
-  function build() {
-    el.innerHTML = `
-    <div class="yui-qcard__head">
-      <span class="yui-qcard__face"></span>
-      <span class="yui-qcard__id">
-        <span class="yui-qcard__name" id="yui-qcard-name"></span>
-        <span class="yui-qcard__transport"></span>
-      </span>
-      <button class="yui-qcard__close" type="button" aria-label="${t("quick_card.close")}">${CROSS_SVG}</button>
-    </div>
-    <div class="yui-qcard__body">
-      <button class="yui-qcard__all" type="button">${t("quick_card.all_settings")}</button>
-    </div>`;
-    const q = <T extends Element>(selector: string): T => el.querySelector<T>(selector)!;
-    const quiet = createQuietGroup({ dnd: deps.dnd, log });
-    const tiles = createTiles({ rows: deps.tiles, listen: deps.listen, log });
-    const rows = createRows({
-      body: deps.body,
-      voice: deps.voice,
-      resetConversation: deps.resetConversation,
-      turnOff: deps.turnOff
-        ? () => {
-            deps.turnOff?.();
-            close();
-          }
-        : null,
-      log,
-    });
-    const opens = createThreadsButtons((tab) => {
-      deps.openThreads(tab);
-      close();
-    });
-    q(".yui-qcard__body").prepend(quiet.el, tiles.el, opens, rows.el);
-    q(".yui-qcard__all").addEventListener("click", () => {
-      deps.openAllSettings();
-      close();
-    });
-    q(".yui-qcard__close").addEventListener("click", () => close());
-    // The head drags the window; its × keeps its click.
-    q(".yui-qcard__head").addEventListener("pointerdown", (event) => {
-      if ((event.target as HTMLElement).closest("button")) return;
-      for (const cb of headListeners) cb(event as PointerEvent);
-    });
-    return {
-      face: q<HTMLElement>(".yui-qcard__face"),
-      name: q<HTMLElement>(".yui-qcard__name"),
-      transport: q<HTMLElement>(".yui-qcard__transport"),
-      rows,
-      dispose: () => {
-        quiet.dispose();
-        tiles.dispose();
-        rows.dispose();
-      },
-    };
+  function render(): void {
+    flushSync(() =>
+      root.render(
+        createElement(QuickCardView, {
+          key: generation,
+          deps,
+          log,
+          close,
+          onHeadPointerDown: (event) => {
+            for (const cb of headListeners) cb(event);
+          },
+        }),
+      ),
+    );
   }
-  let parts = build();
-
-  function paintHead(): void {
-    const entry = deps.entry();
-    parts.face.replaceChildren(avatarEl(entry, 30));
-    parts.name.textContent = entry.name;
-    parts.transport.textContent = transportLine(deps.transport());
-  }
+  render();
 
   // Escape closes the card only, never the window or a surface behind it.
   el.addEventListener("keydown", (e) => {
@@ -134,22 +90,6 @@ export function createQuickCard(deps: {
     close();
   });
 
-  const unsubscribes = [
-    deps.subscribeEntry(paintHead),
-    deps.onTransport(paintHead),
-    // An open card rebuilds in place; a closed one picks the language up at the next open.
-    subscribeLocale(() => {
-      const wasOpen = open;
-      parts.dispose();
-      parts = build();
-      if (wasOpen) {
-        paintHead();
-        parts.rows.paint();
-        if (!el.contains(document.activeElement)) el.focus({ preventScroll: true });
-      }
-    }),
-  ];
-
   const onOutsidePointer = (e: PointerEvent): void => {
     if (!el.contains(e.target as Node)) close();
   };
@@ -157,8 +97,6 @@ export function createQuickCard(deps: {
   function show(): void {
     if (disposed || open) return;
     open = true;
-    paintHead();
-    parts.rows.paint();
     deps.mount.append(el);
     document.addEventListener("pointerdown", onOutsidePointer, true);
     el.focus({ preventScroll: true });
@@ -168,9 +106,10 @@ export function createQuickCard(deps: {
     if (!open) return;
     open = false;
     document.removeEventListener("pointerdown", onOutsidePointer, true);
-    parts.rows.disarm();
     if (el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
     el.remove();
+    generation += 1;
+    render();
     for (const cb of closeListeners) cb();
   }
 
@@ -192,8 +131,7 @@ export function createQuickCard(deps: {
     dispose() {
       close();
       disposed = true;
-      parts.dispose();
-      for (const unsubscribe of unsubscribes) unsubscribe();
+      root.unmount();
     },
   };
 }

@@ -180,7 +180,7 @@ describe("createQuickCard", () => {
     expect(card.el.contains(document.activeElement)).toBe(true);
 
     act(() => card.close());
-    setLocale("en");
+    act(() => setLocale("en"));
     act(() => card.open());
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("Voice");
   });
