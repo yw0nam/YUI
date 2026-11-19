@@ -8,7 +8,9 @@
  * to default beside the section title.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type Card,
   EMPTY_CARD,
@@ -24,6 +26,9 @@ import { createAgentSettings } from "../../../../settings/backend/agent-settings
 import type { PersistedStorage } from "../../../../settings/persisted-store";
 import { setLocale } from "../../../i18n";
 import { activeHoursSectionHtml, createActiveHoursSection } from "./active-hours-section";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const YUI_SPANS: Span[] = [
   { start: "08:00", end: "12:00", pace: "low" },
@@ -53,6 +58,8 @@ function memoryStorage<T>(): PersistedStorage<T> {
   };
 }
 
+const sections: { dispose(): void }[] = [];
+
 function build(): {
   host: HTMLElement;
   store: ActiveHoursSettingsStore;
@@ -70,6 +77,7 @@ function build(): {
     getPersona: () => persona,
     log: createLogger("active-hours"),
   });
+  sections.push(section);
   return { host, store, section };
 }
 
@@ -77,6 +85,10 @@ describe("createActiveHoursSection", () => {
   beforeEach(() => {
     setLocale("en");
     document.body.innerHTML = "";
+  });
+
+  afterEach(() => {
+    for (const s of sections.splice(0)) s.dispose();
   });
 
   const rows = (host: HTMLElement) => host.querySelectorAll<HTMLElement>(".yui-hours__span");
@@ -105,7 +117,7 @@ describe("createActiveHoursSection", () => {
 
   it("renders no next-day mark on a span whose start equals its end", () => {
     const { host, store } = build();
-    store.setSpans([{ start: "09:00", end: "09:00", pace: "normal" }]);
+    act(() => store.setSpans([{ start: "09:00", end: "09:00", pace: "normal" }]));
     const row = rows(host)[0]!;
     expect(timesOf(row)[0]!.value).toBe("09:00");
     expect(timesOf(row)[1]!.value).toBe("09:00");
@@ -117,17 +129,15 @@ describe("createActiveHoursSection", () => {
     const row = rows(host)[2]!;
     expect(row.textContent).toContain("next day");
     const end = timesOf(row)[1]!;
-    end.value = "22:00";
-    end.dispatchEvent(new Event("change", { bubbles: true }));
+    fireEvent.change(end, { target: { value: "22:00" } });
     expect(row.textContent).not.toContain("next day");
   });
 
   it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
-    const { host, store, section } = build();
+    const { host, store } = build();
     expect(rows(host)).toHaveLength(3);
     const select = paceOf(rows(host)[1]!);
-    select.value = "off";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    fireEvent.change(select, { target: { value: "off" } });
     expect(store.get().spans).toEqual([
       { start: "08:00", end: "12:00", pace: "low" },
       { start: "12:00", end: "22:00", pace: "off" },
@@ -135,9 +145,8 @@ describe("createActiveHoursSection", () => {
     ]);
     const reset = host.querySelector<HTMLButtonElement>(".yui-reset")!;
     expect(reset.hidden).toBe(false);
-    reset.click();
+    fireEvent.click(reset);
     expect(store.get().spans).toBeNull();
     expect(reset.hidden).toBe(true);
-    section.dispose();
   });
 });
