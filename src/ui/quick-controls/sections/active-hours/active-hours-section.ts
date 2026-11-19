@@ -8,7 +8,13 @@ import type { PersonaConfig } from "../../../../config/validators/persona/types"
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
 import { spansInUse } from "../../../../settings/active-hours/card-active-hours";
-import { PACES, type Pace, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
+import {
+  PACES,
+  type Pace,
+  type Span,
+  TIME_RE,
+  wrapsMidnight,
+} from "../../../../settings/active-hours/spans";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 import { getLocale, t } from "../../../i18n";
 import { CROSS_SVG, PLUS_SVG } from "../../constants";
@@ -85,8 +91,8 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
     end.setAttribute("aria-label", t("active_hours.end_aria"));
     end.value = span.end;
     range.append(start, dash, end);
-    // A span whose end does not come after its start runs past midnight.
-    if (span.end <= span.start) {
+    // A span whose end comes before its start runs past midnight.
+    if (wrapsMidnight(span)) {
       const nextDay = document.createElement("span");
       nextDay.className = "yui-cue__suffix";
       nextDay.textContent = t("active_hours.next_day");
@@ -131,7 +137,7 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
       const pace = row.querySelector<HTMLSelectElement>(".yui-hours__pace")!;
       setValue(pace, span.pace);
       const nextDay = row.querySelector<HTMLElement>(".yui-cue__suffix");
-      const wraps = span.end <= span.start;
+      const wraps = wrapsMidnight(span);
       if (nextDay && !wraps) nextDay.remove();
       else if (!nextDay && wraps) {
         const mark = document.createElement("span");

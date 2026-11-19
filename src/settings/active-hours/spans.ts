@@ -40,6 +40,11 @@ export function isValidSpans(v: unknown): v is Span[] {
 
 const toMinutes = (time: string): number => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
+/** True when the span's end comes before its start, so it runs past midnight. */
+export function wrapsMidnight(span: Pick<Span, "start" | "end">): boolean {
+  return toMinutes(span.end) < toMinutes(span.start);
+}
+
 function covers(s: Span, t: number): boolean {
   const start = toMinutes(s.start);
   const end = toMinutes(s.end);
