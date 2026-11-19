@@ -17,6 +17,9 @@ export interface Span {
   pace: Pace;
 }
 
+/** The most spans the Active hours editor lets the user add. */
+export const MAX_SPANS = 8;
+
 /** The HH:MM 24-hour shape every span time and every active-hours time input holds. */
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 

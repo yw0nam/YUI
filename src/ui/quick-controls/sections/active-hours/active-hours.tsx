@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
-import { type Span, TIME_RE } from "../../../../settings/active-hours/spans";
+import { MAX_SPANS, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
 import { t } from "../../../i18n";
 import { PLUS_SVG } from "../../constants";
 import { SpanRow } from "./span-row";
@@ -25,6 +25,7 @@ export function ActiveHours({
   log: Logger;
 }) {
   const { edited, spans } = useSyncExternalStore(view.subscribe, view.get);
+  const full = spans.length >= MAX_SPANS;
 
   // The whole row list is one edit: written only while every row holds a valid time.
   const commit = (next: Span[]) => {
@@ -64,6 +65,7 @@ export function ActiveHours({
           <button
             className="yui-add-btn"
             type="button"
+            disabled={full}
             onClick={() =>
               store.setSpans([...spans, { start: "09:00", end: "10:00", pace: "normal" }])
             }
@@ -72,6 +74,9 @@ export function ActiveHours({
           />
         </div>
       </div>
+      <p className="yui-sec__note yui-hours__limit" hidden={!full}>
+        {t("active_hours.add_limit")}
+      </p>
       <p className="yui-sec__foot">{t("active_hours.foot")}</p>
     </>
   );

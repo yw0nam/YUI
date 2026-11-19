@@ -293,6 +293,7 @@ const en: Record<string, string> = {
   "active_hours.foot":
     "More: about twice as often when you're idle. Less: about a third as often. Off: she only replies. Unset hours are Normal.",
   "active_hours.add": "Add time span",
+  "active_hours.add_limit": "Up to 8 time spans",
   "active_hours.next_day": "next day",
   "active_hours.start_aria": "Start time",
   "active_hours.end_aria": "End time",
