@@ -35,6 +35,31 @@ jobs:
       - run: pnpm docs:check # every site page meets the readability rule
       - run: pnpm docs:build # vitepress build + dead-link check
 
+  vrt:
+    name: vrt (WebKit screenshots)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps webkit
+      - run: pnpm test:vrt # a screenshot with no Linux reference fails and leaves the new one in the vrt-references artifact
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: vrt-attachments
+          path: .vitest-attachments/
+          include-hidden-files: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: vrt-references
+          path: src/**/__screenshots__/**/*-linux.png
+
   web-windows-python:
     name: web-windows (Python command + producers)
     runs-on: windows-latest
