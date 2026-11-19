@@ -4,3 +4,8 @@ allowBuilds:
   protobufjs: false
 overrides:
   vitepress>vite: 6.4.3
+peerDependencyRules:
+  allowedVersions:
+    "@docsearch/react>react": "19"
+    "@docsearch/react>react-dom": "19"
+    "@docsearch/react>@types/react": "19"
