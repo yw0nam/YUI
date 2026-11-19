@@ -294,6 +294,7 @@ const ko: Record<string, string> = {
   "active_hours.foot":
     "많이: 한가할 때 2배쯤 자주. 적게: 3분의 1쯤. 말 걸지 않음: 대답만 해요. 정하지 않은 시간은 보통이에요.",
   "active_hours.add": "시간대 추가",
+  "active_hours.add_limit": "시간대는 8개까지",
   "active_hours.next_day": "다음 날",
   "active_hours.start_aria": "시작 시각",
   "active_hours.end_aria": "종료 시각",

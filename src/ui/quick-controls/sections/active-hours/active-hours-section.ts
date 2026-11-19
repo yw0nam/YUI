@@ -9,6 +9,7 @@ import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
 import { spansInUse } from "../../../../settings/active-hours/card-active-hours";
 import {
+  MAX_SPANS,
   PACES,
   type Pace,
   type Span,
@@ -35,6 +36,7 @@ export function activeHoursSectionHtml(): string {
               <button class="yui-add-btn" type="button">${PLUS_SVG}${t("active_hours.add")}</button>
             </div>
           </div>
+          <p class="yui-sec__note yui-hours__limit" hidden>${t("active_hours.add_limit")}</p>
           <p class="yui-sec__foot">${t("active_hours.foot")}</p>
         </div>`;
 }
@@ -59,6 +61,8 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
   const sec = root.querySelector<HTMLElement>(".yui-hours")!;
   const list = sec.querySelector<HTMLElement>(".yui-cue-list")!;
   const resetBtn = sec.querySelector<HTMLButtonElement>(".yui-reset")!;
+  const addBtn = sec.querySelector<HTMLButtonElement>(".yui-add-btn")!;
+  const limit = sec.querySelector<HTMLElement>(".yui-hours__limit")!;
 
   // The card this section reads spans from: the user's card, else the default card of the UI language.
   const card = () => agentSettings.get().card ?? getPersona?.()?.cards[getLocale()];
@@ -122,6 +126,8 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
   function render(): void {
     resetBtn.hidden = store.get().spans === null;
     const spans = inUse();
+    addBtn.disabled = spans.length >= MAX_SPANS;
+    limit.hidden = !addBtn.disabled;
     const rows = list.querySelectorAll<HTMLElement>(".yui-hours__span");
     if (rows.length !== spans.length) {
       list.replaceChildren(...spans.map(spanRow));

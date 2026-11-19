@@ -295,6 +295,7 @@ const ja: Record<string, string> = {
   "active_hours.foot":
     "多い：ひまなときは2倍ほど頻繁に。少なめ：3分の1ほど。話しかけない：返事だけします。指定していない時間は「ふつう」です。",
   "active_hours.add": "時間帯を追加",
+  "active_hours.add_limit": "時間帯は8個まで",
   "active_hours.next_day": "翌日",
   "active_hours.start_aria": "開始時刻",
   "active_hours.end_aria": "終了時刻",
