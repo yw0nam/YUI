@@ -11,6 +11,7 @@ pnpm tauri:dev              # Tauri app — auto-picks a free port from 1420 up 
 pnpm build                  # tsc + vite build
 pnpm test                   # vitest run
 pnpm test:watch             # vitest watch
+pnpm test:vrt               # screenshot tests in headless WebKit (Linux references; a local run writes ignored -darwin.png)
 pnpm lint                   # biome check (format + lint)
 pnpm lint:fix               # biome check --write (apply safe fixes)
 pnpm tauri build            # Native bundle

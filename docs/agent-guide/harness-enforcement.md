@@ -7,11 +7,12 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | Rule | Enforced by |
 |---|---|
 | No direct commits to `main`; PR + green CI required | GitHub ruleset `main-protection`; locally also by `.claude/hooks/pretool-bash-guard.sh`, which denies `git commit`/`git push` while the command's cwd repo is on `main` |
-| Required PR checks | GitHub ruleset `main: required PR checks` requires `web`, `lint`, `rust`, `rust-windows`, `test-guard`, `pr-title`; `python`, `python-lint`, and `plugins-rust` run but are not required |
+| Required PR checks | GitHub ruleset `main: required PR checks` requires `web`, `lint`, `rust`, `rust-windows`, `test-guard`, `pr-title`; `python`, `python-lint`, `plugins-rust`, and `vrt` run but are not required |
 | New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass; the job reads the PR's labels at run time, so the label takes effect on the next `test-guard` run — re-run the job after labelling) |
 | A rule test is never loosened | the `rule-tests` step of the `test-guard` job fails a PR that edits, moves, or deletes a code file carrying a `rule-test:` line (a doc, `*.md`, that only mentions it does not count) (`rule-change` label bypass, read at run time like `skip-tests`); `pnpm gates` runs it too |
 | `README.md` and `README.ja.md` change together | `readme-pair` CI job and `pnpm gates` (`scripts/ci/readme-pair.sh`; `readme-one-language` label bypass, read at run time like `skip-tests`) |
 | Conventional, printable-ASCII PR titles | `pr-title` job in `.github/workflows/pr-title.yml` (checks the conventional type and `subjectPattern ^[\x20-\x7E]+$`, and the body for an AI attribution line; English itself is working practice). It also runs on a title or body edit, so a fixed title clears the check without a new push |
+| Rendered surfaces match their committed screenshots in both themes | `vrt` CI job (`pnpm test:vrt`: Vitest browser mode on Linux WebKit; references from the `vrt-update` workflow) |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
 | No committed `.skip` or `.only` in a test | `lint` CI job (Biome `noSkippedTests`, `noFocusedTests`) |
