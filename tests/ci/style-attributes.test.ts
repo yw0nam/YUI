@@ -54,4 +54,15 @@ describe("style-attributes check on root pages", () => {
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("page.html:2: <style");
   });
+
+  it("passes a root page that links a stylesheet", () => {
+    const res = run({ "page.html": '<head><link rel="stylesheet" href="/a.css" /></head>' });
+    expect(res.status).toBe(0);
+  });
+
+  it("passes the repo's own root pages", () => {
+    const res = spawnSync("node", [script], { encoding: "utf8" });
+    expect(res.stderr).toBe("");
+    expect(res.status).toBe(0);
+  });
 });

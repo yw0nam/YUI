@@ -7,6 +7,7 @@
  */
 
 import "../styles.css";
+import "./settings-window.css";
 import { createDisposers } from "../app/disposers";
 import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wireSettingsWindow } from "../app/settings-window/wire-settings-window";
