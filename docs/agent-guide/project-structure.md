@@ -670,7 +670,7 @@ YUI/
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
         window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
       quick-card/                    # The right-click card, in its own window beside the character
-        quick-card.ts                # The card's facade: the React root on its element, how it opens and closes, and its rebuild in a new language
+        quick-card.ts                # The card's facade: the React root on its element, and how it opens and closes; `useLocale()` in the view re-renders it in a new language in place
         quick-card-view.tsx          # What fills the card: the head over the Quiet group, tiles, Threads buttons, rows and All settings…
         head.tsx                     # The head (the drag handle): the face, the name and transport line, and the ×
         quiet-group.tsx              # The Quiet group: the do-not-disturb switch

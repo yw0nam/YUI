@@ -83,7 +83,7 @@ the plugin follows the steps below against the plugin map; step 3's
   (user I/O, core logic, outside communication, shared state and wiring). The
   user, backend agents, and outside services are boxes outside the groups.
 - A part is a folder or file of `src/` or `src-tauri/src` that belongs to one
-  module. Every `.ts` and `.rs` source file is inside the path of some part.
+  module. Every `.ts`, `.tsx` and `.rs` source file is inside the path of some part.
 - An exchange names what crosses between two parts as the code spells it, its
   kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
   localStorage, cross-window bridge, user action), the transport it belongs to
@@ -116,8 +116,8 @@ crosses an exchange, follows all four.
 - a part's path, a part's map file, or an exchange's wiring file does not
   exist;
 - a source file is inside no part's path, or a folder sits beside the folders
-  of other parts and belongs to none. Source files are `.ts` and `.rs` files
-  for the client map and `.py` files for the plugin map. A new part inside a
+  of other parts and belongs to none. Source files are `.ts`, `.tsx` and `.rs`
+  files for the client map and `.py` files for the plugin map. A new part inside a
   folder one part already claims therefore needs every sibling folder to be a
   part too; otherwise the new file joins the claiming part;
 - a part, a link, an exchange, or a flow step names a missing id, or an id is
