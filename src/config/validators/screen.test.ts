@@ -20,8 +20,20 @@ describe("validateScreen — happy path", () => {
     expect(validateScreen(FILE, { ...GOOD })).toEqual(GOOD);
   });
 
-  it("accepts a zero min_gap_ms (bottom of the gap knob range)", () => {
-    expect(validateScreen(FILE, { ...GOOD, min_gap_ms: 0 }).min_gap_ms).toBe(0);
+  it("accepts a screen section that carries no wait of its own", () => {
+    const raw = {
+      prev_dwell_ms: 600000,
+      settle_ms: 90000,
+      long_session_ms: 2700000,
+      recent_cap: 5,
+    };
+    let out: ReturnType<typeof validateScreen> | undefined;
+    try {
+      out = validateScreen(FILE, raw);
+    } catch {
+      expect.unreachable("validateScreen must accept the shipped four-key screen section");
+    }
+    expect(out).toEqual(raw);
   });
 
   it("drops unknown keys rather than carrying them through", () => {
