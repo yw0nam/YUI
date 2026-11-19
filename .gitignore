@@ -54,3 +54,7 @@ plugins/*/target/
 
 # Git worktrees for parallel branches (CONTRIBUTING.md); biome reads this file and skips them
 .worktrees/
+
+# Visual regression: only the Linux references from CI are committed; Vitest's actual and diff images stay local
+src/**/__screenshots__/**/*-darwin.png
+.vitest-attachments/
