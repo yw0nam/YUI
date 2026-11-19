@@ -1305,6 +1305,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/active-hours",
+      "module": "wiring",
+      "label": "active hours",
+      "role": "One handle per pet window: scales the device-wide proactive gap by the pace of the character's current active-hours span, and holds the window's self-fired triggers like do-not-disturb during an off span, recomputing on every input change and at each minute boundary.",
+      "paths": [
+        "src/app/active-hours"
+      ]
+    },
+    {
       "id": "app/relations",
       "module": "wiring",
       "label": "relations wiring",

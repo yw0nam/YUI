@@ -60,7 +60,7 @@ export function wireDispatcherSources(deps: {
   /** This pet window's proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
   /** Do-not-disturb — holds the schedule cues and reads as busy to both signals inboxes. */
-  dndSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
+  dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
   /** Subscribes to the character-addressed bridge events this preset is named in. */
   onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
   /** Subscribes to the unified chat window's messages routed to this preset. */
@@ -93,12 +93,11 @@ export function wireDispatcherSources(deps: {
     subscribeBusy,
     pipelineBusy,
     pacer,
-    dndSettings,
+    dnd,
   } = deps;
   const dndHold = {
-    isHolding: () => dndSettings.get().enabled,
-    subscribe: (cb: (holding: boolean) => void) =>
-      dndSettings.subscribe(() => cb(dndSettings.get().enabled)),
+    isHolding: () => dnd.get().enabled,
+    subscribe: (cb: (holding: boolean) => void) => dnd.subscribe(() => cb(dnd.get().enabled)),
   };
   const pacedPipelineBusy = composePacedPipelineBusy({
     pipelineBusy: composePacedPipelineBusy({ pipelineBusy, hold: pacer }),
@@ -117,7 +116,7 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     getCues: () => scheduleSettings.get().entries,
     isEnabled: () => scheduleSettings.get().enabled,
-    isHeld: () => dndSettings.get().enabled,
+    isHeld: () => dnd.get().enabled,
   });
   void scheduleSource.start();
   const signalsSource = createSignalsSource({
@@ -169,6 +168,6 @@ export function wireDispatcherSources(deps: {
     screenSource,
     addressedSource,
     routedUserSource,
-    drainSignals: () => (dndSettings.get().enabled ? [] : signalsSource.drain()),
+    drainSignals: () => (dnd.get().enabled ? [] : signalsSource.drain()),
   };
 }

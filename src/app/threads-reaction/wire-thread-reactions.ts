@@ -11,6 +11,7 @@ import { effectiveFillerPool } from "../../io/voice/filler/filler-pool";
 import type { SpeechPlayback } from "../../io/voice/tts/speech-playback";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";
 import type { Renderer } from "../../renderer";
+import type { FlagSettingsStore } from "../../settings/persisted-store";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { ConfiguredBootstrapHandles } from "../bootstrap-configured";
 
@@ -31,8 +32,9 @@ export function wireThreadReactions(deps: {
     | "threadReactionThresholdsSettings"
     | "presenceSettings"
     | "fillerSettings"
-    | "dndSettings"
   >;
+  /** This pet window's do-not-disturb: the device switch, or an off span now. */
+  dnd: Pick<FlagSettingsStore, "get">;
   config: Pick<ConfigStore, "get">;
   threadTurn: ConfiguredBootstrapHandles["threadTurn"];
 }): () => void {
@@ -55,7 +57,7 @@ export function wireThreadReactions(deps: {
     enabled: settings.threadReactionsSettings,
     thresholds: settings.threadReactionThresholdsSettings,
     isPresent: () => presence.isPresent(),
-    isDndOn: () => settings.dndSettings.get().enabled,
+    isDndOn: () => deps.dnd.get().enabled,
     chipTaps,
     isPipelineBusy: deps.dispatcher.isPipelineBusy,
     hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),

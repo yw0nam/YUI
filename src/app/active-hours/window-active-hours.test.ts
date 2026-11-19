@@ -13,10 +13,7 @@ import type { PersonaConfig } from "../../config/validators/persona/types";
 import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
 import type { Span } from "../../settings/active-hours/spans";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
-import {
-  createFlagSettings,
-  type PersistedStorage,
-} from "../../settings/persisted-store";
+import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
 import { createPacerGapStore } from "../../settings/settings-stores";
 import { setLocale } from "../../ui/i18n";
 import { createWindowActiveHours, type WindowActiveHours } from "./window-active-hours";

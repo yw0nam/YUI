@@ -92,6 +92,12 @@ describe("wireDispatcher", () => {
       pacerGapSettings: activeHoursGapSettings,
       dndSettings,
     });
+    // The teardown test asserts the registered gap unsubscribe by identity.
+    const subscribeGap = activeHours.subscribeGap.bind(activeHours);
+    activeHours.subscribeGap = (cb) => {
+      subscribeGap(cb);
+      return pacerGapUnsubscribe;
+    };
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
@@ -114,11 +120,6 @@ describe("wireDispatcher", () => {
       guardrailsSettings: {
         subscribe: vi.fn(() => guardrailsOverrideDisposer),
       } as never,
-      pacerGapSettings: {
-        get: () => ({ value: 0 }),
-        subscribe: vi.fn(() => pacerGapUnsubscribe),
-      } as never,
-      dndSettings,
       activeHours,
       oneVoiceSettings: { get: () => ({ enabled: false }) } as never,
       screenshotSettings: {} as never,
@@ -193,7 +194,7 @@ describe("wireDispatcher", () => {
   });
 
   // The dispatcher's routing gate holds a self-fired cue while this reads true.
-  it("hands the dispatcher the do-not-disturb store, read live", () => {
+  it("hands the dispatcher the pet window's do-not-disturb, read live", () => {
     const dnd = createFlagSettings(false);
     const s = setup(undefined, {} as EndpointsConfig, dnd);
 
