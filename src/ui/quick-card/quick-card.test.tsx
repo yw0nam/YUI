@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { within } from "@testing-library/dom";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
@@ -10,6 +13,9 @@ import { createVadSettings } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
 import { createSwitchRows } from "../quick-controls/switch-row";
 import { createQuickCard } from "./quick-card";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("./quick-card.css", () => ({}));
 vi.mock("../unified/avatar.css", () => ({}));
@@ -30,6 +36,8 @@ function picker(options: { id: string; label: string }[]) {
     },
   };
 }
+
+const cards: ReturnType<typeof createQuickCard>[] = [];
 
 function build(over: Record<string, unknown> = {}) {
   const ttsSettings = createFlagSettings(true);
@@ -96,11 +104,14 @@ function build(over: Record<string, unknown> = {}) {
     ...over,
   };
   const card = createQuickCard(deps as Parameters<typeof createQuickCard>[0]);
+  cards.push(card);
   const q = <T extends Element>(selector: string) => card.el.querySelector<T>(selector)!;
   const tile = (n: number) => card.el.querySelectorAll<HTMLButtonElement>(".yui-qcard__tile")[n]!;
   const setTransport = (next: typeof transport) => {
     transport = next;
-    for (const cb of transportSubs) cb();
+    act(() => {
+      for (const cb of transportSubs) cb();
+    });
   };
   return {
     card,
@@ -118,6 +129,9 @@ function build(over: Record<string, unknown> = {}) {
 
 beforeEach(() => setLocale("en"));
 afterEach(() => {
+  act(() => {
+    for (const card of cards.splice(0)) card.dispose();
+  });
   document.body.innerHTML = "";
 });
 
@@ -125,7 +139,7 @@ describe("createQuickCard", () => {
   it("opens in the mount and its tiles write and follow their stores", () => {
     const { card, tile, mount, ttsSettings, bubblePersistSettings, unifiedChatSwitch, deps } =
       build();
-    card.open();
+    act(() => card.open());
 
     expect(mount.contains(card.el)).toBe(true);
     expect(
@@ -137,12 +151,14 @@ describe("createQuickCard", () => {
       ["Unified chatOff", "false"],
     ]);
 
-    tile(0).click();
-    tile(1).click();
+    fireEvent.click(tile(0));
+    fireEvent.click(tile(1));
     expect(ttsSettings.get().enabled).toBe(false);
     expect(deps.listen.set).toHaveBeenCalledWith(true);
-    bubblePersistSettings.setEnabled(true);
-    unifiedChatSwitch.setEnabled(true);
+    act(() => {
+      bubblePersistSettings.setEnabled(true);
+      unifiedChatSwitch.setEnabled(true);
+    });
     expect([0, 1, 2, 3].map((n) => tile(n).getAttribute("aria-checked"))).toEqual([
       "false",
       "true",
@@ -151,27 +167,27 @@ describe("createQuickCard", () => {
     ]);
   });
 
-  it("rebuilds in the new language when the display language changes, an open card keeping focus", () => {
+  it("re-renders in the new language when the display language changes, an open card keeping focus", () => {
     const { card, tile } = build();
-    card.open();
+    act(() => card.open());
     tile(0).focus();
 
-    setLocale("ko");
+    act(() => setLocale("ko"));
 
-    // An open card rebuilds in place; the window around it stays, and so does Escape.
+    // An open card re-renders in place; the window around it stays, and so does Escape.
     expect(card.isOpen()).toBe(true);
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("음성");
     expect(card.el.contains(document.activeElement)).toBe(true);
 
-    card.close();
-    setLocale("en");
-    card.open();
+    act(() => card.close());
+    act(() => setLocale("en"));
+    act(() => card.open());
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("Voice");
   });
 
   it("puts the Quiet group above the tiles, its Do not disturb switch reading, writing and following the store", () => {
     const { card, q, dndSettings } = build();
-    card.open();
+    act(() => card.open());
 
     expect([...q(".yui-qcard__body").children].map((child) => child.className)).toEqual([
       "yui-qcard__quiet",
@@ -187,18 +203,18 @@ describe("createQuickCard", () => {
     expect(sw.getAttribute("role")).toBe("switch");
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
-    sw.click();
+    fireEvent.click(sw);
     expect(dndSettings.get().enabled).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("true");
 
     // A change from another window repaints the switch.
-    dndSettings.setEnabled(false);
+    act(() => dndSettings.setEnabled(false));
     expect(sw.getAttribute("aria-checked")).toBe("false");
   });
 
   it("disables Listen and reads Main only on another character's card", () => {
     const { card, tile } = build({ listen: null });
-    card.open();
+    act(() => card.open());
 
     expect(tile(1).disabled).toBe(true);
     expect(tile(1).textContent).toBe("ListenMain only");
@@ -219,7 +235,7 @@ describe("createQuickCard", () => {
         },
       },
     });
-    card.open();
+    act(() => card.open());
 
     expect(tile(2).disabled).toBe(true);
     expect(tile(2).title).toBe("Off while the unified chat window shows");
@@ -227,14 +243,12 @@ describe("createQuickCard", () => {
 
   it("applies the Body and Reference voice selects at once", () => {
     const { card, deps } = build();
-    card.open();
+    act(() => card.open());
     const [body, voice] = card.el.querySelectorAll<HTMLSelectElement>("select");
 
     expect([body!.value, voice!.value]).toEqual(["carlotta", "natsume"]);
-    body!.value = "aemeath";
-    body!.dispatchEvent(new Event("change"));
-    voice!.value = "ayase";
-    voice!.dispatchEvent(new Event("change"));
+    fireEvent.change(body!, { target: { value: "aemeath" } });
+    fireEvent.change(voice!, { target: { value: "ayase" } });
 
     expect(deps.body.select).toHaveBeenCalledExactlyOnceWith("aemeath");
     expect(deps.voice.select).toHaveBeenCalledExactlyOnceWith("ayase");
@@ -242,17 +256,17 @@ describe("createQuickCard", () => {
 
   it("asks before it resets the conversation and resets once on confirm", () => {
     const { card, q, deps } = build();
-    card.open();
+    act(() => card.open());
 
-    q<HTMLButtonElement>(".yui-qcard__reset").click();
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__reset"));
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(false);
     expect(q(".yui-qcard__confirm").textContent).toContain("Reset this conversation?");
-    q<HTMLButtonElement>(".yui-qcard__cancel").click();
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__cancel"));
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
     expect(deps.resetConversation).not.toHaveBeenCalled();
 
-    q<HTMLButtonElement>(".yui-qcard__reset").click();
-    q<HTMLButtonElement>(".yui-qcard__confirm-go").click();
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__reset"));
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__confirm-go"));
     expect(deps.resetConversation).toHaveBeenCalledOnce();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
     // A reset is not one of the card's closes.
@@ -261,17 +275,30 @@ describe("createQuickCard", () => {
 
   it("hands focus to Cancel when the confirm opens and back to Reset… when it closes", () => {
     const { card, q } = build();
-    card.open();
+    act(() => card.open());
 
-    q<HTMLButtonElement>(".yui-qcard__reset").click();
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__reset"));
     expect(document.activeElement).toBe(q(".yui-qcard__cancel"));
-    q<HTMLButtonElement>(".yui-qcard__cancel").click();
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__cancel"));
     expect(document.activeElement).toBe(q(".yui-qcard__reset"));
+  });
+
+  it("reopens on Reset…, not on the confirm it was closed over", () => {
+    const { card, q } = build();
+    act(() => card.open());
+    fireEvent.click(q<HTMLButtonElement>(".yui-qcard__reset"));
+    expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(false);
+
+    act(() => card.close());
+    act(() => card.open());
+
+    expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
+    expect(q<HTMLElement>(".yui-qcard__reset").hidden).toBe(false);
   });
 
   it("names no voice None when the voice list is empty", () => {
     const { card } = build({ voice: picker([]) });
-    card.open();
+    act(() => card.open());
     const voice = card.el.querySelectorAll<HTMLSelectElement>("select")[1]!;
 
     expect([...voice.options].map((o) => [o.value, o.text])).toEqual([["", "None"]]);
@@ -279,9 +306,9 @@ describe("createQuickCard", () => {
 
   it("turns this character off and opens every setting; main's card has no Turn off", () => {
     const bound = build();
-    bound.card.open();
-    bound.q<HTMLButtonElement>(".yui-qcard__turnoff").click();
-    bound.q<HTMLButtonElement>(".yui-qcard__all").click();
+    act(() => bound.card.open());
+    fireEvent.click(bound.q<HTMLButtonElement>(".yui-qcard__turnoff"));
+    fireEvent.click(bound.q<HTMLButtonElement>(".yui-qcard__all"));
     expect(bound.deps.turnOff).toHaveBeenCalledOnce();
     expect(bound.deps.openAllSettings).toHaveBeenCalledOnce();
 
@@ -294,12 +321,10 @@ describe("createQuickCard", () => {
     ["Terminal", "terminal"],
   ])("opens the Threads window on its %s tab and closes", (label, tab) => {
     const h = build();
-    h.card.open();
-    const button = [...h.card.el.querySelectorAll<HTMLButtonElement>(".yui-qcard__open")].find(
-      (b) => b.textContent === label,
-    )!;
+    act(() => h.card.open());
+    const button = within(h.card.el).getByText(label);
 
-    button.click();
+    fireEvent.click(button);
 
     expect(h.deps.openThreads).toHaveBeenCalledExactlyOnceWith(tab);
     expect(h.card.isOpen()).toBe(false);
@@ -327,7 +352,7 @@ describe("createQuickCard", () => {
     ["push disconnected", { api: "push", push: { kind: "disconnected" } }, "Push · Not connected"],
   ])("heads with the name and the transport line (%s)", (_name, transport, line) => {
     const { card, q, setTransport } = build();
-    card.open();
+    act(() => card.open());
     setTransport(transport);
 
     expect(q(".yui-qcard__name").textContent).toBe("Yui");
@@ -335,32 +360,37 @@ describe("createQuickCard", () => {
   });
 
   it.each([
-    ["the ×", (h: ReturnType<typeof build>) => h.q<HTMLButtonElement>(".yui-qcard__close").click()],
+    [
+      "the ×",
+      (h: ReturnType<typeof build>) => fireEvent.click(h.q<HTMLButtonElement>(".yui-qcard__close")),
+    ],
     [
       "Escape",
       (h: ReturnType<typeof build>) =>
-        h
-          .q(".yui-qcard__name")
-          .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+        fireEvent(
+          h.q(".yui-qcard__name"),
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        ),
     ],
     [
       "a pointerdown outside the card",
-      () => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+      () => fireEvent(document.body, new PointerEvent("pointerdown", { bubbles: true })),
     ],
     [
       "All settings…",
-      (h: ReturnType<typeof build>) => h.q<HTMLButtonElement>(".yui-qcard__all").click(),
+      (h: ReturnType<typeof build>) => fireEvent.click(h.q<HTMLButtonElement>(".yui-qcard__all")),
     ],
     [
       "Turn off",
-      (h: ReturnType<typeof build>) => h.q<HTMLButtonElement>(".yui-qcard__turnoff").click(),
+      (h: ReturnType<typeof build>) =>
+        fireEvent.click(h.q<HTMLButtonElement>(".yui-qcard__turnoff")),
     ],
-  ])("closes on %s and hands focus back", (_name, act) => {
+  ])("closes on %s and hands focus back", (_name, closeIt) => {
     const h = build();
-    h.card.open();
+    act(() => h.card.open());
     expect(h.card.el.contains(document.activeElement)).toBe(true);
 
-    act(h);
+    closeIt(h);
 
     expect(h.card.isOpen()).toBe(false);
     expect(h.mount.contains(h.card.el)).toBe(false);
@@ -378,12 +408,12 @@ describe("createQuickCard", () => {
 
   it("hands a pointerdown on its head, not on its ×, to the head listeners", () => {
     const { card, q } = build();
-    card.open();
+    act(() => card.open());
     const onHead = vi.fn();
     card.onHeadPointerDown(onHead);
 
-    q(".yui-qcard__close").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    q(".yui-qcard__name").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    fireEvent(q(".yui-qcard__close"), new PointerEvent("pointerdown", { bubbles: true }));
+    fireEvent(q(".yui-qcard__name"), new PointerEvent("pointerdown", { bubbles: true }));
 
     expect(onHead).toHaveBeenCalledOnce();
   });
@@ -392,11 +422,12 @@ describe("createQuickCard", () => {
     const { card, q } = build();
     const onDocKey = vi.fn();
     document.addEventListener("keydown", onDocKey);
-    card.open();
+    act(() => card.open());
 
-    q(".yui-qcard__name").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    fireEvent(q(".yui-qcard__name"), new PointerEvent("pointerdown", { bubbles: true }));
     expect(card.isOpen()).toBe(true);
-    q(".yui-qcard__name").dispatchEvent(
+    fireEvent(
+      q(".yui-qcard__name"),
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
 

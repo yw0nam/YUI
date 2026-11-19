@@ -9,8 +9,8 @@ export const MAPS = [
     file: "docs/agent-guide/architecture/map.js",
     windows: true,
     cover: ["src", "src-tauri/src"],
-    source: /\.(ts|rs)$/,
-    skip: /\.(test|d)\.ts$/,
+    source: /\.(tsx?|rs)$/,
+    skip: /\.(test|d)\.tsx?$/,
   },
   {
     file: "integrations/hermes/platform/yui/docs/map.js",

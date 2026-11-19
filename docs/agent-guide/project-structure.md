@@ -8,6 +8,7 @@
 | Build / dev server | Vite | 8.x (dev port `YUI_DEV_PORT`, default **1420**; auto-port launchers pick a free port per worktree) |
 | Language | TypeScript | 6.x (bundler mode, `noEmit`) |
 | Render | three.js | 0.180.x |
+| Window UI | React 19 with `@vitejs/plugin-react` (Fast Refresh); the quick card only, other surfaces are imperative DOM | 19.3.x |
 | VRM / motion | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x |
 | Voice | `@ricky0123/vad-web` (Silero+ONNX) | 0.0.x |
 
@@ -669,10 +670,15 @@ YUI/
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
         window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
       quick-card/                    # The right-click card, in its own window beside the character
-        quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
-        tiles.ts                     # The toggle tiles: each writes its store and follows it
-        threads-buttons.ts           # Threads and Terminal: each requests main to open the Threads window on its tab
-        rows.ts                      # The Body and Reference voice selects, the reset that asks first, and Turn off
+        quick-card.ts                # The card's facade: the React root on its element, and how it opens and closes; `useLocale()` in the view re-renders it in a new language in place
+        quick-card-view.tsx          # What fills the card: the head over the Quiet group, tiles, Threads buttons, rows and All settings…
+        head.tsx                     # The head (the drag handle): the face, the name and transport line, and the ×
+        quiet-group.tsx              # The Quiet group: the do-not-disturb switch
+        tiles.tsx                    # The toggle tiles: each writes its store and follows it
+        threads-buttons.tsx          # Threads and Terminal: each requests main to open the Threads window on its tab
+        rows.tsx                     # The Body and Reference voice selects, the reset that asks first, and Turn off
+        use-snapshot.ts              # Binds a source that returns a fresh object each read to a component
+        use-locale.ts                # Re-renders a component when the display language changes
         transport-line.ts            # The head line: the transport's name, and on push the socket's state
         quick-card.css               # Card, tile, row, and confirm styles
       quick-controls/                # Settings panel shell parts and sections

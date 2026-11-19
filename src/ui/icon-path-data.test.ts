@@ -30,7 +30,8 @@ describe("inline icon paths", () => {
     const failures: string[] = [];
     let paths = 0;
     for (const entry of readdirSync(SRC, { recursive: true, withFileTypes: true })) {
-      if (!entry.isFile() || !/\.(ts|html)$/.test(entry.name)) continue;
+      if (!entry.isFile() || !/\.(tsx?|html)$/.test(entry.name) || /\.test\.tsx$/.test(entry.name))
+        continue;
       const file = `${entry.parentPath}/${entry.name}`;
       for (const [, d] of readFileSync(file, "utf8").matchAll(INLINE_PATH)) {
         // A `d` assembled at render time holds no readable path data.
