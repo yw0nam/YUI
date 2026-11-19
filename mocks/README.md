@@ -6,6 +6,7 @@ Standalone HTML mocks of YUI screens, kept so the next change to a screen starts
 - A mock links the real stylesheets by relative path (`../../src/ui/tokens.css`, and component CSS such as `../../src/ui/threads/chip/threads-chip.css`) and uses their class names, so a token or component change shows in the mock too. Only mock-only staging (the desktop backdrop, demo controls, animation variants) lives in the mock's own `<style>`.
 - Open a mock straight from disk in a browser; it needs no server and no build.
 - The mock's header names its issue.
+- A mock is written in English; UI strings that already exist use the exact wording in `src/ui/i18n/en.ts`.
 
 | Mock | Screen | Issue |
 |---|---|---|
@@ -13,3 +14,4 @@ Standalone HTML mocks of YUI screens, kept so the next change to a screen starts
 | [`character-window/do-not-disturb.html`](character-window/do-not-disturb.html) | Character window, Quick card and tray: the Quick card's 조용히 group with the Do-not-disturb switch, the status pill's still moon segment, the tray's Do Not Disturb check item | #1961 |
 | [`settings/card-bundle.html`](settings/card-bundle.html) | Settings, Persona page, Card section: export and import a preset as one `.yui` file, PNG card export | #1937 |
 | [`settings/card-drop.html`](settings/card-drop.html) | Settings window: import a preset file or card by dropping it onto the window; drop cover variants, refusal placement, the proposed busy rule | #1940 |
+| [`settings/active-hours.html`](settings/active-hours.html) | Settings, Persona page: the Active hours section above the Card section (one row per span: start, end, pace in words, remove; a line explaining the paces; Reset to default once edited); the Proactive page's Proactive gap row with its added hint | #1962 |
