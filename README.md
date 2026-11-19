@@ -27,7 +27,7 @@ _Named after [Yui from *Sword Art Online*](https://swordartonline.fandom.com/wik
 
 You need a Mac with Apple Silicon or a Windows x64 PC. You do not need a terminal or a coding agent.
 
-1. Download the installer from the [Releases page](https://github.com/yw0nam/YUI/releases/latest): the `.dmg` for macOS, or the `-setup.exe` or `.msi` for Windows. The macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway.
+1. Download the installer from the [Releases page](https://github.com/yw0nam/YUI/releases/latest): the `.dmg` for macOS 11 or later with Safari 16 or later (the app's web view is the system WebKit), or the `-setup.exe` or `.msi` for Windows. The macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway.
 2. Open YUI. She appears on your screen and says she is not connected yet. Choose **Connect**.
 3. In **Quick start**, choose **Open key page**, make a free Google Gemini key in Google AI Studio, paste it, and choose **Connect**. She greets you. The free tier has a daily limit, and Google may use what you send to improve its products.
 4. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
