@@ -25,8 +25,8 @@ it.each(["dawn", "hearth"] as const)("paints the speech bubble in %s", async (th
   surfaces.pushSpeech("- the report is ready\n- the rain stops by evening");
   surfaces.endSpeech();
   await shown;
-  await page.viewport(400, 600);
   await document.fonts.ready;
+  await page.viewport(400, 600);
   document.documentElement.dataset.theme = theme;
   await expect
     .element(page.elementLocator(document.querySelector("#app")!))

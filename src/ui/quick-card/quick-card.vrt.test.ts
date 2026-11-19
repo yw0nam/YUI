@@ -58,8 +58,8 @@ it.each(["dawn", "hearth"] as const)("paints the quick card in %s", async (theme
   });
   card.open();
   // The window grows to the card: its height plus the 8px margin each side.
-  await page.viewport(288, card.el.offsetHeight + 16);
   await document.fonts.ready;
+  await page.viewport(288, card.el.offsetHeight + 16);
   document.documentElement.dataset.theme = theme;
   await expect
     .element(page.elementLocator(document.querySelector("#app")!))
