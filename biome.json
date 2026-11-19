@@ -46,7 +46,8 @@
         "noAssignInExpressions": "off",
         "noConsole": "error",
         "noFocusedTests": "error",
-        "noSkippedTests": "error"
+        "noSkippedTests": "error",
+        "noImportCycles": "error"
       },
       "complexity": {
         "noImportantStyles": "off"

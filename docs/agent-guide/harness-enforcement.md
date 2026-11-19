@@ -15,6 +15,7 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
 | No committed `.skip` or `.only` in a test | `lint` CI job (Biome `noSkippedTests`, `noFocusedTests`) |
+| Runtime import cycles fail `pnpm lint`; cycles that pass only through `import type` are allowed | `lint` CI job (Biome `suspicious/noImportCycles`, default options) |
 | `src/` layer order: a layer imports only from the layers to its left (`AGENTS.md` § Engineering principles) | `lint` CI job (Biome `noRestrictedImports` `patterns`, one `overrides` entry per layer in `biome.json`; `*.test.ts` and `*test-helpers*.ts` are exempt; Biome scopes `noRestrictedImports` per path override, so the nine near-identical entries are the rule's shape, not duplication) |
 | The client and plugin architecture maps name existing paths, map files and wiring files, every source file (`.ts` and `.rs` for the client, `.py` for the plugin) is inside a part of a module, their ids resolve, and their links and flow steps match their exchanges (`CONTRIBUTING.md` § Architecture map) | `web` CI job (`pnpm map:check`, `scripts/ci/architecture-map.mjs`) |
 | `createLogger` namespace equals the file name (`docs/reference/logging.md`); namespaces that predate the rule sit in the script's `KNOWN` list | `web` CI job (`pnpm logger:check`, `scripts/ci/logger-namespace.mjs`) |
