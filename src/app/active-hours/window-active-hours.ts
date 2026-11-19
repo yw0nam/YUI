@@ -11,6 +11,8 @@ import { getLocale } from "../../ui/i18n";
 export interface WindowActiveHours {
   /** The pacer gap now: the gap store × the current span's pace factor (off and normal read × 1). */
   gapMs(): number;
+  /** The current span's pace factor: the multiplier the idle cues' idle_min reads; off and normal read × 1. */
+  paceFactor(): number;
   /** Called whenever gapMs() changes value: a gap edit, a spans or card change, a span boundary crossed. */
   subscribeGap(cb: () => void): () => void;
   /** Do-not-disturb for this pet window: the device switch, or an off span now; subscribe fires only when enabled changes. */
@@ -81,6 +83,7 @@ export function createWindowActiveHours(deps: {
 
   return {
     gapMs: () => gap,
+    paceFactor: () => 0,
     subscribeGap(cb) {
       gapListeners.add(cb);
       return () => gapListeners.delete(cb);

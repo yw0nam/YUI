@@ -75,6 +75,17 @@ describe("createWindowActiveHours", () => {
     expect(handle.gapMs()).toBe(expected);
   });
 
+  it.each([
+    [9, 3],
+    [14, 1],
+    [23, 0.5],
+  ])("at %i:00 the pace factor is %f by Yui's card spans", (hour, expected) => {
+    vi.setSystemTime(new Date(2026, 10, 19, hour, 0, 0));
+    const { handle } = build({ gapMs: 600_000 });
+
+    expect(handle.paceFactor()).toBe(expected);
+  });
+
   it("crossing 12:00 fires subscribeGap once and the gap becomes 10 minutes", () => {
     vi.setSystemTime(new Date(2026, 10, 19, 11, 59, 30));
     const { handle } = build({ gapMs: 600_000 });
