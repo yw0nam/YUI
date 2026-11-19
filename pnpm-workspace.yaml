@@ -4,3 +4,7 @@ allowBuilds:
   protobufjs: false
 overrides:
   vitepress>vite: 6.4.3
+minimumReleaseAgeExclude:
+  - '@solidjs/signals@2.0.3'
+  - solid-js@2.0.3
+  - '@solidjs/web@2.0.3'
