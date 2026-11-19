@@ -2,7 +2,7 @@
  * spans.test.ts — active-hours span rules.
  *
  * Pins paceAt: midnight-wrapped spans, the uncovered default, the nested-span
- * winner, and the whole-day span.
+ * winner and its start tie, and the whole-day span.
  */
 
 import { describe, expect, it } from "vitest";
@@ -25,22 +25,49 @@ describe("paceAt", () => {
     expect(paceAt(YUI_SPANS, 6 * 60 + 30)).toBe("normal");
   });
 
-  it("gives a nested span the minute it starts shorter before", () => {
-    const nested: Span[] = [
-      { start: "12:00", end: "22:00", pace: "normal" },
-      { start: "18:00", end: "20:00", pace: "off" },
-    ];
-    expect(paceAt(nested, 19 * 60)).toBe("off");
-    expect(paceAt(nested, 21 * 60)).toBe("normal");
+  it.each<[string, Span[], [number, string], [number, string]]>([
+    [
+      "same day",
+      [
+        { start: "12:00", end: "22:00", pace: "normal" },
+        { start: "18:00", end: "20:00", pace: "off" },
+      ],
+      [19 * 60, "off"],
+      [21 * 60, "normal"],
+    ],
+    [
+      "across midnight",
+      [
+        { start: "22:00", end: "03:00", pace: "high" },
+        { start: "01:00", end: "02:00", pace: "off" },
+      ],
+      [1 * 60 + 30, "off"],
+      [2 * 60 + 30, "high"],
+    ],
+  ])("gives a nested span the minute it starts shorter before: $0", (_label, spans, inside, outside) => {
+    expect(paceAt(spans, inside[0])).toBe(inside[1]);
+    expect(paceAt(spans, outside[0])).toBe(outside[1]);
   });
 
-  it("gives a nested span the minute it starts shorter before across midnight", () => {
-    const nested: Span[] = [
-      { start: "22:00", end: "03:00", pace: "high" },
-      { start: "01:00", end: "02:00", pace: "off" },
-    ];
-    expect(paceAt(nested, 1 * 60 + 30)).toBe("off");
-    expect(paceAt(nested, 2 * 60 + 30)).toBe("high");
+  it("breaks a start tie by the later span in the list", () => {
+    expect(
+      paceAt(
+        [
+          { start: "08:00", end: "12:00", pace: "low" },
+          { start: "08:00", end: "10:00", pace: "off" },
+        ],
+        9 * 60,
+      ),
+    ).toBe("off");
+    expect(
+      paceAt(
+        [
+          { start: "08:00", end: "10:00", pace: "off" },
+          { start: "08:00", end: "12:00", pace: "low" },
+        ],
+        9 * 60,
+      ),
+    ).toBe("low");
   });
 
   it("covers the whole day when start equals end", () => {

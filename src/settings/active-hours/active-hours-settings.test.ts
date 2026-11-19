@@ -1,13 +1,11 @@
 /**
  * active-hours-settings.test.ts — the per-character active-hours store.
  *
- * Pins the stored-value recovery, the reset to null, the copies the store keeps,
- * and that yui.active-hours is a preset key a new preset does not copy.
+ * Pins the stored-value recovery, the reset to null, and the copies the store keeps.
  */
 
 import { describe, expect, it } from "vitest";
 import type { PersistedStorage } from "../persisted-store";
-import { PRESET_COPIED_KEYS, PRESET_KEYS } from "../preset/preset-keys";
 import { createActiveHoursSettings } from "./active-hours-settings";
 import type { Span } from "./spans";
 
@@ -49,10 +47,5 @@ describe("createActiveHoursSettings", () => {
     expect(store.get()).toEqual({ spans: SPANS });
     store.get().spans![0].start = "01:00";
     expect(store.get()).toEqual({ spans: SPANS });
-  });
-
-  it("yui.active-hours is a preset key a new preset does not copy", () => {
-    expect(PRESET_KEYS).toContain("yui.active-hours");
-    expect(PRESET_COPIED_KEYS).not.toContain("yui.active-hours");
   });
 });

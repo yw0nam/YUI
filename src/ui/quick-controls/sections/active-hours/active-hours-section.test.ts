@@ -97,6 +97,9 @@ describe("createActiveHoursSection", () => {
     expect(list[1]!.textContent).not.toContain("next day");
     // The card's spans are in use, so no reset action shows yet.
     expect(host.querySelector<HTMLButtonElement>(".yui-reset")!.hidden).toBe(true);
+    expect(host.querySelector<HTMLElement>(".yui-sec__foot")!.textContent).toBe(
+      "More: about twice as often when you're idle. Less: about a third as often. Off: she only replies. Unset hours are Normal.",
+    );
   });
 
   it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
