@@ -4,7 +4,7 @@
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
  * fires `schedule.<cue_id>` (tier2) when the user is "present" (OS idle within
  * `present_max_idle_ms`). Each cue fires at most once per local day, persisted
- * across restarts, within two hours after `cue.time`. `isEnabled()` and per-cue
+ * across restarts, within two hours after `cue.time`, and at most one cue fires per tick. `isEnabled()` and per-cue
  * `enabled` gate firing only — toggling does not stop the subscription.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
@@ -32,7 +32,7 @@ interface ScheduleSourceDeps {
   getCues: () => ScheduledCue[];
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
-  /** Do-not-disturb: a held cue is not latched, so it fires on the first tick after the hold inside its window. */
+  /** Do-not-disturb or the proactive gap: a held cue is not latched, so it fires on the first tick after the hold inside its window. */
   isHeld?: () => boolean;
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
   listen?: OsEventListen;
@@ -99,6 +99,8 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
       log.info("fire", { cue_id: cue.id, local_time: currentHHMM });
       fired[cue.id] = dayKey;
       firedAny = true;
+      // One cue per tick: the turn it starts anchors the gap, which then holds the next due cue unlatched.
+      break;
     }
     if (firedAny) {
       firedStorage.save(
