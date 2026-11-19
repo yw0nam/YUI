@@ -58,8 +58,6 @@ const SCREEN_DEFAULTS = {
   prev_dwell_ms: 600_000,
   settle_ms: 90_000,
   long_session_ms: 2_700_000,
-  min_gap_ms: 300_000,
-  quiet_after_turn_ms: 180_000,
   recent_cap: 5,
 };
 

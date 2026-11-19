@@ -19,7 +19,7 @@ export const SCREEN_MS_MAX = 86_400_000;
 /** Largest recent_cap accepted — matches the UI row's upper bound (SCREEN_KNOB_FIELDS). */
 export const SCREEN_RECENT_CAP_MAX = 20;
 
-/** Editable screen-watch knobs — five ms thresholds plus the unitless recent_cap count. 0 = no override. */
+/** Editable screen-watch knobs — three ms thresholds plus the unitless recent_cap count. 0 = no override. */
 export type ScreenOverrides = { [K in keyof ScreenConfig]: number };
 
 export type ScreenKnobStorage = PersistedStorage<ScreenOverrides>;
@@ -33,8 +33,6 @@ const EMPTY: ScreenOverrides = {
   prev_dwell_ms: 0,
   settle_ms: 0,
   long_session_ms: 0,
-  min_gap_ms: 0,
-  quiet_after_turn_ms: 0,
   recent_cap: 0,
 };
 
@@ -45,8 +43,6 @@ const SCREEN_KEY_MAX: Record<keyof ScreenOverrides, number> = {
   prev_dwell_ms: SCREEN_MS_MAX,
   settle_ms: SCREEN_MS_MAX,
   long_session_ms: SCREEN_MS_MAX,
-  min_gap_ms: SCREEN_MS_MAX,
-  quiet_after_turn_ms: SCREEN_MS_MAX,
   recent_cap: SCREEN_RECENT_CAP_MAX,
 };
 

@@ -11,8 +11,6 @@ import {
   PLUS_SVG,
   PROACTIVE_CAP_FIELDS,
   SCREEN_KNOB_FIELDS,
-  SCREEN_MIN_GAP_MAX,
-  SCREEN_MIN_GAP_MIN,
   TAB_ICON_BODY,
   TAB_ICON_CONN,
   TAB_ICON_GENERAL,
@@ -132,7 +130,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   ).join("");
 
   // Screen-watch section (Proactive tab) — master toggle plus the knob group it reveals.
-  // The min-gap slider carries the .yui-gain markup; the four thresholds are numeric rows.
+  // The four thresholds are numeric rows.
   const screenHtml = showScreen
     ? `
       <div class="yui-sec">
@@ -140,14 +138,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         <div class="yui-group">
 ${switchRowsHtml("react", "screen")}
           <div class="yui-screen-knobs" hidden>
-            <div class="yui-gain">
-              <div class="yui-gain__head">
-                <span class="yui-gain__label">${t("screen.min_gap_label")}</span>
-                <span class="yui-gain__value yui-screen-gap__value"></span>
-              </div>
-              <input class="yui-gain__slider yui-screen-gap__slider" type="range"
-                min="${SCREEN_MIN_GAP_MIN}" max="${SCREEN_MIN_GAP_MAX}" step="1" aria-label="${t("screen.min_gap_aria")}" />
-            </div>
 ${SCREEN_KNOB_FIELDS.map((f) =>
   numRowHtml({
     id: f.id,

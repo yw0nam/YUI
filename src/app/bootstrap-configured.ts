@@ -277,7 +277,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       agentNotifySettings,
       screenSettings,
       getScreenConfig: () => mergeScreen(config.get().screen, screenKnobSettings.get()),
-      subscribeBusy: dispatcher.subscribeBusy,
       pipelineBusy: {
         isBusy: dispatcher.isPipelineBusy,
         subscribe: dispatcher.subscribePipelineBusy,

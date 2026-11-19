@@ -51,13 +51,7 @@ describe("turn-record-log — buildTurnRecord", () => {
 });
 
 describe("turn-record-log — buildSkipRecord", () => {
-  const REASONS: SkipReason[] = [
-    "disabled",
-    "not_present",
-    "min_gap",
-    "quiet_after_turn",
-    "global_gap",
-  ];
+  const REASONS: SkipReason[] = ["disabled", "not_present", "global_gap"];
 
   it.each(REASONS)("shapes a screen skip record for reason=%s", (reason) => {
     const record = buildSkipRecord({ ts: 3_000, reason, transition: "app_switched" });
@@ -107,7 +101,7 @@ describe("turn-record-log — appendRecord", () => {
   it("never throws when invoke rejects — failure is swallowed", async () => {
     const invoke = vi.fn().mockRejectedValue(new Error("ipc down"));
     const deps: TurnRecordLogDeps = { invoke };
-    const record = buildSkipRecord({ ts: 3_000, reason: "min_gap", transition: "long_session" });
+    const record = buildSkipRecord({ ts: 3_000, reason: "disabled", transition: "long_session" });
 
     expect(() => appendRecord(record, deps)).not.toThrow();
     // let the internal rejection settle without surfacing as unhandled.

@@ -257,8 +257,6 @@ The **Thinking interjections** section of the **Voice** page edits these lists p
 | `prev_dwell_ms` | `600000` (10 min) | The departed app must have held the foreground this long for a switch to count |
 | `settle_ms` | `90000` (90 s) | The new app must hold the foreground this long before the switch fires |
 | `long_session_ms` | `2700000` (45 min) | One app held this long marks a long session, re-marked each period |
-| `min_gap_ms` | `300000` (5 min) | Minimum spacing between screen cues |
-| `quiet_after_turn_ms` | `180000` (3 min) | No screen cue within this long of a backend turn |
 | `recent_cap` | `5` | App switches held during a pause, carried into the next screen turn. `0` holds none |
 
 ## Guardrails

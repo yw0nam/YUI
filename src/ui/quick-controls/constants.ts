@@ -93,11 +93,11 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
 ];
 
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds
-// (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit;
-// min_gap_ms is the slider above them and so has no row. Clearing a field clears the override,
+// (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit.
+// Clearing a field clears the override,
 // and the row then shows the config default. min/max bound both the spinner and the commit.
 export interface ScreenKnobFieldDef {
-  key: Exclude<keyof ScreenOverrides, "min_gap_ms">;
+  key: keyof ScreenOverrides;
   id: string;
   labelKey: string;
   subKey: string;
@@ -139,16 +139,6 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
     min: 5,
     max: 480,
   },
-  {
-    key: "quiet_after_turn_ms",
-    id: "yui-screen-quiet",
-    labelKey: "screen.quiet_label",
-    subKey: "screen.quiet_sub",
-    suffixKey: "screen.minutes_suffix",
-    unitMs: 60_000,
-    min: 1,
-    max: 120,
-  },
   // recent_cap is a bare count, not a duration — unitMs 1 makes the shared ms<->display-unit
   // conversion a no-op. Row min is 0, but 0 is also the store's "no override" sentinel, so
   // committing 0 here falls back to the config default cap rather than setting a literal 0;
@@ -164,13 +154,6 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
     max: SCREEN_RECENT_CAP_MAX,
   },
 ];
-
-/**
- * Min-gap slider bounds, in minutes. The floor is 1, not 0: the store reads 0 as "no override",
- * so a thumb dropped at 0 would snap back to the config default instead of holding where it landed.
- */
-export const SCREEN_MIN_GAP_MIN = 1;
-export const SCREEN_MIN_GAP_MAX = 60;
 
 // Display icon for the screen-watch row — monitor with a lens, matching the line-icon set.
 export const SCREEN_WATCH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

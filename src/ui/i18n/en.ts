@@ -803,9 +803,6 @@ const en: Record<string, string> = {
   "screen.label": "React to screen changes",
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
   "screen.aria": "React to screen changes",
-  "screen.min_gap_label": "Minimum gap between cues",
-  "screen.min_gap_aria": "Minimum gap between screen-watch cues",
-  "screen.min_gap_value": "{n} min",
   "screen.minutes_suffix": "min",
   "screen.seconds_suffix": "s",
   "screen.prev_dwell_label": "Counts as an app switch after",
@@ -814,8 +811,6 @@ const en: Record<string, string> = {
   "screen.settle_sub": "A quick glance is ignored",
   "screen.long_session_label": "Notices a long stretch every",
   "screen.long_session_sub": "One app held this long counts as a long session",
-  "screen.quiet_label": "Stay quiet after a turn for",
-  "screen.quiet_sub": "So a cue never piles onto what was just said",
   "screen.recent_cap_label": "Remembers up to",
   "screen.recent_cap_sub":
     "How many app switches held during a pause carry into the next screen turn",

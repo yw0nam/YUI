@@ -17,10 +17,9 @@
  * ship on the first morning fire.
  *
  * A candidate that survives to the gate is refused when the feature is off, the user is away,
- * the global proactive pacer still holds its window open, the min gap since the last screen
- * fire has not passed, or a turn from any producer landed within `quiet_after_turn_ms`. A
- * refused `long_session` mark is skipped, not queued — the next fire is the next mark. Every
- * fire re-anchors the idle-cue gap so proactive cues do not pile onto it.
+ * or the global proactive pacer still holds its window open. A refused `long_session` mark is
+ * skipped, not queued — the next fire is the next mark. Every fire re-anchors the idle-cue gap
+ * so proactive cues do not pile onto it.
  *
  * While the pacer holds, each `app_switched` refusal it causes is accumulated into a rolling
  * `recent` buffer (capped at `recent_cap`, oldest dropped on overflow, drained toward a lowered
@@ -70,8 +69,6 @@ interface ScreenSourceDeps {
   isEnabled: () => boolean;
   /** Re-anchors the idle-cue gap on a fire. */
   noteInteraction?: () => void;
-  /** Backend-turn busy edges — each one re-anchors the quiet-after-turn window. */
-  subscribeBusy?: (cb: (busy: boolean) => void) => () => void;
   /** Global proactive gap — a candidate inside the window is skipped, not queued. */
   isPacerHolding?: () => boolean;
   /** Skip-record JSONL sink — best-effort disk log of suppressed fires for analysis. */
@@ -94,27 +91,19 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   const now = deps.now ?? Date.now;
 
   let unlisten: (() => void) | undefined;
-  let unsubscribeBusy: (() => void) | undefined;
 
   let currentApp: string | undefined;
   let appSince: number | undefined;
   let pending: PendingSwitch | undefined;
   /** Start of the current long-session period; re-stamped on each mark and each app change. */
   let markedAt: number | undefined;
-  let lastFireTs: number | undefined;
-  let lastTurnTs: number | undefined;
   /** app_switched transitions held back by the pacer, oldest first. Shipped on the next fire. */
   let recent: RecentTransition[] = [];
 
-  function suppressionReason(t: number, present: boolean): SkipReason | undefined {
+  function suppressionReason(present: boolean): SkipReason | undefined {
     if (!isEnabled()) return "disabled";
     if (!present) return "not_present";
     if (deps.isPacerHolding?.()) return "global_gap";
-    const cfg = getConfig();
-    if (lastTurnTs !== undefined && t - lastTurnTs < cfg.quiet_after_turn_ms) {
-      return "quiet_after_turn";
-    }
-    if (lastFireTs !== undefined && t - lastFireTs < cfg.min_gap_ms) return "min_gap";
     return undefined;
   }
 
@@ -142,7 +131,6 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       payload: { transition, dwell_min, ...fromFields, ...recentFields },
     };
     bus.push(env);
-    lastFireTs = t;
     recent = [];
     deps.noteInteraction?.();
     log.info("fire", { transition, app: currentApp, dwell_min, ...fromFields });
@@ -198,7 +186,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     }
 
     if (transition !== undefined) {
-      const reason = suppressionReason(t, present);
+      const reason = suppressionReason(present);
       if (reason) {
         log.info("fire.suppressed", { transition, reason, app: currentApp });
         if (
@@ -227,17 +215,12 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
 
   async function start(): Promise<void> {
     if (unlisten) return;
-    unsubscribeBusy ??= deps.subscribeBusy?.(() => {
-      lastTurnTs = now();
-    });
     unlisten = await subscribeOsEvent({ listen: deps.listen, onTick, log });
   }
 
   function stop(): void {
     unlisten?.();
     unlisten = undefined;
-    unsubscribeBusy?.();
-    unsubscribeBusy = undefined;
   }
 
   return { start, stop };

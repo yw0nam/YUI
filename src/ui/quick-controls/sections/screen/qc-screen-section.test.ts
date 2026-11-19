@@ -12,8 +12,6 @@ const SCREEN_DEFAULTS = {
   prev_dwell_ms: 600_000,
   settle_ms: 90_000,
   long_session_ms: 2_700_000,
-  min_gap_ms: 300_000,
-  quiet_after_turn_ms: 180_000,
   recent_cap: 5,
 };
 
@@ -118,9 +116,6 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     expect(value("#yui-screen-prev-dwell")).toBe("10");
     expect(value("#yui-screen-settle")).toBe("90");
     expect(value("#yui-screen-long-session")).toBe("45");
-    expect(value("#yui-screen-quiet")).toBe("3");
-    expect(qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!.value).toBe("5");
-    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("5분");
     qc.dispose();
   });
 
@@ -227,37 +222,6 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.dispose();
   });
 
-  it("tracks the min-gap slider live but commits only on release", () => {
-    const { screenKnobSettings, qc } = buildScreenQc();
-    qc.open();
-    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
-    // 0 is the store's "no override" sentinel, so the lowest reachable position is 1 —
-    // a thumb that snapped back to the config default on release would be a lie.
-    expect(slider.min).toBe("1");
-    expect(slider.max).toBe("60");
-
-    slider.value = "12";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("12분");
-    expect(screenKnobSettings.get().min_gap_ms).toBe(0);
-
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(screenKnobSettings.get().min_gap_ms).toBe(720_000);
-    qc.dispose();
-  });
-
-  it("keeps the thumb where it was released at the lowest position", () => {
-    const { screenKnobSettings, qc } = buildScreenQc();
-    qc.open();
-    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
-    slider.value = "1";
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(screenKnobSettings.get().min_gap_ms).toBe(60_000);
-    expect(slider.value).toBe("1");
-    expect(qc.el.querySelector(".yui-screen-gap__value")!.textContent).toBe("1분");
-    qc.dispose();
-  });
-
   it("carries the footnote about screenshot pixels and do-not-disturb", () => {
     const { qc } = buildScreenQc();
     qc.open();
@@ -305,19 +269,15 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
 
   // ── Teardown ──────────────────────────────────────────────────────────────
 
-  it("detaches the knob and slider listeners on dispose", () => {
+  it("detaches the knob listeners on dispose", () => {
     const { screenKnobSettings, qc } = buildScreenQc();
     qc.open();
     const input = qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!;
-    const slider = qc.el.querySelector<HTMLInputElement>(".yui-screen-gap__slider")!;
     qc.dispose();
 
     input.value = "30";
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    slider.value = "12";
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
     expect(screenKnobSettings.get().settle_ms).toBe(0);
-    expect(screenKnobSettings.get().min_gap_ms).toBe(0);
   });
 
   it("releases every flag and knob subscription on dispose", () => {
