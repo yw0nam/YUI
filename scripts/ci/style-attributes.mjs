@@ -1,6 +1,7 @@
 // No root page carries an inline `<style>`, so Tauri adds no style nonce to the CSP and WebKit keeps
 // honouring `style-src 'unsafe-inline'`. Inline `style=` attributes stay banned: styles go through
-// classes or CSSOM writes (`el.style.setProperty`, `el.style.cssText =`), which CSP does not govern.
+// classes or CSSOM writes (`el.style.setProperty`, `el.style.cssText =`), which CSP does not govern, so a
+// future nonce cannot silently drop them.
 // Exits 1 and lists each `<style>` in a root page, each `style=` in `src/` markup or a root page and
 // each `setAttribute("style"`.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -49,7 +50,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       list(pages, findInlineStyleElements),
     ],
     [
-      "an inline style attribute is banned; set a CSS variable with el.style.setProperty or use a data- attribute and CSS",
+      "an inline style attribute is banned so a future nonce cannot silently drop it; set a CSS variable with el.style.setProperty or use a data- attribute and CSS",
       list([...files, ...pages], findInlineStyleWrites),
     ],
   ].filter(([, bad]) => bad.length);
