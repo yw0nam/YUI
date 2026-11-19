@@ -213,6 +213,27 @@ describe("schedule_source — gating", () => {
 });
 
 describe("schedule_source — once-per-day latch", () => {
+  it("fires one due cue per tick, so a second due cue stays unlatched for the next tick", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue(), cue({ id: "standup", time: "09:15" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.morning"]);
+    emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.morning", "schedule.standup"]);
+  });
+
   it("fires each cue only once per day", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
