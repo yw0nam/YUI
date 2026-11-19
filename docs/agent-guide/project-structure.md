@@ -679,6 +679,7 @@ YUI/
         quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles
+        settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
