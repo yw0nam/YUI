@@ -3,8 +3,9 @@
  * active-hours-section.test.ts — the Persona page's Active hours editor.
  *
  * Pins the rows the section renders from the spans in use (the card's until
- * edited), and the pace edit that writes the whole list back to the
- * per-character store with Reset to default beside the section title.
+ * edited) with the next-day mark on a span that wraps midnight, and the pace
+ * edit that writes the whole list back to the per-character store with Reset
+ * to default beside the section title.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -100,6 +101,25 @@ describe("createActiveHoursSection", () => {
     expect(host.querySelector<HTMLElement>(".yui-sec__foot")!.textContent).toBe(
       "More: about twice as often when you're idle. Less: about a third as often. Off: she only replies. Unset hours are Normal.",
     );
+  });
+
+  it("renders no next-day mark on a span whose start equals its end", () => {
+    const { host, store } = build();
+    store.setSpans([{ start: "09:00", end: "09:00", pace: "normal" }]);
+    const row = rows(host)[0]!;
+    expect(timesOf(row)[0]!.value).toBe("09:00");
+    expect(timesOf(row)[1]!.value).toBe("09:00");
+    expect(row.textContent).not.toContain("next day");
+  });
+
+  it("drops the next-day mark when an edit makes the end equal the start", () => {
+    const { host } = build();
+    const row = rows(host)[2]!;
+    expect(row.textContent).toContain("next day");
+    const end = timesOf(row)[1]!;
+    end.value = "22:00";
+    end.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(row.textContent).not.toContain("next day");
   });
 
   it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
