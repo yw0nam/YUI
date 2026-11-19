@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { backendProxy } from "./scripts/dev-backend-proxy.mjs";
 import { resolveVitePort } from "./scripts/dev-port.mjs";
@@ -61,6 +62,7 @@ export default defineConfig(() => ({
     },
   },
   plugins: [
+    react(),
     backendProxy(),
     serveDir("/vrms", "resources/vrms"),
     serveDir("/configs", "configs"),
