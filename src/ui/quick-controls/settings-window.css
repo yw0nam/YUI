@@ -1,0 +1,5 @@
+/* Fill the opaque window with the panel surface once the theme is set (styles.css leaves body transparent). */
+html[data-theme],
+html[data-theme] body {
+  background: var(--yui-panel-bg) !important;
+}
