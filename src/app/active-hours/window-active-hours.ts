@@ -38,27 +38,26 @@ export function createWindowActiveHours(deps: {
     const now = new Date();
     return paceAt(spans, now.getHours() * 60 + now.getMinutes());
   };
-  const gapNow = (): number => {
-    const pace = paceNow();
-    return deps.pacerGapSettings.get().value * (pace === "off" ? 1 : PACE_FACTOR[pace]);
-  };
-  const dndNow = (): boolean => deps.dndSettings.get().enabled || paceNow() === "off";
-
-  let gap = gapNow();
-  let enabled = dndNow();
+  let pace: Pace;
+  let factor: number;
+  let gap: number;
+  let enabled: boolean;
 
   const recompute = (): void => {
-    const nextGap = gapNow();
+    pace = paceNow();
+    factor = pace === "off" ? 1 : PACE_FACTOR[pace];
+    const nextGap = deps.pacerGapSettings.get().value * factor;
     if (nextGap !== gap) {
       gap = nextGap;
       for (const cb of gapListeners) cb();
     }
-    const nextEnabled = dndNow();
+    const nextEnabled = deps.dndSettings.get().enabled || pace === "off";
     if (nextEnabled !== enabled) {
       enabled = nextEnabled;
       for (const cb of dndListeners) cb({ enabled });
     }
   };
+  recompute();
 
   // One chain aimed at the next minute boundary; each fire reads the local clock fresh, so DST and sleep need no special case.
   let timer: ReturnType<typeof setTimeout>;
@@ -83,7 +82,7 @@ export function createWindowActiveHours(deps: {
 
   return {
     gapMs: () => gap,
-    paceFactor: () => 0,
+    paceFactor: () => factor,
     subscribeGap(cb) {
       gapListeners.add(cb);
       return () => gapListeners.delete(cb);

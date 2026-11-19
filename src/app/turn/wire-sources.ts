@@ -61,6 +61,8 @@ export function wireDispatcherSources(deps: {
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
   /** Do-not-disturb — holds the schedule cues and reads as busy to both signals inboxes. */
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
+  /** This pet window's pace factor now — scales the proactive cues' idle_min, re-read on each call. */
+  paceFactor: () => number;
   /** Subscribes to the character-addressed bridge events this preset is named in. */
   onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
   /** Subscribes to the unified chat window's messages routed to this preset. */
@@ -94,6 +96,7 @@ export function wireDispatcherSources(deps: {
     pipelineBusy,
     pacer,
     dnd,
+    paceFactor,
   } = deps;
   const dndHold = {
     isHolding: () => dnd.get().enabled,
@@ -107,7 +110,12 @@ export function wireDispatcherSources(deps: {
   const proactiveSource = createProactiveSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
-    getCues: () => proactiveSettings.get().entries,
+    getCues: () => {
+      const factor = paceFactor();
+      return proactiveSettings
+        .get()
+        .entries.map((cue) => ({ ...cue, idle_min: cue.idle_min * factor }));
+    },
     isEnabled: () => proactiveSettings.get().enabled,
   });
   void proactiveSource.start();

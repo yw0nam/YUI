@@ -284,6 +284,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       pacer,
       dnd: phase1.activeHours.dnd,
+      paceFactor: phase1.activeHours.paceFactor,
       onCharacterAddressed: phase1.onCharacterAddressed,
       onUserTurnRouted: phase1.onUserTurnRouted,
       submitUser: phase1.userInput.submit,

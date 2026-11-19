@@ -85,6 +85,7 @@ function wireWithDnd(
     pipelineBusy: { isBusy: () => false, subscribe: () => () => {} },
     pacer: { isHolding: () => false, subscribe: () => () => {} },
     dnd,
+    paceFactor: () => 1,
     onCharacterAddressed: () => () => {},
     onUserTurnRouted: () => () => {},
     submitUser: vi.fn(),
