@@ -57,7 +57,7 @@ export function wireDispatcherSources(deps: {
   /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
   subscribeBusy: (cb: (busy: boolean) => void) => () => void;
   pipelineBusy: PacedPipelineBusy;
-  /** This pet window's proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
+  /** This pet window's proactive gap — a hold reads as a skip to the screen source, as busy to the inboxes, and holds the schedule cues. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
   /** Do-not-disturb — holds the schedule cues and reads as busy to both signals inboxes. */
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;

@@ -2,8 +2,9 @@
  * proactive_pacer — the one quiet gap every proactive source shares.
  *
  * Any backend turn start (user or proactive, spoken or silent) anchors a window; while it is
- * open, proactive fires are held back. Screen consults `isHolding()` at its own gate; idle cues
- * and schedule do not consult it, so the dispatcher's routing gate is their only hold; the
+ * open, proactive fires are held back. Screen consults `isHolding()` at its own gate, and the
+ * schedule source reads it as its hold, so a due cue waits unlatched; idle cues do not consult
+ * it, so the dispatcher's routing gate is their only hold; the
  * buffered-inbox source (signals) takes the window as busy and flushes one catchup at the open
  * edge.
  *
