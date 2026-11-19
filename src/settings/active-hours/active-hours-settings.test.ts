@@ -47,7 +47,7 @@ describe("createActiveHoursSettings", () => {
     store.setSpans(given);
     given[0].start = "23:00";
     expect(store.get()).toEqual({ spans: SPANS });
-    store.get().spans[0].start = "01:00";
+    store.get().spans![0].start = "01:00";
     expect(store.get()).toEqual({ spans: SPANS });
   });
 

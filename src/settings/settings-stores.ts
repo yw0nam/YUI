@@ -1,4 +1,8 @@
 import {
+  createActiveHoursSettings,
+  localStorageActiveHoursStorage,
+} from "./active-hours/active-hours-settings";
+import {
   createTextSizeSettings,
   localStorageTextSizeStorage,
 } from "./appearance/text-size-settings";
@@ -156,6 +160,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageFillerStorage(),
     locale: opts?.locale,
   });
+  // Per-character active hours: edited spans or null (the card's spans then apply). Both windows sync via wireStorageSync.
+  const activeHoursSettings = createActiveHoursSettings({
+    storage: localStorageActiveHoursStorage(),
+  });
   // Device-wide reading dictionary: rewrites the text sent to the TTS service, never the bubble.
   const readingsSettings = createReadingsSettings({ storage: localStorageReadingsStorage() });
   // Speech bubble persistence: when on, speech holds until dismissed instead of fading after dwell. Default OFF.
@@ -233,6 +241,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     threadReactionThresholdsSettings,
     textSizeSettings,
     fillerSettings,
+    activeHoursSettings,
     readingsSettings,
     bubblePersistSettings,
     messageWindowSettings,
@@ -290,6 +299,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   threadReactionThresholdsSettings: "broadcast",
   textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
+  activeHoursSettings: "broadcast",
   readingsSettings: "broadcast",
   bubblePersistSettings: "broadcast",
   messageWindowSettings: "broadcast",
