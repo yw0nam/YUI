@@ -167,14 +167,14 @@ describe("createQuickCard", () => {
     ]);
   });
 
-  it("rebuilds in the new language when the display language changes, an open card keeping focus", () => {
+  it("re-renders in the new language when the display language changes, an open card keeping focus", () => {
     const { card, tile } = build();
     act(() => card.open());
     tile(0).focus();
 
     act(() => setLocale("ko"));
 
-    // An open card rebuilds in place; the window around it stays, and so does Escape.
+    // An open card re-renders in place; the window around it stays, and so does Escape.
     expect(card.isOpen()).toBe(true);
     expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("음성");
     expect(card.el.contains(document.activeElement)).toBe(true);

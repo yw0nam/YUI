@@ -102,12 +102,16 @@ export function createQuickCard(deps: QuickCardDeps): QuickCard {
     el.focus({ preventScroll: true });
   }
 
-  function close(): void {
-    if (!open) return;
+  function hide(): void {
     open = false;
     document.removeEventListener("pointerdown", onOutsidePointer, true);
     if (el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
     el.remove();
+  }
+
+  function close(): void {
+    if (!open) return;
+    hide();
     generation += 1;
     render();
     for (const cb of closeListeners) cb();
@@ -129,7 +133,10 @@ export function createQuickCard(deps: QuickCardDeps): QuickCard {
       return () => headListeners.delete(cb);
     },
     dispose() {
-      close();
+      if (open) {
+        hide();
+        for (const cb of closeListeners) cb();
+      }
       disposed = true;
       root.unmount();
     },
