@@ -91,7 +91,6 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
     end.setAttribute("aria-label", t("active_hours.end_aria"));
     end.value = span.end;
     range.append(start, dash, end);
-    // A span whose end comes before its start runs past midnight.
     if (wrapsMidnight(span)) {
       const nextDay = document.createElement("span");
       nextDay.className = "yui-cue__suffix";
