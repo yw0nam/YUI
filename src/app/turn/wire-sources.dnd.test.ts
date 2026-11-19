@@ -1,4 +1,4 @@
-/** The real sources wired the way bootstrap does: do-not-disturb holds the schedule and the signals inboxes. */
+/** The real sources wired the way bootstrap does: do-not-disturb and the proactive gap hold the schedule and the signals inboxes. */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { BusEnvelope } from "../../dispatcher/core/event-bus";
@@ -59,6 +59,10 @@ afterEach(() => {
 function wireWithDnd(
   dnd: ReturnType<typeof createFlagSettings>,
   scheduleSettings: ScheduleSettings = { enabled: false, entries: [] },
+  pacer: { isHolding: () => boolean; subscribe: () => () => void } = {
+    isHolding: () => false,
+    subscribe: () => () => {},
+  },
 ) {
   const pushed: BusEnvelope[] = [];
   const sources = wireDispatcherSources({
@@ -83,7 +87,7 @@ function wireWithDnd(
     }),
     subscribeBusy: () => () => {},
     pipelineBusy: { isBusy: () => false, subscribe: () => () => {} },
-    pacer: { isHolding: () => false, subscribe: () => () => {} },
+    pacer,
     dnd,
     paceFactor: () => 1,
     onCharacterAddressed: () => () => {},
@@ -167,5 +171,29 @@ it("buffers an urgent and a batched group while DND is on, and fires each catch-
   dnd.setEnabled(true);
   dnd.setEnabled(false);
   expect(pushed).toHaveLength(2);
+  stop();
+});
+
+it("pushes no due schedule cue while the proactive gap holds, and pushes it on the first tick after", async () => {
+  vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
+  let holding = true;
+  const schedule: ScheduleSettings = {
+    enabled: true,
+    entries: [{ id: "morning", label: "Morning", context: "ctx", time: "09:00", enabled: true }],
+  };
+  const { pushed, stop } = wireWithDnd(createFlagSettings(false), schedule, {
+    isHolding: () => holding,
+    subscribe: () => () => {},
+  });
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(0);
+  const scheduled = () => pushed.filter((e) => e.event_name.startsWith("schedule."));
+
+  channel.emit("os_event", idleTick(500));
+  expect(scheduled()).toEqual([]);
+
+  holding = false;
+  channel.emit("os_event", idleTick(500));
+  expect(scheduled().map((e) => e.event_name)).toEqual(["schedule.morning"]);
   stop();
 });
