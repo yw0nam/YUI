@@ -1,0 +1,116 @@
+// @vitest-environment jsdom
+/**
+ * active-hours-section.test.ts — the Persona page's Active hours editor.
+ *
+ * Pins the rows the section renders from the spans in use (the card's until
+ * edited), and the pace edit that writes the whole list back to the
+ * per-character store with Reset to default beside the section title.
+ */
+
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  type Card,
+  EMPTY_CARD,
+  type PersonaConfig,
+} from "../../../../config/validators/persona/types";
+import {
+  createActiveHoursSettings,
+  type ActiveHoursSettingsStore,
+} from "../../../../settings/active-hours/active-hours-settings";
+import type { Span } from "../../../../settings/active-hours/spans";
+import { createAgentSettings } from "../../../../settings/backend/agent-settings";
+import type { PersistedStorage } from "../../../../settings/persisted-store";
+import { createLogger } from "../../../../logger";
+import { setLocale } from "../../../i18n";
+import { activeHoursSectionHtml, createActiveHoursSection } from "./active-hours-section";
+
+const YUI_SPANS: Span[] = [
+  { start: "08:00", end: "12:00", pace: "low" },
+  { start: "12:00", end: "22:00", pace: "normal" },
+  { start: "22:00", end: "03:00", pace: "high" },
+];
+
+const yuiCard = (): Card => ({
+  ...EMPTY_CARD,
+  name: "Yui",
+  extensions: { yui: { active_hours: YUI_SPANS } },
+});
+
+const persona: PersonaConfig = {
+  framing: { en: "f", ja: "f", ko: "f" },
+  user_fallback: { en: "User", ja: "ユーザー", ko: "사용자" },
+  cards: { en: yuiCard(), ja: yuiCard(), ko: yuiCard() },
+};
+
+function memoryStorage<T>(): PersistedStorage<T> {
+  let saved: T | null = null;
+  return {
+    load: () => saved,
+    save: (s) => {
+      saved = s;
+    },
+  };
+}
+
+function build(): { host: HTMLElement; store: ActiveHoursSettingsStore; section: { dispose(): void } } {
+  const store = createActiveHoursSettings({ storage: memoryStorage() });
+  const agentSettings = createAgentSettings({ storage: memoryStorage() });
+  const host = document.createElement("div");
+  host.innerHTML = activeHoursSectionHtml();
+  document.body.appendChild(host);
+  const section = createActiveHoursSection({
+    root: host,
+    activeHoursSettings: store,
+    agentSettings,
+    getPersona: () => persona,
+    log: createLogger("active-hours"),
+  });
+  return { host, store, section };
+}
+
+describe("createActiveHoursSection", () => {
+  beforeEach(() => {
+    setLocale("en");
+    document.body.innerHTML = "";
+  });
+
+  const rows = (host: HTMLElement) => host.querySelectorAll<HTMLElement>(".yui-hours__span");
+  const timesOf = (row: HTMLElement) => row.querySelectorAll<HTMLInputElement>(".yui-time-input");
+  const paceOf = (row: HTMLElement) => row.querySelector<HTMLSelectElement>(".yui-hours__pace")!;
+
+  it("renders the card's three spans: start, end, pace, next day on the wrapped one", () => {
+    const { host } = build();
+    const list = rows(host);
+    expect(list).toHaveLength(3);
+    expect(timesOf(list[0]!)[0]!.value).toBe("08:00");
+    expect(timesOf(list[0]!)[1]!.value).toBe("12:00");
+    expect(paceOf(list[0]!).value).toBe("low");
+    expect(paceOf(list[0]!).textContent).toContain("Less");
+    expect(paceOf(list[1]!).value).toBe("normal");
+    expect(paceOf(list[2]!).value).toBe("high");
+    expect(timesOf(list[2]!)[1]!.value).toBe("03:00");
+    expect(list[2]!.textContent).toContain("next day");
+    expect(list[1]!.textContent).not.toContain("next day");
+    // The card's spans are in use, so no reset action shows yet.
+    expect(host.querySelector<HTMLButtonElement>(".yui-reset")!.hidden).toBe(true);
+  });
+
+  it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
+    const { host, store, section } = build();
+    expect(rows(host)).toHaveLength(3);
+    const select = paceOf(rows(host)[1]!);
+    select.value = "off";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(store.get().spans).toEqual([
+      { start: "08:00", end: "12:00", pace: "low" },
+      { start: "12:00", end: "22:00", pace: "off" },
+      { start: "22:00", end: "03:00", pace: "high" },
+    ]);
+    const reset = host.querySelector<HTMLButtonElement>(".yui-reset")!;
+    expect(reset.hidden).toBe(false);
+    reset.click();
+    expect(store.get().spans).toBeNull();
+    expect(reset.hidden).toBe(true);
+    section.dispose();
+  });
+});
