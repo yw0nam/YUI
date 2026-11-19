@@ -14,6 +14,8 @@ import type {
 } from "../../../../io/assets/preset-file/preset-file-export";
 import { cardName } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
+import { extensionsWithActiveHours } from "../../../../settings/active-hours/card-active-hours";
+import type { Span } from "../../../../settings/active-hours/spans";
 import { extensionsWithFiller } from "../../../../settings/voice/card-filler";
 import type { FillerSettings } from "../../../../settings/voice/filler-settings";
 import { t } from "../../../i18n";
@@ -75,6 +77,8 @@ export function createCardIo(deps: {
   entry: () => { id: string; name: string };
   /** The active preset's custom filler pools, carried in the export's extensions.yui. */
   fillerPools: () => FillerSettings["customPools"];
+  /** The edited active-hours spans the export writes beside them; null keeps the card's own key. */
+  activeHoursSpans: () => Span[] | null;
   /** The one-shot notice storage across the import's reload; defaults to sessionStorage. */
   noticeStorage?: Pick<Storage, "getItem" | "removeItem">;
   log: Logger;
@@ -116,6 +120,10 @@ export function createCardIo(deps: {
     envelope.data.extensions = extensionsWithFiller(
       envelope.data.extensions as Record<string, unknown>,
       deps.fillerPools(),
+    );
+    envelope.data.extensions = extensionsWithActiveHours(
+      envelope.data.extensions as Record<string, unknown>,
+      deps.activeHoursSpans(),
     );
     return { json: JSON.stringify(envelope), stem: sanitizeFileStem(name) };
   }

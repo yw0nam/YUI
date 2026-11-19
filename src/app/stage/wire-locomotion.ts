@@ -55,7 +55,7 @@ export function wireLocomotion(deps: {
   peekActive: () => boolean;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
-  dndSettings: FlagSettingsStore;
+  dnd: Pick<FlagSettingsStore, "get">;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
   vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "getActive">;
   onStrollEnd: (bodyReleased: boolean) => void;
@@ -93,7 +93,7 @@ export function wireLocomotion(deps: {
     peekActive,
     fallSettings,
     climbSettings,
-    dndSettings,
+    dnd,
     agentNotifySettings,
     vrmSelection,
     onStrollEnd,
@@ -146,7 +146,7 @@ export function wireLocomotion(deps: {
     renderer,
     travelFrame,
     isEnabled: () => fallSettings.get().enabled,
-    isDndOn: () => dndSettings.get().enabled,
+    isDndOn: () => dnd.get().enabled,
     getFallConfig: () => getConfig().avatar.fall,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     getFloorTolerancePx: () => getConfig().avatar.walk.floor_tolerance_px,

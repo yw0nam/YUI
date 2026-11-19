@@ -451,6 +451,20 @@ describe("createQuickControls — Reactions tab layout", () => {
     qc.dispose();
   });
 
+  it("shows the active-hours hint as the pacer-gap row's second sub line", () => {
+    setLocale("en");
+    const qc = buildQc({ pacerGapSettings: inMemoryPacerGapStore() });
+    qc.open();
+    const row = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!.closest(".yui-row")!;
+    const subs = [...row.querySelectorAll<HTMLElement>(".yui-row__sub")].map(
+      (el) => el.textContent,
+    );
+    expect(subs).toContain(
+      "Each character's active hours scale this wait and the quiet-for-a-while reactions.",
+    );
+    qc.dispose();
+  });
+
   // ── Rate-limit caps ───────────────────────────────────────────────────────
 
   const RATE_LIMIT_DEFAULTS = {

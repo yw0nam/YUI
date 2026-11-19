@@ -261,6 +261,36 @@ describe("createPresetFromCard", () => {
     expect(agentCard.extensions).toEqual({ other_ext: { kept: true } });
   });
 
+  it("keeps the card's active hours in the stored card, with and without filler", async () => {
+    const spans = [{ start: "08:00", end: "12:00", pace: "low" }];
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1", "n2"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    seedFiller(storage, "n2");
+    const withFiller = await createPresetFromCard({
+      registry,
+      card: fillerCard({ yui: { filler: { ja: { first: ["A"] } }, active_hours: spans } }),
+      storage,
+      fillerLocale: "ko",
+    });
+    const withoutFiller = await createPresetFromCard({
+      registry,
+      card: fillerCard({ yui: { active_hours: spans } }),
+      storage,
+      fillerLocale: "ko",
+    });
+    const storedExtensions = (id: string) =>
+      JSON.parse(storage.getItem(resolveStorageKey("yui.agent", id))!).card.extensions;
+    expect(storedExtensions(withFiller)).toEqual({
+      yui: { active_hours: spans },
+      other_ext: { kept: true },
+    });
+    expect(storedExtensions(withoutFiller)).toEqual({
+      yui: { active_hours: spans },
+      other_ext: { kept: true },
+    });
+  });
+
   it("a failing filler write rolls the preset back and rethrows", async () => {
     const { registry, removed } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
     const storage = memoryStorage();

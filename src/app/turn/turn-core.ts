@@ -21,6 +21,7 @@ import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { t } from "../../ui/i18n";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { WindowActiveHours } from "../active-hours/window-active-hours";
 import type { ConversationStores } from "../settings/conversation-stores";
 import {
   applyAvatarConfig,
@@ -53,6 +54,8 @@ export interface TurnCorePhase1 {
   renderer: Renderer;
   surfaces: Surfaces;
   settings: SettingsStores;
+  /** This pet window's active hours: the pacer gap, its pace factor and the do-not-disturb hold. */
+  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "paceFactor" | "dnd">;
   conversation: ConversationStores;
   bus: EventBus;
   userInput: UserInputSource;
@@ -220,8 +223,7 @@ export async function wireTurnCore(
     relationsSwitch: settings.relationsSwitch,
     getCardText: deps.getCardText,
     guardrailsSettings: settings.guardrailsSettings,
-    pacerGapSettings: settings.pacerGapSettings,
-    dndSettings: settings.dndSettings,
+    activeHours: phase1.activeHours,
     oneVoiceSettings: settings.oneVoiceSettings,
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,

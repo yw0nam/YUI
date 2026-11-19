@@ -44,6 +44,7 @@ describe("createSettingsStores", () => {
       "threadReactionThresholdsSettings",
       "textSizeSettings",
       "fillerSettings",
+      "activeHoursSettings",
       "readingsSettings",
       "bubblePersistSettings",
       "messageWindowSettings",

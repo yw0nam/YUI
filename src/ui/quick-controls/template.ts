@@ -29,6 +29,7 @@ import {
 import { capRowHtml, escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
+import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
@@ -180,7 +181,7 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
         ${secHeadHtml(t("reactions.shared_title"))}
         <div class="yui-group">
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
-        ${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint" }) : ""}
+        ${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint", hint2Key: "reactions.pacer_gap_hours_hint" }) : ""}
         </div>
       </div>`
       : "";
@@ -287,7 +288,7 @@ ${panelOpenHtml("voice")}
           </div>
         </div>
       </div>
-${panelOpenHtml("persona")}${cardSectionHtml()}
+${panelOpenHtml("persona")}${activeHoursSectionHtml()}${cardSectionHtml()}
       </div>
 ${panelOpenHtml("body")}
       </div>

@@ -158,7 +158,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       gazeSettings,
       climbSettings,
       fallSettings,
-      dndSettings,
       hintSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
@@ -284,7 +283,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         subscribe: dispatcher.subscribePipelineBusy,
       },
       pacer,
-      dndSettings: settings.dndSettings,
+      dnd: phase1.activeHours.dnd,
+      paceFactor: phase1.activeHours.paceFactor,
       onCharacterAddressed: phase1.onCharacterAddressed,
       onUserTurnRouted: phase1.onUserTurnRouted,
       submitUser: phase1.userInput.submit,
@@ -333,7 +333,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekActive: () => peekState?.active() ?? false,
       fallSettings,
       climbSettings,
-      dndSettings,
+      dnd: phase1.activeHours.dnd,
       agentNotifySettings,
       vrmSelection,
       onStrollEnd: (bodyReleased) => {
@@ -386,7 +386,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       register(wireTrayDnd({ dnd: settings.dndSettings, log }));
     }
     // Every pet window marks its root: do-not-disturb stills the urgent chip pulse.
-    register(wireDndRoot({ dnd: settings.dndSettings, root: document.documentElement }));
+    register(wireDndRoot({ dnd: phase1.activeHours.dnd, root: document.documentElement }));
     register(wireIngressDeadNotice({ surfaces, t }));
     const { vocabulary, stopTurn } = await core.connect({
       onSubmit: () => {

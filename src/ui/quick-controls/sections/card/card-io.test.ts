@@ -7,8 +7,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EMPTY_CARD } from "../../../../config/validators/persona/types";
+import { type Card, EMPTY_CARD } from "../../../../config/validators/persona/types";
 import { createLogger } from "../../../../logger";
+import type { Span } from "../../../../settings/active-hours/spans";
 import { setLocale } from "../../../i18n";
 import { type CardIoPorts, createCardIo } from "./card-io";
 import { cardSectionHtml } from "./card-section";
@@ -30,6 +31,7 @@ function mount(importDroppedPreset: CardIoPorts["importDroppedPreset"]) {
     currentCard: () => EMPTY_CARD,
     entry: () => ({ id: "abcd1234", name: "Mio" }),
     fillerPools: () => ({}),
+    activeHoursSpans: () => null,
     noticeStorage: { getItem: () => null, removeItem: () => {} },
     log: createLogger("card-io"),
   });
@@ -62,5 +64,63 @@ describe("createCardIo — importDropped", () => {
 
     await expect(io.importDropped()).resolves.toBe(outcome);
     expect([errorEl.hidden, errorEl.textContent]).toEqual([true, ""]);
+  });
+});
+
+describe("createCardIo — export", () => {
+  beforeEach(() => setLocale("en"));
+
+  const CARD_SPANS: Span[] = [
+    { start: "08:00", end: "12:00", pace: "low" },
+    { start: "12:00", end: "22:00", pace: "normal" },
+  ];
+
+  async function exportExtensions(
+    activeHoursSpans: () => Span[] | null,
+    card: Card,
+  ): Promise<Record<string, unknown>> {
+    const host = document.createElement("div");
+    host.innerHTML = cardSectionHtml();
+    const root = host.querySelector<HTMLElement>(".yui-card")!;
+    let cardJson: string | undefined;
+    const io = createCardIo({
+      root,
+      ports: {
+        importPreset: vi.fn(async () => null),
+        importDroppedPreset: vi.fn(async () => "busy" as const),
+        importBusy: { isBusy: () => false, subscribe: () => () => {} },
+        exportPresetFile: vi.fn(async (req: { cardJson: string }) => {
+          cardJson = req.cardJson;
+          return { vrmIncluded: true, bytes: 1 };
+        }),
+        exportCardPng: vi.fn(async () => "cancelled" as const),
+      },
+      openPresetPanel: () => {},
+      currentCard: () => card,
+      entry: () => ({ id: "abcd1234", name: "Yui" }),
+      fillerPools: () => ({}),
+      activeHoursSpans,
+      noticeStorage: { getItem: () => null, removeItem: () => {} },
+      log: createLogger("card-io"),
+    });
+    await io.exportPreset({});
+    return JSON.parse(cardJson!).data.extensions as Record<string, unknown>;
+  }
+
+  it("writes the edited spans into extensions.yui.active_hours", async () => {
+    const edited: Span[] = [{ start: "09:00", end: "10:00", pace: "normal" }];
+    const extensions = await exportExtensions(() => edited, {
+      ...EMPTY_CARD,
+      extensions: { yui: { active_hours: CARD_SPANS } },
+    });
+    expect((extensions.yui as Record<string, unknown>).active_hours).toEqual(edited);
+  });
+
+  it("with no edited spans, the card's own key passes through unchanged", async () => {
+    const extensions = await exportExtensions(() => null, {
+      ...EMPTY_CARD,
+      extensions: { yui: { active_hours: CARD_SPANS, other: 1 } },
+    });
+    expect(extensions).toEqual({ yui: { active_hours: CARD_SPANS, other: 1 } });
   });
 });

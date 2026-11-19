@@ -50,6 +50,7 @@ import {
   turnErrorMessage,
 } from "../../ui/notices/turn-error";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { WindowActiveHours } from "../active-hours/window-active-hours";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
@@ -93,8 +94,8 @@ export function wireDispatcher(deps: {
   /** The assembled card for each turn; absent in a window that sends no card. */
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
-  pacerGapSettings: SettingsStores["pacerGapSettings"];
-  dndSettings: SettingsStores["dndSettings"];
+  /** This pet window's active hours: the scaled pacer gap and the do-not-disturb hold. */
+  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd">;
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
@@ -142,8 +143,7 @@ export function wireDispatcher(deps: {
     relationsSwitch,
     getCardText,
     guardrailsSettings,
-    pacerGapSettings,
-    dndSettings,
+    activeHours,
     oneVoiceSettings,
     screenshotSettings,
     screenCapturer,
@@ -243,9 +243,9 @@ export function wireDispatcher(deps: {
   const guardrails = createGuardrails(getGuardrails());
   // Read per envelope, so an edited row applies to the next one.
   const addressedChain = createAddressedChain(() => getGuardrails().rate_limit.addressed_chain_max);
-  const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
+  const pacer = createProactivePacer({ getIntervalMs: activeHours.gapMs });
   register(pacer.stop);
-  register(pacerGapSettings.subscribe(() => pacer.noteIntervalChanged()));
+  register(activeHours.subscribeGap(() => pacer.noteIntervalChanged()));
   register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
   // Dispatcher creation precedes peek wiring, so peek callbacks stay late-bound across that cycle.
   let peekRef: { enter(): Promise<void>; exit(): Promise<void> } | null = null;
@@ -265,7 +265,7 @@ export function wireDispatcher(deps: {
     turnGate: createTurnGate({ enabled: () => oneVoiceSettings.get().enabled }),
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
-    isDndOn: () => dndSettings.get().enabled,
+    isDndOn: () => activeHours.dnd.get().enabled,
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
     onTurnDropped: deps.onTurnDropped,

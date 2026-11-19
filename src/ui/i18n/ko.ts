@@ -284,6 +284,22 @@ const ko: Record<string, string> = {
   "reasoning.low": "낮음",
   "reasoning.medium": "중간",
 
+  // active hours
+  "active_hours.label": "활동 시간",
+  "active_hours.note": "시간대마다 이 캐릭터가 먼저 말 거는 빈도를 정해요.",
+  "active_hours.pace_high": "많이",
+  "active_hours.pace_normal": "보통",
+  "active_hours.pace_low": "적게",
+  "active_hours.pace_off": "말 걸지 않음",
+  "active_hours.foot":
+    "많이: 한가할 때 2배쯤 자주. 적게: 3분의 1쯤. 말 걸지 않음: 대답만 해요. 정하지 않은 시간은 보통이에요.",
+  "active_hours.add": "시간대 추가",
+  "active_hours.next_day": "다음 날",
+  "active_hours.start_aria": "시작 시각",
+  "active_hours.end_aria": "종료 시각",
+  "active_hours.pace_aria": "말 거는 빈도",
+  "active_hours.remove_aria": "시간대 삭제",
+
   // card
   "card.label": "카드",
   "card.help_aria": "카드 안내",
@@ -756,6 +772,8 @@ const ko: Record<string, string> = {
   "reactions.pacer_gap_label": "말 걸기 간격",
   "reactions.pacer_gap_sub": "대화가 오간 뒤 유이가 다시 먼저 말을 걸기까지 두는 최소 간격",
   "reactions.pacer_gap_hint": "0으로 두면 기다리지 않고 바로 말을 걸어요.",
+  "reactions.pacer_gap_hours_hint":
+    "캐릭터마다 활동 시간에 따라 이 간격과 '루프 반응'이 줄거나 늘어요.",
   "reactions.minutes_suffix": "분",
   "reactions.rate_title": "상한",
   "reactions.rate_hint":

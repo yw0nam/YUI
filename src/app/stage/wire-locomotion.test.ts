@@ -166,7 +166,7 @@ describe("wireLocomotion", () => {
       peekActive: () => false,
       fallSettings: { get: () => ({ enabled: true }) } as never,
       climbSettings: climbSettings as never,
-      dndSettings: { get: () => ({ enabled: false }) } as never,
+      dnd: { get: () => ({ enabled: false }) } as never,
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
       vrmSelection: { getActive: () => ({ id: "test", url: "/vrms/test.vrm" }) } as never,
       onStrollEnd: vi.fn(),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveStorageKey } from "./preset-keys";
+import { PRESET_COPIED_KEYS, resolveStorageKey } from "./preset-keys";
 
 describe("resolveStorageKey", () => {
   it.each([
@@ -23,6 +23,7 @@ describe("resolveStorageKey", () => {
     ["yui.camera", "yui.ab12cd34.camera"],
     ["yui.relations", "yui.ab12cd34.relations"],
     ["yui.greeting-pending", "yui.ab12cd34.greeting-pending"],
+    ["yui.active-hours", "yui.ab12cd34.active-hours"],
   ])("prefixes the per-preset key %s with the active preset id", (key, expected) => {
     expect(resolveStorageKey(key, "ab12cd34")).toBe(expected);
   });
@@ -42,5 +43,9 @@ describe("resolveStorageKey", () => {
 
   it("leaves every key unchanged under the default preset", () => {
     expect(resolveStorageKey("yui.endpoints", "default")).toBe("yui.endpoints");
+  });
+
+  it("lists yui.active-hours among the preset keys a new preset does not copy", () => {
+    expect(PRESET_COPIED_KEYS).not.toContain("yui.active-hours");
   });
 });

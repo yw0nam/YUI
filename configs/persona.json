@@ -26,7 +26,15 @@
         "tags": [],
         "creator": "YUI",
         "character_version": "1",
-        "extensions": {}
+        "extensions": {
+          "yui": {
+            "active_hours": [
+              { "start": "08:00", "end": "12:00", "pace": "low" },
+              { "start": "12:00", "end": "22:00", "pace": "normal" },
+              { "start": "22:00", "end": "03:00", "pace": "high" }
+            ]
+          }
+        }
       }
     },
     "ja": {
@@ -49,7 +57,15 @@
         "tags": [],
         "creator": "YUI",
         "character_version": "1",
-        "extensions": {}
+        "extensions": {
+          "yui": {
+            "active_hours": [
+              { "start": "08:00", "end": "12:00", "pace": "low" },
+              { "start": "12:00", "end": "22:00", "pace": "normal" },
+              { "start": "22:00", "end": "03:00", "pace": "high" }
+            ]
+          }
+        }
       }
     },
     "ko": {
@@ -72,7 +88,15 @@
         "tags": [],
         "creator": "YUI",
         "character_version": "1",
-        "extensions": {}
+        "extensions": {
+          "yui": {
+            "active_hours": [
+              { "start": "08:00", "end": "12:00", "pace": "low" },
+              { "start": "12:00", "end": "22:00", "pace": "normal" },
+              { "start": "22:00", "end": "03:00", "pace": "high" }
+            ]
+          }
+        }
       }
     }
   }

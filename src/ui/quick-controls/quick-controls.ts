@@ -4,6 +4,7 @@
  * proactive · motion · general) beside the page body.
  */
 
+import type { ActiveHoursSettingsStore } from "../../settings/active-hours/active-hours-settings";
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
 import type { ThreadReactionThresholdsSettingsStore } from "../../settings/threads/thread-reaction-thresholds-settings";
@@ -86,6 +87,7 @@ import { createPanelShell } from "./panel-shell";
 import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
+import { createActiveHoursSection } from "./sections/active-hours/active-hours-section";
 import { createAgentSection } from "./sections/agent/agent-section";
 import type { CardIoPorts } from "./sections/card/card-io";
 import { createCardSection } from "./sections/card/card-section";
@@ -238,6 +240,8 @@ interface QuickControlsOptions {
   signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
   /** Thinking filler settings store. Gates the filler section and the card export's filler pools. */
   fillerSettings: FillerSettingsStore;
+  /** Per-character active hours store. With it, the Persona page renders the Active hours editor. */
+  activeHoursSettings?: ActiveHoursSettingsStore;
   /** Reading dictionary store. */
   readingsSettings: ReadingsSettingsStore;
   /** TTS speech output on/off store. */
@@ -393,6 +397,7 @@ export function createQuickControls({
   transcript,
   signalHistory,
   fillerSettings,
+  activeHoursSettings,
   readingsSettings,
   ttsSettings,
   oneVoiceSettings,
@@ -730,8 +735,20 @@ export function createQuickControls({
     exportCardPng,
     inspectPresetVrm,
     subscribeFileDrop,
+    activeHoursSettings,
     log,
   });
+
+  // ── Active hours (Persona page, above the card) — the per-character span editor ──
+  const activeHours = activeHoursSettings
+    ? createActiveHoursSection({
+        root: el,
+        activeHoursSettings,
+        agentSettings,
+        getPersona,
+        log,
+      })
+    : undefined;
 
   // ── Your name (General page) · the shared STT key (Listening page) ──
   const userName = createUserNameSection({
@@ -850,6 +867,7 @@ export function createQuickControls({
     voiceInput,
     agent,
     card,
+    activeHours && { dispose: activeHours.dispose },
     userName,
     { reflect: sttKeyRow.reflect, close: sttKeyRow.commitIfDirty, dispose: sttKeyRow.dispose },
     filler,

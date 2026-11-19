@@ -13,6 +13,7 @@ import {
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
 import type { SubscribeFileDrop } from "../../../../io/window/file-drop/file-drop";
 import type { Logger } from "../../../../logger";
+import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import {
@@ -138,6 +139,8 @@ interface CardSectionDeps {
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   /** Filler pools the card export carries. */
   fillerSettings: Pick<FillerSettingsStore, "get">;
+  /** Per-character active hours; the card export writes its edited spans, null keeps the card's own. */
+  activeHoursSettings?: Pick<ActiveHoursSettingsStore, "get">;
   /** This window's file drag events; absent outside Tauri, and then no drop cover. */
   subscribeFileDrop?: SubscribeFileDrop;
   log: Logger;
@@ -232,6 +235,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     currentCard,
     entry,
     fillerPools: () => deps.fillerSettings.get().customPools,
+    activeHoursSpans: () => deps.activeHoursSettings?.get().spans ?? null,
     log,
   });
   const drop =

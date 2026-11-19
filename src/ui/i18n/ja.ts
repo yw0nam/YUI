@@ -285,6 +285,22 @@ const ja: Record<string, string> = {
   "reasoning.low": "低",
   "reasoning.medium": "中",
 
+  // active hours
+  "active_hours.label": "活動時間",
+  "active_hours.note": "時間帯ごとに、このキャラクターが自分から話しかける頻度を決めます。",
+  "active_hours.pace_high": "多い",
+  "active_hours.pace_normal": "ふつう",
+  "active_hours.pace_low": "少なめ",
+  "active_hours.pace_off": "話しかけない",
+  "active_hours.foot":
+    "多い：ひまなときは2倍ほど頻繁に。少なめ：3分の1ほど。話しかけない：返事だけします。指定していない時間は「ふつう」です。",
+  "active_hours.add": "時間帯を追加",
+  "active_hours.next_day": "翌日",
+  "active_hours.start_aria": "開始時刻",
+  "active_hours.end_aria": "終了時刻",
+  "active_hours.pace_aria": "話しかける頻度",
+  "active_hours.remove_aria": "時間帯を削除",
+
   // card
   "card.label": "カード",
   "card.help_aria": "カードについて",
@@ -767,6 +783,8 @@ const ja: Record<string, string> = {
   "reactions.pacer_gap_label": "話しかけ間隔",
   "reactions.pacer_gap_sub": "やり取りのあと、YUI がまた自分から話しかけるまで空ける最小の間隔",
   "reactions.pacer_gap_hint": "0 にすると待たずにすぐ話しかけます。",
+  "reactions.pacer_gap_hours_hint":
+    "キャラクターごとの活動時間に応じて、この間隔と「ループ反応」が短くなったり長くなったりします。",
   "reactions.minutes_suffix": "分",
   "reactions.rate_title": "上限",
   "reactions.rate_hint":

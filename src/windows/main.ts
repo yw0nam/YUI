@@ -18,6 +18,7 @@ import { isTauri } from "../tauri-env";
 import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
+import { createWindowActiveHours } from "../app/active-hours/window-active-hours";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
 import { wireDevtoolsRequest } from "../app/controls/wire-devtools-request";
 import { wireHelpGuide } from "../app/controls/wire-help-guide";
@@ -111,6 +112,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
   const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register, role);
+  const activeHours = createWindowActiveHours({
+    activeHoursSettings: settingsStores.activeHoursSettings,
+    agentSettings: settingsStores.agentSettings,
+    pacerGapSettings: settingsStores.pacerGapSettings,
+    dndSettings: settingsStores.dndSettings,
+  });
+  register(activeHours.dispose);
   register(
     applyTheme({
       store: settingsStores.themeSettings,
@@ -137,8 +145,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
     dnd: {
-      get: () => settingsStores.dndSettings.get().enabled,
-      subscribe: (cb) => settingsStores.dndSettings.subscribe(() => cb()),
+      get: () => activeHours.dnd.get().enabled,
+      subscribe: (cb) => activeHours.dnd.subscribe(() => cb()),
     },
     onOpenSettings: () => openSettings(),
     onFixVoice: createVoiceFix({
@@ -297,6 +305,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   try {
     const cfg = await config.load();
     characterName.setPersona(cfg.persona);
+    activeHours.setPersona(cfg.persona);
     if (isDisposed()) return { dispose };
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createConfiguredBootstrap(cfg, {
@@ -307,6 +316,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       ambient,
       surfaces,
       settings: settingsStores,
+      activeHours,
       conversation: conversationStores,
       bus,
       userInput,
@@ -353,7 +363,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       threadsWindow,
       mount: surfaces.chipColumn,
       collapsed: configured.chipFold,
-      isDndOn: () => settingsStores.dndSettings.get().enabled,
+      isDndOn: () => activeHours.dnd.get().enabled,
     });
     register(threadsChip.dispose);
     register(
@@ -367,6 +377,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         locomotion: configured.locomotion,
         renderer,
         settings: settingsStores,
+        dnd: activeHours.dnd,
         config,
         threadTurn: configured.threadTurn,
       }),

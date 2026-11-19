@@ -23,8 +23,22 @@ import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/back
 import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
 import type { ClientTool } from "../../io/chat/tools/client-tools";
-import { createFlagSettings } from "../../settings/persisted-store";
+import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
+import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
+import { createPacerGapStore } from "../../settings/settings-stores";
+import { createWindowActiveHours } from "../active-hours/window-active-hours";
 import { wireDispatcher } from "./wire-dispatcher";
+
+function memoryStorage<T>(): PersistedStorage<T> {
+  let saved: T | null = null;
+  return {
+    load: () => saved,
+    save: (s) => {
+      saved = s;
+    },
+  };
+}
 
 describe("wireDispatcher", () => {
   const setup = (
@@ -70,6 +84,20 @@ describe("wireDispatcher", () => {
 
     const pacerGapUnsubscribe = vi.fn();
     const guardrailsOverrideDisposer = vi.fn();
+    const activeHoursSettings = createActiveHoursSettings({ storage: memoryStorage() });
+    const activeHoursGapSettings = createPacerGapStore(memoryStorage());
+    const activeHours = createWindowActiveHours({
+      activeHoursSettings,
+      agentSettings: createAgentSettings({ storage: memoryStorage() }),
+      pacerGapSettings: activeHoursGapSettings,
+      dndSettings,
+    });
+    // The teardown test asserts the registered gap unsubscribe by identity.
+    const subscribeGap = activeHours.subscribeGap.bind(activeHours);
+    activeHours.subscribeGap = (cb) => {
+      subscribeGap(cb);
+      return pacerGapUnsubscribe;
+    };
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
@@ -92,11 +120,7 @@ describe("wireDispatcher", () => {
       guardrailsSettings: {
         subscribe: vi.fn(() => guardrailsOverrideDisposer),
       } as never,
-      pacerGapSettings: {
-        get: () => ({ value: 0 }),
-        subscribe: vi.fn(() => pacerGapUnsubscribe),
-      } as never,
-      dndSettings,
+      activeHours,
       oneVoiceSettings: { get: () => ({ enabled: false }) } as never,
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
@@ -133,6 +157,8 @@ describe("wireDispatcher", () => {
       previousTurn,
       quotedTurn,
       showVoiceError,
+      activeHoursSettings,
+      activeHoursGapSettings,
     };
   };
 
@@ -168,13 +194,34 @@ describe("wireDispatcher", () => {
   });
 
   // The dispatcher's routing gate holds a self-fired cue while this reads true.
-  it("hands the dispatcher the do-not-disturb store, read live", () => {
+  it("hands the dispatcher the pet window's do-not-disturb, read live", () => {
     const dnd = createFlagSettings(false);
     const s = setup(undefined, {} as EndpointsConfig, dnd);
 
     expect(s.dispatcherDeps.isDndOn?.()).toBe(false);
     dnd.setEnabled(true);
     expect(s.dispatcherDeps.isDndOn?.()).toBe(true);
+  });
+
+  it("holds for an off span while the device switch is off", () => {
+    const s = setup();
+    s.activeHoursSettings.setSpans([{ start: "00:00", end: "00:00", pace: "off" }]);
+
+    expect(s.dispatcherDeps.isDndOn?.()).toBe(true);
+  });
+
+  it("paces the pacer by the pet window's gap and notes each change", () => {
+    const s = setup();
+    s.activeHoursGapSettings.set(600_000);
+    s.activeHoursSettings.setSpans([{ start: "00:00", end: "00:00", pace: "low" }]);
+    const { getIntervalMs } = mocks.createProactivePacer.mock.calls.at(-1)![0];
+
+    expect(getIntervalMs()).toBe(1_800_000);
+
+    s.activeHoursSettings.setSpans([{ start: "00:00", end: "00:00", pace: "high" }]);
+
+    expect(getIntervalMs()).toBe(300_000);
+    expect(s.pacer.noteIntervalChanged).toHaveBeenCalledTimes(2);
   });
 
   it("setPeek reaches the dispatcher's peek enter/exit", async () => {
