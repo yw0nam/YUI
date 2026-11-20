@@ -689,6 +689,7 @@ YUI/
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
+        fold.ts                      # A source's fold under its switch row, and its Off summary and off line while the switch is off
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
