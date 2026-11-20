@@ -539,7 +539,7 @@ export function createQuickControls({
     onQuickShown: quickStart.reflect,
     onQuickEntered: quickStart.entered,
     onDetailEntered: () => connectionTab.entered(),
-    chatUrl: quickStart.url,
+    holdsKey: quickStart.holdsKey,
     focusQuickKey: quickStart.focusKey,
     focusDetailKey: () => connectionTab.focusChatKey(),
   });

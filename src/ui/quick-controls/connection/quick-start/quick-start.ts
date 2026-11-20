@@ -139,8 +139,8 @@ export function createQuickStart(deps: QuickStartDeps): {
   el: HTMLElement;
   /** Reads the stores onto the two states: the setup or the connected one. */
   reflect(): void;
-  /** The chat URL in effect: the stored one, else the bundled config's. */
-  url(): string;
+  /** The key field here is the server's in use: no server yet, or the Quick start one. Quick start's Connect replaces any other server. */
+  holdsKey(): boolean;
   /** Opens the key field, in the connected state too, and focuses it. */
   focusKey(): void;
   /** The view came into view: once connected, checks the stored key. */
@@ -325,7 +325,7 @@ export function createQuickStart(deps: QuickStartDeps): {
   return {
     el,
     reflect,
-    url: endpointsUrl,
+    holdsKey: () => endpointsUrl() === "" || endpointsUrl() === GEMINI_PRESET.url,
     focusKey,
     entered,
     dispose: () => {

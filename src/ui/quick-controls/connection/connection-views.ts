@@ -4,7 +4,6 @@
  */
 
 import { t } from "../../i18n";
-import { GEMINI_PRESET } from "../constants";
 import { createStoreSegment } from "../store-segment";
 import "./connection-views.css";
 
@@ -30,8 +29,8 @@ export function createConnectionViews(deps: {
   onQuickEntered: () => void;
   /** Detailed settings is in view on entry or came into view — the chat section evaluates its model list read. */
   onDetailEntered: () => void;
-  /** The chat URL in effect; Quick start holds the key of its own server only. */
-  chatUrl: () => string;
+  /** Quick start holds the key field of the server in use. */
+  holdsKey: () => boolean;
   /** Quick start opens its key field and focuses it. */
   focusQuickKey: () => void;
   /** Detailed settings focuses its chat key field. */
@@ -39,7 +38,7 @@ export function createConnectionViews(deps: {
 }): {
   /** The Connection page was entered (panel open on it, or its rail item selected). */
   entered(): void;
-  /** Shows the view that holds the chat key of the server in use and focuses that field; nothing without a server. */
+  /** Shows the view that holds the chat key of the server in use and focuses that field. */
   focusKey(): void;
   dispose(): void;
 } {
@@ -120,10 +119,7 @@ export function createConnectionViews(deps: {
       else onQuickEntered();
     },
     focusKey: () => {
-      const url = deps.chatUrl();
-      if (url === "") return;
-      // Quick start's Connect replaces the server, so another server's key stays in Detailed settings.
-      const view = url === GEMINI_PRESET.url ? "quick" : "detail";
+      const view = deps.holdsKey() ? "quick" : "detail";
       select(view);
       if (view === "quick") deps.focusQuickKey();
       else deps.focusDetailKey();

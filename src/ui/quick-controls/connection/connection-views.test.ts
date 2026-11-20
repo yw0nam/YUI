@@ -25,7 +25,7 @@ function setup(initial: "quick" | "detail" = "quick") {
     onQuickShown,
     onDetailEntered,
     onQuickEntered: vi.fn(),
-    chatUrl: () => "",
+    holdsKey: () => false,
     focusQuickKey: vi.fn(),
     focusDetailKey: vi.fn(),
   });
