@@ -486,6 +486,27 @@ describe("createQuickControls — Reactions tab layout", () => {
     qc.dispose();
   });
 
+  it("reads a switched-off group as off: its summary says Off and its body opens with the off line", () => {
+    const { qc, panel } = buildProactiveQc();
+    const toggle = panel.querySelector<HTMLButtonElement>(".yui-screen-switch")!;
+    const fold = toggle.closest(".yui-group")!.querySelector(":scope > details")!;
+    const shown = (sel: string) =>
+      [...fold.querySelectorAll<HTMLElement>(sel)]
+        .filter((el) => !el.closest("[hidden]"))
+        .map((el) => el.textContent);
+
+    toggle.click();
+    expect(shown("summary .yui-fold__aside")).toEqual(["Off"]);
+    expect(shown(".yui-fold__body > p:first-child")).toEqual([
+      "Off. These apply once you turn it on.",
+    ]);
+
+    toggle.click();
+    expect(shown("summary .yui-fold__aside")).toEqual(["4 settings"]);
+    expect(shown(".yui-fold__body > p:first-child")).toEqual([]);
+    qc.dispose();
+  });
+
   it("folds Advanced by default and holds the wait, presence and hourly limits in order", () => {
     const { qc, panel } = buildProactiveQc();
     const advanced = [...panel.querySelectorAll("details")].find(
