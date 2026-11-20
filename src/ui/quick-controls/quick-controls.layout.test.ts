@@ -441,7 +441,7 @@ describe("createQuickControls — Reactions tab layout", () => {
       pacerGapSettings: inMemoryPacerGapStore(),
       rateLimitSettings: createGuardrailsSettings(),
     });
-    qc.open({ tab: "react" });
+    qc.open({ page: "react" });
     return { qc, panel: qc.el.querySelector<HTMLElement>("#yui-panel-react")! };
   }
 
