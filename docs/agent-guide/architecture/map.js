@@ -3055,7 +3055,7 @@ globalThis.YUI_MAP =
       "id": "drop-restore-schedule",
       "from": "dispatcher",
       "to": "dispatcher/sources/idle-tick",
-      "carries": "onTurnDropped(env, reason) → schedule restore: a greeting dropped while the gap holds or do-not-disturb holds clears its fired mark for that day, so it comes due again inside its window",
+      "carries": "onTurnDropped(env, reason) → restore (a fire held by the gap or do-not-disturb)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"

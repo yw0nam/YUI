@@ -4,10 +4,9 @@
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
  * fires `schedule.<cue_id>` (tier2) when the user is "present" (OS idle within
  * `present_max_idle_ms`). Each cue fires at most once per local day, persisted
- * across restarts, within two hours after `cue.time`, and at most one cue fires per tick. A fire the
- * dispatcher drops while do-not-disturb or the proactive gap holds clears its day's mark, so the cue
- * comes due again inside that window. `isEnabled()` and per-cue
+ * across restarts, within two hours after `cue.time`, and at most one cue fires per tick. `isEnabled()` and per-cue
  * `enabled` gate firing only — toggling does not stop the subscription.
+ * A fire the dispatcher drops at a hold clears its day's mark, so it comes due again inside that window.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -29,7 +28,7 @@ const log = createLogger("schedule-source");
 
 export const GRACE_MINUTES = 120;
 
-/** Drops a schedule fire must come due again after: the same holds `isHeld` waits out at the source. */
+/** The holds `isHeld` also waits out. */
 const HOLD_REASONS: ReadonlySet<DropRecord["reason"]> = new Set(["global_gap", "dnd"]);
 
 function dayKeyOf(ts: number): string {
