@@ -194,8 +194,8 @@ describe("routeTurnFailure", () => {
     expect(routeTurnFailure("text", true)).toEqual({ kind: "show_input_error" });
   });
 
-  it("text turn + input closed (dismissed mid-flight, e.g. Escape) -> nothing, log-only", () => {
-    expect(routeTurnFailure("text", false)).toEqual({ kind: "none" });
+  it("text turn + input closed (dismissed mid-flight, e.g. Escape) -> a notice on the status pill", () => {
+    expect(routeTurnFailure("text", false)).toEqual({ kind: "notice" });
   });
 
   it("voice turn -> the voice-indicator error state, regardless of input-open state", () => {

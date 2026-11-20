@@ -73,6 +73,7 @@ describe("wireDispatcher", () => {
     const busyUnsubscribe = vi.fn();
     const showVoiceError = vi.fn();
     const showInputError = vi.fn();
+    const turnNotice = { show: vi.fn(), clear: vi.fn() };
     const openSettings = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
@@ -107,7 +108,7 @@ describe("wireDispatcher", () => {
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
-      surfaces: { isInputOpen: () => inputOpen, showInputError } as never,
+      surfaces: { isInputOpen: () => inputOpen, showInputError, setBusy: vi.fn() } as never,
       reasoning: {} as never,
       getEndpoints: () => endpoints,
       getGuardrails: () => ({}) as never,
@@ -145,6 +146,7 @@ describe("wireDispatcher", () => {
       windowTools,
       openSettings,
       showVoiceError,
+      turnNotice,
       appendTurnRecord: vi.fn(),
       t: (key: string) => key,
       register,
@@ -164,6 +166,7 @@ describe("wireDispatcher", () => {
       quotedTurn,
       showVoiceError,
       showInputError,
+      turnNotice,
       openSettings,
       activeHoursSettings,
       activeHoursGapSettings,
@@ -325,6 +328,65 @@ describe("wireDispatcher", () => {
     offer.onClick();
 
     expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+  });
+
+  it.each([
+    [
+      "voice",
+      "http_4xx_drop",
+      undefined,
+      { message: "Auth failed · check API key", action: { label: "Change key" } },
+    ],
+    [
+      "text",
+      "network_drop",
+      { status: 400, message: "model does not support tools" },
+      { message: "400 model does not support tools", action: { label: "Check connection" } },
+    ],
+    [
+      "voice",
+      "not_configured",
+      undefined,
+      { message: "Not connected yet", action: { label: "Connect" } },
+    ],
+    ["voice", "network_stall", undefined, { message: "The connection stopped responding" }],
+  ] as const)("posts a %s %s failure on the pill when the input is not open: %j", (source, reason, detail, expected) => {
+    const s = setup();
+
+    s.dispatcherDeps.onUserTurnFailed!(reason, source, detail);
+
+    expect(s.turnNotice.show).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expected.message,
+        ...("action" in expected && {
+          action: { label: expected.action.label, onClick: expect.any(Function) },
+        }),
+      }),
+    );
+    expect(s.showInputError).not.toHaveBeenCalled();
+  });
+
+  it("opens Connection from the notice's key action", () => {
+    const s = setup();
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "voice");
+
+    expect(s.turnNotice.show).toHaveBeenCalledOnce();
+    const notice = s.turnNotice.show.mock.calls[0]![0];
+    expect(notice.action).toEqual({ label: "Change key", onClick: expect.any(Function) });
+    notice.action.onClick();
+
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+  });
+
+  it("clears the notice when a new turn starts", () => {
+    const s = setup();
+    const onBusy = s.dispatcher.subscribeBusy.mock.calls[0]![0];
+
+    onBusy(false);
+    expect(s.turnNotice.clear).not.toHaveBeenCalled();
+    onBusy(true);
+
+    expect(s.turnNotice.clear).toHaveBeenCalledOnce();
   });
 
   it("registers the teardowns in composition order and they run LIFO", () => {

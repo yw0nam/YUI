@@ -13,6 +13,7 @@ import { createFlagSettings } from "../../settings/persisted-store";
 import { setLocale, t } from "../i18n";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createStatusPill } from "./status-pill";
+import type { TurnNotice } from "./turn-notice";
 import { createVoiceInputStatus } from "./voice-input-status";
 
 const pending = new Map<number, FrameRequestCallback>();
@@ -27,6 +28,22 @@ function opacityTransitionEnd(el: HTMLElement): void {
   el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
 }
 
+function fakeNotice() {
+  let current: TurnNotice | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    subscribe: (cb: () => void) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    set(next: TurnNotice | null) {
+      current = next;
+      for (const cb of listeners) cb();
+    },
+  };
+}
+
 function setup(
   opts: {
     capture?: boolean;
@@ -36,6 +53,7 @@ function setup(
   } = {},
 ) {
   const dnd = opts.dnd;
+  const notice = fakeNotice();
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const settings = createScreenshotSettings();
@@ -50,6 +68,7 @@ function setup(
     voice,
     onOpenSettings,
     onFixVoice,
+    notice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
     ...(dnd
       ? {
@@ -70,6 +89,8 @@ function setup(
     onOpenSettings,
     onFixVoice,
     onToggleVoice,
+    notice,
+    action: () => mount.querySelector<HTMLButtonElement>(".yui-status__action"),
     root: () => q<HTMLElement>(".yui-status"),
     capture: () => q<HTMLButtonElement>(".yui-status__capture"),
     mic: () => q<HTMLButtonElement>(".yui-status__voice"),
@@ -398,6 +419,50 @@ describe("status pill — no capture setting", () => {
     expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
     expect(p.mic().hidden).toBe(false);
     expect(p.sep().hidden).toBe(false);
+  });
+});
+
+describe("status pill — failed-turn notice", () => {
+  it("shows the condition and its action as a button that takes OS clicks", () => {
+    const p = setup();
+    const onClick = vi.fn();
+
+    p.notice.set({
+      message: "Auth failed · check API key",
+      action: { label: "Change key", onClick },
+    });
+    flushFrames();
+
+    expect(p.root().hidden).toBe(false);
+    expect(p.label().textContent).toBe("Auth failed · check API key");
+    expect(p.action()?.textContent).toBe("Change key");
+    expect(p.action()?.type).toBe("button");
+    expect(p.matchAny()).toBe(p.action());
+    p.action()!.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a notice with no action as plain text that stays click-through", () => {
+    const p = setup();
+
+    p.notice.set({ message: "No response · check connection" });
+
+    expect(p.label().textContent).toBe("No response · check connection");
+    expect(p.action()?.hidden).toBe(true);
+    expect(p.matchAny()).toBeNull();
+  });
+
+  it("leaves the mic's state alone and gives the label back when the notice goes", () => {
+    const p = setup();
+    p.voice.set("listening");
+
+    p.notice.set({ message: "Auth failed · check API key" });
+    expect(p.label().textContent).toBe("Auth failed · check API key");
+    expect(p.voice.get().state).toBe("listening");
+    expect(p.mic().dataset.voice).toBe("listening");
+
+    p.notice.set(null);
+    expect(p.label().textContent).toBe("Listening…");
   });
 });
 
