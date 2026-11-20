@@ -552,7 +552,7 @@ describe("createCueList — schedule (time trigger)", () => {
     expect(masterSwitch.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("section dims (yui-sec--off) when master is off", () => {
+  it("dims the entries (yui-fold--off) when master is off", () => {
     const store = makeScheduleStore({ enabled: false });
     createCueList({
       mount,
@@ -565,10 +565,10 @@ describe("createCueList — schedule (time trigger)", () => {
     });
 
     const section = mount.querySelector("[data-testid='cue-section']");
-    expect(section?.classList.contains("yui-sec--off")).toBe(true);
+    expect(section?.classList.contains("yui-fold--off")).toBe(true);
   });
 
-  it("section removes yui-sec--off when master turns on", () => {
+  it("lifts yui-fold--off from the entries when master turns on", () => {
     const store = makeScheduleStore({ enabled: false });
     createCueList({
       mount,
@@ -582,7 +582,29 @@ describe("createCueList — schedule (time trigger)", () => {
 
     store.setEnabled(true);
     const section = mount.querySelector("[data-testid='cue-section']");
-    expect(section?.classList.contains("yui-sec--off")).toBe(false);
+    expect(section?.classList.contains("yui-fold--off")).toBe(false);
+  });
+
+  it("puts an entry's switch after its trigger field, before delete", () => {
+    const store = makeScheduleStore({
+      entries: [{ id: "a", label: "아침", context: "아침 인사", time: "09:00", enabled: true }],
+    });
+    createCueList({
+      mount,
+      store,
+      title: "시간대 인사",
+      sub: "",
+      icon: "clock",
+      trigger: { kind: "time", field: "time" },
+      addLabel: "+ 인사 추가",
+    });
+
+    const row = mount.querySelector(".yui-cue__collapsed")!;
+    expect(
+      [...row.children].map((c) =>
+        c.matches("[data-testid='cue-switch']") ? "switch" : c.className,
+      ),
+    ).toEqual(["yui-cue__label", "yui-cue__trigger", "switch", "yui-cue__delete"]);
   });
 
   it("destroy() unsubscribes and clears the mount", () => {

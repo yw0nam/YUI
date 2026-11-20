@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createFlagSettings } from "../../../settings/persisted-store";
 import { createPetWindows } from "../../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
+import { createThreadReactionThresholdsSettings } from "../../../settings/threads/thread-reaction-thresholds-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+
+beforeEach(() => {
+  setLocale("en");
+});
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -21,6 +26,8 @@ function build(openOnQuickStart = false) {
     onResetViewpoint: vi.fn(),
     presetRegistry: createPresetRegistry(),
     petWindows: createPetWindows(),
+    threadReactionsSettings: createFlagSettings(true),
+    threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
   });
   const input = qc.el.querySelector<HTMLInputElement>(".yui-search__input")!;
   const search = (q: string) => {
@@ -101,5 +108,18 @@ it("finds Detailed settings rows while Quick start shows, and brings Detailed se
 
   expect(count("conn")).toBe("3");
   expect(detail.hidden).toBe(false);
+  qc.dispose();
+});
+
+it("opens the fold that holds a match and folds it again when the query clears", () => {
+  const { qc, search } = build();
+  const fold = qc.el.querySelector(".yui-reaction-thresholds-wait-seg")?.closest("details");
+  expect(fold?.open).toBe(false);
+
+  search("Long wait");
+  expect(fold?.open).toBe(true);
+
+  search("");
+  expect(fold?.open).toBe(false);
   qc.dispose();
 });

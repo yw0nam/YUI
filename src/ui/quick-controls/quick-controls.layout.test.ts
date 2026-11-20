@@ -12,6 +12,7 @@ import type {
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
+import { createBasePaceSettings } from "../../settings/active-hours/base-pace-settings";
 import { createExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
 import { createIdleMotionSettings } from "../../settings/avatar/idle-motion-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
@@ -29,6 +30,7 @@ import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { createRelationsStore } from "../../settings/relations/relations-store";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
+import { createThreadReactionThresholdsSettings } from "../../settings/threads/thread-reaction-thresholds-settings";
 import { createThreadTurnsSettings } from "../../settings/threads/thread-turns-settings";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { setLocale, t } from "../i18n";
@@ -150,17 +152,19 @@ describe("createQuickControls — settings layout", () => {
     [
       "react",
       [
-        ".yui-screen-switch",
+        ".yui-base-pace-seg",
         ".yui-loop-cue-section",
         ".yui-cue-sections",
+        ".yui-screen-switch",
+        ".yui-thread-reactions-switch",
+        ".yui-reaction-thresholds-count-seg",
+        ".yui-threadturns-row",
         ".yui-agentnotify-switch",
         "#yui-agent-port",
         "#yui-ingress-url",
-        ".yui-thread-reactions-switch",
-        ".yui-threadturns-row",
         ".yui-wf-list",
-        "#yui-presence",
         "#yui-pacer-gap",
+        "#yui-presence",
         "#yui-rate-tier2",
         "#yui-rate-urgent",
         "#yui-rate-overall",
@@ -198,6 +202,8 @@ describe("createQuickControls — settings layout", () => {
       agentNotifySettings: createAgentNotifySettings(),
       threadTurnsSettings: createThreadTurnsSettings(),
       threadReactionsSettings: createFlagSettings(true),
+      threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
+      basePaceSettings: createBasePaceSettings(),
       presenceSettings: inMemoryPresenceStore(),
       pacerGapSettings: inMemoryPacerGapStore(),
       messageWindowSettings: createMessageWindowSettings(),
@@ -228,16 +234,22 @@ describe("createQuickControls — settings layout", () => {
     qc.dispose();
   });
 
-  it("renders no <details> except the filler's and the card's disclosures", () => {
+  it("renders no <details> except the filler's, the card's and the Proactive page's disclosures", () => {
     const qc = buildFullQc();
     qc.open();
 
-    const details = Array.from(qc.el.querySelectorAll("details"));
-    expect(details.map((d) => d.closest(".yui-sec")?.classList.contains("yui-card"))).toEqual([
-      false,
-      true,
+    const details = Array.from(qc.el.querySelectorAll("details")).map((d) => [
+      d.closest(".yui-tabpanel")?.id,
+      d.classList.contains("yui-fold") ? "fold" : d.classList.contains("yui-more") ? "more" : "",
     ]);
-    expect(details.every((d) => d.classList.contains("yui-more"))).toBe(true);
+    expect(details).toEqual([
+      ["yui-panel-voice", "more"],
+      ["yui-panel-persona", "more"],
+      ["yui-panel-react", "fold"],
+      ["yui-panel-react", "fold"],
+      ["yui-panel-react", "fold"],
+      ["yui-panel-react", "more"],
+    ]);
 
     qc.dispose();
   });
@@ -301,21 +313,6 @@ describe("createQuickControls — proactive tab layout", () => {
     return createQuickControls({ ...defaultQcArgs(mount), ...extra });
   }
 
-  function buildScreenQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    const screenSettings = createFlagSettings(false);
-    const screenKnobSettings = createScreenKnobSettings();
-    return {
-      screenSettings,
-      screenKnobSettings,
-      qc: buildQc({
-        screenSettings,
-        screenKnobSettings,
-        getScreenDefaults: () => SCREEN_DEFAULTS,
-        ...extra,
-      }),
-    };
-  }
-
   // ── Tab identity ──────────────────────────────────────────────────────────
 
   it("names the react tab 말걸기 and tooltips it as the proactive rule hub", () => {
@@ -325,26 +322,6 @@ describe("createQuickControls — proactive tab layout", () => {
     expect(tab.getAttribute("aria-label")).toBe("말걸기");
     expect(tab.dataset.tip).toBe("유이가 먼저 말을 거는 규칙");
     expect(tab.hasAttribute("title")).toBe(false);
-    qc.dispose();
-  });
-
-  // ── Cue-section relocation ────────────────────────────────────────────────
-
-  // ── Section order ─────────────────────────────────────────────────────────
-
-  it("orders the proactive tab: screen watch → cues → watchers → shared", () => {
-    const { qc } = buildScreenQc({
-      rateLimitSettings: createGuardrailsSettings(),
-    });
-    qc.open();
-    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const nodes = Array.from(panel.querySelectorAll("*"));
-    const at = (sel: string) => nodes.indexOf(panel.querySelector(sel)!);
-    expect(at(".yui-screen-switch")).toBeGreaterThanOrEqual(0);
-    expect(at(".yui-screen-switch")).toBeLessThan(at(".yui-loop-cue-section"));
-    expect(at(".yui-loop-cue-section")).toBeLessThan(at(".yui-cue-sections"));
-    expect(at(".yui-cue-sections")).toBeLessThan(at(".yui-wf-list"));
-    expect(at(".yui-wf-list")).toBeLessThan(at("#yui-rate-tier2"));
     qc.dispose();
   });
 });
@@ -449,17 +426,99 @@ describe("createQuickControls — Reactions tab layout", () => {
     qc.dispose();
   });
 
-  it("shows the active-hours hint as the pacer-gap row's second sub line", () => {
-    setLocale("en");
-    const qc = buildQc({ pacerGapSettings: inMemoryPacerGapStore() });
-    qc.open();
-    const row = qc.el.querySelector<HTMLInputElement>("#yui-pacer-gap")!.closest(".yui-row")!;
-    const subs = [...row.querySelectorAll<HTMLElement>(".yui-row__sub")].map(
-      (el) => el.textContent,
+  // ── Source groups and Advanced ───────────────────────────────────────────
+
+  function buildProactiveQc() {
+    const qc = buildQc({
+      screenSettings: createFlagSettings(true),
+      screenKnobSettings: createScreenKnobSettings(),
+      getScreenDefaults: () => SCREEN_DEFAULTS,
+      agentNotifySettings: createAgentNotifySettings(),
+      threadTurnsSettings: createThreadTurnsSettings(),
+      threadReactionsSettings: createFlagSettings(true),
+      threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
+      presenceSettings: inMemoryPresenceStore(),
+      pacerGapSettings: inMemoryPacerGapStore(),
+      rateLimitSettings: createGuardrailsSettings(),
+    });
+    qc.open({ tab: "react" });
+    return { qc, panel: qc.el.querySelector<HTMLElement>("#yui-panel-react")! };
+  }
+
+  it("groups each source as its switch row over a folded disclosure with a summary", () => {
+    const { qc, panel } = buildProactiveQc();
+
+    const groups = [...panel.querySelectorAll(".yui-group")].filter((g) =>
+      g.querySelector(":scope > details"),
     );
-    expect(subs).toContain(
-      "Each character's active hours scale this wait and the quiet-for-a-while reactions.",
+    expect(
+      groups.map((g) => {
+        const fold = g.querySelector<HTMLDetailsElement>(":scope > details")!;
+        return [
+          g.querySelector(":scope > .yui-row .yui-row__label")?.textContent?.trim(),
+          fold.querySelector("summary > span:not(.yui-fold__aside)")?.textContent,
+          fold.querySelector(".yui-fold__aside")?.textContent,
+          fold.open,
+        ];
+      }),
+    ).toEqual([
+      ["Quiet for a while", "Check-ins", "5 · 10 · 30 min", false],
+      ["Scheduled greetings", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", false],
+      ["Screen changes", "Timing", "4 settings", false],
+      ["Thread reactions", "When she steps in", "3 waiting · 10 min", false],
+      ["External signals", "Port and address", "8770", false],
+    ]);
+    qc.dispose();
+  });
+
+  it("dims a source's fold while its switch is off and keeps the switch live", () => {
+    const { qc, panel } = buildProactiveQc();
+    const toggle = panel.querySelector<HTMLButtonElement>(".yui-screen-switch")!;
+    const fold = toggle.closest(".yui-group")?.querySelector(":scope > details");
+    expect(fold?.classList.contains("yui-fold--off")).toBe(false);
+
+    toggle.click();
+    expect(fold?.classList.contains("yui-fold--off")).toBe(true);
+
+    toggle.click();
+    expect(fold?.classList.contains("yui-fold--off")).toBe(false);
+    qc.dispose();
+  });
+
+  it("shows the check-ins when Quiet for a while is unfolded", () => {
+    const { qc, panel } = buildProactiveQc();
+    const fold = panel.querySelector(".yui-loop-cue-section")?.querySelector("details");
+
+    fold?.querySelector("summary")?.click();
+
+    expect(fold?.open).toBe(true);
+    expect(fold?.querySelectorAll("[data-testid='cue-row']")).toHaveLength(3);
+    qc.dispose();
+  });
+
+  it("folds Advanced by default and holds the wait, presence and hourly limits in order", () => {
+    const { qc, panel } = buildProactiveQc();
+    const advanced = [...panel.querySelectorAll("details")].find(
+      (d) => d.querySelector(":scope > summary")?.textContent?.trim() === "Advanced",
     );
+
+    expect(advanced?.open).toBe(false);
+    expect(
+      [...(advanced?.querySelectorAll(".yui-input-row__label") ?? [])].map((l) => l.textContent),
+    ).toEqual([
+      "Wait after a conversation",
+      "Present when idle for",
+      "Times she speaks up per hour",
+      "Urgent signal turns per hour",
+      "Total self-started turns per hour",
+    ]);
+    const wait = panel.querySelector("#yui-pacer-gap")!.closest(".yui-row")!;
+    expect(
+      [...wait.querySelectorAll(".yui-input-row__sub, .yui-row__sub")].map((s) => s.textContent),
+    ).toEqual([
+      "How long she waits after any conversation before speaking up on her own. Normal uses this; Less and More scale it.",
+      "0 lets every source speak up without waiting.",
+    ]);
     qc.dispose();
   });
 
