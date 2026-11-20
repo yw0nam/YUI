@@ -222,6 +222,20 @@
   outline-offset: 2px;
 }
 
+.yui-status__action-glyph {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-left: 0.25rem;
+  vertical-align: -0.08em;
+  color: var(--yui-text-mute);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-status__action:hover .yui-status__action-glyph,
+.yui-status__action:focus-visible .yui-status__action-glyph {
+  color: var(--yui-accent-ink);
+}
+
 .yui-status:has(.yui-status__action:hover) {
   border-color: var(--yui-accent-soft);
 }
@@ -239,7 +253,8 @@
 
   .yui-status__capture,
   .yui-status__voice,
-  .yui-status__action {
+  .yui-status__action,
+  .yui-status__action-glyph {
     transition: none;
   }
 }

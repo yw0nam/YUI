@@ -35,6 +35,7 @@ const ko: Record<string, string> = {
   "voice.error.mic_denied": "마이크 차단됨",
   "voice.error.no_mic": "마이크 없음",
   "voice.error.mic_unavailable": "마이크 사용 불가",
+  "voice.action_mic_settings": "마이크 설정 열기",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "이 목소리로 말할 수 없어요 · 다른 목소리 고르기",
   // the bubble action after a reply the voice server did not answer — Reconnect checks it again

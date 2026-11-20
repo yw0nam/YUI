@@ -35,6 +35,7 @@ const ja: Record<string, string> = {
   "voice.error.mic_denied": "マイク拒否",
   "voice.error.no_mic": "マイクなし",
   "voice.error.mic_unavailable": "マイク使用不可",
+  "voice.action_mic_settings": "マイク設定を開く",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "この声で話せません · ほかの声を選ぶ",
   // the bubble action after a reply the voice server did not answer — Reconnect checks it again

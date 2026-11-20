@@ -23,7 +23,11 @@ describe("openMicSettings", () => {
 });
 
 describe("micSettingsOpener", () => {
-  it.each([[{ tauri: true, mac: true }, true]])("for %j is %s", (env, offered) => {
+  it.each([
+    [{ tauri: true, mac: true }, true],
+    [{ tauri: true, mac: false }, false],
+    [{ tauri: false, mac: true }, false],
+  ])("for %j is %s", (env, offered) => {
     expect(micSettingsOpener(env)).toBe(offered ? openMicSettings : undefined);
   });
 });

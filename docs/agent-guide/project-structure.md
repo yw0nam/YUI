@@ -459,6 +459,7 @@ YUI/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
         mic-error.ts                   # The mic failure cause codes the voice status carries
+        open-mic-settings.ts           # Opens the macOS Microphone privacy pane, offered by the status pill beside a blocked mic
         filler/                        # TTFT filler phrases spoken while a turn is thinking
           filler-loop.ts               # Bounded, event-aware TTFT filler scheduler
           filler-pool.ts               # Resolves the effective filler pool per language and tier

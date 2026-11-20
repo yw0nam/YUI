@@ -316,6 +316,22 @@ describe("status pill — Open mic settings", () => {
     expect(p.onOpenMicSettings).toHaveBeenCalledTimes(1);
     expect(p.voice.get()).toMatchObject({ state: "error", detail: "mic_denied" });
   });
+
+  it.each(["no_mic", "mic_unavailable"])("offers nothing beside %s", (code) => {
+    const p = setup({ withMicSettings: true });
+    p.voice.set("error", code);
+
+    expect(p.action()?.hidden).toBe(true);
+    expect(p.matchAny()).toBeNull();
+  });
+
+  it("offers nothing without the opener, which only the desktop app on macOS gets", () => {
+    const p = setup();
+    p.voice.set("error", "mic_denied");
+
+    expect(p.label().textContent).toBe("Mic blocked");
+    expect(p.action()?.hidden).toBe(true);
+  });
 });
 
 describe("status pill — voice toggle", () => {

@@ -34,6 +34,8 @@ interface StatusPillOptions {
   voice: VoiceInputStatus;
   /** Opens the settings panel from the capture button. */
   onOpenSettings?: () => void;
+  /** Opens the system's microphone privacy pane beside a blocked mic; without it the pill offers none. */
+  onOpenMicSettings?: () => void;
   /** A failed turn's notice and its action; without it the pill carries none. */
   notice?: Pick<TurnNoticeStore, "get" | "subscribe">;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
@@ -57,6 +59,7 @@ export function createStatusPill({
   settings,
   voice,
   onOpenSettings,
+  onOpenMicSettings,
   notice,
   onToggleVoice,
   dnd,
@@ -96,7 +99,7 @@ export function createStatusPill({
     <span class="yui-status__sep" hidden aria-hidden="true"></span>
     <span class="yui-status__dot" hidden aria-hidden="true"></span>
     <span class="yui-status__label" hidden></span>
-    <button class="yui-status__action" type="button" hidden></button>
+    <button class="yui-status__action" type="button" hidden><span class="yui-status__action-label"></span><svg class="yui-status__action-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><circle cx="8" cy="8" r="2.2" /><path d="M8 1.3v1.9M8 12.8v1.9M14.7 8h-1.9M3.2 8H1.3M12.74 3.26l-1.34 1.34M4.6 11.4l-1.34 1.34M12.74 12.74l-1.34-1.34M4.6 4.6L3.26 3.26" /></svg></button>
     <span class="yui-status__sep" data-dnd hidden aria-hidden="true"></span>
     <span class="yui-status__dnd" hidden><svg class="yui-status__icon" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
@@ -110,6 +113,8 @@ export function createStatusPill({
   const dotEl = el.querySelector<HTMLElement>(".yui-status__dot")!;
   const labelEl = el.querySelector<HTMLElement>(".yui-status__label")!;
   const actionEl = el.querySelector<HTMLButtonElement>(".yui-status__action")!;
+  const actionLabelEl = el.querySelector<HTMLElement>(".yui-status__action-label")!;
+  const actionGlyphEl = el.querySelector<SVGElement>(".yui-status__action-glyph")!;
   const dndSepEl = el.querySelector<HTMLElement>(".yui-status__sep[data-dnd]")!;
   const dndEl = el.querySelector<HTMLElement>(".yui-status__dnd")!;
   const dndLabelEl = el.querySelector<HTMLElement>(".yui-status__dnd-label")!;
@@ -173,11 +178,22 @@ export function createStatusPill({
     dndLabelEl.textContent = t("status.dnd");
     dndSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
 
-    const noticeAction = !tool ? turnNotice?.action : undefined;
-    action = noticeAction ? noticeAction.onClick : null;
-    actionEl.hidden = !noticeAction;
-    actionEl.tabIndex = noticeAction ? 0 : -1;
-    if (noticeAction) actionEl.textContent = noticeAction.label;
+    // The notice's action, or beside a blocked mic the privacy pane, whichever owns the label.
+    const openMic =
+      !tool && !turnNotice && snapshot.state === "error" && snapshot.detail === "mic_denied"
+        ? onOpenMicSettings
+        : undefined;
+    const micBlocked = openMic !== undefined;
+    const offered = tool
+      ? undefined
+      : openMic
+        ? { label: t("voice.action_mic_settings"), onClick: openMic }
+        : turnNotice?.action;
+    action = offered?.onClick ?? null;
+    actionEl.hidden = !offered;
+    actionEl.tabIndex = offered ? 0 : -1;
+    actionGlyphEl.toggleAttribute("hidden", !micBlocked);
+    if (offered) actionLabelEl.textContent = offered.label;
 
     // A server message or a notice widens the pill to the window's width less its gutters.
     const messaged =

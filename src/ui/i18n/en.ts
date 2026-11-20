@@ -36,6 +36,7 @@ const en: Record<string, string> = {
   "voice.error.mic_denied": "Mic blocked",
   "voice.error.no_mic": "No mic",
   "voice.error.mic_unavailable": "Mic unavailable",
+  "voice.action_mic_settings": "Open mic settings",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "Can't speak with this voice · Choose another",
   // the bubble action after a reply the voice server did not answer — Reconnect checks it again

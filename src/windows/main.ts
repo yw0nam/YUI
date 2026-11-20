@@ -14,7 +14,7 @@
  */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauri } from "../tauri-env";
+import { isMacOS, isTauri } from "../tauri-env";
 import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
@@ -53,6 +53,7 @@ import { createUserInputSource } from "../dispatcher/sources/user-input-source";
 import { createTerminalClient } from "../io/terminal/terminal-client";
 import { onTerminalOpen } from "../io/terminal/terminal-open-event";
 import { createThreadsClient } from "../io/threads/threads-client";
+import { micSettingsOpener } from "../io/voice/open-mic-settings";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
@@ -151,6 +152,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       subscribe: (cb) => activeHours.dnd.subscribe(() => cb()),
     },
     onOpenSettings: () => openSettings(),
+    onOpenMicSettings: micSettingsOpener({ tauri: isTauri(), mac: isMacOS() }),
     notice: turnNotice,
   });
   register(() => statusPill.dispose());
