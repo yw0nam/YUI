@@ -1217,7 +1217,7 @@ globalThis.YUI_MAP =
       "id": "ui/notices",
       "module": "display",
       "label": "notices",
-      "role": "One-off and error notices, and the failure-to-next-step mapping (failureAction) that the composer's error line and the status pill's notice both read.",
+      "role": "One-off and error notices, and the failure-to-next-step mapping (failureAction), which the failure reporter (src/app/turn/report-turn-failure.ts) reads.",
       "paths": [
         "src/ui/notices"
       ]
@@ -1640,7 +1640,7 @@ globalThis.YUI_MAP =
       "id": "turn-failure-notice",
       "from": "app/turn",
       "to": "ui/chips",
-      "carries": "a failed user turn with no input open (a typed turn after the input closed, or a spoken one) → turnNotice.show({message, action?}): the status pill holds it 60 s with a keyed action, 3 s without; the action is Connect, Change key or Check connection, and Retry is the composer's own",
+      "carries": "a failed user turn with no input open (a typed turn after the input closed, or a spoken one) → turnNotice.show({message, action?}): the status pill holds it 60 s with a keyed action, 3 s without; the action is Connect, Change key or Check connection, and Retry is the composer's own; a new turn or a click on the action clears it",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/report-turn-failure.ts"
@@ -4250,7 +4250,7 @@ globalThis.YUI_MAP =
       "id": "controls-models",
       "from": "ui/quick-controls",
       "to": "io/chat/models",
-      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
+      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
       "kind": "call",
       "transport": "request"
     },
