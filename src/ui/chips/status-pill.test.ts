@@ -49,6 +49,7 @@ function setup(
     capture?: boolean;
     withCaptureSetting?: boolean;
     withToggle?: boolean;
+    withMicSettings?: boolean;
     dnd?: ReturnType<typeof createFlagSettings>;
   } = {},
 ) {
@@ -61,6 +62,7 @@ function setup(
   const voice = createVoiceInputStatus();
   const onOpenSettings = vi.fn();
   const onToggleVoice = vi.fn();
+  const onOpenMicSettings = vi.fn();
   const pill = createStatusPill({
     ...(opts.withCaptureSetting === false ? {} : { settings }),
     mount,
@@ -68,6 +70,7 @@ function setup(
     onOpenSettings,
     notice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
+    ...(opts.withMicSettings ? { onOpenMicSettings } : {}),
     ...(dnd
       ? {
           dnd: {
@@ -86,6 +89,7 @@ function setup(
     pill,
     onOpenSettings,
     onToggleVoice,
+    onOpenMicSettings,
     notice,
     action: () => mount.querySelector<HTMLButtonElement>(".yui-status__action"),
     root: () => q<HTMLElement>(".yui-status"),
@@ -295,6 +299,22 @@ describe("status pill — mic cause labels", () => {
 
     expect(p.label().textContent).toBe(t("voice.error.mic_denied"));
     expect(p.label().textContent).not.toBe("Mic blocked");
+  });
+});
+
+describe("status pill — Open mic settings", () => {
+  it("offers the action beside Mic blocked and opens the pane without touching the mic", () => {
+    const p = setup({ withMicSettings: true });
+    p.voice.set("error", "mic_denied");
+    flushFrames();
+
+    expect(p.label().textContent).toBe("Mic blocked");
+    expect(p.action()?.textContent).toBe("Open mic settings");
+    expect(p.matchAny()).toBe(p.action());
+    p.action()!.click();
+
+    expect(p.onOpenMicSettings).toHaveBeenCalledTimes(1);
+    expect(p.voice.get()).toMatchObject({ state: "error", detail: "mic_denied" });
   });
 });
 
