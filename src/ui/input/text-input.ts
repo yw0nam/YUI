@@ -87,6 +87,8 @@ export function createTextInput(
   let busy = false;
   // The standing error's Retry button; null when it offers none.
   let retryButton: HTMLButtonElement | null = null;
+  // The error line's condition text, which typing over a Retry offer empties.
+  let conditionText: Text | null = null;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
   let inputBottomPx = DEFAULT_INPUT_BOTTOM_PX;
   const actionButton: ActionButton = createActionButton({
@@ -152,6 +154,7 @@ export function createTextInput(
 
   function clearInputError(): void {
     retryButton = null;
+    conditionText = null;
     formEl.classList.remove("is-error");
     errorEl.textContent = "";
     // The row loses its error line — re-lift the bubble.
@@ -167,6 +170,7 @@ export function createTextInput(
     // Shown first — the alert only announces content inserted while it is in the tree.
     formEl.classList.add("is-error");
     errorEl.textContent = message;
+    conditionText = errorEl.firstChild as Text | null;
     if (action) {
       const button = document.createElement("button");
       button.type = "button";
@@ -367,7 +371,7 @@ export function createTextInput(
   function clearErrorOnInput(): void {
     if (!formEl.classList.contains("is-error")) return;
     if (retryButton && hasDraft()) {
-      errorEl.firstChild!.nodeValue = "";
+      if (conditionText) conditionText.nodeValue = "";
       retryButton.hidden = false;
     } else clearInputError();
   }

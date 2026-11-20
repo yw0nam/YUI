@@ -32,7 +32,7 @@ const en: Record<string, string> = {
   "voice.state.asr": "Transcribing…",
   "voice.state.fired": "Sent",
   "voice.state.error": "Error",
-  // the one voice failure the settings panel resolves — the chip becomes the fix
+  // voice failures the pill names; on macOS Mic blocked carries Open mic settings
   "voice.error.mic_denied": "Mic blocked",
   "voice.error.no_mic": "No mic",
   "voice.error.mic_unavailable": "Mic unavailable",

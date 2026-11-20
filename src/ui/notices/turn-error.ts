@@ -57,19 +57,21 @@ export function turnErrorMessage(
 
 export type FailureAction = "connect" | "change_key" | "check_connection" | "retry";
 
-const ACTION_LABEL_KEY = {
+const ACTION_LABEL_KEY: Record<Exclude<FailureAction, "retry">, string> = {
   connect: "hint.setup_action",
   change_key: "input.action_change_key",
   check_connection: "input.action_check_connection",
-  retry: "input.action_retry",
-} as const;
+};
 
 /**
  * The next step a failed turn offers; every surface reads it. A rejected key or a not-yet-connected
  * backend opens the key entry, another 4xx opens it to check the connection, a drop or a stall
- * resends. Takes a raw string because the status pill reads its reason off an untyped status detail.
+ * resends.
  */
-export function failureAction(reason: string, detail?: TurnErrorDetail): FailureAction | undefined {
+export function failureAction(
+  reason: TurnFailure,
+  detail?: TurnErrorDetail,
+): FailureAction | undefined {
   switch (reason) {
     case "not_configured":
       return "connect";

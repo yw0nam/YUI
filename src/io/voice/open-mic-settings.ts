@@ -10,6 +10,7 @@ const MIC_SETTINGS_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone";
 
 export function openMicSettings(): void {
+  // The opener plugin's JS package is not installed for this one call, so its command is invoked directly.
   invoke("plugin:opener|open_url", { url: MIC_SETTINGS_URL }).catch((err) =>
     log.warn("open_failed", { error: String(err) }),
   );

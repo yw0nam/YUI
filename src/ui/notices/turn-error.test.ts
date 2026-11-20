@@ -147,7 +147,6 @@ describe("failureAction", () => {
     ["network_drop", { status: 429, message: "quota" }, undefined],
     ["parse_error", undefined, undefined],
     ["superseded_by_user", undefined, undefined],
-    ["Voice input failed", undefined, undefined],
   ] as const)("gives %s with %j the action %s", (reason, detail, expected) => {
     expect(failureAction(reason, detail)).toBe(expected);
   });
