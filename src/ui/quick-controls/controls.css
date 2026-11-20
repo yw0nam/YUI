@@ -312,18 +312,21 @@
   user-select: none;
 }
 
-.yui-more > summary::-webkit-details-marker {
+.yui-more > summary::-webkit-details-marker,
+.yui-fold > summary::-webkit-details-marker {
   display: none;
 }
 
-.yui-more > summary svg {
+.yui-more > summary svg,
+.yui-fold > summary svg {
   width: 0.875rem;
   height: 0.875rem;
   flex: none;
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-more[open] > summary svg {
+.yui-more[open] > summary svg,
+.yui-fold[open] > summary svg {
   transform: rotate(90deg);
 }
 
@@ -352,10 +355,6 @@
   user-select: none;
 }
 
-.yui-fold > summary::-webkit-details-marker {
-  display: none;
-}
-
 .yui-fold > summary:hover {
   color: var(--yui-text);
 }
@@ -363,17 +362,6 @@
 .yui-fold > summary:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-fold > summary svg {
-  width: 0.875rem;
-  height: 0.875rem;
-  flex: none;
-  transition: transform var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-fold[open] > summary svg {
-  transform: rotate(90deg);
 }
 
 .yui-fold__aside {
