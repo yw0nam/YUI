@@ -818,7 +818,7 @@ YUI/
             screen-section.ts        # Screen-watch threshold knobs and their redraw
           reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and rate-limit cap rows
             reactions-section.ts     # Listener-port, presence, proactive-gap, and rate-limit cap inputs and their redraw
-            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, dimmed with a reason while the Thread reactions switch is off
+            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, editable while the Thread reactions switch is off
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
