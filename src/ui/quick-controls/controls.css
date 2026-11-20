@@ -393,10 +393,9 @@
   border-top: 1px solid var(--yui-edge);
 }
 
-/* A source switched off: its fold stays and its rows dim; the switch row and the summary stay live. */
-.yui-fold--off > .yui-fold__body {
+/* A source switched off: its fold stays and its rows dim but stay editable; Thread turns follows External signals instead. */
+.yui-fold--off > .yui-fold__body > :not(.yui-threadturns-row) {
   opacity: 0.5;
-  pointer-events: none;
 }
 
 /* ── Slider row — mouth gain · silence window ── */
