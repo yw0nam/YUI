@@ -340,4 +340,28 @@ describe("createQuickStart — Replace key", () => {
     expect(s.onConnected).not.toHaveBeenCalled();
     expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
   });
+
+  it("a stored-key check that answers after Replace wrote a new key shows nothing", async () => {
+    let answerOld: (res: Response) => void = () => {};
+    const s = setup((_, init) => {
+      const auth = new Headers(init?.headers).get("Authorization");
+      return auth === "Bearer AIza-old"
+        ? new Promise<Response>((r) => (answerOld = r))
+        : Promise.resolve(models());
+    });
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    s.page.focusKey();
+    await settle();
+
+    await s.connect("AIza-new");
+    answerOld(new Response("{}", { status: 400 }));
+    await settle();
+    await settle();
+
+    expect(s.chatKeySettings.get().apiKey).toBe("AIza-new");
+    expect(s.visibleText('[role="alert"]')).toEqual([]);
+    expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
+  });
 });
