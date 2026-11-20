@@ -317,6 +317,39 @@ describe("schedule_source — once-per-day latch", () => {
     expect(pushed).toHaveLength(2);
   });
 
+  it("restoring a greeting dropped after midnight keeps today's other marks", async () => {
+    const { bus, pushed } = fakeBus();
+    const sourceAListen = fakeListen();
+    const sourceBListen = fakeListen();
+    const firedStorage = fakeFiredStorage();
+    let t = at(2026, 5, 15, 23, 59);
+    const deps = {
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      getCues: () => [cue({ id: "late", time: "23:00" }), cue({ id: "morning", time: "00:00" })],
+      isEnabled: () => true,
+      now: () => t,
+      firedStorage,
+    };
+    const sourceA = createScheduleSource({ ...deps, listen: sourceAListen.listen });
+    await sourceA.start();
+    sourceAListen.emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late"]);
+
+    t = at(2026, 5, 16, 0, 30);
+    sourceAListen.emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late", "schedule.morning"]);
+
+    // The 23:59 greeting's drop lands after midnight, with the morning cue marked today.
+    dropRestore(sourceA, pushed[0]!, "global_gap");
+    sourceA.stop();
+
+    const sourceB = createScheduleSource({ ...deps, listen: sourceBListen.listen });
+    await sourceB.start();
+    sourceBListen.emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late", "schedule.morning"]);
+  });
+
   it("restore keeps a mark whose day is not the envelope's, and clears it for do-not-disturb", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
