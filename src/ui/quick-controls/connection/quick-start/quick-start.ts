@@ -126,6 +126,9 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
     </div>`;
 }
 
+// A stored-key check answer is reused on the same key for this long.
+const CHECK_REUSE_MS = 60_000;
+
 /** Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key". */
 function isRefused(result: ModelListResult): boolean {
   return result.kind === "refused" || (result.kind === "http" && result.status === 400);
@@ -234,7 +237,17 @@ export function createQuickStart(deps: QuickStartDeps): {
   }
 
   function entered(): void {
-    if (isConnected()) check.start(GEMINI_PRESET.url);
+    if (!isConnected()) return;
+    const key = deps.chatKeySettings.get().apiKey;
+    if (lastVerdict?.key === key && Date.now() - lastVerdict.at < CHECK_REUSE_MS) {
+      showVerdict(lastVerdict.ok);
+    } else check.start(GEMINI_PRESET.url);
+  }
+
+  function showVerdict(ok: boolean): void {
+    state = keyChecked(state, ok);
+    reflect();
+    if (!ok) input.focus();
   }
 
   function endpointsUrl(): string {
@@ -292,6 +305,8 @@ export function createQuickStart(deps: QuickStartDeps): {
 
   // The key the stored-key check sent; its answer counts only while that key is still the stored one.
   let checkedKey = "";
+  // The last answer on a key: a burst of window focus events sends one request.
+  let lastVerdict: { key: string; at: number; ok: boolean } | null = null;
   const check = createModelRead({
     getApiKey: async () => (checkedKey = deps.chatKeySettings.get().apiKey),
     getFetch: deps.getFetch,
@@ -300,9 +315,8 @@ export function createQuickStart(deps: QuickStartDeps): {
       // A network failure says nothing about the key, so the view stays as it is.
       const { result } = phase;
       if (result.kind !== "ok" && !isRefused(result)) return;
-      state = keyChecked(state, result.kind === "ok");
-      reflect();
-      if (state.verdict === "refused") input.focus();
+      lastVerdict = { key: checkedKey, at: Date.now(), ok: result.kind === "ok" };
+      showVerdict(lastVerdict.ok);
     },
   });
 
