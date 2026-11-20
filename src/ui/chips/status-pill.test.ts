@@ -41,6 +41,9 @@ function fakeNotice() {
       current = next;
       for (const cb of listeners) cb();
     },
+    clear() {
+      this.set(null);
+    },
   };
 }
 
@@ -388,6 +391,22 @@ describe("status pill — failed-turn notice", () => {
     expect(p.matchAny()).toBe(p.action());
     p.action()!.click();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("clicking the notice's action clears the notice", () => {
+    const p = setup();
+    const onClick = vi.fn();
+    p.notice.set({
+      message: "400 Please pass a valid API key",
+      action: { label: "Check connection", onClick },
+    });
+    flushFrames();
+
+    p.action()!.click();
+
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(p.notice.get()).toBeNull();
+    expect(p.action()?.hidden).toBe(true);
   });
 
   it("shows a notice with no action as plain text that stays click-through", () => {
