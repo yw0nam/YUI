@@ -12,6 +12,7 @@ const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
     open: vi.fn(),
     dispose: vi.fn(),
     selectedTab: vi.fn(() => "general" as const),
+    windowFocused: vi.fn(),
   })),
   initLogger: vi.fn(async () => {}),
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),

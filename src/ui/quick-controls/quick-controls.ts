@@ -338,6 +338,8 @@ interface QuickControls {
   open(request?: PageRequest): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
+  /** The window came back to the front. */
+  windowFocused(): void;
   dispose(): void;
 }
 
@@ -920,6 +922,7 @@ export function createQuickControls({
     el,
     open: openPanel,
     selectedTab,
+    windowFocused: quickStart.windowFocused,
     dispose,
   };
 }

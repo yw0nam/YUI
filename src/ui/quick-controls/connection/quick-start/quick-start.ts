@@ -26,6 +26,14 @@ import { ICON_WARN } from "../../plugins/plugin-parts";
 import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import { createModelRead, type ModelReadPhase } from "../chat/model-read";
+import {
+  INITIAL_KEY_STATE,
+  type KeyState,
+  keyChecked,
+  keyView,
+  keyWritten,
+  openKey,
+} from "./key-state";
 import { createVoiceStep } from "./voice-step";
 import "./quick-start.css";
 
@@ -145,6 +153,8 @@ export function createQuickStart(deps: QuickStartDeps): {
   focusKey(): void;
   /** The view came into view: once connected, checks the stored key. */
   entered(): void;
+  /** The window came back to the front: checks the stored key while this view is in view. */
+  windowFocused(): void;
   dispose(): void;
 } {
   const el = document.createElement("div");
@@ -186,11 +196,7 @@ export function createQuickStart(deps: QuickStartDeps): {
   const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
-  // Connected-state flags: the paste row is open, the stored key was refused or passed its check, a key was replaced.
-  let replacing = false;
-  let rejected = false;
-  let passed = false;
-  let replaced = false;
+  let state: KeyState = INITIAL_KEY_STATE;
 
   const isConnected = (): boolean =>
     endpointsUrl() === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
@@ -198,28 +204,29 @@ export function createQuickStart(deps: QuickStartDeps): {
   function reflect(): void {
     const url = endpointsUrl();
     const on = isConnected();
-    if (!on) replacing = rejected = passed = replaced = false;
+    if (!on) state = INITIAL_KEY_STATE;
     setup.hidden = on;
     keyStack.hidden = !on;
     connected.hidden = !on;
     // Moved only on a state change: re-appending would drop focus from the key field.
     const home = on ? keyStack : keySection;
     if (keys.parentElement !== home) home.append(keys);
-    keyRow.hidden = !on || rejected;
-    replace.hidden = replacing;
-    makeRow.hidden = on && !rejected;
-    paste.hidden = on && !replacing && !rejected;
-    done.hidden = rejected;
-    rejectedLine.hidden = !rejected;
-    keyOk.hidden = !(on && replacing && passed);
-    doneText.textContent = t(replaced ? "start.key_replaced" : "start.done");
+    const view = keyView(state, on);
+    keyRow.hidden = !view.keyRow;
+    replace.hidden = !view.replaceButton;
+    makeRow.hidden = !view.makeRow;
+    paste.hidden = !view.paste;
+    done.hidden = !view.done;
+    rejectedLine.hidden = !view.rejected;
+    keyOk.hidden = !view.keyOk;
+    doneText.textContent = t(view.doneText);
     own.hidden = url === "" || url === GEMINI_PRESET.url;
     voiceStep?.reflect();
   }
 
   function focusKey(): void {
     if (isConnected()) {
-      replacing = true;
+      state = openKey(state);
       entered();
     }
     reflect();
@@ -253,9 +260,9 @@ export function createQuickStart(deps: QuickStartDeps): {
     if (phase.phase !== "done") return;
     const { result } = phase;
     if (result.kind === "ok") {
-      if (isConnected()) {
+      const wasConnected = isConnected();
+      if (wasConnected) {
         deps.chatKeySettings.setApiKey(typedKey());
-        replaced = true;
       } else {
         deps.endpointsSettings.set({
           chat_base_url: GEMINI_PRESET.url,
@@ -268,7 +275,7 @@ export function createQuickStart(deps: QuickStartDeps): {
         deps.onConnected();
       }
       input.value = "";
-      replacing = rejected = passed = false;
+      state = keyWritten(wasConnected);
       reflect();
     } else if (isRefused(result)) {
       showError("start.refused", true);
@@ -291,22 +298,14 @@ export function createQuickStart(deps: QuickStartDeps): {
       // A network failure says nothing about the key, so the view stays as it is.
       const { result } = phase;
       if (result.kind !== "ok" && !isRefused(result)) return;
-      // An open paste row stays open: the user may be typing in it.
-      replacing ||= rejected;
-      rejected = result.kind !== "ok";
-      passed = !rejected;
+      state = keyChecked(state, result.kind === "ok");
       reflect();
-      if (rejected) input.focus();
+      if (state.verdict === "refused") input.focus();
     },
   });
-  // Coming back to the window shows the view again.
-  const onWindowFocus = (): void => {
-    if (!el.closest("[hidden]")) entered();
-  };
-  window.addEventListener("focus", onWindowFocus);
 
   replace.addEventListener("click", () => {
-    replacing = true;
+    state = openKey(state);
     reflect();
     input.focus();
   });
@@ -328,8 +327,10 @@ export function createQuickStart(deps: QuickStartDeps): {
     holdsKey: () => endpointsUrl() === "" || endpointsUrl() === GEMINI_PRESET.url,
     focusKey,
     entered,
+    windowFocused: () => {
+      if (!el.closest("[hidden]")) entered();
+    },
     dispose: () => {
-      window.removeEventListener("focus", onWindowFocus);
       check.dispose();
       read.dispose();
       voiceStep?.dispose();

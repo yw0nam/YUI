@@ -163,6 +163,7 @@ export async function wireSettingsWindow(deps: {
   const onWindowFocus = (): void => {
     delegations.refresh();
     delegationHistory.reloadFromStorage();
+    quickControls.windowFocused();
   };
   window.addEventListener("focus", onWindowFocus);
 
