@@ -137,8 +137,8 @@ YUI/
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
-        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
-        wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
+        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` and `focus` params set to the requested page and field
+        wire-settings-page.ts        # Takes the URL's page and focus, and answers an opener's page request: switches to the opener's character, then selects the page and focuses the field it names
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
@@ -388,7 +388,7 @@ YUI/
         thread-reaction-thresholds-settings.ts # The waiting count and wait that start a Thread reaction without a chip tap under yui.thread-reaction-thresholds, device-wide
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
-        settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
+        settings-pages.ts            # The settings page ids, character pages and app pages, the focus field ids, and the checks for a page and a focus
         message-window-settings.ts   # Message-window mode and last outer position under the window's preset key
         window-geometry-settings.ts  # Per-window-label size and position the user's drags and resizes leave
     io/                              # I/O layer: chat, voice, window and OS seams
@@ -649,7 +649,7 @@ YUI/
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
         signal-chips.css             # Signal-chip pill, details sheet, and fold styles
       notices/                       # One-off and error notices
-        turn-error.ts                # Backend-failure reason to inline input-error message
+        turn-error.ts                # Backend-failure reason to its message, its next step (Connect, Change key, Check connection or Retry), and where it shows
         fade-out.ts                  # Settle callback for elements that fade before leaving the a11y tree
         boot-error.ts                # Boot-failure notice card
         chain-reset-notice.ts        # One-off notice when the backend resets a broken response chain
