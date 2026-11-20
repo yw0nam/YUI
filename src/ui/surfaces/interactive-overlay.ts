@@ -7,7 +7,7 @@ export const BUBBLE =
  * stays click-through. Of the bubble, the box (a click completes the line), the buttons on its edge,
  * the speech action button under the text, and the backlog's toggle and open panel are targets; the
  * area around them passes through to the character. The status pill takes them on its capture
- * button, and as a whole only while it offers the voice fix. The Threads chip and the Ask card take
+ * button and on its action button while it offers one. The Threads chip and the Ask card take
  * them while they show.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
@@ -20,7 +20,7 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   `${BUBBLE} .yui-bubble__backlog-toggle:not([hidden])`,
   `${BUBBLE} .yui-bubble__backlog:not([hidden])`,
   ".yui-status.is-visible .yui-status__capture:not([hidden])",
-  '.yui-status.is-visible[data-fix="settings"]',
+  ".yui-status.is-visible .yui-status__action:not([hidden])",
   ".yui-deleg.is-visible .yui-deleg__chip",
   ".yui-deleg.is-visible .yui-deleg__list.is-open",
   ".yui-sigchips.is-visible .yui-sigchip",

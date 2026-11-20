@@ -43,17 +43,13 @@ import { readOpenPresetEntries, readOpenPresetIds } from "../../settings/preset/
 import { readRelationLines } from "../../settings/relations/relation-lines";
 import { targetLabels } from "../../settings/relations/relation-targets";
 import type { SettingsStores } from "../../settings/settings-stores";
+import type { TurnNoticeStore } from "../../ui/chips/turn-notice";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
-import {
-  failureAction,
-  fixAction,
-  routeTurnFailure,
-  turnErrorMessage,
-} from "../../ui/notices/turn-error";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import type { WindowActiveHours } from "../active-hours/window-active-hours";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";
+import { createTurnFailureReporter } from "./report-turn-failure";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
@@ -113,6 +109,8 @@ export function wireDispatcher(deps: {
   windowTools?: readonly ClientTool[];
   openSettings?: (tab: SettingsPage) => void;
   showVoiceError: (reason: string, message?: string) => void;
+  /** The status pill's failed-turn notice, posted when no input is open and cleared as a turn starts. */
+  turnNotice: Pick<TurnNoticeStore, "show" | "clear">;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   register: (teardown: () => void) => void;
@@ -159,6 +157,7 @@ export function wireDispatcher(deps: {
     windowTools,
     openSettings,
     showVoiceError,
+    turnNotice,
     appendTurnRecord,
     t,
     register,
@@ -250,6 +249,12 @@ export function wireDispatcher(deps: {
   register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
   // Dispatcher creation precedes peek wiring, so peek callbacks stay late-bound across that cycle.
   let peekRef: { enter(): Promise<void>; exit(): Promise<void> } | null = null;
+  const reportFailure = createTurnFailureReporter({
+    surfaces,
+    openSettings,
+    turnNotice,
+    showVoiceError,
+  });
   const dispatcher = createDispatcher({
     bus,
     renderer,
@@ -277,19 +282,16 @@ export function wireDispatcher(deps: {
     },
     onUserTurnFailed: (reason, source, detail) => {
       voice.speakFailure(reason);
-      const message = turnErrorMessage(reason, detail);
-      if (!message) return;
-      const action = routeTurnFailure(source, surfaces.isInputOpen());
-      if (action.kind === "show_input_error") {
-        const next = failureAction(reason, detail);
-        surfaces.showInputError(message, next === "retry" ? next : fixAction(next, openSettings));
-      } else if (action.kind === "voice_error") {
-        showVoiceError(reason, detail ? message : undefined);
-      }
+      reportFailure(reason, source, detail);
     },
   });
   register(() => dispatcher.stop());
-  register(dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy)));
+  register(
+    dispatcher.subscribeBusy((busy) => {
+      surfaces.setBusy(busy);
+      if (busy) turnNotice.clear();
+    }),
+  );
 
   return {
     dispatcher,

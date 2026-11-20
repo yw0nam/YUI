@@ -99,19 +99,22 @@ export function fixAction(
   };
 }
 
-type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };
+type TurnFailureAction =
+  | { kind: "show_input_error" }
+  | { kind: "voice_error" }
+  | { kind: "notice" };
 
 /**
  * Routes a classified user-turn failure to the UI surface it belongs to. Routes by
  * `source` (which trigger actually failed), not by the input form's CURRENT open
  * state alone — a typed turn dismissed with Escape mid-flight must not get
- * misrouted to the status pill's voice error just because the form happens to be closed by
+ * misrouted to the voice error just because the form happens to be closed by
  * the time the failure arrives.
  *  - text + input open   -> the inline input error.
- *  - text + input closed -> nothing (the user already dismissed it; log-only).
- *  - voice                -> always the status pill's voice error state.
+ *  - text + input closed -> a notice on the status pill (the closed input dropped the text).
+ *  - voice                -> the status pill's voice error state, and a notice beside it.
  */
 export function routeTurnFailure(source: UserTurnSource, isInputOpen: boolean): TurnFailureAction {
   if (source === "voice") return { kind: "voice_error" };
-  return isInputOpen ? { kind: "show_input_error" } : { kind: "none" };
+  return isInputOpen ? { kind: "show_input_error" } : { kind: "notice" };
 }

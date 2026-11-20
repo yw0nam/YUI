@@ -77,7 +77,7 @@ describe("wireDispatcher", () => {
     const openSettings = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
-      subscribeBusy: vi.fn(() => busyUnsubscribe),
+      subscribeBusy: vi.fn((_cb: (busy: boolean) => void) => busyUnsubscribe),
     };
     const guardrails = { setConfig: vi.fn(), evaluate: vi.fn(), cooldownActive: vi.fn() };
     const pacer = { stop: vi.fn(), noteIntervalChanged: vi.fn() };
@@ -376,6 +376,15 @@ describe("wireDispatcher", () => {
     notice.action.onClick();
 
     expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+  });
+
+  it("keeps a typed failure on the open input and off the pill", () => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
+
+    expect(s.showInputError).toHaveBeenCalledOnce();
+    expect(s.turnNotice.show).not.toHaveBeenCalled();
   });
 
   it("clears the notice when a new turn starts", () => {

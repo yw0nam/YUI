@@ -47,7 +47,6 @@ import {
 import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
 import { wirePushMode } from "../app/turn/push/wire-push";
 import { createSessionResetAnnouncer } from "../app/turn/session-reset-announcer";
-import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
@@ -65,6 +64,7 @@ import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
 import { createUnifiedShown } from "../settings/unified/unified-shown";
 import { createStatusPill } from "../ui/chips/status-pill";
+import { createTurnNotice } from "../ui/chips/turn-notice";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
@@ -139,6 +139,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
+  const turnNotice = createTurnNotice();
+  register(turnNotice.dispose);
   // Tool tells stay with the character in both window modes, so the pill backs the local surfaces.
   const statusPill = createStatusPill({
     mount: root,
@@ -149,10 +151,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       subscribe: (cb) => activeHours.dnd.subscribe(() => cb()),
     },
     onOpenSettings: () => openSettings(),
-    onFixVoice: createVoiceFix({
-      openConnection: () => openSettings("conn"),
-      status: voiceInputStatus,
-    }),
+    notice: turnNotice,
   });
   register(() => statusPill.dispose());
 
@@ -327,6 +326,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       openSettings,
+      turnNotice,
       onSessionReset: windowBridge.onSessionReset,
       onFirstConversationConnected: windowBridge.onFirstConversationConnected,
       onFirstConversationReplay: windowBridge.onFirstConversationReplay,

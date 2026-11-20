@@ -53,6 +53,7 @@ YUI/
       turn/                          # The path of a turn: sources, voice, and push
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
+        report-turn-failure.ts       # Where a failed user turn shows: the open input, or a notice on the status pill
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
@@ -139,8 +140,6 @@ YUI/
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
         wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
-      voice/                         # Desktop voice wiring
-        voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -639,6 +638,7 @@ YUI/
         hold-to-fold.ts              # A press held past 500 ms folds the chips and swallows the release's click
         voice-input-status.ts        # Voice-input status model
         voice-error-dwell.ts         # How long a voice-turn failure holds the status pill's voice error state
+        turn-notice.ts               # The status pill's failed-turn notice, its action, and how long it holds
         signal-chips.ts              # One pill per signal group beside the avatar, above the delegation chip
         signal-chips-model.ts        # The signal groups beside the avatar, newest first, in memory only
         signal-details.ts            # One signal group's source line, kind, label, time, what YUI said, and its raw items

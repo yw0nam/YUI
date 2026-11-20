@@ -1,17 +1,12 @@
 /**
  * voice-error-dwell.test.ts
  *
- * The status pill's voice error dwell. A transient failure self-clears back to
- * listening so the pill does not sit red forever; a settings-fixable one holds,
- * because a fix affordance that vanishes mid-reach is worse than none.
+ * The status pill's voice error dwell. A voice-turn failure self-clears back to
+ * listening so the mic does not sit red forever.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createVoiceErrorDwell,
-  VOICE_TURN_ERROR_DISPLAY_MS,
-  VOICE_TURN_FIX_HOLD_MS,
-} from "./voice-error-dwell";
+import { createVoiceErrorDwell, VOICE_TURN_ERROR_DISPLAY_MS } from "./voice-error-dwell";
 import { createVoiceInputStatus } from "./voice-input-status";
 
 describe("createVoiceErrorDwell", () => {
@@ -45,41 +40,16 @@ describe("createVoiceErrorDwell", () => {
     expect(status.get().state).toBe("listening");
   });
 
-  it("holds a not_configured failure well past the transient window", () => {
-    const status = createVoiceInputStatus();
-    createVoiceErrorDwell(status).show("not_configured");
-
-    vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS * 10);
-
-    expect(status.get()).toMatchObject({ state: "error", detail: "not_configured" });
-  });
-
-  // The fix chip takes OS pointer events, so an unattended one would swallow
-  // clicks meant for whatever sits behind YUI. The hold is generous, not endless.
-  it("caps the hold — a not_configured error reverts to listening after the fix window", () => {
-    const status = createVoiceInputStatus();
-    createVoiceErrorDwell(status).show("not_configured");
-
-    vi.advanceTimersByTime(VOICE_TURN_FIX_HOLD_MS - 1);
-    expect(status.get().state).toBe("error");
-
-    vi.advanceTimersByTime(1);
-    expect(status.get().state).toBe("listening");
-  });
-
-  it("gives a fixable failure a longer hold than a transient one", () => {
-    expect(VOICE_TURN_FIX_HOLD_MS).toBeGreaterThan(VOICE_TURN_ERROR_DISPLAY_MS);
-  });
-
-  it("a held not_configured chip is not revived by a later transient revert", () => {
+  it("restarts the display window on a newer failure", () => {
     const status = createVoiceInputStatus();
     const dwell = createVoiceErrorDwell(status);
 
     dwell.show("network_drop");
-    dwell.show("not_configured");
-    vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS * 2);
+    vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS - 1);
+    dwell.show("network_stall");
+    vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS - 1);
 
-    expect(status.get()).toMatchObject({ state: "error", detail: "not_configured" });
+    expect(status.get()).toMatchObject({ state: "error", detail: "network_stall" });
   });
 
   it("leaves a state the user moved on to alone when the timer fires", () => {

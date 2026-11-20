@@ -51,24 +51,13 @@ describe("turnErrorMessage", () => {
   });
 
   it.each([
-    [
-      "en",
-      "Not connected yet",
-      "The connection stopped responding",
-      "Not connected yet. Open settings to connect",
-    ],
-    ["ko", "아직 연결 안 됨", "연결 응답 없음", "아직 연결 안 됨. 설정을 열어 연결하기"],
-    [
-      "ja",
-      "まだ接続していません",
-      "接続が応答しなくなりました",
-      "まだ接続していません。設定を開いて接続する",
-    ],
-  ] as const)("says it in plain words in %s", (locale, notConfigured, stall, voiceFix) => {
+    ["en", "Not connected yet", "The connection stopped responding"],
+    ["ko", "아직 연결 안 됨", "연결 응답 없음"],
+    ["ja", "まだ接続していません", "接続が応答しなくなりました"],
+  ] as const)("says it in plain words in %s", (locale, notConfigured, stall) => {
     setLocale(locale);
     expect(turnErrorMessage("not_configured")).toBe(notConfigured);
     expect(turnErrorMessage("network_stall")).toBe(stall);
-    expect(t("voice.error.not_configured_fix")).toBe(voiceFix);
   });
 
   it("follows the active locale (ko)", () => {

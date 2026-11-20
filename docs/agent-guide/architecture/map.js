@@ -1478,15 +1478,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "app/voice",
-      "module": "wiring",
-      "label": "voice fix",
-      "role": "The desktop pill's setup-needed tap.",
-      "paths": [
-        "src/app/voice"
-      ]
-    },
-    {
       "id": "app/dev",
       "module": "wiring",
       "label": "dev globals",

@@ -789,6 +789,23 @@ describe("showInputError — inline fix affordance", () => {
   });
 });
 
+describe("isInputOpen — a failure that arrives while the input fades out", () => {
+  it("reads closed from the moment dismissInput is called, before the fade ends", async () => {
+    const { s, mount } = makeSurfaces();
+    s.summonInput();
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(s.isInputOpen()).toBe(true);
+
+    s.dismissInput();
+
+    // The form is still mounted and visible, so only the open state tells the router to use the pill.
+    expect(mount.querySelector<HTMLElement>(".yui-input")!.hidden).toBe(false);
+    expect(s.isInputOpen()).toBe(false);
+    s.dispose();
+    mount.remove();
+  });
+});
+
 describe("showInputError — Retry in the composer", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;

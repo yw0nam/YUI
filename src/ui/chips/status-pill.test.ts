@@ -60,14 +60,12 @@ function setup(
   settings.setEnabled(opts.capture ?? false);
   const voice = createVoiceInputStatus();
   const onOpenSettings = vi.fn();
-  const onFixVoice = vi.fn();
   const onToggleVoice = vi.fn();
   const pill = createStatusPill({
     ...(opts.withCaptureSetting === false ? {} : { settings }),
     mount,
     voice,
     onOpenSettings,
-    onFixVoice,
     notice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
     ...(dnd
@@ -87,7 +85,6 @@ function setup(
     voice,
     pill,
     onOpenSettings,
-    onFixVoice,
     onToggleVoice,
     notice,
     action: () => mount.querySelector<HTMLButtonElement>(".yui-status__action"),
@@ -174,7 +171,6 @@ describe("status pill — capture only", () => {
     const p = setup({ capture: true });
     p.capture().click();
     expect(p.onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(p.onFixVoice).not.toHaveBeenCalled();
   });
 
   it("takes OS clicks on the capture button only while capture is on, from the start of the fade", () => {
@@ -229,7 +225,7 @@ describe("status pill — voice", () => {
     expect(p.capture().getAttribute("aria-label")).toBe(t("capture.watching"));
   });
 
-  it("stays click-through outside the settings-fixable error", () => {
+  it("stays click-through while no notice offers an action", () => {
     const p = setup();
     for (const [state, detail] of [
       ["error", "network_drop"],
@@ -238,13 +234,11 @@ describe("status pill — voice", () => {
       ["fired", undefined],
     ] as const) {
       p.voice.set(state, detail);
-      expect(p.root().dataset.fix).toBeUndefined();
       expect(p.matchAny()).toBeNull();
     }
 
     p.root().click();
     p.mic().click();
-    expect(p.onFixVoice).not.toHaveBeenCalled();
     expect(p.onOpenSettings).not.toHaveBeenCalled();
     expect(p.voice.get()).toMatchObject({ state: "fired" });
   });
@@ -257,7 +251,6 @@ describe("status pill — voice error with the server's message", () => {
 
     expect(p.dot().dataset.voice).toBe("error");
     expect(p.label().textContent).toBe("rate limit reached");
-    expect(p.root().dataset.fix).toBeUndefined();
     expect(p.root().dataset.message).toBe("true");
   });
 
@@ -280,76 +273,6 @@ describe("status pill — voice error with the server's message", () => {
   });
 });
 
-describe("status pill — not_configured voice error", () => {
-  it("turns the label into the fix link with the gear glyph", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-
-    expect(p.root().dataset.fix).toBe("settings");
-    expect(p.dot().dataset.voice).toBe("error");
-    expect(p.label().textContent).toBe(t("voice.error.not_configured"));
-    expect(p.mount.querySelector(".yui-status__fix-glyph")?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
-    expect(p.mic().getAttribute("aria-label")).toBe(
-      t("aria.voice_input", { label: t("voice.error.not_configured_fix") }),
-    );
-  });
-
-  it("takes OS clicks on the whole pill", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    flushFrames();
-    expect(p.matchAny()).toBe(p.root());
-  });
-
-  it("drops the fix as soon as the pill starts leaving", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    flushFrames();
-
-    p.voice.set("idle");
-    expect(p.root().hidden).toBe(false);
-    expect(p.root().dataset.fix).toBeUndefined();
-    expect(p.mic().tabIndex).toBe(-1);
-    expect(p.matchAny()).toBeNull();
-
-    p.label().click();
-    expect(p.onFixVoice).not.toHaveBeenCalled();
-    expect(p.voice.get().state).toBe("idle");
-  });
-
-  it("calls onFixVoice from a pill click and leaves the status to it", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-
-    p.label().click();
-
-    expect(p.onFixVoice).toHaveBeenCalledTimes(1);
-    expect(p.onOpenSettings).not.toHaveBeenCalled();
-    expect(p.voice.get()).toMatchObject({ state: "error", detail: "not_configured" });
-  });
-
-  it("keeps the capture button on its own action while the fix shows", () => {
-    const p = setup({ capture: true });
-    p.voice.set("error", "not_configured");
-
-    p.capture().click();
-
-    expect(p.onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(p.onFixVoice).not.toHaveBeenCalled();
-  });
-
-  it("drops the fix when a transient error replaces it", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    p.voice.set("error", "network_drop");
-
-    expect(p.root().dataset.fix).toBeUndefined();
-    expect(p.label().textContent).toBe(t("voice.state.error"));
-  });
-});
-
 describe("status pill — mic cause labels", () => {
   it.each([
     ["mic_denied", "Mic blocked"],
@@ -362,7 +285,6 @@ describe("status pill — mic cause labels", () => {
     expect(p.label().textContent).toBe(label);
     expect(p.mic().getAttribute("aria-label")).toBe(t("aria.voice_input", { label }));
     expect(p.dot().dataset.voice).toBe("error");
-    expect(p.root().dataset.fix).toBeUndefined();
   });
 
   it("localizes the cause", () => {
@@ -398,16 +320,6 @@ describe("status pill — voice toggle", () => {
 
     expect(p.onToggleVoice).not.toHaveBeenCalled();
     expect(p.mic().tabIndex).toBe(-1);
-  });
-
-  it("gives the fix the whole pill while it shows, the mic button included", () => {
-    const p = setup({ withToggle: true });
-    p.voice.set("error", "not_configured");
-
-    p.mic().click();
-
-    expect(p.onFixVoice).toHaveBeenCalledTimes(1);
-    expect(p.onToggleVoice).not.toHaveBeenCalled();
   });
 });
 
@@ -483,7 +395,7 @@ describe("status pill — tool running", () => {
 
   it("overrides the voice label while the mic keeps showing the voice state", () => {
     const p = setup();
-    p.voice.set("error", "not_configured");
+    p.voice.set("error", "network_drop");
     p.pill.showTool("web_search");
 
     expect(p.label().textContent).toBe("Searching…");
@@ -492,7 +404,6 @@ describe("status pill — tool running", () => {
     expect(p.mic().hidden).toBe(false);
     expect(p.mic().dataset.voice).toBe("error");
     expect(p.sep().hidden).toBe(false);
-    expect(p.root().dataset.fix).toBeUndefined();
   });
 });
 

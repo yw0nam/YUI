@@ -32,8 +32,6 @@ const ja: Record<string, string> = {
   "voice.state.asr": "文字起こし中…",
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
-  "voice.error.not_configured": "設定が必要",
-  "voice.error.not_configured_fix": "まだ接続していません。設定を開いて接続する",
   "voice.error.mic_denied": "マイク拒否",
   "voice.error.no_mic": "マイクなし",
   "voice.error.mic_unavailable": "マイク使用不可",
