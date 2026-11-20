@@ -406,7 +406,7 @@ describe("status pill — failed-turn notice", () => {
 
     expect(onClick).toHaveBeenCalledOnce();
     expect(p.notice.get()).toBeNull();
-    expect(p.action()?.hidden).toBe(true);
+    expect(p.matchAny()).toBeNull();
   });
 
   it("shows a notice with no action as plain text that stays click-through", () => {

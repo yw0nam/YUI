@@ -37,7 +37,7 @@ interface StatusPillOptions {
   /** Opens the system's microphone privacy pane beside a blocked mic; without it the pill offers none. */
   onOpenMicSettings?: () => void;
   /** A failed turn's notice and its action; without it the pill carries none. */
-  notice?: Pick<TurnNoticeStore, "get" | "subscribe">;
+  notice?: Pick<TurnNoticeStore, "get" | "subscribe" | "clear">;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
   onToggleVoice?: () => void;
   /** The do-not-disturb switch behind the still moon segment; without it the segment is absent. */
@@ -189,7 +189,14 @@ export function createStatusPill({
       : openMic
         ? { label: t("voice.action_mic_settings"), onClick: openMic }
         : turnNotice?.action;
-    action = offered?.onClick ?? null;
+    // The notice's action is its last step: once taken, the notice has nothing left to say.
+    action =
+      offered && offered === turnNotice?.action
+        ? () => {
+            notice?.clear();
+            offered.onClick();
+          }
+        : (offered?.onClick ?? null);
     actionEl.hidden = !offered;
     actionEl.tabIndex = offered ? 0 : -1;
     actionGlyphEl.toggleAttribute("hidden", !micBlocked);
