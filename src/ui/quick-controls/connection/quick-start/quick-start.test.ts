@@ -305,3 +305,39 @@ describe("createQuickStart — the state it reads from the stores", () => {
     expect(s.el(".yui-start__connected").querySelector(".yui-start__replay")).toBeNull();
   });
 });
+
+describe("createQuickStart — Replace key", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("a confirmed replacement writes only the key and says Key replaced", async () => {
+    const s = setup();
+    s.endpointsSettings.set({
+      chat_base_url: GEMINI_PRESET.url,
+      chat_model: "models/custom",
+      chat_api: "responses",
+    });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    const replace = [...s.page.el.querySelectorAll("button")].find(
+      (b) => b.textContent === "Replace key",
+    );
+    expect(replace?.closest("[hidden]")).toBeNull();
+
+    replace!.click();
+    await s.connect("AIza-new");
+
+    expect(s.chatKeySettings.get().apiKey).toBe("AIza-new");
+    expect(s.endpointsSettings.get()).toMatchObject({
+      chat_base_url: GEMINI_PRESET.url,
+      chat_model: "models/custom",
+      chat_api: "responses",
+    });
+    expect(s.proactiveSettings.get().enabled).toBe(true);
+    expect(s.scheduleSettings.get().enabled).toBe(true);
+    expect(s.onConnected).not.toHaveBeenCalled();
+    expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
+  });
+});
