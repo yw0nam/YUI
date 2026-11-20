@@ -445,9 +445,8 @@ describe("createQuickControls — reactions section", () => {
     qc.dispose();
   });
 
-  it("sets the Reaction thresholds count from its segment, dimmed with a reason while Thread reactions is off", () => {
-    setLocale("ko");
-    const threadReactionsSettings = createFlagSettings(true);
+  it("sets the Reaction thresholds count from its segment, also while Thread reactions is off", () => {
+    const threadReactionsSettings = createFlagSettings(false);
     const threadReactionThresholdsSettings = createThreadReactionThresholdsSettings();
     const qc = buildQc({ threadReactionsSettings, threadReactionThresholdsSettings });
     const countCells = [
@@ -455,21 +454,18 @@ describe("createQuickControls — reactions section", () => {
         ".yui-reaction-thresholds-count-seg [data-count]",
       ),
     ];
-    const reason = qc.el.querySelector<HTMLElement>(".yui-reaction-thresholds-reason")!;
     qc.open();
     expect(countCells.map((c) => c.dataset.count)).toEqual(["0", "2", "3", "5"]);
 
-    threadReactionsSettings.setEnabled(false);
-    expect(countCells.map((c) => c.disabled)).toEqual([true, true, true, true]);
-    expect(reason.hidden).toBe(false);
-    expect(reason.textContent).toBe("스레드 반응을 켜야 쓸 수 있어요.");
-
-    threadReactionsSettings.setEnabled(true);
-    expect(countCells.map((c) => c.disabled)).toEqual([false, false, false, false]);
-    expect(reason.hidden).toBe(true);
-
     countCells[3].click();
+
     expect(threadReactionThresholdsSettings.get()).toEqual({ count: 5, wait_min: 10 });
+    expect(countCells.map((c) => c.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
     qc.dispose();
   });
 
