@@ -364,4 +364,37 @@ describe("createQuickStart — Replace key", () => {
     expect(s.visibleText('[role="alert"]')).toEqual([]);
     expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
   });
+
+  it("reuses the verdict on the same key checked less than 60 seconds ago", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    const settled = async () => {
+      await settle();
+      await settle();
+    };
+
+    s.page.entered();
+    await settled();
+    s.page.focusKey();
+    await settled();
+
+    expect(s.fetchMock).toHaveBeenCalledTimes(1);
+    expect(s.visibleText('[role="status"]')).toEqual([
+      "Connected. You can start talking now.",
+      "This key still works.",
+    ]);
+
+    s.chatKeySettings.setApiKey("AIza-other");
+    s.page.entered();
+    await settled();
+    vi.setSystemTime(Date.now() + 60_000);
+    s.page.entered();
+    await settled();
+
+    expect(s.fetchMock).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
 });
