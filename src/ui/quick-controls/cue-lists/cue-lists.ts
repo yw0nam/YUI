@@ -4,9 +4,9 @@ import { t } from "../../i18n";
 import { createCueList } from "../../message/cue-list";
 
 interface CueListsDeps {
-  /** Mount of the schedule cue list (`.yui-cue-sections`). */
+  /** Group of the schedule cue list (`.yui-cue-sections`). */
   scheduleMount: HTMLElement;
-  /** Mount of the proactive cue list (`.yui-loop-cue-section`). */
+  /** Group of the proactive cue list (`.yui-loop-cue-section`). */
   proactiveMount: HTMLElement;
   scheduleSettings: ReturnType<typeof createScheduleSettings>;
   proactiveSettings: ReturnType<typeof createProactiveSettings>;
@@ -29,7 +29,8 @@ export function mountCueLists({
     store: scheduleSettings,
     title: t("cue.schedule_title"),
     sub: t("cue.schedule_sub"),
-    icon: "clock",
+    note: t("cue.schedule_note"),
+    foldTitle: t("cue.schedule_fold"),
     trigger: { kind: "time", field: "time" },
     addLabel: t("cue.schedule_add"),
   });
@@ -39,7 +40,7 @@ export function mountCueLists({
     store: proactiveSettings,
     title: t("cue.proactive_title"),
     sub: t("cue.proactive_sub"),
-    icon: "sparkle",
+    foldTitle: t("cue.proactive_fold"),
     trigger: { kind: "minutes", field: "idle_min" },
     addLabel: t("cue.proactive_add"),
   });

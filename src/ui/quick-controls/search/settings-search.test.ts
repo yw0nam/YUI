@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createGuardrailsSettings } from "../../../settings/backend/guardrails-settings";
 import { createFlagSettings } from "../../../settings/persisted-store";
 import { createPetWindows } from "../../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
+import { createThreadReactionThresholdsSettings } from "../../../settings/threads/thread-reaction-thresholds-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+
+beforeEach(() => {
+  setLocale("en");
+});
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -21,6 +27,9 @@ function build(openOnQuickStart = false) {
     onResetViewpoint: vi.fn(),
     presetRegistry: createPresetRegistry(),
     petWindows: createPetWindows(),
+    threadReactionsSettings: createFlagSettings(true),
+    threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
+    rateLimitSettings: createGuardrailsSettings(),
   });
   const input = qc.el.querySelector<HTMLInputElement>(".yui-search__input")!;
   const search = (q: string) => {
@@ -101,5 +110,39 @@ it("finds Detailed settings rows while Quick start shows, and brings Detailed se
 
   expect(count("conn")).toBe("3");
   expect(detail.hidden).toBe(false);
+  qc.dispose();
+});
+
+it.each(["Check-ins", "When she steps in", "Advanced"])("finds the fold titled %s", (query) => {
+  const { qc, search, count } = build();
+
+  search(query);
+
+  expect(count("react")).toBe("1");
+  qc.dispose();
+});
+
+it("keeps a fold open when the query clears while focus is inside it", () => {
+  const { qc, search } = build();
+  const cell = qc.el.querySelector<HTMLButtonElement>(".yui-reaction-thresholds-wait-seg button")!;
+  search("Long wait");
+  cell.focus();
+
+  search("");
+
+  expect(cell.closest("details")?.open).toBe(true);
+  qc.dispose();
+});
+
+it("opens the fold that holds a match and folds it again when the query clears", () => {
+  const { qc, search } = build();
+  const fold = qc.el.querySelector(".yui-reaction-thresholds-wait-seg")?.closest("details");
+  expect(fold?.open).toBe(false);
+
+  search("Long wait");
+  expect(fold?.open).toBe(true);
+
+  search("");
+  expect(fold?.open).toBe(false);
   qc.dispose();
 });

@@ -185,8 +185,6 @@ describe("deriveExpressVocabulary", () => {
         prev_dwell_ms: 600000,
         settle_ms: 90000,
         long_session_ms: 2700000,
-        min_gap_ms: 300000,
-        quiet_after_turn_ms: 180000,
         recent_cap: 5,
       },
       persona: personaFixture(),

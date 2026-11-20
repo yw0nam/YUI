@@ -15,8 +15,6 @@ function baseConfig(): ScreenConfig {
     prev_dwell_ms: 600_000,
     settle_ms: 90_000,
     long_session_ms: 2_700_000,
-    min_gap_ms: 300_000,
-    quiet_after_turn_ms: 180_000,
     recent_cap: 5,
   };
 }
@@ -25,8 +23,6 @@ const NONE: ScreenOverrides = {
   prev_dwell_ms: 0,
   settle_ms: 0,
   long_session_ms: 0,
-  min_gap_ms: 0,
-  quiet_after_turn_ms: 0,
   recent_cap: 0,
 };
 
@@ -51,17 +47,17 @@ describe("screen knob settings — store shape", () => {
     const store = createScreenKnobSettings({ storage });
     const seen = vi.fn();
     store.subscribe(seen);
-    store.set({ min_gap_ms: 600_000 });
-    expect(store.get().min_gap_ms).toBe(600_000);
+    store.set({ prev_dwell_ms: 600_000 });
+    expect(store.get().prev_dwell_ms).toBe(600_000);
     expect(seen).toHaveBeenCalledTimes(1);
-    expect(createScreenKnobSettings({ storage }).get().min_gap_ms).toBe(600_000);
+    expect(createScreenKnobSettings({ storage }).get().prev_dwell_ms).toBe(600_000);
   });
 
   it("keeps the other knobs untouched when one is edited", () => {
     const store = createScreenKnobSettings({ storage: inMemoryStorage() });
-    store.set({ min_gap_ms: 600_000 });
+    store.set({ prev_dwell_ms: 600_000 });
     store.set({ settle_ms: 30_000 });
-    expect(store.get()).toEqual({ ...NONE, min_gap_ms: 600_000, settle_ms: 30_000 });
+    expect(store.get()).toEqual({ ...NONE, prev_dwell_ms: 600_000, settle_ms: 30_000 });
   });
 
   it("clears the override when set to 0", () => {
@@ -143,12 +139,10 @@ describe("screen knob settings — store over config", () => {
   });
 
   it("overrides only the knobs that carry a value", () => {
-    const merged = mergeScreen(baseConfig(), { ...NONE, min_gap_ms: 60_000, settle_ms: 30_000 });
-    expect(merged.min_gap_ms).toBe(60_000);
+    const merged = mergeScreen(baseConfig(), { ...NONE, prev_dwell_ms: 60_000, settle_ms: 30_000 });
+    expect(merged.prev_dwell_ms).toBe(60_000);
     expect(merged.settle_ms).toBe(30_000);
-    expect(merged.prev_dwell_ms).toBe(600_000);
     expect(merged.long_session_ms).toBe(2_700_000);
-    expect(merged.quiet_after_turn_ms).toBe(180_000);
   });
 
   it("projects the config thresholds onto the overrides shape", () => {
@@ -156,15 +150,13 @@ describe("screen knob settings — store over config", () => {
       prev_dwell_ms: 600_000,
       settle_ms: 90_000,
       long_session_ms: 2_700_000,
-      min_gap_ms: 300_000,
-      quiet_after_turn_ms: 180_000,
       recent_cap: 5,
     });
   });
 
   it("never mutates the config it layers onto", () => {
     const base = baseConfig();
-    mergeScreen(base, { ...NONE, min_gap_ms: 60_000 });
-    expect(base.min_gap_ms).toBe(300_000);
+    mergeScreen(base, { ...NONE, settle_ms: 60_000 });
+    expect(base.settle_ms).toBe(90_000);
   });
 });

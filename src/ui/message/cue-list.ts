@@ -1,11 +1,12 @@
 /**
- * Reusable cue-list section component.
+ * Reusable cue-list group: the master switch row over a fold of the entries and the add row.
  * Used for both time-of-day greetings (trigger: "time") and proactive reactions (trigger: "minutes").
  */
 
 import "./cue-list.css";
 import { t } from "../i18n";
 import { CROSS_SVG, PLUS_SVG } from "../quick-controls/constants";
+import { foldHtml, reflectFoldOff } from "../quick-controls/fold";
 
 // ── Store shape interfaces (minimal common form fitting both schedule and proactive) ──
 
@@ -35,12 +36,15 @@ interface CueStore<C extends CueBase, S extends SettingsBase<C>> {
 type TriggerKind = { kind: "time"; field: string } | { kind: "minutes"; field: string };
 
 interface CueListOptions<C extends CueBase, S extends SettingsBase<C>> {
+  /** The group the switch row and the fold join. */
   mount: HTMLElement;
   store: CueStore<C, S>;
   title: string;
   sub: string;
-  /** "clock" = clock SVG, "sparkle" = sparkle SVG */
-  icon: "clock" | "sparkle";
+  /** A second sub line under the switch row's label. */
+  note?: string;
+  /** The fold's summary title over the entries. */
+  foldTitle: string;
   trigger: TriggerKind;
   addLabel: string;
 }
@@ -49,30 +53,37 @@ export interface CueListInstance {
   destroy(): void;
 }
 
-const CLOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.5v4.8l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const SPARKLE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.6 3.9 3.9 1.6-3.9 1.6L12 14.5l-1.6-3.9L6.5 9l3.9-1.6L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15l.7 1.7 1.8.7-1.8.7-.7 1.7-.7-1.7-1.8-.7 1.8-.7.7-1.7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   opts: CueListOptions<C, S>,
 ): CueListInstance {
-  const { mount, store, title, sub, icon, trigger, addLabel } = opts;
+  const { mount, store, title, sub, note, foldTitle, trigger, addLabel } = opts;
 
-  const iconSvg = icon === "clock" ? CLOCK_SVG : SPARKLE_SVG;
+  // ── Switch row: title and sub lines on the left, master switch on the right ──
+  const rowEl = document.createElement("div");
+  rowEl.className = "yui-row";
 
-  // ── Section root ──
-  const sectionEl = document.createElement("div");
-  sectionEl.className = "yui-sec";
-  sectionEl.setAttribute("data-testid", "cue-section");
+  const mainEl = document.createElement("div");
+  mainEl.className = "yui-row__main";
 
-  // ── Title row: title on the left, master switch on the right ──
-  const headEl = document.createElement("div");
-  headEl.className = "yui-sec__head";
-
-  const labelEl = document.createElement("h2");
-  labelEl.className = "yui-sec__title";
+  const labelEl = document.createElement("span");
+  labelEl.className = "yui-row__label";
   labelEl.setAttribute("data-testid", "cue-list-title");
-  labelEl.innerHTML = `${iconSvg}${title}`;
+  labelEl.textContent = title;
+
+  const subEl = document.createElement("span");
+  subEl.className = "yui-row__sub";
+  subEl.setAttribute("data-testid", "cue-list-sub");
+  subEl.textContent = sub;
+  mainEl.append(labelEl, subEl);
+
+  if (note) {
+    const noteEl = document.createElement("span");
+    noteEl.className = "yui-row__sub";
+    noteEl.textContent = note;
+    mainEl.appendChild(noteEl);
+  }
 
   const masterSwitch = document.createElement("button");
   masterSwitch.type = "button";
@@ -80,25 +91,17 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   masterSwitch.setAttribute("role", "switch");
   masterSwitch.setAttribute("data-testid", "cue-list-master-switch");
   masterSwitch.setAttribute("aria-label", title);
+  rowEl.append(mainEl, masterSwitch);
 
-  headEl.appendChild(labelEl);
-  headEl.appendChild(masterSwitch);
-  sectionEl.appendChild(headEl);
-
-  const subEl = document.createElement("p");
-  subEl.className = "yui-sec__note";
-  subEl.setAttribute("data-testid", "cue-list-sub");
-  subEl.textContent = sub;
-  sectionEl.appendChild(subEl);
-
-  // ── Cue rows + add row, one group ──
-  const groupEl = document.createElement("div");
-  groupEl.className = "yui-group";
-  sectionEl.appendChild(groupEl);
+  // ── Fold: the entries and the add row, summarized by their triggers while folded ──
+  const foldTpl = document.createElement("template");
+  foldTpl.innerHTML = foldHtml(foldTitle, "", "");
+  const foldEl = foldTpl.content.firstElementChild as HTMLDetailsElement;
+  foldEl.setAttribute("data-testid", "cue-section");
+  const asideEl = foldEl.querySelector<HTMLElement>(".yui-fold__aside")!;
 
   const listEl = document.createElement("div");
   listEl.className = "yui-cue-list";
-  groupEl.appendChild(listEl);
 
   const addRow = document.createElement("div");
   addRow.className = "yui-row yui-row--action";
@@ -108,9 +111,9 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   addBtn.setAttribute("data-testid", "cue-add");
   addBtn.innerHTML = `${PLUS_SVG}${addLabel}`;
   addRow.appendChild(addBtn);
-  groupEl.appendChild(addRow);
+  foldEl.querySelector(".yui-fold__body")!.append(listEl, addRow);
 
-  mount.appendChild(sectionEl);
+  mount.append(rowEl, foldEl);
 
   // ── State reflection ──
 
@@ -119,7 +122,16 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   function reflectMaster(enabled: boolean): void {
     masterSwitch.setAttribute("aria-checked", String(enabled));
-    sectionEl.classList.toggle("yui-sec--off", !enabled);
+    reflectFoldOff(foldEl, !enabled);
+  }
+
+  // Every entry's trigger in list order, e.g. "5 · 10 · 30 min" or "09:00 · 12:00".
+  function reflectAside(entries: C[]): void {
+    const list = entries
+      .map((cue) => (cue as unknown as Record<string, unknown>)[trigger.field])
+      .join(" · ");
+    asideEl.textContent =
+      list && trigger.kind === "minutes" ? t("cue.minutes_summary", { list }) : list;
   }
 
   function buildTriggerInput(cue: C): HTMLElement {
@@ -322,9 +334,9 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
       else expandedIds.delete(cue.id);
     });
 
-    collapsed.appendChild(cueSwitch);
     collapsed.appendChild(labelBtn);
     collapsed.appendChild(triggerEl);
+    collapsed.appendChild(cueSwitch);
     collapsed.appendChild(deleteBtn);
 
     // ── Expanded editor ──
@@ -448,6 +460,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   const initial = store.get();
   reflectMaster(initial.enabled);
   renderRows(initial.entries);
+  reflectAside(initial.entries);
 
   // ── Event wiring ──
 
@@ -465,13 +478,15 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   const unsubscribe = store.subscribe((s) => {
     reflectMaster(s.enabled);
     renderRows(s.entries);
+    reflectAside(s.entries);
   });
 
   // ── destroy ──
   function destroy(): void {
     unsubscribe();
     masterSwitch.removeEventListener("click", handleMasterClick);
-    sectionEl.remove();
+    rowEl.remove();
+    foldEl.remove();
   }
 
   return { destroy };

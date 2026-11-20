@@ -125,7 +125,7 @@ The bubble keeps the line to its own width and cuts the rest with an ellipsis, s
 
 ### Urgent
 
-An `urgent` group means the user should hear it without delay. It fires at once while the user is present and the pipeline is idle, and the proactive quiet gap does not hold it.
+An `urgent` group means the user should hear it without delay. It fires at once while the user is present and the pipeline is idle, and the proactive gap does not hold it.
 
 Otherwise it waits in its own buffer. On the away-to-present or busy-to-idle edge, the buffered urgent groups fire together as one urgent catch-up turn.
 
@@ -165,7 +165,7 @@ The five-group cap of the batch buffer can still push a held group out, and the 
 
 A turn dropped before its backend call puts its groups back at the front of their buffers, and the next edge or drain delivers them. The drop comes from one of:
 
-- the proactive quiet gap
+- the proactive gap
 - a guardrail
 - the user's message while it waits
 - a stale queue entry

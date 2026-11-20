@@ -44,8 +44,15 @@ The device-wide switch, set on the Quick card or from the tray's Do Not Disturb 
 _Avoid_: quiet mode, mute
 
 **Active hours**:
-A character's list of spans. Each span has a start time, an end time and a pace: More, Normal, Less or Off (stored `high`, `normal`, `low` or `off`). In a pet window, More halves and Less triples both the proactive gap and the idle cue minutes; Normal changes neither. Off holds the same triggers as do-not-disturb, in that pet window only. An hour no span covers is Normal. A span whose end is before its start runs past midnight, and equal start and end cover the whole day. Where spans overlap, the span that started most recently before the minute wins; on a tie, the later span in the list wins. The card's `extensions.yui.active_hours` is the default, and the Persona page edits the spans per character.
+A character's list of spans. Each span has a start time, an end time and a pace: More, Normal, Less or Off (stored `high`, `normal`, `low` or `off`). In a pet window, a span's pace multiplies the base pace, and the product scales both the proactive gap and the idle cue minutes: More halves it and Less triples it, while Normal and Off leave the span out of it. Off holds the same triggers as do-not-disturb, in that pet window only. An hour no span covers is Normal. A span whose end is before its start runs past midnight, and equal start and end cover the whole day. Where spans overlap, the span that started most recently before the minute wins; on a tie, the later span in the list wins. The card's `extensions.yui.active_hours` is the default, and the Persona page edits the spans per character.
 _Avoid_: band, level, schedule, quiet hours
+
+**Base pace**:
+The device-wide pace (Less, Normal or More; stored `low`, `normal` or `high`, default Normal) set by "How often she speaks up" at the top of the Proactive page. Every pet window multiplies it by its character's span pace, so it scales the proactive gap and the idle cue minutes the same way a span does.
+
+**Proactive gap**:
+The device-wide wait after any turn starts, user or proactive, spoken or silent, before a proactive source may speak up on her own. Shown as "Wait after a conversation" under Advanced on the Proactive page, stored as `yui.proactive-pacer-gap` (default 10 minutes; 0 disables it). Each pet window scales it by the base pace times the span pace.
+_Avoid_: quiet gap, pacer gap, global gap
 
 **Chain cap**:
 The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable on the Together page. The next one is dropped with reason `addressed_cap`.

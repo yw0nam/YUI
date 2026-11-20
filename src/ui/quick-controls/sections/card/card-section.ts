@@ -25,7 +25,7 @@ import type { PresetRegistry } from "../../../../settings/preset/preset-registry
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
-import { CARD_GUIDE_URL } from "../../constants";
+import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
 import { createCardDrop } from "./card-drop";
@@ -64,7 +64,6 @@ const greetingHtml = (i: number): string => `
           </div>`;
 
 const PLUS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export function cardSectionHtml(): string {
   const help = escapeAttr(t("card.help_aria"));
@@ -91,7 +90,7 @@ export function cardSectionHtml(): string {
               </div>
             </div>
             <details class="yui-more">
-              <summary>${CHEVRON_SVG}${t("card.advanced")}</summary>
+              <summary>${DISCLOSURE_CHEV_SVG}${t("card.advanced")}</summary>
               <div class="yui-group">${stackHtml("mes_example", "card.mes_example", 4)}${stackHtml("system_prompt", "card.system_prompt", 4, "card.system_prompt_sub")}${stackHtml("post_history_instructions", "card.post_history", 2)}
               </div>
             </details>

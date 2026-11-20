@@ -61,14 +61,14 @@ The backend can pick all 10 emotions and 8 of the motions. Each emotion has a fa
 
 | Feature | What it does |
 | --- | --- |
-| Greetings and check-ins | Greetings at 09:00, 12:00, 18:00, and 23:00, and check-ins after 5, 10, or 30 quiet minutes |
-| Screen watch | App switches after 10 minutes, and every 45 minutes in one app; off by default |
+| Scheduled greetings and Quiet for a while | Greetings at 09:00, 12:00, 18:00, and 23:00, and reactions after 5, 10, or 30 quiet minutes |
+| Screen changes | App switches after 10 minutes, and every 45 minutes in one app; off by default |
 | First activity of the day | A cue on your first activity of the day |
-| Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute quiet gap |
+| Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute proactive gap |
 | Active hours | Per-character time spans that make her speak up first more or less often, or not at all |
 | Loopback ingress | A local listener for hooks, signals, and avatar RPC; off by default |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
-| Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/skills/yui-daily-briefing/SKILL.md)) |
+| Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greetings on ([skill](https://github.com/yw0nam/YUI/blob/main/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | App switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button on Proactive; the first run is a connection test |
 

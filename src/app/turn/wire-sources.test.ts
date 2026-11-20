@@ -64,8 +64,6 @@ describe("wireDispatcherSources", () => {
     prev_dwell_ms: 600000,
     settle_ms: 90000,
     long_session_ms: 2700000,
-    min_gap_ms: 300000,
-    quiet_after_turn_ms: 180000,
     recent_cap: 5,
   };
 
@@ -91,7 +89,6 @@ describe("wireDispatcherSources", () => {
   it("creates and starts all six utterance sources", () => {
     const bus = {} as never;
     const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
-    const subscribeBusy = vi.fn(() => vi.fn());
     const result = wireDispatcherSources({
       bus,
       presenceSettings: { get: () => ({ value: 5000 }) },
@@ -100,7 +97,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: false }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy,
       pipelineBusy,
       pacer: fakePacer(),
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
@@ -156,7 +152,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: false }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
@@ -186,7 +181,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: false }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
@@ -216,7 +210,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: false }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
       dnd: dnd,
@@ -236,7 +229,6 @@ describe("wireDispatcherSources", () => {
   });
 
   it("gates the screen source on its own flag and re-anchors idle cues on a fire", () => {
-    const subscribeBusy = vi.fn(() => vi.fn());
     const result = wireDispatcherSources({
       bus: {} as never,
       presenceSettings: { get: () => ({ value: 5000 }) },
@@ -245,7 +237,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: true }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy,
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
@@ -260,14 +251,11 @@ describe("wireDispatcherSources", () => {
       present_max_idle_ms: number;
       isEnabled: () => boolean;
       getConfig: () => typeof screenConfig;
-      subscribeBusy: unknown;
       noteInteraction: () => void;
     };
     expect(screen.present_max_idle_ms).toBe(5000);
     expect(screen.isEnabled()).toBe(true);
     expect(screen.getConfig()).toEqual(screenConfig);
-    // Turn edges come from the dispatcher's in-flight busy signal, not the pipeline-busy one.
-    expect(screen.subscribeBusy).toBe(subscribeBusy);
     // A screen fire re-anchors the idle gap so proactive cues do not pile on.
     expect(screen.noteInteraction).toBe(result.proactiveSource.noteInteraction);
     expect(result.screenSource).toBeDefined();
@@ -283,7 +271,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: true }) },
       getScreenConfig: () => mergeScreen(screenConfig, knobs.get()),
-      subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
@@ -297,9 +284,9 @@ describe("wireDispatcherSources", () => {
     const screen = created.screen as { getConfig: () => typeof screenConfig };
     expect(screen.getConfig()).toEqual(screenConfig);
 
-    knobs.set({ min_gap_ms: 60_000 });
-    expect(screen.getConfig().min_gap_ms).toBe(60_000);
-    expect(screen.getConfig().settle_ms).toBe(screenConfig.settle_ms);
+    knobs.set({ settle_ms: 30_000 });
+    expect(screen.getConfig().settle_ms).toBe(30_000);
+    expect(screen.getConfig().prev_dwell_ms).toBe(screenConfig.prev_dwell_ms);
   });
 
   function wireWithPacer(pacer: ReturnType<typeof fakePacer>) {
@@ -311,7 +298,6 @@ describe("wireDispatcherSources", () => {
       agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
       screenSettings: { get: () => ({ enabled: true }) },
       getScreenConfig: () => screenConfig,
-      subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer,
       dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },

@@ -67,7 +67,7 @@ describe("cue-list — i18n internal labels", () => {
       ]),
       title: "Scheduled greeting",
       sub: "sub",
-      icon: "clock",
+      foldTitle: "Entries",
       trigger: { kind: "time", field: "time" },
       addLabel: "+ Add",
     });
@@ -93,7 +93,7 @@ describe("cue-list — i18n internal labels", () => {
       ]),
       title: "Scheduled greeting",
       sub: "sub",
-      icon: "clock",
+      foldTitle: "Entries",
       trigger: { kind: "time", field: "time" },
       addLabel: "+ Add",
     });
@@ -110,7 +110,7 @@ describe("cue-list — i18n internal labels", () => {
       ]),
       title: "Proactive",
       sub: "sub",
-      icon: "sparkle",
+      foldTitle: "Entries",
       trigger: { kind: "minutes", field: "idle_min" },
       addLabel: "+ Add",
     });
@@ -136,7 +136,7 @@ describe("cue-list — i18n internal labels", () => {
       ]),
       title: "Scheduled greeting",
       sub: "sub",
-      icon: "clock",
+      foldTitle: "Entries",
       trigger: { kind: "time", field: "time" },
       addLabel: "+ Add",
     });

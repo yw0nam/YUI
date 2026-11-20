@@ -13,7 +13,7 @@ on in YUI (off by default). Producers connect to YUI; YUI never connects back to
   then trust the hooks and run `$yui-notify:setup`.
 
 The setup probes the bare listener endpoint, writes endpoint and wait caps, and sends a
-test Thread. **Settings → Proactive → Watchers → External signals** enables the loopback
+test Thread. **Settings → Proactive → What she reacts to → External signals** enables the loopback
 listener (default port `8770`). Switch and port changes take effect after restart.
 Threads accept no preset prefix and use the listener's Host and Origin checks.
 

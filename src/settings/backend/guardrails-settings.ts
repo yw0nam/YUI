@@ -55,12 +55,18 @@ export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides):
   return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov, KEYS) };
 }
 
+/** The bundled caps the UI falls back to, and the cooldown its copy names. */
+export type RateLimitDefaults = RateLimitOverrides & { cooldown_ms: number };
+
 /**
- * Projects a bundled GuardrailsConfig onto the RateLimitOverrides shape for the UI's fallback
- * display, dropping window_ms/cooldown_ms — the values this store never overrides.
+ * Projects a bundled GuardrailsConfig onto the caps for the UI's fallback display, plus the
+ * cooldown the rows name; window_ms is dropped. This store overrides neither.
  */
-export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitOverrides {
-  return projectOverrides(EMPTY, (key) => g.rate_limit[key]);
+export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitDefaults {
+  return {
+    ...projectOverrides(EMPTY, (key) => g.rate_limit[key]),
+    cooldown_ms: g.rate_limit.cooldown_ms,
+  };
 }
 
 export function createGuardrailsSettings(opts?: { storage?: GuardrailsStorage }) {
