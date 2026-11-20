@@ -45,6 +45,24 @@ describe("a keyed failure → open the Connection page", () => {
     surfaces.dispose();
   });
 
+  it.each([
+    ["http_4xx_drop", undefined],
+    ["network_drop", { status: 400, message: "bad key" }],
+  ] as const)("a %s key action opens the Connection page on its key field", (reason, detail) => {
+    const surfaces = createSurfaces({ tool: noTool, mount });
+    const openSettings = vi.fn();
+
+    surfaces.showInputError(
+      turnErrorMessage(reason, detail)!,
+      fixAction(failureAction(reason, detail), openSettings),
+    );
+    surfaces.el.querySelector<HTMLButtonElement>(".yui-input__error-action")!.click();
+
+    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
+
+    surfaces.dispose();
+  });
+
   it("a failure that resends renders no settings button", () => {
     const surfaces = createSurfaces({ tool: noTool, mount });
 
