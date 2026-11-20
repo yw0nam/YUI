@@ -227,7 +227,7 @@ That turn waits for neither presence nor the proactive gap. When signals are off
 
 ## Thread reactions
 
-Thread reactions is the device-wide switch `yui.thread-reactions`, on by default. Its row sits in the Watchers section of the settings. It does not depend on External signals. Turning it off releases every held turn group, clears the pending cause and stops a reaction in progress; a chip tap then only opens the window.
+Thread reactions is the device-wide switch `yui.thread-reactions`, on by default. Its row heads the Thread reactions group under What she reacts to on the Proactive page. It does not depend on External signals. Turning it off releases every held turn group, clears the pending cause and stops a reaction in progress; a chip tap then only opens the window.
 
 A Thread update alone gives no reaction. The Threads chip redraws and wiggles; no line, window, seat or Thread turn follows. `completed` and `failed` alone never start a reaction.
 
@@ -245,7 +245,9 @@ A reaction starts on one of three causes.
 
 A counted Thread is one the chip counts: waiting, and its open ask is not the seen one.
 
-The thresholds are the device-wide setting `yui.thread-reaction-thresholds`, two rows under the switch in the Watchers section. N is Off, 2, 3 or 5, default 3. T is Off, 5, 10 or 30 minutes, default 10. With both Off the chip tap is the only cause. The rows are dimmed while the switch is off.
+The thresholds are the device-wide setting `yui.thread-reaction-thresholds`, two rows under the switch in that group's fold. N is Off, 2, 3 or 5, default 3. T is Off, 5, 10 or 30 minutes, default 10. With both Off the chip tap is the only cause.
+
+While the switch is off the rows dim, and their cells are disabled with a reason line.
 
 The first snapshot after launch is the baseline: it starts no count. A Thread already waiting at launch reaches its wait T minutes after launch if it still waits.
 

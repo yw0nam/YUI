@@ -47,7 +47,7 @@ A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
 
 ## Send it
 
-Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. Post to one of two routes:
+Turn on **External signals** in Settings → Proactive, under What she reacts to. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. Post to one of two routes:
 
 - `POST /signals` wakes the main window's character.
 - `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.

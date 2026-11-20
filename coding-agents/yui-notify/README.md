@@ -35,7 +35,7 @@ plugins or start a new session. Claude Code: `/plugin marketplace update yui`,
 `/plugin update yui-notify@yui`, `/reload-plugins`. Codex:
 `codex plugin marketplace upgrade yui`.
 
-YUI requires **Settings → Proactive → Watchers → External signals** on. The loopback
+YUI requires **Settings → Proactive → What she reacts to → External signals** on. The loopback
 listener defaults to port `8770`; switch and port changes take effect after restart.
 
 ## What it sends

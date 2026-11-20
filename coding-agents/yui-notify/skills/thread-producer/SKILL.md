@@ -39,7 +39,7 @@ Done when: the shape and its schedule are named.
 ### 3. Reach YUI
 
 The endpoint is `http://127.0.0.1:<port>`, the listener port shown under YUI's Settings →
-Proactive → Watchers (default 8770), with **External signals** on. A producer on another
+Proactive → What she reacts to → External signals (default 8770), with **External signals** on. A producer on another
 host reaches YUI through a reverse SSH tunnel the user supervises; the guide is
 `../setup/references/remote.md` in this plugin.
 

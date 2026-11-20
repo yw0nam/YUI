@@ -248,9 +248,9 @@ An empty string disables the shortcut. If another app holds the shortcut, regist
 
 The **Thinking interjections** section of the **Voice** page edits these lists per language. An empty list uses the default from this file.
 
-## Screen watch
+## Screen changes
 
-`configs/screen.json` holds the screen-watch timings. The **Screen watch** controls on the **Proactive** page edit them.
+`configs/screen.json` holds the screen-watch timings. The **Screen changes** group on the **Proactive** page edits them.
 
 | Key | Shipped default | Meaning |
 | --- | --- | --- |
@@ -261,20 +261,24 @@ The **Thinking interjections** section of the **Voice** page edits these lists p
 
 ## Guardrails
 
-`configs/guardrails.json` holds the guardrails: per-source debounce, hourly caps and attachment limits. The **Limits** fields on the **Proactive** page override the caps. An empty field uses the file.
+`configs/guardrails.json` holds the guardrails: per-source debounce, hourly caps and attachment limits. The hourly cap fields under **Advanced** on the **Proactive** page override the caps, and the chain cap is set on the **Together** page. An empty field uses the file.
 
 | Setting | Shipped default | Meaning |
 | --- | --- | --- |
 | `rate_limit.window_ms` | `3600000` (1 h) | Length of the rolling window every cap counts in |
-| `rate_limit.tier2_max` | `24` | Cues per hour: proactive, schedule, agent, signal, milestone and addressed turns together |
+| `rate_limit.tier2_max` | `24` | Times she speaks up per hour: proactive, schedule, agent, signal, milestone and addressed turns together |
 | `rate_limit.overall_max` | `40` | Total self-started turns per hour; crossing it starts the cooldown |
 | `rate_limit.urgent_max` | `120` | Urgent signal turns per hour. The cooldown never holds them |
 | `rate_limit.cooldown_ms` | `300000` (5 min) | How long every cue is held once `overall_max` is crossed |
 | `rate_limit.addressed_chain_max` | `2` | Answers to another character in a row, before you speak again |
 
-The **Proactive gap** on the same page sets the quiet gap after any turn before YUI speaks up on her own. Its default is `600000` ms (10 minutes). It is a device setting, `yui.proactive-pacer-gap`, not a key in this file.
+The **Wait after a conversation** field under **Advanced** on the **Proactive** page sets the proactive gap: the wait after any turn start before a proactive source speaks up on her own. Its default is `600000` ms (10 minutes), and `0` disables it. It is a device setting, `yui.proactive-pacer-gap`, not a key in this file.
 
-Each character's active hours scale this gap and the idle cue minutes (per character store `yui.active-hours`, card key `extensions.yui.active_hours`).
+The **How often she speaks up** control at the top of the **Proactive** page is the device-wide base pace, `yui.base-pace` (`low`, `normal` or `high`, default `normal`).
+
+In each pet window the proactive gap and the idle cue minutes are multiplied by the base pace times the current span's pace from that character's active hours (per character store `yui.active-hours`, card key `extensions.yui.active_hours`).
+
+Each pace is a factor: Less 3, Normal 1, More 0.5. An Off span contributes 1, so only the base pace applies while it holds.
 
 `debounce_ms` holds a per-source window: `5000` for `os_event_watcher`, `0` for `user_input_source`, and `5000` for `screen_watcher`. `attachments` caps one turn at `max_count` `6` images and `max_image_bytes` `5242880` (5 MiB) per image.
 
