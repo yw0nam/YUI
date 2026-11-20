@@ -468,6 +468,7 @@ describe("createQuickControls — Reactions tab layout", () => {
       ["Thread reactions", "When she steps in", "3 waiting · 10 min", false],
       ["External signals", "Port and address", "8770", false],
     ]);
+    expect(groups[0].querySelectorAll("details [data-testid='cue-row']")).toHaveLength(3);
     qc.dispose();
   });
 
@@ -482,17 +483,6 @@ describe("createQuickControls — Reactions tab layout", () => {
 
     toggle.click();
     expect(fold?.classList.contains("yui-fold--off")).toBe(false);
-    qc.dispose();
-  });
-
-  it("shows the check-ins when Quiet for a while is unfolded", () => {
-    const { qc, panel } = buildProactiveQc();
-    const fold = panel.querySelector(".yui-loop-cue-section")?.querySelector("details");
-
-    fold?.querySelector("summary")?.click();
-
-    expect(fold?.open).toBe(true);
-    expect(fold?.querySelectorAll("[data-testid='cue-row']")).toHaveLength(3);
     qc.dispose();
   });
 

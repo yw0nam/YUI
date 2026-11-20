@@ -2,7 +2,7 @@
  * Hover/focus/click tooltip for elements carrying `data-tip`.
  * One floating tooltip is shared across root, so only one is ever open.
  * Hover opens after a delay (and cancels if the pointer leaves first); focus opens instantly;
- * clicking a hint dot pins it, while clicking any other target closes it.
+ * clicking a target closes its tooltip.
  */
 
 import "./hint-tooltip.css";
@@ -40,7 +40,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   tip.id = "yui-hint-tip";
 
   let openTarget: HTMLElement | null = null;
-  let pinned = false;
   let openTimer: ReturnType<typeof setTimeout> | null = null;
   let cancelFade: (() => void) | null = null;
   let keyboardModality = false;
@@ -89,22 +88,12 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
 
   function hide(): void {
     cancelPendingOpen();
-    pinned = false;
     if (!openTarget) return;
     const target = openTarget;
     openTarget = null;
     target.removeAttribute("aria-describedby");
     tip.classList.remove("is-open");
     cancelFade = afterFadeOut(tip, () => tip.remove());
-  }
-
-  function togglePin(target: HTMLElement): void {
-    if (openTarget === target && pinned) {
-      hide();
-      return;
-    }
-    show(target);
-    pinned = true;
   }
 
   function findTarget(value: EventTarget | null): HTMLElement | null {
@@ -120,7 +109,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   function handleMouseOver(e: MouseEvent): void {
     const target = findTarget(e.target);
     if (!target || findTarget(e.relatedTarget) === target) return;
-    if (pinned) return;
     cancelPendingOpen();
     openTimer = setTimeout(() => {
       openTimer = null;
@@ -137,7 +125,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
       hide();
       return;
     }
-    if (pinned) return;
     if (openTarget === target) hide();
   }
 
@@ -152,18 +139,11 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
       hide();
       return;
     }
-    if (pinned) return;
     if (openTarget === target) hide();
   }
 
   function handleClick(e: MouseEvent): void {
     const target = findClosestTarget(e.target);
-    if (target?.hasAttribute("data-tip-pin") && root.contains(target)) {
-      // A hint dot's click only pins its tooltip.
-      e.preventDefault();
-      togglePin(target);
-      return;
-    }
     if (!openTarget) return;
     // Keyboard activation keeps focus on the control, so keep its tooltip and pick up a new label.
     if (e.detail === 0 && target && openTarget === target && root.contains(target)) {
@@ -171,14 +151,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
       return;
     }
     if (openTarget === target || !root.contains(openTarget)) hide();
-  }
-
-  // Pinned tooltips close on any click outside the target.
-  function handleDocumentClick(e: MouseEvent): void {
-    if (!pinned || !openTarget) return;
-    const target = e.target as Node;
-    if (openTarget.contains(target)) return;
-    hide();
   }
 
   function handleModalityKeydown(e: KeyboardEvent): void {
@@ -192,11 +164,7 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   function handleDocumentKeydown(e: KeyboardEvent): void {
     if (e.key !== "Escape") return;
     cancelPendingOpen();
-    if (!openTarget) return;
-    const shouldConsume = pinned;
-    hide();
-    // Capture-phase stopPropagation also blocks document bubble handlers such as delete disarm.
-    if (shouldConsume) e.stopPropagation();
+    if (openTarget) hide();
   }
 
   function handleViewportChange(): void {
@@ -208,7 +176,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   root.addEventListener("focusin", handleFocusIn);
   root.addEventListener("focusout", handleFocusOut);
   root.addEventListener("click", handleClick);
-  document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleModalityKeydown, true);
   document.addEventListener("pointerdown", handleModalityPointerdown, true);
   document.addEventListener("keydown", handleDocumentKeydown, true);
@@ -228,7 +195,6 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   function dispose(): void {
     cancelPendingOpen();
     cancelFade?.();
-    document.removeEventListener("click", handleDocumentClick);
     document.removeEventListener("keydown", handleModalityKeydown, true);
     document.removeEventListener("pointerdown", handleModalityPointerdown, true);
     document.removeEventListener("keydown", handleDocumentKeydown, true);

@@ -8,7 +8,6 @@ function makeDot(label: string): HTMLElement {
   button.className = "yui-hint-dot";
   button.setAttribute("aria-label", label);
   button.dataset.tip = label;
-  button.dataset.tipPin = "";
   button.textContent = "?";
   return button;
 }
@@ -138,20 +137,6 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
-  it("click pins the tooltip open; a later outside click closes it", () => {
-    dotA.click();
-    expect(openTip()).not.toBeNull();
-    document.body.click();
-    expect(openTip()).toBeNull();
-  });
-
-  it("clicking the same pinned dot again releases the pin and closes it", () => {
-    dotA.click();
-    expect(openTip()).not.toBeNull();
-    dotA.click();
-    expect(openTip()).toBeNull();
-  });
-
   it("clicking a non-dot data-tip element hides its focused tooltip", () => {
     const button = document.createElement("button");
     button.dataset.tip = "Switch to reactions";
@@ -209,41 +194,7 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
-  it("pins only elements carrying data-tip-pin", () => {
-    const button = document.createElement("button");
-    button.dataset.tip = "Explicit pin target";
-    button.dataset.tipPin = "";
-    root.appendChild(button);
-
-    button.click();
-
-    expect(openTip()?.textContent).toBe("Explicit pin target");
-    document.body.click();
-    expect(openTip()).toBeNull();
-  });
-
-  it("keeps dot B's pinned tooltip open after switching from pinned dot A by click", () => {
-    dotA.click();
-    dotB.click();
-
-    vi.advanceTimersByTime(500);
-
-    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
-    expect(openTip()?.isConnected).toBe(true);
-  });
-
-  it("keeps dot B's pinned tooltip open after switching from pinned dot A by focus", () => {
-    dotA.click();
-    enterKeyboardModality();
-    dotB.focus();
-
-    vi.advanceTimersByTime(500);
-
-    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
-    expect(openTip()?.isConnected).toBe(true);
-  });
-
-  it("consumes Escape only while a tooltip is pinned", () => {
+  it("hides on Escape and lets the key reach the panel", () => {
     const panelKeydown = vi.fn();
     document.addEventListener("keydown", panelKeydown);
     try {
@@ -252,10 +203,6 @@ describe("createHintTooltip", () => {
       dotA.focus();
       dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       expect(openTip()).toBeNull();
-      expect(panelKeydown).toHaveBeenCalledOnce();
-
-      dotA.click();
-      dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       expect(panelKeydown).toHaveBeenCalledOnce();
     } finally {
       document.removeEventListener("keydown", panelKeydown);
@@ -270,21 +217,6 @@ describe("createHintTooltip", () => {
     vi.advanceTimersByTime(150);
 
     expect(openTip()).toBeNull();
-  });
-
-  it("keeps the pinned dot open when another dot is hovered", () => {
-    dotA.click();
-    dotB.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-    vi.advanceTimersByTime(150);
-    expect(openTip()?.textContent).toBe(dotA.dataset.tip);
-  });
-
-  it("opens another dot on hover after Escape releases the pin", () => {
-    dotA.click();
-    dotA.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    dotB.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-    vi.advanceTimersByTime(150);
-    expect(openTip()?.textContent).toBe(dotB.dataset.tip);
   });
 
   it("keeps the tooltip open when the pointer moves onto an inner svg", () => {
@@ -387,9 +319,7 @@ describe("createHintTooltip", () => {
     localDots[0].dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     localTooltip.dispose();
 
-    const documentClick = documentAdd.mock.calls.find(([name]) => name === "click")![1];
     const documentKeydowns = documentAdd.mock.calls.filter(([name]) => name === "keydown");
-    expect(documentRemove).toHaveBeenCalledWith("click", documentClick);
     expect(documentKeydowns).toHaveLength(2);
     for (const [, callback] of documentKeydowns) {
       expect(documentRemove).toHaveBeenCalledWith("keydown", callback, true);
@@ -457,10 +387,11 @@ describe("createHintTooltip", () => {
   });
 
   it("does not leave aria-describedby on the previous target when the tooltip moves to another", () => {
-    dotA.click();
+    enterKeyboardModality();
+    dotA.focus();
     expect(dotA.getAttribute("aria-describedby")).toBe(openTip()!.id);
 
-    dotB.click();
+    dotB.focus();
 
     expect(dotA.hasAttribute("aria-describedby")).toBe(false);
     expect(dotB.getAttribute("aria-describedby")).toBe(openTip()!.id);
