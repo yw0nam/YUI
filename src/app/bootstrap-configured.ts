@@ -31,7 +31,7 @@ import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
-import type { SettingsPage } from "../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
@@ -73,7 +73,7 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   /** Opens the settings window on a page, on the main character or this window's own. */
-  openSettings(page?: SettingsPage): void;
+  openSettings(page?: SettingsPage, focus?: SettingsFocus): void;
   /** The status pill's failed-turn notice. */
   turnNotice: TurnNoticeStore;
   /** Subscribes to resets the preset's other windows announce. */

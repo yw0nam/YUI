@@ -33,7 +33,7 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import {
   presetIdForWindow,
   readPresetList,
@@ -107,7 +107,7 @@ export function wireDispatcher(deps: {
   getVocabulary: () => ExpressVocabulary;
   /** The tools this window declares beside generate_express; empty outside Tauri. */
   windowTools?: readonly ClientTool[];
-  openSettings?: (tab: SettingsPage) => void;
+  openSettings?: (tab: SettingsPage, focus?: SettingsFocus) => void;
   showVoiceError: (reason: string, message?: string) => void;
   /** The status pill's failed-turn notice, posted when no input is open and cleared as a turn starts. */
   turnNotice: Pick<TurnNoticeStore, "show" | "clear">;

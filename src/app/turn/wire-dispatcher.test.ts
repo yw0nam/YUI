@@ -327,7 +327,7 @@ describe("wireDispatcher", () => {
     expect(offer).toEqual({ label: "Change key", onClick: expect.any(Function) });
     offer.onClick();
 
-    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
   });
 
   it.each([
@@ -375,7 +375,7 @@ describe("wireDispatcher", () => {
     expect(notice.action).toEqual({ label: "Change key", onClick: expect.any(Function) });
     notice.action.onClick();
 
-    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
   });
 
   it("keeps a typed failure on the open input and off the pill", () => {

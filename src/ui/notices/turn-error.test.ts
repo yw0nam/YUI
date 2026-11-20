@@ -158,17 +158,17 @@ describe("fixAction", () => {
   afterEach(() => setLocale("en"));
 
   it.each([
-    ["connect", "Connect"],
-    ["change_key", "Change key"],
-    ["check_connection", "Check connection"],
-  ] as const)("gives %s a button labelled %s that opens Connection", (action, label) => {
+    ["connect", "Connect", []],
+    ["change_key", "Change key", ["chat_key"]],
+    ["check_connection", "Check connection", ["chat_key"]],
+  ] as const)("gives %s a button labelled %s that opens Connection", (action, label, focus) => {
     const openSettings = vi.fn();
 
     const button = fixAction(action, openSettings);
 
     expect(button?.label).toBe(label);
     button?.onClick();
-    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn", ...focus);
   });
 
   it("gives retry, no action and a host without a settings opener no button", () => {

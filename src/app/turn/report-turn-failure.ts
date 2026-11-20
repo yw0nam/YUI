@@ -5,7 +5,7 @@
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import type { TurnNoticeStore } from "../../ui/chips/turn-notice";
 import {
   failureAction,
@@ -17,7 +17,7 @@ import type { Surfaces } from "../../ui/surfaces/surfaces";
 
 export function createTurnFailureReporter(deps: {
   surfaces: Pick<Surfaces, "isInputOpen" | "showInputError">;
-  openSettings?: (tab: SettingsPage) => void;
+  openSettings?: (tab: SettingsPage, focus?: SettingsFocus) => void;
   turnNotice: Pick<TurnNoticeStore, "show">;
   /** The voice error state the status pill's mic shows beside the notice. */
   showVoiceError: (reason: string, message?: string) => void;

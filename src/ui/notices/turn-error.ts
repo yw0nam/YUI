@@ -11,7 +11,7 @@
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { t } from "../i18n";
 
 /** Rendered server-message budget — one line, cut with an ellipsis past this. */
@@ -90,12 +90,12 @@ export function failureAction(reason: string, detail?: TurnErrorDetail): Failure
 /** The button of a keyed action, which opens the key entry; retry is the composer's own, so it has none. */
 export function fixAction(
   action: FailureAction | undefined,
-  openSettings?: (tab: SettingsPage) => void,
+  openSettings?: (tab: SettingsPage, focus?: SettingsFocus) => void,
 ): InputErrorAction | undefined {
   if (!openSettings || !action || action === "retry") return undefined;
   return {
     label: t(ACTION_LABEL_KEY[action]),
-    onClick: () => openSettings("conn"), // focus: chat_key once the opener takes it
+    onClick: () => (action === "connect" ? openSettings("conn") : openSettings("conn", "chat_key")),
   };
 }
 
