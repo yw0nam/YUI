@@ -7,6 +7,7 @@ import type {
   BasePace,
   BasePaceSettingsStore,
 } from "../../../../settings/active-hours/base-pace-settings";
+import { PACE_FACTOR } from "../../../../settings/active-hours/spans";
 import { t } from "../../../i18n";
 import { secHeadHtml } from "../../markup";
 import { createStoreSegment } from "../../store-segment";
@@ -27,7 +28,7 @@ export function basePaceSectionHtml(): string {
               <div class="yui-seg yui-base-pace-seg" role="radiogroup" aria-label="${t("base_pace.title")}">${cells}</div>
             </div>
           </div>
-          <p class="yui-sec__foot">${t("base_pace.foot")}</p>
+          <p class="yui-sec__foot">${t("base_pace.foot", { more: 1 / PACE_FACTOR.high, less: PACE_FACTOR.low })}</p>
           <p class="yui-sec__foot">${t("base_pace.link_lead")} <button class="yui-link-btn yui-base-pace__link" type="button">${t("base_pace.link")}</button></p>
         </div>`;
 }

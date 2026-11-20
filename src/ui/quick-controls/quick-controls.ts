@@ -52,7 +52,7 @@ import {
 } from "../../settings/backend/endpoints-settings";
 import type {
   GuardrailsSettingsStore,
-  RateLimitOverrides,
+  RateLimitDefaults,
 } from "../../settings/backend/guardrails-settings";
 import type { createWorkflowSettings } from "../../settings/backend/workflow-settings";
 import type {
@@ -277,7 +277,7 @@ interface QuickControlsOptions {
   /** Guardrail rate-limit overrides. If absent, the cap rows in Reactions tab won't render. */
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps shown when a field carries no override (undefined if not loaded). */
-  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
+  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
   /** Screen-watch on/off store. If absent, the screen-watch section won't render. */
   screenSettings?: FlagSettingsStore;
   /** Screen-watch threshold overrides. If absent, the knob group won't be editable. */

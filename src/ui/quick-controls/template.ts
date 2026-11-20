@@ -121,7 +121,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         switchRowsHtml("react", "screen"),
         foldHtml(
           t("screen.timing"),
-          t("screen.timing_summary"),
+          t("screen.timing_summary", { n: SCREEN_KNOB_FIELDS.length }),
           `${SCREEN_KNOB_FIELDS.map((f) => numRowHtml(f)).join("")}<p class="yui-field-hint">${t("screen.foot")}</p>`,
         ),
       )

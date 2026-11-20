@@ -302,7 +302,7 @@ const ko: Record<string, string> = {
   "active_hours.remove_aria": "시간대 삭제",
   "base_pace.title": "먼저 말 거는 빈도",
   "base_pace.foot":
-    "대화 뒤 기다리는 시간과 '한동안 조용할 때' 반응이 바뀌어요. 많이: 한가할 때 2배쯤 자주. 적게: 3분의 1쯤.",
+    "모든 캐릭터에 하루 내내, 대화 뒤 기다리는 시간(화면 반응 간격도 이 시간을 따라요)과 '한동안 조용할 때' 반응에 적용되고, 시간대 인사는 정한 시각 그대로예요. '많이'는 {more}배쯤 자주, '적게'는 {less}분의 1쯤으로 말을 걸어요.",
   "base_pace.link_lead": "캐릭터별 시간대 설정:",
   "base_pace.link": "페르소나 › 활동 시간",
 
@@ -708,7 +708,7 @@ const ko: Record<string, string> = {
   "threadReactions.label": "스레드 반응",
   "threadReactions.sub": "칩을 누르거나 스레드가 쌓이면 캐릭터가 스레드 창에 앉아요.",
   "threadReactions.aria": "스레드 반응",
-  "threadReactions.fold": "끼어드는 때",
+  "threadReactions.fold": "끼어들 때",
   "threadReactionThresholds.count_label": "기다리는 스레드 수",
   "threadReactionThresholds.count_sub": "칩의 숫자가 이만큼 되면 캐릭터가 스레드 창에 앉아요.",
   "threadReactionThresholds.wait_label": "오래 기다린 스레드",
@@ -782,7 +782,7 @@ const ko: Record<string, string> = {
   "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
   "reactions.pacer_gap_label": "대화 뒤 기다리는 시간",
   "reactions.pacer_gap_sub":
-    "대화가 오간 뒤 먼저 말을 걸기까지 기다리는 시간이에요. 보통은 이 값을 쓰고, 적게와 많이는 늘리거나 줄여요.",
+    "대화가 오간 뒤 먼저 말을 걸기까지 기다리는 시간이에요. '보통'은 이 값을 쓰고, '적게'와 '많이'는 늘리거나 줄여요.",
   "reactions.pacer_gap_hint": "0으로 두면 기다리지 않고 바로 말을 걸어요.",
   "reactions.minutes_suffix": "분",
   "reactions.rate_hint":
@@ -790,9 +790,10 @@ const ko: Record<string, string> = {
   "reactions.rate_tier2_label": "시간당 먼저 말 거는 횟수",
   "reactions.rate_tier2_sub": "한동안 조용할 때, 인사, 신호, 다른 캐릭터에게 답하기를 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
-  "reactions.rate_overall_sub": "넘어서면 모든 반응이 5분 동안 멈춰요",
+  "reactions.rate_overall_sub": "넘어서면 모든 반응이 {n}분 동안 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
-  "reactions.rate_urgent_sub": "긴급으로 표시된 신호예요. 그 멈춤에 걸리지 않아요",
+  "reactions.rate_urgent_sub":
+    "긴급으로 표시된 신호예요. 전체 상한을 넘었을 때의 {n}분 멈춤에도 걸리지 않아요",
   "reactions.rate_addressed_label": "연달아 불려서 답하기",
   "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 다른 캐릭터에게 불려 답하는 횟수",
 
@@ -801,7 +802,7 @@ const ko: Record<string, string> = {
   "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
   "screen.aria": "화면 변화",
   "screen.timing": "타이밍",
-  "screen.timing_summary": "설정 4개",
+  "screen.timing_summary": "설정 {n}개",
   "screen.minutes_suffix": "분",
   "screen.seconds_suffix": "초",
   "screen.prev_dwell_label": "앱 전환으로 치는 기준",

@@ -303,7 +303,7 @@ const ja: Record<string, string> = {
   "active_hours.remove_aria": "時間帯を削除",
   "base_pace.title": "話しかける頻度",
   "base_pace.foot":
-    "会話のあとの待ち時間と「しばらく静かなとき」の反応が変わります。多い：ひまなときは2倍ほど頻繁に。少なめ：3分の1ほど。",
+    "すべてのキャラクターに一日中、会話のあとの待ち時間（画面への反応の間隔もこれに従います）と「しばらく静かなとき」の反応に効き、時間帯のあいさつは決めた時刻のままです。「多い」は約{more}倍、「少なめ」は約{less}分の1の頻度です。",
   "base_pace.link_lead": "キャラクターと時間帯ごとに：",
   "base_pace.link": "ペルソナ › 活動時間",
 
@@ -782,7 +782,7 @@ const ja: Record<string, string> = {
   // reactions tab
   "reactions.port_label": "リスナーポート",
   "reactions.port_sub": "完了フックサーバーが待ち受けるポート",
-  "reactions.reacts_title": "反応すること",
+  "reactions.reacts_title": "何に反応するか",
   "reactions.advanced": "詳細設定",
   "reactions.presence_label": "在席とみなす無操作時間",
   "reactions.presence_sub": "最後の入力がこの時間以内なら席にいるとみなします",
@@ -802,9 +802,10 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_sub":
     "しばらく静かなとき、あいさつ、シグナル、他のキャラクターへの返事の合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
-  "reactions.rate_overall_sub": "超えるとすべての反応が5分間止まります",
+  "reactions.rate_overall_sub": "超えるとすべての反応が{n}分間止まります",
   "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
-  "reactions.rate_urgent_sub": "緊急と指定されたシグナル。その停止では止まりません",
+  "reactions.rate_urgent_sub":
+    "緊急と指定されたシグナル。合計の上限を超えたときの{n}分の停止の対象外です",
   "reactions.rate_addressed_label": "呼ばれて続けて答える回数",
   "reactions.rate_addressed_sub": "あなたが次に話すまでに、他のキャラクターに呼ばれて答える回数",
 
@@ -813,7 +814,7 @@ const ja: Record<string, string> = {
   "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
   "screen.aria": "画面の変化",
   "screen.timing": "タイミング",
-  "screen.timing_summary": "設定 4件",
+  "screen.timing_summary": "設定 {n}件",
   "screen.minutes_suffix": "分",
   "screen.seconds_suffix": "秒",
   "screen.prev_dwell_label": "アプリ切り替えとみなす基準",

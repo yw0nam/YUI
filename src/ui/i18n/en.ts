@@ -301,7 +301,7 @@ const en: Record<string, string> = {
   "active_hours.remove_aria": "Remove time span",
   "base_pace.title": "How often she speaks up",
   "base_pace.foot":
-    "Changes the wait after a conversation and the quiet-for-a-while reactions. More: about twice as often when you're idle. Less: about a third as often.",
+    "For every character, all day, it scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins; scheduled greetings keep their times. More is about {more}× as often, Less about 1/{less} as often.",
   "base_pace.link_lead": "Per character and time of day:",
   "base_pace.link": "Persona › Active hours",
 
@@ -796,9 +796,10 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_sub":
     "Quiet-for-a-while, greetings, signals and answers to another character, together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
-  "reactions.rate_overall_sub": "Crossing it pauses every source for 5 minutes",
+  "reactions.rate_overall_sub": "Crossing it pauses every source for {n} minutes",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",
-  "reactions.rate_urgent_sub": "Signals marked urgent; that pause never holds them",
+  "reactions.rate_urgent_sub":
+    "Signals marked urgent; the {n}-minute pause after the total limit never holds them",
   "reactions.rate_addressed_label": "Answers to another character, in a row",
   "reactions.rate_addressed_sub":
     "How many times she answers a character who addressed her before you speak again",
@@ -808,7 +809,7 @@ const en: Record<string, string> = {
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
   "screen.aria": "Screen changes",
   "screen.timing": "Timing",
-  "screen.timing_summary": "4 settings",
+  "screen.timing_summary": "{n} settings",
   "screen.minutes_suffix": "min",
   "screen.seconds_suffix": "s",
   "screen.prev_dwell_label": "Counts as an app switch after",
