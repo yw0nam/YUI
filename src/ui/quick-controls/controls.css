@@ -381,9 +381,22 @@
   border-top: 1px solid var(--yui-edge);
 }
 
-/* A source switched off: its fold stays and its rows dim but stay editable; Thread turns follows External signals instead. */
-.yui-fold--off > .yui-fold__body > :not(.yui-threadturns-row) {
+/* A source switched off: its rows dim but stay editable under the off line; Thread turns follows External signals instead. */
+.yui-fold--off > .yui-fold__body > :not(.yui-threadturns-row, .yui-fold__off) {
   opacity: 0.5;
+}
+
+.yui-fold__off {
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+}
+
+/* The off line, hidden, leaves the first row under the body's own hairline. */
+.yui-fold__off[hidden] + * {
+  border-top: 0;
 }
 
 /* ── Slider row — mouth gain · silence window ── */

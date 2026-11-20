@@ -778,6 +778,8 @@ const en: Record<string, string> = {
   "reactions.port_sub": "Port the completion hook server listens on",
   "reactions.reacts_title": "What she reacts to",
   "reactions.advanced": "Advanced",
+  "fold.off": "Off",
+  "fold.off_note": "Off. These apply once you turn it on.",
   "reactions.presence_label": "Present when idle for",
   "reactions.presence_sub": "You count as at your desk while your last input is this recent",
   "reactions.seconds_suffix": "s",

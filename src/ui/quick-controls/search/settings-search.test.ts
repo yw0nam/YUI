@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createGuardrailsSettings } from "../../../settings/backend/guardrails-settings";
 import { createFlagSettings } from "../../../settings/persisted-store";
 import { createPetWindows } from "../../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
@@ -28,6 +29,7 @@ function build(openOnQuickStart = false) {
     petWindows: createPetWindows(),
     threadReactionsSettings: createFlagSettings(true),
     threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
+    rateLimitSettings: createGuardrailsSettings(),
   });
   const input = qc.el.querySelector<HTMLInputElement>(".yui-search__input")!;
   const search = (q: string) => {
@@ -111,7 +113,7 @@ it("finds Detailed settings rows while Quick start shows, and brings Detailed se
   qc.dispose();
 });
 
-it.each(["Check-ins", "Greeting times", "Advanced"])("finds the fold titled %s", (query) => {
+it.each(["Check-ins", "When she steps in", "Advanced"])("finds the fold titled %s", (query) => {
   const { qc, search, count } = build();
 
   search(query);

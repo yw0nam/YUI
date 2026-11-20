@@ -6,6 +6,7 @@
 
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
+import { reflectFoldOff } from "../fold";
 import type { SwitchRow } from "../switch-row";
 
 export function switchButtonHtml(row: SwitchRow): string {
@@ -34,10 +35,8 @@ export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[])
     // The store keeps its value while locked, so unlocking shows it again.
     const locked = row.lock?.get() === true;
     button.setAttribute("aria-checked", String(!locked && row.getEnabled()));
-    button
-      .closest(".yui-group")
-      ?.querySelector(":scope > .yui-fold")
-      ?.classList.toggle("yui-fold--off", locked || !row.getEnabled());
+    const fold = button.closest(".yui-group")?.querySelector(":scope > .yui-fold");
+    if (fold) reflectFoldOff(fold, locked || !row.getEnabled());
     if (!row.lock) continue;
     button.disabled = locked;
     const sub = button.closest(".yui-row")?.querySelector(".yui-row__sub");

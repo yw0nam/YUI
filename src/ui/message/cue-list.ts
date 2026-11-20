@@ -6,7 +6,7 @@
 import "./cue-list.css";
 import { t } from "../i18n";
 import { CROSS_SVG, PLUS_SVG } from "../quick-controls/constants";
-import { foldHtml } from "../quick-controls/markup";
+import { foldHtml, reflectFoldOff } from "../quick-controls/fold";
 
 // ── Store shape interfaces (minimal common form fitting both schedule and proactive) ──
 
@@ -122,7 +122,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   function reflectMaster(enabled: boolean): void {
     masterSwitch.setAttribute("aria-checked", String(enabled));
-    foldEl.classList.toggle("yui-fold--off", !enabled);
+    reflectFoldOff(foldEl, !enabled);
   }
 
   // Every entry's trigger in list order, e.g. "5 · 10 · 30 min" or "09:00 · 12:00".

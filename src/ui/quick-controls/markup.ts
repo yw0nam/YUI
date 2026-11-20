@@ -5,7 +5,6 @@ import { t } from "../i18n";
 import {
   CHATKEY_CLEAR_SVG,
   CHATKEY_EYE_SVG,
-  DISCLOSURE_CHEV_SVG,
   ENDPOINT_FIELDS,
   type RateLimitFieldDef,
 } from "./constants";
@@ -147,9 +146,4 @@ export function capRowHtml(f: RateLimitFieldDef): string {
     min: 1,
     max: RATE_LIMIT_MAX,
   });
-}
-
-// A source's fold under its switch row: a chevron summary with the folded rows' summary on its right.
-export function foldHtml(title: string, aside: string, body: string): string {
-  return `<details class="yui-fold"><summary>${DISCLOSURE_CHEV_SVG}<span>${title}</span><span class="yui-fold__aside">${aside}</span></summary><div class="yui-fold__body">${body}</div></details>`;
 }

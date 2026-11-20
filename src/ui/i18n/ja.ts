@@ -784,6 +784,8 @@ const ja: Record<string, string> = {
   "reactions.port_sub": "完了フックサーバーが待ち受けるポート",
   "reactions.reacts_title": "何に反応するか",
   "reactions.advanced": "詳細設定",
+  "fold.off": "オフ",
+  "fold.off_note": "オフです。オンにするとこの設定が使われます。",
   "reactions.presence_label": "在席とみなす無操作時間",
   "reactions.presence_sub": "最後の入力がこの時間以内なら席にいるとみなします",
   "reactions.seconds_suffix": "秒",

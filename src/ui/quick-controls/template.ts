@@ -25,7 +25,8 @@ import {
   TAB_ICON_TOGETHER,
   TAB_ICON_VOICE,
 } from "./constants";
-import { capRowHtml, foldHtml, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
+import { foldHtml } from "./fold";
+import { capRowHtml, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
 import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";

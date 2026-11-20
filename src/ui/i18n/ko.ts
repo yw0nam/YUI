@@ -773,6 +773,8 @@ const ko: Record<string, string> = {
   "reactions.port_sub": "완료 훅 서버가 기다릴 포트",
   "reactions.reacts_title": "무엇에 반응할지",
   "reactions.advanced": "고급",
+  "fold.off": "꺼짐",
+  "fold.off_note": "꺼져 있어요. 켜면 이 설정이 적용돼요.",
   "reactions.presence_label": "자리 비움 허용 시간",
   "reactions.presence_sub": "마지막 입력이 이만큼 최근이면 자리에 있는 걸로 봐요",
   "reactions.seconds_suffix": "초",
