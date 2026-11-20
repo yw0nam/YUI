@@ -745,6 +745,13 @@ const ja: Record<string, string> = {
     "Google に接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
   "start.reopen": "キーのページをもう一度開く",
   "start.done": "接続しました。話しかけてみてください。",
+  "start.key_label": "キー",
+  "start.key_sub": "いつでも新しいキーに替えられます。",
+  "start.replace_key": "キーを替える",
+  "start.key_rejected":
+    "Google がこのキーを受け付けなくなりました。会話を続けるには新しいキーを貼り付けてください。",
+  "start.key_replaced": "キーを替えました",
+  "start.key_ok": "このキーはまだ使えます。",
   "start.own_note": "このキーで接続すると、今のサーバー設定が Google Gemini に変わります。",
   "start.views_aria": "接続方法",
   "start.view_quick": "クイックスタート",

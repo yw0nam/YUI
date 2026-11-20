@@ -1,10 +1,12 @@
 /**
  * Quick start: the Connection page's free Gemini path — what is sent and the daily limit, the key
  * page link, and the key field. One model-list read confirms the pasted key, and only a confirmed
- * key writes anything.
+ * key writes anything. Once connected, the same read checks the stored key each time the view
+ * shows, and a replacement key writes the key alone.
  */
 
 import type { EndpointsConfig } from "../../../../contract";
+import type { ModelListResult } from "../../../../io/chat/models/reader";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type {
   ApiKeySettingsStore,
@@ -76,6 +78,13 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
       <div class="yui-sec">
         ${secHeadHtml(t("start.key_title"))}
         <div class="yui-group yui-start__keys">
+          <div class="yui-row yui-start__keyrow" hidden>
+            <div class="yui-row__main">
+              <span class="yui-row__label">${t("start.key_label")}</span>
+              <span class="yui-row__sub">${t("start.key_sub")}</span>
+            </div>
+            <button class="yui-link-btn yui-start__replace" type="button">${t("start.replace_key")}</button>
+          </div>
           <div class="yui-row yui-start__make">
             <div class="yui-row__main">
               <span class="yui-row__label">${t("start.make_label")}</span>
@@ -94,17 +103,24 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
             </div>
             <button class="yui-pill yui-pill--ok yui-start__connect" type="button">${t("start.connect")}</button>
             <p class="yui-start__checking" role="status" hidden><i class="yui-start__dot"></i>${t("start.checking")}</p>
+            <p class="yui-start__key-ok" role="status" hidden>${t("start.key_ok")}</p>
             <div class="yui-start__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml(GEMINI_KEY_URL, "start.reopen", "yui-start__reopen")}</div></div>
           </div>
         </div>
       </div>
     </div>
     <div class="yui-start__key-stack" hidden>
-      <p class="yui-start__done" role="status">${ICON_DONE}<span>${t("start.done")}</span></p>
+      <p class="yui-start__done" role="status">${ICON_DONE}<span class="yui-start__done-text"></span></p>
+      <p class="yui-start__rejected" role="alert" hidden>${ICON_WARN}<span>${t("start.key_rejected")}</span></p>
     </div>
     <div class="yui-start__connected" hidden>
       ${showHelp ? helpSectionHtml(replayRow) : ""}
     </div>`;
+}
+
+/** Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key". */
+function isRefused(result: ModelListResult): boolean {
+  return result.kind === "refused" || (result.kind === "http" && result.status === 400);
 }
 
 /** The Help row that replays the first conversation. */
@@ -127,6 +143,8 @@ export function createQuickStart(deps: QuickStartDeps): {
   url(): string;
   /** Opens the key field, in the connected state too, and focuses it. */
   focusKey(): void;
+  /** The view came into view: once connected, checks the stored key. */
+  entered(): void;
   dispose(): void;
 } {
   const el = document.createElement("div");
@@ -135,8 +153,15 @@ export function createQuickStart(deps: QuickStartDeps): {
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
   const keySection = el.querySelector<HTMLElement>(".yui-start__keys")!.parentElement!;
   const keys = el.querySelector<HTMLElement>(".yui-start__keys")!;
+  const keyRow = el.querySelector<HTMLElement>(".yui-start__keyrow")!;
+  const replace = el.querySelector<HTMLButtonElement>(".yui-start__replace")!;
   const makeRow = el.querySelector<HTMLElement>(".yui-start__make")!;
+  const paste = el.querySelector<HTMLElement>(".yui-start__paste")!;
   const keyStack = el.querySelector<HTMLElement>(".yui-start__key-stack")!;
+  const done = el.querySelector<HTMLElement>(".yui-start__done")!;
+  const doneText = el.querySelector<HTMLElement>(".yui-start__done-text")!;
+  const rejectedLine = el.querySelector<HTMLElement>(".yui-start__rejected")!;
+  const keyOk = el.querySelector<HTMLElement>(".yui-start__key-ok")!;
   const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
   const voiceStep =
     deps.ttsSettings && deps.ttsKeySettings && deps.speakerSelection
@@ -161,8 +186,11 @@ export function createQuickStart(deps: QuickStartDeps): {
   const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
-  // The key rows open in the connected state while a key is being replaced.
+  // Connected-state flags: the paste row is open, the stored key was refused or passed its check, a key was replaced.
   let replacing = false;
+  let rejected = false;
+  let passed = false;
+  let replaced = false;
 
   const isConnected = (): boolean =>
     endpointsUrl() === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
@@ -170,21 +198,36 @@ export function createQuickStart(deps: QuickStartDeps): {
   function reflect(): void {
     const url = endpointsUrl();
     const on = isConnected();
-    if (!on) replacing = false;
+    if (!on) replacing = rejected = passed = replaced = false;
     setup.hidden = on;
     keyStack.hidden = !on;
     connected.hidden = !on;
-    (on ? keyStack : keySection).append(keys);
-    keys.hidden = on && !replacing;
-    makeRow.hidden = on;
+    // Moved only on a state change: re-appending would drop focus from the key field.
+    const home = on ? keyStack : keySection;
+    if (keys.parentElement !== home) home.append(keys);
+    keyRow.hidden = !on || rejected;
+    replace.hidden = replacing;
+    makeRow.hidden = on && !rejected;
+    paste.hidden = on && !replacing && !rejected;
+    done.hidden = rejected;
+    rejectedLine.hidden = !rejected;
+    keyOk.hidden = !(on && replacing && passed);
+    doneText.textContent = t(replaced ? "start.key_replaced" : "start.done");
     own.hidden = url === "" || url === GEMINI_PRESET.url;
     voiceStep?.reflect();
   }
 
   function focusKey(): void {
-    if (isConnected()) replacing = true;
+    if (isConnected()) {
+      replacing = true;
+      entered();
+    }
     reflect();
     input.focus();
+  }
+
+  function entered(): void {
+    if (isConnected()) check.start(GEMINI_PRESET.url);
   }
 
   function endpointsUrl(): string {
@@ -210,20 +253,24 @@ export function createQuickStart(deps: QuickStartDeps): {
     if (phase.phase !== "done") return;
     const { result } = phase;
     if (result.kind === "ok") {
-      deps.endpointsSettings.set({
-        chat_base_url: GEMINI_PRESET.url,
-        chat_model: GEMINI_PRESET.model,
-        chat_api: "chat_completions",
-      });
-      deps.chatKeySettings.setApiKey(typedKey());
-      deps.proactiveSettings.setEnabled(false);
-      deps.scheduleSettings.setEnabled(false);
-      deps.onConnected();
+      if (isConnected()) {
+        deps.chatKeySettings.setApiKey(typedKey());
+        replaced = true;
+      } else {
+        deps.endpointsSettings.set({
+          chat_base_url: GEMINI_PRESET.url,
+          chat_model: GEMINI_PRESET.model,
+          chat_api: "chat_completions",
+        });
+        deps.chatKeySettings.setApiKey(typedKey());
+        deps.proactiveSettings.setEnabled(false);
+        deps.scheduleSettings.setEnabled(false);
+        deps.onConnected();
+      }
       input.value = "";
-      replacing = false;
+      replacing = rejected = passed = false;
       reflect();
-    } else if (result.kind === "refused" || (result.kind === "http" && result.status === 400)) {
-      // Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key".
+    } else if (isRefused(result)) {
       showError("start.refused", true);
     } else {
       showError("start.failed");
@@ -236,6 +283,33 @@ export function createQuickStart(deps: QuickStartDeps): {
     onPhase,
   });
 
+  const check = createModelRead({
+    getApiKey: async () => deps.chatKeySettings.get().apiKey,
+    getFetch: deps.getFetch,
+    onPhase: (phase) => {
+      if (phase.phase !== "done") return;
+      // A network failure says nothing about the key, so the view stays as it is.
+      const { result } = phase;
+      if (result.kind !== "ok" && !isRefused(result)) return;
+      // An open paste row stays open: the user may be typing in it.
+      replacing ||= rejected;
+      rejected = result.kind !== "ok";
+      passed = !rejected;
+      reflect();
+      if (rejected) input.focus();
+    },
+  });
+  // Coming back to the window shows the view again.
+  const onWindowFocus = (): void => {
+    if (!el.closest("[hidden]")) entered();
+  };
+  window.addEventListener("focus", onWindowFocus);
+
+  replace.addEventListener("click", () => {
+    replacing = true;
+    reflect();
+    input.focus();
+  });
   toggle.addEventListener("click", () => toggleKeyReveal(input, toggle, "chatkey"));
   el.querySelector<HTMLButtonElement>(".yui-start__replay")?.addEventListener("click", () =>
     deps.onReplay?.(),
@@ -253,7 +327,10 @@ export function createQuickStart(deps: QuickStartDeps): {
     reflect,
     url: endpointsUrl,
     focusKey,
+    entered,
     dispose: () => {
+      window.removeEventListener("focus", onWindowFocus);
+      check.dispose();
       read.dispose();
       voiceStep?.dispose();
     },

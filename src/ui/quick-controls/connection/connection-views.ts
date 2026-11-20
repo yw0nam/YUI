@@ -26,6 +26,8 @@ export function createConnectionViews(deps: {
   initial: ConnectionView;
   /** Quick start came into view — it re-reads its state from the stores. */
   onQuickShown: () => void;
+  /** Quick start is in view on entry or came into view — it checks the stored key. */
+  onQuickEntered: () => void;
   /** Detailed settings is in view on entry or came into view — the chat section evaluates its model list read. */
   onDetailEntered: () => void;
   /** The chat URL in effect; Quick start holds the key of its own server only. */
@@ -41,7 +43,7 @@ export function createConnectionViews(deps: {
   focusKey(): void;
   dispose(): void;
 } {
-  const { panel, quick, detail, initial, onQuickShown, onDetailEntered } = deps;
+  const { panel, quick, detail, initial, onQuickShown, onQuickEntered, onDetailEntered } = deps;
 
   const seg = document.createElement("div");
   seg.className = "yui-seg yui-conn-views";
@@ -88,8 +90,10 @@ export function createConnectionViews(deps: {
     if (current === view) return;
     current = view;
     reflect();
-    if (view === "quick") onQuickShown();
-    else onDetailEntered();
+    if (view === "quick") {
+      onQuickShown();
+      onQuickEntered();
+    } else onDetailEntered();
   }
 
   const segment = createStoreSegment({
@@ -113,6 +117,7 @@ export function createConnectionViews(deps: {
   return {
     entered: () => {
       if (current === "detail") onDetailEntered();
+      else onQuickEntered();
     },
     focusKey: () => {
       const url = deps.chatUrl();

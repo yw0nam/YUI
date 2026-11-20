@@ -537,6 +537,7 @@ export function createQuickControls({
     detail: connectionTab.el,
     initial: openOnQuickStart ? "quick" : "detail",
     onQuickShown: quickStart.reflect,
+    onQuickEntered: quickStart.entered,
     onDetailEntered: () => connectionTab.entered(),
     chatUrl: quickStart.url,
     focusQuickKey: quickStart.focusKey,

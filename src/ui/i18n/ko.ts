@@ -735,6 +735,13 @@ const ko: Record<string, string> = {
   "start.failed": "Google에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
   "start.reopen": "키 페이지 다시 열기",
   "start.done": "연결했습니다. 이제 대화할 수 있습니다.",
+  "start.key_label": "키",
+  "start.key_sub": "언제든 새 키로 바꿀 수 있습니다.",
+  "start.replace_key": "키 바꾸기",
+  "start.key_rejected":
+    "Google이 더 이상 이 키를 받지 않습니다. 계속 대화하려면 새 키를 붙여 넣어 주세요.",
+  "start.key_replaced": "키를 바꿨습니다",
+  "start.key_ok": "이 키는 아직 쓸 수 있습니다.",
   "start.own_note": "이 키로 연결하면 지금 쓰는 서버 설정이 Google Gemini로 바뀝니다.",
   "start.views_aria": "연결 방법",
   "start.view_quick": "빠른 시작",
