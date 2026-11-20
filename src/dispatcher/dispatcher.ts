@@ -136,7 +136,7 @@ export interface DispatcherDeps {
 type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "stopped";
 
 /** recent_drops entry. */
-interface DropRecord {
+export interface DropRecord {
   seq_id?: number;
   event_name: string;
   reason:

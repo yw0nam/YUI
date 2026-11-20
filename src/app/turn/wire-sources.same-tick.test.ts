@@ -16,6 +16,7 @@ import { createEventBus } from "../../dispatcher/core/event-bus";
 import { createGuardrails } from "../../dispatcher/core/guardrails";
 import { createProactivePacer } from "../../dispatcher/core/proactive-pacer";
 import { createDispatcher } from "../../dispatcher/dispatcher";
+import type { ScheduleSource } from "../../dispatcher/sources/idle-tick/schedule-source";
 import {
   createDefaultAddressedChain,
   type DeferredCall,
@@ -63,6 +64,11 @@ vi.mock("../../io/window/tauri-listen", async (importOriginal) => {
   };
 });
 
+// The day's first-activity milestone would put its own candidate on the same tick; this test is about the two cues.
+vi.mock("../../dispatcher/sources/idle-tick/milestone-source", () => ({
+  createMilestoneSource: vi.fn(() => ({ start: async () => {}, stop: () => {} })),
+}));
+
 const PRESENT_MAX = 10_000;
 /** The proactive gap interval: a turn anchors the window for this long. */
 const GAP_MS = 5 * 60_000;
@@ -91,6 +97,7 @@ const idleTick = (os_idle_ms: number): OsEventPayload => ({
 function startPipeline(): {
   startOrder: string[];
   drops: Array<{ event_name: string; reason: string }>;
+  completeTurn: () => void;
   stop: () => void;
 } {
   const bus = createEventBus();
@@ -98,6 +105,7 @@ function startPipeline(): {
   const callDeferred: DeferredCall[] = [];
   const startOrder: string[] = [];
   const drops: Array<{ event_name: string; reason: string }> = [];
+  let schedule: Pick<ScheduleSource, "restore"> | null = null;
   const dispatcher = createDispatcher({
     bus,
     renderer: {
@@ -132,7 +140,10 @@ function startPipeline(): {
     pacer,
     logger: makeLogger(),
     onTurnAdmitted: (turn) => startOrder.push(turn.trigger.event_name),
-    onTurnDropped: (env, reason) => drops.push({ event_name: env.event_name, reason }),
+    onTurnDropped: (env, reason) => {
+      drops.push({ event_name: env.event_name, reason });
+      schedule?.restore(env, reason);
+    },
   });
   dispatcher.start();
   const sources = wireDispatcherSources({
@@ -160,6 +171,11 @@ function startPipeline(): {
     submitUser: vi.fn(),
     selfPresetId: "natsume",
   });
+  schedule = sources.scheduleSource;
+  /** Complete the in-flight backend call, freeing the dispatcher's single slot for the next fire. */
+  const completeTurn = (): void => {
+    callDeferred.shift()?.resolve("ok");
+  };
   const stop = (): void => {
     dispatcher.stop();
     pacer.stop();
@@ -174,7 +190,7 @@ function startPipeline(): {
     ])
       source.stop();
   };
-  return { startOrder, drops, stop };
+  return { startOrder, drops, completeTurn, stop };
 }
 
 beforeEach(() => {
@@ -189,7 +205,7 @@ afterEach(() => {
 it("a greeting due on the same tick as the idle check-in still fires once the gap opens", async () => {
   // 09:30 — bootstrap. The check-in cue's idle gap and the greeting's day anchor here.
   vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
-  const { startOrder, drops, stop } = startPipeline();
+  const { startOrder, drops, completeTurn, stop } = startPipeline();
   // Let the fire-and-forget source starts subscribe to the fake channel.
   await vi.advanceTimersByTimeAsync(0);
   await vi.advanceTimersByTimeAsync(0);
@@ -205,6 +221,10 @@ it("a greeting due on the same tick as the idle check-in still fires once the ga
   // as global_gap.
   expect(startOrder).toEqual(["proactive.check_in"]);
   expect(drops).toContainEqual({ event_name: "schedule.morning", reason: "global_gap" });
+
+  // The check-in's turn ends; the drop cleared the greeting's mark, so a later tick can fire it.
+  completeTurn();
+  await vi.advanceTimersByTimeAsync(0);
 
   // 10:11 — the gap opens inside the greeting's window; the next tick is the greeting's turn.
   await vi.advanceTimersByTimeAsync(6 * 60_000);

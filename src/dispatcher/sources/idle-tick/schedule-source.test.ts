@@ -65,11 +65,7 @@ function fakeFiredStorage(
 }
 
 /** The dispatcher's drop callback: pins the source's restore entry, then calls it. */
-function dropRestore(
-  source: ScheduleSource,
-  env: BusEnvelope,
-  reason: DropRecord["reason"],
-): void {
+function dropRestore(source: ScheduleSource, env: BusEnvelope, reason: DropRecord["reason"]): void {
   expect(source.restore).toBeTypeOf("function");
   source.restore(env, reason);
 }

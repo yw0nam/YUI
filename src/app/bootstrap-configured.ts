@@ -7,6 +7,7 @@ import type { BusEnvelope } from "../dispatcher/core/event-bus";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
 import { createAddressedProducer } from "../dispatcher/sources/addressed/addressed-producer";
+import type { ScheduleSource } from "../dispatcher/sources/idle-tick/schedule-source";
 import type { SignalsSource } from "../dispatcher/sources/inbox/signals-source";
 import { createUserTurnDone } from "../dispatcher/sources/routed/user-turn-done";
 import { threadEventId } from "../dispatcher/sources/threads/thread-turns";
@@ -209,12 +210,16 @@ const realFactories: ConfiguredBootstrapFactories = {
       getConfig: () => config.get(),
     });
     let signals: Pick<SignalsSource, "restore"> | null = null;
+    let schedule: Pick<ScheduleSource, "restore"> | null = null;
     const restoreSignals = (env: BusEnvelope): void => signals?.restore(env);
     const userTurnDone = createUserTurnDone({
       presetId: presetIdForWindow,
       emit: phase1.emitUserTurnDone,
       onTurnClosed: addressed.onTurnClosed,
-      onTurnDropped: restoreSignals,
+      onTurnDropped: (env, reason) => {
+        restoreSignals(env);
+        schedule?.restore(env, reason);
+      },
     });
     const core = await wireTurnCore(cfg, phase1, {
       restoreSignals: userTurnDone.onTurnDropped,
@@ -292,6 +297,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       onSignalArrival: signalChips.onArrival,
     });
     signals = signalsSource;
+    schedule = scheduleSource;
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);

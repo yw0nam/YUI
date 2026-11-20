@@ -4,7 +4,9 @@
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and
  * fires `schedule.<cue_id>` (tier2) when the user is "present" (OS idle within
  * `present_max_idle_ms`). Each cue fires at most once per local day, persisted
- * across restarts, within two hours after `cue.time`, and at most one cue fires per tick. `isEnabled()` and per-cue
+ * across restarts, within two hours after `cue.time`, and at most one cue fires per tick. A fire the
+ * dispatcher drops while do-not-disturb or the proactive gap holds clears its day's mark, so the cue
+ * comes due again inside that window. `isEnabled()` and per-cue
  * `enabled` gate firing only — toggling does not stop the subscription.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
@@ -21,10 +23,19 @@ import {
   type PersistedStorage,
 } from "../../../settings/persisted-store";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import type { DropRecord } from "../../dispatcher";
 
 const log = createLogger("schedule-source");
 
 export const GRACE_MINUTES = 120;
+
+/** Drops a schedule fire must come due again after: the same holds `isHeld` waits out at the source. */
+const HOLD_REASONS: ReadonlySet<DropRecord["reason"]> = new Set(["global_gap", "dnd"]);
+
+function dayKeyOf(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
 
 interface ScheduleSourceDeps {
   bus: Pick<EventBus, "push">;
@@ -45,6 +56,8 @@ interface ScheduleSourceDeps {
 export interface ScheduleSource {
   start(): Promise<void>;
   stop(): void;
+  /** A held fire comes due again: clears the cue's day mark when the drop landed on it. */
+  restore(env: BusEnvelope, reason: DropRecord["reason"]): void;
 }
 
 export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
@@ -59,6 +72,23 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
 
   let unlisten: (() => void) | undefined;
 
+  function saveFired(dayKey: string): void {
+    firedStorage.save(
+      Object.fromEntries(Object.entries(fired).filter(([, value]) => value === dayKey)),
+    );
+  }
+
+  function restore(env: BusEnvelope, reason: DropRecord["reason"]): void {
+    if (!HOLD_REASONS.has(reason)) return;
+    if (!env.event_name.startsWith("schedule.")) return;
+    const cueId = env.payload?.cue_id;
+    if (typeof cueId !== "string") return;
+    const dayKey = dayKeyOf(env.ts);
+    if (fired[cueId] !== dayKey) return;
+    delete fired[cueId];
+    saveFired(dayKey);
+  }
+
   function onTick(payload: OsEventPayload): void {
     if (payload.event_name !== "os_idle_tick") return;
     const idle = payload.data.os_idle_ms;
@@ -68,8 +98,9 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     const present = idle <= present_max_idle_ms;
     if (!present) return;
 
-    const d = new Date(now());
-    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const ts = now();
+    const d = new Date(ts);
+    const dayKey = dayKeyOf(ts);
     const currentHHMM = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const nowMinutes = d.getHours() * 60 + d.getMinutes();
 
@@ -88,7 +119,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
       const env: BusEnvelope = {
         source: "timer_scheduler",
         event_name: `schedule.${cue.id}`,
-        ts: now(),
+        ts,
         payload: {
           cue_id: cue.id,
           label: cue.label,
@@ -102,11 +133,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
       // One cue per tick: the turn it starts anchors the gap, which then holds the next due cue unlatched.
       break;
     }
-    if (firedAny) {
-      firedStorage.save(
-        Object.fromEntries(Object.entries(fired).filter(([, value]) => value === dayKey)),
-      );
-    }
+    if (firedAny) saveFired(dayKey);
   }
 
   async function start(): Promise<void> {
@@ -119,5 +146,5 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     unlisten = undefined;
   }
 
-  return { start, stop };
+  return { start, stop, restore };
 }
