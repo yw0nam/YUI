@@ -290,11 +290,13 @@ export function createQuickStart(deps: QuickStartDeps): {
     onPhase,
   });
 
+  // The key the stored-key check sent; its answer counts only while that key is still the stored one.
+  let checkedKey = "";
   const check = createModelRead({
-    getApiKey: async () => deps.chatKeySettings.get().apiKey,
+    getApiKey: async () => (checkedKey = deps.chatKeySettings.get().apiKey),
     getFetch: deps.getFetch,
     onPhase: (phase) => {
-      if (phase.phase !== "done") return;
+      if (phase.phase !== "done" || checkedKey !== deps.chatKeySettings.get().apiKey) return;
       // A network failure says nothing about the key, so the view stays as it is.
       const { result } = phase;
       if (result.kind !== "ok" && !isRefused(result)) return;
