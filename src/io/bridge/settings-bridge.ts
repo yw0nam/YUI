@@ -6,8 +6,8 @@
  */
 
 import type { GuideKey, ScreenRect } from "../../contract";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
-import { isSettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
+import { isSettingsFocus, isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
 import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
@@ -32,10 +32,11 @@ export interface PresetChange {
   active: string;
 }
 
-/** A pet window asking the open settings window of `preset` (null: the main one) to show that character, on `page` when given. */
+/** A pet window asking the open settings window of `preset` (null: the main one) to show that character, on `page` when given, with `focus` in focus. */
 export interface SettingsPageRequest {
   preset: string | null;
   page?: SettingsPage;
+  focus?: SettingsFocus;
 }
 
 /** One character's reply named another open character; emitted once that reply's playback ended. */
@@ -237,10 +238,13 @@ export const channels = {
     scope: "shared",
     read(request, deliver: (request: SettingsPageRequest) => void) {
       if (request === null || typeof request !== "object") return;
-      const { preset, page } = request as Partial<Record<keyof SettingsPageRequest, unknown>>;
+      const { preset, page, focus } = request as Partial<
+        Record<keyof SettingsPageRequest, unknown>
+      >;
       if (preset !== null && !isString(preset)) return;
+      if (focus !== undefined && !isSettingsFocus(focus)) return;
       if (page === undefined) deliver({ preset });
-      else if (isSettingsPage(page)) deliver({ preset, page });
+      else if (isSettingsPage(page)) deliver({ preset, page, ...(focus ? { focus } : {}) });
     },
   },
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */

@@ -63,7 +63,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -334,8 +334,8 @@ interface PanelSection {
 
 interface QuickControls {
   el: HTMLElement;
-  /** Shows the panel. `tab` lands on that tab instead of the one last left selected. */
-  open(opts?: { tab?: SettingsPage }): void;
+  /** Shows the panel. `tab` lands on that tab instead of the one last left selected; `focus` focuses that field on it. */
+  open(opts?: { tab?: SettingsPage; focus?: SettingsFocus }): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
   dispose(): void;
@@ -538,6 +538,9 @@ export function createQuickControls({
     initial: openOnQuickStart ? "quick" : "detail",
     onQuickShown: quickStart.reflect,
     onDetailEntered: () => connectionTab.entered(),
+    chatUrl: quickStart.url,
+    focusQuickKey: quickStart.focusKey,
+    focusDetailKey: () => connectionTab.focusChatKey(),
   });
 
   // ── History tab (session accordion + start fresh) — only with a transcript store. ──
@@ -829,7 +832,7 @@ export function createQuickControls({
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(opts?: { tab?: SettingsPage }): void {
+  function openPanel(opts?: { tab?: SettingsPage; focus?: SettingsFocus }): void {
     const tab = opts?.tab;
     if (tab && tabRail.select(tab)) {
       shell.open();
@@ -838,6 +841,7 @@ export function createQuickControls({
     } else {
       shell.open();
     }
+    if (opts?.focus === "chat_key") connectionViews.focusKey();
   }
 
   function selectedTab(): SettingsPage {

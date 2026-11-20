@@ -97,6 +97,18 @@
   gap: 1.75rem;
 }
 
+/* The done line over the key rows, which open while a key is being replaced. */
+.yui-start__key-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.yui-start__key-stack[hidden],
+.yui-start__keys[hidden] {
+  display: none;
+}
+
 .yui-start__done {
   display: flex;
   align-items: center;

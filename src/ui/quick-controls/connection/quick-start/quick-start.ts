@@ -75,8 +75,8 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
       </div>
       <div class="yui-sec">
         ${secHeadHtml(t("start.key_title"))}
-        <div class="yui-group">
-          <div class="yui-row">
+        <div class="yui-group yui-start__keys">
+          <div class="yui-row yui-start__make">
             <div class="yui-row__main">
               <span class="yui-row__label">${t("start.make_label")}</span>
               <span class="yui-row__sub">${t("start.make_sub")}</span>
@@ -99,8 +99,10 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
         </div>
       </div>
     </div>
-    <div class="yui-start__connected" hidden>
+    <div class="yui-start__key-stack" hidden>
       <p class="yui-start__done" role="status">${ICON_DONE}<span>${t("start.done")}</span></p>
+    </div>
+    <div class="yui-start__connected" hidden>
       ${showHelp ? helpSectionHtml(replayRow) : ""}
     </div>`;
 }
@@ -121,12 +123,20 @@ export function createQuickStart(deps: QuickStartDeps): {
   el: HTMLElement;
   /** Reads the stores onto the two states: the setup or the connected one. */
   reflect(): void;
+  /** The chat URL in effect: the stored one, else the bundled config's. */
+  url(): string;
+  /** Opens the key field, in the connected state too, and focuses it. */
+  focusKey(): void;
   dispose(): void;
 } {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   el.innerHTML = pageHtml(deps.showHelp, deps.onReplay ? replayRowHtml() : "");
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
+  const keySection = el.querySelector<HTMLElement>(".yui-start__keys")!.parentElement!;
+  const keys = el.querySelector<HTMLElement>(".yui-start__keys")!;
+  const makeRow = el.querySelector<HTMLElement>(".yui-start__make")!;
+  const keyStack = el.querySelector<HTMLElement>(".yui-start__key-stack")!;
   const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
   const voiceStep =
     deps.ttsSettings && deps.ttsKeySettings && deps.speakerSelection
@@ -151,14 +161,30 @@ export function createQuickStart(deps: QuickStartDeps): {
   const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
+  // The key rows open in the connected state while a key is being replaced.
+  let replacing = false;
+
+  const isConnected = (): boolean =>
+    endpointsUrl() === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
 
   function reflect(): void {
     const url = endpointsUrl();
-    const isConnected = url === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
-    setup.hidden = isConnected;
-    connected.hidden = !isConnected;
+    const on = isConnected();
+    if (!on) replacing = false;
+    setup.hidden = on;
+    keyStack.hidden = !on;
+    connected.hidden = !on;
+    (on ? keyStack : keySection).append(keys);
+    keys.hidden = on && !replacing;
+    makeRow.hidden = on;
     own.hidden = url === "" || url === GEMINI_PRESET.url;
     voiceStep?.reflect();
+  }
+
+  function focusKey(): void {
+    if (isConnected()) replacing = true;
+    reflect();
+    input.focus();
   }
 
   function endpointsUrl(): string {
@@ -194,6 +220,7 @@ export function createQuickStart(deps: QuickStartDeps): {
       deps.scheduleSettings.setEnabled(false);
       deps.onConnected();
       input.value = "";
+      replacing = false;
       reflect();
     } else if (result.kind === "refused" || (result.kind === "http" && result.status === 400)) {
       // Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key".
@@ -224,6 +251,8 @@ export function createQuickStart(deps: QuickStartDeps): {
   return {
     el,
     reflect,
+    url: endpointsUrl,
+    focusKey,
     dispose: () => {
       read.dispose();
       voiceStep?.dispose();

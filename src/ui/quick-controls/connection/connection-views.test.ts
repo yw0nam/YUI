@@ -24,6 +24,9 @@ function setup(initial: "quick" | "detail" = "quick") {
     initial,
     onQuickShown,
     onDetailEntered,
+    chatUrl: () => "",
+    focusQuickKey: vi.fn(),
+    focusDetailKey: vi.fn(),
   });
   const wrapper = (view: string) =>
     panel.querySelector<HTMLElement>(`.yui-conn-view[data-view="${view}"]`)!;

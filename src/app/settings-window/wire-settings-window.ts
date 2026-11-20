@@ -10,7 +10,7 @@ import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-scree
 import { subscribeFileDrop } from "../../io/window/file-drop/file-drop";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
@@ -42,10 +42,10 @@ export async function wireSettingsWindow(deps: {
   const { app } = deps;
   const { register, dispose } = deps.lifecycle;
   const boundId = readBoundPresetId();
-  const requestedPage = takeRequestedPage();
-  const reloadOnCharacter = (id: string, page?: SettingsPage): void =>
+  const requested = takeRequestedPage();
+  const reloadOnCharacter = (id: string, page?: SettingsPage, focus?: SettingsFocus): void =>
     location.replace(
-      editTargetUrl(location.href, id, boundId ?? deps.presetRegistry.get().active, page),
+      editTargetUrl(location.href, id, boundId ?? deps.presetRegistry.get().active, page, focus),
     );
   // Listens from the start: an opener may ask for a page while this window still boots.
   const bridge = createSettingsBridge(undefined, { windowKind: "settings" });
@@ -289,8 +289,8 @@ export async function wireSettingsWindow(deps: {
   // Defer to microtask so component doesn't destroy itself during its own click handler.
   let quickControls = buildQuickControls();
   // The panel opens on creation; open() is idempotent and lands on the requested page.
-  quickControls.open(requestedPage ? { tab: requestedPage } : undefined);
-  settingsPage.attach((page) => quickControls.open({ tab: page }));
+  quickControls.open(requested ? { tab: requested.page, focus: requested.focus } : undefined);
+  settingsPage.attach((page, focus) => quickControls.open({ tab: page, focus }));
 
   const unsubscribeCueSync = wireCueLocaleSync(settingsStores);
   const unsubscribeLocale = subscribeLocale(() => {
