@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 /**
- * not_configured affordance, end to end: the inline input error carries a button that opens the
- * settings window on the Connection page (real surfaces, the opener stubbed).
+ * Failure affordance, end to end: the inline input error carries a button that opens the settings
+ * window on the Connection page (real surfaces, the opener stubbed).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
-import { turnErrorFixAction, turnErrorMessage } from "./turn-error";
+import { failureAction, fixAction, turnErrorMessage } from "./turn-error";
 
-describe("not_configured → open the Connection page", () => {
+describe("a keyed failure → open the Connection page", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe("not_configured → open the Connection page", () => {
     // The bootstrap wiring: message + optional fix action for the failed turn.
     surfaces.showInputError(
       turnErrorMessage("not_configured")!,
-      turnErrorFixAction("not_configured", openSettings),
+      fixAction(failureAction("not_configured"), openSettings),
     );
 
     const button = surfaces.el.querySelector<HTMLButtonElement>(".yui-input__error-action")!;
@@ -45,12 +45,12 @@ describe("not_configured → open the Connection page", () => {
     surfaces.dispose();
   });
 
-  it("failures the panel cannot fix render no affordance", () => {
+  it("a failure that resends renders no settings button", () => {
     const surfaces = createSurfaces({ tool: noTool, mount });
 
     surfaces.showInputError(
       turnErrorMessage("network_drop")!,
-      turnErrorFixAction("network_drop", () => {}),
+      fixAction(failureAction("network_drop"), () => {}),
     );
 
     expect(surfaces.el.querySelector(".yui-input__error-action")).toBeNull();

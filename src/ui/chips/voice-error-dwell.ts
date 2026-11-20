@@ -7,7 +7,7 @@
  * an unattended one would keep taking OS clicks meant for what sits behind YUI.
  */
 
-import { isSettingsFixable } from "../notices/turn-error";
+import { failureAction } from "../notices/turn-error";
 import type { VoiceInputStatus } from "./voice-input-status";
 
 export const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
@@ -37,9 +37,8 @@ export function createVoiceErrorDwell(
     show(reason, message) {
       cancel();
       status.set("error", reason, message);
-      const holdMs = isSettingsFixable(reason)
-        ? VOICE_TURN_FIX_HOLD_MS
-        : VOICE_TURN_ERROR_DISPLAY_MS;
+      const holdMs =
+        failureAction(reason) === "connect" ? VOICE_TURN_FIX_HOLD_MS : VOICE_TURN_ERROR_DISPLAY_MS;
       timer = setTimeout(() => {
         timer = null;
         // Only revert what is still the error we posted; the user may have moved on.

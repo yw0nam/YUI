@@ -45,8 +45,9 @@ import { targetLabels } from "../../settings/relations/relation-targets";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
+  failureAction,
+  fixAction,
   routeTurnFailure,
-  turnErrorFixAction,
   turnErrorMessage,
 } from "../../ui/notices/turn-error";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
@@ -280,7 +281,8 @@ export function wireDispatcher(deps: {
       if (!message) return;
       const action = routeTurnFailure(source, surfaces.isInputOpen());
       if (action.kind === "show_input_error") {
-        surfaces.showInputError(message, turnErrorFixAction(reason, openSettings));
+        const next = failureAction(reason, detail);
+        surfaces.showInputError(message, next === "retry" ? next : fixAction(next, openSettings));
       } else if (action.kind === "voice_error") {
         showVoiceError(reason, detail ? message : undefined);
       }

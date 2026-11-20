@@ -10,7 +10,7 @@ import { isMicErrorCode } from "../../io/voice/mic-error";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
-import { isSettingsFixable } from "../notices/turn-error";
+import { failureAction } from "../notices/turn-error";
 import { getToolLabel } from "./tool-labels";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
@@ -130,7 +130,7 @@ export function createStatusPill({
       setShown(false);
       return;
     }
-    const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
+    const fixable = snapshot.state === "error" && failureAction(snapshot.detail) === "connect";
     const voiceLabel = voiceLabelOf(snapshot, fixable);
 
     if (captureBtn) {

@@ -136,13 +136,20 @@ export const surfaceOps = {
   ),
   "input-error": entry(
     "showInputError",
-    (message, action) => (action ? { message, action: { label: action.label } } : { message }),
+    (message, action) =>
+      action === "retry"
+        ? { message, retry: true }
+        : action
+          ? { message, action: { label: action.label } }
+          : { message },
     (p, s, control) =>
       s.showInputError(
         p.message,
-        p.action
-          ? { label: p.action.label, onClick: () => control({ op: "input-error-action" }) }
-          : undefined,
+        "retry" in p
+          ? "retry"
+          : p.action
+            ? { label: p.action.label, onClick: () => control({ op: "input-error-action" }) }
+            : undefined,
       ),
   ),
   "speech-actions": entry(

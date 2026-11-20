@@ -55,34 +55,48 @@ export function turnErrorMessage(
   }
 }
 
-/**
- * Whether the settings panel can resolve a failure. Only an unconfigured backend
- * qualifies — every other failure is outside the panel. Takes a raw string because
- * the status pill reads its reason off an untyped status detail.
- */
-export function isSettingsFixable(reason: string): boolean {
-  return reason === "not_configured";
-}
-
-/**
- * The in-place fix an inline error carries, if the host opens a settings panel that can resolve it.
- * The label names the step, so the message itself only states the condition.
- */
-export function turnErrorFixAction(
-  reason: TurnFailure,
-  openSettings?: (tab: SettingsPage) => void,
-): InputErrorAction | undefined {
-  if (!openSettings || !isSettingsFixable(reason)) return undefined;
-  return { label: t("hint.setup_action"), onClick: () => openSettings("conn") };
-}
-
 export type FailureAction = "connect" | "change_key" | "check_connection" | "retry";
 
-export function failureAction(
-  _reason: TurnFailure,
-  _detail?: TurnErrorDetail,
-): FailureAction | undefined {
-  return undefined;
+const ACTION_LABEL_KEY = {
+  connect: "hint.setup_action",
+  change_key: "input.action_change_key",
+  check_connection: "input.action_check_connection",
+  retry: "input.action_retry",
+} as const;
+
+/**
+ * The next step a failed turn offers; every surface reads it. A rejected key or a not-yet-connected
+ * backend opens the key entry, another 4xx opens it to check the connection, a drop or a stall
+ * resends. Takes a raw string because the status pill reads its reason off an untyped status detail.
+ */
+export function failureAction(reason: string, detail?: TurnErrorDetail): FailureAction | undefined {
+  switch (reason) {
+    case "not_configured":
+      return "connect";
+    case "http_4xx_drop":
+      return "change_key";
+    case "network_drop": {
+      const status = detail?.status;
+      if (status === undefined || (status >= 500 && status < 600)) return "retry";
+      return status >= 400 && status < 500 && status !== 429 ? "check_connection" : undefined;
+    }
+    case "network_stall":
+      return "retry";
+    default:
+      return undefined;
+  }
+}
+
+/** The button of a keyed action, which opens the key entry; retry is the composer's own, so it has none. */
+export function fixAction(
+  action: FailureAction | undefined,
+  openSettings?: (tab: SettingsPage) => void,
+): InputErrorAction | undefined {
+  if (!openSettings || !action || action === "retry") return undefined;
+  return {
+    label: t(ACTION_LABEL_KEY[action]),
+    onClick: () => openSettings("conn"), // focus: chat_key once the opener takes it
+  };
 }
 
 type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };

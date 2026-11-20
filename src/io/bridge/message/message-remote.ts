@@ -22,6 +22,9 @@ export interface InputErrorAction {
   onClick(): void;
 }
 
+/** What an inline error offers: a fix button that opens settings, or the composer resending its own draft. */
+export type InputErrorOffer = InputErrorAction | "retry";
+
 /** In-place fix offered under the speech text (e.g. "Open Connection" on an unconfigured backend). */
 export interface SpeechAction {
   label: string;
@@ -58,7 +61,7 @@ export interface RemoteSurfaces {
   setBusy(busy: boolean): void;
   /** The character's name the message window's plate and backlog show. */
   setName(name: string): void;
-  showInputError(message: string, action?: InputErrorAction): void;
+  showInputError(message: string, action?: InputErrorOffer): void;
   /** Offers in-place buttons under the current speech; an empty list drops the ones shown. */
   showSpeechActions(actions: readonly SpeechAction[]): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
@@ -158,7 +161,7 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
       sender.methods.setBusy(value);
     },
     showInputError(message, action) {
-      pendingErrorAction = action?.onClick ?? null;
+      pendingErrorAction = typeof action === "object" ? action.onClick : null;
       sender.methods.showInputError(message, action);
     },
     showSpeechActions(actions) {

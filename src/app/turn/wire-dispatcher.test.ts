@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The dispatcher, the backend caller, the guardrails and the pacer are faked so each test
 // can drive the deps wireDispatcher composes and assert the handle it returns.
@@ -27,6 +27,7 @@ import { createActiveHoursSettings } from "../../settings/active-hours/active-ho
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
 import { createPacerGapStore } from "../../settings/settings-stores";
+import { setLocale } from "../../ui/i18n";
 import { createWindowActiveHours } from "../active-hours/window-active-hours";
 import { wireDispatcher } from "./wire-dispatcher";
 
@@ -41,6 +42,8 @@ function memoryStorage<T>(): PersistedStorage<T> {
 }
 
 describe("wireDispatcher", () => {
+  beforeEach(() => setLocale("en"));
+
   const setup = (
     windowTools?: ClientTool[],
     endpoints = {} as EndpointsConfig,

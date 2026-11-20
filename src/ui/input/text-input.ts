@@ -6,7 +6,7 @@
  */
 
 import type { AttachmentLimits } from "../../config/validators/guardrails";
-import type { InputErrorAction } from "../../io/bridge/message/message-remote";
+import type { InputErrorOffer } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
@@ -30,8 +30,8 @@ export interface TextInput {
    * and Enter/submit becomes a no-op. Stopping fires only via a button click.
    */
   setBusy(busy: boolean): void;
-  /** Show an inline error (e.g. send failure), optionally with a button that fixes it in place. */
-  showInputError(message: string, action?: InputErrorAction): void;
+  /** Show an inline error (e.g. send failure), optionally with a button that fixes it in place or resends the draft. */
+  showInputError(message: string, action?: InputErrorOffer): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
@@ -85,6 +85,8 @@ export function createTextInput(
   let limits: AttachmentLimits | null = null;
   // Backend processing — the send button becomes stop and submit is blocked.
   let busy = false;
+  // The standing error's Retry button; null when it offers none.
+  let retryButton: HTMLButtonElement | null = null;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
   let inputBottomPx = DEFAULT_INPUT_BOTTOM_PX;
   const actionButton: ActionButton = createActionButton({
@@ -149,13 +151,19 @@ export function createTextInput(
   }
 
   function clearInputError(): void {
+    retryButton = null;
     formEl.classList.remove("is-error");
     errorEl.textContent = "";
     // The row loses its error line — re-lift the bubble.
     fitField();
   }
 
-  function showInputError(message: string, action?: InputErrorAction): void {
+  function hasDraft(): boolean {
+    return field.value.trim() !== "" || attachments.length > 0;
+  }
+
+  function showInputError(message: string, action?: InputErrorOffer): void {
+    retryButton = null;
     // Shown first — the alert only announces content inserted while it is in the tree.
     formEl.classList.add("is-error");
     errorEl.textContent = message;
@@ -163,8 +171,15 @@ export function createTextInput(
       const button = document.createElement("button");
       button.type = "button";
       button.className = "yui-input__error-action";
-      button.textContent = action.label;
-      button.addEventListener("click", action.onClick);
+      if (action === "retry") {
+        button.textContent = t("input.action_retry");
+        button.hidden = !hasDraft();
+        button.addEventListener("click", submitCurrent);
+        retryButton = button;
+      } else {
+        button.textContent = action.label;
+        button.addEventListener("click", action.onClick);
+      }
       // Space first — the alert announces message and label as one string otherwise.
       errorEl.append(" ", button);
     }
@@ -348,9 +363,13 @@ export function createTextInput(
       submitCurrent();
     }
   }
-  // Clear the error once the user types again
+  // Typing clears the error; a Retry offer stays while the field holds a draft, and only its condition line goes.
   function clearErrorOnInput(): void {
-    if (formEl.classList.contains("is-error")) clearInputError();
+    if (!formEl.classList.contains("is-error")) return;
+    if (retryButton && hasDraft()) {
+      errorEl.firstChild!.nodeValue = "";
+      retryButton.hidden = false;
+    } else clearInputError();
   }
 
   function onAttachClick(): void {
