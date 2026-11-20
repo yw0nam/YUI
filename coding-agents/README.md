@@ -33,4 +33,4 @@ The [yui-notify](yui-notify/README.md) plugin posts Claude Code and Codex conver
 
 Codex takes answers through synchronous hooks. Claude Code takes them through its own inbox socket, with no launch flag.
 
-Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
+Turn on **External signals** in **Settings → Proactive → What she reacts to → External signals**, then restart YUI.

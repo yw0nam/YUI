@@ -1,0 +1,5 @@
+/* The link to Persona › Active hours reads inline with its foot line, in the accent ink. */
+.yui-base-pace__link {
+  padding: 0;
+  color: var(--yui-accent-ink);
+}

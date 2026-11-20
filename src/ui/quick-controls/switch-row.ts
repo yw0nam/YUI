@@ -6,7 +6,6 @@ import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import { isTauri } from "../../tauri-env";
-import { SCREEN_WATCH_SVG } from "./constants";
 
 export interface SwitchRow {
   selector: `.${string}`;
@@ -14,8 +13,7 @@ export interface SwitchRow {
   subKey?: string;
   ariaKey: string;
   tab: "voice" | "together" | "listening" | "react" | "motion";
-  position?: "after-vad" | "after-filler" | "filler" | "screen";
-  accessory?: "agent-port";
+  position?: "after-vad" | "after-filler" | "filler" | "screen" | "threads" | "signals";
   labelIcon?: string;
   isVisible: boolean;
   isAvailable: boolean;
@@ -101,7 +99,6 @@ export function createSwitchRows({
       ariaKey: "screen.aria",
       tab: "react",
       position: "screen",
-      labelIcon: SCREEN_WATCH_SVG,
       // Paired with the knob store: a toggle whose thresholds cannot be edited is a dead half-section.
       isVisible: !!screenSettings && !!screenKnobSettings,
       isAvailable: !!screenSettings && !!screenKnobSettings,
@@ -226,7 +223,7 @@ export function createSwitchRows({
       subKey: "agentNotify.sub",
       ariaKey: "agentNotify.aria",
       tab: "react",
-      accessory: "agent-port",
+      position: "signals",
       isVisible: !!agentNotifySettings,
       isAvailable: !!agentNotifySettings,
       initialEnabled: agentNotifySettings?.get().enabled ?? false,
@@ -240,6 +237,7 @@ export function createSwitchRows({
       subKey: "threadReactions.sub",
       ariaKey: "threadReactions.aria",
       tab: "react",
+      position: "threads",
       isVisible: !!threadReactionsSettings,
       isAvailable: !!threadReactionsSettings,
       initialEnabled: threadReactionsSettings?.get().enabled ?? true,

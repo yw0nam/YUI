@@ -63,7 +63,7 @@ The level comes from the reason:
 | `superseded_by_user` | `info` | The user typed or spoke, so the turn was aborted or dropped. |
 | `stale_pending` | `info` | A second deferred turn arrived, so the older one is dropped. |
 | `degraded_drop` | `warn` | A non-user turn reached the gate during the degraded state. |
-| `global_gap` | `info` | The global proactive gap held the fire back. |
+| `global_gap` | `info` | The proactive gap held the fire back. |
 | `addressed_cap` | `info` | The third addressed turn in a row without a user turn; the cap is `rate_limit.addressed_chain_max`. |
 | `dnd` | `info` | Do-not-disturb held the trigger: a self-fired one, one still queued when it turned on, or a fire waiting for the turn lock. |
 

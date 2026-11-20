@@ -113,9 +113,9 @@ const en: Record<string, string> = {
   "cue.minutes_aria": "Inactive minutes",
   "cue.minutes_suffix": "min",
   "cue.toggle_aria": "Toggle {name}",
-  "cue.toggle_fallback": "Cue",
+  "cue.toggle_fallback": "Untitled",
   "cue.delete": "Delete",
-  "cue.confirm_q": "Delete this cue?",
+  "cue.confirm_q": "Delete this entry?",
   "cue.confirm_go": "Delete",
   "cue.confirm_cancel": "Cancel",
   "cue.name_label": "Name",
@@ -123,6 +123,7 @@ const en: Record<string, string> = {
   "cue.ctx_label": "Context",
   "cue.ctx_aria": "Context for the AI to read",
   "cue.ctx_placeholder": "Freely describe the situation for the AI to refer to…",
+  "cue.minutes_summary": "{list} min",
 
   // panel chrome
   "panel.dialog_label": "Settings",
@@ -298,6 +299,11 @@ const en: Record<string, string> = {
   "active_hours.end_aria": "End time",
   "active_hours.pace_aria": "Pace",
   "active_hours.remove_aria": "Remove time span",
+  "base_pace.title": "How often she speaks up",
+  "base_pace.foot":
+    "For every character, all day, it scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins; scheduled greetings keep their times. More is about {more}× as often, Less about 1/{less} as often.",
+  "base_pace.link_lead": "Per character and time of day:",
+  "base_pace.link": "Persona › Active hours",
 
   // card
   "card.label": "Card",
@@ -579,12 +585,15 @@ const en: Record<string, string> = {
   "one_voice.aria": "One voice at a time",
 
   // cue lists (input tab)
-  "cue.schedule_title": "Scheduled greeting",
+  "cue.schedule_title": "Scheduled greetings",
   "cue.schedule_sub": "Greets you first if you're at your desk at the set time",
   "cue.schedule_add": "Add greeting",
-  "cue.proactive_title": "Loop reaction",
+  "cue.schedule_note": "Also says the day's first hello when you sit down.",
+  "cue.schedule_fold": "Greeting times",
+  "cue.proactive_title": "Quiet for a while",
   "cue.proactive_sub": "Checks in on a repeating schedule if you've been quiet at work",
   "cue.proactive_add": "Add reaction",
+  "cue.proactive_fold": "Check-ins",
 
   // endpoints
   "endpoints.field_sub": "Leave empty to use the default",
@@ -691,6 +700,7 @@ const en: Record<string, string> = {
   "agentNotify.sub":
     "Speaks up when a coding agent, a workflow, or another program on your machine sends a signal.",
   "agentNotify.aria": "External signals",
+  "agentNotify.fold": "Port and address",
   "threadTurns.label": "Thread turns",
   "threadTurns.sub":
     "Tell the main character about Thread updates. The character decides whether to speak.",
@@ -703,6 +713,7 @@ const en: Record<string, string> = {
   "threadReactions.sub":
     "When you tap the chip or Threads pile up, she sits on the Threads window.",
   "threadReactions.aria": "Thread reactions",
+  "threadReactions.fold": "When she steps in",
   "threadReactionThresholds.count_label": "Waiting Threads",
   "threadReactionThresholds.count_sub":
     "When the chip counts this many, she sits on the Threads window.",
@@ -711,8 +722,8 @@ const en: Record<string, string> = {
     "When one Thread has waited this long, she sits on the Threads window.",
   "threadReactionThresholds.off": "Off",
   "threadReactionThresholds.count_value": "{n}",
+  "threadReactionThresholds.count_summary": "{n} waiting",
   "threadReactionThresholds.wait_value": "{n} min",
-  "threadReactionThresholds.disabled_reason": "Turn on Thread reactions to use this.",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
@@ -763,49 +774,44 @@ const en: Record<string, string> = {
   "start.voice_configured": "Voice is on. You can change the voice in the Voice tab.",
 
   // reactions tab
-  "reactions.watchers_title": "Watchers",
-  "reactions.shared_title": "Shared",
   "reactions.port_label": "Listener port",
   "reactions.port_sub": "Port the completion hook server listens on",
+  "reactions.reacts_title": "What she reacts to",
+  "reactions.advanced": "Advanced",
+  "fold.off": "Off",
+  "fold.off_note": "Off. These apply once you turn it on.",
   "reactions.presence_label": "Present when idle for",
-  "reactions.presence_sub": "Treat the session as present if the idle gap is below this",
+  "reactions.presence_sub": "You count as at your desk while your last input is this recent",
   "reactions.seconds_suffix": "s",
   "preset.copy_url": "Copy ingress URL for {name}",
   "reactions.url_label": "Ingress URL",
   "reactions.url_sub": "Send signals to this window.",
   "reactions.restart_hint": "Restart the app to apply this change",
-  "reactions.pacer_gap_label": "Proactive gap",
-  "reactions.pacer_gap_sub": "Minimum quiet gap after any turn before YUI speaks up on her own",
+  "reactions.pacer_gap_label": "Wait after a conversation",
+  "reactions.pacer_gap_sub":
+    "How long she waits after any conversation before speaking up on her own. Normal uses this; Less and More scale it.",
   "reactions.pacer_gap_hint": "0 lets every source speak up without waiting.",
-  "reactions.pacer_gap_hours_hint":
-    "Each character's active hours scale this wait and the quiet-for-a-while reactions.",
   "reactions.minutes_suffix": "min",
-  "reactions.rate_title": "Limits",
   "reactions.rate_hint":
-    "Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
-  "reactions.rate_tier2_label": "Cues per hour",
+    "Hourly limits are a backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
+  "reactions.rate_tier2_label": "Times she speaks up per hour",
   "reactions.rate_tier2_sub":
-    "Proactive, schedule, agent, signal, milestone, and addressed turns together",
+    "Quiet-for-a-while, greetings, signals and answers to another character, together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
-  "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
+  "reactions.rate_overall_sub": "Crossing it pauses every source for {n} minutes",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",
-  "reactions.rate_urgent_sub": "Signals a producer marked urgent; the cooldown never holds them",
+  "reactions.rate_urgent_sub":
+    "Signals marked urgent; the {n}-minute pause after the total limit never holds them",
   "reactions.rate_addressed_label": "Answers to another character, in a row",
   "reactions.rate_addressed_sub":
     "How many times she answers a character who addressed her before you speak again",
-  "reactions.rate_hint_text":
-    "Ceilings on how often YUI may speak up on her own. Turns you start are never counted.",
 
   // screen watch (proactive tab)
-  "screen.section": "Screen watch",
-  "screen.hint":
-    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle on the Permissions page.",
-  "screen.label": "React to screen changes",
+  "screen.label": "Screen changes",
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
-  "screen.aria": "React to screen changes",
-  "screen.min_gap_label": "Minimum gap between cues",
-  "screen.min_gap_aria": "Minimum gap between screen-watch cues",
-  "screen.min_gap_value": "{n} min",
+  "screen.aria": "Screen changes",
+  "screen.timing": "Timing",
+  "screen.timing_summary": "{n} settings",
   "screen.minutes_suffix": "min",
   "screen.seconds_suffix": "s",
   "screen.prev_dwell_label": "Counts as an app switch after",
@@ -814,8 +820,6 @@ const en: Record<string, string> = {
   "screen.settle_sub": "A quick glance is ignored",
   "screen.long_session_label": "Notices a long stretch every",
   "screen.long_session_sub": "One app held this long counts as a long session",
-  "screen.quiet_label": "Stay quiet after a turn for",
-  "screen.quiet_sub": "So a cue never piles onto what was just said",
   "screen.recent_cap_label": "Remembers up to",
   "screen.recent_cap_sub":
     "How many app switches held during a pause carry into the next screen turn",

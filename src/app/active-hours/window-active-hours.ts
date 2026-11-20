@@ -1,7 +1,8 @@
-/** One pet window's active hours: the pacer gap its current span scales, and its do-not-disturb hold. */
+/** One pet window's active hours: the pacer gap its base and span paces scale, and its do-not-disturb hold. */
 
 import type { PersonaConfig } from "../../config/validators/persona/types";
 import type { ActiveHoursSettingsStore } from "../../settings/active-hours/active-hours-settings";
+import type { BasePaceSettingsStore } from "../../settings/active-hours/base-pace-settings";
 import { spansInUse } from "../../settings/active-hours/card-active-hours";
 import { PACE_FACTOR, type Pace, paceAt } from "../../settings/active-hours/spans";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
@@ -9,9 +10,9 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import { getLocale } from "../../ui/i18n";
 
 export interface WindowActiveHours {
-  /** The pacer gap now: the gap store × the current span's pace factor (off and normal read × 1). */
+  /** The pacer gap now: the gap store × the pace factor (base × span; an off span scales nothing). */
   gapMs(): number;
-  /** The current span's pace factor: the multiplier the idle cues' idle_min reads; off and normal read × 1. */
+  /** The pace factor now: base × span, the multiplier the idle cues' idle_min reads; an off span scales nothing. */
   paceFactor(): number;
   /** Called whenever gapMs() changes value: a gap edit, a spans or card change, a span boundary crossed. */
   subscribeGap(cb: () => void): () => void;
@@ -24,6 +25,7 @@ export interface WindowActiveHours {
 
 export function createWindowActiveHours(deps: {
   activeHoursSettings: Pick<ActiveHoursSettingsStore, "get" | "subscribe">;
+  basePaceSettings: Pick<BasePaceSettingsStore, "get" | "subscribe">;
   agentSettings: Pick<SettingsStores["agentSettings"], "get" | "subscribe">;
   pacerGapSettings: Pick<ClampedIntSettingsStore, "get" | "subscribe">;
   dndSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
@@ -45,7 +47,8 @@ export function createWindowActiveHours(deps: {
 
   const recompute = (): void => {
     pace = paceNow();
-    factor = pace === "off" ? 1 : PACE_FACTOR[pace];
+    const base = deps.basePaceSettings.get().pace;
+    factor = (pace === "off" ? 1 : PACE_FACTOR[pace]) * PACE_FACTOR[base];
     const nextGap = deps.pacerGapSettings.get().value * factor;
     if (nextGap !== gap) {
       gap = nextGap;
@@ -75,6 +78,7 @@ export function createWindowActiveHours(deps: {
 
   const unsubscribes = [
     deps.activeHoursSettings.subscribe(recompute),
+    deps.basePaceSettings.subscribe(recompute),
     deps.agentSettings.subscribe(recompute),
     deps.pacerGapSettings.subscribe(recompute),
     deps.dndSettings.subscribe(recompute),

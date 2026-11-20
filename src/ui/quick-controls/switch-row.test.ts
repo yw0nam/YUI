@@ -112,7 +112,7 @@ describe("SwitchRow descriptor", () => {
     bound.dispose();
   });
 
-  it("puts the Thread reactions row beside Thread turns in Watchers, on, and a click flips its store", () => {
+  it("puts the Thread reactions row in the Threads group with Thread turns, on, and a click flips its store", () => {
     const threadReactionsSettings = createFlagSettings(true);
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),

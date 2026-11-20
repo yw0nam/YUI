@@ -7,6 +7,7 @@ import type { createAgentNotifySettings } from "../../../../settings/backend/age
 import { ingressUrl } from "../../../../settings/backend/agent-notify-settings";
 import type {
   GuardrailsSettingsStore,
+  RateLimitDefaults,
   RateLimitOverrides,
 } from "../../../../settings/backend/guardrails-settings";
 import type {
@@ -15,6 +16,7 @@ import type {
 } from "../../../../settings/persisted-store";
 import type { ThreadReactionThresholdsSettingsStore } from "../../../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../../../settings/threads/thread-turns-settings";
+import { t } from "../../../i18n";
 import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
 import { RATE_LIMIT_FIELDS } from "../../constants";
 import { createThreadReactionThresholdsRow } from "./thread-reaction-thresholds-row";
@@ -41,7 +43,7 @@ interface ReactionsSectionDeps {
   /** Guardrail rate-limit overrides. Absent when the cap rows aren't rendered. */
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
-  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
+  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
   /** Switch-row redraw — the agent-notify subscription calls both. */
   reflectSwitchRows: () => void;
   /** Panel open state — store subscriptions redraw only while the panel is open. */
@@ -72,6 +74,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
 
   const ingressUrlText = el.querySelector("#yui-ingress-url");
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
+  const agentPortAside = agentPortInput?.closest(".yui-fold")?.querySelector(".yui-fold__aside");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
   const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
@@ -83,6 +86,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
     if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+    if (agentPortAside) agentPortAside.textContent = String(agentNotifySettings.get().port);
     if (ingressUrlText)
       ingressUrlText.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
   }
@@ -99,13 +103,19 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   }
 
   // Each field shows its effective cap: the override when set, the bundled config default otherwise.
+  // Its sub line names the configured cooldown in minutes where it mentions the pause.
   function reflectRateLimits(): void {
     if (!rateLimitSettings) return;
     const overrides = rateLimitSettings.get();
     const defaults = getRateLimitDefaults?.();
-    for (const [key, input] of rateLimitInputs) {
-      const effective = overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
+    for (const field of RATE_LIMIT_FIELDS) {
+      const input = rateLimitInputs.get(field.key);
+      if (!input) continue;
+      const effective =
+        overrides[field.key] > 0 ? overrides[field.key] : (defaults?.[field.key] ?? 0);
       reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
+      const sub = input.closest(".yui-row")?.querySelector(".yui-input-row__sub");
+      if (sub && defaults) sub.textContent = t(field.subKey, { n: defaults.cooldown_ms / 60_000 });
     }
   }
 
@@ -119,7 +129,6 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
       ? createThreadReactionThresholdsRow({
           root: el,
           settings: threadReactionThresholdsSettings,
-          threadReactionsSettings,
           isOpen,
         })
       : undefined;

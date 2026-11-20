@@ -190,12 +190,13 @@ describe("guardrails settings — store over config", () => {
     expect(merged.attachments).toEqual(base.attachments);
   });
 
-  it("projects the config caps onto the overrides shape, dropping the non-editable values", () => {
+  it("projects the config caps and the cooldown the copy names, dropping the window", () => {
     expect(rateLimitDefaultsFromConfig(baseConfig())).toEqual({
       tier2_max: 24,
       urgent_max: 120,
       overall_max: 40,
       addressed_chain_max: 2,
+      cooldown_ms: 300_000,
     });
   });
 

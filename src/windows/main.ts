@@ -114,6 +114,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register, role);
   const activeHours = createWindowActiveHours({
     activeHoursSettings: settingsStores.activeHoursSettings,
+    basePaceSettings: settingsStores.basePaceSettings,
     agentSettings: settingsStores.agentSettings,
     pacerGapSettings: settingsStores.pacerGapSettings,
     dndSettings: settingsStores.dndSettings,

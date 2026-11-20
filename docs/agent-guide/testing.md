@@ -53,7 +53,7 @@ A surface built with React keeps a plain `create*` facade (`createQuickCard`), a
 
 ## Visual regression
 
-`pnpm test:vrt` runs the `vrt` Vitest project: each `*.vrt.test.ts` mounts one surface at its window size in headless Playwright WebKit and compares a screenshot per theme (`dawn`, `hearth`) with a committed reference. It covers the quick card, the General settings page, the speech bubble, and the Threads window.
+`pnpm test:vrt` runs the `vrt` Vitest project: each `*.vrt.test.ts` mounts one surface at its window size in headless Playwright WebKit and compares a screenshot per theme (`dawn`, `hearth`) with a committed reference. It covers the quick card, the General settings page, the speech bubble, and the Threads window. The project also holds DOM measurements that need real layout and stylesheets, such as where a click lands or a computed opacity; those take no screenshot and need no reference.
 
 `pnpm test` runs only the `unit` project. WebKit is not WKWebView, so native dock, drag, and focus stay with the verify bundle.
 

@@ -1,5 +1,5 @@
 /**
- * Screen section — owns the screen-watch threshold knob rows and the min-gap slider.
+ * Screen section — owns the screen-watch threshold knob rows.
  * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
@@ -9,19 +9,13 @@ import type {
   ScreenOverrides,
 } from "../../../../settings/capture/screen-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { t } from "../../../i18n";
 import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
-import {
-  SCREEN_KNOB_FIELDS,
-  SCREEN_MIN_GAP_MAX,
-  SCREEN_MIN_GAP_MIN,
-  type ScreenKnobFieldDef,
-} from "../../constants";
+import { SCREEN_KNOB_FIELDS, type ScreenKnobFieldDef } from "../../constants";
 
 interface ScreenSectionDeps {
-  /** Panel root (el) — query the knob inputs and the gap slider here. */
+  /** Panel root (el) — query the knob inputs here. */
   root: HTMLElement;
-  /** Screen-watch on/off flag — its subscription redraws both switch rows and the knob group. */
+  /** Screen-watch on/off flag — its subscription redraws the switch rows. */
   screenSettings?: FlagSettingsStore;
   /** Screen-watch threshold overrides store. Absent when the section isn't rendered. */
   screenKnobSettings?: ScreenKnobSettingsStore;
@@ -34,7 +28,7 @@ interface ScreenSectionDeps {
 }
 
 interface ScreenSection {
-  /** Render the knob group's visibility, the knobs and the gap slider from their stores. */
+  /** Render the knobs from their stores. */
   reflect(): void;
   /** Permanent teardown — unsubscribe stores and remove all listeners. */
   dispose(): void;
@@ -55,14 +49,9 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) screenKnobInputs.set(field.key, input);
   }
-  const screenGapSlider = el.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
-  const screenGapValue = el.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
-  const screenKnobsEl = el.querySelector<HTMLDivElement>(".yui-screen-knobs");
 
-  // The knob group follows the master toggle; each knob shows its override when set, else the config default.
+  // Each knob shows its override when set, else the config default.
   function reflectScreen(): void {
-    if (!screenKnobsEl || !screenSettings) return;
-    screenKnobsEl.hidden = !screenSettings.get().enabled;
     if (!screenKnobSettings) return;
     const overrides = screenKnobSettings.get();
     const defaults = getScreenDefaults?.();
@@ -73,15 +62,6 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
       if (!input) continue;
       const value = effective(field.key);
       reflectUnlessEditing(input, value > 0 ? String(Math.round(value / field.unitMs)) : "");
-    }
-    if (screenGapSlider && screenGapValue) {
-      const minutes = Math.round(effective("min_gap_ms") / 60_000);
-      screenGapSlider.value = String(minutes);
-      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
-      screenGapSlider.style.setProperty(
-        "--fill",
-        String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
-      );
     }
   }
 
@@ -109,33 +89,11 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
     screenKnobSettings.set({ [field.key]: units * field.unitMs });
     reflectScreen();
   }
-  const screenGapMinutes = (): number =>
-    Math.min(
-      Math.max(Math.round(Number(screenGapSlider?.value)), SCREEN_MIN_GAP_MIN),
-      SCREEN_MIN_GAP_MAX,
-    );
-  // Slider commits on release only — dragging must not re-time the live producer on every frame.
-  function handleScreenGapInput(): void {
-    if (!screenGapSlider) return;
-    const minutes = screenGapMinutes();
-    if (screenGapValue) screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
-    screenGapSlider.style.setProperty(
-      "--fill",
-      String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
-    );
-  }
-  function handleScreenGapChange(): void {
-    if (!screenKnobSettings || !screenGapSlider) return;
-    screenKnobSettings.set({ min_gap_ms: screenGapMinutes() * 60_000 });
-    reflectScreen();
-  }
 
   for (const input of screenKnobInputs.values()) {
     input.addEventListener("change", handleScreenKnobChange);
     input.addEventListener("blur", reflectScreen);
   }
-  screenGapSlider?.addEventListener("input", handleScreenGapInput);
-  screenGapSlider?.addEventListener("change", handleScreenGapChange);
 
   return {
     reflect: reflectScreen,
@@ -146,8 +104,6 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
         input.removeEventListener("change", handleScreenKnobChange);
         input.removeEventListener("blur", reflectScreen);
       }
-      screenGapSlider?.removeEventListener("input", handleScreenGapInput);
-      screenGapSlider?.removeEventListener("change", handleScreenGapChange);
     },
   };
 }

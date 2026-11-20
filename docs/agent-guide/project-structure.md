@@ -43,8 +43,8 @@ YUI/
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       csp-violation.ts               # Logs every Content-Security-Policy violation the window reports
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
-      active-hours/                  # One pet window's active hours: the pacer gap and idle cue scale, and the window's do-not-disturb
-        window-active-hours.ts       # Scales the gap and idle cue minutes by the current span's pace; holds do-not-disturb during an off span
+      active-hours/                  # One pet window's active hours: the proactive gap and idle cue scale, and the window's do-not-disturb
+        window-active-hours.ts       # Scales the gap and idle cue minutes by the base pace times the current span's pace; holds do-not-disturb during an off span
       card-io/                       # The card's file steps bound to a preset registry
         import-preset.ts             # The import a card section runs: native file step, copied voice registration, VRM list entry, preset creation, and rollback
         wire-card-io.ts              # The card's import, export, thumbnail, photo pick, and preset creation ports
@@ -252,7 +252,7 @@ YUI/
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
         addressed-chain.ts           # The chain cap: how many addressed turns a window takes in a row without a user turn
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
-        proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
+        proactive-pacer.ts           # The proactive gap after a turn that every proactive source shares
         turn-gate.ts                 # The cross-window Web Lock a turn holds from its backend call to the end of its playback
       tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
@@ -351,6 +351,7 @@ YUI/
         spans.ts                     # Span and pace rules: the four paces, their gap factors, and which span holds a minute
         card-active-hours.ts         # The card's extensions.yui.active_hours, the spans in use, and the export transform
         active-hours-settings.ts     # The per-character store of edited spans under yui.active-hours
+        base-pace-settings.ts        # The device-wide base pace under yui.base-pace, multiplied into each pet window's span pace
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
@@ -688,6 +689,7 @@ YUI/
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
+        fold.ts                      # A source's fold under its switch row, and its Off summary and off line while the switch is off
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
@@ -787,6 +789,9 @@ YUI/
           active-hours/              # The Persona page's active hours section
             active-hours-section.ts  # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
             active-hours-section.css # Span row styles
+          base-pace/                 # How often she speaks up: the Proactive page's base pace segment and its link to Persona
+            base-pace-section.ts     # The Less / Normal / More segment bound to the base pace store, and the link that opens the Persona page
+            base-pace-section.css    # The link's styles
           card/                      # The Persona page's card section
             card-io.ts               # The card section's action row: click dispatch, import, PNG and preset file exports, the picture gate, the status lines and the import notice
             card-section.ts          # The card fields, send switch, reset, and greeting list; wires the action row and the export panel
@@ -810,11 +815,11 @@ YUI/
             session-section.css      # Session context-occupancy readout and meter styles
           screenshot/                # Screenshot-attach switch and when the monitor list loads
             screenshot-section.ts    # Attach switch, its subscription and redraw, and the monitor-list load
-          screen/                    # Screen-watch thresholds and the min-gap the screen source fires on
-            screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
-          reactions/                 # Agent notification, presence, pacer gap, Reaction thresholds, and rate-limit cap rows
-            reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
-            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, dimmed with a reason while the Thread reactions switch is off
+          screen/                    # Screen-watch threshold knobs
+            screen-section.ts        # Screen-watch threshold knobs and their redraw
+          reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and rate-limit cap rows
+            reactions-section.ts     # Listener-port, presence, proactive-gap, and rate-limit cap inputs and their redraw
+            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, editable while the Thread reactions switch is off
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles

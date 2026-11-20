@@ -11,8 +11,8 @@ that one connection is open.
 
 ## 1. Choose the remote port
 
-Use YUI's port (default `8770`, shown in YUI under Settings → Proactive → Watchers →
-Listener port) when it is free on the remote host. When another process holds it there,
+Use YUI's port (default `8770`, shown in YUI under Settings → Proactive → What she reacts to →
+External signals → Listener port) when it is free on the remote host. When another process holds it there,
 choose any free port, for example `15001`. YUI keeps its own port; only the remote end
 changes.
 

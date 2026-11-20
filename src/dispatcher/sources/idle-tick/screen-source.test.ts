@@ -5,7 +5,7 @@
  *  - app_switched: previous app held >= prev_dwell_ms, new app then settles settle_ms.
  *  - long_session: same app foreground for long_session_ms, re-marking each period.
  *  - app identity only — a window-title change is never a transition and never restarts dwell.
- *  - suppression reasons: disabled / not_present / global_gap / min_gap / quiet_after_turn.
+ *  - suppression reasons: disabled / not_present / global_gap.
  *  - a suppressed long_session mark is skipped, not queued.
  *  - absence resets the dwell and long-session clocks; time away never counts.
  *  - every fire re-anchors the idle-cue gap via noteInteraction.
@@ -28,8 +28,6 @@ const CFG: ScreenConfig = {
   prev_dwell_ms: 10 * MIN,
   settle_ms: 90_000,
   long_session_ms: 45 * MIN,
-  min_gap_ms: 5 * MIN,
-  quiet_after_turn_ms: 3 * MIN,
   recent_cap: 5,
 };
 
@@ -81,12 +79,6 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
   const { listen, emit, unlisten } = fakeListen();
   const noteInteraction = vi.fn();
   const appendSkipRecord = vi.fn();
-  let busyCb: ((busy: boolean) => void) | undefined;
-  const unsubscribeBusy = vi.fn();
-  const subscribeBusy = vi.fn((cb: (busy: boolean) => void) => {
-    busyCb = cb;
-    return unsubscribeBusy;
-  });
   let t = 0;
   const src = createScreenSource({
     bus,
@@ -94,7 +86,6 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
     getConfig: () => CFG,
     isEnabled: () => true,
     noteInteraction,
-    subscribeBusy,
     listen,
     now: () => t,
     appendSkipRecord,
@@ -105,17 +96,10 @@ function setup(over: Partial<Parameters<typeof createScreenSource>[0]> = {}) {
     pushed,
     unlisten,
     noteInteraction,
-    subscribeBusy,
-    unsubscribeBusy,
     appendSkipRecord,
     at(ms: number, payload: OsEventPayload) {
       t = ms;
       emit(payload);
-    },
-    turnAt(ms: number) {
-      t = ms;
-      busyCb?.(true);
-      busyCb?.(false);
     },
   };
 }
@@ -221,6 +205,8 @@ describe("screen_source — long_session", () => {
 
     s.at(45 * MIN, tick("Cursor"));
     expect(s.pushed).toHaveLength(1);
+    // The accepted fire itself never appends a skip record.
+    expect(s.appendSkipRecord).not.toHaveBeenCalled();
     expect(s.pushed[0]).toMatchObject({
       event_name: "proactive.screen_long_session",
       payload: { transition: "long_session", dwell_min: 45 },
@@ -246,65 +232,9 @@ describe("screen_source — long_session", () => {
     expect(s.pushed).toHaveLength(1);
     expect(s.pushed[0]?.payload).toMatchObject({ transition: "long_session", dwell_min: 45 });
   });
-
-  it("skips a suppressed mark instead of queueing it — the next fire is the next mark", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.turnAt(45 * MIN - 1_000); // a turn just before the mark
-    s.at(45 * MIN, tick("Cursor")); // mark falls inside quiet_after_turn
-    expect(s.pushed).toHaveLength(0);
-
-    // The quiet window expiring does not release the skipped mark.
-    s.at(49 * MIN, tick("Cursor"));
-    expect(s.pushed).toHaveLength(0);
-
-    s.at(90 * MIN, tick("Cursor"));
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0]?.payload).toMatchObject({ dwell_min: 90 });
-  });
 });
 
 describe("screen_source — suppression", () => {
-  it("refuses to fire within min_gap_ms of the previous fire", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(45 * MIN, tick("Cursor")); // long_session fire
-    expect(s.pushed).toHaveLength(1);
-
-    s.at(45 * MIN + 1_000, tick("Slack")); // departed dwell 45 min — a valid switch
-    s.at(45 * MIN + 91_000, tick("Slack"));
-    expect(s.pushed).toHaveLength(1);
-
-    // The consumed switch does not fire once the gap expires.
-    s.at(51 * MIN, tick("Slack"));
-    expect(s.pushed).toHaveLength(1);
-  });
-
-  it("refuses to fire within quiet_after_turn_ms of any turn", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(10 * MIN, tick("Slack"));
-    s.turnAt(10 * MIN + 60_000);
-    s.at(10 * MIN + 90_000, tick("Slack"));
-    expect(s.pushed).toHaveLength(0);
-  });
-
-  it("fires again once the quiet window has passed", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.turnAt(1_000);
-    s.at(45 * MIN, tick("Cursor"));
-    expect(s.pushed).toHaveLength(1);
-  });
-
   it("never fires while the enabled flag is off", async () => {
     const s = setup({ isEnabled: () => false });
     await s.src.start();
@@ -368,37 +298,6 @@ describe("screen_source — skip records", () => {
     expect(s.pushed).toHaveLength(0);
     expect(s.appendSkipRecord).toHaveBeenCalledWith(
       expect.objectContaining({ reason: "not_present", transition: "app_switched" }),
-    );
-  });
-
-  it("appends a skip record with reason=min_gap; the accepted fire itself does not append", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire
-    expect(s.appendSkipRecord).not.toHaveBeenCalled();
-
-    s.at(45 * MIN + 1_000, tick("Slack"));
-    s.at(45 * MIN + 91_000, tick("Slack")); // switch within min_gap of the prior fire
-
-    expect(s.appendSkipRecord).toHaveBeenCalledOnce();
-    expect(s.appendSkipRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "min_gap", transition: "app_switched" }),
-    );
-  });
-
-  it("appends a skip record with reason=quiet_after_turn", async () => {
-    const s = setup();
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(10 * MIN, tick("Slack"));
-    s.turnAt(10 * MIN + 60_000);
-    s.at(10 * MIN + 90_000, tick("Slack"));
-
-    expect(s.appendSkipRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "quiet_after_turn", transition: "app_switched" }),
     );
   });
 
@@ -523,39 +422,6 @@ describe("screen_source — pile-on avoidance", () => {
 });
 
 describe("screen_source — recent buffer", () => {
-  it("reorders global_gap ahead of quiet_after_turn/min_gap and lands the suppressed switch in the buffer", async () => {
-    let holding = false;
-    const s = setup({ isPacerHolding: () => holding });
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire — lastFireTs = 45min
-    expect(s.pushed).toHaveLength(1);
-
-    s.turnAt(45 * MIN + 30_000); // lastTurnTs = 45min30s
-
-    holding = true;
-    s.at(45 * MIN + 40_000, tick("Slack")); // arms the pending switch (Cursor dwell ~45.7min)
-    // settles 100s after the turn (< quiet_after_turn_ms) and 130s after the last fire (< min_gap_ms) —
-    // both older reasons would also apply, yet the reorder makes global_gap win.
-    s.at(45 * MIN + 130_000, tick("Slack"));
-    expect(s.pushed).toHaveLength(1);
-    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reason: "global_gap", transition: "app_switched" }),
-    );
-
-    holding = false;
-    s.at(45 * MIN + 40_000 + 45 * MIN, tick("Slack")); // next long_session mark ships the buffer
-    expect(s.pushed).toHaveLength(2);
-    expect(s.pushed[1]).toMatchObject({
-      payload: { recent: [{ from_app: "Cursor", to_app: "Slack", dwell_min: 46 }] },
-    });
-
-    s.at(45 * MIN + 40_000 + 90 * MIN, tick("Slack")); // nothing held this time — buffer cleared after ship
-    expect(s.pushed).toHaveLength(3);
-    expect(s.pushed[2]?.payload).not.toHaveProperty("recent");
-  });
-
   it("does not accumulate a suppressed long_session mark — it is not a transition", async () => {
     let holding = true;
     const s = setup({ isPacerHolding: () => holding });
@@ -710,44 +576,6 @@ describe("screen_source — recent buffer", () => {
     });
   });
 
-  it("a min_gap suppression with the pacer open never buffers", async () => {
-    const s = setup({ isPacerHolding: () => false });
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(45 * MIN, tick("Cursor")); // accepted long_session fire — lastFireTs = 45min
-    expect(s.pushed).toHaveLength(1);
-
-    s.at(45 * MIN + 1_000, tick("Slack")); // Cursor dwell ~45min — a valid switch
-    s.at(45 * MIN + 91_000, tick("Slack")); // settles within min_gap of the prior fire
-    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reason: "min_gap", transition: "app_switched" }),
-    );
-
-    // Next long_session mark on Slack fires cleanly — the min_gap suppression above never buffered.
-    s.at(45 * MIN + 1_000 + 45 * MIN, tick("Slack"));
-    expect(s.pushed).toHaveLength(2);
-    expect(s.pushed[1]?.payload).not.toHaveProperty("recent");
-  });
-
-  it("a quiet_after_turn suppression with the pacer open never buffers", async () => {
-    const s = setup({ isPacerHolding: () => false });
-    await s.src.start();
-
-    s.at(0, tick("Cursor"));
-    s.at(10 * MIN, tick("Slack")); // Cursor dwell 10min
-    s.turnAt(10 * MIN + 60_000);
-    s.at(10 * MIN + 90_000, tick("Slack")); // settles within quiet_after_turn_ms of the turn
-    expect(s.appendSkipRecord).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reason: "quiet_after_turn", transition: "app_switched" }),
-    );
-
-    // Next long_session mark on Slack fires cleanly — the quiet_after_turn suppression never buffered.
-    s.at(55 * MIN, tick("Slack"));
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0]?.payload).not.toHaveProperty("recent");
-  });
-
   it("clears the buffer when a candidate is refused because the feature is disabled", async () => {
     let holding = true;
     let enabled = true;
@@ -841,15 +669,13 @@ describe("screen_source — recent buffer", () => {
 });
 
 describe("screen_source — lifecycle", () => {
-  it("subscribes once and releases both subscriptions on stop", async () => {
+  it("subscribes once and releases the subscription on stop", async () => {
     const s = setup();
     await s.src.start();
     await s.src.start();
 
-    expect(s.subscribeBusy).toHaveBeenCalledTimes(1);
     s.src.stop();
     expect(s.unlisten).toHaveBeenCalledTimes(1);
-    expect(s.unsubscribeBusy).toHaveBeenCalledTimes(1);
   });
 
   it("degrades to a no-op when the channel cannot be subscribed", async () => {

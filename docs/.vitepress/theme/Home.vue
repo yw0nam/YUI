@@ -141,7 +141,7 @@ onMounted(() => {
             <figure class="media">
               <img
                 :src="withBase('/shots/settings-proactive.png')"
-                alt="The Proactive settings page with screen watch, loop reactions and a scheduled greeting"
+                alt="The Proactive settings page with How often she speaks up and a switch per source it reacts to"
                 width="760"
                 height="680"
                 loading="lazy"

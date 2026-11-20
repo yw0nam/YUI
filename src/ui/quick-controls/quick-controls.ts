@@ -5,6 +5,7 @@
  */
 
 import type { ActiveHoursSettingsStore } from "../../settings/active-hours/active-hours-settings";
+import type { BasePaceSettingsStore } from "../../settings/active-hours/base-pace-settings";
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
 import type { ThreadReactionThresholdsSettingsStore } from "../../settings/threads/thread-reaction-thresholds-settings";
@@ -51,7 +52,7 @@ import {
 } from "../../settings/backend/endpoints-settings";
 import type {
   GuardrailsSettingsStore,
-  RateLimitOverrides,
+  RateLimitDefaults,
 } from "../../settings/backend/guardrails-settings";
 import type { createWorkflowSettings } from "../../settings/backend/workflow-settings";
 import type {
@@ -89,6 +90,7 @@ import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createActiveHoursSection } from "./sections/active-hours/active-hours-section";
 import { createAgentSection } from "./sections/agent/agent-section";
+import { createBasePaceSection } from "./sections/base-pace/base-pace-section";
 import type { CardIoPorts } from "./sections/card/card-io";
 import { createCardSection } from "./sections/card/card-section";
 import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
@@ -242,6 +244,8 @@ interface QuickControlsOptions {
   fillerSettings: FillerSettingsStore;
   /** Per-character active hours store. With it, the Persona page renders the Active hours editor. */
   activeHoursSettings?: ActiveHoursSettingsStore;
+  /** Device-wide base pace store. With it, the Proactive page renders How often she speaks up. */
+  basePaceSettings?: BasePaceSettingsStore;
   /** Reading dictionary store. */
   readingsSettings: ReadingsSettingsStore;
   /** TTS speech output on/off store. */
@@ -256,11 +260,11 @@ interface QuickControlsOptions {
   fallSettings?: FlagSettingsStore;
   /** Agent notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
-  /** Thread turns level store. With agentNotifySettings, renders the Thread turns row in Watchers. */
+  /** Thread turns level store. With agentNotifySettings, renders the Thread turns row under Threads. */
   threadTurnsSettings?: ThreadTurnsSettingsStore;
   /** Thread reactions on/off store. If absent, that toggle row won't render. */
   threadReactionsSettings?: FlagSettingsStore;
-  /** Reaction thresholds store. With threadReactionsSettings, renders the Reaction thresholds rows in Watchers. */
+  /** Reaction thresholds store. With threadReactionsSettings, renders the Reaction thresholds rows under Threads. */
   threadReactionThresholdsSettings?: ThreadReactionThresholdsSettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;
@@ -273,7 +277,7 @@ interface QuickControlsOptions {
   /** Guardrail rate-limit overrides. If absent, the cap rows in Reactions tab won't render. */
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps shown when a field carries no override (undefined if not loaded). */
-  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
+  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
   /** Screen-watch on/off store. If absent, the screen-watch section won't render. */
   screenSettings?: FlagSettingsStore;
   /** Screen-watch threshold overrides. If absent, the knob group won't be editable. */
@@ -398,6 +402,7 @@ export function createQuickControls({
   signalHistory,
   fillerSettings,
   activeHoursSettings,
+  basePaceSettings,
   readingsSettings,
   ttsSettings,
   oneVoiceSettings,
@@ -478,6 +483,7 @@ export function createQuickControls({
     switchRows: TOGGLE_SPECS,
     showVoiceInput,
     openOnQuickStart,
+    showBasePace: !!basePaceSettings,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showThreadTurns: !!threadTurnsSettings && !!agentNotifySettings,
     showReactionThresholds: !!threadReactionThresholdsSettings && !!threadReactionsSettings,
@@ -668,7 +674,7 @@ export function createQuickControls({
   // ── Switch rows (click binding · store following while open) ──
   const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, shell.isOpen);
 
-  // ── Screen section (screen-watch threshold knobs · min-gap slider) ──
+  // ── Screen section (screen-watch threshold knobs) ──
   const screen = createScreenSection({
     root: el,
     screenSettings,
@@ -827,6 +833,14 @@ export function createQuickControls({
   });
 
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
+  const basePace = basePaceSettings
+    ? createBasePaceSection({
+        root: el,
+        basePaceSettings,
+        isOpen: shell.isOpen,
+        openPersona: () => tabRail.select("persona"),
+      })
+    : undefined;
   const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(opts?: { tab?: SettingsPage }): void {
@@ -844,7 +858,7 @@ export function createQuickControls({
     return tabRail.selected() as SettingsPage;
   }
 
-  // Cue-list components — both on the Proactive page: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
+  // Cue-list components — both on the Proactive page, each filling its source group.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
   const cueLists = mountCueLists({
@@ -862,6 +876,7 @@ export function createQuickControls({
     screenshot,
     pluginsPage,
     switchRows,
+    basePace,
     reactions,
     screen,
     voiceInput,

@@ -311,6 +311,7 @@ describe("createQuickControls — reactions section", () => {
     urgent_max: 120,
     overall_max: 40,
     addressed_chain_max: 2,
+    cooldown_ms: 600_000,
   };
 
   function buildRateQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
@@ -338,6 +339,19 @@ describe("createQuickControls — reactions section", () => {
     qc.open();
     expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-tier2")!.value).toBe("24");
     expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-overall")!.value).toBe("40");
+    qc.dispose();
+  });
+
+  it("names the configured cooldown in the total and urgent rows", () => {
+    const { qc } = buildRateQc();
+    qc.open();
+    const sub = (id: string) =>
+      qc.el.querySelector(id)!.closest(".yui-row")!.querySelector(".yui-input-row__sub")!
+        .textContent;
+    expect([sub("#yui-rate-overall"), sub("#yui-rate-urgent")]).toEqual([
+      "Crossing it pauses every source for 10 minutes",
+      "Signals marked urgent; the 10-minute pause after the total limit never holds them",
+    ]);
     qc.dispose();
   });
 
@@ -445,9 +459,8 @@ describe("createQuickControls — reactions section", () => {
     qc.dispose();
   });
 
-  it("sets the Reaction thresholds count from its segment, dimmed with a reason while Thread reactions is off", () => {
-    setLocale("ko");
-    const threadReactionsSettings = createFlagSettings(true);
+  it("sets the Reaction thresholds count from its segment, also while Thread reactions is off", () => {
+    const threadReactionsSettings = createFlagSettings(false);
     const threadReactionThresholdsSettings = createThreadReactionThresholdsSettings();
     const qc = buildQc({ threadReactionsSettings, threadReactionThresholdsSettings });
     const countCells = [
@@ -455,21 +468,18 @@ describe("createQuickControls — reactions section", () => {
         ".yui-reaction-thresholds-count-seg [data-count]",
       ),
     ];
-    const reason = qc.el.querySelector<HTMLElement>(".yui-reaction-thresholds-reason")!;
     qc.open();
     expect(countCells.map((c) => c.dataset.count)).toEqual(["0", "2", "3", "5"]);
 
-    threadReactionsSettings.setEnabled(false);
-    expect(countCells.map((c) => c.disabled)).toEqual([true, true, true, true]);
-    expect(reason.hidden).toBe(false);
-    expect(reason.textContent).toBe("스레드 반응을 켜야 쓸 수 있어요.");
-
-    threadReactionsSettings.setEnabled(true);
-    expect(countCells.map((c) => c.disabled)).toEqual([false, false, false, false]);
-    expect(reason.hidden).toBe(true);
-
     countCells[3].click();
+
     expect(threadReactionThresholdsSettings.get()).toEqual({ count: 5, wait_min: 10 });
+    expect(countCells.map((c) => c.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
     qc.dispose();
   });
 

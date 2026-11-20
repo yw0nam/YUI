@@ -54,8 +54,6 @@ export function wireDispatcherSources(deps: {
   agentNotifySettings: { get(): AgentNotifySettings };
   screenSettings: { get(): { enabled: boolean } };
   getScreenConfig: () => ScreenConfig;
-  /** Dispatcher in-flight busy edges — anchors the screen source's quiet-after-turn window. */
-  subscribeBusy: (cb: (busy: boolean) => void) => () => void;
   pipelineBusy: PacedPipelineBusy;
   /** This pet window's proactive gap — a hold reads as a skip to the screen source, as busy to the inboxes, and holds the schedule cues. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
@@ -92,7 +90,6 @@ export function wireDispatcherSources(deps: {
     agentNotifySettings,
     screenSettings,
     getScreenConfig,
-    subscribeBusy,
     pipelineBusy,
     pacer,
     dnd,
@@ -151,7 +148,6 @@ export function wireDispatcherSources(deps: {
     getConfig: getScreenConfig,
     isEnabled: () => screenSettings.get().enabled,
     noteInteraction: proactiveSource.noteInteraction,
-    subscribeBusy,
     isPacerHolding: pacer.isHolding,
     appendSkipRecord: (record) => appendRecord(record),
   });

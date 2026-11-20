@@ -31,7 +31,7 @@ keep for every duplicate hook.
 
 ## 2. Probe YUI
 
-Turn on **Settings → Proactive → Watchers → External signals** in YUI, then restart YUI.
+Turn on **Settings → Proactive → What she reacts to → External signals** in YUI, then restart YUI.
 Ask where YUI runs. For an agent over SSH, follow `references/remote.md` first.
 Use `http://127.0.0.1:<port>` with no path, default `http://127.0.0.1:8770`.
 

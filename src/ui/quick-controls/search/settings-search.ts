@@ -5,13 +5,16 @@
  * item shows its page's match count, a page with none dims, and matching rows carry `.is-match`.
  * A page's hidden view (`[data-search-view]`) is searched too; when only such a view holds matches,
  * the first one gets a bubbling `yui-search-reveal` event so the page brings its view forward.
+ * A disclosure's summary is a row of its title. Rows inside a folded `<details>` count; the query
+ * opens each fold that holds a match, and the next query or clearing it folds again what it opened,
+ * except a fold that holds focus.
  * Escape on a set query or an empty field restores everything.
  */
 
 import "./settings-search.css";
 import { t } from "../../i18n";
 
-const ROWS = ".yui-row, .yui-stack, .yui-gain, .yui-sec__head";
+const ROWS = ".yui-row, .yui-stack, .yui-gain, .yui-sec__head, summary";
 const TEXTS =
   ".yui-row__label, .yui-input-row__label, .yui-gain__label, .yui-row__sub, .yui-input-row__sub, .yui-gain__sub, .yui-sec__title, .yui-sec__head .yui-link-btn";
 
@@ -33,9 +36,15 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
     return !hidden || hidden === panel;
   };
   const inHiddenView = (el: Element): boolean => el.closest("[data-search-view][hidden]") !== null;
+  // Folds the query opened, closed again on the next query.
+  const opened = new Set<HTMLDetailsElement>();
 
   // Read at query time, so lists that render after the panel opens are found too.
   function rowText(row: Element, panel: Element): string {
+    if (row.matches("summary")) {
+      const title = row.querySelector(".yui-fold__title") ?? row;
+      return shown(title, panel) ? (title.textContent ?? "").toLocaleLowerCase() : "";
+    }
     const note = row.matches(".yui-sec__head") ? row.nextElementSibling : null;
     const parts = [
       ...[...row.querySelectorAll(TEXTS)]
@@ -51,6 +60,8 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
 
   function apply(): void {
     for (const row of root.querySelectorAll(".is-match")) row.classList.remove("is-match");
+    for (const fold of opened) if (!fold.contains(document.activeElement)) fold.open = false;
+    opened.clear();
     const terms = input.value.toLocaleLowerCase().split(/\s+/).filter(Boolean);
     for (const tab of tabs) {
       const badge = tab.querySelector<HTMLElement>(".yui-tab__count")!;
@@ -64,7 +75,18 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
         const text = rowText(row, panel);
         return text !== "" && terms.every((term) => text.includes(term));
       });
-      for (const row of matches) row.classList.add("is-match");
+      for (const row of matches) {
+        row.classList.add("is-match");
+        for (
+          let fold = row.closest("details");
+          fold;
+          fold = fold.parentElement?.closest("details") ?? null
+        ) {
+          if (fold.open) continue;
+          fold.open = true;
+          opened.add(fold);
+        }
+      }
       if (matches.length > 0 && matches.every(inHiddenView)) {
         matches[0]!.dispatchEvent(new CustomEvent("yui-search-reveal", { bubbles: true }));
       }
