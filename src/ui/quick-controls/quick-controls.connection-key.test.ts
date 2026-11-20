@@ -182,4 +182,30 @@ describe("createQuickControls — the stored key check", () => {
 
     qc.dispose();
   });
+
+  it("the window coming back to the front checks the stored key only while Quick start shows", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const args = defaultQcArgs(mount);
+    args.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    args.chatKeySettings.setApiKey("AIza-old");
+    const fetchMock = vi.fn(async () => models());
+    const qc = createQuickControls({ ...args, getFetch: async () => fetchMock });
+    qc.open({ page: "conn" });
+
+    qc.windowFocused();
+    await settle();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    qc.el.querySelector<HTMLButtonElement>('.yui-seg__btn[data-view="quick"]')!.click();
+    await settle();
+    vi.setSystemTime(Date.now() + 61_000);
+    qc.windowFocused();
+    await settle();
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+    qc.dispose();
+  });
 });

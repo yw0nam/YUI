@@ -17,6 +17,7 @@ function setup(initial: "quick" | "detail" = "quick") {
   document.body.append(panel);
   const onQuickShown = vi.fn();
   const onDetailEntered = vi.fn();
+  const onQuickEntered = vi.fn();
   const views = createConnectionViews({
     panel,
     quick,
@@ -24,7 +25,7 @@ function setup(initial: "quick" | "detail" = "quick") {
     initial,
     onQuickShown,
     onDetailEntered,
-    onQuickEntered: vi.fn(),
+    onQuickEntered,
     holdsKey: () => false,
     focusQuickKey: vi.fn(),
     focusDetailKey: vi.fn(),
@@ -34,7 +35,18 @@ function setup(initial: "quick" | "detail" = "quick") {
   const cell = (view: string) =>
     panel.querySelector<HTMLButtonElement>(`.yui-seg__btn[data-view="${view}"]`)!;
   const scope = () => panel.querySelector<HTMLElement>(".yui-tabpanel__scope")!;
-  return { panel, quick, detail, views, onQuickShown, onDetailEntered, wrapper, cell, scope };
+  return {
+    panel,
+    quick,
+    detail,
+    views,
+    onQuickShown,
+    onDetailEntered,
+    onQuickEntered,
+    wrapper,
+    cell,
+    scope,
+  };
 }
 
 describe("createConnectionViews", () => {
@@ -79,6 +91,14 @@ describe("createConnectionViews", () => {
     s.views.entered();
 
     expect(s.onDetailEntered).toHaveBeenCalledTimes(1);
+  });
+
+  it("entering the Connection page while Quick start shows enters it", () => {
+    const s = setup("quick");
+
+    s.views.entered();
+
+    expect(s.onQuickEntered).toHaveBeenCalledOnce();
   });
 
   it("clicking Quick start goes back and re-reads its state", () => {
