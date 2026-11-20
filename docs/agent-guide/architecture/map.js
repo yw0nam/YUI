@@ -3052,6 +3052,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
+      "id": "drop-restore-schedule",
+      "from": "dispatcher",
+      "to": "dispatcher/sources/idle-tick",
+      "carries": "onTurnDropped(env, reason) → restore (a fire held by the gap or do-not-disturb)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
       "id": "bus-drop-restore",
       "from": "dispatcher/core",
       "to": "dispatcher/sources/inbox",
