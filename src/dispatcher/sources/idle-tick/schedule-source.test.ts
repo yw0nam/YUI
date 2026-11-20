@@ -350,7 +350,7 @@ describe("schedule_source — once-per-day latch", () => {
     expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late", "schedule.morning"]);
   });
 
-  it("restore keeps a mark whose day is not the envelope's, and clears it for do-not-disturb", async () => {
+  it("restore keeps a mark whose day is not the envelope's", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     const src = createScheduleSource({
@@ -367,6 +367,23 @@ describe("schedule_source — once-per-day latch", () => {
     expect(pushed).toHaveLength(1);
 
     dropRestore(src, { ...pushed[0]!, ts: at(2026, 5, 14, 9, 30) }, "global_gap");
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+  });
+
+  it("restore clears a do-not-disturb drop's mark", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue()],
+      isEnabled: () => true,
+      listen,
+      now: () => at(2026, 5, 15, 9, 30),
+    });
+    await src.start();
     emit(idleTick(500));
     expect(pushed).toHaveLength(1);
 

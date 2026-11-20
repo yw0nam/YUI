@@ -86,7 +86,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     const dayKey = dayKeyOf(env.ts);
     if (fired[cueId] !== dayKey) return;
     delete fired[cueId];
-    saveFired(dayKey);
+    saveFired(dayKeyOf(now()));
   }
 
   function onTick(payload: OsEventPayload): void {

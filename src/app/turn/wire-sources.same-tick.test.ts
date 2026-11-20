@@ -64,7 +64,7 @@ vi.mock("../../io/window/tauri-listen", async (importOriginal) => {
   };
 });
 
-// The day's first-activity milestone would put its own candidate on the same tick; this test is about the two cues.
+// The milestone source would put a third candidate on this tick; this test is about the two cues.
 vi.mock("../../dispatcher/sources/idle-tick/milestone-source", () => ({
   createMilestoneSource: vi.fn(() => ({ start: async () => {}, stop: () => {} })),
 }));
@@ -222,7 +222,7 @@ it("a greeting due on the same tick as the idle check-in still fires once the ga
   expect(startOrder).toEqual(["proactive.check_in"]);
   expect(drops).toContainEqual({ event_name: "schedule.morning", reason: "global_gap" });
 
-  // The check-in's turn ends; the drop cleared the greeting's mark, so a later tick can fire it.
+  // The check-in ends; the drop cleared the greeting's mark for a later tick.
   completeTurn();
   await vi.advanceTimersByTimeAsync(0);
 
