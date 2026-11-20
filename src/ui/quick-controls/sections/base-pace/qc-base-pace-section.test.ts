@@ -38,6 +38,15 @@ it("shows Normal selected and writes the high pace when More is clicked", () => 
   qc.dispose();
 });
 
+it("says what the base pace scales, for whom, and by how much", () => {
+  const { qc } = build();
+
+  expect(qc.el.querySelector("#yui-panel-react .yui-sec__foot")?.textContent).toBe(
+    "For every character, all day, it scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins; scheduled greetings keep their times. More is about 2× as often, Less about 1/3 as often.",
+  );
+  qc.dispose();
+});
+
 it("opens the Persona page from the Active hours link", () => {
   const { qc } = build();
   const link = [...qc.el.querySelectorAll<HTMLButtonElement>("#yui-panel-react button")].find(
