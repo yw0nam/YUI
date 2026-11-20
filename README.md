@@ -54,7 +54,7 @@ Her brain picks an expression, a gesture, and a tone of voice for each reply, so
 
 ### She speaks first, with restraint
 
-<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings page: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, and scheduled greetings at 09:00, 12:00, 18:00, and 23:00" width="400">
+<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings page: How often she speaks up (Less, Normal, More) over What she reacts to, one switch per source: Quiet for a while, Scheduled greetings, Screen changes, Thread reactions, and External signals" width="400">
 
 She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 

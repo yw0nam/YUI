@@ -247,7 +247,7 @@ A counted Thread is one the chip counts: waiting, and its open ask is not the se
 
 The thresholds are the device-wide setting `yui.thread-reaction-thresholds`, two rows under the switch in that group's fold. N is Off, 2, 3 or 5, default 3. T is Off, 5, 10 or 30 minutes, default 10. With both Off the chip tap is the only cause.
 
-While the switch is off the rows dim, and their cells are disabled with a reason line.
+While the switch is off the rows dim and stay editable: the fold's summary reads Off, and a line at the top of the fold says the rows apply once the switch is on.
 
 The first snapshot after launch is the baseline: it starts no count. A Thread already waiting at launch reaches its wait T minutes after launch if it still waits.
 
