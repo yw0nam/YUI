@@ -14,7 +14,7 @@ export interface KeyState {
 
 export const INITIAL_KEY_STATE: KeyState = { replacing: false, verdict: null, replaced: false };
 
-/** Replace key or a focus request opens the paste row. */
+/** Change key or a focus request opens the paste row. */
 export function openKey(state: KeyState): KeyState {
   return { ...state, replacing: true };
 }

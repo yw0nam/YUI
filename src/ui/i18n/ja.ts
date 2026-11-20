@@ -749,7 +749,6 @@ const ja: Record<string, string> = {
   "start.done": "接続しました。話しかけてみてください。",
   "start.key_label": "キー",
   "start.key_sub": "いつでも新しいキーに替えられます。",
-  "start.replace_key": "キーを替える",
   "start.key_rejected":
     "Google がこのキーを受け付けなくなりました。会話を続けるには新しいキーを貼り付けてください。",
   "start.key_replaced": "キーを替えました",
