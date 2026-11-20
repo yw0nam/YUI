@@ -186,7 +186,7 @@ describe("createQuickControls — push mode", () => {
   it("the reason's link opens Connection and focuses the chat protocol select, keeping push", () => {
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildQc();
-    qc.open({ tab: "persona" });
+    qc.open({ page: "persona" });
 
     qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!.click();
 

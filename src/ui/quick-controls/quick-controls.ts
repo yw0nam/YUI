@@ -63,7 +63,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
-import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
+import type { PageRequest, SettingsPage } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -334,8 +334,8 @@ interface PanelSection {
 
 interface QuickControls {
   el: HTMLElement;
-  /** Shows the panel. `tab` lands on that tab instead of the one last left selected; `focus` focuses that field on it. */
-  open(opts?: { tab?: SettingsPage; focus?: SettingsFocus }): void;
+  /** Shows the panel. The request's page lands instead of the one last left selected, and its focus focuses that field there. */
+  open(request?: PageRequest): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
   dispose(): void;
@@ -833,8 +833,8 @@ export function createQuickControls({
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(opts?: { tab?: SettingsPage; focus?: SettingsFocus }): void {
-    const tab = opts?.tab;
+  function openPanel(request?: PageRequest): void {
+    const tab = request?.page;
     if (tab && tabRail.select(tab)) {
       shell.open();
       // open() lands focus on the first control; move it to the tab the caller asked for.
@@ -842,7 +842,7 @@ export function createQuickControls({
     } else {
       shell.open();
     }
-    if (opts?.focus === "chat_key") connectionViews.focusKey();
+    if (request?.focus === "chat_key") connectionViews.focusKey();
   }
 
   function selectedTab(): SettingsPage {

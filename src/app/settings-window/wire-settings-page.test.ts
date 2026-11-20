@@ -37,7 +37,7 @@ it("selects the requested page for the character the window edits", () => {
 
   remote({ preset: "a", page: "hist" });
 
-  expect(select).toHaveBeenCalledExactlyOnceWith("hist");
+  expect(select).toHaveBeenCalledExactlyOnceWith({ page: "hist" });
   expect(retarget).not.toHaveBeenCalled();
 });
 
@@ -45,28 +45,28 @@ it("selects the requested page with the key focus for the character the window e
   const { select, wired, remote } = setup({ boundId: "a", editing: "a" });
   wired.attach(select);
 
-  remote({ preset: "a", page: "conn", focus: "chat_key" } as Request);
+  remote({ preset: "a", page: "conn", focus: "chat_key" });
 
-  expect(select).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
+  expect(select).toHaveBeenCalledExactlyOnceWith({ page: "conn", focus: "chat_key" });
 });
 
 it("switches back to the opener's character, carrying the page and the key focus", () => {
   const { select, retarget, wired, remote } = setup({ boundId: "a", editing: "b" });
   wired.attach(select);
 
-  remote({ preset: "a", page: "conn", focus: "chat_key" } as Request);
+  remote({ preset: "a", page: "conn", focus: "chat_key" });
 
-  expect(retarget).toHaveBeenCalledExactlyOnceWith("a", "conn", "chat_key");
+  expect(retarget).toHaveBeenCalledExactlyOnceWith("a", { page: "conn", focus: "chat_key" });
   expect(select).not.toHaveBeenCalled();
 });
 
 it("keeps the key focus asked for before the panel exists and selects it on attach", () => {
   const { select, wired, remote } = setup({ boundId: "a", editing: "a" });
 
-  remote({ preset: "a", page: "conn", focus: "chat_key" } as Request);
+  remote({ preset: "a", page: "conn", focus: "chat_key" });
   wired.attach(select);
 
-  expect(select).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
+  expect(select).toHaveBeenCalledExactlyOnceWith({ page: "conn", focus: "chat_key" });
 });
 
 it("does nothing for a request without a page when it already edits that character", () => {
@@ -85,7 +85,7 @@ it("switches back to the opener's character, carrying the page", () => {
 
   remote({ preset: "a", page: "conn" });
 
-  expect(retarget).toHaveBeenCalledExactlyOnceWith("a", "conn");
+  expect(retarget).toHaveBeenCalledExactlyOnceWith("a", { page: "conn" });
   expect(select).not.toHaveBeenCalled();
 });
 
@@ -122,7 +122,7 @@ it("keeps the latest page asked for before the panel exists and selects it on at
   expect(select).not.toHaveBeenCalled();
   wired.attach(select);
 
-  expect(select).toHaveBeenCalledExactlyOnceWith("hist");
+  expect(select).toHaveBeenCalledExactlyOnceWith({ page: "hist" });
 });
 
 it("stops listening on dispose", () => {

@@ -588,7 +588,7 @@ describe("createSettingsBridge", () => {
     const cb = vi.fn();
     settings.onSettingsPage(cb);
 
-    pet.emitSettingsPage({ preset: "a", page: "conn", focus: "chat_key" } as never);
+    pet.emitSettingsPage({ preset: "a", page: "conn", focus: "chat_key" });
 
     expect(cb).toHaveBeenCalledExactlyOnceWith({ preset: "a", page: "conn", focus: "chat_key" });
   });

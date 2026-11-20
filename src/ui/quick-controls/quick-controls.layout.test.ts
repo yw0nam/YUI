@@ -222,7 +222,7 @@ describe("createQuickControls — settings layout", () => {
     const endpointsSettings = createEndpointsSettings();
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildFullQc({ endpointsSettings, unifiedChatSwitch: createFlagSettings(false) });
-    qc.open({ tab: "together" });
+    qc.open({ page: "together" });
 
     const row = panel(qc, "together").querySelector(".yui-unified-switch");
     expect(row?.closest("[hidden]")).toBeNull();

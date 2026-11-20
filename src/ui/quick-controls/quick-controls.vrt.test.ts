@@ -14,7 +14,7 @@ beforeEach(() => {
 
 it.each(["dawn", "hearth"] as const)("paints the General settings page in %s", async (theme) => {
   const qc = createQuickControls(defaultQcArgs(document.querySelector<HTMLElement>("#app")!));
-  qc.open({ tab: "general" });
+  qc.open({ page: "general" });
   await page.viewport(760, 680);
   await document.fonts.ready;
   document.documentElement.dataset.theme = theme;

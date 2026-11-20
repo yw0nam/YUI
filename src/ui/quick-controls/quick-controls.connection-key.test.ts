@@ -70,9 +70,9 @@ describe("createQuickControls — the chat key focus", () => {
     ],
   ] as const)("with %s, the request shows the view holding the key and focuses its field", async (_, opts, shown, fieldId) => {
     const { qc, view } = build(opts);
-    qc.open({ tab: "persona" });
+    qc.open({ page: "persona" });
 
-    qc.open({ tab: "conn", focus: "chat_key" } as never);
+    qc.open({ page: "conn", focus: "chat_key" });
     await settle();
 
     expect(view(shown).hidden).toBe(false);
@@ -116,7 +116,7 @@ describe("createQuickControls — the stored key check", () => {
     args.chatKeySettings.setApiKey("AIza-old");
     const fetchMock = vi.fn(fetchImpl);
     const qc = createQuickControls({ ...args, getFetch: async () => fetchMock });
-    qc.open({ tab: "conn" });
+    qc.open({ page: "conn" });
     qc.el.querySelector<HTMLButtonElement>('.yui-seg__btn[data-view="quick"]')!.click();
     await settle();
     await settle();
@@ -172,7 +172,7 @@ describe("createQuickControls — the stored key check", () => {
         .filter((el) => !el.closest("[hidden]"))
         .map((el) => el.textContent);
 
-    qc.open({ tab: "conn", focus: "chat_key" });
+    qc.open({ page: "conn", focus: "chat_key" });
     expect(document.activeElement?.id).toBe("yui-start-key");
     await settle();
     await settle();
