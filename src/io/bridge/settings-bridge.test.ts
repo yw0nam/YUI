@@ -581,9 +581,22 @@ describe("createSettingsBridge", () => {
     expect(cb.mock.calls).toEqual([[{ preset: "a", page: "hist" }], [{ preset: null }]]);
   });
 
+  it("carries the key field a settings page request asks to focus", () => {
+    const t = createFakeTransport();
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const cb = vi.fn();
+    settings.onSettingsPage(cb);
+
+    pet.emitSettingsPage({ preset: "a", page: "conn", focus: "chat_key" } as never);
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ preset: "a", page: "conn", focus: "chat_key" });
+  });
+
   it.each([
     [{ preset: 3, page: "conn" }],
     [{ preset: "a", page: "nope" }],
+    [{ preset: "a", page: "conn", focus: "nope" }],
     [{ page: "conn" }],
     ["conn"],
   ])("ignores a malformed settings page request %j", (payload) => {

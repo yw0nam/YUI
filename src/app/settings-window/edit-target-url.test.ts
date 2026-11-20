@@ -25,3 +25,9 @@ it("editTargetUrl carries the requested page", () => {
     "http://localhost/settings.html?page=hist&edit=b",
   );
 });
+
+it("editTargetUrl carries the requested key focus", () => {
+  expect(
+    editTargetUrl("http://localhost/settings.html?page=conn", "b", "a", "conn", "chat_key"),
+  ).toBe("http://localhost/settings.html?page=conn&edit=b&focus=chat_key");
+});
