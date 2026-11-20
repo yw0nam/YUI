@@ -717,7 +717,6 @@ const ko: Record<string, string> = {
   "threadReactionThresholds.count_value": "{n}개",
   "threadReactionThresholds.count_summary": "{n}개 대기",
   "threadReactionThresholds.wait_value": "{n}분",
-  "threadReactionThresholds.disabled_reason": "스레드 반응을 켜야 쓸 수 있어요.",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",

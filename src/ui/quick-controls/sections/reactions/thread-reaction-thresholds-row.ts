@@ -1,6 +1,5 @@
-/** The Reaction thresholds rows: waiting count and wait segments dimmed while the Thread reactions switch is off. */
+/** The Reaction thresholds rows: the waiting count and wait segments in the Threads fold. */
 
-import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import {
   REACTION_COUNTS,
   REACTION_WAITS,
@@ -36,7 +35,6 @@ export function threadReactionThresholdsRowHtml(): string {
             <div class="yui-row__main">
               <span class="yui-row__label">${t("threadReactionThresholds.count_label")}</span>
               <span class="yui-row__sub">${t("threadReactionThresholds.count_sub")}</span>
-              <span class="yui-row__sub yui-reaction-thresholds-reason" hidden>${t("threadReactionThresholds.disabled_reason")}</span>
             </div>
             <div class="yui-seg yui-reaction-thresholds-count-seg" role="radiogroup" aria-label="${t("threadReactionThresholds.count_label")}">${countCells}</div>
           </div>
@@ -50,19 +48,17 @@ export function threadReactionThresholdsRowHtml(): string {
 }
 
 /**
- * Binds both Reaction thresholds segments to their store and writes them into the Threads fold's summary;
- * the cells and the reason follow the Thread reactions switch.
+ * Binds both Reaction thresholds segments to their store and writes them into the Threads fold's summary.
+ * They stay editable while Thread reactions is off; the fold only dims.
  */
 export function createThreadReactionThresholdsRow(deps: {
   root: HTMLElement;
   settings: ThreadReactionThresholdsSettingsStore;
-  threadReactionsSettings: FlagSettingsStore;
   isOpen: () => boolean;
 }) {
-  const { root, settings, threadReactionsSettings, isOpen } = deps;
+  const { root, settings, isOpen } = deps;
   const countSegment = root.querySelector<HTMLElement>(".yui-reaction-thresholds-count-seg")!;
   const waitSegment = root.querySelector<HTMLElement>(".yui-reaction-thresholds-wait-seg")!;
-  const reason = root.querySelector<HTMLElement>(".yui-reaction-thresholds-reason")!;
   const aside = countSegment.closest(".yui-fold")?.querySelector(".yui-fold__aside");
   // "3 waiting · 10 min"; a threshold set to Off drops out of the line.
   const reflectAside = (): void => {
@@ -90,16 +86,6 @@ export function createThreadReactionThresholdsRow(deps: {
     subscribe: settings.subscribe,
     isOpen,
   });
-  const reflectEnabled = (): void => {
-    const enabled = threadReactionsSettings.get().enabled;
-    for (const segment of [countSegment, waitSegment])
-      for (const button of segment.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
-        button.disabled = !enabled;
-    reason.hidden = enabled;
-  };
-  const unsubscribe = threadReactionsSettings.subscribe(() => {
-    if (isOpen()) reflectEnabled();
-  });
   const unsubscribeAside = settings.subscribe(() => {
     if (isOpen()) reflectAside();
   });
@@ -107,11 +93,9 @@ export function createThreadReactionThresholdsRow(deps: {
     reflect(): void {
       countStore.reflect();
       waitStore.reflect();
-      reflectEnabled();
       reflectAside();
     },
     dispose(): void {
-      unsubscribe();
       unsubscribeAside();
       countStore.dispose();
       waitStore.dispose();

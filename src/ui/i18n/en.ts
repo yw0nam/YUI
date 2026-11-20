@@ -724,7 +724,6 @@ const en: Record<string, string> = {
   "threadReactionThresholds.count_value": "{n}",
   "threadReactionThresholds.count_summary": "{n} waiting",
   "threadReactionThresholds.wait_value": "{n} min",
-  "threadReactionThresholds.disabled_reason": "Turn on Thread reactions to use this.",
 
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",

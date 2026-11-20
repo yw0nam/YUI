@@ -299,8 +299,7 @@
 }
 
 /* The row sub-line's display would otherwise beat the hidden attribute. */
-.yui-threadturns-reason[hidden],
-.yui-reaction-thresholds-reason[hidden] {
+.yui-threadturns-reason[hidden] {
   display: none;
 }
 

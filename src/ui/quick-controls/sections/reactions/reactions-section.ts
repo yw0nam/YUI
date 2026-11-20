@@ -121,7 +121,6 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
       ? createThreadReactionThresholdsRow({
           root: el,
           settings: threadReactionThresholdsSettings,
-          threadReactionsSettings,
           isOpen,
         })
       : undefined;

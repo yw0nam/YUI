@@ -726,7 +726,6 @@ const ja: Record<string, string> = {
   "threadReactionThresholds.count_value": "{n}件",
   "threadReactionThresholds.count_summary": "{n}件待ち",
   "threadReactionThresholds.wait_value": "{n}分",
-  "threadReactionThresholds.disabled_reason": "スレッドリアクションをオンにすると使えます。",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
