@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
@@ -30,6 +31,7 @@ async function open(chatUrl: () => string): Promise<void> {
         open: vi.fn(),
         dispose: vi.fn(),
         selectedTab: () => "conn",
+        windowFocused: vi.fn(),
       }) as never,
   );
   wireWindowSettings.mockResolvedValue({
@@ -74,6 +76,40 @@ describe("wireSettingsWindow", () => {
       true,
       true,
     ]);
+  });
+
+  it("opens the panel on the page and key focus the window's URL asks for", async () => {
+    history.replaceState(null, "", "/settings.html?page=conn&focus=chat_key");
+    await open(() => "http://localhost:8643/v1");
+
+    const panel = createQuickControls.mock.results.at(-1)!.value;
+    expect(panel.open).toHaveBeenCalledExactlyOnceWith({ page: "conn", focus: "chat_key" });
+  });
+
+  it("opens an open window's panel on the page and key focus a pet window asks for", async () => {
+    history.replaceState(null, "", "/settings.html");
+    await open(() => "http://localhost:8643/v1");
+    const panel = createQuickControls.mock.results.at(-1)!.value;
+    panel.open.mockClear();
+
+    await createSettingsBridge(undefined, { windowKind: "pet" }).emitSettingsPage({
+      preset: null,
+      page: "conn",
+      focus: "chat_key",
+    });
+
+    await vi.waitFor(() =>
+      expect(panel.open).toHaveBeenCalledExactlyOnceWith({ page: "conn", focus: "chat_key" }),
+    );
+  });
+
+  it("tells the panel when the window comes back to the front", async () => {
+    await open(() => "http://localhost:8643/v1");
+    const panel = createQuickControls.mock.results.at(-1)!.value;
+
+    window.dispatchEvent(new Event("focus"));
+
+    expect(panel.windowFocused).toHaveBeenCalledOnce();
   });
 
   it("offers no quick start while chat is configured at window open", async () => {

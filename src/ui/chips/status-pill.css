@@ -120,8 +120,8 @@
   color: var(--yui-text-mute);
 }
 
-/* A server message widens the pill to the window's width less its gutters; what still does not fit
-   ends in an ellipsis. */
+/* A server message or a notice widens the pill to the window's width less its gutters; what still
+   does not fit ends in an ellipsis. */
 .yui-status[data-message] {
   width: max-content;
   max-width: calc(100% - 1.5rem);
@@ -185,19 +185,23 @@
   }
 }
 
-/* not_configured voice error — the pill is the fix. Same inline-link treatment as
-   .yui-input__error-action, so "clickable" reads the same on both error surfaces. */
-.yui-status[data-fix="settings"] {
-  pointer-events: auto;
-  cursor: pointer;
+/* A failed turn's notice carries one action beside its condition text: the same inline-link
+   treatment as .yui-input__error-action, so "clickable" reads the same on both error surfaces. */
+.yui-status__turn {
+  display: inline-flex;
+  color: var(--yui-danger);
 }
 
-.yui-status[data-fix="settings"] .yui-status__voice {
-  cursor: pointer;
-}
-
-.yui-status[data-fix="settings"] .yui-status__label {
+.yui-status__action {
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
   color: var(--yui-text);
+  cursor: pointer;
+  pointer-events: auto;
   text-decoration: underline;
   text-decoration-color: var(--yui-accent-soft);
   text-underline-offset: 0.18em;
@@ -207,34 +211,33 @@
     text-decoration-color var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-status__fix-glyph {
-  display: none;
-  flex: none;
-  width: 0.72rem;
-  height: 0.72rem;
-  margin-left: -0.2rem;
-  color: var(--yui-text-mute);
-  transition: color var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-status[data-fix="settings"] .yui-status__fix-glyph {
-  display: block;
-}
-
-.yui-status[data-fix="settings"]:hover,
-.yui-status[data-fix="settings"]:has(:focus-visible) {
-  border-color: var(--yui-accent-soft);
-}
-
-.yui-status[data-fix="settings"]:hover .yui-status__label,
-.yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__label {
+.yui-status__action:hover,
+.yui-status__action:focus-visible {
   color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 
-.yui-status[data-fix="settings"]:hover .yui-status__fix-glyph,
-.yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__fix-glyph {
+.yui-status__action:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+.yui-status__action-glyph {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-left: 0.25rem;
+  vertical-align: -0.08em;
+  color: var(--yui-text-mute);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-status__action:hover .yui-status__action-glyph,
+.yui-status__action:focus-visible .yui-status__action-glyph {
   color: var(--yui-accent-ink);
+}
+
+.yui-status:has(.yui-status__action:hover) {
+  border-color: var(--yui-accent-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -250,8 +253,8 @@
 
   .yui-status__capture,
   .yui-status__voice,
-  .yui-status__fix-glyph,
-  .yui-status[data-fix="settings"] .yui-status__label {
+  .yui-status__action,
+  .yui-status__action-glyph {
     transition: none;
   }
 }

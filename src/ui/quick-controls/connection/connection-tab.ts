@@ -47,6 +47,8 @@ export interface ConnectionTab {
   commit(): void;
   /** Scroll the STT section into view and focus its URL field. */
   focusStt(): void;
+  /** Scroll the chat key field into view and focus it. */
+  focusChatKey(): void;
   /** The Connection tab was entered — the chat section evaluates its model list read. */
   entered(): void;
   /** The panel closed — drop work that only matters while it is open. */
@@ -244,6 +246,12 @@ export function createConnectionTab(deps: {
     epInputs.get("stt_base_url")?.focus({ preventScroll: true });
   }
 
+  function focusChatKey(): void {
+    const input = el.querySelector<HTMLInputElement>("#yui-chatkey-input");
+    input?.scrollIntoView?.({ block: "center" });
+    input?.focus({ preventScroll: true });
+  }
+
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (isOpen()) {
       reflectEndpoints();
@@ -257,6 +265,7 @@ export function createConnectionTab(deps: {
     refresh,
     commit,
     focusStt,
+    focusChatKey,
     entered: () => {
       chatSection.entered();
       sttLine?.run();

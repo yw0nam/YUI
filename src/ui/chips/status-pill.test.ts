@@ -13,6 +13,7 @@ import { createFlagSettings } from "../../settings/persisted-store";
 import { setLocale, t } from "../i18n";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createStatusPill } from "./status-pill";
+import type { TurnNotice } from "./turn-notice";
 import { createVoiceInputStatus } from "./voice-input-status";
 
 const pending = new Map<number, FrameRequestCallback>();
@@ -27,30 +28,52 @@ function opacityTransitionEnd(el: HTMLElement): void {
   el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
 }
 
+function fakeNotice() {
+  let current: TurnNotice | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    subscribe: (cb: () => void) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    set(next: TurnNotice | null) {
+      current = next;
+      for (const cb of listeners) cb();
+    },
+    clear() {
+      this.set(null);
+    },
+  };
+}
+
 function setup(
   opts: {
     capture?: boolean;
     withCaptureSetting?: boolean;
     withToggle?: boolean;
+    withMicSettings?: boolean;
     dnd?: ReturnType<typeof createFlagSettings>;
   } = {},
 ) {
   const dnd = opts.dnd;
+  const notice = fakeNotice();
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const settings = createScreenshotSettings();
   settings.setEnabled(opts.capture ?? false);
   const voice = createVoiceInputStatus();
   const onOpenSettings = vi.fn();
-  const onFixVoice = vi.fn();
   const onToggleVoice = vi.fn();
+  const onOpenMicSettings = vi.fn();
   const pill = createStatusPill({
     ...(opts.withCaptureSetting === false ? {} : { settings }),
     mount,
     voice,
     onOpenSettings,
-    onFixVoice,
+    notice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
+    ...(opts.withMicSettings ? { onOpenMicSettings } : {}),
     ...(dnd
       ? {
           dnd: {
@@ -68,8 +91,10 @@ function setup(
     voice,
     pill,
     onOpenSettings,
-    onFixVoice,
     onToggleVoice,
+    onOpenMicSettings,
+    notice,
+    action: () => mount.querySelector<HTMLButtonElement>(".yui-status__action"),
     root: () => q<HTMLElement>(".yui-status"),
     capture: () => q<HTMLButtonElement>(".yui-status__capture"),
     mic: () => q<HTMLButtonElement>(".yui-status__voice"),
@@ -153,7 +178,6 @@ describe("status pill — capture only", () => {
     const p = setup({ capture: true });
     p.capture().click();
     expect(p.onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(p.onFixVoice).not.toHaveBeenCalled();
   });
 
   it("takes OS clicks on the capture button only while capture is on, from the start of the fade", () => {
@@ -208,7 +232,7 @@ describe("status pill — voice", () => {
     expect(p.capture().getAttribute("aria-label")).toBe(t("capture.watching"));
   });
 
-  it("stays click-through outside the settings-fixable error", () => {
+  it("stays click-through while no notice offers an action", () => {
     const p = setup();
     for (const [state, detail] of [
       ["error", "network_drop"],
@@ -217,13 +241,11 @@ describe("status pill — voice", () => {
       ["fired", undefined],
     ] as const) {
       p.voice.set(state, detail);
-      expect(p.root().dataset.fix).toBeUndefined();
       expect(p.matchAny()).toBeNull();
     }
 
     p.root().click();
     p.mic().click();
-    expect(p.onFixVoice).not.toHaveBeenCalled();
     expect(p.onOpenSettings).not.toHaveBeenCalled();
     expect(p.voice.get()).toMatchObject({ state: "fired" });
   });
@@ -236,7 +258,6 @@ describe("status pill — voice error with the server's message", () => {
 
     expect(p.dot().dataset.voice).toBe("error");
     expect(p.label().textContent).toBe("rate limit reached");
-    expect(p.root().dataset.fix).toBeUndefined();
     expect(p.root().dataset.message).toBe("true");
   });
 
@@ -259,76 +280,6 @@ describe("status pill — voice error with the server's message", () => {
   });
 });
 
-describe("status pill — not_configured voice error", () => {
-  it("turns the label into the fix link with the gear glyph", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-
-    expect(p.root().dataset.fix).toBe("settings");
-    expect(p.dot().dataset.voice).toBe("error");
-    expect(p.label().textContent).toBe(t("voice.error.not_configured"));
-    expect(p.mount.querySelector(".yui-status__fix-glyph")?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
-    expect(p.mic().getAttribute("aria-label")).toBe(
-      t("aria.voice_input", { label: t("voice.error.not_configured_fix") }),
-    );
-  });
-
-  it("takes OS clicks on the whole pill", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    flushFrames();
-    expect(p.matchAny()).toBe(p.root());
-  });
-
-  it("drops the fix as soon as the pill starts leaving", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    flushFrames();
-
-    p.voice.set("idle");
-    expect(p.root().hidden).toBe(false);
-    expect(p.root().dataset.fix).toBeUndefined();
-    expect(p.mic().tabIndex).toBe(-1);
-    expect(p.matchAny()).toBeNull();
-
-    p.label().click();
-    expect(p.onFixVoice).not.toHaveBeenCalled();
-    expect(p.voice.get().state).toBe("idle");
-  });
-
-  it("calls onFixVoice from a pill click and leaves the status to it", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-
-    p.label().click();
-
-    expect(p.onFixVoice).toHaveBeenCalledTimes(1);
-    expect(p.onOpenSettings).not.toHaveBeenCalled();
-    expect(p.voice.get()).toMatchObject({ state: "error", detail: "not_configured" });
-  });
-
-  it("keeps the capture button on its own action while the fix shows", () => {
-    const p = setup({ capture: true });
-    p.voice.set("error", "not_configured");
-
-    p.capture().click();
-
-    expect(p.onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(p.onFixVoice).not.toHaveBeenCalled();
-  });
-
-  it("drops the fix when a transient error replaces it", () => {
-    const p = setup();
-    p.voice.set("error", "not_configured");
-    p.voice.set("error", "network_drop");
-
-    expect(p.root().dataset.fix).toBeUndefined();
-    expect(p.label().textContent).toBe(t("voice.state.error"));
-  });
-});
-
 describe("status pill — mic cause labels", () => {
   it.each([
     ["mic_denied", "Mic blocked"],
@@ -341,7 +292,6 @@ describe("status pill — mic cause labels", () => {
     expect(p.label().textContent).toBe(label);
     expect(p.mic().getAttribute("aria-label")).toBe(t("aria.voice_input", { label }));
     expect(p.dot().dataset.voice).toBe("error");
-    expect(p.root().dataset.fix).toBeUndefined();
   });
 
   it("localizes the cause", () => {
@@ -352,6 +302,38 @@ describe("status pill — mic cause labels", () => {
 
     expect(p.label().textContent).toBe(t("voice.error.mic_denied"));
     expect(p.label().textContent).not.toBe("Mic blocked");
+  });
+});
+
+describe("status pill — Open mic settings", () => {
+  it("offers the action beside Mic blocked and opens the pane without touching the mic", () => {
+    const p = setup({ withMicSettings: true });
+    p.voice.set("error", "mic_denied");
+    flushFrames();
+
+    expect(p.label().textContent).toBe("Mic blocked");
+    expect(p.action()?.textContent).toBe("Open mic settings");
+    expect(p.matchAny()).toBe(p.action());
+    p.action()!.click();
+
+    expect(p.onOpenMicSettings).toHaveBeenCalledTimes(1);
+    expect(p.voice.get()).toMatchObject({ state: "error", detail: "mic_denied" });
+  });
+
+  it.each(["no_mic", "mic_unavailable"])("offers nothing beside %s", (code) => {
+    const p = setup({ withMicSettings: true });
+    p.voice.set("error", code);
+
+    expect(p.action()?.hidden).toBe(true);
+    expect(p.matchAny()).toBeNull();
+  });
+
+  it("offers nothing without the opener, which only the desktop app on macOS gets", () => {
+    const p = setup();
+    p.voice.set("error", "mic_denied");
+
+    expect(p.label().textContent).toBe("Mic blocked");
+    expect(p.action()?.hidden).toBe(true);
   });
 });
 
@@ -378,16 +360,6 @@ describe("status pill — voice toggle", () => {
     expect(p.onToggleVoice).not.toHaveBeenCalled();
     expect(p.mic().tabIndex).toBe(-1);
   });
-
-  it("gives the fix the whole pill while it shows, the mic button included", () => {
-    const p = setup({ withToggle: true });
-    p.voice.set("error", "not_configured");
-
-    p.mic().click();
-
-    expect(p.onFixVoice).toHaveBeenCalledTimes(1);
-    expect(p.onToggleVoice).not.toHaveBeenCalled();
-  });
 });
 
 describe("status pill — no capture setting", () => {
@@ -398,6 +370,66 @@ describe("status pill — no capture setting", () => {
     expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
     expect(p.mic().hidden).toBe(false);
     expect(p.sep().hidden).toBe(false);
+  });
+});
+
+describe("status pill — failed-turn notice", () => {
+  it("shows the condition and its action as a button that takes OS clicks", () => {
+    const p = setup();
+    const onClick = vi.fn();
+
+    p.notice.set({
+      message: "Auth failed · check API key",
+      action: { label: "Change key", onClick },
+    });
+    flushFrames();
+
+    expect(p.root().hidden).toBe(false);
+    expect(p.label().textContent).toBe("Auth failed · check API key");
+    expect(p.action()?.textContent).toBe("Change key");
+    expect(p.action()?.type).toBe("button");
+    expect(p.matchAny()).toBe(p.action());
+    p.action()!.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("clicking the notice's action clears the notice", () => {
+    const p = setup();
+    const onClick = vi.fn();
+    p.notice.set({
+      message: "400 Please pass a valid API key",
+      action: { label: "Check connection", onClick },
+    });
+    flushFrames();
+
+    p.action()!.click();
+
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(p.notice.get()).toBeNull();
+    expect(p.matchAny()).toBeNull();
+  });
+
+  it("shows a notice with no action as plain text that stays click-through", () => {
+    const p = setup();
+
+    p.notice.set({ message: "No response · check connection" });
+
+    expect(p.label().textContent).toBe("No response · check connection");
+    expect(p.action()?.hidden).toBe(true);
+    expect(p.matchAny()).toBeNull();
+  });
+
+  it("leaves the mic's state alone and gives the label back when the notice goes", () => {
+    const p = setup();
+    p.voice.set("listening");
+
+    p.notice.set({ message: "Auth failed · check API key" });
+    expect(p.label().textContent).toBe("Auth failed · check API key");
+    expect(p.voice.get().state).toBe("listening");
+    expect(p.mic().dataset.voice).toBe("listening");
+
+    p.notice.set(null);
+    expect(p.label().textContent).toBe("Listening…");
   });
 });
 
@@ -418,7 +450,7 @@ describe("status pill — tool running", () => {
 
   it("overrides the voice label while the mic keeps showing the voice state", () => {
     const p = setup();
-    p.voice.set("error", "not_configured");
+    p.voice.set("error", "network_drop");
     p.pill.showTool("web_search");
 
     expect(p.label().textContent).toBe("Searching…");
@@ -427,7 +459,6 @@ describe("status pill — tool running", () => {
     expect(p.mic().hidden).toBe(false);
     expect(p.mic().dataset.voice).toBe("error");
     expect(p.sep().hidden).toBe(false);
-    expect(p.root().dataset.fix).toBeUndefined();
   });
 });
 

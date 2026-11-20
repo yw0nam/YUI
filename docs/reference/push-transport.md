@@ -488,7 +488,7 @@ The backend sends `error` only to a client whose `hello` lists `error` in `accep
 
 A turn that gets an `error` frame ends as failed on its `turn_end`. The client speaks its failure line. It shows `message` where it shows the server text of a failed request, as one line cut at 200 characters with no status in front.
 
-A turn the user typed shows it in the input's error line while the input is open. A turn the user spoke shows it in the status pill.
+A turn the user typed shows it in the input's error line while the input is open, and in the status pill's notice once the input has closed. A turn the user spoke shows it in the status pill.
 
 The frame counts as a frame of the turn for the frame wait. An `error` frame for a turn the client did not send shows nothing. An `error` frame for a turn the user stopped is dropped.
 

@@ -1,8 +1,8 @@
 /**
  * Status pill — the capture, voice, tool and do-not-disturb tells in one pill at the top of the character window.
  *
- * Pure renderer — firing ≠ judgment: it draws what the screenshot setting, the voice status and
- * the backend's tool calls report. No brain, persona, or mode branching lives here.
+ * Pure renderer — firing ≠ judgment: it draws what the screenshot setting, the voice status, a
+ * failed turn's notice and the backend's tool calls report. No brain, persona, or mode branching lives here.
  */
 
 import "./status-pill.css";
@@ -10,8 +10,8 @@ import { isMicErrorCode } from "../../io/voice/mic-error";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
-import { isSettingsFixable } from "../notices/turn-error";
 import { getToolLabel } from "./tool-labels";
+import type { TurnNoticeStore } from "./turn-notice";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 export interface ToolStatus {
@@ -34,8 +34,10 @@ interface StatusPillOptions {
   voice: VoiceInputStatus;
   /** Opens the settings panel from the capture button. */
   onOpenSettings?: () => void;
-  /** Hands a settings-fixable voice error to the settings panel. */
-  onFixVoice: () => void;
+  /** Opens the system's microphone privacy pane beside a blocked mic; without it the pill offers none. */
+  onOpenMicSettings?: () => void;
+  /** A failed turn's notice and its action; without it the pill carries none. */
+  notice?: Pick<TurnNoticeStore, "get" | "subscribe" | "clear">;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
   onToggleVoice?: () => void;
   /** The do-not-disturb switch behind the still moon segment; without it the segment is absent. */
@@ -44,8 +46,7 @@ interface StatusPillOptions {
 
 const TOOL_DONE_HOLD_MS = 1500;
 
-function voiceLabelOf(snapshot: VoiceInputStatusSnapshot, fixable: boolean): string {
-  if (fixable) return t("voice.error.not_configured");
+function voiceLabelOf(snapshot: VoiceInputStatusSnapshot): string {
   if (snapshot.state === "error" && snapshot.message) return snapshot.message;
   if (snapshot.state === "error" && isMicErrorCode(snapshot.detail)) {
     return t(`voice.error.${snapshot.detail}`);
@@ -58,7 +59,8 @@ export function createStatusPill({
   settings,
   voice,
   onOpenSettings,
-  onFixVoice,
+  onOpenMicSettings,
+  notice,
   onToggleVoice,
   dnd,
 }: StatusPillOptions): StatusPill {
@@ -88,25 +90,31 @@ export function createStatusPill({
         <path d="M6 11a6 6 0 0 0 12 0M12 17v4" />
       </svg>
     </button>
+    <span class="yui-status__turn" hidden aria-hidden="true">
+      <svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5.5 5h13A1.5 1.5 0 0 1 20 6.5v8a1.5 1.5 0 0 1-1.5 1.5H11l-4.5 3.5V16h-1A1.5 1.5 0 0 1 4 14.5v-8A1.5 1.5 0 0 1 5.5 5Z" />
+      </svg>
+    </span>
     <span class="yui-status__sep" hidden aria-hidden="true"></span>
     <span class="yui-status__dot" hidden aria-hidden="true"></span>
     <span class="yui-status__label" hidden></span>
+    <button class="yui-status__action" type="button" hidden><span class="yui-status__action-label"></span><svg class="yui-status__action-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><circle cx="8" cy="8" r="2.2" /><path d="M8 1.3v1.9M8 12.8v1.9M14.7 8h-1.9M3.2 8H1.3M12.74 3.26l-1.34 1.34M4.6 11.4l-1.34 1.34M12.74 12.74l-1.34-1.34M4.6 4.6L3.26 3.26" /></svg></button>
     <span class="yui-status__sep" data-dnd hidden aria-hidden="true"></span>
     <span class="yui-status__dnd" hidden><svg class="yui-status__icon" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
       stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7Z"
       /></svg><span class="yui-status__dnd-label"></span></span>
-    <svg class="yui-status__fix-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.2" />
-      <path d="M8 1.3v1.9M8 12.8v1.9M14.7 8h-1.9M3.2 8H1.3M12.74 3.26l-1.34 1.34M4.6 11.4l-1.34 1.34M12.74 12.74l-1.34-1.34M4.6 4.6L3.26 3.26" />
-    </svg>
   `;
   const captureBtn = el.querySelector<HTMLButtonElement>(".yui-status__capture");
   const voiceBtn = el.querySelector<HTMLButtonElement>(".yui-status__voice")!;
+  const turnEl = el.querySelector<HTMLElement>(".yui-status__turn")!;
   const sepEl = el.querySelector<HTMLElement>(".yui-status__sep")!;
   const dotEl = el.querySelector<HTMLElement>(".yui-status__dot")!;
   const labelEl = el.querySelector<HTMLElement>(".yui-status__label")!;
+  const actionEl = el.querySelector<HTMLButtonElement>(".yui-status__action")!;
+  const actionLabelEl = el.querySelector<HTMLElement>(".yui-status__action-label")!;
+  const actionGlyphEl = el.querySelector<SVGElement>(".yui-status__action-glyph")!;
   const dndSepEl = el.querySelector<HTMLElement>(".yui-status__sep[data-dnd]")!;
   const dndEl = el.querySelector<HTMLElement>(".yui-status__dnd")!;
   const dndLabelEl = el.querySelector<HTMLElement>(".yui-status__dnd-label")!;
@@ -117,21 +125,23 @@ export function createStatusPill({
   let showFrame: number | null = null;
   let cancelFade: (() => void) | null = null;
   let disposed = false;
+  let action: (() => void) | null = null;
 
   function render(): void {
     const captureOn = settings ? settings.get().enabled : false;
     const snapshot = voice.get();
     const dndOn = dnd?.get() === true;
-    const shown = captureOn || snapshot.visible || tool !== null || dndOn;
-    // A leaving pill keeps its last content through the fade, but no longer offers the fix.
+    const turnNotice = notice?.get() ?? null;
+    const shown = captureOn || snapshot.visible || tool !== null || dndOn || turnNotice !== null;
+    // A leaving pill keeps its last content through the fade, but no longer offers its action.
     if (!shown) {
-      delete el.dataset.fix;
+      action = null;
+      actionEl.tabIndex = -1;
       voiceBtn.tabIndex = -1;
       setShown(false);
       return;
     }
-    const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
-    const voiceLabel = voiceLabelOf(snapshot, fixable);
+    const voiceLabel = voiceLabelOf(snapshot);
 
     if (captureBtn) {
       captureBtn.hidden = !captureOn;
@@ -140,8 +150,7 @@ export function createStatusPill({
 
     voiceBtn.hidden = !snapshot.visible;
     voiceBtn.dataset.voice = snapshot.state;
-    const announced = fixable ? t("voice.error.not_configured_fix") : voiceLabel;
-    voiceBtn.setAttribute("aria-label", t("aria.voice_input", { label: announced }));
+    voiceBtn.setAttribute("aria-label", t("aria.voice_input", { label: voiceLabel }));
 
     delete dotEl.dataset.tool;
     delete dotEl.dataset.voice;
@@ -149,30 +158,58 @@ export function createStatusPill({
     if (tool) {
       dotEl.dataset.tool = tool.state;
       label = tool.label;
+    } else if (turnNotice) {
+      dotEl.dataset.voice = "error";
+      label = turnNotice.message;
     } else if (snapshot.visible) {
       dotEl.dataset.voice = snapshot.state;
       label = voiceLabel;
     }
     const segment = label !== "";
+    // A typed turn has no mic to lead its notice, so the notice brings its own mark.
+    const turnMark = turnNotice !== null && !tool && !snapshot.visible;
+    turnEl.hidden = !turnMark;
     labelEl.textContent = label;
     labelEl.hidden = !segment;
     dotEl.hidden = !segment;
-    sepEl.hidden = !segment || !(captureOn || snapshot.visible);
+    sepEl.hidden = !segment || !(captureOn || snapshot.visible || turnMark);
     // A still segment: no dot, no pulse; it follows the other tells after its own separator.
     dndEl.hidden = !dndOn;
     dndLabelEl.textContent = t("status.dnd");
     dndSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
 
-    // The fix link only exists while the voice owns the segment.
-    const messaged = !tool && !fixable && snapshot.state === "error" && Boolean(snapshot.message);
+    // The notice's action, or beside a blocked mic the privacy pane, whichever owns the label.
+    const openMic =
+      !tool && !turnNotice && snapshot.state === "error" && snapshot.detail === "mic_denied"
+        ? onOpenMicSettings
+        : undefined;
+    const micBlocked = openMic !== undefined;
+    const offered = tool
+      ? undefined
+      : openMic
+        ? { label: t("voice.action_mic_settings"), onClick: openMic }
+        : turnNotice?.action;
+    // The notice's action is its last step: once taken, the notice has nothing left to say.
+    action =
+      offered && offered === turnNotice?.action
+        ? () => {
+            notice?.clear();
+            offered.onClick();
+          }
+        : (offered?.onClick ?? null);
+    actionEl.hidden = !offered;
+    actionEl.tabIndex = offered ? 0 : -1;
+    actionGlyphEl.toggleAttribute("hidden", !micBlocked);
+    if (offered) actionLabelEl.textContent = offered.label;
+
+    // A server message or a notice widens the pill to the window's width less its gutters.
+    const messaged =
+      !tool && (turnNotice !== null || (snapshot.state === "error" && Boolean(snapshot.message)));
     if (messaged) el.dataset.message = "true";
     else delete el.dataset.message;
-    const fixShown = fixable && !tool;
-    if (fixShown) el.dataset.fix = "settings";
-    else delete el.dataset.fix;
-    const toggleOffered = onToggleVoice !== undefined && snapshot.visible && !fixShown;
+    const toggleOffered = onToggleVoice !== undefined && snapshot.visible;
     voiceBtn.classList.toggle("is-toggle", toggleOffered);
-    voiceBtn.tabIndex = fixShown || toggleOffered ? 0 : -1;
+    voiceBtn.tabIndex = toggleOffered ? 0 : -1;
 
     setShown(true);
   }
@@ -246,8 +283,8 @@ export function createStatusPill({
       onOpenSettings?.();
       return;
     }
-    if (el.dataset.fix === "settings") {
-      onFixVoice();
+    if (actionEl.contains(e.target as Node)) {
+      action?.();
       return;
     }
     if (onToggleVoice && voiceBtn.contains(e.target as Node)) onToggleVoice();
@@ -257,6 +294,7 @@ export function createStatusPill({
   const unsubscribeSettings = settings?.subscribe(render) ?? ((): void => {});
   const unsubscribeVoice = voice.subscribe(render);
   const unsubscribeDnd = dnd?.subscribe(render) ?? ((): void => {});
+  const unsubscribeNotice = notice?.subscribe(render) ?? ((): void => {});
   const unsubscribeLocale = subscribeLocale(render);
   el.addEventListener("click", handleClick);
 
@@ -269,6 +307,7 @@ export function createStatusPill({
     unsubscribeSettings();
     unsubscribeVoice();
     unsubscribeDnd();
+    unsubscribeNotice();
     unsubscribeLocale();
     el.removeEventListener("click", handleClick);
     el.remove();

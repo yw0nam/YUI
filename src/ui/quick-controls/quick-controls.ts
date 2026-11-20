@@ -64,7 +64,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { PageRequest, SettingsPage } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -338,10 +338,12 @@ interface PanelSection {
 
 interface QuickControls {
   el: HTMLElement;
-  /** Shows the panel. `tab` lands on that tab instead of the one last left selected. */
-  open(opts?: { tab?: SettingsPage }): void;
+  /** Shows the panel. The request's page lands instead of the one last left selected, and its focus focuses that field there. */
+  open(request?: PageRequest): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
+  /** The window came back to the front. */
+  windowFocused(): void;
   dispose(): void;
 }
 
@@ -543,7 +545,11 @@ export function createQuickControls({
     detail: connectionTab.el,
     initial: openOnQuickStart ? "quick" : "detail",
     onQuickShown: quickStart.reflect,
+    onQuickEntered: quickStart.entered,
     onDetailEntered: () => connectionTab.entered(),
+    holdsKey: quickStart.holdsKey,
+    focusQuickKey: quickStart.focusKey,
+    focusDetailKey: () => connectionTab.focusChatKey(),
   });
 
   // ── History tab (session accordion + start fresh) — only with a transcript store. ──
@@ -843,8 +849,8 @@ export function createQuickControls({
     : undefined;
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(opts?: { tab?: SettingsPage }): void {
-    const tab = opts?.tab;
+  function openPanel(request?: PageRequest): void {
+    const tab = request?.page;
     if (tab && tabRail.select(tab)) {
       shell.open();
       // open() lands focus on the first control; move it to the tab the caller asked for.
@@ -852,6 +858,7 @@ export function createQuickControls({
     } else {
       shell.open();
     }
+    if (request?.focus === "chat_key") connectionViews.focusKey();
   }
 
   function selectedTab(): SettingsPage {
@@ -930,6 +937,7 @@ export function createQuickControls({
     el,
     open: openPanel,
     selectedTab,
+    windowFocused: quickStart.windowFocused,
     dispose,
   };
 }

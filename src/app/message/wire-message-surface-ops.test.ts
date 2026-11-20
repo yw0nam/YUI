@@ -9,7 +9,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
-import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import {
+  createRemoteSurfaces,
+  type InputErrorAction,
+  type RemoteSurfaces,
+} from "../../io/bridge/message/message-remote";
 import type { MessageSurfaceOp, surfaceOps } from "../../io/bridge/message/surface-ops";
 import { focusWindow } from "../../io/window/geometry/companion-column";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
@@ -215,6 +219,12 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
       received: [["showInputError", ["no backend", { label: "Open Advanced", onClick: click }]]],
     },
     {
+      title: "input-error with the composer's retry",
+      send: (r) => r.showInputError("no response", "retry"),
+      wire: { op: "input-error", message: "no response", retry: true },
+      received: [["showInputError", ["no response", "retry"]]],
+    },
+    {
       title: "input-error with no action",
       send: (r) => r.showInputError("no backend"),
       wire: { op: "input-error", message: "no backend" },
@@ -294,7 +304,8 @@ it.each([
     title: "the input error action",
     show: (r: RemoteSurfaces, onClick: () => void) =>
       r.showInputError("no backend", { label: "Open Advanced", onClick }),
-    clickReceived: (fake: Surfaces) => vi.mocked(fake.showInputError).mock.calls[0]![1]!.onClick(),
+    clickReceived: (fake: Surfaces) =>
+      (vi.mocked(fake.showInputError).mock.calls[0]![1] as InputErrorAction).onClick(),
   },
   {
     title: "the second speech action",

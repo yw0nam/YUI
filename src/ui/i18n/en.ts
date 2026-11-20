@@ -32,12 +32,11 @@ const en: Record<string, string> = {
   "voice.state.asr": "Transcribing…",
   "voice.state.fired": "Sent",
   "voice.state.error": "Error",
-  // the one voice failure the settings panel resolves — the chip becomes the fix
-  "voice.error.not_configured": "Setup needed",
-  "voice.error.not_configured_fix": "Not connected yet. Open settings to connect",
+  // voice failures the pill names; on macOS Mic blocked carries Open mic settings
   "voice.error.mic_denied": "Mic blocked",
   "voice.error.no_mic": "No mic",
   "voice.error.mic_unavailable": "Mic unavailable",
+  "voice.action_mic_settings": "Open mic settings",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "Can't speak with this voice · Choose another",
   // the bubble action after a reply the voice server did not answer — Reconnect checks it again
@@ -77,6 +76,9 @@ const en: Record<string, string> = {
   "input.error_stall": "The connection stopped responding",
   "input.error_parse": "Response parse failed",
   "input.error_not_configured": "Not connected yet",
+  "input.action_change_key": "Change key",
+  "input.action_check_connection": "Check connection",
+  "input.action_retry": "Retry",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
   "input.attach_not_ready": "Can't attach yet · loading limits",
@@ -752,6 +754,11 @@ const en: Record<string, string> = {
   "start.failed": "Could not reach Google. Check your internet connection and try again.",
   "start.reopen": "Open key page again",
   "start.done": "Connected. You can start talking now.",
+  "start.key_label": "Key",
+  "start.key_sub": "You can replace it with a new key at any time.",
+  "start.key_rejected": "Google no longer accepts this key. Paste a new key to keep talking.",
+  "start.key_replaced": "Key replaced",
+  "start.key_ok": "This key still works.",
   "start.own_note": "Connecting with this key replaces your current server with Google Gemini.",
   "start.views_aria": "How to connect",
   "start.view_quick": "Quick start",

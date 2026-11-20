@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turn Recovery Mock</title>
+<!-- Real tokens and the real input, status pill, message window and settings stylesheets; the markup uses their class names.
+     Mock-only staging, and the proposed classes (yui-status__action, yui-status__turn, yui-start__keyrow, yui-start__rejected), live in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/unified/avatar.css">
+<link rel="stylesheet" href="../../src/ui/message/message-window.css">
+<link rel="stylesheet" href="../../src/ui/message/message-plate.css">
+<link rel="stylesheet" href="../../src/ui/surfaces/surfaces.css">
+<link rel="stylesheet" href="../../src/ui/chips/status-pill.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/endpoints-section.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/chat-type.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/connection-views.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/connection/quick-start/quick-start.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+/* Page: a column of parts, each a row of real-size frames over a flat desktop stand-in. */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--yui-panel-bg); }
+body { color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 24px 16px 80px; display: grid; gap: 36px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+h2 { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+p { margin: 0; }
+.lede { color: var(--yui-text-dim); max-width: 74ch; }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.part { display: grid; gap: 12px; min-width: 0; }
+.frames { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.frame { display: grid; gap: 6px; max-width: 100%; min-width: 0; }
+.cap { display: flex; gap: 8px; align-items: baseline; font-size: var(--yui-fs-sub); color: var(--yui-text-mute); font-weight: 600; }
+.tag { font-size: var(--yui-fs-caption); font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); color: var(--yui-text-dim); }
+.tag--after { border-color: var(--yui-accent-soft); color: var(--yui-accent-ink); }
+.tag--open { border-style: dashed; }
+.seg { justify-self: start; display: inline-flex; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 10px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.note { max-width: 74ch; color: var(--yui-text-dim); font-size: var(--yui-fs-sub); }
+.note b { color: var(--yui-text); font-weight: 600; }
+:root { --mock-desk-a: oklch(0.86 0.01 250); --mock-desk-b: oklch(0.42 0.05 240); --mock-sil: oklch(0.45 0.02 60 / 0.35); }
+:root[data-theme="hearth"] { --mock-desk-a: oklch(0.3 0.006 250); --mock-desk-b: oklch(0.6 0.05 230); --mock-sil: oklch(0.7 0.02 70 / 0.45); }
+/* The transparent windows: a dashed box over the desktop stand-in. */
+.desk { position: relative; background: var(--mock-desk-a); border-radius: 6px; outline: 1px dashed var(--yui-edge-strong); outline-offset: -1px; overflow: hidden; }
+.petwin { width: 400px; height: 600px; }
+.petwin--top { height: 150px; }
+.petwin__b { position: absolute; inset: 0 0 0 52%; background: var(--mock-desk-b); }
+.petwin__sil { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 230px; height: 520px; color: var(--mock-sil); }
+.petwin--top .petwin__sil { bottom: auto; top: 40px; }
+.msgwin { width: 340px; }
+.msgwin .yui-ui { pointer-events: auto; }
+/* The settings window at the real 760 x 680 (src-tauri/src/tray.rs), inside a 1px mock edge. */
+.win { width: 762px; max-width: 100%; height: 680px; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge-strong); box-shadow: var(--yui-float); background: var(--yui-panel-bg); }
+.mock-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0.25rem 0 1.25rem; }
+.mock-preset { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 5px; border-radius: 999px; border: 1px solid var(--yui-edge); background: var(--yui-group-bg); font-weight: 500; font-size: var(--yui-fs-sub); }
+.mock-preset .face { width: 20px; height: 20px; border-radius: 50%; background: oklch(0.32 0.05 265); }
+.mock-preset.on { border-color: var(--yui-edge-strong); background: var(--yui-selected); }
+/* Mock-only: the focus a Change key landing gives the key field, without stealing page focus. */
+.mock-focus .yui-input-wrap { border-color: var(--yui-accent); box-shadow: 0 0 0 1px var(--yui-accent-soft); }
+.meas { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-family: var(--yui-font-mono); font-size: var(--yui-fs-caption); color: var(--yui-text-dim); }
+.meas .bad { color: var(--yui-danger); font-weight: 600; }
+/* Legend table. */
+table { border-collapse: collapse; width: 100%; font-size: var(--yui-fs-sub); }
+.tablewrap { overflow-x: auto; border-radius: var(--yui-radius-group); background: var(--yui-group-bg); }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--yui-edge); }
+th { color: var(--yui-text-mute); font-weight: 600; white-space: nowrap; }
+td code { font-family: var(--yui-font-mono); font-size: var(--yui-fs-caption); color: var(--yui-text-dim); }
+td.new { color: var(--yui-accent-ink); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+
+/* ── Proposed: none of these classes exist in src/ yet. ── */
+/* The pill's one action beside its condition text: the fix link's inline-link treatment, on its own button. */
+.yui-status[data-action] { width: max-content; max-width: calc(100% - 1.5rem); }
+.yui-status__action { display: inline-flex; align-items: center; gap: 0.25rem; flex: none; padding: 0; border: 0; background: none; font: inherit; color: var(--yui-text); cursor: pointer; pointer-events: auto; border-radius: 3px; text-decoration: underline; text-decoration-color: var(--yui-accent-soft); text-underline-offset: 0.18em; text-decoration-thickness: 0.08em; transition: color var(--yui-dur-fast) var(--yui-ease), text-decoration-color var(--yui-dur-fast) var(--yui-ease); }
+.yui-status__action svg { width: 0.72rem; height: 0.72rem; color: var(--yui-text-mute); transition: color var(--yui-dur-fast) var(--yui-ease); }
+.yui-status__action:hover, .yui-status__action:focus-visible { color: var(--yui-accent-ink); text-decoration-color: var(--yui-accent); }
+.yui-status__action:hover svg, .yui-status__action:focus-visible svg { color: var(--yui-accent-ink); }
+.yui-status__action:focus-visible { outline: 2px solid var(--yui-accent-soft); outline-offset: 2px; }
+.yui-status[data-action]:has(.yui-status__action:hover) { border-color: var(--yui-accent-soft); }
+/* Option B: a typed turn's tell, the mic's counterpart, in Danger while it carries a failure. */
+.yui-status__turn { display: inline-flex; color: var(--yui-danger); }
+/* Quick start: the key row under the done line, and the rejected line that replaces the done line. */
+.yui-start__keyrow .yui-row__main { min-width: 0; }
+.yui-start__rejected { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0; padding: 0.625rem 0.875rem; border-radius: var(--yui-radius-group); background: var(--yui-danger-faint); font-size: var(--yui-fs-body); font-weight: 500; line-height: 1.45; }
+.yui-start__rejected svg { flex: none; width: 1rem; height: 1rem; margin-top: 0.1rem; color: var(--yui-danger); }
+@media (prefers-reduced-motion: reduce) { .yui-status__action, .yui-status__action svg { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:grid;gap:8px">
+    <span class="mute">mocks/character-window · #2007</span>
+    <h1>A failed turn shows its next step</h1>
+    <p class="lede">Each failure keeps its condition text as it is today and gains one action, in the inline-link treatment the existing Connect fix already wears. The client writes no line for the character. Frames are at real size: character window 400 × 600, message window 340 wide, settings window 760 × 680.</p>
+    <div class="seg" id="segTheme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth">Hearth</button></div>
+  </header>
+
+  <section class="part">
+    <h2>1. Key rejected (401 or 403) in the input</h2>
+    <p class="note">The typed message is already back in the field (a turn that fails before any reply restores it). After: <b>Change key</b> opens Settings › Connection on the Key rejected state of part 2, with the key field focused.</p>
+    <div class="frames" id="p1"></div>
+  </section>
+
+  <section class="part">
+    <h2>2. Quick start once connected (Settings › Connection)</h2>
+    <p class="note">Today the connected state hides the key field and says Connected whatever the last call returned. After (A): a Key row with <b>Change key</b> always sits under the done line; click it to open the paste row. After (B): a 401 or 403 swaps the done line for the rejected line and opens the key rows, until a call succeeds.</p>
+    <div class="frames" id="p2"></div>
+  </section>
+
+  <section class="part">
+    <h2>3. Mic blocked on the status pill</h2>
+    <p class="note">Top 150px of the 400 × 600 character window. After: <b>Open mic settings</b> opens the macOS microphone privacy pane (System Settings › Privacy &amp; Security › Microphone). The condition text stays.</p>
+    <div class="frames" id="p3"></div>
+  </section>
+
+  <section class="part">
+    <h2>4. Network drop or stall in the input</h2>
+    <p class="note">Today a typed turn that fails puts its text back into the open, empty field (quoted-turn.ts <code>failed()</code> calls <code>restoreInput</code>), so the field below already holds it in both frames. After: <b>Retry</b> sends that restored text again, one click in place of Enter; the dispatcher has no resend of its own. A voice turn keeps no text, so it gets no Retry. A 429 (usage limit) and a non-auth 4xx keep their line with no action, because retrying at once cannot succeed; they are not drawn as changed.</p>
+    <div class="frames" id="p4"></div>
+  </section>
+
+  <section class="part">
+    <h2>5. A typed turn fails after the input was closed (Journey 4)</h2>
+    <p class="note">Decided: option B, the pill note. Today nothing shows, and the typed text is lost (the field is closed, so it is not restored).</p>
+    <div class="frames" id="p5"></div>
+  </section>
+
+  <section class="part">
+    <h2>Fit check</h2>
+    <p class="note">Measured live in this page: each pill against the window less its 1.5rem gutters, and each error line's line count.</p>
+    <ul class="meas" id="meas"></ul>
+  </section>
+
+  <section class="part">
+    <h2>Strings</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Where</th><th>Before</th><th>After</th><th>en key</th><th>Key</th></tr></thead>
+      <tbody id="legend"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // Glyphs copied from src/ui (status-pill.ts, quick-start.ts, plugin-parts.ts ICON_WARN, constants.ts CHATKEY_EYE_SVG, surfaces.ts).
+  const MIC = `<svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>`;
+  const GEAR = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.3v1.9M8 12.8v1.9M14.7 8h-1.9M3.2 8H1.3M12.74 3.26l-1.34 1.34M4.6 11.4l-1.34 1.34M12.74 12.74l-1.34-1.34M4.6 4.6L3.26 3.26"/></svg>`;
+  // Proposed: a typed-turn tell for option B (no such glyph in src/ui yet).
+  const TURN = `<svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 5h13A1.5 1.5 0 0 1 20 6.5v8a1.5 1.5 0 0 1-1.5 1.5H11l-4.5 3.5V16h-1A1.5 1.5 0 0 1 4 14.5v-8A1.5 1.5 0 0 1 5.5 5Z"/></svg>`;
+  const DONE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const EYE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/></svg>`;
+  const POP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
+  const CLIP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+  const SEND = `<span class="icon-send" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span><span class="icon-stop" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg></span>`;
+  const X = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const SIL = `<svg class="petwin__sil" viewBox="0 0 230 520" fill="currentColor" aria-hidden="true"><ellipse cx="115" cy="92" rx="54" ry="60"/><path d="M70 168c-22 10-34 40-38 92l-6 98h28l12-110 4 262h40l5-170 5 170h40l4-262 12 110h28l-6-98c-4-52-16-82-38-92-14 8-30 12-45 12s-31-4-45-12Z"/></svg>`;
+
+  // Strings: existing ones exactly as src/ui/i18n/en.ts has them; proposed ones marked NEW in the legend.
+  const S = {
+    auth: "Auth failed · check API key",
+    network: "No response · check connection",
+    stall: "The connection stopped responding",
+    http503: "503 The model is overloaded. Please try again later.",
+    rate: "Usage limit reached · try again later",
+    micDenied: "Mic blocked",
+    done: "Connected. You can start talking now.",
+    voiceConfigured: "Voice is on. You can change the voice in the Voice tab.",
+    // proposed
+    changeKey: "Change key",
+    retry: "Retry",
+    micSettings: "Open mic settings",
+    replaceKey: "Change key",
+    keyLabel: "Key",
+    keySub: "You can replace it with a new key at any time.",
+    rejected: "Google no longer accepts this key. Paste a new key to keep talking.",
+  };
+  const TYPED = "Can you look over the notes I left on the desktop?";
+
+  const cap = (text, kind) => `<span class="cap"><span class="tag${kind === "after" ? " tag--after" : kind === "open" ? " tag--open" : ""}">${kind === "after" ? "After" : kind === "open" ? "Option" : "Today"}</span>${text}</span>`;
+
+  // The input as surfaces.ts builds it, open, with the inline error text-input.ts appends.
+  function input({ error, action, field = TYPED, pop = true }) {
+    const act = action ? ` <button type="button" class="yui-input__error-action">${action}</button>` : "";
+    return `<form class="yui-input is-open${error ? " is-error" : ""}" novalidate>
+      <div class="yui-input__tray"></div>
+      <div class="yui-input__row">
+        <button type="button" class="yui-input__btn yui-input__attach" aria-label="Attach">${CLIP}</button>
+        <textarea class="yui-input__field" rows="1" placeholder="Say something…" aria-label="Message">${field}</textarea>
+        <span class="yui-input__error" role="alert">${error || ""}${act}<button type="button" class="yui-input__error-dismiss" aria-label="Dismiss error">${X}</button></span>
+        ${pop ? `<button type="button" class="yui-input__btn yui-input__pop" aria-label="Pop out">${POP}</button>` : ""}
+        <button class="yui-input__btn yui-input__send" type="submit" aria-label="Send">${SEND}</button>
+      </div>
+    </form>`;
+  }
+  const pet = (inner, top = false) => `<div class="desk petwin${top ? " petwin--top" : ""}"><div class="petwin__b"></div>${SIL}<div class="yui-ui">${inner}</div></div>`;
+  const plate = `<div class="yui-plate-row"><div class="yui-plate" data-draggable><span class="yui-plate__face"><span class="yui-uc__dot" style="--yui-uc-size:20px;background:oklch(var(--yui-avatar-l) var(--yui-avatar-c) 40)"></span></span><span class="yui-plate__name">Yui</span><span class="yui-plate__dot" aria-hidden="true"></span><span class="yui-plate__state"></span></div></div>`;
+  const msg = (inner) => `<div class="desk msgwin"><div class="yui-ui yui-ui--message">${plate}${inner}</div></div>`;
+  const frame = (caption, body) => `<div class="frame">${caption}${body}</div>`;
+
+  // The status pill as status-pill.ts renders it; hidden parts left out.
+  function pill({ icon, label, action, actionGlyph = "" }) {
+    const a = action ? `<button type="button" class="yui-status__action">${action}${actionGlyph}</button>` : "";
+    return `<div class="yui-status is-visible" role="status"${action ? " data-action" : ""}>${icon}<span class="yui-status__sep" aria-hidden="true"></span><span class="yui-status__dot" data-voice="error" aria-hidden="true"></span><span class="yui-status__label">${label}</span>${a}</div>`;
+  }
+  const micIcon = `<button class="yui-status__voice" type="button" data-voice="error" tabindex="-1" aria-label="Voice input: ${S.micDenied}">${MIC}</button>`;
+  const turnIcon = `<span class="yui-status__turn" aria-hidden="true">${TURN}</span>`;
+
+  // 1. Key rejected.
+  document.getElementById("p1").innerHTML = [
+    frame(cap("Character window 400 × 600", "before"), pet(input({ error: S.auth }))),
+    frame(cap("Character window 400 × 600", "after"), pet(input({ error: S.auth, action: S.changeKey }))),
+    frame(cap("Message window 340 wide", "after"), msg(input({ error: S.auth, action: S.changeKey, pop: false }))),
+  ].join("");
+
+  // 2. Quick start. Settings window shell as quick-controls builds it; the Connection page on the Quick start view.
+  const RAIL = [["Yui", null], ["Connection", true], ["Voice"], ["Persona"], ["Body"], ["History"], ["Every character", null], ["Together"], ["Listening and bubble"], ["Permissions"], ["Plugins"], ["Proactive"], ["Motion and desktop"], ["General"]]
+    .map(([n, sel]) => sel === null ? `<p class="yui-tabs__group" role="presentation">${n}</p>` : `<button class="yui-tab" type="button" role="tab" aria-selected="${sel === true}"><span class="yui-tab__label">${n}</span></button>`).join("");
+  const helpSec = `<div class="yui-sec"><div class="yui-sec__head"><h2 class="yui-sec__title">Help</h2></div><div class="yui-group">
+      <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">Controls</span><span class="yui-row__sub">She walks you through the shortcuts and mouse controls.</span></div><button class="yui-link-btn yui-help-btn" type="button">Ask</button></div>
+      <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">What she can do</span><span class="yui-row__sub">She introduces what you can do together through this app.</span></div><button class="yui-link-btn yui-help-btn" type="button">Ask</button></div>
+      <div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">First conversation</span><span class="yui-row__sub">Shows the controls hint again. On a new conversation she greets you first.</span></div><button class="yui-link-btn yui-help-btn" type="button">Replay</button></div>
+    </div></div>`;
+  const voiceSec = `<div class="yui-sec yui-start__voice"><p class="yui-start__voice-configured">${S.voiceConfigured}</p></div>`;
+  const makeRow = `<div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">Make a key</span><span class="yui-row__sub">Google AI Studio opens in your browser. You need a Google account.</span></div><a class="yui-chat-type__link yui-start__key-link" href="#" tabindex="0">Open key page</a></div>`;
+  const pasteRow = (hidden, id) => `<div class="yui-row yui-chatkey yui-start__paste" data-paste${hidden ? " hidden" : ""}>
+      <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">Paste the key</label></div>
+      <div class="yui-input-wrap yui-chatkey__wrap"><input class="yui-ep-input yui-chatkey__input" id="${id}" type="password" placeholder="Paste the key you copied" autocomplete="off" spellcheck="false" /><button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="Show key">${EYE}</button></div>
+      <button class="yui-pill yui-pill--ok yui-start__connect" type="button">Connect</button>
+    </div>`;
+  const keyRow = `<div class="yui-row yui-start__keyrow"><div class="yui-row__main"><span class="yui-row__label">${S.keyLabel}</span><span class="yui-row__sub">${S.keySub}</span></div><button class="yui-link-btn" type="button" data-replace>${S.replaceKey}</button></div>`;
+  const connected = {
+    before: `<p class="yui-start__done" role="status">${DONE}<span>${S.done}</span></p>${voiceSec}${helpSec}`,
+    replace: `<div class="yui-tab-stack" style="gap:0.75rem"><p class="yui-start__done" role="status">${DONE}<span>${S.done}</span></p><div class="yui-group">${keyRow}${pasteRow(true, "k-a")}</div></div>${voiceSec}${helpSec}`,
+    rejected: `<div class="yui-tab-stack" style="gap:0.75rem"><p class="yui-start__rejected" role="alert">${WARN}<span>${S.rejected}</span></p><div class="yui-group mock-focus">${makeRow}${pasteRow(false, "k-b")}</div></div>${voiceSec}${helpSec}`,
+  };
+  const settingsWin = (body) => `<div class="win"><div class="yui-quick"><div class="yui-quick__cols">
+      <div class="yui-rail"><div class="yui-tabs" role="tablist">${RAIL}</div></div>
+      <div class="yui-quick__body">
+        <div class="mock-presets"><span class="mock-preset on"><span class="face"></span>Yui</span><span class="mock-preset"><span class="face" style="background:oklch(0.55 0.1 20)"></span>Natsume</span></div>
+        <div class="yui-tabpanel" role="tabpanel">
+          <h1 class="yui-tabpanel__title">Connection</h1>
+          <div class="yui-seg yui-conn-views" role="radiogroup" aria-label="How to connect"><button class="yui-seg__btn" type="button" role="radio" aria-checked="true">Quick start</button><button class="yui-seg__btn" type="button" role="radio" aria-checked="false">Detailed settings</button></div>
+          <div class="yui-conn-view"><div class="yui-tab-stack"><div class="yui-start__connected">${body}</div></div></div>
+        </div>
+      </div>
+    </div></div></div>`;
+  document.getElementById("p2").innerHTML = [
+    frame(cap("Settings window 760 × 680 · connected", "before"), settingsWin(connected.before)),
+    frame(cap("(A) Connected, with Change key · click it", "after"), settingsWin(connected.replace)),
+    frame(cap("(B) Key rejected, the landing of Change key", "after"), settingsWin(connected.rejected)),
+  ].join("");
+  document.getElementById("p2").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-replace]"); if (!b) return;
+    const group = b.closest(".yui-group");
+    b.hidden = true;
+    const row = group.querySelector("[data-paste]"); row.hidden = false; row.querySelector("input").focus();
+  });
+
+  // 3. Mic blocked.
+  document.getElementById("p3").innerHTML = [
+    frame(cap("Character window, top 150px", "before"), pet(pill({ icon: micIcon, label: S.micDenied }), true)),
+    frame(cap("Character window, top 150px", "after"), pet(pill({ icon: micIcon, label: S.micDenied, action: S.micSettings, actionGlyph: GEAR }), true)),
+  ].join("");
+
+  // 4. Network.
+  document.getElementById("p4").innerHTML = [
+    frame(cap("No status (network_drop)", "before"), pet(input({ error: S.network }))),
+    frame(cap("No status (network_drop)", "after"), pet(input({ error: S.network, action: S.retry }))),
+    frame(cap("Server status and text (network_drop)", "after"), pet(input({ error: S.http503, action: S.retry }))),
+    frame(cap("Stall (network_stall)", "after"), pet(input({ error: S.stall, action: S.retry }))),
+    frame(cap("Message window 340 wide · stall", "after"), msg(input({ error: S.stall, action: S.retry, pop: false }))),
+    frame(cap("Usage limit (429) · unchanged", "after"), pet(input({ error: S.rate }))),
+  ].join("");
+
+  // 5. Journey 4.
+  document.getElementById("p5").innerHTML = [
+    frame(cap("A · Keep: nothing shows", "open"), pet("")),
+    frame(cap("B · Pill note, key rejected", "open"), pet(pill({ icon: turnIcon, label: S.auth, action: S.changeKey }))),
+    frame(cap("B · Pill note, no response", "open"), pet(pill({ icon: turnIcon, label: S.network, action: S.retry }))),
+  ].join("");
+
+  // Legend.
+  const L = [
+    ["Input, 401 or 403", S.auth, `${S.auth} + <b>${S.changeKey}</b>`, "input.error_auth (stays) · input.action_change_key", "NEW action"],
+    ["Input, no status", S.network, `${S.network} + <b>${S.retry}</b>`, "input.error_network (stays) · input.action_retry", "NEW action"],
+    ["Input, server status", "{status} {message}", `{status} {message} + <b>${S.retry}</b> (5xx and no status only)`, "input.error_http (stays) · input.action_retry", "NEW action"],
+    ["Input, stall", S.stall, `${S.stall} + <b>${S.retry}</b>`, "input.error_stall (stays) · input.action_retry", "NEW action"],
+    ["Retry, what it does", "the typed text is already restored into the field; the user presses Enter", "<b>Retry</b> sends the field's restored text: one click in place of Enter", "input.action_retry", "note"],
+    ["Retry, voice turn", "pill shows the error; no text is kept", "no Retry offered: a voice turn keeps no text to resend", "(none)", "note"],
+    ["Input, 429", S.rate, "unchanged, no action", "input.error_rate_limit", "existing"],
+    ["Status pill, mic", S.micDenied, `${S.micDenied} + <b>${S.micSettings}</b>`, "voice.error.mic_denied (stays) · voice.action_mic_settings", "NEW action"],
+    ["Quick start, connected", "(no key row)", `Row <b>${S.keyLabel}</b> · ${S.keySub}`, "start.key_label · start.key_sub", "NEW"],
+    ["Quick start, connected", "(no key row)", `<b>${S.replaceKey}</b>`, "input.action_change_key", "reused"],
+    ["Quick start, after 401 or 403", S.done, S.rejected, "start.key_rejected", "NEW"],
+    ["Quick start, key rows", "Make a key · Open key page · Paste the key · Connect", "same, reused", "start.make_label · start.make_link · start.paste_label · start.connect", "existing"],
+    ["Pill note (option B only)", "(nothing)", "the input's condition text + the same action", "input.error_* · input.action_*", "reused"],
+  ];
+  document.getElementById("legend").innerHTML = L.map(([w, b, a, k, n]) =>
+    `<tr><td>${w}</td><td>${b}</td><td>${a}</td><td><code>${k}</code></td><td class="${n.startsWith("NEW") ? "new" : ""}">${n}</td></tr>`).join("");
+
+  // The field grows with its content, as text-input.ts fitField does.
+  function fitFields() {
+    for (const f of document.querySelectorAll(".yui-input__field")) { f.style.height = "auto"; f.style.height = `${f.scrollHeight}px`; }
+  }
+
+  // Mock-only fit check.
+  function measure() {
+    fitFields();
+    const out = document.getElementById("meas"); out.replaceChildren();
+    const add = (t, bad) => { const li = document.createElement("li"); li.textContent = t + (bad ? "  overflow" : ""); if (bad) li.className = "bad"; out.append(li); };
+    for (const p of document.querySelectorAll(".yui-status")) {
+      const win = p.parentElement.getBoundingClientRect().width;
+      const max = win - 24;
+      const w = p.getBoundingClientRect().width;
+      const label = p.querySelector(".yui-status__label");
+      const cut = label.scrollWidth > label.clientWidth + 0.5;
+      add(`pill "${label.textContent}${p.querySelector(".yui-status__action") ? " + " + p.querySelector(".yui-status__action").textContent : ""}": ${w.toFixed(0)} / ${max.toFixed(0)}px${cut ? " (label cut)" : ""}`, w > max + 0.5 || cut);
+    }
+    for (const e of document.querySelectorAll(".yui-input.is-error .yui-input__error")) {
+      const cs = getComputedStyle(e);
+      const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+      const lines = Math.round((e.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / lh);
+      const where = e.closest(".msgwin") ? "340" : "400";
+      add(`error in ${where}: "${e.firstChild.textContent.trim()}"${e.querySelector(".yui-input__error-action") ? " + action" : ""}: ${lines} line${lines === 1 ? "" : "s"}`, false);
+    }
+  }
+
+  function setTheme(v) {
+    for (const b of document.querySelectorAll("#segTheme button")) b.setAttribute("aria-pressed", String(b.dataset.v === v));
+    if (v === "hearth") document.documentElement.dataset.theme = "hearth"; else delete document.documentElement.dataset.theme;
+    requestAnimationFrame(measure);
+  }
+  document.getElementById("segTheme").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setTheme(b.dataset.v); });
+  // ?theme=hearth opens the mock in Hearth (used for headless screenshots).
+  if (new URLSearchParams(location.search).get("theme") === "hearth") setTheme("hearth");
+  measure();
+  if (document.fonts) document.fonts.ready.then(measure);
+})();
+</script>
+</body>
+</html>

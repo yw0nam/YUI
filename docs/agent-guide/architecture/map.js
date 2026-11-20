@@ -1208,7 +1208,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action and shows a moon while do-not-disturb is on, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1217,7 +1217,7 @@ globalThis.YUI_MAP =
       "id": "ui/notices",
       "module": "display",
       "label": "notices",
-      "role": "One-off and error notices.",
+      "role": "One-off and error notices, and the failure-to-next-step mapping (failureAction), which the failure reporter (src/app/turn/report-turn-failure.ts) reads.",
       "paths": [
         "src/ui/notices"
       ]
@@ -1226,7 +1226,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line, the voice step and Help once connected, and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line over a Key row with Replace key, the voice step and Help once connected, the stored key checked when the connected view shows (a refused key swaps the done line for Key rejected, and Replace key writes only the key), and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1478,15 +1478,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "app/voice",
-      "module": "wiring",
-      "label": "voice fix",
-      "role": "The desktop pill's setup-needed tap.",
-      "paths": [
-        "src/app/voice"
-      ]
-    },
-    {
       "id": "app/dev",
       "module": "wiring",
       "label": "dev globals",
@@ -1640,10 +1631,28 @@ globalThis.YUI_MAP =
       "id": "dispatcher-failure",
       "from": "dispatcher",
       "to": "ui/surfaces",
-      "carries": "onUserTurnFailed → showInputError",
+      "carries": "onUserTurnFailed → the failure reporter: showInputError while the input is open, else the status pill's turn notice (turn-failure-notice); a spoken turn also sets the pill's voice error",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "turn-failure-notice",
+      "from": "app/turn",
+      "to": "ui/chips",
+      "carries": "a failed user turn with no input open (a typed turn after the input closed, or a spoken one) → turnNotice.show({message, action?}): the status pill holds it 60 s with a keyed action, 3 s without; the action is Connect, Change key or Check connection, and Retry is the composer's own; a new turn or a click on the action clears it",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/report-turn-failure.ts"
+    },
+    {
+      "id": "mic-settings-opener",
+      "from": "io/voice/stt",
+      "to": "shell/core",
+      "carries": "plugin:opener|open_url {x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone}: the status pill's Open mic settings beside a blocked mic on macOS; the default capability allows that one URL beside http, https, mailto and tel",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/voice/open-mic-settings.ts"
     },
     {
       "id": "dispatcher-backend",
@@ -3320,7 +3329,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-windows",
       "from": "windows",
       "to": "io/window/openers",
-      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip open Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
+      "carries": "openSettings(page?, focus?): the status pill's capture button opens no page and the delegation chip opens Connection; a new settings window at settings.html with `?preset=<id>`, `&page=<page>` and `&focus=chat_key` when given, else the open one is shown, focused and asked for the page and focus",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -3329,7 +3338,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-bootstrap",
       "from": "app/bootstrap",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the turn error's fix button and the first-run hint's action, both landing on Connection; a window without that page stays where it was",
+      "carries": "openSettings(\"conn\"): a failed turn's Connect and the first-run hint's action, landing on Connection; openSettings(\"conn\", \"chat_key\"): a failed turn's Change key and Check connection, landing on Connection with the key field showing; a window without that page stays where it was",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3740,7 +3749,7 @@ globalThis.YUI_MAP =
       "id": "settings-page-emit",
       "from": "io/window/openers",
       "to": "io/bridge/settings",
-      "carries": "an open settings window shown → yui://settings-page {preset: id or null, page?}",
+      "carries": "an open settings window shown → yui://settings-page {preset: id or null, page?, focus?: \"chat_key\"}",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -3749,7 +3758,7 @@ globalThis.YUI_MAP =
       "id": "settings-page",
       "from": "io/bridge/settings",
       "to": "app/settings-window",
-      "carries": "yui://settings-page {preset, page?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading without `?edit=` when it edits another, and selects the page; other windows drop it",
+      "carries": "yui://settings-page {preset, page?, focus?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading without `?edit=` when it edits another, selects the page, and focuses the chat key field when focus is chat_key (the Connection view follows the stored chat URL: Quick start for Gemini, Detailed settings otherwise); other windows drop it",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-page.ts"
@@ -4268,7 +4277,7 @@ globalThis.YUI_MAP =
       "id": "controls-models",
       "from": "ui/quick-controls",
       "to": "io/chat/models",
-      "carries": "read the model list for the Connection page",
+      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
       "kind": "call",
       "transport": "request"
     },

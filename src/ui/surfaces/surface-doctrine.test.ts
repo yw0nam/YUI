@@ -87,26 +87,17 @@ describe("status-pill.css — the pill's shape and colors come from tokens", () 
   });
 });
 
-// The not_configured voice error reuses the inline-link idiom .yui-input__error-action
-// already ships, so "this is clickable" reads identically on both error surfaces.
-describe("status-pill.css — not_configured fix affordance", () => {
-  const fix = '.yui-status[data-fix="settings"]';
-
-  it("underlines the label in accent-soft at rest", () => {
-    const block = extractBlock(read("../chips/status-pill.css"), `${fix} .yui-status__label`);
+// The pill's action reuses the inline-link idiom .yui-input__error-action already ships, so
+// "this is clickable" reads identically on both error surfaces.
+describe("status-pill.css — the notice action", () => {
+  it("underlines the action in accent-soft at rest", () => {
+    const block = extractBlock(read("../chips/status-pill.css"), ".yui-status__action");
     expect(block).toMatch(/text-decoration-color:\s*var\(--yui-accent-soft\)/);
   });
 
-  it("ignites the label on hover and on keyboard focus alike", () => {
+  it("ignites the action on hover and on keyboard focus alike", () => {
     const css = read("../chips/status-pill.css");
-    expect(css).toContain(`${fix}:hover .yui-status__label`);
-    expect(css).toContain(`${fix}:has(:focus-visible) .yui-status__label`);
-  });
-
-  it("keeps the gear glyph out of every other state", () => {
-    const css = read("../chips/status-pill.css");
-    expect(extractBlock(css, ".yui-status__fix-glyph")).toMatch(/display:\s*none/);
-    expect(extractBlock(css, `${fix} .yui-status__fix-glyph`)).toMatch(/display:\s*block/);
+    expect(css).toContain(".yui-status__action:hover,\n.yui-status__action:focus-visible");
   });
 });
 

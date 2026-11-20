@@ -17,7 +17,7 @@ function build() {
   const mount = document.body.appendChild(document.createElement("div"));
   const basePaceSettings = createBasePaceSettings();
   const qc = createQuickControls({ ...defaultQcArgs(mount), basePaceSettings });
-  qc.open({ tab: "react" });
+  qc.open({ page: "react" });
   const cell = (label: string) =>
     [
       ...qc.el.querySelectorAll<HTMLButtonElement>(

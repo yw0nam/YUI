@@ -1,10 +1,12 @@
 /**
  * Quick start: the Connection page's free Gemini path — what is sent and the daily limit, the key
  * page link, and the key field. One model-list read confirms the pasted key, and only a confirmed
- * key writes anything.
+ * key writes anything. Once connected, the same read checks the stored key each time the view
+ * shows, and a replacement key writes the key alone.
  */
 
 import type { EndpointsConfig } from "../../../../contract";
+import type { ModelListResult } from "../../../../io/chat/models/reader";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type {
   ApiKeySettingsStore,
@@ -24,6 +26,14 @@ import { ICON_WARN } from "../../plugins/plugin-parts";
 import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import { createModelRead, type ModelReadPhase } from "../chat/model-read";
+import {
+  INITIAL_KEY_STATE,
+  type KeyState,
+  keyChecked,
+  keyView,
+  keyWritten,
+  openKey,
+} from "./key-state";
 import { createVoiceStep } from "./voice-step";
 import "./quick-start.css";
 
@@ -75,8 +85,15 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
       </div>
       <div class="yui-sec">
         ${secHeadHtml(t("start.key_title"))}
-        <div class="yui-group">
-          <div class="yui-row">
+        <div class="yui-group yui-start__keys">
+          <div class="yui-row yui-start__keyrow" hidden>
+            <div class="yui-row__main">
+              <span class="yui-row__label">${t("start.key_label")}</span>
+              <span class="yui-row__sub">${t("start.key_sub")}</span>
+            </div>
+            <button class="yui-link-btn yui-start__replace" type="button">${t("input.action_change_key")}</button>
+          </div>
+          <div class="yui-row yui-start__make">
             <div class="yui-row__main">
               <span class="yui-row__label">${t("start.make_label")}</span>
               <span class="yui-row__sub">${t("start.make_sub")}</span>
@@ -94,15 +111,27 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
             </div>
             <button class="yui-pill yui-pill--ok yui-start__connect" type="button">${t("start.connect")}</button>
             <p class="yui-start__checking" role="status" hidden><i class="yui-start__dot"></i>${t("start.checking")}</p>
+            <p class="yui-start__key-ok" role="status" hidden>${t("start.key_ok")}</p>
             <div class="yui-start__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml(GEMINI_KEY_URL, "start.reopen", "yui-start__reopen")}</div></div>
           </div>
         </div>
       </div>
     </div>
+    <div class="yui-start__key-stack" hidden>
+      <p class="yui-start__done" role="status">${ICON_DONE}<span class="yui-start__done-text"></span></p>
+      <p class="yui-start__rejected" role="alert" hidden>${ICON_WARN}<span>${t("start.key_rejected")}</span></p>
+    </div>
     <div class="yui-start__connected" hidden>
-      <p class="yui-start__done" role="status">${ICON_DONE}<span>${t("start.done")}</span></p>
       ${showHelp ? helpSectionHtml(replayRow) : ""}
     </div>`;
+}
+
+// A stored-key check answer is reused on the same key for this long.
+const CHECK_REUSE_MS = 60_000;
+
+/** Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key". */
+function isRefused(result: ModelListResult): boolean {
+  return result.kind === "refused" || (result.kind === "http" && result.status === 400);
 }
 
 /** The Help row that replays the first conversation. */
@@ -121,12 +150,31 @@ export function createQuickStart(deps: QuickStartDeps): {
   el: HTMLElement;
   /** Reads the stores onto the two states: the setup or the connected one. */
   reflect(): void;
+  /** The key field here is the server's in use: no server yet, or the Quick start one. Quick start's Connect replaces any other server. */
+  holdsKey(): boolean;
+  /** Opens the key field, in the connected state too, and focuses it. */
+  focusKey(): void;
+  /** The view came into view: once connected, checks the stored key. */
+  entered(): void;
+  /** The window came back to the front: checks the stored key while this view is in view. */
+  windowFocused(): void;
   dispose(): void;
 } {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   el.innerHTML = pageHtml(deps.showHelp, deps.onReplay ? replayRowHtml() : "");
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
+  const keySection = el.querySelector<HTMLElement>(".yui-start__keys")!.parentElement!;
+  const keys = el.querySelector<HTMLElement>(".yui-start__keys")!;
+  const keyRow = el.querySelector<HTMLElement>(".yui-start__keyrow")!;
+  const replace = el.querySelector<HTMLButtonElement>(".yui-start__replace")!;
+  const makeRow = el.querySelector<HTMLElement>(".yui-start__make")!;
+  const paste = el.querySelector<HTMLElement>(".yui-start__paste")!;
+  const keyStack = el.querySelector<HTMLElement>(".yui-start__key-stack")!;
+  const done = el.querySelector<HTMLElement>(".yui-start__done")!;
+  const doneText = el.querySelector<HTMLElement>(".yui-start__done-text")!;
+  const rejectedLine = el.querySelector<HTMLElement>(".yui-start__rejected")!;
+  const keyOk = el.querySelector<HTMLElement>(".yui-start__key-ok")!;
   const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
   const voiceStep =
     deps.ttsSettings && deps.ttsKeySettings && deps.speakerSelection
@@ -151,14 +199,55 @@ export function createQuickStart(deps: QuickStartDeps): {
   const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
+  let state: KeyState = INITIAL_KEY_STATE;
+
+  const isConnected = (): boolean =>
+    endpointsUrl() === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
 
   function reflect(): void {
     const url = endpointsUrl();
-    const isConnected = url === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
-    setup.hidden = isConnected;
-    connected.hidden = !isConnected;
+    const on = isConnected();
+    if (!on) state = INITIAL_KEY_STATE;
+    setup.hidden = on;
+    keyStack.hidden = !on;
+    connected.hidden = !on;
+    // Moved only on a state change: re-appending would drop focus from the key field.
+    const home = on ? keyStack : keySection;
+    if (keys.parentElement !== home) home.append(keys);
+    const view = keyView(state, on);
+    keyRow.hidden = !view.keyRow;
+    replace.hidden = !view.replaceButton;
+    makeRow.hidden = !view.makeRow;
+    paste.hidden = !view.paste;
+    done.hidden = !view.done;
+    rejectedLine.hidden = !view.rejected;
+    keyOk.hidden = !view.keyOk;
+    doneText.textContent = t(view.doneText);
     own.hidden = url === "" || url === GEMINI_PRESET.url;
     voiceStep?.reflect();
+  }
+
+  function focusKey(): void {
+    if (isConnected()) {
+      state = openKey(state);
+      entered();
+    }
+    reflect();
+    input.focus();
+  }
+
+  function entered(): void {
+    if (!isConnected()) return;
+    const key = deps.chatKeySettings.get().apiKey;
+    if (lastVerdict?.key === key && Date.now() - lastVerdict.at < CHECK_REUSE_MS) {
+      showVerdict(lastVerdict.ok);
+    } else check.start(GEMINI_PRESET.url);
+  }
+
+  function showVerdict(ok: boolean): void {
+    state = keyChecked(state, ok);
+    reflect();
+    if (!ok) input.focus();
   }
 
   function endpointsUrl(): string {
@@ -184,19 +273,24 @@ export function createQuickStart(deps: QuickStartDeps): {
     if (phase.phase !== "done") return;
     const { result } = phase;
     if (result.kind === "ok") {
-      deps.endpointsSettings.set({
-        chat_base_url: GEMINI_PRESET.url,
-        chat_model: GEMINI_PRESET.model,
-        chat_api: "chat_completions",
-      });
-      deps.chatKeySettings.setApiKey(typedKey());
-      deps.proactiveSettings.setEnabled(false);
-      deps.scheduleSettings.setEnabled(false);
-      deps.onConnected();
+      const wasConnected = isConnected();
+      if (wasConnected) {
+        deps.chatKeySettings.setApiKey(typedKey());
+      } else {
+        deps.endpointsSettings.set({
+          chat_base_url: GEMINI_PRESET.url,
+          chat_model: GEMINI_PRESET.model,
+          chat_api: "chat_completions",
+        });
+        deps.chatKeySettings.setApiKey(typedKey());
+        deps.proactiveSettings.setEnabled(false);
+        deps.scheduleSettings.setEnabled(false);
+        deps.onConnected();
+      }
       input.value = "";
+      state = keyWritten(wasConnected);
       reflect();
-    } else if (result.kind === "refused" || (result.kind === "http" && result.status === 400)) {
-      // Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key".
+    } else if (isRefused(result)) {
       showError("start.refused", true);
     } else {
       showError("start.failed");
@@ -209,6 +303,28 @@ export function createQuickStart(deps: QuickStartDeps): {
     onPhase,
   });
 
+  // The key the stored-key check sent; its answer counts only while that key is still the stored one.
+  let checkedKey = "";
+  // The last answer on a key: a burst of window focus events sends one request.
+  let lastVerdict: { key: string; at: number; ok: boolean } | null = null;
+  const check = createModelRead({
+    getApiKey: async () => (checkedKey = deps.chatKeySettings.get().apiKey),
+    getFetch: deps.getFetch,
+    onPhase: (phase) => {
+      if (phase.phase !== "done" || checkedKey !== deps.chatKeySettings.get().apiKey) return;
+      // A network failure says nothing about the key, so the view stays as it is.
+      const { result } = phase;
+      if (result.kind !== "ok" && !isRefused(result)) return;
+      lastVerdict = { key: checkedKey, at: Date.now(), ok: result.kind === "ok" };
+      showVerdict(lastVerdict.ok);
+    },
+  });
+
+  replace.addEventListener("click", () => {
+    state = openKey(state);
+    reflect();
+    input.focus();
+  });
   toggle.addEventListener("click", () => toggleKeyReveal(input, toggle, "chatkey"));
   el.querySelector<HTMLButtonElement>(".yui-start__replay")?.addEventListener("click", () =>
     deps.onReplay?.(),
@@ -224,7 +340,14 @@ export function createQuickStart(deps: QuickStartDeps): {
   return {
     el,
     reflect,
+    holdsKey: () => endpointsUrl() === "" || endpointsUrl() === GEMINI_PRESET.url,
+    focusKey,
+    entered,
+    windowFocused: () => {
+      if (!el.closest("[hidden]")) entered();
+    },
     dispose: () => {
+      check.dispose();
       read.dispose();
       voiceStep?.dispose();
     },

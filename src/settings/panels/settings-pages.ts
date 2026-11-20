@@ -18,3 +18,17 @@ export function isSettingsPage(v: unknown): v is SettingsPage {
     typeof v === "string" && ([...CHARACTER_PAGES, ...APP_PAGES] as readonly string[]).includes(v)
   );
 }
+
+/** A field a settings request asks the page to focus: the chat key of the connection in use. */
+export type SettingsFocus = "chat_key";
+
+/** A settings page to show and the field to focus on it. */
+export interface PageRequest {
+  page: SettingsPage;
+  focus?: SettingsFocus;
+}
+
+/** True when `v` is a field a settings request can ask to focus. */
+export function isSettingsFocus(v: unknown): v is SettingsFocus {
+  return v === "chat_key";
+}

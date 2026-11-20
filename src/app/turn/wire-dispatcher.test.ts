@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The dispatcher, the backend caller, the guardrails and the pacer are faked so each test
 // can drive the deps wireDispatcher composes and assert the handle it returns.
@@ -28,6 +28,7 @@ import { createBasePaceSettings } from "../../settings/active-hours/base-pace-se
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
 import { createPacerGapStore } from "../../settings/settings-stores";
+import { setLocale } from "../../ui/i18n";
 import { createWindowActiveHours } from "../active-hours/window-active-hours";
 import { wireDispatcher } from "./wire-dispatcher";
 
@@ -42,10 +43,13 @@ function memoryStorage<T>(): PersistedStorage<T> {
 }
 
 describe("wireDispatcher", () => {
+  beforeEach(() => setLocale("en"));
+
   const setup = (
     windowTools?: ClientTool[],
     endpoints = {} as EndpointsConfig,
     dndSettings = createFlagSettings(false),
+    inputOpen = false,
   ) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
@@ -69,9 +73,12 @@ describe("wireDispatcher", () => {
     const quotedTurn = { admitted: vi.fn(), failed: vi.fn() };
     const busyUnsubscribe = vi.fn();
     const showVoiceError = vi.fn();
+    const showInputError = vi.fn();
+    const turnNotice = { show: vi.fn(), clear: vi.fn() };
+    const openSettings = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
-      subscribeBusy: vi.fn(() => busyUnsubscribe),
+      subscribeBusy: vi.fn((_cb: (busy: boolean) => void) => busyUnsubscribe),
     };
     const guardrails = { setConfig: vi.fn(), evaluate: vi.fn(), cooldownActive: vi.fn() };
     const pacer = { stop: vi.fn(), noteIntervalChanged: vi.fn() };
@@ -103,7 +110,7 @@ describe("wireDispatcher", () => {
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
-      surfaces: { isInputOpen: () => false } as never,
+      surfaces: { isInputOpen: () => inputOpen, showInputError, setBusy: vi.fn() } as never,
       reasoning: {} as never,
       getEndpoints: () => endpoints,
       getGuardrails: () => ({}) as never,
@@ -139,8 +146,9 @@ describe("wireDispatcher", () => {
         emotionText: { mode: "free", table: null },
       }),
       windowTools,
-      openSettings: vi.fn(),
+      openSettings,
       showVoiceError,
+      turnNotice,
       appendTurnRecord: vi.fn(),
       t: (key: string) => key,
       register,
@@ -159,6 +167,9 @@ describe("wireDispatcher", () => {
       previousTurn,
       quotedTurn,
       showVoiceError,
+      showInputError,
+      turnNotice,
+      openSettings,
       activeHoursSettings,
       activeHoursGapSettings,
     };
@@ -284,6 +295,109 @@ describe("wireDispatcher", () => {
     s.dispatcherDeps.onUserTurnFailed!("network_drop", "voice");
 
     expect(s.showVoiceError).toHaveBeenCalledWith("network_drop", undefined);
+  });
+
+  it.each([
+    [
+      "http_4xx_drop",
+      undefined,
+      "Auth failed · check API key",
+      { label: "Change key", onClick: expect.any(Function) },
+    ],
+    [
+      "network_drop",
+      { status: 400, message: "model does not support tools" },
+      "400 model does not support tools",
+      { label: "Check connection", onClick: expect.any(Function) },
+    ],
+    ["network_drop", undefined, "No response · check connection", "retry"],
+    ["network_drop", { status: 503, message: "overloaded" }, "503 overloaded", "retry"],
+    ["network_stall", undefined, "The connection stopped responding", "retry"],
+  ] as const)("offers the %s next step on the open input: %j", (reason, detail, message, offer) => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+
+    s.dispatcherDeps.onUserTurnFailed!(reason, "text", detail);
+
+    expect(s.showInputError).toHaveBeenCalledExactlyOnceWith(message, offer);
+  });
+
+  it("opens Connection from a key action on the open input", () => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
+
+    const offer = s.showInputError.mock.calls[0]![1];
+    expect(offer).toEqual({ label: "Change key", onClick: expect.any(Function) });
+    offer.onClick();
+
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
+  });
+
+  it.each([
+    [
+      "voice",
+      "http_4xx_drop",
+      undefined,
+      { message: "Auth failed · check API key", action: { label: "Change key" } },
+    ],
+    [
+      "text",
+      "network_drop",
+      { status: 400, message: "model does not support tools" },
+      { message: "400 model does not support tools", action: { label: "Check connection" } },
+    ],
+    [
+      "voice",
+      "not_configured",
+      undefined,
+      { message: "Not connected yet", action: { label: "Connect" } },
+    ],
+    ["voice", "network_stall", undefined, { message: "The connection stopped responding" }],
+  ] as const)("posts a %s %s failure on the pill when the input is not open: %j", (source, reason, detail, expected) => {
+    const s = setup();
+
+    s.dispatcherDeps.onUserTurnFailed!(reason, source, detail);
+
+    expect(s.turnNotice.show).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expected.message,
+        ...("action" in expected && {
+          action: { label: expected.action.label, onClick: expect.any(Function) },
+        }),
+      }),
+    );
+    expect(s.showInputError).not.toHaveBeenCalled();
+  });
+
+  it("opens Connection from the notice's key action", () => {
+    const s = setup();
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "voice");
+
+    expect(s.turnNotice.show).toHaveBeenCalledOnce();
+    const notice = s.turnNotice.show.mock.calls[0]![0];
+    expect(notice.action).toEqual({ label: "Change key", onClick: expect.any(Function) });
+    notice.action.onClick();
+
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn", "chat_key");
+  });
+
+  it("keeps a typed failure on the open input and off the pill", () => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
+
+    expect(s.showInputError).toHaveBeenCalledOnce();
+    expect(s.turnNotice.show).not.toHaveBeenCalled();
+  });
+
+  it("clears the notice when a new turn starts", () => {
+    const s = setup();
+    const onBusy = s.dispatcher.subscribeBusy.mock.calls[0]![0];
+
+    onBusy(false);
+    expect(s.turnNotice.clear).not.toHaveBeenCalled();
+    onBusy(true);
+
+    expect(s.turnNotice.clear).toHaveBeenCalledOnce();
   });
 
   it("registers the teardowns in composition order and they run LIFO", () => {
