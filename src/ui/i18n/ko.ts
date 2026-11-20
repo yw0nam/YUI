@@ -112,7 +112,7 @@ const ko: Record<string, string> = {
   "cue.minutes_aria": "대화 없는 시간(분)",
   "cue.minutes_suffix": "분마다",
   "cue.toggle_aria": "{name} 활성화",
-  "cue.toggle_fallback": "큐",
+  "cue.toggle_fallback": "이름 없음",
   "cue.delete": "삭제",
   "cue.confirm_q": "삭제할까요?",
   "cue.confirm_go": "삭제",
@@ -122,6 +122,7 @@ const ko: Record<string, string> = {
   "cue.ctx_label": "컨텍스트",
   "cue.ctx_aria": "AI가 읽을 컨텍스트",
   "cue.ctx_placeholder": "AI가 참고할 상황 설명을 자유롭게 적어요…",
+  "cue.minutes_summary": "{list}분",
 
   // panel chrome
   "panel.dialog_label": "설정",
@@ -299,6 +300,11 @@ const ko: Record<string, string> = {
   "active_hours.end_aria": "종료 시각",
   "active_hours.pace_aria": "말 거는 빈도",
   "active_hours.remove_aria": "시간대 삭제",
+  "base_pace.title": "먼저 말 거는 빈도",
+  "base_pace.foot":
+    "대화 뒤 기다리는 시간과 '한동안 조용할 때' 반응이 바뀌어요. 많이: 한가할 때 2배쯤 자주. 적게: 3분의 1쯤.",
+  "base_pace.link_lead": "캐릭터별 시간대 설정:",
+  "base_pace.link": "페르소나 › 활동 시간",
 
   // card
   "card.label": "카드",
@@ -579,9 +585,12 @@ const ko: Record<string, string> = {
   "cue.schedule_title": "시간대 인사",
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
   "cue.schedule_add": "인사 추가",
-  "cue.proactive_title": "루프 반응",
+  "cue.schedule_note": "자리에 앉으면 그날 첫인사도 해요.",
+  "cue.schedule_fold": "인사 시각",
+  "cue.proactive_title": "한동안 조용할 때",
   "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
   "cue.proactive_add": "반응 추가",
+  "cue.proactive_fold": "안부 묻기",
 
   // endpoints
   "endpoints.field_sub": "비우면 기본값을 사용해요",
@@ -688,6 +697,7 @@ const ko: Record<string, string> = {
   "agentNotify.sub":
     "코딩 에이전트, 워크플로, 다른 프로그램이 이 컴퓨터에서 신호를 보내면 말을 걸어요.",
   "agentNotify.aria": "외부 신호",
+  "agentNotify.fold": "포트와 주소",
   "threadTurns.label": "스레드에 반응",
   "threadTurns.sub": "스레드가 오면 메인 캐릭터에게 알려요. 말할지는 캐릭터가 정해요.",
   "threadTurns.aria": "스레드에 반응",
@@ -698,12 +708,14 @@ const ko: Record<string, string> = {
   "threadReactions.label": "스레드 반응",
   "threadReactions.sub": "칩을 누르거나 스레드가 쌓이면 캐릭터가 스레드 창에 앉아요.",
   "threadReactions.aria": "스레드 반응",
+  "threadReactions.fold": "끼어드는 때",
   "threadReactionThresholds.count_label": "기다리는 스레드 수",
   "threadReactionThresholds.count_sub": "칩의 숫자가 이만큼 되면 캐릭터가 스레드 창에 앉아요.",
   "threadReactionThresholds.wait_label": "오래 기다린 스레드",
   "threadReactionThresholds.wait_sub": "한 스레드가 이만큼 기다리면 캐릭터가 스레드 창에 앉아요.",
   "threadReactionThresholds.off": "끔",
   "threadReactionThresholds.count_value": "{n}개",
+  "threadReactionThresholds.count_summary": "{n}개 대기",
   "threadReactionThresholds.wait_value": "{n}분",
   "threadReactionThresholds.disabled_reason": "스레드 반응을 켜야 쓸 수 있어요.",
 
@@ -758,45 +770,39 @@ const ko: Record<string, string> = {
   "start.voice_configured": "음성이 켜져 있습니다. 목소리는 음성 탭에서 바꿀 수 있습니다.",
 
   // reactions tab
-  "reactions.watchers_title": "감시",
-  "reactions.shared_title": "공통",
   "reactions.port_label": "리스너 포트",
   "reactions.port_sub": "완료 훅 서버가 기다릴 포트",
+  "reactions.reacts_title": "무엇에 반응할지",
+  "reactions.advanced": "고급",
   "reactions.presence_label": "자리 비움 허용 시간",
-  "reactions.presence_sub": "이 시간 이하로 자리를 비웠다면 작업 중으로 간주해요",
+  "reactions.presence_sub": "마지막 입력이 이만큼 최근이면 자리에 있는 걸로 봐요",
   "reactions.seconds_suffix": "초",
   "preset.copy_url": "{name}의 수신 URL 복사",
   "reactions.url_label": "수신 URL",
   "reactions.url_sub": "이 창으로 신호를 보내요.",
   "reactions.restart_hint": "변경 사항을 적용하려면 앱을 재시작해요",
-  "reactions.pacer_gap_label": "말 걸기 간격",
-  "reactions.pacer_gap_sub": "대화가 오간 뒤 유이가 다시 먼저 말을 걸기까지 두는 최소 간격",
+  "reactions.pacer_gap_label": "대화 뒤 기다리는 시간",
+  "reactions.pacer_gap_sub":
+    "대화가 오간 뒤 먼저 말을 걸기까지 기다리는 시간이에요. 보통은 이 값을 쓰고, 적게와 많이는 늘리거나 줄여요.",
   "reactions.pacer_gap_hint": "0으로 두면 기다리지 않고 바로 말을 걸어요.",
-  "reactions.pacer_gap_hours_hint":
-    "캐릭터마다 활동 시간에 따라 이 간격과 '루프 반응'이 줄거나 늘어요.",
   "reactions.minutes_suffix": "분",
-  "reactions.rate_title": "상한",
   "reactions.rate_hint":
-    "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
-  "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub":
-    "자발적 말 걸기, 일정, 에이전트, 신호, 마일스톤, 불려서 답하는 턴을 합쳐서 세요",
+    "시간당 상한은 YUI가 먼저 말을 거는 빈도의 안전장치예요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
+  "reactions.rate_tier2_label": "시간당 먼저 말 거는 횟수",
+  "reactions.rate_tier2_sub": "한동안 조용할 때, 인사, 신호, 다른 캐릭터에게 답하기를 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
-  "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
+  "reactions.rate_overall_sub": "넘어서면 모든 반응이 5분 동안 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
-  "reactions.rate_urgent_sub": "보낸 쪽이 긴급으로 표시한 신호예요. 쿨다운에 걸리지 않아요",
+  "reactions.rate_urgent_sub": "긴급으로 표시된 신호예요. 그 멈춤에 걸리지 않아요",
   "reactions.rate_addressed_label": "연달아 불려서 답하기",
   "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 다른 캐릭터에게 불려 답하는 횟수",
-  "reactions.rate_hint_text":
-    "유이가 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
 
   // screen watch (proactive tab)
-  "screen.section": "화면 감지",
-  "screen.hint":
-    "화면에서 앱을 옮기거나 한 가지를 오래 하는 걸 알아채고 먼저 말을 걸어요. 화면 픽셀을 보낼지는 권한 페이지의 스크린샷 토글을 따라요.",
-  "screen.label": "화면 변화에 반응",
+  "screen.label": "화면 변화",
   "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
-  "screen.aria": "화면 변화에 반응",
+  "screen.aria": "화면 변화",
+  "screen.timing": "타이밍",
+  "screen.timing_summary": "설정 4개",
   "screen.minutes_suffix": "분",
   "screen.seconds_suffix": "초",
   "screen.prev_dwell_label": "앱 전환으로 치는 기준",

@@ -113,7 +113,7 @@ const ja: Record<string, string> = {
   "cue.minutes_aria": "無操作の分数",
   "cue.minutes_suffix": "分ごと",
   "cue.toggle_aria": "{name} を有効化",
-  "cue.toggle_fallback": "キュー",
+  "cue.toggle_fallback": "無題",
   "cue.delete": "削除",
   "cue.confirm_q": "削除しますか？",
   "cue.confirm_go": "削除",
@@ -123,6 +123,7 @@ const ja: Record<string, string> = {
   "cue.ctx_label": "コンテキスト",
   "cue.ctx_aria": "AI が読み取るコンテキスト",
   "cue.ctx_placeholder": "AI に参考にしてほしい状況を自由に書いてね…",
+  "cue.minutes_summary": "{list}分",
 
   // panel chrome
   "panel.dialog_label": "設定",
@@ -300,6 +301,11 @@ const ja: Record<string, string> = {
   "active_hours.end_aria": "終了時刻",
   "active_hours.pace_aria": "話しかける頻度",
   "active_hours.remove_aria": "時間帯を削除",
+  "base_pace.title": "話しかける頻度",
+  "base_pace.foot":
+    "会話のあとの待ち時間と「しばらく静かなとき」の反応が変わります。多い：ひまなときは2倍ほど頻繁に。少なめ：3分の1ほど。",
+  "base_pace.link_lead": "キャラクターと時間帯ごとに：",
+  "base_pace.link": "ペルソナ › 活動時間",
 
   // card
   "card.label": "カード",
@@ -584,9 +590,12 @@ const ja: Record<string, string> = {
   "cue.schedule_title": "時間帯のあいさつ",
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",
   "cue.schedule_add": "あいさつを追加",
-  "cue.proactive_title": "ループリアクション",
+  "cue.schedule_note": "席に着いたとき、その日最初のあいさつもします。",
+  "cue.schedule_fold": "あいさつの時刻",
+  "cue.proactive_title": "しばらく静かなとき",
   "cue.proactive_sub": "作業中にしばらく静かにしていると、定期的に先に話しかけます",
   "cue.proactive_add": "リアクションを追加",
+  "cue.proactive_fold": "声かけ",
 
   // endpoints
   "endpoints.field_sub": "空欄にするとデフォルトを使います",
@@ -693,6 +702,7 @@ const ja: Record<string, string> = {
   "agentNotify.sub":
     "コーディングエージェントやワークフローなど、このマシンのプログラムがシグナルを送ると話しかけます。",
   "agentNotify.aria": "外部シグナル",
+  "agentNotify.fold": "ポートとアドレス",
   "threadTurns.label": "スレッドへの反応",
   "threadTurns.sub":
     "スレッドが届くと、メインキャラクターに知らせます。話すかどうかはキャラクターが決めます。",
@@ -705,6 +715,7 @@ const ja: Record<string, string> = {
   "threadReactions.sub":
     "チップを押すか、スレッドがたまると、キャラクターがスレッドウィンドウに座ります。",
   "threadReactions.aria": "スレッドリアクション",
+  "threadReactions.fold": "割り込むとき",
   "threadReactionThresholds.count_label": "待っているスレッドの数",
   "threadReactionThresholds.count_sub":
     "チップの数がここまで増えると、キャラクターがスレッドウィンドウに座ります。",
@@ -713,6 +724,7 @@ const ja: Record<string, string> = {
     "ひとつのスレッドがこれだけ待つと、キャラクターがスレッドウィンドウに座ります。",
   "threadReactionThresholds.off": "オフ",
   "threadReactionThresholds.count_value": "{n}件",
+  "threadReactionThresholds.count_summary": "{n}件待ち",
   "threadReactionThresholds.wait_value": "{n}分",
   "threadReactionThresholds.disabled_reason": "スレッドリアクションをオンにすると使えます。",
 
@@ -769,45 +781,40 @@ const ja: Record<string, string> = {
   "start.voice_configured": "音声はオンです。声は「声」タブで変えられます。",
 
   // reactions tab
-  "reactions.watchers_title": "ウォッチャー",
-  "reactions.shared_title": "共通",
   "reactions.port_label": "リスナーポート",
   "reactions.port_sub": "完了フックサーバーが待ち受けるポート",
+  "reactions.reacts_title": "反応すること",
+  "reactions.advanced": "詳細設定",
   "reactions.presence_label": "在席とみなす無操作時間",
-  "reactions.presence_sub": "この時間以内の無操作であれば在席とみなします",
+  "reactions.presence_sub": "最後の入力がこの時間以内なら席にいるとみなします",
   "reactions.seconds_suffix": "秒",
   "preset.copy_url": "{name} の受信 URL をコピー",
   "reactions.url_label": "受信 URL",
   "reactions.url_sub": "このウィンドウにシグナルを送信します。",
   "reactions.restart_hint": "変更を適用するにはアプリを再起動してください",
-  "reactions.pacer_gap_label": "話しかけ間隔",
-  "reactions.pacer_gap_sub": "やり取りのあと、YUI がまた自分から話しかけるまで空ける最小の間隔",
+  "reactions.pacer_gap_label": "会話のあとの待ち時間",
+  "reactions.pacer_gap_sub":
+    "会話のあと、自分から話しかけるまで待つ時間です。「ふつう」はこの値を使い、「少なめ」と「多い」で伸び縮みします。",
   "reactions.pacer_gap_hint": "0 にすると待たずにすぐ話しかけます。",
-  "reactions.pacer_gap_hours_hint":
-    "キャラクターごとの活動時間に応じて、この間隔と「ループ反応」が短くなったり長くなったりします。",
   "reactions.minutes_suffix": "分",
-  "reactions.rate_title": "上限",
   "reactions.rate_hint":
-    "YUI が自分から話しかける頻度の上限です。あなたからのメッセージは数えません。空欄なら初期値を使います。",
-  "reactions.rate_tier2_label": "1時間あたりの話しかけ",
+    "1時間あたりの上限は、YUI が自分から話しかける頻度の歯止めです。あなたからのメッセージは数えません。空欄なら初期値を使います。",
+  "reactions.rate_tier2_label": "1時間あたりの話しかけ回数",
   "reactions.rate_tier2_sub":
-    "自発・スケジュール・エージェント・シグナル・マイルストーン・呼ばれて答えるの合計",
+    "しばらく静かなとき、あいさつ、シグナル、他のキャラクターへの返事の合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
-  "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
+  "reactions.rate_overall_sub": "超えるとすべての反応が5分間止まります",
   "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
-  "reactions.rate_urgent_sub": "送り手が緊急と指定したシグナル。クールダウンでは止まりません",
+  "reactions.rate_urgent_sub": "緊急と指定されたシグナル。その停止では止まりません",
   "reactions.rate_addressed_label": "呼ばれて続けて答える回数",
   "reactions.rate_addressed_sub": "あなたが次に話すまでに、他のキャラクターに呼ばれて答える回数",
-  "reactions.rate_hint_text":
-    "ユイが自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
 
   // screen watch (proactive tab)
-  "screen.section": "画面の検知",
-  "screen.hint":
-    "アプリを切り替えたり、ひとつの作業を長く続けているのに気づいて話しかけます。画面のピクセルを送るかどうかは権限ページのスクリーンショット設定に従います。",
-  "screen.label": "画面の変化に反応",
+  "screen.label": "画面の変化",
   "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
-  "screen.aria": "画面の変化に反応",
+  "screen.aria": "画面の変化",
+  "screen.timing": "タイミング",
+  "screen.timing_summary": "設定 4件",
   "screen.minutes_suffix": "分",
   "screen.seconds_suffix": "秒",
   "screen.prev_dwell_label": "アプリ切り替えとみなす基準",

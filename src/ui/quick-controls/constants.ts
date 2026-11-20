@@ -155,12 +155,8 @@ export const SCREEN_KNOB_FIELDS: readonly ScreenKnobFieldDef[] = [
   },
 ];
 
-// Display icon for the screen-watch row — monitor with a lens, matching the line-icon set.
-export const SCREEN_WATCH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
-  <path d="M12 16v3.5M8.5 20h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-  <circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.5"/>
-</svg>`;
+// Chevron of a disclosure summary (Advanced, a source's fold); it turns when open.
+export const DISCLOSURE_CHEV_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
 export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/></svg>`;

@@ -5,6 +5,7 @@ import { t } from "../i18n";
 import {
   CHATKEY_CLEAR_SVG,
   CHATKEY_EYE_SVG,
+  DISCLOSURE_CHEV_SVG,
   ENDPOINT_FIELDS,
   type RateLimitFieldDef,
 } from "./constants";
@@ -119,19 +120,16 @@ export function numRowHtml(opts: {
   max: number;
   suffixKey?: string;
   hintKey?: string;
-  /** A second hint line under the first; the pacer gap's active-hours note alone uses it. */
-  hint2Key?: string;
 }): string {
-  const { id, labelKey, subKey, min, max, suffixKey, hintKey, hint2Key } = opts;
+  const { id, labelKey, subKey, min, max, suffixKey, hintKey } = opts;
   const subHtml = subKey ? `<span class="yui-input-row__sub">${t(subKey)}</span>` : "";
   const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
   const hintHtml = hintKey ? `<span class="yui-row__sub">${t(hintKey)}</span>` : "";
-  const hint2Html = hint2Key ? `<span class="yui-row__sub">${t(hint2Key)}</span>` : "";
   return `
           <div class="yui-row">
             <div class="yui-row__main">
               <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
-              ${subHtml}${hintHtml}${hint2Html}
+              ${subHtml}${hintHtml}
             </div>
             <div class="yui-num">
               <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" data-digits="${String(max).length}" />
@@ -149,4 +147,9 @@ export function capRowHtml(f: RateLimitFieldDef): string {
     min: 1,
     max: RATE_LIMIT_MAX,
   });
+}
+
+// A source's fold under its switch row: a chevron summary with the folded rows' summary on its right.
+export function foldHtml(title: string, aside: string, body: string): string {
+  return `<details class="yui-fold"><summary>${DISCLOSURE_CHEV_SVG}<span>${title}</span><span class="yui-fold__aside">${aside}</span></summary><div class="yui-fold__body">${body}</div></details>`;
 }

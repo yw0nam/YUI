@@ -49,7 +49,10 @@ export function threadReactionThresholdsRowHtml(): string {
           </div>`;
 }
 
-/** Binds both Reaction thresholds segments to their store; the cells and the reason follow the Thread reactions switch. */
+/**
+ * Binds both Reaction thresholds segments to their store and writes them into the Threads fold's summary;
+ * the cells and the reason follow the Thread reactions switch.
+ */
 export function createThreadReactionThresholdsRow(deps: {
   root: HTMLElement;
   settings: ThreadReactionThresholdsSettingsStore;
@@ -60,6 +63,17 @@ export function createThreadReactionThresholdsRow(deps: {
   const countSegment = root.querySelector<HTMLElement>(".yui-reaction-thresholds-count-seg")!;
   const waitSegment = root.querySelector<HTMLElement>(".yui-reaction-thresholds-wait-seg")!;
   const reason = root.querySelector<HTMLElement>(".yui-reaction-thresholds-reason")!;
+  const aside = countSegment.closest(".yui-fold")?.querySelector(".yui-fold__aside");
+  // "3 waiting · 10 min"; a threshold set to Off drops out of the line.
+  const reflectAside = (): void => {
+    if (!aside) return;
+    const { count, wait_min } = settings.get();
+    const parts = [
+      count > 0 ? t("threadReactionThresholds.count_summary", { n: count }) : "",
+      wait_min > 0 ? waitLabel(wait_min) : "",
+    ].filter(Boolean);
+    aside.textContent = parts.join(" · ") || t("threadReactionThresholds.off");
+  };
   const countStore = createStoreSegment({
     segment: countSegment,
     values: REACTION_COUNTS,
@@ -86,14 +100,19 @@ export function createThreadReactionThresholdsRow(deps: {
   const unsubscribe = threadReactionsSettings.subscribe(() => {
     if (isOpen()) reflectEnabled();
   });
+  const unsubscribeAside = settings.subscribe(() => {
+    if (isOpen()) reflectAside();
+  });
   return {
     reflect(): void {
       countStore.reflect();
       waitStore.reflect();
       reflectEnabled();
+      reflectAside();
     },
     dispose(): void {
       unsubscribe();
+      unsubscribeAside();
       countStore.dispose();
       waitStore.dispose();
     },

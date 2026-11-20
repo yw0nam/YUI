@@ -652,7 +652,7 @@ describe("createQuickControls — cue-list tab layout", () => {
       qc.el.querySelectorAll<HTMLElement>("#yui-panel-react [data-testid='cue-list-title']"),
     ).map((el) => el.textContent?.trim() ?? "");
     expect(titles).toContain("시간대 인사");
-    expect(titles).toContain("루프 반응");
+    expect(titles).toContain("한동안 조용할 때");
 
     // Cue rows from default store data are rendered
     const cueRows = qc.el.querySelectorAll("#yui-panel-react [data-testid='cue-row']");

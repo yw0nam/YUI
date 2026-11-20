@@ -72,6 +72,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
 
   const ingressUrlText = el.querySelector("#yui-ingress-url");
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
+  const agentPortAside = agentPortInput?.closest(".yui-fold")?.querySelector(".yui-fold__aside");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
   const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
@@ -83,6 +84,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
     if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+    if (agentPortAside) agentPortAside.textContent = String(agentNotifySettings.get().port);
     if (ingressUrlText)
       ingressUrlText.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
   }

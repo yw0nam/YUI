@@ -6,6 +6,7 @@ import type { SettingsPage } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
+  DISCLOSURE_CHEV_SVG,
   initialPageOf,
   LANG_PICKER_ORDER,
   PLUS_SVG,
@@ -24,10 +25,11 @@ import {
   TAB_ICON_TOGETHER,
   TAB_ICON_VOICE,
 } from "./constants";
-import { capRowHtml, escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
+import { capRowHtml, foldHtml, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
 import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";
+import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
@@ -41,15 +43,6 @@ import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 import { charactersSectionHtml } from "./together/characters-section";
 import { togetherRowsHtml } from "./together/together-rows";
 
-/**
- * Small round `?` that follows a section label whose name alone is not self-explanatory.
- * Markup only — hint-tooltip.ts wires the hover/focus/click tooltip onto `.yui-hint-dot`.
- */
-function hintDotHtml(textKey: string): string {
-  const text = escapeAttr(t(textKey));
-  return `<button type="button" class="yui-hint-dot" aria-label="${text}" data-tip="${text}" data-tip-pin>?</button>`;
-}
-
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   showVoiceInput?: boolean;
@@ -58,11 +51,13 @@ interface PanelHtmlOptions {
   /** Whether the context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
-  /** Whether the screen-watch section renders — true when the screen flag store is injected. */
+  /** Whether How often she speaks up renders — true when the base pace store is injected. */
+  showBasePace?: boolean;
+  /** Whether the Screen changes group renders — true when the screen flag store is injected. */
   showScreen: boolean;
-  /** Whether the Thread turns row renders in Watchers — true with its store and External signals' store. */
+  /** Whether the Thread turns row renders under Threads — true with its store and External signals' store. */
   showThreadTurns: boolean;
-  /** Whether the Reaction thresholds rows render in Watchers — true with their store and the Thread reactions switch's store. */
+  /** Whether the Reaction thresholds rows render under Threads — true with their store and the Thread reactions switch's store. */
   showReactionThresholds?: boolean;
   showPresence: boolean;
   showPacerGap: boolean;
@@ -87,6 +82,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     openOnQuickStart,
     hasSession,
     switchRows,
+    showBasePace,
     showScreen,
     showThreadTurns,
     showReactionThresholds = false,
@@ -105,22 +101,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   function switchRowsHtml(tab: SwitchRow["tab"], position?: SwitchRow["position"]): string {
     return visibleSwitchRows
       .filter((row) => row.tab === tab && row.position === position)
-      .map(
-        (row) =>
-          `${switchRowHtml(row)}${
-            row.accessory === "agent-port"
-              ? numRowHtml({
-                  id: "yui-agent-port",
-                  labelKey: "reactions.port_label",
-                  subKey: "reactions.port_sub",
-                  min: 1024,
-                  max: 65535,
-                  hintKey: "reactions.restart_hint",
-                }) +
-                `<div class="yui-stack yui-input-row"><span class="yui-input-row__label">${t("reactions.url_label")}</span><span class="yui-row__sub">${t("reactions.url_sub")}</span><code id="yui-ingress-url" class="yui-quick__ingress-url"></code><span class="yui-row__sub">${t("reactions.restart_hint")}</span></div>`
-              : ""
-          }`,
-      )
+      .map(switchRowHtml)
       .join("");
   }
   // Language picker seg (3 positions) — display language switch. Host re-mounts via i18n.subscribe.
@@ -129,62 +110,58 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
   ).join("");
 
-  // Screen-watch section (Proactive tab) — master toggle plus the knob group it reveals.
-  // The four thresholds are numeric rows.
-  const screenHtml = showScreen
-    ? `
-      <div class="yui-sec">
-        ${secHeadHtml(`${t("screen.section")}${hintDotHtml("screen.hint")}`)}
-        <div class="yui-group">
-${switchRowsHtml("react", "screen")}
-          <div class="yui-screen-knobs" hidden>
-${SCREEN_KNOB_FIELDS.map((f) =>
-  numRowHtml({
-    id: f.id,
-    labelKey: f.labelKey,
-    subKey: f.subKey,
-    min: f.min,
-    max: f.max,
-    suffixKey: f.suffixKey,
-  }),
-).join("")}
-            <p class="yui-field-hint">${t("screen.foot")}</p>
-          </div>
-        </div>
-      </div>`
-    : "";
-
-  const watcherRowsHtml = switchRowsHtml("react");
-  const watchersHtml = watcherRowsHtml
-    ? `
-      <div class="yui-sec">
-        ${secHeadHtml(t("reactions.watchers_title"))}
-        <div class="yui-group">${watcherRowsHtml}${showReactionThresholds ? threadReactionThresholdsRowHtml() : ""}${showThreadTurns ? threadTurnsRowHtml() : ""}
-        </div>
-      </div>`
-    : "";
-
-  const sharedHtml =
-    showPresence || showPacerGap
+  // Proactive page: one group per source, its switch row over a fold of its details.
+  const sourceGroupHtml = (switchHtml: string, fold: string): string =>
+    switchHtml || fold
       ? `
-      <div class="yui-sec">
-        ${secHeadHtml(t("reactions.shared_title"))}
-        <div class="yui-group">
-        ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
-        ${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint", hint2Key: "reactions.pacer_gap_hours_hint" }) : ""}
-        </div>
-      </div>`
+          <div class="yui-group">${switchHtml}${fold}</div>`
       : "";
+  const screenGroupHtml = showScreen
+    ? sourceGroupHtml(
+        switchRowsHtml("react", "screen"),
+        foldHtml(
+          t("screen.timing"),
+          t("screen.timing_summary"),
+          `${SCREEN_KNOB_FIELDS.map((f) => numRowHtml(f)).join("")}<p class="yui-field-hint">${t("screen.foot")}</p>`,
+        ),
+      )
+    : "";
+  const threadRowsHtml = `${showReactionThresholds ? threadReactionThresholdsRowHtml() : ""}${showThreadTurns ? threadTurnsRowHtml() : ""}`;
+  const threadsGroupHtml = sourceGroupHtml(
+    switchRowsHtml("react", "threads"),
+    threadRowsHtml ? foldHtml(t("threadReactions.fold"), "", threadRowsHtml) : "",
+  );
+  const signalsSwitchHtml = switchRowsHtml("react", "signals");
+  const signalsGroupHtml = signalsSwitchHtml
+    ? sourceGroupHtml(
+        signalsSwitchHtml,
+        foldHtml(
+          t("agentNotify.fold"),
+          "",
+          `${numRowHtml({ id: "yui-agent-port", labelKey: "reactions.port_label", subKey: "reactions.port_sub", min: 1024, max: 65535, hintKey: "reactions.restart_hint" })}<div class="yui-stack yui-input-row"><span class="yui-input-row__label">${t("reactions.url_label")}</span><span class="yui-row__sub">${t("reactions.url_sub")}</span><code id="yui-ingress-url" class="yui-quick__ingress-url"></code><span class="yui-row__sub">${t("reactions.restart_hint")}</span></div>`,
+        ),
+      )
+    : "";
 
-  // Rate-limit section (Proactive page) — the rolling-window caps, one numeric row each.
-  const rateLimitHtml = showRateLimits
+  // Advanced (Proactive page, folded): the wait and presence, then the hourly caps and their note.
+  const advancedGroupsHtml = `${
+    showPacerGap || showPresence
+      ? `
+          <div class="yui-group">${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint" }) : ""}${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}</div>`
+      : ""
+  }${
+    showRateLimits
+      ? `
+          <div class="yui-group">${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}</div>
+          <p class="yui-sec__foot">${t("reactions.rate_hint")}</p>`
+      : ""
+  }`;
+  const advancedHtml = advancedGroupsHtml
     ? `
       <div class="yui-sec">
-        ${secHeadHtml(`${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}`)}
-        <p class="yui-sec__note">${t("reactions.rate_hint")}</p>
-        <div class="yui-group">
-${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
-        </div>
+        <details class="yui-more">
+          <summary>${DISCLOSURE_CHEV_SVG}${t("reactions.advanced")}</summary>${advancedGroupsHtml}
+        </details>
       </div>`
     : "";
 
@@ -365,9 +342,12 @@ ${
       </div>
 `
     : ""
-}${panelOpenHtml("react")}${screenHtml}
-        <div class="yui-loop-cue-section"></div>
-        <div class="yui-cue-sections"></div>${watchersHtml}
+}${panelOpenHtml("react")}${showBasePace ? basePaceSectionHtml() : ""}
+        <div class="yui-sec">
+          ${secHeadHtml(t("reactions.reacts_title"))}
+          <div class="yui-group yui-loop-cue-section"></div>
+          <div class="yui-group yui-cue-sections"></div>${screenGroupHtml}${threadsGroupHtml}${signalsGroupHtml}
+        </div>
         <div class="yui-sec">
           ${secHeadHtml(t("workflows.title"))}
           <p class="yui-sec__note">${t("workflows.sub")}</p>
@@ -390,7 +370,7 @@ ${
               <button class="yui-add-btn yui-wf-add-btn" type="button" disabled>${PLUS_SVG}${t("workflows.add")}</button>
             </div>
           </div>
-        </div>${sharedHtml}${rateLimitHtml}
+        </div>${advancedHtml}
       </div>
 ${panelOpenHtml("motion")}
         <div class="yui-sec yui-motion-switches">

@@ -119,7 +119,7 @@ Done when: you can run `python3 "$SKILL_DIR/scripts/briefing.py" --help`.
 
 ### 2. Turn on the first-activity milestone
 
-Ask the user to open YUI Settings → Proactive and switch "Scheduled greeting" on. That
+Ask the user to open YUI Settings → Proactive and switch "Scheduled greetings" on. That
 switch gates the `first_activity` milestone and also runs the scheduled greetings at their
 set times. It applies as soon as it is switched on.
 
@@ -283,7 +283,7 @@ and 8. List the scheduler's entries (`crontab -l` on cron) and confirm each poin
    own shell commands run in holds the same value, as in step 7.
 4. The jobs carry `TZ=<user zone>`, such as `TZ=Europe/Berlin`, when the machine's time
    zone differs from the user's.
-5. The user has switched "Scheduled greeting" on, as in step 2.
+5. The user has switched "Scheduled greetings" on, as in step 2.
 6. Every producer entry runs at one time, as in step 4, with each job it depends on ahead
    of it. A schedule whose producers run at different times moves them all to the earliest
    of those times. A comment in the schedule that no longer matches it is updated or

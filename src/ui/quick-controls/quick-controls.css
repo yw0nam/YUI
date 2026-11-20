@@ -219,12 +219,6 @@
   line-height: 1.2;
 }
 
-/* Cue-list mounts hold one section each — let them join the panel column directly. */
-.yui-loop-cue-section,
-.yui-cue-sections {
-  display: contents;
-}
-
 /* ── Section — title row, optional note, then groups ── */
 .yui-sec {
   min-width: 0;
@@ -280,14 +274,8 @@
   margin-top: 0.5rem;
 }
 
-.yui-group > * + *,
-.yui-screen-knobs > * {
+.yui-group > * + * {
   border-top: 1px solid var(--yui-edge);
-}
-
-/* The knob rows join the group's row flow while screen watch is on. */
-.yui-screen-knobs:not([hidden]) {
-  display: contents;
 }
 
 /* ── Row — label + sub on the left, its control on the right; wraps when narrow ── */
@@ -305,9 +293,8 @@
   display: none;
 }
 
-/* Dims the Thread turns and Reaction thresholds rows while their cells are disabled. */
-.yui-threadturns-row:has(:disabled),
-.yui-reaction-thresholds-row:has(:disabled) {
+/* Dims the Thread turns row while its cells are disabled; the thresholds rows dim with the Threads fold. */
+.yui-threadturns-row:has(:disabled) {
   opacity: 0.55;
 }
 

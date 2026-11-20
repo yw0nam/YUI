@@ -15,7 +15,7 @@ import { SCREEN_KNOB_FIELDS, type ScreenKnobFieldDef } from "../../constants";
 interface ScreenSectionDeps {
   /** Panel root (el) — query the knob inputs here. */
   root: HTMLElement;
-  /** Screen-watch on/off flag — its subscription redraws both switch rows and the knob group. */
+  /** Screen-watch on/off flag — its subscription redraws the switch rows. */
   screenSettings?: FlagSettingsStore;
   /** Screen-watch threshold overrides store. Absent when the section isn't rendered. */
   screenKnobSettings?: ScreenKnobSettingsStore;
@@ -28,7 +28,7 @@ interface ScreenSectionDeps {
 }
 
 interface ScreenSection {
-  /** Render the knob group's visibility and the knobs from their stores. */
+  /** Render the knobs from their stores. */
   reflect(): void;
   /** Permanent teardown — unsubscribe stores and remove all listeners. */
   dispose(): void;
@@ -49,12 +49,9 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) screenKnobInputs.set(field.key, input);
   }
-  const screenKnobsEl = el.querySelector<HTMLDivElement>(".yui-screen-knobs");
 
-  // The knob group follows the master toggle; each knob shows its override when set, else the config default.
+  // Each knob shows its override when set, else the config default.
   function reflectScreen(): void {
-    if (!screenKnobsEl || !screenSettings) return;
-    screenKnobsEl.hidden = !screenSettings.get().enabled;
     if (!screenKnobSettings) return;
     const overrides = screenKnobSettings.get();
     const defaults = getScreenDefaults?.();
