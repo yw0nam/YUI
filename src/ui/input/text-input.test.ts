@@ -789,6 +789,70 @@ describe("showInputError — inline fix affordance", () => {
   });
 });
 
+describe("showInputError — Retry in the composer", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  const form = (): HTMLElement => mount.querySelector(".yui-input") as HTMLElement;
+  const field = (): HTMLTextAreaElement =>
+    mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
+  const errorEl = (): HTMLElement => mount.querySelector(".yui-input__error") as HTMLElement;
+  const retry = (): HTMLButtonElement | undefined =>
+    Array.from(errorEl().querySelectorAll<HTMLButtonElement>(".yui-input__error-action")).find(
+      (b) => !b.hidden && b.textContent === "Retry",
+    );
+  const edit = (text: string): void => {
+    field().value = text;
+    field().dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  async function openWith(text: string): Promise<void> {
+    s.summonInput();
+    await new Promise((r) => requestAnimationFrame(r));
+    s.restoreInput(text, []);
+  }
+
+  it("offers Retry only while the field holds text, and keeps it through an edit that keeps text", async () => {
+    await openWith("hello");
+    s.showInputError("No response · check connection", "retry");
+    expect(retry()).not.toBeUndefined();
+
+    edit("hello again");
+    expect(retry()).not.toBeUndefined();
+    expect(errorEl().textContent!.trim()).toBe("Retry");
+
+    edit("");
+    expect(form().classList.contains("is-error")).toBe(false);
+
+    s.showInputError("No response · check connection", "retry");
+    expect(retry()).toBeUndefined();
+    edit("typed");
+    expect(retry()).not.toBeUndefined();
+  });
+
+  it("resends the field's current text on a Retry click", async () => {
+    const seen: string[] = [];
+    s.onSubmit((text) => seen.push(text));
+    await openWith("hello");
+    s.showInputError("The connection stopped responding", "retry");
+    edit("hello again");
+
+    expect(retry()).not.toBeUndefined();
+    retry()!.click();
+
+    expect(seen).toEqual(["hello again"]);
+    expect(form().classList.contains("is-error")).toBe(false);
+  });
+});
+
 describe("input error layout", () => {
   it("keeps the error below the controls so it cannot squeeze the field", () => {
     const css = readSrc("../surfaces/surfaces.css");

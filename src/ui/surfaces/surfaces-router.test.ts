@@ -413,6 +413,16 @@ describe("createSurfacesRouter", () => {
     expect(local.showInputError).not.toHaveBeenCalled();
   });
 
+  it("hands Retry to the pet-side input and withholds it from the unified composer", () => {
+    setMode("popped");
+    router.showInputError("no response", "retry");
+    expect(remote.showInputError).toHaveBeenCalledWith("no response", "retry");
+
+    setShown(true);
+    router.showInputError("no response", "retry");
+    expect(stream.showInputError).toHaveBeenCalledWith("no response", undefined);
+  });
+
   it("keeps the tool ops, the anchor, the element and dispose local in both modes", () => {
     setMode("popped");
     router.showTool("web_search");

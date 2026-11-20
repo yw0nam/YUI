@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../i18n";
 import {
+  failureAction,
   isSettingsFixable,
   routeTurnFailure,
   turnErrorFixAction,
@@ -178,6 +179,23 @@ describe("turnErrorFixAction", () => {
     for (const reason of reasons) {
       expect(turnErrorFixAction(reason, () => {})).toBeUndefined();
     }
+  });
+});
+
+describe("failureAction", () => {
+  it.each([
+    ["not_configured", undefined, "connect"],
+    ["http_4xx_drop", undefined, "change_key"],
+    ["network_drop", { status: 400, message: "bad request" }, "check_connection"],
+    ["network_drop", { status: 404, message: "not found" }, "check_connection"],
+    ["network_drop", { status: 499, message: "closed" }, "check_connection"],
+    ["network_drop", { status: 500, message: "oops" }, "retry"],
+    ["network_drop", { status: 503, message: "overloaded" }, "retry"],
+    ["network_drop", { message: "rate limit reached" }, "retry"],
+    ["network_drop", undefined, "retry"],
+    ["network_stall", undefined, "retry"],
+  ] as const)("gives %s with %j the action %s", (reason, detail, expected) => {
+    expect(failureAction(reason, detail)).toBe(expected);
   });
 });
 

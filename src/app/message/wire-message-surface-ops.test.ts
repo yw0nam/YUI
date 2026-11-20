@@ -215,6 +215,12 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
       received: [["showInputError", ["no backend", { label: "Open Advanced", onClick: click }]]],
     },
     {
+      title: "input-error with the composer's retry",
+      send: (r) => r.showInputError("no response", "retry"),
+      wire: { op: "input-error", message: "no response", retry: true },
+      received: [["showInputError", ["no response", "retry"]]],
+    },
+    {
       title: "input-error with no action",
       send: (r) => r.showInputError("no backend"),
       wire: { op: "input-error", message: "no backend" },

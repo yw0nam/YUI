@@ -45,6 +45,7 @@ describe("wireDispatcher", () => {
     windowTools?: ClientTool[],
     endpoints = {} as EndpointsConfig,
     dndSettings = createFlagSettings(false),
+    inputOpen = false,
   ) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
@@ -68,6 +69,8 @@ describe("wireDispatcher", () => {
     const quotedTurn = { admitted: vi.fn(), failed: vi.fn() };
     const busyUnsubscribe = vi.fn();
     const showVoiceError = vi.fn();
+    const showInputError = vi.fn();
+    const openSettings = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
       subscribeBusy: vi.fn(() => busyUnsubscribe),
@@ -101,7 +104,7 @@ describe("wireDispatcher", () => {
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
-      surfaces: { isInputOpen: () => false } as never,
+      surfaces: { isInputOpen: () => inputOpen, showInputError } as never,
       reasoning: {} as never,
       getEndpoints: () => endpoints,
       getGuardrails: () => ({}) as never,
@@ -137,7 +140,7 @@ describe("wireDispatcher", () => {
         emotionText: { mode: "free", table: null },
       }),
       windowTools,
-      openSettings: vi.fn(),
+      openSettings,
       showVoiceError,
       appendTurnRecord: vi.fn(),
       t: (key: string) => key,
@@ -157,6 +160,8 @@ describe("wireDispatcher", () => {
       previousTurn,
       quotedTurn,
       showVoiceError,
+      showInputError,
+      openSettings,
       activeHoursSettings,
       activeHoursGapSettings,
     };
@@ -282,6 +287,41 @@ describe("wireDispatcher", () => {
     s.dispatcherDeps.onUserTurnFailed!("network_drop", "voice");
 
     expect(s.showVoiceError).toHaveBeenCalledWith("network_drop", undefined);
+  });
+
+  it.each([
+    [
+      "http_4xx_drop",
+      undefined,
+      "Auth failed · check API key",
+      { label: "Change key", onClick: expect.any(Function) },
+    ],
+    [
+      "network_drop",
+      { status: 400, message: "model does not support tools" },
+      "400 model does not support tools",
+      { label: "Check connection", onClick: expect.any(Function) },
+    ],
+    ["network_drop", undefined, "No response · check connection", "retry"],
+    ["network_drop", { status: 503, message: "overloaded" }, "503 overloaded", "retry"],
+    ["network_stall", undefined, "The connection stopped responding", "retry"],
+  ] as const)("offers the %s next step on the open input: %j", (reason, detail, message, offer) => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+
+    s.dispatcherDeps.onUserTurnFailed!(reason, "text", detail);
+
+    expect(s.showInputError).toHaveBeenCalledExactlyOnceWith(message, offer);
+  });
+
+  it("opens Connection from a key action on the open input", () => {
+    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+    s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
+
+    const offer = s.showInputError.mock.calls[0]![1];
+    expect(offer).toEqual({ label: "Change key", onClick: expect.any(Function) });
+    offer.onClick();
+
+    expect(s.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
   });
 
   it("registers the teardowns in composition order and they run LIFO", () => {

@@ -76,6 +76,15 @@ export function turnErrorFixAction(
   return { label: t("hint.setup_action"), onClick: () => openSettings("conn") };
 }
 
+export type FailureAction = "connect" | "change_key" | "check_connection" | "retry";
+
+export function failureAction(
+  _reason: TurnFailure,
+  _detail?: TurnErrorDetail,
+): FailureAction | undefined {
+  return undefined;
+}
+
 type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };
 
 /**
