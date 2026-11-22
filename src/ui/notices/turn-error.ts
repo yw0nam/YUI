@@ -1,12 +1,4 @@
-/**
- * Backend-call failure reason → inline input-error message.
- *
- * Delegates to the i18n dictionary. Only the reasons a user-initiated turn can
- * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
- * anything else renders nothing rather than inventing text. A network_drop carrying
- * the server's {status, message} detail renders the status and the server text, and one without
- * a status renders the server text alone; a 429 renders the rate-limit line instead.
- */
+/** A failed turn's reason → its message, its next step, and the surface that shows it. */
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
@@ -63,11 +55,7 @@ const ACTION_LABEL_KEY: Record<Exclude<FailureAction, "retry">, string> = {
   check_connection: "input.action_check_connection",
 };
 
-/**
- * The next step a failed turn offers; every surface reads it. A rejected key or a not-yet-connected
- * backend opens the key entry, another 4xx opens it to check the connection, a drop or a stall
- * resends.
- */
+/** The next step a failed turn offers: open the key entry, check the connection, or resend. */
 export function failureAction(
   reason: TurnFailure,
   detail?: TurnErrorDetail,

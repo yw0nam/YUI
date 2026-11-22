@@ -1,8 +1,4 @@
-/**
- * The failed-turn notice the status pill carries when no input is open to show the failure: the
- * condition text and, for a keyed failure, its action. It clears itself so an unattended pill never
- * keeps taking OS clicks meant for what sits behind YUI.
- */
+/** The status pill's failed-turn notice: the condition text and, for a keyed failure, its action, cleared by a timer. */
 
 export interface TurnNoticeAction {
   label: string;

@@ -1,7 +1,4 @@
-/**
- * How long a voice-turn failure holds the status pill's voice error state. The failure clears
- * quickly so the mic does not sit red; its condition and action live on the pill's notice.
- */
+/** How long a voice-turn failure holds the status pill's voice error state. */
 
 import type { VoiceInputStatus } from "./voice-input-status";
 

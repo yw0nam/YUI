@@ -1,7 +1,4 @@
-/**
- * Quick start's key state once connected: whether the paste row is open, the stored key's last
- * check verdict, and whether a key was replaced. Pure: the page renders what `keyView` returns.
- */
+/** Quick start's connected key state: the paste row, the stored key's last check and a replacement, as pure transitions. */
 
 export interface KeyState {
   /** The paste row is open in the connected state. */

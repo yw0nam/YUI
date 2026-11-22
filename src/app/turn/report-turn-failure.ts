@@ -1,7 +1,4 @@
-/**
- * Where a failed user turn shows: the open input carries the condition and its next step; with no
- * input open, a typed or voice turn's condition and keyed action go on the status pill.
- */
+/** Routes a failed user turn to the open input's error line, or to the status pill's notice when no input is open. */
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";

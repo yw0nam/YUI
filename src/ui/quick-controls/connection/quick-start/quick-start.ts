@@ -1,9 +1,4 @@
-/**
- * Quick start: the Connection page's free Gemini path — what is sent and the daily limit, the key
- * page link, and the key field. One model-list read confirms the pasted key, and only a confirmed
- * key writes anything. Once connected, the same read checks the stored key each time the view
- * shows, and a replacement key writes the key alone.
- */
+/** Quick start: the Connection page's free Gemini path, a pasted key confirmed by a model-list read and checked again once stored. */
 
 import type { EndpointsConfig } from "../../../../contract";
 import type { ModelListResult } from "../../../../io/chat/models/reader";
@@ -129,7 +124,7 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
 // A stored-key check answer is reused on the same key for this long.
 const CHECK_REUSE_MS = 60_000;
 
-/** Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key". */
+/** A refused key: a 401 or 403, or the HTTP 400 Gemini answers for a bad key. */
 function isRefused(result: ModelListResult): boolean {
   return result.kind === "refused" || (result.kind === "http" && result.status === 400);
 }

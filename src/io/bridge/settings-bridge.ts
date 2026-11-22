@@ -32,7 +32,7 @@ export interface PresetChange {
   active: string;
 }
 
-/** A pet window asking the open settings window of `preset` (null: the main one) to show that character, on `page` when given, with `focus` in focus. */
+/** A pet window asking the open settings window of `preset` (null: the main one) to show `page` and focus `focus`. */
 export interface SettingsPageRequest {
   preset: string | null;
   page?: SettingsPage;
