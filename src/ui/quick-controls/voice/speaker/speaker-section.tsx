@@ -1,26 +1,22 @@
 /** The Voice page's speaker list: the radiogroup of voices, the import row, and the paste-a-voice-id field. */
 
-import { useEffect } from "react";
-import { voiceIdFromName } from "../../../../io/assets/safe-id";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
 import { useAssetList } from "../../asset-list/use-asset-list";
+import type { Audition } from "./audition";
 import { ManualVoiceId } from "./manual-voice-id";
+import { heldElsewhere, removeSpeakerOption } from "./speaker-rules";
 import "./speaker-list.css";
 import { SpeakerRow } from "./speaker-row";
 import { useAudition } from "./use-audition";
-import { type PendingImport, usePendingImport } from "./use-pending-import";
+import { usePendingImport } from "./use-pending-import";
 import { useReferenceRefresh } from "./use-reference-refresh";
-
-/** The page's handle on the audition, so the panel's close can stop it. */
-export interface AuditionPort {
-  stop: (() => void) | null;
-}
 
 export interface SpeakerSectionProps {
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
@@ -29,7 +25,7 @@ export interface SpeakerSectionProps {
   /** Re-upload the speaker's reference clip. Server-side update only; the selection stays. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Import pick step: stages the copy, returns its staging id and a naming-row seed (null on cancel). */
-  pickVoiceImport: () => Promise<PendingImport | null>;
+  pickVoiceImport: () => Promise<PickedVoiceImport | null>;
   /** Import commit step: uploads the staged copy under the typed name, then adds the option and selects it. */
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   /** Delete an imported voice's app-data file (idempotent), before the store drops it. */
@@ -45,7 +41,7 @@ export interface SpeakerSectionProps {
   isOpen: () => boolean;
   /** Moves on each open; the list is read again and an armed remove drops. */
   revision: number;
-  audition: AuditionPort;
+  audition: Audition;
 }
 
 export function SpeakerSection({
@@ -62,18 +58,13 @@ export function SpeakerSection({
   refreshTooltip,
   isOpen,
   revision,
-  audition: port,
+  audition,
 }: SpeakerSectionProps) {
   const list = useAssetList<SpeakerOption>({
     selection: speakerSelection,
     swap: swapSpeaker,
     removeFile: removeVoice,
-    // The server owns every voice; a user-imported one also has a local clip and a store entry.
-    removeFromStore: (id) => {
-      const source = speakerSelection.list().find((o) => o.id === id)?.source;
-      if (source === "user") speakerSelection.removeUserOption(id);
-      else speakerSelection.removeBundledOption(id);
-    },
+    removeFromStore: (id) => removeSpeakerOption(speakerSelection, id),
     isOpen,
     revision,
     log,
@@ -82,39 +73,20 @@ export function SpeakerSection({
     classPrefix: "yui-spk",
     datasetKey: "spkId",
   });
-  // An id one of another provider's voices holds is not taken over.
-  const heldElsewhere = (id: string): boolean =>
-    speakerSelection.listUser().some((o) => o.id === id) &&
-    !speakerSelection.list().some((o) => o.id === id);
   const imports = usePendingImport({
     pickImport: pickVoiceImport,
     commitImport: commitVoiceImport,
-    deriveId: voiceIdFromName,
-    // A provider that keeps the caller's id (the one re-upload needs) files the clip under the
-    // name-derived id, so that id must not be another provider's voice.
-    isImportBlocked: (id) => canReuploadVoices() && heldElsewhere(id),
+    // A provider that keeps the caller's id files the clip under the name-derived id, which must not be another provider's voice.
+    isImportBlocked: (id) => canReuploadVoices() && heldElsewhere(speakerSelection, id),
     hasId: (id) => list.options.some((o) => o.id === id),
     log,
-    logPrefix: "voice",
-    namespace: "speaker",
     repaint: list.repaint,
   });
   const refreshes = useReferenceRefresh({ refreshSpeaker, log });
-  const audition = useAudition();
-
-  // A swap hides the busy row's preview button, and a removed row loses its clip: the clip stops.
-  const { playingId, stop: stopAudition } = audition;
-  const playingGone = playingId !== null && !list.options.some((o) => o.id === playingId);
-  const swapStarted = list.swappingId !== null;
-  useEffect(() => {
-    if (swapStarted || playingGone) stopAudition();
-  }, [swapStarted, playingGone, stopAudition]);
-  useEffect(() => {
-    port.stop = stopAudition;
-    return () => {
-      port.stop = null;
-    };
-  }, [port, stopAudition]);
+  const playingId = useAudition(audition, {
+    swapping: list.swappingId !== null,
+    ids: list.options.map((o) => o.id),
+  });
 
   const managed = canManageVoices();
   const swapping = list.swappingId !== null;

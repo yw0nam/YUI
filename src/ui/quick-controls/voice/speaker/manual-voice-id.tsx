@@ -4,11 +4,11 @@ import { useRef, useState } from "react";
 import { isSafeSanitizedId } from "../../../../io/assets/safe-id";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import { t } from "../../../i18n";
+import { heldElsewhere } from "./speaker-rules";
 
 type SpeakerSelection = ReturnType<typeof createSpeakerSelection>;
 
-// A voice page URL (`/m/<id>`) names the voice; any other URL names none (undefined). Anything
-// that is not a URL is the id itself.
+// A voice page URL (`/m/<id>`) names the voice, any other URL none (undefined), and a non-URL is the id.
 function pastedVoiceId(text: string): string | undefined {
   const trimmed = text.trim();
   if (!/^https?:\/\//i.test(trimmed)) return trimmed;
@@ -31,18 +31,12 @@ export function ManualVoiceId({
   const [reason, setReason] = useState<string>("speaker.manual_invalid");
   const [invalid, setInvalid] = useState(false);
 
-  // An id one of another provider's voices holds is not taken over.
-  const heldElsewhere = (id: string): boolean =>
-    speakerSelection.listUser().some((o) => o.id === id) &&
-    !speakerSelection.list().some((o) => o.id === id);
-
   function refuse(why: string): void {
     setReason(why);
     setInvalid(true);
   }
 
-  // A URL that is not a voice page, an id the store cannot keep (path-ish characters), or one
-  // another provider's voice holds marks the field invalid.
+  // A non-voice URL, an id the store cannot keep, or one another provider's voice holds marks it invalid.
   function commit(): void {
     const field = input.current!;
     const id = pastedVoiceId(field.value);
@@ -51,7 +45,7 @@ export function ManualVoiceId({
       refuse("speaker.manual_invalid");
       return;
     }
-    if (heldElsewhere(id)) {
+    if (heldElsewhere(speakerSelection, id)) {
       refuse("speaker.manual_taken");
       return;
     }

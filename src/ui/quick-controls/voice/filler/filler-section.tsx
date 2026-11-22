@@ -13,6 +13,9 @@ import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 type PoolField = (typeof FIELDS)[number];
 
+// A row with no store has nothing to follow.
+const subscribeNever = () => () => {};
+
 const LANG_OPTIONS = [
   { value: "ja", label: "日本語" },
   { value: "en", label: "English" },
@@ -72,7 +75,7 @@ export function FillerSection({
   revision: number;
 }) {
   const state = useSyncExternalStore(settings.subscribe, settings.current);
-  const enabled = useSyncExternalStore(row.subscribe ?? (() => () => {}), row.getEnabled);
+  const enabled = useSyncExternalStore(row.subscribe ?? subscribeNever, row.getEnabled);
   const refs = useRef<Partial<Record<PoolField["key"], HTMLTextAreaElement | null>>>({});
   const setRef = (key: PoolField["key"], el: HTMLTextAreaElement | null): void => {
     refs.current[key] = el;

@@ -1,68 +1,56 @@
 /** The two-phase import: the pick stages a copy, a naming row names it, Enter uploads it and Esc discards it. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { voiceIdFromName } from "../../../../io/assets/safe-id";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 
-/** A staged-but-not-yet-named import: the naming row names it, Esc discards it. */
-export interface PendingImport {
-  stagedId: string;
-  /** Seeds the naming row's input (the picked file's stem). */
-  seedName: string;
-  /** Removes the staged copy when the naming row is cancelled or the list torn down. */
-  discard: () => Promise<void>;
-}
-
 export function usePendingImport(deps: {
   /** Stages the picked file's copy; null on cancel at the OS picker. */
-  pickImport: () => Promise<PendingImport | null>;
+  pickImport: () => Promise<PickedVoiceImport | null>;
   /** Uploads the staged copy under the typed name, then adds the option and selects it. */
   commitImport: (stagedId: string, name: string) => Promise<void>;
-  /** The id a typed name imports under. */
-  deriveId: (name: string) => string;
   /** An id the import may not take: the naming row warns and Enter keeps it open. */
   isImportBlocked: (id: string) => boolean;
   /** Whether a listed option already holds this id: the naming row warns of the overwrite. */
   hasId: (id: string) => boolean;
   log: Logger;
-  logPrefix: string;
-  /** The i18n namespace of the warnings. */
-  namespace: string;
   /** Redraws the list around each step, as any list redraw does. */
   repaint: () => void;
 }) {
-  const { pickImport, commitImport, deriveId, isImportBlocked, hasId, log, logPrefix } = deps;
+  const { pickImport, commitImport, isImportBlocked, hasId, log } = deps;
   const [state, setState] = useState<{
-    pending: PendingImport | null;
+    pending: PickedVoiceImport | null;
     committing: boolean;
     importError: boolean;
   }>({ pending: null, committing: false, importError: false });
-  const pending = useRef<PendingImport | null>(null);
+  const pending = useRef<PickedVoiceImport | null>(null);
   const picking = useRef(false);
   const committing = useRef(false);
   const disposed = useRef(false);
 
   // Remove the staged copy; a failure surfaces as a warning, never into UI code.
   const discardStaged = useCallback(
-    (staged: PendingImport): void => {
+    (staged: PickedVoiceImport): void => {
       void staged
         .discard()
-        .catch((e) => log.warn(`${logPrefix}_import_discard_failed`, { error: String(e) }));
+        .catch((e) => log.warn(`voice_import_discard_failed`, { error: String(e) }));
     },
-    [log, logPrefix],
+    [log],
   );
 
   // A pick that resolves after the list is gone is discarded, and so is a naming row left open.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    disposed.current = false;
+    return () => {
       disposed.current = true;
       if (pending.current === null) return;
       const staged = pending.current;
       pending.current = null;
       discardStaged(staged);
-    },
-    [discardStaged],
-  );
+    };
+  }, [discardStaged]);
 
   async function start(): Promise<void> {
     // One picker at a time.
@@ -81,7 +69,7 @@ export function usePendingImport(deps: {
       setState((s) => ({ ...s, pending: picked }));
     } catch (err) {
       setState((s) => ({ ...s, importError: true }));
-      log.error(`${logPrefix}_import_failed`, { error: String(err) });
+      log.error(`voice_import_failed`, { error: String(err) });
     } finally {
       picking.current = false;
     }
@@ -99,7 +87,7 @@ export function usePendingImport(deps: {
   /** Whether the name was taken; a blocked id keeps the naming row open. */
   function commit(name: string): boolean {
     if (committing.current || pending.current === null) return true;
-    if (isImportBlocked(deriveId(name))) return false;
+    if (isImportBlocked(voiceIdFromName(name))) return false;
     const staged = pending.current;
     // Cleared before the render: a blur fired by the row's removal finds nothing to commit again.
     pending.current = null;
@@ -111,7 +99,7 @@ export function usePendingImport(deps: {
         await commitImport(staged.stagedId, name);
       } catch (err) {
         setState((s) => ({ ...s, importError: true }));
-        log.error(`${logPrefix}_import_failed`, { error: String(err) });
+        log.error(`voice_import_failed`, { error: String(err) });
       } finally {
         committing.current = false;
         deps.repaint();
@@ -121,12 +109,11 @@ export function usePendingImport(deps: {
     return true;
   }
 
-  // Committing a name whose id matches a listed one replaces that clip outright, and the seed comes
-  // from the picked filename, so the collision can be unintended: flag it live next to the hint.
+  // A name whose id matches a listed one replaces that clip, and the seed is the filename: warn live.
   function warnFor(name: string): string | null {
-    const id = deriveId(name);
-    if (isImportBlocked(id)) return t(`${deps.namespace}.import_taken_warn`);
-    return hasId(id) ? t(`${deps.namespace}.import_overwrite_warn`) : null;
+    const id = voiceIdFromName(name);
+    if (isImportBlocked(id)) return t(`speaker.import_taken_warn`);
+    return hasId(id) ? t(`speaker.import_overwrite_warn`) : null;
   }
 
   return { ...state, start, cancel, commit, warnFor };

@@ -16,7 +16,7 @@ const SPK_CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><
 export interface SpeakerRowProps {
   option: SpeakerOption;
   list: AssetList<SpeakerOption>;
-  /** The provider takes voices: every row removes, and a user row is renameable. */
+  /** The provider takes voices: each row has a remove button, and a user row a rename button. */
   managed: boolean;
   /** The provider takes a clip again under the voice's own id. */
   canReupload: boolean;

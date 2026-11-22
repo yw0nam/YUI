@@ -3,7 +3,7 @@
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { AuditionPort } from "./speaker/speaker-section";
+import { createAudition } from "./speaker/audition";
 import { VoicePageView, type VoicePageViewProps } from "./voice-page-view";
 
 export interface VoicePage {
@@ -23,7 +23,7 @@ export function createVoicePage(
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   const root = createRoot(el);
-  const audition: AuditionPort = { stop: null };
+  const audition = createAudition();
   const props = { rows, fillerSettings, log, speaker: { ...speaker, log, audition } };
   let revision = 0;
   const render = (): void =>
@@ -36,11 +36,10 @@ export function createVoicePage(
       revision++;
       render();
     },
-    close(): void {
-      audition.stop?.();
-    },
+    close: audition.stop,
     dispose(): void {
       root.unmount();
+      audition.stop();
     },
   };
 }

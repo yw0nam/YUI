@@ -455,7 +455,6 @@ const en: Record<string, string> = {
   "vrm.remove_confirm": "Delete?",
   "vrm.remove_confirm_aria": "Delete? {name}",
   "vrm.name_aria": "VRM name",
-  "vrm.import_overwrite_warn": "replaces the existing model of this name",
   "vrm.rename_hint_save": "save",
   "vrm.rename_hint_cancel": "cancel",
   "vrm.loading": "Loading…",

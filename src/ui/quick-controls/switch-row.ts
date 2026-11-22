@@ -20,7 +20,7 @@ export interface SwitchRow {
   getEnabled: () => boolean;
   setEnabled: (value: boolean) => void;
   logKey?: string;
-  /** Follows the row's store, for a store that feeds nothing else on the panel. */
+  /** Follows the row's store, so the row redraws when another window or section changes it. */
   subscribe?: (onChange: () => void) => () => void;
   /** While `get()`, the switch is disabled and the row's sub line gives the reason. */
   lock?: { reasonKey: string; get(): boolean; subscribe(onChange: () => void): () => void };
