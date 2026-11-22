@@ -817,7 +817,7 @@ YUI/
             preset-export-panel.ts   # The inline list of what a preset file carries, the rights check, and Export…
             preset-export-panel.css  # The export panel's status inks and actions
           key-row/                   # One secret API key row
-            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal that Quick start and the Listening page's STT row share
+            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
