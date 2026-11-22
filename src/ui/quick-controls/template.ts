@@ -258,10 +258,6 @@ ${
         </div>${advancedHtml}
       </div>
 ${panelOpenHtml("motion")}
-        <div class="yui-sec yui-motion-switches">
-          <div class="yui-group">${switchRowsHtml("motion")}
-          </div>
-        </div>
       </div>
 ${panelOpenHtml("general")}
       </div>

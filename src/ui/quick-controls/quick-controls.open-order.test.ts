@@ -65,8 +65,14 @@ vi.mock("./history/history-page", () => ({
 vi.mock("./character/character-tab", () => ({
   createCharacterTab: () => ({
     el: document.createElement("div"),
-    motionEl: document.createElement("div"),
     refresh: rec("characterTab", "refresh"),
+    dispose: () => {},
+  }),
+}));
+vi.mock("./motion/motion-page", () => ({
+  createMotionPage: () => ({
+    el: document.createElement("div"),
+    refresh: rec("motionPage", "refresh"),
     close: () => {},
     dispose: () => {},
   }),
@@ -118,6 +124,7 @@ describe("createQuickControls — open order", () => {
       "delegationFeed.sync",
       "historyPage.refresh",
       "characterTab.refresh",
+      "motionPage.refresh",
       "speakerList.render",
       "shell.refreshVoiceList",
       "perms.loadMonitorsIfEnabled",

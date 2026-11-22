@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createIdleMotionSettings } from "../../../../settings/avatar/idle-motion-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const IDLE_POOL = {
   vrma_path: "/motions/calm.vrma",
@@ -44,7 +48,7 @@ describe("createQuickControls — idle motion section", () => {
   });
 
   afterEach(() => {
-    qc?.dispose();
+    act(() => qc?.dispose());
     mount.remove();
     vi.restoreAllMocks();
     setLocale("en");
@@ -85,7 +89,7 @@ describe("createQuickControls — idle motion section", () => {
   it("clicking the baseline switch cannot disable it", () => {
     qc = build();
     qc.open();
-    switches()[0]!.click();
+    act(() => switches()[0]!.click());
     expect(idleMotionSettings.get().disabled).toEqual([]);
     expect(switches()[0]!.getAttribute("aria-checked")).toBe("true");
   });
@@ -93,7 +97,7 @@ describe("createQuickControls — idle motion section", () => {
   it("toggling a variant off writes it to the store and reflects in the DOM", () => {
     qc = build();
     qc.open();
-    switches()[2]!.click();
+    act(() => switches()[2]!.click());
     expect(idleMotionSettings.get().disabled).toEqual(["/motions/idle_04.vrma"]);
     expect(switches()[2]!.getAttribute("aria-checked")).toBe("false");
   });
@@ -101,8 +105,8 @@ describe("createQuickControls — idle motion section", () => {
   it("toggling a variant back on clears it from the store", () => {
     qc = build();
     qc.open();
-    switches()[2]!.click();
-    switches()[2]!.click();
+    act(() => switches()[2]!.click());
+    act(() => switches()[2]!.click());
     expect(idleMotionSettings.get().disabled).toEqual([]);
     expect(switches()[2]!.getAttribute("aria-checked")).toBe("true");
   });
@@ -112,7 +116,7 @@ describe("createQuickControls — idle motion section", () => {
     qc.open();
     const sw = switches()[2]!;
     sw.focus();
-    sw.click();
+    act(() => sw.click());
     expect(switches()[2]).toBe(sw); // same node, updated in place
     expect(document.activeElement).toBe(sw);
   });
@@ -120,7 +124,7 @@ describe("createQuickControls — idle motion section", () => {
   it("reflects a store change made elsewhere (cross-window broadcast)", () => {
     qc = build();
     qc.open();
-    idleMotionSettings.setEnabled("/motions/idle_12.vrma", false);
+    act(() => idleMotionSettings.setEnabled("/motions/idle_12.vrma", false));
     expect(switches()[3]!.getAttribute("aria-checked")).toBe("false");
   });
 

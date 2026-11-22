@@ -1,37 +1,29 @@
 /**
- * Character tab — the Motion page's mouth-gain, idle and express motion rows, and the Body page's
- * mount. `rows` picks which render; the same rows drive markup, handlers and subscriptions, so only
- * rendered rows are bound. The Body page renders itself; this module relays the open and dispose
- * hooks to it, and the close hook reaches the gain preview only.
+ * Character tab — the Body page's mount. The Body page renders itself; this module relays the open
+ * and dispose hooks to it.
  */
 
 import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { Logger } from "../../../logger";
-import type { ExpressMotionSettingsStore } from "../../../settings/avatar/express-motion-settings";
-import type {
-  IdleMotionSettingsStore,
-  IdleVariantPool,
-} from "../../../settings/avatar/idle-motion-settings";
-import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
 import { createBodyPage } from "../body/body-page";
 import type { RelationsDeps } from "../body/relations/relations-port";
-import { type CharacterRows, motionHtml } from "./character-html";
-import { createExpressMotionList } from "./express-motion/express-motion-section";
-import { createGainRow } from "./gain/gain-row";
-import { createIdleMotionList } from "./idle-motion/idle-motion-section";
 
-export type { CharacterRows } from "./character-html";
+/** Which rows the Character tab renders — and binds, and refreshes. */
+export interface CharacterRows {
+  /** The VRM list with its import button; every surface renders it. */
+  vrms: true;
+  /** The camera view reset. */
+  viewpoint: boolean;
+  /** The relations rows with their switch; the settings window and the pet popover render it. */
+  relations: boolean;
+}
 
 export interface CharacterTab {
   /** The Body page's stack. */
   el: HTMLElement;
-  /** The Motion page's stack. */
-  motionEl: HTMLElement;
   /** Repaint every rendered row from its store — the open hook. */
   refresh(): void;
-  /** End a running gain preview — the close hook. */
-  close(): void;
   dispose(): void;
 }
 
@@ -51,23 +43,6 @@ export function createCharacterTab(deps: {
   refreshTooltip?: () => void;
   /** The view reset; required with `rows.viewpoint`. */
   onResetView?: () => void;
-  /** Required with `rows.gain`. */
-  gain?: {
-    lipsync: ReturnType<typeof createLipsyncSettings>;
-    onPreview: (mouthOpen: number) => void;
-    onPreviewEnd: () => void;
-  };
-  /** Required with `rows.idleMotion`. */
-  idleMotion?: {
-    settings: IdleMotionSettingsStore;
-    /** The read-only `idle` catalog entry; undefined until configs load. */
-    getPool: () => IdleVariantPool | undefined;
-  };
-  /** Required with `rows.expressMotion`. */
-  expressMotion?: {
-    settings: ExpressMotionSettingsStore;
-    getVocabulary: () => readonly string[];
-  };
   /** Required with `rows.relations`. */
   relations?: RelationsDeps;
   /** The Body page appends itself here before its first render. */
@@ -87,51 +62,13 @@ export function createCharacterTab(deps: {
     relations: rows.relations ? required(deps.relations, "relations") : undefined,
     host: deps.host,
   });
-  const el = bodyPage.el;
-  const motionEl = document.createElement("div");
-  motionEl.className = "yui-tab-stack";
-  motionEl.innerHTML = motionHtml(rows);
-
-  const gainRow = rows.gain
-    ? createGainRow({ root: motionEl, ...required(deps.gain, "gain"), isOpen, log })
-    : null;
-
-  const idleMotion = rows.idleMotion ? required(deps.idleMotion, "idleMotion") : null;
-  const idleMotionList = idleMotion
-    ? createIdleMotionList({ root: motionEl, ...idleMotion, log })
-    : null;
-  const unsubscribeIdleMotion = idleMotion?.settings.subscribe(() => {
-    if (isOpen()) idleMotionList?.render();
-  });
-
-  const expressMotion = rows.expressMotion ? required(deps.expressMotion, "expressMotion") : null;
-  const expressMotionList = expressMotion
-    ? createExpressMotionList({ root: motionEl, ...expressMotion, log })
-    : null;
-  const unsubscribeExpressMotion = expressMotion?.settings.subscribe(() => {
-    if (isOpen()) expressMotionList?.render();
-  });
 
   return {
-    el,
-    motionEl,
-    refresh(): void {
-      gainRow?.refresh();
-      bodyPage.refresh();
-      idleMotionList?.render();
-      expressMotionList?.render();
-    },
-    close(): void {
-      gainRow?.endPreview();
-    },
+    el: bodyPage.el,
+    refresh: bodyPage.refresh,
     dispose(): void {
-      unsubscribeIdleMotion?.();
-      unsubscribeExpressMotion?.();
-      gainRow?.dispose();
-      expressMotionList?.dispose();
       bodyPage.dispose();
-      el.remove();
-      motionEl.remove();
+      bodyPage.el.remove();
     },
   };
 }

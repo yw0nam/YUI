@@ -56,6 +56,7 @@ export function createIdleMotionSettings(opts?: { storage?: IdleMotionStorage })
 
   return {
     get: core.get,
+    current: core.current as () => Readonly<IdleMotionSettings>,
 
     setEnabled(path: string, enabled: boolean): void {
       const { disabled } = core.current();

@@ -61,9 +61,15 @@ describe("SwitchRow descriptor", () => {
   });
 
   it("renders and reflects every visible, available descriptor entry", () => {
-    // The Listening and Together pages render their rows in React, so the template holds the rest.
+    // The Listening, Together and Motion pages render their rows in React, so the template holds the rest.
     const switchRows = makeSwitchRows()
-      .filter((row) => row.isVisible && row.tab !== "listening" && row.tab !== "together")
+      .filter(
+        (row) =>
+          row.isVisible &&
+          row.tab !== "listening" &&
+          row.tab !== "together" &&
+          row.tab !== "motion",
+      )
       .map((row, index) => ({
         ...row,
         initialEnabled: index % 2 !== 0,

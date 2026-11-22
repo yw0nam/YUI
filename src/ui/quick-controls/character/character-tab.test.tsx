@@ -16,9 +16,6 @@ const tabs: ReturnType<typeof createCharacterTab>[] = [];
 
 const ROWS: CharacterRows = {
   vrms: true,
-  gain: false,
-  idleMotion: false,
-  expressMotion: false,
   viewpoint: true,
   relations: false,
 };

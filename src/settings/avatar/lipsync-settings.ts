@@ -35,6 +35,7 @@ export function createLipsyncSettings(opts?: { storage?: LipsyncStorage }) {
 
   return {
     get: core.get,
+    current: core.current as () => Readonly<LipsyncSettings>,
 
     setGain(gain: number): void {
       if (!Number.isFinite(gain)) return;
