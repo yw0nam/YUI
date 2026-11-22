@@ -126,7 +126,11 @@ it("restores the window, unpins the overlay and releases her before a closing pi
   rightClick();
   await vi.waitFor(() => expect(talk()).not.toBeNull());
   const order: string[] = [];
-  end.mockImplementation(async () => void order.push("end"));
+  // The window settles a tick after the end call, so only a pick that waits for it runs after.
+  end.mockImplementation(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    order.push("end");
+  });
   openSettings.mockImplementation(() => void order.push("settings"));
 
   overlay.querySelector<HTMLButtonElement>('[data-id="settings"]')?.click();
