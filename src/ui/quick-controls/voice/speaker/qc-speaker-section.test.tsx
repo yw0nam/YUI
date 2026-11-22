@@ -1078,6 +1078,73 @@ describe("createQuickControls — speaker section", () => {
     }
   });
 
+  describe("the audition stops", () => {
+    let pauses = 0;
+    class FakeAudio {
+      addEventListener() {}
+      play() {
+        return Promise.resolve();
+      }
+      pause() {
+        pauses += 1;
+      }
+    }
+    const OrigAudio = globalThis.Audio;
+    beforeEach(() => {
+      pauses = 0;
+      (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
+    });
+    afterEach(() => {
+      (globalThis as { Audio: unknown }).Audio = OrigAudio;
+    });
+
+    async function playing(id: string, extra?: Parameters<typeof buildQc>[0]) {
+      const qc = buildQc(extra);
+      act(() => qc.open());
+      const row = () => qc.el.querySelector<HTMLElement>(`.yui-spk[data-spk-id="${id}"]`)!;
+      act(() => row().querySelector<HTMLButtonElement>(".yui-spk__preview")!.click());
+      await flush();
+      expect(row().querySelector(".yui-spk__preview")!.classList).toContain("is-playing");
+      return qc;
+    }
+
+    it.each([
+      [
+        "a swap starts",
+        async () => {
+          swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
+            () => new Promise<void>(() => {}),
+          );
+          const qc = await playing("ayase");
+          act(() => qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="rena"]')!.click());
+        },
+      ],
+      [
+        "the playing row is removed",
+        async () => {
+          withUserVoice();
+          const qc = await playing("myvoice");
+          act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+          act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+          await flush();
+        },
+      ],
+      [
+        "the window closes",
+        async () => {
+          await playing("ayase", { onCloseWindow: vi.fn() });
+          act(() => {
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+          });
+        },
+      ],
+    ])("when %s", async (_name, act_) => {
+      await act_();
+
+      expect(pauses).toBe(1);
+    });
+  });
+
   it("disables the ▶ preview button when a speaker has an empty ref_url", () => {
     speakerSelection = createSpeakerSelection({
       available: [
@@ -1122,7 +1189,7 @@ describe("createQuickControls — speaker section", () => {
     expect(qc.el.querySelector(".yui-spks img")).toBeNull();
   });
 
-  it("activates a speaker whose id contains a double-quote without throwing (CSS.escape)", async () => {
+  it("activates a speaker whose id contains a double-quote without throwing", async () => {
     const evilId = 'ナ"ツメ';
     speakerSelection = createSpeakerSelection({
       available: [
@@ -1139,9 +1206,8 @@ describe("createQuickControls — speaker section", () => {
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const quoted = rows.find((r) => r.dataset.spkId === evilId)!;
-    expect(quoted).toBeDefined();
+    expect(quoted.dataset.spkId).toBe(evilId);
 
-    // clicking would throw SyntaxError inside spkRowById if the selector were unescaped
     expect(() => act(() => quoted.click())).not.toThrow();
     await flush();
 
@@ -1165,9 +1231,9 @@ describe("createQuickControls — speaker section", () => {
       expect(refresh).not.toBeNull();
       expect(preview).not.toBeNull();
       // refresh sits BEFORE preview in source/visual order
-      expect(
-        refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      expect(refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
     }
   });
 

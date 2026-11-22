@@ -369,6 +369,7 @@ describe("createQuickControls — toggles", () => {
     expect(ttsSwitch).not.toBeNull();
     expect(ttsSwitch!.getAttribute("aria-checked")).toBe("true");
     expect(ttsSwitch!.getAttribute("role")).toBe("switch");
+    expect(ttsSwitch!.closest(".yui-row")!.querySelector(".yui-row__label svg")).not.toBeNull();
 
     // No ttsSettings injected — clicking must not throw and aria-checked stays put.
     expect(() => act(() => ttsSwitch!.click())).not.toThrow();

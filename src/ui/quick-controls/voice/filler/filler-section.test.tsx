@@ -149,7 +149,8 @@ describe("the thinking-filler section", () => {
 
   it("textarea input persists the parsed pool for the current language, tool lines included", () => {
     const fs = seededFiller({ language: "ko" });
-    const { el: root } = buildRoot(fs);
+    const page = buildRoot(fs);
+    const root = page.el;
 
     textarea(root, "first").value = "음…\n\n  글쎄…  \n";
     textarea(root, "tool").value = "checking...\nterminal = running it";
@@ -170,6 +171,8 @@ describe("the thinking-filler section", () => {
       },
     });
     // The stored tool tier serializes back to the text that produced it.
+    textarea(root, "tool").value = "";
+    act(() => page.refresh());
     expect(textarea(root, "tool").value).toBe("checking...\nterminal = running it");
   });
 
