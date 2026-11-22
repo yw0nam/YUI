@@ -686,7 +686,7 @@ YUI/
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
-        controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the import of the Switch's CSS from `src/ui/controls/switch/`
+        controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
@@ -760,6 +760,14 @@ YUI/
             relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip, refolded on a width change
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
+        general/                     # The General page, rendered with React
+          general-page.ts            # The page's facade: its React root
+          general-page-view.tsx      # The language, appearance and text size segments, the user name, Help and Developer Tools
+          text-size-section.css      # The line at the speech size under the text size segment
+          help/
+            help-section.tsx         # One Ask button per bundled guide
+          user-name/
+            user-name-row.tsx        # The device-wide user name field, its fallback placeholder, and the blur that settles on the stored name
         history/                     # History page and its session accordion section
           character-name.ts          # The edited character's name: its preset's, or its card's while the built-in preset is unnamed
           history-tab.ts             # The History page's session list, with its start-fresh row
@@ -798,12 +806,10 @@ YUI/
           characters-section.css     # Character row styles
           together-rows.ts           # The page's switch rows and the chain cap
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
-          agent/                     # Locale, reasoning-effort, and instructions controls
-            agent-section.ts         # Locale segment, reasoning-effort segment, the card's system-prompt textarea, and their redraw
-          appearance/                # The Appearance page
-            appearance-section.ts    # The Appearance page's theme segment and the click that writes it
-          help/                      # Help section of the General page
-            help-section.ts          # One Ask button per bundled guide
+          agent/                     # Reasoning-effort control
+            agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
+          help/                      # Help section of Quick start
+            help-section.ts          # One Ask button per bundled guide, over rows the composer binds
           active-hours/              # The Persona page's active hours section
             active-hours-section.ts  # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
             active-hours-section.css # Span row styles
@@ -821,10 +827,6 @@ YUI/
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
-          devtools/                  # Developer Tools row on the General page
-            devtools-row.ts          # Binds the row's button to the devtools window opener
-          user-name/                 # "Your name" on the General page
-            user-name-section.ts     # The device-wide user name row, its fallback placeholder and redraw
           session/                   # Settings-window context readout and delegated-work list
             session-section.ts       # Readout, delegated list, their subscriptions, redraws and minute refresh
             session-section.css      # Session context-occupancy readout and meter styles
@@ -855,6 +857,10 @@ YUI/
           index.ts                   # Re-exports the Switch and its props type
           switch.tsx                 # A boolean switch the caller labels and owns the state of
           switch.css                 # Switch track, knob, focus and disabled styles
+        segment/                     # The Segment
+          index.ts                   # Re-exports the Segment, its options and its props type
+          segment.tsx                # A radio segment the caller labels and owns the value of
+          segment.css                # Segment cell, checked, focus and disabled styles
       keyed-rows/                    # Keyed list rows
         keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
       theme/                         # The window theme

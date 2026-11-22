@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, and the Segment, a radio segment the caller labels and owns the value of.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4858,6 +4858,15 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/perms/perms-page-view.tsx"
+    },
+    {
+      "id": "general-segment",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Segment: the options, the checked value and the chosen value on click or key",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/general/general-page-view.tsx"
     },
     {
       "id": "listening-switch",
