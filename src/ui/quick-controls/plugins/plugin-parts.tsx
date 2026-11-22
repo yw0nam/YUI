@@ -1,18 +1,17 @@
 /** Markup pieces the Plugins page's sections share. */
 
-import { type ReactNode, type RefObject, createContext, useContext, useLayoutEffect, useRef } from "react";
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import type { PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
-
-/** The warning icon for text markup; the two Connection quick-start files import this string. */
-export const ICON_WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-
-const WARN_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2" />
-    <path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
+import { ICON_WARN } from "../constants";
+import { SOURCES } from "./plugin-sources";
 
 const FOLDER_ICON = (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -85,69 +84,27 @@ export const PLUS_ICON = (
   </svg>
 );
 
-/** What differs by where a plugin comes from; string fields are i18n keys. */
-interface SourceInfo {
-  icon: ReactNode;
-  review: string;
-  /** Step 1's warning under the shield line. */
-  warning: { key: string; icon: ReactNode; strong: boolean } | null;
-  removeLabel: string;
-  confirm: string;
-  confirmGo: string;
-  removeFailed: string;
-  /** Installed from the catalog, which offers its updates; a local plugin shows its folder instead. */
-  fromCatalog: boolean;
-}
-
-const FROM_CATALOG = {
-  removeLabel: "plugins.delete",
-  confirm: "plugins.confirm_delete",
-  confirmGo: "plugins.delete",
-  removeFailed: "plugins.err_remove",
-  fromCatalog: true,
-};
-
-export const SOURCES: Record<PluginHostPlugin["source"], SourceInfo> = {
-  official: {
-    ...FROM_CATALOG,
-    icon: SEAL_ICON,
-    review: "plugins.reviewed_official",
-    warning: null,
-  },
-  community: {
-    ...FROM_CATALOG,
-    icon: PEOPLE_ICON,
-    review: "plugins.reviewed_community",
-    warning: { key: "plugins.warn_community", icon: WARN_ICON, strong: true },
-  },
-  local: {
-    icon: FOLDER_ICON,
-    review: "plugins.reviewed_local",
-    warning: { key: "plugins.warn_local", icon: FOLDER_ICON, strong: false },
-    removeLabel: "plugins.remove_local",
-    confirm: "plugins.confirm_remove_local",
-    confirmGo: "plugins.remove_go",
-    removeFailed: "plugins.err_remove_local",
-    fromCatalog: false,
-  },
-};
-
-/** A managing call's rejection: its lead's i18n key, the host's string, and the action Retry repeats. */
-export interface Failure {
-  lead: string;
-  message: string;
-  retry?: string;
-}
-
-/** A section title row: the title on the left, an optional control or state text on the right. */
-export function SectionHead({ title, aside }: { title: string; aside?: ReactNode }) {
+/** The warning glyph shared with the Connection quick start's markup. */
+function WarningGlyph() {
   return (
-    <div className="yui-sec__head">
-      <h2 className="yui-sec__title">{title}</h2>
-      {aside}
-    </div>
+    <span
+      className="yui-plg-glyph"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the Connection quick start
+      dangerouslySetInnerHTML={{ __html: ICON_WARN }}
+    />
   );
 }
+
+const SOURCE_ICONS: Record<PluginHostPlugin["source"], ReactNode> = {
+  official: SEAL_ICON,
+  community: PEOPLE_ICON,
+  local: FOLDER_ICON,
+};
+
+const WARNING_ICONS: Partial<Record<PluginHostPlugin["source"], ReactNode>> = {
+  community: <WarningGlyph />,
+  local: FOLDER_ICON,
+};
 
 export function Spinner() {
   return <span className="yui-plg-spin" aria-hidden="true" />;
@@ -156,9 +113,21 @@ export function Spinner() {
 export function Badge({ source }: { source: PluginHostPlugin["source"] }) {
   return (
     <span className="yui-plg-badge">
-      {SOURCES[source].icon}
+      {SOURCE_ICONS[source]}
       {t(`plugins.source_${source}`)}
     </span>
+  );
+}
+
+/** Step 1's warning under the shield line, when the source carries one. */
+export function SourceWarning({ source }: { source: PluginHostPlugin["source"] }) {
+  const warning = SOURCES[source].warning;
+  if (!warning) return null;
+  return (
+    <p className={warning.strong ? "yui-plg-warn yui-plg-warn--strong" : "yui-plg-warn"}>
+      {WARNING_ICONS[source]}
+      <span>{t(warning.key)}</span>
+    </p>
   );
 }
 
@@ -178,8 +147,8 @@ export function ErrLine({
 }) {
   return (
     <p className="yui-plg-err" role="alert">
-      {WARN_ICON}
-      <span>
+      <WarningGlyph />
+      <span className="yui-plg-err__text">
         {lead}
         {message ? ` ${message}` : ""}
       </span>

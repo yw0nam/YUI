@@ -25,7 +25,12 @@ export function ServerLine({
 }) {
   const reason = <q>{server.reason ?? ""}</q>;
   const again = (key: string): ReactNode => (
-    <button className="yui-link-btn" type="button" disabled={busy} onClick={() => onRetry(server.id)}>
+    <button
+      className="yui-link-btn"
+      type="button"
+      disabled={busy}
+      onClick={() => onRetry(server.id)}
+    >
       {t(key)}
     </button>
   );

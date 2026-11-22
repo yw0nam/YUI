@@ -260,7 +260,7 @@ describe("createPluginsPage", () => {
       fireEvent.click(within(page.el).getByRole("button", { name: "Install calendar-ics" }));
     });
     const error = page.el.querySelector<HTMLElement>(".yui-plg-err")!;
-    expect(error.querySelector("span")?.textContent).toBe(
+    expect(error.querySelector(".yui-plg-err__text")?.textContent).toBe(
       "Could not install. checksum mismatch: x",
     );
 
@@ -308,7 +308,7 @@ describe("createPluginsPage", () => {
       );
     });
 
-    expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
+    expect(page.el.querySelector(".yui-plg-err__text")?.textContent).toBe(
       "Could not delete it. os error 5",
     );
     expect(page.el.querySelector('[data-pid="browser"]')).toBeNull();
@@ -407,9 +407,9 @@ describe("createPluginsPage", () => {
     });
 
     expect(
-      installed.querySelector(".yui-plg-tools")!.parentElement!.classList.contains(
-        "yui-keyed-enter",
-      ),
+      installed
+        .querySelector(".yui-plg-tools")!
+        .parentElement!.classList.contains("yui-keyed-enter"),
     ).toBe(true);
   });
 
@@ -435,10 +435,9 @@ describe("createPluginsPage", () => {
     act(() => {
       fireEvent.click(within(browser).getByRole("button", { name: "Delete" }));
     });
-    const cancel = within(browser.querySelector<HTMLElement>(".yui-confirm")!).getByRole(
-      "button",
-      { name: "Cancel" },
-    );
+    const cancel = within(browser.querySelector<HTMLElement>(".yui-confirm")!).getByRole("button", {
+      name: "Cancel",
+    });
     const event = createEvent.keyDown(cancel, { key: "Escape" });
 
     fireEvent(cancel, event);
@@ -460,7 +459,12 @@ describe("createPluginsPage", () => {
       emit({
         revision: 2,
         plugins: [
-          { ...fresh, enabled: true, consented: true, servers: [server("calendar-ics", "calendar-ics")] },
+          {
+            ...fresh,
+            enabled: true,
+            consented: true,
+            servers: [server("calendar-ics", "calendar-ics")],
+          },
         ],
       });
       await new Promise<void>((resolve) => {

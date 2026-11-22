@@ -8,7 +8,7 @@ import type {
 } from "../../../io/mcp-host/mcp-host";
 import type { Logger } from "../../../logger";
 import { type CatalogState, createCatalogState } from "./catalog-state";
-import { type Failure, SOURCES } from "./plugin-parts";
+import { type Failure, SOURCES } from "./plugin-sources";
 
 /** What the page holds for one installed plugin beside the snapshot. */
 export interface PluginUi {
@@ -45,13 +45,12 @@ export interface PluginsState {
   /** Add from folder: in flight, or the host's rejection. */
   folder: { busy: boolean; error?: Failure };
   catalog: CatalogState;
-  /** Loads the catalog unless a load is in flight. */
+  /** Loads the catalog unless a load is in flight; "Check for updates" retries through it. */
   load(): void;
   toggle(id: string): void;
   reapprove(id: string): void;
   allow(id: string): void;
   cancel(id: string): void;
-  done(id: string): void;
   off(id: string): void;
   retry(id: string, serverId: string): void;
   update(id: string): void;
@@ -64,7 +63,6 @@ export interface PluginsState {
   log(id: string): void;
   reveal(id: string): void;
   check(): void;
-  catRetry(): void;
   /** Clears every open step 1 and remove confirm; true when one was open. */
   escape(): boolean;
   dispose(): void;
@@ -109,7 +107,7 @@ export function createPluginsState(deps: {
     holder: { error?: Failure },
     lead: string,
     call: () => Promise<unknown>,
-    retry?: string,
+    retry?: boolean,
   ): Promise<boolean> {
     holder.error = undefined;
     try {
@@ -141,7 +139,7 @@ export function createPluginsState(deps: {
   async function updateFlow(id: string): Promise<void> {
     const state = uiOf(id);
     state.updating = true;
-    await attempt(id, state, "plugins.err_update", () => manage.install(id), "update");
+    await attempt(id, state, "plugins.err_update", () => manage.install(id), true);
     state.updating = false;
     notify();
   }
@@ -220,10 +218,6 @@ export function createPluginsState(deps: {
       uiOf(id).flow = undefined;
       notify();
     },
-    done(id) {
-      uiOf(id).flow = undefined;
-      notify();
-    },
     off(id) {
       disable(id);
       notify();
@@ -281,7 +275,6 @@ export function createPluginsState(deps: {
       );
     },
     check: () => catalog.check(),
-    catRetry: () => void catalog.load(),
     escape() {
       let closed = false;
       for (const state of ui.values()) {

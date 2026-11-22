@@ -1,7 +1,7 @@
 /** The Plugins page's catalog: its load, the updates it offers, and "Check for updates". */
 
 import type { CatalogEntry, McpHostManage, PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
-import { SOURCES } from "./plugin-parts";
+import { SOURCES } from "./plugin-sources";
 
 /** How long "Check for updates" shows its result. */
 const CHECK_RESULT_MS = 4000;

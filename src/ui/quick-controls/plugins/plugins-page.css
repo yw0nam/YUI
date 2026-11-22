@@ -75,7 +75,7 @@
   margin-top: 0.08rem;
 }
 
-.yui-plg-err span {
+.yui-plg-err__text {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -85,6 +85,11 @@
   color: var(--yui-danger);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* The warning glyph's host keeps its svg the line's own flex child. */
+.yui-plg-glyph {
+  display: contents;
 }
 
 /* One server line under its plugin's switch row */

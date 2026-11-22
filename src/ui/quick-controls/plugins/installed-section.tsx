@@ -3,7 +3,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import { t } from "../../i18n";
 import { PluginGroup } from "./plugin-group";
-import { ErrLine, SectionHead, Spinner } from "./plugin-parts";
+import { ErrLine, Spinner } from "./plugin-parts";
 import type { PluginsState } from "./plugins-state";
 
 export function InstalledSection({
@@ -54,16 +54,17 @@ export function InstalledSection({
       </div>
     );
   else
-    body = plugins.map((plugin) => (
-      <PluginGroup key={plugin.id} plugin={plugin} state={state} />
-    ));
+    body = plugins.map((plugin) => <PluginGroup key={plugin.id} plugin={plugin} state={state} />);
   // The snapshot lists only running servers' tools, hidden names already left out.
   const n = plugins?.reduce((sum, plugin) => sum + plugin.tools.length, 0) ?? 0;
   const removal = state.removal.error;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape inside the page closes its own panels
     <section className="yui-sec" onKeyDown={onKeyDown}>
-      <SectionHead title={t("plugins.installed_title")} aside={aside} />
+      <div className="yui-sec__head">
+        <h2 className="yui-sec__title">{t("plugins.installed_title")}</h2>
+        {aside}
+      </div>
       {body}
       {plugins?.length ? <p className="yui-sec__foot">{t("plugins.foot", { n })}</p> : null}
       {removal ? (

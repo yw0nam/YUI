@@ -3,7 +3,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import type { CatalogEntry } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
-import { Badge, ErrLine, PLUS_ICON, SectionHead, Spinner, Version } from "./plugin-parts";
+import { Badge, ErrLine, PLUS_ICON, Spinner, Version } from "./plugin-parts";
 import type { PluginsState } from "./plugins-state";
 
 function InstallRow({ entry, state }: { entry: CatalogEntry; state: PluginsState }) {
@@ -92,7 +92,7 @@ export function CatalogSection({
           lead={t("plugins.err_catalog")}
           message={list.error}
           tail={
-            <button className="yui-link-btn" type="button" onClick={() => state.catRetry()}>
+            <button className="yui-link-btn" type="button" onClick={() => state.load()}>
               {t("plugins.retry")}
             </button>
           }
@@ -109,7 +109,9 @@ export function CatalogSection({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape inside the page closes its own panels
     <section className="yui-sec" onKeyDown={onKeyDown}>
-      <SectionHead title={t("plugins.available_title")} />
+      <div className="yui-sec__head">
+        <h2 className="yui-sec__title">{t("plugins.available_title")}</h2>
+      </div>
       <p className="yui-sec__note">{t("plugins.catalog_note")}</p>
       <div className="yui-group">
         {rows}

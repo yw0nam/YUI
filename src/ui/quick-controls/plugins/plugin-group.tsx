@@ -6,15 +6,8 @@ import { Switch } from "../../controls/switch";
 import { t } from "../../i18n";
 import { ConsentPanel, consentKey } from "./plugin-consent";
 import { HiddenNote, ServerLine, ToolItems } from "./plugin-lines";
-import {
-  Badge,
-  CHEV_ICON,
-  ErrLine,
-  KeyedBlock,
-  SOURCES,
-  Spinner,
-  Version,
-} from "./plugin-parts";
+import { Badge, CHEV_ICON, ErrLine, KeyedBlock, Spinner, Version } from "./plugin-parts";
+import { SOURCES } from "./plugin-sources";
 import type { PluginsState } from "./plugins-state";
 
 function countLabel(plugin: PluginHostPlugin): string {
@@ -47,9 +40,7 @@ function LogBox({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsSta
           {t("plugins.log_folder")}
         </button>
       </span>
-      {ui.revealError ? (
-        <ErrLine lead={t("plugins.err_reveal")} message={ui.revealError} />
-      ) : null}
+      {ui.revealError ? <ErrLine lead={t("plugins.err_reveal")} message={ui.revealError} /> : null}
     </KeyedBlock>
   );
 }
@@ -78,13 +69,7 @@ function RemoveConfirm({ plugin, state }: { plugin: PluginHostPlugin; state: Plu
   );
 }
 
-export function PluginGroup({
-  plugin,
-  state,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-}) {
+export function PluginGroup({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const ui = state.uiOf(plugin.id);
   const flow = ui.flow;
   const busy = !!ui.updating;

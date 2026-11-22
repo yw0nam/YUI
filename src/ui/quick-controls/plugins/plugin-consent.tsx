@@ -3,8 +3,9 @@
 import type { PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
 import { HiddenNote, ServerLine, ToolItems } from "./plugin-lines";
-import { Badge, KeyedBlock, SHIELD_ICON, SOURCES, Spinner } from "./plugin-parts";
-import type { PluginUi, PluginsState } from "./plugins-state";
+import { Badge, KeyedBlock, SHIELD_ICON, SourceWarning, Spinner } from "./plugin-parts";
+import { SOURCES } from "./plugin-sources";
+import type { PluginsState, PluginUi } from "./plugins-state";
 
 /** The panel a flow shows once enable has resolved: starting, failed, or step 2. */
 function stepTwoPanel(p: PluginHostPlugin): "starting" | "failed" | "started" {
@@ -46,7 +47,7 @@ function Foot({
       <button className="yui-pill" type="button" onClick={() => state.off(id)}>
         {t("plugins.turn_off")}
       </button>
-      <button className="yui-pill yui-pill--ok" type="button" onClick={() => state.done(id)}>
+      <button className="yui-pill yui-pill--ok" type="button" onClick={() => state.cancel(id)}>
         {t(okKey)}
       </button>
     </div>
@@ -55,7 +56,6 @@ function Foot({
 
 function StepOne({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const many = plugin.servers.length > 1;
-  const { warning } = SOURCES[plugin.source];
   const question =
     plugin.enabled && !plugin.consented
       ? t("plugins.consent_q_reapprove")
@@ -105,17 +105,16 @@ function StepOne({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsSt
         {SHIELD_ICON}
         <span>{t("plugins.shield")}</span>
       </p>
-      {warning ? (
-        <p className={warning.strong ? "yui-plg-warn yui-plg-warn--strong" : "yui-plg-warn"}>
-          {warning.icon}
-          <span>{t(warning.key)}</span>
-        </p>
-      ) : null}
+      <SourceWarning source={plugin.source} />
       <div className="yui-plg-btns">
         <button className="yui-pill" type="button" onClick={() => state.cancel(plugin.id)}>
           {t("plugins.cancel")}
         </button>
-        <button className="yui-pill yui-pill--ok" type="button" onClick={() => state.allow(plugin.id)}>
+        <button
+          className="yui-pill yui-pill--ok"
+          type="button"
+          onClick={() => state.allow(plugin.id)}
+        >
           {t("plugins.allow")}
         </button>
       </div>
