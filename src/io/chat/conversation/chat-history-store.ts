@@ -157,6 +157,8 @@ export function createChatHistoryStore(opts?: { storage?: ChatHistoryStorage }) 
 
   return {
     get: core.get,
+    /** The live items without a copy; a render reads from it. */
+    current: core.current as () => Readonly<ChatHistoryItem[]>,
 
     append(entry: ChatHistoryEntry): void {
       push(entry);

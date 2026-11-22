@@ -45,6 +45,8 @@ export function createSessionDiagnosticsStore(storage?: SessionDiagnosticsStorag
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads from it. */
+    current: core.current as () => Readonly<SessionDiagnostics>,
 
     setUsage(usedTokens: number | null, contextWindow: number | null): void {
       core.commit({ usedTokens, contextWindow });
