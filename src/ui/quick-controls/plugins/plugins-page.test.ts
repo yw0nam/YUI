@@ -158,6 +158,26 @@ describe("createPluginsPage", () => {
     );
   });
 
+  it("keeps the switch off while a plugin's step-1 consent is open", () => {
+    const fresh = plugin({
+      id: "calendar-ics",
+      enabled: false,
+      consented: false,
+      servers: [server("calendar-ics", "calendar-ics", { status: "stopped" })],
+    });
+    const { page } = mountPage({ revision: 1, plugins: [fresh] });
+    const toggle = () =>
+      group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!;
+    const panel = () => group(page.el, "calendar-ics").querySelector(".yui-plg-consent");
+
+    toggle().click();
+    expect(panel()).not.toBeNull();
+    expect(toggle().getAttribute("aria-checked")).toBe("false");
+
+    toggle().click();
+    expect(panel()).toBeNull();
+  });
+
   it("shows the failed panel when a server fails after enable has resolved", async () => {
     const fresh = plugin({
       id: "calendar-ics",
