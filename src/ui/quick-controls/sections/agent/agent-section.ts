@@ -6,9 +6,9 @@ import {
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { handleSegmentKeydown } from "../../../controls/segment";
 import { t } from "../../../i18n";
 import { SEG_LABEL_KEYS } from "../../constants";
-import { handleSegmentKeydown } from "../../seg-keyboard";
 import { pushReasonHtml } from "../push-reason/push-reason";
 
 /** The reasoning-effort row in a section of its own. */

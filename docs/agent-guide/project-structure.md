@@ -694,7 +694,6 @@ YUI/
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
-        seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
@@ -857,10 +856,11 @@ YUI/
           index.ts                   # Re-exports the Switch and its props type
           switch.tsx                 # A boolean switch the caller labels and owns the state of
           switch.css                 # Switch track, knob, focus and disabled styles
-        segment/                     # The Segment
-          index.ts                   # Re-exports the Segment, its options and its props type
+        segment/                     # The Segment, and the keys it shares
+          index.ts                   # Re-exports the Segment, its options and props, and the key handler
           segment.tsx                # A radio segment the caller labels and owns the value of
           segment.css                # Segment cell, checked, focus and disabled styles
+          seg-keyboard.ts            # Arrow, Home, End and Space/Enter for a segmented control, from the caller's current index
       keyed-rows/                    # Keyed list rows
         keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
       theme/                         # The window theme

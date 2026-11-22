@@ -1,4 +1,4 @@
-import { handleSegmentKeydown } from "./seg-keyboard";
+import { handleSegmentKeydown } from "../controls/segment";
 
 /** A radio segment bound to one store value: click and arrow keys set it, the store's changes reflect while the panel is open. */
 export function createStoreSegment<T>(deps: {

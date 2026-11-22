@@ -44,6 +44,24 @@ describe("Segment", () => {
     expect(onValueChange).toHaveBeenLastCalledWith("c");
   });
 
+  it("starts arrows before the first option when nothing is checked", () => {
+    const onValueChange = vi.fn();
+    const { getAllByRole } = render(
+      <Segment label="Letter" options={LETTERS} value="z" onValueChange={onValueChange} />,
+    );
+    const radios = getAllByRole("radio");
+    expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+    ]);
+    expect(radios[0].tabIndex).toBe(0);
+
+    radios[0].focus();
+    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    expect(onValueChange).toHaveBeenLastCalledWith("a");
+  });
+
   it("moves focus without selecting on arrow keys when activation selects", () => {
     const onValueChange = vi.fn();
     const { getAllByRole } = render(

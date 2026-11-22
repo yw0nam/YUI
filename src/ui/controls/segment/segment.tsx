@@ -1,7 +1,7 @@
 /** A radio segment the caller labels and owns the value of. */
 
 import { type KeyboardEvent, useRef, useState } from "react";
-import { handleSegmentKeydown } from "../../quick-controls/seg-keyboard";
+import { handleSegmentKeydown } from "./seg-keyboard";
 import "./segment.css";
 
 export interface SegmentOption<T> {
@@ -62,7 +62,7 @@ export function Segment<T>({
       {
         length: options.length,
         // Activation selects, so its arrows start from the checked radio; focus-only arrows start from the tab stop.
-        getBaseIndex: () => (selectOn === "focus" ? (checked < 0 ? 0 : checked) : tabStop),
+        getBaseIndex: () => (selectOn === "focus" ? checked : tabStop),
         onNavigate: (index, focus) => {
           const clamped = clamp(index);
           if (selectOn === "focus") select(clamped);
