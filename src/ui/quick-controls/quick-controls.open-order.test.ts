@@ -62,10 +62,10 @@ vi.mock("./history/history-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./character/character-tab", () => ({
-  createCharacterTab: () => ({
+vi.mock("./body/body-page", () => ({
+  createBodyPage: () => ({
     el: document.createElement("div"),
-    refresh: rec("characterTab", "refresh"),
+    refresh: rec("bodyPage", "refresh"),
     dispose: () => {},
   }),
 }));
@@ -123,7 +123,7 @@ describe("createQuickControls — open order", () => {
       "connectionTab.refresh",
       "delegationFeed.sync",
       "historyPage.refresh",
-      "characterTab.refresh",
+      "bodyPage.refresh",
       "motionPage.refresh",
       "speakerList.render",
       "shell.refreshVoiceList",

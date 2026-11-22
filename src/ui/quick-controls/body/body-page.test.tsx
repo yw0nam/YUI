@@ -1,26 +1,20 @@
 // @vitest-environment jsdom
 /**
- * character-tab.test.ts — the extracted Character tab: the rows render and bind only the
- * VRM list and the view reset; further rows add the gain slider and the motion lists.
+ * body-page.test.tsx — the Body page: the VRM list and the view reset render, and the open hook
+ * and the stores redraw them.
  */
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../../i18n";
 import { makeVrmSelection, USER_OPTION } from "../test-helpers";
-import { type CharacterRows, createCharacterTab } from "./character-tab";
+import { createBodyPage } from "./body-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const tabs: ReturnType<typeof createCharacterTab>[] = [];
+const tabs: ReturnType<typeof createBodyPage>[] = [];
 
-const ROWS: CharacterRows = {
-  vrms: true,
-  viewpoint: true,
-  relations: false,
-};
-
-describe("createCharacterTab", () => {
+describe("createBodyPage", () => {
   beforeEach(() => {
     setLocale("en");
   });
@@ -35,12 +29,11 @@ describe("createCharacterTab", () => {
 
   const log = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 
-  function build(overrides: Partial<Parameters<typeof createCharacterTab>[0]> = {}) {
+  function build(overrides: Partial<Parameters<typeof createBodyPage>[0]> = {}) {
     const vrmSelection = makeVrmSelection();
     const onResetView = vi.fn();
     const importVrm = vi.fn(async () => {});
-    const tab = createCharacterTab({
-      rows: ROWS,
+    const tab = createBodyPage({
       vrmSelection,
       swapVrm: async () => {},
       importVrm,

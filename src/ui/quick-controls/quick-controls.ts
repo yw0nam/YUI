@@ -74,7 +74,7 @@ import type { createReadingsSettings } from "../../settings/voice/readings-setti
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
-import { createCharacterTab } from "./character/character-tab";
+import { createBodyPage } from "./body/body-page";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { createConnectionViews } from "./connection/connection-views";
 import { createQuickStart } from "./connection/quick-start/quick-start";
@@ -588,13 +588,8 @@ export function createQuickControls({
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
 
-  // ── Character tab — owns the Body page; the shell relays open and dispose to it. ──
-  const characterTab = createCharacterTab({
-    rows: {
-      vrms: true,
-      viewpoint: !!onResetViewpoint,
-      relations: !!relationsStore && !!relationsSwitch && !!presetRegistry,
-    },
+  // ── Body page (VRM list · relations rows · view reset) ──
+  const bodyPage = createBodyPage({
     vrmSelection,
     swapVrm,
     importVrm,
@@ -603,16 +598,15 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     onResetView: onResetViewpoint,
-    ...(relationsStore && relationsSwitch && presetRegistry
-      ? {
-          relations: {
+    relations:
+      relationsStore && relationsSwitch && presetRegistry
+        ? {
             store: relationsStore,
             relationsSwitch,
             self: presetIdForWindow(),
             presets: () => presetRegistry.get().list,
-          },
-        }
-      : {}),
+          }
+        : undefined,
     host: el.querySelector("#yui-panel-body")!,
   });
 
@@ -870,7 +864,7 @@ export function createQuickControls({
     { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
     historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
     { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
-    { reflect: characterTab.refresh, dispose: characterTab.dispose },
+    { reflect: bodyPage.refresh, dispose: bodyPage.dispose },
     { reflect: motionPage.refresh, close: motionPage.close, dispose: motionPage.dispose },
     { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
