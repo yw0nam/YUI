@@ -51,10 +51,10 @@ describe("createCharacterTab", () => {
       onResetView,
       isOpen: () => true,
       log,
+      host: document.body,
       ...overrides,
     });
     tabs.push(tab);
-    document.body.append(tab.el);
     return { tab, vrmSelection, onResetView, importVrm };
   }
 

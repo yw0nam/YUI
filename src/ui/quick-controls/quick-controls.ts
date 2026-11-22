@@ -488,6 +488,9 @@ export function createQuickControls({
     showPreset: !!presetRegistry,
   });
 
+  // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
+  mount.appendChild(el);
+
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -622,8 +625,8 @@ export function createQuickControls({
           },
         }
       : {}),
+    host: el.querySelector("#yui-panel-body")!,
   });
-  el.querySelector("#yui-panel-body")!.append(characterTab.el);
   el.querySelector("#yui-panel-motion .yui-motion-switches")!.before(characterTab.motionEl);
 
   // ── Speaker section ──
@@ -755,8 +758,8 @@ export function createQuickControls({
     readingsSettings,
     bubblePersistSettings,
     log,
+    host: el.querySelector("#yui-panel-listening")!,
   });
-  el.querySelector("#yui-panel-listening")!.append(listeningPage.el);
 
   // ── Together page (switch rows · chain cap · characters on the desktop) ──
   const togetherPage = createTogetherPage({

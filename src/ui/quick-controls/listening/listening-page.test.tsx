@@ -40,9 +40,9 @@ function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
       storage: { load: () => ({ text: "" }), save: () => {} },
     }),
     log,
+    host: document.body,
   });
   pages.push(page);
-  document.body.append(page.el);
   return {
     page,
     log,

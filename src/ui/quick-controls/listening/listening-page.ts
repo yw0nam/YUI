@@ -30,12 +30,16 @@ export function createListeningPage(deps: {
   readingsSettings: ReadingsSettingsStore;
   bubblePersistSettings?: FlagSettingsStore;
   log: Logger;
+  /** The page appends itself here before its first render: Base UI registers a slider's thumb only while it is connected. */
+  host: HTMLElement;
 }): ListeningPage {
+  const { host, ...view } = deps;
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
+  host.append(el);
   const sttKeyCommit: SttKeyCommit = { current: null };
   const root = createRoot(el);
-  flushSync(() => root.render(createElement(ListeningPageView, { ...deps, sttKeyCommit })));
+  flushSync(() => root.render(createElement(ListeningPageView, { ...view, sttKeyCommit })));
 
   return {
     el,

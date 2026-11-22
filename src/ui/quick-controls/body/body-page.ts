@@ -20,11 +20,14 @@ export function createBodyPage(
     onResetView?: () => void;
     /** The relations section renders with it. */
     relations?: RelationsDeps;
+    /** The page appends itself here before its first render: Base UI registers a slider's thumb only while it is connected. */
+    host: HTMLElement;
   },
 ): BodyPage {
-  const { relations, onResetView, ...vrm } = deps;
+  const { relations, onResetView, host, ...vrm } = deps;
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
+  host.append(el);
   const root = createRoot(el);
   const props = {
     vrm,

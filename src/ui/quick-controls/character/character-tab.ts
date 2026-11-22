@@ -70,6 +70,8 @@ export function createCharacterTab(deps: {
   };
   /** Required with `rows.relations`. */
   relations?: RelationsDeps;
+  /** The Body page appends itself here before its first render. */
+  host: HTMLElement;
 }): CharacterTab {
   const { rows, isOpen, log } = deps;
 
@@ -83,6 +85,7 @@ export function createCharacterTab(deps: {
     refreshTooltip: deps.refreshTooltip,
     onResetView: rows.viewpoint ? required(deps.onResetView, "viewpoint") : undefined,
     relations: rows.relations ? required(deps.relations, "relations") : undefined,
+    host: deps.host,
   });
   const el = bodyPage.el;
   const motionEl = document.createElement("div");

@@ -30,9 +30,9 @@ function setup(text = "") {
     sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
     readingsSettings: store,
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
+    host: document.body,
   });
   pages.push(page);
-  document.body.append(page.el);
   const textarea = page.el.querySelector<HTMLTextAreaElement>("textarea")!;
   const entry = page.el.querySelector<HTMLElement>(".yui-reading__entry")!;
   const message = page.el.querySelector<HTMLElement>(".yui-reading__skipped")!;

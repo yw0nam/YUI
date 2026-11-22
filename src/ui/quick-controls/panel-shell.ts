@@ -37,7 +37,8 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
   function open(): void {
     if (openState) return;
     openState = true;
-    mount.appendChild(root);
+    // Moving an attached root would drop its focus.
+    if (root.parentNode !== mount) mount.appendChild(root);
     onOpen();
     focusFirst();
   }
