@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
- * card-io.test.ts — the card section's import of a dropped file.
+ * card-io.test.ts — the card section's file actions.
  *
- * Pins `importDropped` of src/ui/quick-controls/sections/card/card-io.ts: the outcome the drop
- * cover shows for each port result, with the Card section's error line left untouched.
+ * Pins `importDropped` and the export envelope of src/ui/quick-controls/persona/card/card-io.ts:
+ * the outcome the drop cover shows for each port result, and the card text each save dialog gets.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,14 +12,9 @@ import { createLogger } from "../../../../logger";
 import type { Span } from "../../../../settings/active-hours/spans";
 import { setLocale } from "../../../i18n";
 import { type CardIoPorts, createCardIo } from "./card-io";
-import { cardSectionHtml } from "./card-section";
 
 function mount(importDroppedPreset: CardIoPorts["importDroppedPreset"]) {
-  const host = document.createElement("div");
-  host.innerHTML = cardSectionHtml();
-  const root = host.querySelector<HTMLElement>(".yui-card")!;
-  const io = createCardIo({
-    root,
+  return createCardIo({
     ports: {
       importPreset: vi.fn(async () => null),
       importDroppedPreset,
@@ -27,15 +22,12 @@ function mount(importDroppedPreset: CardIoPorts["importDroppedPreset"]) {
       exportPresetFile: vi.fn(async () => "cancelled" as const),
       exportCardPng: vi.fn(async () => "cancelled" as const),
     },
-    openPresetPanel: () => {},
     currentCard: () => EMPTY_CARD,
     entry: () => ({ id: "abcd1234", name: "Mio" }),
     fillerPools: () => ({}),
     activeHoursSpans: () => null,
-    noticeStorage: { getItem: () => null, removeItem: () => {} },
     log: createLogger("card-io"),
   });
-  return { io, errorEl: root.querySelector<HTMLElement>(".yui-card__io-error")! };
 }
 
 describe("createCardIo — importDropped", () => {
@@ -58,12 +50,11 @@ describe("createCardIo — importDropped", () => {
       },
       "failed",
     ],
-  ])("%s answers its outcome and writes no error line", async (_label, port, outcome) => {
+  ])("%s answers its outcome", async (_label, port, outcome) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { io, errorEl } = mount(vi.fn(port));
+    const io = mount(vi.fn(port));
 
     await expect(io.importDropped()).resolves.toBe(outcome);
-    expect([errorEl.hidden, errorEl.textContent]).toEqual([true, ""]);
   });
 });
 
@@ -79,12 +70,8 @@ describe("createCardIo — export", () => {
     activeHoursSpans: () => Span[] | null,
     card: Card,
   ): Promise<Record<string, unknown>> {
-    const host = document.createElement("div");
-    host.innerHTML = cardSectionHtml();
-    const root = host.querySelector<HTMLElement>(".yui-card")!;
     let cardJson: string | undefined;
     const io = createCardIo({
-      root,
       ports: {
         importPreset: vi.fn(async () => null),
         importDroppedPreset: vi.fn(async () => "busy" as const),
@@ -95,12 +82,10 @@ describe("createCardIo — export", () => {
         }),
         exportCardPng: vi.fn(async () => "cancelled" as const),
       },
-      openPresetPanel: () => {},
       currentCard: () => card,
       entry: () => ({ id: "abcd1234", name: "Yui" }),
       fillerPools: () => ({}),
       activeHoursSpans,
-      noticeStorage: { getItem: () => null, removeItem: () => {} },
       log: createLogger("card-io"),
     });
     await io.exportPreset({});

@@ -79,6 +79,8 @@ export function createAgentSettings(opts?: { storage?: AgentStorage }) {
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<AgentSettings>,
 
     setReasoningEffort(e: ReasoningEffort): void {
       commit({ reasoning_effort: coerceEffort(e) });

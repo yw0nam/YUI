@@ -23,7 +23,7 @@ import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
 import { getLocale } from "../../ui/i18n";
-import type { CardIoPorts } from "../../ui/quick-controls/sections/card/card-io";
+import type { CardIoPorts } from "../../ui/quick-controls/persona/card/card-io";
 import type { ImportGate } from "./import-gate";
 import { type ImportPresetDeps, importPreset } from "./import-preset";
 

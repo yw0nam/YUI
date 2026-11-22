@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImportGate } from "../../../../app/card-io/import-gate";
 import { readCard } from "../../../../config/validators/persona/read-card";
@@ -21,6 +23,9 @@ import { CARD_GUIDE_URL } from "../../constants";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs, inMemoryAgentStorage } from "../../test-helpers";
 
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 const card = (description: string): Card => ({ ...EMPTY_CARD, name: "Yui", description });
 const persona: PersonaConfig = {
   framing: { en: "f", ja: "f", ko: "f" },
@@ -39,8 +44,7 @@ describe("createQuickControls — card section", () => {
   const field = (name: string) =>
     sec().querySelector<HTMLInputElement & HTMLTextAreaElement>(`[data-card-field="${name}"]`)!;
   const type = (el: HTMLInputElement | HTMLTextAreaElement, value: string, event = "input") => {
-    el.value = value;
-    el.dispatchEvent(new Event(event, { bubbles: true }));
+    fireEvent[event as "input" | "change"](el, { target: { value } });
   };
   const build = (extra?: Partial<Parameters<typeof createQuickControls>[0]>) => {
     qc = createQuickControls({
@@ -72,7 +76,7 @@ describe("createQuickControls — card section", () => {
   });
 
   afterEach(() => {
-    qc.dispose();
+    act(() => qc.dispose());
     registry.dispose();
     history.replaceState(null, "", "/");
     document.body.innerHTML = "";
@@ -110,9 +114,9 @@ describe("createQuickControls — card section", () => {
   const exportPreset = async (
     exportPresetFile: ReturnType<typeof vi.fn<(r: PresetExportRequest) => unknown>>,
   ): Promise<PresetExportRequest> => {
-    ioButton("Export preset (.yui)").click();
-    rightsSwitch().click();
-    panelButton("Export…").click();
+    fireEvent.click(ioButton("Export preset (.yui)"));
+    fireEvent.click(rightsSwitch());
+    fireEvent.click(panelButton("Export…"));
     await vi.waitFor(() => expect(exportPresetFile).toHaveBeenCalledTimes(1));
     return exportPresetFile.mock.calls[0][0];
   };
@@ -203,18 +207,18 @@ describe("createQuickControls — card section", () => {
 
   it("follows a live transport change without reopening", () => {
     const endpointsSettings = createEndpointsSettings();
-    endpointsSettings.set({ chat_api: "responses" });
+    act(() => endpointsSettings.set({ chat_api: "responses" }));
     build({ endpointsSettings });
     expect([
       visible(".yui-card .yui-push-reason"),
       enabled('[data-card-field="description"]'),
     ]).toEqual([false, true]);
-    endpointsSettings.set({ chat_api: "push" });
+    act(() => endpointsSettings.set({ chat_api: "push" }));
     expect([
       visible(".yui-card .yui-push-reason"),
       enabled('[data-card-field="description"]'),
     ]).toEqual([true, false]);
-    endpointsSettings.set({ chat_api: "responses" });
+    act(() => endpointsSettings.set({ chat_api: "responses" }));
     expect([
       visible(".yui-card .yui-push-reason"),
       enabled('[data-card-field="description"]'),
@@ -230,7 +234,7 @@ describe("createQuickControls — card section", () => {
 
   it("collapses the body and the aside while the switch is off", () => {
     build();
-    sec().querySelector<HTMLButtonElement>(".yui-card-switch")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-switch")!);
     expect(agentSettings.get().send_card).toBe(false);
     expect(sec().querySelector<HTMLElement>(".yui-card-body")!.hidden).toBe(true);
     expect(sec().querySelector<HTMLElement>(".yui-sec__state")!.hidden).toBe(true);
@@ -250,7 +254,7 @@ describe("createQuickControls — card section", () => {
     build();
     const reset = sec().querySelector<HTMLButtonElement>(".yui-reset")!;
     expect(reset.hidden).toBe(false);
-    reset.click();
+    fireEvent.click(reset);
     expect(resetCard).toHaveBeenCalled();
     expect(field("description").value).toBe("English text");
   });
@@ -296,6 +300,21 @@ describe("createQuickControls — card section", () => {
     expect(field("name").getAttribute("aria-invalid")).toBe("false");
   });
 
+  it("commits the name on change only, never on input", () => {
+    const rename = vi.spyOn(registry, "rename");
+    const updateCard = vi.spyOn(agentSettings, "updateCard");
+    build();
+    const name = field("name");
+    fireEvent.input(name, { target: { value: "Mio" } });
+    expect([
+      rename.mock.calls.length,
+      updateCard.mock.calls.length,
+      name.getAttribute("aria-invalid"),
+    ]).toEqual([0, 0, null]);
+    fireEvent.change(name, { target: { value: "Mio" } });
+    expect(updateCard).toHaveBeenCalledWith({ name: "Mio" }, persona.cards.en);
+  });
+
   it("writes the card name for the unnamed built-in preset", () => {
     const rename = vi.spyOn(registry, "rename");
     const updateCard = vi.spyOn(agentSettings, "updateCard");
@@ -308,22 +327,38 @@ describe("createQuickControls — card section", () => {
 
   it("adds and removes a greeting", () => {
     build();
-    sec().querySelector<HTMLButtonElement>(".yui-card-add")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-add")!);
     expect(agentSettings.get().card?.alternate_greetings).toEqual([""]);
     const ta = sec().querySelector<HTMLTextAreaElement>(".yui-card-greeting textarea")!;
     type(ta, "Hello again");
     expect(agentSettings.get().card?.alternate_greetings).toEqual(["Hello again"]);
-    sec().querySelector<HTMLButtonElement>(".yui-card-greeting__remove")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-greeting__remove")!);
     expect(agentSettings.get().card?.alternate_greetings).toEqual([]);
     expect(sec().querySelectorAll(".yui-card-greeting")).toHaveLength(0);
   });
 
+  it("keeps the focus on the row's remove button after removing a middle greeting", () => {
+    agentSettings.setCard({
+      ...EMPTY_CARD,
+      name: "Yui",
+      alternate_greetings: ["one", "two", "three"],
+    });
+    build();
+    const remove = sec().querySelectorAll<HTMLButtonElement>(".yui-card-greeting__remove")[1]!;
+    remove.focus();
+    fireEvent.click(remove);
+    expect(agentSettings.get().card?.alternate_greetings).toEqual(["one", "three"]);
+    expect(document.activeElement).toBe(
+      sec().querySelectorAll<HTMLButtonElement>(".yui-card-greeting__remove")[1],
+    );
+  });
+
   it("redraws a default card on a UI-language change and leaves an own card", () => {
     build();
-    setLocale("ja");
+    act(() => setLocale("ja"));
     expect(field("description").value).toBe("日本語のテキスト");
-    agentSettings.setCard(card("own"));
-    setLocale("ko");
+    act(() => agentSettings.setCard(card("own")));
+    act(() => setLocale("ko"));
     expect(field("description").value).toBe("own");
   });
 
@@ -332,9 +367,9 @@ describe("createQuickControls — card section", () => {
     const ta = field("description");
     ta.focus();
     ta.value = "mid-edit";
-    agentSettings.setCard(card("remote"));
+    act(() => agentSettings.setCard(card("remote")));
     expect(ta.value).toBe("mid-edit");
-    ta.blur();
+    act(() => ta.blur());
     expect(ta.value).toBe("remote");
   });
 
@@ -468,7 +503,7 @@ describe("createQuickControls — card section", () => {
     expect(sec().querySelector(".yui-card__io-note")!.textContent).toBe(
       "Preset file (.yui), JSON or PNG card in · preset file or PNG card out",
     );
-    ioButton("Export card only (PNG)…").click();
+    fireEvent.click(ioButton("Export card only (PNG)…"));
     await vi.waitFor(() => expect(exportCardPng).toHaveBeenCalledTimes(1));
     const [name, json, presetId] = exportCardPng.mock.calls[0];
     expect([name, presetId, JSON.parse(json).data.name]).toEqual([
@@ -478,6 +513,30 @@ describe("createQuickControls — card section", () => {
     ]);
     await vi.waitFor(() => expect(doneLine()).toBe("Saved"));
     expect(info.mock.calls.filter((c) => String(c[0]).includes("card_export"))).toHaveLength(1);
+  });
+
+  it("keeps the saved line when a later action is cancelled or dismissed", async () => {
+    pictured();
+    let pngRuns = 0;
+    const exportCardPng = vi.fn(
+      async (): Promise<"written" | "cancelled"> => (++pngRuns === 1 ? "written" : "cancelled"),
+    );
+    const importPreset = vi.fn(async () => null);
+    build({ exportCardPng, importPreset });
+    fireEvent.click(ioButton("Export card only (PNG)…"));
+    await vi.waitFor(() => expect(doneLine()).toBe("Saved"));
+
+    await act(async () => {
+      fireEvent.click(ioButton("Export card only (PNG)…"));
+    });
+    expect(exportCardPng).toHaveBeenCalledTimes(2);
+    expect(doneLine()).toBe("Saved");
+
+    await act(async () => {
+      fireEvent.click(ioButton("Import…"));
+    });
+    expect(importPreset).toHaveBeenCalledTimes(1);
+    expect(doneLine()).toBe("Saved");
   });
 
   it.each([
@@ -490,7 +549,7 @@ describe("createQuickControls — card section", () => {
   ] as const)("the panel's VRM row for a user VRM whose license is %s", async (license, row) => {
     const inspectPresetVrm = vi.fn(async (_id: string) => ({ license, bytes: 9 }));
     build({ vrmSelection: userVrm(), inspectPresetVrm });
-    ioButton("Export preset (.yui)").click();
+    fireEvent.click(ioButton("Export preset (.yui)"));
     await vi.waitFor(() => expect(panelRows()[1]).toEqual(row));
     expect(inspectPresetVrm).toHaveBeenCalledWith("mine");
   });
@@ -501,7 +560,7 @@ describe("createQuickControls — card section", () => {
       bytes: 1,
     }));
     build({ inspectPresetVrm });
-    ioButton("Export preset (.yui)").click();
+    fireEvent.click(ioButton("Export preset (.yui)"));
     await vi.waitFor(() =>
       expect(panelRows()).toEqual([
         ["Card", "Included", "Yui"],
@@ -515,7 +574,7 @@ describe("createQuickControls — card section", () => {
   it("the panel lists the thumbnail when the preset has a picture, and a user voice clip as included", async () => {
     pictured();
     build({ speakerSelection: userVoice() });
-    ioButton("Export preset (.yui)").click();
+    fireEvent.click(ioButton("Export preset (.yui)"));
     await vi.waitFor(() =>
       expect(panelRows()).toEqual([
         ["Card", "Included", "natsume"],
@@ -535,12 +594,12 @@ describe("createQuickControls — card section", () => {
       inspectPresetVrm: vi.fn(async () => ({ license: "allowed" as const, bytes: 9 })),
       exportPresetFile,
     });
-    ioButton("Export preset (.yui)").click();
+    fireEvent.click(ioButton("Export preset (.yui)"));
     const go = panelButton("Export…");
     expect(go.disabled).toBe(true);
-    rightsSwitch().click();
+    fireEvent.click(rightsSwitch());
     expect([rightsSwitch().getAttribute("aria-checked"), go.disabled]).toEqual(["true", false]);
-    go.click();
+    fireEvent.click(go);
     await vi.waitFor(() => expect(exportPresetFile).toHaveBeenCalledTimes(1));
     const { cardJson, ...rest } = exportPresetFile.mock.calls[0][0];
     expect(rest).toEqual({
@@ -592,7 +651,7 @@ describe("createQuickControls — card section", () => {
       throw "preset file unreadable";
     });
     build({ importPreset });
-    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-import")!);
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
         "That file holds no card",
@@ -615,7 +674,7 @@ describe("createQuickControls — card section", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const importPreset = vi.fn(async () => ({ presetId: "abcd1234" }));
     build({ importPreset });
-    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-import")!);
     await vi.waitFor(() => expect(importPreset).toHaveBeenCalledTimes(1));
     expect(info.mock.calls.filter((c) => String(c[0]).includes("card_import"))).toHaveLength(1);
   });
@@ -626,7 +685,7 @@ describe("createQuickControls — card section", () => {
       throw new Error("preset_create_failed");
     });
     build({ importPreset });
-    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-import")!);
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
         "Could not import that card",
@@ -640,7 +699,7 @@ describe("createQuickControls — card section", () => {
       throw new Error("card_unreadable");
     });
     build({ importPreset });
-    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-import")!);
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
         "That file holds no card",
@@ -663,7 +722,7 @@ describe("createQuickControls — card section", () => {
 
   it("keeps the action row visible with the send switch off", () => {
     build();
-    sec().querySelector<HTMLButtonElement>(".yui-card-switch")!.click();
+    fireEvent.click(sec().querySelector<HTMLButtonElement>(".yui-card-switch")!);
     const body = sec().querySelector<HTMLElement>(".yui-card-body")!;
     const importBtn = sec().querySelector<HTMLButtonElement>(".yui-card-import")!;
     expect(body.hidden).toBe(true);
@@ -690,7 +749,7 @@ describe("createQuickControls — card section", () => {
     build();
     expect(sec().querySelector<HTMLElement>(".yui-card-thumb")!.hidden).toBe(true);
     history.replaceState(null, "", "/?preset=aaaa0001");
-    qc.dispose();
+    act(() => qc.dispose());
     build();
     const thumb = sec().querySelector<HTMLElement>(".yui-card-thumb")!;
     expect(thumb.hidden).toBe(false);

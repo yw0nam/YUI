@@ -87,14 +87,13 @@ import { createHistoryPage } from "./history/history-page";
 import { createListeningPage } from "./listening/listening-page";
 import { createPanelShell } from "./panel-shell";
 import { createPermsPage } from "./perms/perms-page";
+import type { CardIoPorts } from "./persona/card/card-io";
+import { createPersonaPage } from "./persona/persona-page";
 import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
-import { createActiveHoursSection } from "./sections/active-hours/active-hours-section";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBasePaceSection } from "./sections/base-pace/base-pace-section";
-import type { CardIoPorts } from "./sections/card/card-io";
-import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
@@ -703,9 +702,10 @@ export function createQuickControls({
     isOpen: shell.isOpen,
     log,
   });
-  // ── Card section (send switch · card fields · greetings · import/export) ──
-  const card = createCardSection({
+  // ── Persona page (active hours above the card · the card fields · its file actions) ──
+  const persona = createPersonaPage({
     root: el,
+    activeHoursSettings,
     agentSettings,
     endpointsSettings,
     fillerSettings,
@@ -722,20 +722,9 @@ export function createQuickControls({
     exportCardPng,
     inspectPresetVrm,
     subscribeFileDrop,
-    activeHoursSettings,
     log,
   });
-
-  // ── Active hours (Persona page, above the card) — the per-character span editor ──
-  const activeHours = activeHoursSettings
-    ? createActiveHoursSection({
-        root: el,
-        activeHoursSettings,
-        agentSettings,
-        getPersona,
-        log,
-      })
-    : undefined;
+  el.querySelector("#yui-panel-persona")!.append(persona.el);
 
   // ── General page (language · appearance · text size · your name · Help · Developer Tools) ──
   const generalPage = createGeneralPage({
@@ -857,8 +846,7 @@ export function createQuickControls({
     screen,
     { close: listeningPage.close, dispose: listeningPage.dispose },
     agent,
-    card,
-    activeHours && { dispose: activeHours.dispose },
+    { reflect: persona.reflect, dispose: persona.dispose },
     { dispose: generalPage.dispose },
     filler,
     {

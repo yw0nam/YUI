@@ -3912,7 +3912,7 @@ globalThis.YUI_MAP =
       "carries": "activeHoursSettings spans → the card export's extensions.yui.active_hours (extensionsWithActiveHours; null keeps the card's own key)",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/sections/card/card-section.ts"
+      "wiring": "src/ui/quick-controls/persona/persona-page.ts"
     },
     {
       "id": "settings-turn-gate",

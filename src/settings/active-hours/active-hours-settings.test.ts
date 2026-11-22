@@ -39,6 +39,14 @@ describe("createActiveHoursSettings", () => {
     expect(store.get()).toEqual({ spans: null });
   });
 
+  it("current returns the same object until a write", () => {
+    const store = createActiveHoursSettings({ storage: inMemoryStorage() });
+    const first = store.current();
+    expect(store.current()).toBe(first);
+    store.setSpans(SPANS);
+    expect(store.current()).not.toBe(first);
+  });
+
   it("shares no span array with its callers", () => {
     const store = createActiveHoursSettings({ storage: inMemoryStorage() });
     const given: Span[] = [{ start: "09:00", end: "10:00", pace: "low" }];

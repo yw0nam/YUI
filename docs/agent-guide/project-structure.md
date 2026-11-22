@@ -797,6 +797,23 @@ YUI/
             monitor-load.ts          # The list's load: one request at a time, its state, and the retry after a failure
             monitor-list.tsx         # One radio per monitor, or the empty or error notice
             monitor-list.css         # Monitor row and notice styles
+        persona/                     # The Persona page, rendered with React
+          persona-page.ts            # The page's facade: its React root, the card's file actions and drop, and the open hook that redraws it
+          persona-page-view.tsx      # The Active hours editor above the card
+          active-hours/              # The Active hours editor
+            active-hours-section.tsx # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
+            span-row.tsx             # One span row: its two times, the next-day mark, its pace and remove
+            active-hours-section.css # Span row styles
+          card/                      # The preset's card
+            card-section.tsx         # The card fields, send switch, reset and greeting list
+            card-section.css         # Card field, state, and greeting row styles
+            card-file-row.tsx        # The file action row, its picture gate, the status lines, the one-shot notice and the export panel
+            card-entry.ts            # The preset this window edits, the default card an edit starts from, and the card it sends
+            card-io.ts               # The file actions: import, PNG and preset file exports, and the one-shot import notice
+            preset-export-panel.tsx  # The inline list of what a preset file carries, the rights check, and Export…
+            preset-export-panel.css  # The export panel's status inks and actions
+            card-drop.ts             # The drop cover: its busy and drop looks, the refusals before a file is read, and the one import a drop starts
+            card-drop.css            # Drop cover styles
         plugins/                     # The Plugins page: installed plugins and the catalog, rendered with React
           plugins-page.ts            # The page's facade: its React root, and the open hook that loads the catalog
           plugins-page-view.tsx      # The Installed and Available sections over one store, and Escape closing a pending panel
@@ -826,18 +843,9 @@ YUI/
             agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
           help/                      # Help section of Quick start
             help-section.ts          # One Ask button per bundled guide, over rows the composer binds
-          active-hours/              # The Persona page's active hours section
-            active-hours-section.ts  # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
-            active-hours-section.css # Span row styles
           base-pace/                 # How often she speaks up: the Proactive page's base pace segment and its link to Persona
             base-pace-section.ts     # The Less / Normal / More segment bound to the base pace store, and the link that opens the Persona page
             base-pace-section.css    # The link's styles
-          card/                      # The Persona page's card section
-            card-io.ts               # The card section's action row: click dispatch, import, PNG and preset file exports, the picture gate, the status lines and the import notice
-            card-section.ts          # The card fields, send switch, reset, and greeting list; wires the action row and the export panel
-            card-section.css         # Card field, state, and greeting row styles
-            preset-export-panel.ts   # The inline list of what a preset file carries, the rights check, and Export…
-            preset-export-panel.css  # The export panel's status inks and actions
           key-row/                   # One secret API key row
             key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
           push-reason/               # Controls the push transport cannot use
