@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
@@ -21,6 +23,18 @@ import {
   makeVrmSelection,
   USER_VOICE,
 } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+  document.body.innerHTML = "";
+});
 
 describe("createQuickControls — speaker section", () => {
   let mount: HTMLElement;
@@ -70,7 +84,7 @@ describe("createQuickControls — speaker section", () => {
     speakerSelection = makeSpeakerSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
-      speakerSelection.select(option.id);
+      act(() => speakerSelection.select(option.id));
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
@@ -88,11 +102,12 @@ describe("createQuickControls — speaker section", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
+    const qc = createQuickControls({
       ...defaultQcArgs(mount),
       lipsync,
       onGainPreview,
@@ -113,16 +128,18 @@ describe("createQuickControls — speaker section", () => {
       removeVoice,
       ...extra,
     });
+    qcs.push(qc);
+    return qc;
   }
 
   // microtask flush — also declared in qc-vrm-section.test.ts; each split file needs its own copy.
-  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+  const flush = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 
   // ── Speaker section (PR-B B3) ───────────────────────────────────────────────
 
   it("renders one .yui-spk radio per speakerSelection.list() entry", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const group = qc.el.querySelector<HTMLElement>(".yui-spks[role=radiogroup]");
     expect(group).not.toBeNull();
@@ -130,30 +147,24 @@ describe("createQuickControls — speaker section", () => {
     expect(rows).toHaveLength(3); // natsume · ayase · rena
     const names = Array.from(rows).map((r) => r.querySelector(".yui-spk__name")!.textContent);
     expect(names).toEqual(["Natsume", "Ayase", "Rena"]);
-
-    qc.dispose();
   });
 
   it("calls refreshVoiceList on panel open (server may come up after the app)", () => {
     const refreshVoiceList = vi.fn();
     const qc = buildQc({ refreshVoiceList });
-    qc.open();
+    act(() => qc.open());
 
     expect(refreshVoiceList).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 
   it("does not throw on open when refreshVoiceList is absent", () => {
     const qc = buildQc();
-    expect(() => qc.open()).not.toThrow();
-
-    qc.dispose();
+    expect(() => act(() => qc.open())).not.toThrow();
   });
 
   it("marks the active speaker row aria-checked and shows the '사용 중' badge", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
@@ -162,29 +173,25 @@ describe("createQuickControls — speaker section", () => {
     for (const r of rows) {
       if (r !== active) expect(r.querySelector(".yui-spk__badge")).toBeNull();
     }
-
-    qc.dispose();
   });
 
   it("roving tabindex: active speaker row tabindex=0, others -1", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     expect(rows[0].tabIndex).toBe(0); // active (natsume)
     expect(rows[1].tabIndex).toBe(-1);
     expect(rows[2].tabIndex).toBe(-1);
-
-    qc.dispose();
   });
 
   it("clicking a non-active speaker row calls swapSpeaker with that option and shows loading", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const ayase = rows[1];
-    ayase.click();
+    act(() => ayase.click());
 
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({
@@ -198,16 +205,14 @@ describe("createQuickControls — speaker section", () => {
     const group = qc.el.querySelector<HTMLElement>(".yui-spks")!;
     expect(group.getAttribute("aria-busy")).toBe("true");
     expect(group.classList.contains("is-swapping")).toBe(true);
-
-    qc.dispose();
   });
 
   it("on resolve the active tick + badge move to the new speaker row and loading clears", async () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[1].click(); // Ayase
+    act(() => rows[1].click()); // Ayase
     await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
@@ -219,8 +224,6 @@ describe("createQuickControls — speaker section", () => {
     expect(group.getAttribute("aria-busy")).not.toBe("true");
     expect(group.classList.contains("is-swapping")).toBe(false);
     expect(speakerSelection.getActiveId()).toBe("ayase");
-
-    qc.dispose();
   });
 
   it("on reject shows the inline speaker error and leaves the active selection unchanged", async () => {
@@ -228,10 +231,10 @@ describe("createQuickControls — speaker section", () => {
       throw new Error("clone failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[2].click(); // Rena
+    act(() => rows[2].click()); // Rena
     await flush();
 
     const errorRow = qc.el.querySelector<HTMLElement>(".yui-spk.is-error")!;
@@ -243,68 +246,58 @@ describe("createQuickControls — speaker section", () => {
     const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Natsume");
     expect(qc.el.querySelector(".yui-spk[aria-busy=true]")).toBeNull();
-
-    qc.dispose();
   });
 
   it("clicking the already-active speaker row is a no-op (no swapSpeaker)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
-    active.click();
+    act(() => active.click());
 
     expect(swapSpeaker).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("the speaker '파일에서 추가…' row is an enabled button and click invokes pickVoiceImport", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
     expect(add.disabled).toBe(false);
     expect(add.getAttribute("role")).not.toBe("radio");
     expect(add.querySelector(".yui-spk__soon")).toBeNull(); // no "준비 중" chip anymore
 
-    add.click();
+    act(() => add.click());
     expect(pickVoiceImport).toHaveBeenCalledOnce();
     expect(swapSpeaker).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("with a provider that takes no uploaded voices, the add row is disabled and no row deletes or re-uploads", () => {
     speakerSelection = makeSpeakerSelection();
     speakerSelection.addUserOption(USER_VOICE);
     const qc = buildQc({ canManageVoices: () => false });
-    qc.open();
+    act(() => qc.open());
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
     expect(add.disabled).toBe(true);
     // Without is-ready the row takes the inert add-row look: muted label, no hover accent.
     expect(add.classList.contains("is-ready")).toBe(false);
-    add.click();
+    act(() => add.click());
     expect(pickVoiceImport).not.toHaveBeenCalled();
     expect(qc.el.querySelector(".yui-spk__remove")).toBeNull();
     expect(qc.el.querySelector(".yui-spk__refresh")).toBeNull();
-
-    qc.dispose();
   });
 
   it("with a provider whose upload names a new voice, user rows delete but never re-upload", () => {
     speakerSelection = makeSpeakerSelection();
     speakerSelection.addUserOption(USER_VOICE);
     const qc = buildQc({ canReuploadVoices: () => false });
-    qc.open();
+    act(() => qc.open());
 
     const row = qc.el.querySelector<HTMLElement>(`.yui-spk[data-spk-id="${USER_VOICE.id}"]`)!;
     expect(row.querySelector(".yui-spk__remove")).not.toBeNull();
     expect(row.querySelector(".yui-spk__refresh")).toBeNull();
-
-    qc.dispose();
   });
 
   // ── Speaker: user (imported) voice management — mirrors the VRM section ──────
@@ -321,7 +314,7 @@ describe("createQuickControls — speaker section", () => {
   it("renders a user voice row carrying rename + remove + audition controls", () => {
     withUserVoice();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const row = userSpkRow(qc);
     expect(row).not.toBeNull();
@@ -331,61 +324,53 @@ describe("createQuickControls — speaker section", () => {
     expect(row.querySelector<HTMLButtonElement>(".yui-spk__rename")).not.toBeNull();
     expect(row.querySelector<HTMLButtonElement>(".yui-spk__remove")).not.toBeNull();
     expect(row.querySelector<HTMLButtonElement>(".yui-spk__preview")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("bundled speaker rows carry remove (server delete) but no rename", () => {
     withUserVoice();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const natsume = qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
     expect(natsume.querySelector(".yui-spk__rename")).toBeNull();
     expect(natsume.querySelector(".yui-spk__remove")).not.toBeNull();
     // bundled still has refresh + preview
     expect(natsume.querySelector(".yui-spk__preview")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("trash on a bundled row deletes the server voice and drops the row", async () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const row = () => qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
-    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click(); // arm
-    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click(); // confirm
+    act(() => row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click()); // arm
+    act(() => row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click()); // confirm
     await flush();
 
     expect(removeVoice).toHaveBeenCalledWith("natsume");
     expect(speakerSelection.list().map((o) => o.id)).not.toContain("natsume");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="natsume"]')).toBeNull();
-
-    qc.dispose();
   });
 
   it("removing the active bundled voice falls back to another option", async () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
     expect(speakerSelection.getActiveId()).toBe("natsume");
 
     const row = () => qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="natsume"]')!;
-    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => row().querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     expect(speakerSelection.getActiveId()).not.toBe("natsume");
-
-    qc.dispose();
   });
 
   it("pencil opens inline rename; Enter commits via renameUserOption", () => {
     withUserVoice();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click());
 
     const row = userSpkRow(qc);
     expect(row.classList.contains("yui-spk--renaming")).toBe(true);
@@ -395,38 +380,34 @@ describe("createQuickControls — speaker section", () => {
     expect(row.querySelector(".yui-spk__rename-hint")).not.toBeNull();
 
     input.value = "새 목소리";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 
     expect(speakerSelection.list().find((o) => o.id === "myvoice")!.label).toBe("새 목소리");
     expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
-
-    qc.dispose();
   });
 
   it("Esc cancels inline speaker rename without changing the label or closing the window", () => {
     withUserVoice();
     const onCloseWindow = vi.fn();
     const qc = buildQc({ onCloseWindow });
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click());
     const input = userSpkRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = "버려질 이름";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 
     expect(speakerSelection.list().find((o) => o.id === "myvoice")!.label).toBe("내 목소리");
     expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
     expect(onCloseWindow).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("trash removes the voice via injected removeVoice then store removeUserOption", async () => {
     withUserVoice();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     expect(userSpkRow(qc).classList.contains("is-remove-armed")).toBe(true);
     expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.textContent).toBe(
       "삭제할까요?",
@@ -439,35 +420,31 @@ describe("createQuickControls — speaker section", () => {
     expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.dataset.tip).toBe(
       "삭제할까요?",
     );
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     expect(removeVoice).toHaveBeenCalledOnce();
     expect(removeVoice.mock.calls[0][0]).toBe("myvoice");
     expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
-
-    qc.dispose();
   });
 
   it("updates the armed delete tooltip and restores it when disarmed", () => {
     withUserVoice();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })));
     remove.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
 
-    document.body.click();
+    act(() => document.body.click());
     remove.blur();
     remove.focus();
     expect(remove.dataset.tip).toBe("삭제");
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
-
-    qc.dispose();
   });
 
   it("shows a tooltip for a row button replaced by a re-render", () => {
@@ -475,18 +452,16 @@ describe("createQuickControls — speaker section", () => {
     try {
       withUserVoice();
       const qc = buildQc();
-      qc.open();
+      act(() => qc.open());
 
       const original = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      original.click();
+      act(() => original.click());
       const rerendered = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
       expect(rerendered.isSameNode(original)).toBe(false);
 
-      rerendered.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      act(() => rerendered.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
       vi.advanceTimersByTime(150);
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
-
-      qc.dispose();
     } finally {
       vi.useRealTimers();
     }
@@ -497,18 +472,16 @@ describe("createQuickControls — speaker section", () => {
     try {
       withUserVoice();
       const qc = buildQc();
-      qc.open();
+      act(() => qc.open());
 
       const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      act(() => remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
       vi.advanceTimersByTime(150);
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
 
-      remove.click();
+      act(() => remove.click());
 
       expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-
-      qc.dispose();
     } finally {
       vi.useRealTimers();
     }
@@ -519,19 +492,22 @@ describe("createQuickControls — speaker section", () => {
     try {
       withUserVoice();
       const qc = buildQc();
-      qc.open();
+      act(() => qc.open());
 
-      userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+      act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
       const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+      act(() =>
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })),
+      );
       remove.focus();
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
 
-      vi.advanceTimersByTime(4000);
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
 
       expect(remove.dataset.tip).toBe("삭제");
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
-      qc.dispose();
     } finally {
       vi.useRealTimers();
     }
@@ -544,16 +520,14 @@ describe("createQuickControls — speaker section", () => {
       storeStillHadVoiceAtDelete = speakerSelection.list().some((o) => o.id === "myvoice");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     expect(storeStillHadVoiceAtDelete).toBe(true);
     expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
-
-    qc.dispose();
   });
 
   it("keeps the voice in the store when the native file delete fails (no divergence)", async () => {
@@ -562,18 +536,16 @@ describe("createQuickControls — speaker section", () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')?.classList).toContain("is-error");
     expect(qc.el.querySelector(".yui-spk__error")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("shows deletion as busy and ignores repeated commits while it is in flight", async () => {
@@ -586,50 +558,47 @@ describe("createQuickControls — speaker section", () => {
         }),
     );
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     const removingRow = userSpkRow(qc);
     expect(removingRow.getAttribute("aria-busy")).toBe("true");
     expect(removingRow.querySelector<HTMLButtonElement>(".yui-spk__remove")!.disabled).toBe(true);
 
-    await qc.el.querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     expect(removeVoice).toHaveBeenCalledOnce();
 
     resolveRemove();
     await flush();
-    qc.dispose();
   });
 
   it("does NOT fall back / swap the speaker when deleting the active voice file fails", async () => {
     withUserVoice();
-    speakerSelection.select("myvoice");
+    act(() => speakerSelection.select("myvoice"));
     removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
     swapSpeaker.mockClear();
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     expect(speakerSelection.getActiveId()).toBe("myvoice");
     expect(swapSpeaker).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("removing the active user voice falls back to default and swaps the speaker", async () => {
     withUserVoice();
-    speakerSelection.select("myvoice");
+    act(() => speakerSelection.select("myvoice"));
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
-    userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
     // store fell back to the bundled default
@@ -637,8 +606,6 @@ describe("createQuickControls — speaker section", () => {
     // speaker reloaded onto the fallback
     expect(swapSpeaker).toHaveBeenCalled();
     expect(swapSpeaker.mock.calls.at(-1)![0]).toMatchObject({ id: "natsume" });
-
-    qc.dispose();
   });
 
   // ── Speaker: naming row (pick → name → copy+register) ────────────────────────
@@ -650,9 +617,9 @@ describe("createQuickControls — speaker section", () => {
   it("clicking add invokes pickVoiceImport, and a picked file shows a naming row seeded with the file stem", async () => {
     pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "Natsume"));
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     expect(pickVoiceImport).toHaveBeenCalledOnce();
@@ -661,8 +628,6 @@ describe("createQuickControls — speaker section", () => {
     expect(input).not.toBeNull();
     expect(input.value).toBe("Natsume");
     expect(qc.el.querySelector(".yui-spk__rename-hint")).not.toBeNull();
-
-    qc.dispose();
   });
 
   // A duplicate name replaces that voice's clip outright. The naming row is seeded from the picked
@@ -674,15 +639,13 @@ describe("createQuickControls — speaker section", () => {
   it("warns on the naming row when the seeded name already names an existing voice", async () => {
     pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "natsume"));
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     expect(spkNamingInput(qc)!.value).toBe("natsume");
     expect(spkOverwriteWarn(qc)).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("warns for a lossy name whose derived voice id collides, though the raw strings differ", async () => {
@@ -697,63 +660,59 @@ describe("createQuickControls — speaker section", () => {
     });
     pickVoiceImport = vi.fn(async () => stagedPick("import-aimesu", "エイメス"));
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     expect(spkNamingInput(qc)!.value).toBe("エイメス");
     expect(spkOverwriteWarn(qc)).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("shows no warning for a name that does not collide", async () => {
     pickVoiceImport = vi.fn(async () => stagedPick("import-brand-new", "Brand New"));
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     expect(spkOverwriteWarn(qc)).toBeNull();
-
-    qc.dispose();
   });
 
   it("the warning tracks what is typed — appears and clears without re-rendering the row", async () => {
     pickVoiceImport = vi.fn(async () => stagedPick("import-brand-new", "Brand New"));
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
     const input = spkNamingInput(qc)!;
     expect(spkOverwriteWarn(qc)).toBeNull();
 
     input.value = "ayase";
-    input.dispatchEvent(new Event("input"));
+    act(() => {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     expect(spkOverwriteWarn(qc)).not.toBeNull();
 
     input.value = "ayase 2";
-    input.dispatchEvent(new Event("input"));
+    act(() => {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     expect(spkOverwriteWarn(qc)).toBeNull();
-
-    qc.dispose();
   });
 
   it("cancelling the OS picker (null) shows no naming row and never calls commitVoiceImport", async () => {
     pickVoiceImport = vi.fn(async () => null);
     const qc = buildQc({ pickVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     expect(spkNamingInput(qc)).toBeNull();
     expect(commitVoiceImport).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("Esc on the naming row cancels the whole import — commitVoiceImport is never called", async () => {
@@ -761,20 +720,18 @@ describe("createQuickControls — speaker section", () => {
     pickVoiceImport = vi.fn(async () => pending);
     const onCloseWindow = vi.fn();
     const qc = buildQc({ pickVoiceImport, commitVoiceImport, onCloseWindow });
-    qc.open();
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.open());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     const input = spkNamingInput(qc)!;
     input.value = "discarded";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 
     expect(commitVoiceImport).not.toHaveBeenCalled();
     expect(pending.discard).toHaveBeenCalledTimes(1);
     expect(spkNamingInput(qc)).toBeNull();
     expect(onCloseWindow).not.toHaveBeenCalled(); // Escape must not leak to the window's close
-
-    qc.dispose();
   });
 
   it("Enter on the naming row commits with the staged id and the typed name", async () => {
@@ -783,21 +740,19 @@ describe("createQuickControls — speaker section", () => {
       speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
-    qc.open();
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.open());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     const input = spkNamingInput(qc)!;
     input.value = "My Voice";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     expect(commitVoiceImport).toHaveBeenCalledOnce();
     expect(commitVoiceImport).toHaveBeenCalledWith("import-natsume", "My Voice");
     expect(spkNamingInput(qc)).toBeNull();
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
-
-    qc.dispose();
   });
 
   // Real browsers fire `blur` SYNCHRONOUSLY when a focused element is removed from the document —
@@ -816,23 +771,24 @@ describe("createQuickControls — speaker section", () => {
         }),
     );
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
-    qc.open();
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.open());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     const input = spkNamingInput(qc)!;
     input.value = "My Voice";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     // At this point commitPendingImport has run synchronously up to its first render — the input
     // is detached from the document (innerHTML replaced), but the reference and its listeners are
     // still live. Simulate the real-engine synchronous blur that detachment triggers.
-    input.dispatchEvent(new Event("blur"));
+    act(() => {
+      fireEvent.blur(input);
+    });
 
     expect(commitVoiceImport).toHaveBeenCalledOnce();
 
     resolveCommit();
     await flush();
-    qc.dispose();
   });
 
   it("shows the loading row during commit, not during the pick step", async () => {
@@ -851,16 +807,16 @@ describe("createQuickControls — speaker section", () => {
         }),
     );
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     // Pick is still in flight (mirrors a blocking native OS dialog) — no loading spinner yet.
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
 
     resolvePick(stagedPick("import-x", "x"));
     await flush();
     const input = spkNamingInput(qc)!;
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     const loading = qc.el.querySelector<HTMLElement>(".yui-spk__loading")!;
@@ -871,7 +827,6 @@ describe("createQuickControls — speaker section", () => {
 
     resolveCommit();
     await flush();
-    qc.dispose();
   });
 
   it("a failed commit shows the inline error and clears the naming row", async () => {
@@ -880,12 +835,12 @@ describe("createQuickControls — speaker section", () => {
       throw new Error("bad voice");
     });
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
-    qc.open();
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.open());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     const input = spkNamingInput(qc)!;
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     const err = qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!;
@@ -893,8 +848,6 @@ describe("createQuickControls — speaker section", () => {
     expect(err.hidden).toBe(false);
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
     expect(spkNamingInput(qc)).toBeNull();
-
-    qc.dispose();
   });
 
   it("a successful commit clears the loading row and error notice", async () => {
@@ -903,24 +856,22 @@ describe("createQuickControls — speaker section", () => {
       speakerSelection.addUserOption(USER_VOICE);
     });
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
-    qc.open();
-    qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    act(() => qc.open());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
     await flush();
 
     const input = spkNamingInput(qc)!;
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
     expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(true);
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("caps the speaker list in a scroll container; the add-row footer lives OUTSIDE it", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const scroll = qc.el.querySelector<HTMLElement>(".yui-spk-scroll")!;
     const group = qc.el.querySelector<HTMLElement>(".yui-spks")!;
@@ -928,13 +879,11 @@ describe("createQuickControls — speaker section", () => {
     expect(scroll.contains(group)).toBe(true);
     expect(scroll.contains(foot)).toBe(false);
     expect(foot.querySelector(".yui-spk--add")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("leaves clip-backed speaker option buttons enabled (not disabled)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     // default speakers all carry a ref_url (clip) → option buttons are enabled.
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
@@ -942,13 +891,11 @@ describe("createQuickControls — speaker section", () => {
       expect(r.querySelector<HTMLButtonElement>(".yui-spk__refresh")!.disabled).toBe(false);
       expect(r.querySelector<HTMLButtonElement>(".yui-spk__preview")!.disabled).toBe(false);
     }
-
-    qc.dispose();
   });
 
   it("a row click swaps and the roved row is tabbable (tabIndex 0)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     // Active (default selected) row has roving tabindex 0.
@@ -956,46 +903,42 @@ describe("createQuickControls — speaker section", () => {
     expect(active.tabIndex).toBe(0);
 
     // Click inactive row → swap.
-    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    act(() => rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
-
-    qc.dispose();
   });
 
   it("Enter on a focused non-active speaker row selects it (swaps)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "ayase" });
-
-    qc.dispose();
   });
 
   it("Space on a focused non-active speaker row selects it (swaps)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    act(() => rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true })));
 
     expect(swapSpeaker).toHaveBeenCalledOnce();
     expect(swapSpeaker.mock.calls[0][0]).toMatchObject({ id: "rena" });
-
-    qc.dispose();
   });
 
   it("ArrowDown moves roving focus to the next speaker row WITHOUT swapping", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     rows[0].focus();
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
 
     // roving focus moved; selection unchanged until Enter/Space
     expect(document.activeElement).toBe(rows[1]);
@@ -1006,21 +949,19 @@ describe("createQuickControls — speaker section", () => {
     expect(rows[0].getAttribute("aria-checked")).toBe("true");
     expect(swapSpeaker).not.toHaveBeenCalled();
     expect(speakerSelection.getActiveId()).toBe("natsume");
-
-    qc.dispose();
   });
 
   it("ArrowUp wraps roving focus from the first to the last speaker row", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     rows[0].focus();
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })),
+    );
 
     expect(document.activeElement).toBe(rows[2]);
-
-    qc.dispose();
   });
 
   it("keeps the roving speaker tabindex on the last-roved row across a re-render", async () => {
@@ -1030,18 +971,20 @@ describe("createQuickControls — speaker section", () => {
       throw new Error("swap failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     rows[0].focus();
     // rove down to Ayase (unchecked) without committing → spkRovedId = ayase
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
     expect(rows[1].tabIndex).toBe(0);
 
     // commit Rena (a DIFFERENT row than the roved Ayase); its swap REJECTS, so active stays
     // natsume but finally still re-renders. A wrong rovedId re-point on commit would move
     // the tab stop to Rena — this asserts it stays on the roved Ayase.
-    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
@@ -1050,23 +993,19 @@ describe("createQuickControls — speaker section", () => {
     expect(after[1].tabIndex).toBe(0);
     expect(after[0].tabIndex).toBe(-1);
     expect(after[2].tabIndex).toBe(-1);
-
-    qc.dispose();
   });
 
   it("clicking the ▶ preview button does NOT trigger row selection", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const preview = rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
     expect(preview).not.toBeNull();
-    preview.click();
+    act(() => preview.click());
 
     // the preview audition must not select/swap the row
     expect(swapSpeaker).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("resolves the default audition URL against the document location", async () => {
@@ -1085,15 +1024,13 @@ describe("createQuickControls — speaker section", () => {
     (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
     try {
       const qc = buildQc();
-      qc.open();
+      act(() => qc.open());
 
       const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-      rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!.click();
+      act(() => rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!.click());
       await flush();
 
       expect(seen).toEqual([new URL("/references/ayase.wav", globalThis.location.href).href]);
-
-      qc.dispose();
     } finally {
       (globalThis as { Audio: unknown }).Audio = OrigAudio;
     }
@@ -1117,24 +1054,25 @@ describe("createQuickControls — speaker section", () => {
     (globalThis as { Audio: unknown }).Audio = FakeAudio as unknown;
     try {
       const qc = buildQc();
-      qc.open();
-      userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
+      act(() => qc.open());
+      act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
 
-      qc.el
-        .querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"]')!
-        .querySelector<HTMLButtonElement>(".yui-spk__preview")!
-        .click();
+      act(() =>
+        qc.el
+          .querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"]')!
+          .querySelector<HTMLButtonElement>(".yui-spk__preview")!
+          .click(),
+      );
       await flush();
 
       const visiblePreview = qc.el
         .querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"]')!
         .querySelector<HTMLButtonElement>(".yui-spk__preview")!;
       expect(visiblePreview.classList).toContain("is-playing");
-      visiblePreview.click();
+      act(() => visiblePreview.click());
       await flush();
       expect(plays).toBe(1);
       expect(pauses).toBe(1);
-      qc.dispose();
     } finally {
       (globalThis as { Audio: unknown }).Audio = OrigAudio;
     }
@@ -1149,28 +1087,24 @@ describe("createQuickControls — speaker section", () => {
       defaultValue: "natsume",
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const withClip = rows[0].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
     const noClip = rows[1].querySelector<HTMLButtonElement>(".yui-spk__preview")!;
     expect(withClip.disabled).toBe(false);
     expect(noClip.disabled).toBe(true);
-
-    qc.dispose();
   });
 
   it("reflects an external speakerSelection change (cross-window) while open", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    speakerSelection.select("rena");
+    act(() => speakerSelection.select("rena"));
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.querySelector(".yui-spk__name")!.textContent).toBe("Rena");
-
-    qc.dispose();
   });
 
   it("renders a speaker label with HTML metacharacters as literal text (no innerHTML injection)", () => {
@@ -1180,14 +1114,12 @@ describe("createQuickControls — speaker section", () => {
       defaultValue: "natsume",
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const name = qc.el.querySelector<HTMLElement>(".yui-spk[role=radio] .yui-spk__name")!;
     expect(name.textContent).toBe(evil);
     expect(name.querySelector("img")).toBeNull();
     expect(qc.el.querySelector(".yui-spks img")).toBeNull();
-
-    qc.dispose();
   });
 
   it("activates a speaker whose id contains a double-quote without throwing (CSS.escape)", async () => {
@@ -1200,32 +1132,30 @@ describe("createQuickControls — speaker section", () => {
       defaultValue: "natsume",
     });
     swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async (option) => {
-      speakerSelection.select(option.id);
+      act(() => speakerSelection.select(option.id));
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const quoted = rows.find((r) => r.dataset.spkId === evilId)!;
     expect(quoted).toBeDefined();
 
     // clicking would throw SyntaxError inside spkRowById if the selector were unescaped
-    expect(() => quoted.click()).not.toThrow();
+    expect(() => act(() => quoted.click())).not.toThrow();
     await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.dataset.spkId).toBe(evilId);
     expect(speakerSelection.getActiveId()).toBe(evilId);
-
-    qc.dispose();
   });
 
   // ── Speaker row reference-voice refresh button ──────────────────────────────
 
   it("renders a .yui-spk__refresh button per speaker row, before the ▶ preview", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     expect(rows).toHaveLength(3);
@@ -1239,8 +1169,6 @@ describe("createQuickControls — speaker section", () => {
         refresh!.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
-
-    qc.dispose();
   });
 
   it("disables the refresh button when a speaker has an empty ref_url", () => {
@@ -1252,25 +1180,23 @@ describe("createQuickControls — speaker section", () => {
       defaultValue: "natsume",
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const withClip = rows[0].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
     const noClip = rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
     expect(withClip.disabled).toBe(false);
     expect(noClip.disabled).toBe(true);
-
-    qc.dispose();
   });
 
   it("clicking the refresh button calls refreshSpeaker and does NOT change the active selection", async () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const ayase = rows[1]; // non-active
     const refresh = ayase.querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
-    refresh.click();
+    act(() => refresh.click());
 
     expect(refreshSpeaker).toHaveBeenCalledOnce();
     expect(refreshSpeaker.mock.calls[0][0]).toMatchObject({
@@ -1283,8 +1209,6 @@ describe("createQuickControls — speaker section", () => {
 
     await flush();
     expect(speakerSelection.getActiveId()).toBe("natsume");
-
-    qc.dispose();
   });
 
   it("on a rejected refreshSpeaker the row gets the error state", async () => {
@@ -1292,10 +1216,10 @@ describe("createQuickControls — speaker section", () => {
       throw new Error("update failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[2].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Rena
+    act(() => rows[2].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click()); // Rena
     await flush();
 
     const errorRow = qc.el.querySelector<HTMLElement>(".yui-spk.is-error")!;
@@ -1306,27 +1230,28 @@ describe("createQuickControls — speaker section", () => {
     expect(errMsg.textContent).toContain("갱신하지 못했어요");
     // refresh leaves the active selection untouched
     expect(speakerSelection.getActiveId()).toBe("natsume");
-
-    qc.dispose();
   });
 
   it("shows the success note after a resolved refresh, then auto-reverts to idle", async () => {
     vi.useFakeTimers();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Ayase
-    await vi.advanceTimersByTimeAsync(0); // let the refreshSpeaker promise settle
+    act(() => rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click()); // Ayase
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    }); // let the refreshSpeaker promise settle
 
     expect(qc.el.querySelector(".yui-spk__note")).not.toBeNull();
     expect(qc.el.querySelector(".yui-spk__note")!.textContent).toContain("갱신했어요");
 
     // auto-revert clears the note after the dwell
-    await vi.advanceTimersByTimeAsync(2400);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2400);
+    });
     expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
 
-    qc.dispose();
     vi.useRealTimers();
   });
 
@@ -1339,23 +1264,21 @@ describe("createQuickControls — speaker section", () => {
         }),
     );
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
     const refresh = rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
-    refresh.click();
+    act(() => refresh.click());
     // a second click while in-flight must be ignored (button is also disabled, but guard defends)
     const stillRefresh = qc.el
       .querySelectorAll<HTMLElement>(".yui-spk[role=radio]")[1]
       .querySelector<HTMLButtonElement>(".yui-spk__refresh")!;
-    stillRefresh.click();
+    act(() => stillRefresh.click());
 
     expect(refreshSpeaker).toHaveBeenCalledOnce();
 
     resolveRefresh?.();
     await flush();
-
-    qc.dispose();
   });
 
   it("does not render the success note or schedule a dwell timer when disposed mid-refresh", async () => {
@@ -1368,23 +1291,182 @@ describe("createQuickControls — speaker section", () => {
         }),
     );
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
-    rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click(); // Ayase
+    act(() => rows[1].querySelector<HTMLButtonElement>(".yui-spk__refresh")!.click()); // Ayase
 
     // dispose while the refresh promise is still pending
-    qc.dispose();
+    act(() => qc.dispose());
 
     // the now-resolving refresh must not write to the torn-down DOM
     resolveRefresh?.();
-    await vi.advanceTimersByTimeAsync(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
 
     // and no leaked dwell timer fires the note later
-    await vi.advanceTimersByTimeAsync(2400);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2400);
+    });
     expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
 
     vi.useRealTimers();
+  });
+
+  // ── Kept list rules: the import lifecycle, rename blur, the fallback swap, the busy row ─────────
+
+  const clickAdd = (qc: { el: HTMLElement }) =>
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click());
+
+  it("one picker at a time: a second add click while the pick is open does not pick again", async () => {
+    pickVoiceImport = vi.fn(() => new Promise<PickedVoiceImport | null>(() => {}));
+    const qc = buildQc({ pickVoiceImport });
+    act(() => qc.open());
+
+    clickAdd(qc);
+    clickAdd(qc);
+    await flush();
+
+    expect(pickVoiceImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("a rejected pick shows the inline error and logs voice_import_failed", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    pickVoiceImport = vi.fn(async () => {
+      throw new Error("unsupported audio type");
+    });
+    const qc = buildQc({ pickVoiceImport });
+    act(() => qc.open());
+
+    clickAdd(qc);
+    await flush();
+
+    expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(false);
+    expect(error).toHaveBeenCalledWith("[YUI][quick-controls] voice_import_failed", {
+      error: "Error: unsupported audio type",
+    });
+    expect(spkNamingInput(qc)).toBeNull();
+  });
+
+  it("a pick after a rejected one hides the stale error", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    pickVoiceImport = vi.fn<() => Promise<PickedVoiceImport | null>>(async () => null);
+    pickVoiceImport.mockRejectedValueOnce(new Error("unsupported audio type"));
+    const qc = buildQc({ pickVoiceImport });
+    act(() => qc.open());
+    clickAdd(qc);
+    await flush();
+    expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(false);
+
+    clickAdd(qc);
+    await flush();
+
+    expect(qc.el.querySelector<HTMLElement>(".yui-spk__import-error")!.hidden).toBe(true);
+  });
+
+  it("disposing the panel discards the staged copy of an open naming row", async () => {
+    const pending = stagedPick("import-natsume", "Natsume");
+    pickVoiceImport = vi.fn(async () => pending);
+    const qc = buildQc({ pickVoiceImport });
+    act(() => qc.open());
+    clickAdd(qc);
+    await flush();
+    expect(spkNamingInput(qc)).not.toBeNull();
+
+    act(() => qc.dispose());
+
+    expect(pending.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it("a pick that resolves after the panel is disposed is discarded", async () => {
+    const pending = stagedPick("import-natsume", "Natsume");
+    let resolvePick: (v: PickedVoiceImport | null) => void = () => {};
+    pickVoiceImport = vi.fn(
+      () =>
+        new Promise<PickedVoiceImport | null>((res) => {
+          resolvePick = res;
+        }),
+    );
+    const qc = buildQc({ pickVoiceImport });
+    act(() => qc.open());
+    clickAdd(qc);
+    await flush();
+
+    act(() => qc.dispose());
+    resolvePick(pending);
+    await flush();
+
+    expect(pending.discard).toHaveBeenCalledTimes(1);
+    expect(spkNamingInput(qc)).toBeNull();
+  });
+
+  it("a blur on the rename field commits the typed name", () => {
+    withUserVoice();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click());
+    const input = userSpkRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    input.value = "블러 이름";
+    act(() => {
+      fireEvent.blur(input);
+    });
+
+    expect(speakerSelection.list().find((o) => o.id === "myvoice")!.label).toBe("블러 이름");
+    expect(userSpkRow(qc).querySelector(".yui-ep-input")).toBeNull();
+  });
+
+  it("keys typed in the rename field do not move the row focus", () => {
+    withUserVoice();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__rename")!.click());
+    const input = userSpkRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    act(() =>
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+
+    expect(document.activeElement).toBe(input);
+    expect(swapSpeaker).not.toHaveBeenCalled();
+  });
+
+  it("a failed fallback swap after removing the active voice logs and leaves the fallback listed", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    withUserVoice();
+    speakerSelection.select("myvoice");
+    swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {
+      throw new Error("swap failed");
+    });
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
+    await flush();
+
+    expect(error).toHaveBeenCalledWith("[YUI][quick-controls] voice_fallback_swap_failed", {
+      error: "Error: swap failed",
+    });
+    expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).toBeNull();
+    expect(
+      qc.el.querySelector('.yui-spk[data-spk-id="natsume"]')!.getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("a row being swapped to drops its preview button while the others keep theirs", () => {
+    swapSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
+      () => new Promise<void>(() => {}),
+    );
+    const qc = buildQc();
+    act(() => qc.open());
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+
+    act(() => rows[1].click());
+
+    expect(rows[1].querySelector(".yui-spk__preview")).toBeNull();
+    expect(rows[2].querySelector(".yui-spk__preview")).not.toBeNull();
   });
 });

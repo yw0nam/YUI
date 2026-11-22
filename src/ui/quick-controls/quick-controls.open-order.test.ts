@@ -41,7 +41,7 @@ vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/filler/filler-section", () => ({
+vi.mock("./voice/filler/filler-section", () => ({
   createFillerSection: () => ({ reflect: rec("filler", "reflect"), dispose: () => {} }),
 }));
 vi.mock("./connection/connection-tab", () => ({
@@ -77,8 +77,8 @@ vi.mock("./motion/motion-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/speaker/speaker-list", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./sections/speaker/speaker-list")>()),
+vi.mock("./voice/speaker/speaker-list", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./voice/speaker/speaker-list")>()),
   createSpeakerList: () => ({
     render: rec("speakerList", "render"),
     stopAudition: () => {},

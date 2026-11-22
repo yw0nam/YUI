@@ -28,7 +28,7 @@ import { settingsSearchHtml } from "./search/settings-search";
 import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
-import { speakerPickerHtml } from "./sections/speaker/speaker-list";
+import { speakerPickerHtml } from "./voice/speaker/speaker-list";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
