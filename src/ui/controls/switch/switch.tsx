@@ -9,11 +9,14 @@ export interface SwitchProps {
   label: string;
   /** Extra classes beside `yui-switch`. */
   className?: string;
+  /** Blocks the click and renders the native disabled state. */
+  disabled?: boolean;
 }
 
-export function Switch({ checked, onCheckedChange, label, className }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, label, className, disabled }: SwitchProps) {
   return (
     <button
+      disabled={disabled}
       className={className ? `yui-switch ${className}` : "yui-switch"}
       type="button"
       role="switch"
