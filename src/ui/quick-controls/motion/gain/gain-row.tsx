@@ -67,7 +67,7 @@ export function GainRow({
               lipsync.setGain(next);
               preview.show(next);
             }}
-            // A keyboard step commits at once, so its preview lasts until blur.
+            // A keyboard step or a hidden-input change commits at once, so its preview lasts until blur.
             onValueCommitted={(_next, reason) => {
               if (reason !== "keyboard" && reason !== "input-change") end();
             }}

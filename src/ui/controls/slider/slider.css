@@ -55,8 +55,8 @@
     0 0 0 4px var(--yui-accent-faint);
 }
 
-/* The thumb's range input is visually hidden, so the ring follows its focus. */
-.yui-slider__thumb:has(input:focus-visible) {
+/* The thumb's range input is visually hidden, so the ring follows its focus, over the hover ring. */
+.yui-slider .yui-slider__thumb:has(input:focus-visible) {
   box-shadow:
     0 1px 3px var(--yui-knob-shadow),
     0 0 0 2px var(--yui-accent-soft);

@@ -57,7 +57,12 @@ describe("createQuickControls — idle motion section", () => {
   it("renders one row per idle variant, in catalog order", () => {
     qc = build();
     qc.open();
-    expect(switches().map((s) => s.dataset.variant)).toEqual(IDLE_POOL.variants);
+    expect(switches().map((s) => s.getAttribute("aria-label"))).toEqual([
+      "차분히 서 있기",
+      "장난스러운 몸짓",
+      "머리카락 만지기",
+      "한쪽 힙에 기대서기",
+    ]);
   });
 
   it("labels each row from i18n, keyed by the variant file stem", () => {
@@ -78,7 +83,7 @@ describe("createQuickControls — idle motion section", () => {
     qc = build();
     qc.open();
     const baseline = switches()[0]!;
-    expect(baseline.dataset.variant).toBe("/motions/calm.vrma");
+    expect(baseline.getAttribute("aria-label")).toBe("차분히 서 있기");
     expect(baseline.disabled).toBe(true);
     expect(baseline.getAttribute("aria-checked")).toBe("true");
     expect(baseline.closest(".yui-row")!.querySelector(".yui-row__sub")!.textContent).toContain(

@@ -232,7 +232,7 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const { vad: vadSlider } = sliders(qc);
-    fireEvent.change(vadSlider, { target: { value: "2000" } });
+    pressSlider(vadSlider, 0.6).release();
 
     expect(vad.get().silenceMs).toBe(2000);
     expect(onGainPreview).not.toHaveBeenCalled();

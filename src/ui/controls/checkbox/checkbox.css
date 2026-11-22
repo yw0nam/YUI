@@ -4,10 +4,10 @@
 }
 
 /* Mixed — half the track lit, knob parked mid-travel. */
-.yui-checkbox[aria-checked="mixed"] {
+.yui-checkbox[data-indeterminate] {
   background: linear-gradient(90deg, var(--yui-accent) 50%, var(--yui-track) 50%);
 }
 
-.yui-checkbox[aria-checked="mixed"]::after {
+.yui-checkbox[data-indeterminate]::after {
   transform: translateX(calc((var(--w) - var(--h)) / 2));
 }

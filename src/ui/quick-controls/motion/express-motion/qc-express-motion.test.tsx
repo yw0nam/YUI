@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createExpressMotionSettings } from "../../../../settings/avatar/express-motion-settings";
@@ -27,7 +28,7 @@ describe("createQuickControls — express motion section", () => {
   const toggles = () =>
     Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__toggle"));
   const masters = () =>
-    Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__master"));
+    Array.from(qc.el.querySelectorAll<HTMLElement>('.yui-express__head [role="checkbox"]'));
   const rowSwitches = () =>
     Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__rows .yui-switch"));
   const expand = (index: number) => act(() => toggles()[index]!.click());
@@ -80,13 +81,13 @@ describe("createQuickControls — express motion section", () => {
     qc = build();
     qc.open();
     expand(0);
-    expect(rowSwitches().map((s) => s.dataset.motion)).toEqual([
-      "happy",
-      "laugh",
-      "embarrassed",
-      "sheepish",
-      "calm",
-      "sulk",
+    expect(rowSwitches().map((s) => s.getAttribute("aria-label"))).toEqual([
+      "기쁨",
+      "웃음",
+      "부끄러움",
+      "멋쩍음",
+      "차분",
+      "삐침",
     ]);
     expect(toggles()[0]!.getAttribute("aria-expanded")).toBe("true");
     expect(
@@ -185,10 +186,9 @@ describe("createQuickControls — express motion section", () => {
     qc.open();
     expand(1);
     act(() => expressMotionSettings.setEnabled("dance", false));
+    // The Motion tab is not the selected one, so the query includes hidden elements.
     expect(
-      rowSwitches()
-        .find((s) => s.dataset.motion === "dance")!
-        .getAttribute("aria-checked"),
+      within(qc.el).getByRole("switch", { name: "춤", hidden: true }).getAttribute("aria-checked"),
     ).toBe("false");
   });
 

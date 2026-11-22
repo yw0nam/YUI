@@ -54,7 +54,6 @@ function MotionRow({
         <span className="yui-row__sub">{t(`express_motion.${id}.sub`)}</span>
       </div>
       <Switch
-        data-motion={id}
         checked={enabled}
         label={label}
         onCheckedChange={(next) => {
@@ -108,13 +107,10 @@ function MotionGroup({
         </button>
         {/* A checkbox, not a switch: only checkbox supports the mixed state a partly-on group is in. */}
         <Checkbox
-          className="yui-express__master"
           checked={all}
           indeterminate={on > 0 && !all}
           label={t("express_motion.master_aria", { group: name })}
-          onCheckedChange={() => {
-            // Mixed or off turns the group on; only a fully-on group turns off.
-            const next = !all;
+          onCheckedChange={(next) => {
             settings.setAllEnabled(group.ids, next);
             log.info("express_motion_group_toggle", { group: group.id, enabled: next });
           }}

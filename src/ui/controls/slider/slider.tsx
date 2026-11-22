@@ -1,6 +1,6 @@
 /** A controlled range slider the caller labels and owns the value of. */
 
-import { Slider as BaseSlider } from "@base-ui/react/slider";
+import { Slider as BaseSlider, type SliderRoot } from "@base-ui/react/slider";
 import "./slider.css";
 
 export interface SliderProps {
@@ -15,7 +15,7 @@ export interface SliderProps {
   /** Each live change: a drag, a keyboard step, a track press. */
   onValueChange(value: number): void;
   /** The end of a change: a release, a keyboard step, a native change. */
-  onValueCommitted(value: number, reason: string): void;
+  onValueCommitted(value: number, reason: SliderRoot.CommitEventReason): void;
   onBlur?(): void;
   /** Extra classes beside `yui-slider`. */
   className?: string;
@@ -52,7 +52,7 @@ export function Slider({
           <BaseSlider.Thumb
             className="yui-slider__thumb"
             aria-label={label}
-            getAriaValueText={valueText === undefined ? undefined : () => valueText}
+            aria-valuetext={valueText}
             onBlur={onBlur}
           />
         </BaseSlider.Track>

@@ -1,6 +1,6 @@
 /* Express motion section — category accordion + group master checkbox, rows of one group. Tokens in ../../../tokens.css. */
 
-/* ── Group header — expander on the left, whole-group switch on the right ── */
+/* ── Group header — expander on the left, whole-group checkbox on the right ── */
 .yui-express__head {
   display: flex;
   align-items: center;

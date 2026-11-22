@@ -11,20 +11,12 @@ export interface CheckboxProps {
   onCheckedChange(checked: boolean): void;
   /** Accessible name; the caller passes the translated label. */
   label: string;
-  /** Extra classes beside the checkbox's own. */
-  className?: string;
 }
 
-export function Checkbox({
-  checked,
-  indeterminate,
-  onCheckedChange,
-  label,
-  className,
-}: CheckboxProps) {
+export function Checkbox({ checked, indeterminate, onCheckedChange, label }: CheckboxProps) {
   return (
     <BaseCheckbox.Root
-      className={className ? `yui-switch yui-checkbox ${className}` : "yui-switch yui-checkbox"}
+      className="yui-switch yui-checkbox"
       checked={checked}
       indeterminate={indeterminate}
       aria-label={label}

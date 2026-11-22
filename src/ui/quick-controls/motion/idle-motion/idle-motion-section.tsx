@@ -47,7 +47,6 @@ export function IdleMotionSection({
                 </span>
               </div>
               <Switch
-                data-variant={path}
                 checked={enabled.includes(path)}
                 disabled={isBaseline}
                 label={label}
