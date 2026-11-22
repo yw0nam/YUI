@@ -31,7 +31,6 @@ export function createPersonaPage(deps: {
   /** Per-character active hours; absent where the window edits no character. */
   activeHoursSettings?: ActiveHoursSettingsStore;
   agentSettings: ReturnType<typeof createAgentSettings>;
-  /** Store subscriptions redraw only while the panel is open. */
   endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
   /** Filler pools the card export carries. */
   fillerSettings: Pick<ReturnType<typeof createFillerSettings>, "get">;
@@ -41,6 +40,7 @@ export function createPersonaPage(deps: {
   getPersona?: () => PersonaConfig | undefined;
   /** Whether push chat is the effective mode; on push only the card's file actions stay enabled. */
   isPushMode: () => boolean;
+  /** Store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
   vrmSelection: Parameters<typeof PersonaPageView>[0]["vrmSelection"];
   speakerSelection: Parameters<typeof PersonaPageView>[0]["speakerSelection"];

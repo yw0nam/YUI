@@ -428,7 +428,7 @@ describe("createQuickControls — construction and disposal", () => {
       qc.dispose();
       qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
       qc.el.querySelector<HTMLButtonElement>("#yui-panel-conn [data-guide]")!.click();
-      // The card's help dot unmounts with its page, so any tip target left in the tree does.
+      // The card's help dot unmounts with its page; a tab is the tip target left in the tree.
       qc.el.querySelector<HTMLButtonElement>("#yui-tab-voice")!.click();
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 

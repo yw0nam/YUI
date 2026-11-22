@@ -1,8 +1,4 @@
-/**
- * The card section's file actions: the import round trip, the PNG card export, the preset file
- * export the panel asks for, the one-shot import notice, and the logs. The DOM that shows the
- * outcome belongs to the card view.
- */
+/** The card's file actions and the one-shot import notice. */
 
 import { toV2Envelope } from "../../../../config/validators/persona/serialize-card";
 import type { Card } from "../../../../config/validators/persona/types";

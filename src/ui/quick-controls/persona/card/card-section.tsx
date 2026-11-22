@@ -1,7 +1,4 @@
-/**
- * Card section of the Persona page: the fields, the send switch, Reset to default, the greeting
- * list, the file action row, its status lines and the export panel.
- */
+/** The card's fields, send switch, reset, greeting list and file actions. */
 
 import { type FormEvent, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {

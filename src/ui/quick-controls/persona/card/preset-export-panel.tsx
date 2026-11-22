@@ -1,7 +1,4 @@
-/**
- * The preset export panel: the inline group under the card section's action row that lists what
- * the `.yui` preset file carries, the rights check, and Cancel / Export….
- */
+/** The preset export panel: what a preset file carries, the rights check, and Cancel / Export…. */
 
 import { useEffect, useState } from "react";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
