@@ -36,6 +36,16 @@ describe("createAgentSettings — defaults", () => {
   });
 });
 
+describe("createAgentSettings — current", () => {
+  it("returns the same object until a write", () => {
+    const store = createAgentSettings();
+    const first = store.current();
+    expect(store.current()).toBe(first);
+    store.setSendCard(false);
+    expect(store.current()).not.toBe(first);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // createAgentSettings — load coercion
 // ─────────────────────────────────────────────────────────────────────────────

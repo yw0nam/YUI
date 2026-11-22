@@ -50,7 +50,7 @@ describe("createCardIo — importDropped", () => {
       },
       "failed",
     ],
-  ])("%s answers its outcome and writes no error line", async (_label, port, outcome) => {
+  ])("%s answers its outcome", async (_label, port, outcome) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const io = mount(vi.fn(port));
 
