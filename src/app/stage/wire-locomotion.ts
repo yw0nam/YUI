@@ -13,7 +13,7 @@ import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
-import type { FrameWindow } from "../../io/window/geometry/travel-frame";
+import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -74,6 +74,10 @@ export function wireLocomotion(deps: {
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
   abortTravel(): Promise<void>;
+  /** Holds her still: cancels the loops and keeps a stroll, climb or perch walk from starting. */
+  hold(on: boolean): void;
+  /** Parks the real window over her position and the `via` origins; `onAbort` runs when an agent move ends it. */
+  widen(via: Array<{ x: number; y: number }>, onAbort: () => void): Promise<Travel>;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     frameWindow(): FrameWindow;
@@ -257,6 +261,8 @@ export function wireLocomotion(deps: {
       sitter.cancel();
     },
     abortTravel: () => travelFrame.abort(),
+    hold: (_on) => {},
+    widen: async () => travelFrame.travel.begin({ x: 0, y: 0 }),
     frame: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
