@@ -5,8 +5,10 @@
  */
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRelationsStore } from "../../../settings/relations/relations-store";
+import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale, t } from "../../i18n";
-import { makeVrmSelection, USER_OPTION } from "../test-helpers";
+import { makeVrmSelection, pressSlider, USER_OPTION } from "../test-helpers";
 import { createBodyPage } from "./body-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -107,5 +109,24 @@ describe("createBodyPage", () => {
     const second = build({ vrmSelection: spy });
     act(() => second.tab.dispose());
     expect(unsubscribed).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes a pointer press on a relations slider", () => {
+    const store = createRelationsStore({ storage: { load: () => ({}), save: () => {} } });
+    const { tab } = build({
+      relations: {
+        store,
+        relationsSwitch: createRelationsSwitch({ load: () => null, save() {} }),
+        self: "default",
+        presets: () => [{ id: "default", name: "natsume" }],
+      },
+    });
+    const slider = tab.el.querySelector<HTMLInputElement>(
+      '.yui-relations__row[data-target="user"] input',
+    )!;
+
+    pressSlider(slider, 0.625).release();
+
+    expect(store.all().user?.value).toBe(5);
   });
 });
