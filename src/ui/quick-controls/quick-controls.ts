@@ -649,7 +649,6 @@ export function createQuickControls({
 
   // ── shell (open/close lifecycle) ──
   const shell = createPanelShell({
-    mount,
     root: el,
     closeWindow: onCloseWindow,
     onOpen: () => {
