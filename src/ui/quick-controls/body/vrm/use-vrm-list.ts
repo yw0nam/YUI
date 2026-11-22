@@ -122,6 +122,18 @@ export function useVrmList(deps: VrmListDeps): VrmList {
   const armedId =
     state.armed?.revision === revision && ids.includes(state.armed.id) ? state.armed.id : null;
 
+  // A rename or an arm on an option that left the list ends, so a re-added option starts clean.
+  useLayoutEffect(() => {
+    const renamingGone = state.renamingId !== null && renamingId === null;
+    const armedGone = state.armed !== null && armedId === null;
+    if (renamingGone || armedGone) {
+      dispatch({
+        ...(renamingGone && { renamingId: null }),
+        ...(armedGone && { armed: null }),
+      });
+    }
+  });
+
   // The arm ends on the timer, an outside click or Escape.
   useEffect(() => {
     if (armedId === null) return;
