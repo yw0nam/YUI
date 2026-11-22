@@ -3,7 +3,7 @@
  * plugins-page.test.tsx — the Plugins page over the MCP host's snapshot, catalog and commands.
  */
 
-import { within } from "@testing-library/dom";
+import { createEvent, within } from "@testing-library/dom";
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -105,7 +105,7 @@ describe("createPluginsPage", () => {
   });
 
   it("lists the installed plugins and the catalog entries not installed", async () => {
-    const { page } = mountPage();
+    const { page, manage } = mountPage();
     await enter(page);
 
     expect(
@@ -114,10 +114,19 @@ describe("createPluginsPage", () => {
     expect(group(page.el, "browser").querySelector(".yui-plg-hid")?.textContent).toBe(
       "Hidden tool browser: a built-in tool uses this name",
     );
-    const weather = within(group(page.el, "weather"));
-    expect(weather.getByRole("button", { name: "Allow again…" })).toBeTruthy();
-    expect(group(page.el, "weather").querySelector(".yui-plg-sv")).toBeNull();
-    expect(weather.getByRole("button", { name: "Update to v0.5.0" })).toBeTruthy();
+    const weather = group(page.el, "weather");
+    const weatherScope = within(weather);
+    act(() => {
+      fireEvent.click(weatherScope.getByRole("button", { name: "Allow again…" }));
+    });
+    expect(weather.querySelector(".yui-plg-consent__q")?.textContent).toBe(
+      "The update changed its contents. Run it again?",
+    );
+    expect(weather.querySelector(".yui-plg-sv")).toBeNull();
+    act(() => {
+      fireEvent.click(weatherScope.getByRole("button", { name: "Update to v0.5.0" }));
+    });
+    expect(manage.install).toHaveBeenCalledWith("weather");
     expect(within(page.el).getByRole("button", { name: "Install calendar-ics" })).toBeTruthy();
     expect(within(page.el).queryByRole("button", { name: "Install weather" })).toBeNull();
   });
@@ -417,5 +426,72 @@ describe("createPluginsPage", () => {
     });
 
     expect(page.el.querySelector(".yui-sec__head .yui-plg-busy")?.textContent).toBe("Checking…");
+  });
+
+  it("closes the remove confirm on Escape and keeps the key from the window", () => {
+    const { page } = mountPage();
+    const browser = group(page.el, "browser");
+
+    act(() => {
+      fireEvent.click(within(browser).getByRole("button", { name: "Delete" }));
+    });
+    const cancel = within(browser.querySelector<HTMLElement>(".yui-confirm")!).getByRole(
+      "button",
+      { name: "Cancel" },
+    );
+    const event = createEvent.keyDown(cancel, { key: "Escape" });
+
+    fireEvent(cancel, event);
+
+    expect(browser.querySelector(".yui-confirm")).toBeNull();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("keeps no step-2 panel when the switch turns the plugin off while enable runs", async () => {
+    const fresh = plugin({
+      id: "calendar-ics",
+      enabled: false,
+      consented: false,
+      servers: [server("calendar-ics", "calendar-ics", { status: "stopped" })],
+    });
+    const { page, manage, emit } = mountPage({ revision: 1, plugins: [fresh] });
+    let settleEnable: () => void = () => {};
+    manage.enable.mockImplementation(async () => {
+      emit({
+        revision: 2,
+        plugins: [
+          { ...fresh, enabled: true, consented: true, servers: [server("calendar-ics", "calendar-ics")] },
+        ],
+      });
+      await new Promise<void>((resolve) => {
+        settleEnable = resolve;
+      });
+    });
+
+    act(() => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("switch", {
+          name: "Turn on calendar-ics",
+        }),
+      );
+    });
+    act(() => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("button", { name: "Allow" }),
+      );
+    });
+    act(() => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("switch", {
+          name: "Turn on calendar-ics",
+        }),
+      );
+    });
+    await act(async () => {
+      settleEnable();
+    });
+
+    expect(group(page.el, "calendar-ics").querySelector(".yui-plg-consent")).toBeNull();
+    expect(manage.disable).toHaveBeenCalledWith("calendar-ics");
   });
 });
