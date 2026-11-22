@@ -713,20 +713,23 @@ describe("createQuickControls — VRM section", () => {
     expect(armed(qc)).toBe(false);
   });
 
-  it("ignores a second remove while the first is in flight", async () => {
+  it("ignores another remove while one is in flight", async () => {
     withUserOption();
+    vrmSelection.addUserOption({ ...USER_OPTION, id: "dog", label: "멍멍이" });
     removeUserVrm = vi.fn<(id: string) => Promise<void>>(() => new Promise<void>(() => {}));
     const qc = buildQc();
     act(() => qc.open());
+    const dog = () => qc.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="dog"]')!;
 
     act(() => removeBtn(qc).click());
     act(() => removeBtn(qc).click());
     expect(userRow(qc).getAttribute("aria-busy")).toBe("true");
     expect(removeBtn(qc).disabled).toBe(true);
-    act(() => removeBtn(qc).click());
-    act(() => removeBtn(qc).click());
+    act(() => dog().querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => dog().querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
+    expect(dog().classList.contains("is-remove-armed")).toBe(false);
     expect(removeUserVrm).toHaveBeenCalledOnce();
   });
 
