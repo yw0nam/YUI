@@ -756,7 +756,6 @@ const en: Record<string, string> = {
   "start.done": "Connected. You can start talking now.",
   "start.key_label": "Key",
   "start.key_sub": "You can replace it with a new key at any time.",
-  "start.replace_key": "Replace key",
   "start.key_rejected": "Google no longer accepts this key. Paste a new key to keep talking.",
   "start.key_replaced": "Key replaced",
   "start.key_ok": "This key still works.",

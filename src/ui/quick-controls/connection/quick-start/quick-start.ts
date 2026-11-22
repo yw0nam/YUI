@@ -86,7 +86,7 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
               <span class="yui-row__label">${t("start.key_label")}</span>
               <span class="yui-row__sub">${t("start.key_sub")}</span>
             </div>
-            <button class="yui-link-btn yui-start__replace" type="button">${t("start.replace_key")}</button>
+            <button class="yui-link-btn yui-start__replace" type="button">${t("input.action_change_key")}</button>
           </div>
           <div class="yui-row yui-start__make">
             <div class="yui-row__main">
