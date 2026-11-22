@@ -1,0 +1,163 @@
+/* The Character menu: opaque pills in two columns beside her; only the pills take the pointer. */
+
+.yui-cmenu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--yui-font);
+}
+
+.yui-cmenu__col,
+.yui-cmenu__measure {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yui-cmenu__measure {
+  visibility: hidden;
+  width: max-content;
+}
+
+.yui-cmenu__pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 14px 0 12px;
+  border-radius: var(--yui-radius-pill);
+  border: 1px solid var(--yui-edge);
+  background: var(--yui-panel-bg);
+  color: var(--yui-text);
+  box-shadow: var(--yui-float);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-cmenu__pill:hover {
+  background-image: linear-gradient(var(--yui-hover), var(--yui-hover));
+}
+
+.yui-cmenu__pill:focus {
+  outline: none;
+}
+
+.yui-cmenu__pill:focus-visible {
+  outline: 2px solid var(--yui-accent);
+  outline-offset: 2px;
+}
+
+.yui-cmenu__pill > svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.yui-cmenu__pill > .yui-cmenu__chev {
+  width: 12px;
+  height: 12px;
+  opacity: 0.6;
+}
+
+.yui-cmenu__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.yui-cmenu__pill.is-on {
+  background: var(--yui-accent);
+  color: var(--yui-ink);
+  border-color: transparent;
+}
+
+.yui-cmenu__pill.is-back {
+  color: var(--yui-text-dim);
+}
+
+.yui-cmenu__pill.is-danger {
+  color: var(--yui-danger);
+}
+
+.yui-cmenu__on {
+  flex: none;
+  font-size: var(--yui-fs-caption);
+}
+
+.yui-cmenu__badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--yui-text-dim);
+  color: var(--yui-panel-bg);
+  font-size: var(--yui-fs-caption);
+}
+
+.yui-cmenu__confirm {
+  display: flex;
+  gap: 8px;
+}
+
+.yui-cmenu__sure {
+  flex: 1;
+  background: var(--yui-danger);
+  color: var(--yui-panel-bg);
+  border-color: transparent;
+}
+
+.yui-cmenu__name {
+  position: absolute;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, calc(-100% - 8px));
+  height: 24px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--yui-radius-pill);
+  border: 1px solid var(--yui-edge);
+  background: var(--yui-panel-bg);
+  color: var(--yui-text);
+  box-shadow: var(--yui-float);
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Pills pop out from her chest in keyboard order. */
+.yui-cmenu.is-pop .yui-cmenu__col > * {
+  animation: yui-cmenu-pop 320ms var(--yui-ease) backwards;
+  animation-delay: var(--yui-cmenu-delay);
+}
+
+@keyframes yui-cmenu-pop {
+  from {
+    opacity: 0;
+    transform: translate(var(--yui-cmenu-fx), var(--yui-cmenu-fy)) scale(0.4);
+  }
+}
+
+@keyframes yui-cmenu-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-cmenu.is-pop .yui-cmenu__col > * {
+    animation: yui-cmenu-fade 160ms linear backwards;
+  }
+}

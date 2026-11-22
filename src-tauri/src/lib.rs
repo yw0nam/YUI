@@ -60,10 +60,6 @@ mod tray;
 // Lifts AppKit's frame-constrain-to-screen on the pet window (macOS only).
 mod window_frame;
 
-// A docked window's native child link to its owner window (macOS only).
-#[cfg(desktop)]
-mod window_dock;
-
 // The Threads window's native number and its no-focus order-front.
 #[cfg(desktop)]
 mod threads_window;

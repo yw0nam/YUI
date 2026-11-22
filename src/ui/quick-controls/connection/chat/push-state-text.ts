@@ -1,7 +1,7 @@
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import { t } from "../../../i18n";
 
-/** Where the push socket stands, in words: the status line's text and the quick card's head. */
+/** Where the push socket stands, in words: the status line's text. */
 export function pushStateText(state: PushSocketState): string {
   switch (state.kind) {
     case "ready":

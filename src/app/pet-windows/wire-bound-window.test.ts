@@ -112,8 +112,6 @@ it("still closes when lifecycle cleanup throws", async () => {
 it.each([
   ["settings-a", false],
   ["settings-a", true],
-  ["quick-card-a", false],
-  ["quick-card-a", true],
 ])("preserves companion deletion guards after timeout or a failed close (live: %s, failure: %s)", async (liveLabel, failed) => {
   vi.useFakeTimers();
   vi.stubGlobal("__TAURI_INTERNALS__", {});

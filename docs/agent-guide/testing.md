@@ -44,16 +44,16 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 
 ## React components
 
-A surface built with React keeps a plain `create*` facade (`createQuickCard`), and its test calls the facade. The file is `x.test.tsx` and opens with `// @vitest-environment jsdom`; `unit` is the only project that picks `.test.tsx` up.
+A surface built with React keeps a plain `create*` facade (`createHistoryPage`), and its test calls the facade. The file is `x.test.tsx` and opens with `// @vitest-environment jsdom`; `unit` is the only project that picks `.test.tsx` up.
 
 - Set `IS_REACT_ACT_ENVIRONMENT = true` on `globalThis` at the top of the file. Without it `act()` warns and flushes nothing.
 - Query and fire through React Testing Library (`@testing-library/dom` `within`, `@testing-library/react` `fireEvent`). Wrap an action that changes React state, such as a store write or a subscription callback, in `act()`.
 - Dispose every root the test created in `afterEach`, inside `act()`, then clear `document.body`. A root left mounted keeps its subscriptions into the next test.
-- The facade renders with `flushSync` wherever a caller reads the DOM right after the call (`createQuickCard`, `close()`). A store write or subscription callback renders through React's scheduler, so the test wraps it in `act()`.
+- The facade renders with `flushSync` wherever a caller reads the DOM right after the call (`createHistoryPage`, `refresh()`). A store write or subscription callback renders through React's scheduler, so the test wraps it in `act()`.
 
 ## Visual regression
 
-`pnpm test:vrt` runs the `vrt` Vitest project: each `*.vrt.test.ts` mounts one surface at its window size in headless Playwright WebKit and compares a screenshot per theme (`dawn`, `hearth`) with a committed reference. It covers the quick card, the General settings page, the speech bubble, and the Threads window. The project also holds DOM measurements that need real layout and stylesheets, such as where a click lands or a computed opacity; those take no screenshot and need no reference.
+`pnpm test:vrt` runs the `vrt` Vitest project: each `*.vrt.test.ts` mounts one surface at its window size in headless Playwright WebKit and compares a screenshot per theme (`dawn`, `hearth`) with a committed reference. It covers the General settings page, the speech bubble, and the Threads window. The project also holds DOM measurements that need real layout and stylesheets, such as where a click lands or a computed opacity; those take no screenshot and need no reference.
 
 `pnpm test` runs only the `unit` project. WebKit is not WKWebView, so native dock, drag, and focus stay with the verify bundle.
 

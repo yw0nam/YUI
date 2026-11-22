@@ -40,7 +40,7 @@ The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, de
 _Avoid_: filter, policy, throttle
 
 **Do-not-disturb**:
-The device-wide switch, set on the Quick card or from the tray's Do Not Disturb item, that holds every self-fired trigger in every pet window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, the dropped cue of a fall she started herself, and signals, urgent ones included. Idle cues, screen watch and the once-a-day milestone are dropped, not delivered later, and the milestone's day is used up. A schedule cue fires late if it is still within 120 minutes of its time that day. A count or wait reaction waits until it is off. Held signals go out as catch-up turns, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held. An `off` span of a character's active hours holds the same triggers in that character's pet window only.
+The device-wide switch, set from the Character menu's Rest item or from the tray's Do Not Disturb item, that holds every self-fired trigger in every pet window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, the dropped cue of a fall she started herself, and signals, urgent ones included. Idle cues, screen watch and the once-a-day milestone are dropped, not delivered later, and the milestone's day is used up. A schedule cue fires late if it is still within 120 minutes of its time that day. A count or wait reaction waits until it is off. Held signals go out as catch-up turns, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held. An `off` span of a character's active hours holds the same triggers in that character's pet window only.
 _Avoid_: quiet mode, mute
 
 **Active hours**:
@@ -147,7 +147,7 @@ A Thread in `input-required` that the user has not marked read since the produce
 _Avoid_: unread, pending
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
+The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Character menu's Threads and Terminal items, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
 _Avoid_: inbox, panel, dashboard
 
 **Thread turns**:
@@ -197,13 +197,9 @@ _Avoid_: tag, call-out, ping
 The unified chat window's chip for one open preset in its head row, the recipient picker: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle. The cast chips and the everyone chip after them are one radio group; a click picks the chip's recipient. The checked chip is the counted pick, else the preset a typed leading `@name` resolves to, else, while a send runs, that send's recipient, else the last speaker, else main's preset, else the first open preset.
 _Avoid_: avatar pill, presence badge, recipient chip
 
-**Quick card**:
-The card a right-click on the character opens beside her in its own window: her face, name and transport line, a Do-not-disturb switch above four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, Threads and Terminal buttons that open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
-_Avoid_: quick panel, popover
-
 **Character menu**:
 The pill menu around her, opened by a right-click on her in the pet window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
-_Avoid_: quick card, context menu, radial menu, pie menu, ring menu
+_Avoid_: context menu, radial menu, pie menu, ring menu
 
 **Settings stage**:
 The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing.
@@ -332,5 +328,5 @@ The transparent always-on-top window the character stands in, with her speech bu
 _Avoid_: character window (in code and docs), avatar window, main window (for a bound one)
 
 **Bound pet window**:
-A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>`, message window `message-<id>` and quick-card window `quick-card-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the four windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the four is live, and `main` clears keys whose window no longer exists at boot.
+A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>` and message window `message-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the three windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the three is live, and `main` clears keys whose window no longer exists at boot.
 _Avoid_: secondary window, companion window, extra window, sub-window

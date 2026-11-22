@@ -34,7 +34,7 @@ You need a Mac with Apple Silicon or a Windows x64 PC. You do not need a termina
 
 Prefer to let a coding agent install it, or to build from source? See [Install](docs/guide/installation.md).
 
-- To use another model or server, open **Detailed settings** on the same page (right-click her and choose **All settings…**, then **Connection**).
+- To use another model or server, open **Detailed settings** on the same page (right-click her and choose **Settings**, then **Connection**).
 - To talk by voice, set up speech recognition and a voice provider there. Then choose her voice in **Settings → Voice**.
 - On a Chat Completions server, use a model with tool-calling support, for example `gpt-5-mini` on OpenAI or `llama-3.3-70b-versatile` on Groq.
 
@@ -73,7 +73,7 @@ Plugins give her new tools, such as a browser she looks things up in. Skills tea
 And more:
 
 - Characters: your own VRM model, Tavern Card import and export, how each feels about you and the others.
-- Chat: voice you can interrupt, image attachments, a chat history, a Quick card on right-click, Ask cards and `/` commands from an agent brain.
+- Chat: voice you can interrupt, image attachments, a chat history, a Character menu on right-click, Ask cards and `/` commands from an agent brain.
 - App: a terminal you share with your agent (its first read or write asks for your Allow), tools it can use on your computer, text size, Dawn and Hearth themes, English, Japanese and Korean UI.
 
 See the [full feature list](docs/guide/features.md).

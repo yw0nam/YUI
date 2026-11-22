@@ -113,8 +113,11 @@ describe("wireLocomotion", () => {
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
     let walkerDeps: { onDescend(edge: DescentEdge): void; isDragging(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
-    let windowSourcesDeps: { onRelocated(): Promise<void> } | undefined;
+    let windowSourcesDeps:
+      | { onRelocated(): Promise<void>; noteAgentMove(): Promise<void> }
+      | undefined;
     let climberDeps: { isDragging(): boolean } | undefined;
+    let percherDeps: { isBusy(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
       return travelFrame;
@@ -135,7 +138,10 @@ describe("wireLocomotion", () => {
       windowSourcesDeps = deps;
       return windowSources;
     });
-    mocks.wirePercher.mockImplementation(() => percher);
+    mocks.wirePercher.mockImplementation((deps) => {
+      percherDeps = deps;
+      return percher;
+    });
     mocks.wireClimber.mockImplementation((deps) => {
       climberDeps = deps;
       return climber;
@@ -161,7 +167,7 @@ describe("wireLocomotion", () => {
       bus: { push: vi.fn() } as never,
       renderer: {} as never,
       getConfig: () => ({}) as never,
-      dispatcher: {} as never,
+      dispatcher: { isPipelineBusy: () => false } as never,
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
       fallSettings: { get: () => ({ enabled: true }) } as never,
@@ -183,6 +189,7 @@ describe("wireLocomotion", () => {
       fallerDeps: fallerDeps!,
       windowSourcesDeps: windowSourcesDeps!,
       climberDeps: climberDeps!,
+      percherDeps: percherDeps!,
       cancelOrder,
       teardowns,
       registered,
@@ -262,6 +269,58 @@ describe("wireLocomotion", () => {
       "percher.cancel",
       "sitter.cancel",
     ]);
+  });
+
+  it("holds her still: the loops cancel, and no stroll, climb or perch walk starts until released", () => {
+    const s = setup();
+
+    s.locomotion.hold(true);
+
+    expect(s.cancelOrder).toEqual([
+      "walker.cancel",
+      "faller.cancel",
+      "climber.cancel",
+      "percher.cancel",
+      "sitter.cancel",
+    ]);
+    expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
+      [true, true, true],
+    );
+
+    s.locomotion.hold(false);
+    expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
+      [false, false, false],
+    );
+  });
+
+  it("widens by parking the travel frame from her position over both via points", async () => {
+    const s = setup();
+    s.travelFrame.getWindow.mockReturnValue({
+      outerPosition: async () => ({ x: 600, y: 1034 }),
+      scaleFactor: async () => 2,
+    });
+    const via = [
+      { x: 256, y: 517 },
+      { x: 344, y: 517 },
+    ];
+
+    await s.locomotion.widen(via, vi.fn());
+
+    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 300, y: 517 }, via);
+  });
+
+  it("tells the widen's holder when an agent move ends it", async () => {
+    const s = setup();
+    s.travelFrame.getWindow.mockReturnValue({
+      outerPosition: async () => ({ x: 300, y: 517 }),
+      scaleFactor: async () => 1,
+    });
+    const onAbort = vi.fn();
+    await s.locomotion.widen([], onAbort);
+
+    await s.windowSourcesDeps.noteAgentMove();
+
+    expect(onAbort).toHaveBeenCalledOnce();
   });
 
   it("follows the climb toggle: the stored value at start and each later store change", () => {

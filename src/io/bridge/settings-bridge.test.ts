@@ -72,12 +72,6 @@ const rows: Record<keyof typeof channels, Row> = {
     ...same({ preset: "a", page: "conn" }),
   },
   OpenDevtools: { name: "yui://open-devtools", scope: "shared", ...none },
-  QuickCardOpen: {
-    name: "yui://quick-card-open",
-    scope: "preset",
-    ...same({ left: 1, right: 200, y: 30 }),
-  },
-  QuickCardReady: { name: "yui://quick-card-ready", scope: "preset", ...none },
   ThreadsOpen: { name: "yui://threads-open", scope: "shared", ...same({ tab: "terminal" }) },
   ThreadsReady: { name: "yui://threads-ready", scope: "shared", ...none },
   ThreadsClosed: { name: "yui://threads-closed", scope: "shared", ...none },
@@ -307,36 +301,6 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("delivers a quick-card open request from A to B with the listening flag", () => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "quick-card" });
-    const cb = vi.fn();
-    b.onQuickCardOpen(cb);
-
-    a.emitQuickCardOpen({ left: 64, right: 336, y: 120, listening: true });
-
-    expect(cb.mock.calls).toEqual([[{ left: 64, right: 336, y: 120, listening: true }]]);
-  });
-
-  it.each([
-    [{ left: Number.NaN, right: 200, y: 30 }],
-    [{ left: 64, right: Number.POSITIVE_INFINITY, y: 30 }],
-    [{ left: 64, right: 200, y: Number.NaN }],
-    [{ left: "64", right: 200, y: 30 }],
-    [{ left: 64, right: 200, y: 30, listening: "yes" }],
-  ])("ignores a quick-card open request %j with a field outside the contract", (payload) => {
-    const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "pet" });
-    const b = createSettingsBridge(t, { windowKind: "quick-card" });
-    const cb = vi.fn();
-    b.onQuickCardOpen(cb);
-
-    a.emitQuickCardOpen(payload as never);
-
-    expect(cb).not.toHaveBeenCalled();
-  });
-
   it("delivers a Threads open request with a chip rect, a tab, or both", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "pet" });
@@ -419,9 +383,9 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("delivers a quick card's request to open the Threads window on a tab, and ignores another tab", () => {
+  it("delivers a bound pet window's request to open the Threads window on a tab, and ignores another tab", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "quick-card" });
+    const a = createSettingsBridge(t, { windowKind: "pet" });
     const b = createSettingsBridge(t, { windowKind: "pet" });
     const cb = vi.fn();
     b.onThreadsOpenRequest(cb);

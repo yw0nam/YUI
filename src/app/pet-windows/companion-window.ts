@@ -93,7 +93,7 @@ export async function wireCompanionWindow(deps: {
 }
 
 export async function bootCompanion(
-  kind: "settings" | "message" | "quick-card",
+  kind: "settings" | "message",
   lifecycle: Disposers,
   log: Logger,
 ) {

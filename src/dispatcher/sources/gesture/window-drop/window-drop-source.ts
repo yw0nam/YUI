@@ -437,12 +437,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
-          // A quick-card or Threads window's drop moved no pet window; it settles in its own window.
-          if (
-            typeof payload === "string" &&
-            (payload === THREADS_WINDOW_LABEL || payload.startsWith("quick-card"))
-          )
-            return;
+          // The Threads window's drop moved no pet window; it settles in its own window.
+          if (payload === THREADS_WINDOW_LABEL) return;
           const dragged = deps.wasDragging?.() ?? true;
           void settle()
             .then(async (outcome) => {

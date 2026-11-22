@@ -2,7 +2,7 @@
  * surface-doctrine.test.ts
  *
  * Guards two doctrine rules across the small-label-chip surfaces
- * (the status pill), the boot-error notice and the quick card:
+ * (the status pill) and the boot-error notice:
  *  - the bubble is the only surface allowed a frosted backdrop-filter;
  *    chips/pills use an opaque-enough scrim instead of blur.
  *  - status colors come from tokens (--yui-accent / --yui-danger), never
@@ -26,12 +26,8 @@ function extractBlock(css: string, selector: string): string {
   return css.slice(start, end);
 }
 
-describe("chip/pill, notice and card surfaces — no blur, scrim-strong background", () => {
-  for (const file of [
-    "../chips/status-pill.css",
-    "../notices/boot-error.css",
-    "../quick-card/quick-card.css",
-  ]) {
+describe("chip/pill and notice surfaces — no blur, scrim-strong background", () => {
+  for (const file of ["../chips/status-pill.css", "../notices/boot-error.css"]) {
     it(`${file} has no backdrop-filter (webkit-prefixed included)`, () => {
       expect(read(file)).not.toMatch(/backdrop-filter/);
     });

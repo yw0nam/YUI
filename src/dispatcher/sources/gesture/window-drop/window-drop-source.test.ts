@@ -2270,11 +2270,7 @@ describe("window-drop-source — geometry save gating", () => {
     expect(order).toEqual(["released", "miss"]);
   });
 
-  it.each([
-    "quick-card",
-    "quick-card-a",
-    "threads",
-  ])("settles nothing on the release of a %s window's drag", async (label) => {
+  it("settles nothing on the release of the threads window's drag", async () => {
     const invoke = vi.fn(async () => []);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
     const { listen, fire } = makeListen();
@@ -2292,7 +2288,7 @@ describe("window-drop-source — geometry save gating", () => {
       wasDragging: () => true,
     });
     await source.start();
-    fire(label);
+    fire("threads");
     await settleRelease();
 
     expect(invoke).not.toHaveBeenCalled();

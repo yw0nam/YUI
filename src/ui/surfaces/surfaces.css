@@ -8,7 +8,11 @@
    Only the input restores pointer-events. (No data-tauri-drag-region on this layer → input doesn't get dragged) */
 .yui-ui {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  /* Her own box: the pet window, or her part of it while the Character menu widens it. */
+  left: var(--yui-box-left, 0px);
+  width: var(--yui-box-width, 100%);
   pointer-events: none;
   /* Own stacking context: above the canvas, guarantees z-order among surfaces */
   isolation: isolate;

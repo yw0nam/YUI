@@ -43,9 +43,6 @@ vi.mock("../io/window/capture/tauri-screen", () => ({
 }));
 vi.mock("../io/window/openers/settings-window", () => ({ createSettingsWindowOpener: vi.fn() }));
 vi.mock("../io/window/openers/devtools-window", () => ({ createDevtoolsWindowOpener: vi.fn() }));
-vi.mock("../io/window/openers/quick-card-window", () => ({
-  createQuickCardWindowController: vi.fn(() => ({ open: vi.fn(), dispose: vi.fn() })),
-}));
 vi.mock("../io/window/openers/threads-window", () => ({
   createThreadsWindowController: vi.fn(() => ({
     open: vi.fn(),

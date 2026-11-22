@@ -80,17 +80,6 @@ export interface SpeechStream {
   op: MessageSurfaceOp;
 }
 
-/** A pet window telling its quick-card window where to open, in window-relative logical px. */
-export interface QuickCardOpen {
-  /** The character's left and right edge x in the pet window. */
-  left: number;
-  right: number;
-  /** The click's y in the pet window. */
-  y: number;
-  /** Main only: whether voice input is live right now, so the Listen tile opens seeded. */
-  listening?: boolean;
-}
-
 /** The Threads window's top-level tabs. */
 export type ThreadsTab = "threads" | "terminal";
 
@@ -249,26 +238,6 @@ export const channels = {
   },
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
   OpenDevtools: { name: "yui://open-devtools", scope: "shared" },
-  /** A pet window opening its quick-card window; scoped to the preset. */
-  QuickCardOpen: {
-    name: "yui://quick-card-open",
-    scope: "preset",
-    read(request, deliver: (request: QuickCardOpen) => void) {
-      if (request === null || typeof request !== "object") return;
-      const r = request as Partial<QuickCardOpen>;
-      const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-      if (!finite(r.left) || !finite(r.right) || !finite(r.y)) return;
-      if (r.listening !== undefined && typeof r.listening !== "boolean") return;
-      deliver({
-        left: r.left,
-        right: r.right,
-        y: r.y,
-        ...(r.listening === undefined ? {} : { listening: r.listening }),
-      });
-    },
-  },
-  /** A quick-card window reporting it has booted; scoped to the preset. */
-  QuickCardReady: { name: "yui://quick-card-ready", scope: "preset" },
   /** Main's Threads chip opening the Threads window. */
   ThreadsOpen: {
     name: "yui://threads-open",
@@ -304,7 +273,7 @@ export const channels = {
       if (isNonEmptyString(present)) deliver({ present });
     },
   },
-  /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
+  /** A bound pet window's Character menu asking main to open the Threads window on `tab`. */
   ThreadsOpenRequest: {
     name: "yui://threads-open-request",
     scope: "shared",

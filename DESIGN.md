@@ -212,7 +212,7 @@ The settings window's panel, the Threads window's surfaces and the switch use th
 - **Label** (~500, ~0.75rem, light uppercase tracking ~0.02em): tool status ("Searching…"), timestamps.
 
 ### Panel scale
-Panels (the settings panel, the quick card) set text in five fixed steps (`--yui-fs-*` in tokens.css):
+Panels (the settings panel) set text in five fixed steps (`--yui-fs-*` in tokens.css):
 - **Caption** (11px): units, footnotes.
 - **Sub** (12px): row descriptions, chip labels.
 - **Body** (13px): row labels, field text.
@@ -277,21 +277,18 @@ While the backend runs a tool, the tool's label takes the segment and the dot pu
 ### Boot-failure notice
 A dismissible floating notice (`boot-error.css`) shown when config or VRM loading fails and the transparent window would otherwise stay blank. Plate, Text guidance, and a single Float shadow preserve the legible-on-anything doctrine; a Danger uppercase title names the failure, and a quiet dismiss button removes the notice.
 
-### Quick card
-The card a right-click opens in its own small window docked beside the character (`quick-card/quick-card.css`): it sits 12px from her edge on the side with more free screen space and travels with her window while docked, on macOS as one window with hers; dragging it by its head detaches it, stays where dropped, and a drop whose edge comes within 24px of hers snaps it back beside her and docks it again. The card fills the window at 272px wide inside the transparent 8px margin the window adds for its shadow, with 14px padding and the floating 14px corners, on Plate (`--yui-scrim-strong`) with no frost, a Hairline edge and one Float shadow; its window is sized to it, so it never scrolls. The head is the character's 30px face, the name at the head size (600) over the transport line in Text mute at the caption size (for push, the socket state worded as the chat status words it), and a 30px round × in Text dim. Above the tiles, a Quiet caption sits over one Hairline-edged group that holds the Do not disturb row and its switch. Four tiles follow in a 2×2 grid with an 8px gap: Voice, Listen, Keep bubble and Unified chat, each at least 64px tall with 12px corners and a Hairline edge, a label (600) over its state in Text mute. An on tile (`aria-checked="true"`) takes Amber faint with an Amber-soft edge and its state in Amber ink. A tile that cannot act is disabled at 45% opacity: Listen outside the main window reads "Main only", and a locked tile names its reason in a tooltip. Under the tiles, in the same two columns and gap, sit two 40px buttons, Threads and Terminal, each a 16px glyph in Text dim before its label (600) with a Hairline edge and 12px corners; they are buttons, not switches, so they carry no state and no amber, and one opens the Threads window on its tab, without the grow, and closes the card. A Hairline then opens 36px rows: Body and Reference voice as borderless chevron selects in Text dim that apply on change (Reference voice reads "None" when the character has no voice); Conversation with a "Reset…" text button that becomes an inline "Reset this conversation?" with a Cancel pill, which takes focus, and a Danger-edged Reset pill; and Turn off for a bound character. A full-width "All settings…" button with a Hairline-strong edge opens the settings window on that character. ×, Escape, All settings…, Threads, Terminal, Turn off and a click in another app close the card; a click on the character or another YUI window keeps it open.
-
 ### Character menu
 A right-click on the character opens the Character menu around her. The menu draws in the pet window and is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
 
-Two pill columns flank her at the shoulder line, 24px clear of her silhouette. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
+Two pill columns flank her at the shoulder line, 88px from her centre. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
 
 The pet window widens only while the menu is open, to about 500px, and it restores when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
 
-Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. Where space is tight, a pill shows its glyph only, and its label shows on hover or focus. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
+Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
 
 The top level holds Talk, Rest, Listen, Body ›, Voice ›, Pace ›, Settings and More ›. More holds Threads with its waiting count, Keep bubble, Unified chat, Terminal, Reset chat and Turn off. An item that cannot act in a window is hidden: Listen shows in the main window only, and Turn off shows only in a bound pet window. The Threads chip on the character opens Threads while something waits.
 
-Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once, and Body spins her into the picked body. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads and a confirmed Turn off close the menu.
+Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads, Terminal and a confirmed Turn off close the menu.
 
 Reset chat and Turn off morph in place into "Sure?" and "Cancel", with focus on Cancel.
 
