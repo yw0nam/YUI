@@ -1,0 +1,93 @@
+{
+  "steps": {
+    "front_before": "\"LSDisplayName\"=\"Google Chrome\"",
+    "open": "created",
+    "focus": "focused",
+    "front_after_activate": "\"LSDisplayName\"=\"YUI Verify\"",
+    "settings_frame": {
+      "h": 680,
+      "scale": 2,
+      "w": 760,
+      "x": 500,
+      "y": 100
+    },
+    "ids": {
+      "pet": 1624,
+      "settings": 1627
+    },
+    "docked": "pet@L5 > settings@L0",
+    "c0_floating_unlinked": {
+      "order": "pet@L5 > cover@L0 > settings@L0",
+      "front_app": "\"LSDisplayName\"=\"Google Chrome\"",
+      "coverUpAt": 1795334024443
+    },
+    "c1_attach": true,
+    "c1_floating_linked": {
+      "order": "pet@L5 > cover@L0 > settings@L0",
+      "front_app": "\"LSDisplayName\"=\"Google Chrome\"",
+      "coverUpAt": 1795334027751
+    },
+    "f1_follow_linked": {
+      "leader_steps": 120,
+      "misses": 0,
+      "lag_p50_ms": 0,
+      "lag_p95_ms": 0,
+      "lag_max_ms": 0,
+      "changes": 121,
+      "poll_ms": 2
+    },
+    "c2_normal_linked_alone": "pet@L0 > settings@L0",
+    "c2_normal_linked_covered": {
+      "order": "cover@L0 > pet@L0 > settings@L0",
+      "front_app": "\"LSDisplayName\"=\"Google Chrome\"",
+      "coverUpAt": 1795334037476
+    },
+    "c2_normal_linked_cover_activates": {
+      "order": "cover@L0 > pet@L0 > settings@L0",
+      "front_app": "\"LSDisplayName\"=\"Google Chrome\"",
+      "coverUpAt": 1795334040785
+    },
+    "c2_after_refocus": "pet@L0 > settings@L0",
+    "c2_pet_focused": "pet@L0 > settings@L0",
+    "c3_normal_unlinked_settings_focused": "settings@L0 > pet@L0",
+    "f2_wire": "following",
+    "f2_follow_js": {
+      "leader_steps": 120,
+      "misses": 0,
+      "lag_p50_ms": 0,
+      "lag_p95_ms": 8.328369140625,
+      "lag_max_ms": 8.732177734375,
+      "changes": 148,
+      "poll_ms": 1.9
+    },
+    "c4_wire": "wired",
+    "c4_front_before": "\"LSDisplayName\"=\"YUI Verify\"",
+    "c4_cover_activates": {
+      "order": "cover@L0 > settings@L0",
+      "front_app": "\"LSDisplayName\"=\"spike-cover\"",
+      "coverUpAt": 1795334052945
+    },
+    "c4_focus_events": [
+      {
+        "focused": true,
+        "t": 1795334052240
+      },
+      {
+        "focused": false,
+        "t": 1795334052945
+      },
+      {
+        "applied": "hide",
+        "t": 1795334052954
+      }
+    ],
+    "c4_after_pet_focus": {
+      "order": "settings@L0",
+      "events": []
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:53:35][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:53:38][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

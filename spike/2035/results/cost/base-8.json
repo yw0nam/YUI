@@ -1,0 +1,26 @@
+{
+  "steps": {
+    "mode": "base",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "open": "created",
+    "settings_pid": 65944,
+    "focus": "focused",
+    "settings_visibility": "visible",
+    "pet_visibility": "visible",
+    "shown": {
+      "label": "pet shown",
+      "settings_wc_mb": 75,
+      "other_wc_mb": 829,
+      "gpu_mb": 411,
+      "total_mb": 1315,
+      "settings_wc_cpu_pct": 0.1,
+      "other_wc_cpu_pct": 11.3,
+      "gpu_cpu_pct": 2.9
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:57:14][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:57:16][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

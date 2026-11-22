@@ -1,0 +1,47 @@
+{
+  "steps": {
+    "mode": "base",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "app_pids_before_settings": [
+      57128,
+      57130
+    ],
+    "open": "created",
+    "settings_pid": 57211,
+    "focus": "focused",
+    "settings_visibility": "visible",
+    "pet_visibility": "visible",
+    "shown": {
+      "label": "pet shown",
+      "settings_wc_mb": 74,
+      "other_wc_mb": 837,
+      "gpu_mb": 407,
+      "total_mb": 1318,
+      "settings_wc_cpu_pct": 0.7,
+      "other_wc_cpu_pct": 17.9,
+      "gpu_cpu_pct": 7.8,
+      "per_pid": {
+        "57128": {
+          "kind": "gpu",
+          "mb": 407,
+          "cpu_pct": 7.8
+        },
+        "57130": {
+          "kind": "web",
+          "mb": 837,
+          "cpu_pct": 17.9
+        },
+        "57211": {
+          "kind": "web",
+          "mb": 74,
+          "cpu_pct": 0.7
+        }
+      }
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:45:42][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:45:45][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

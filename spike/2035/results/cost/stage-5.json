@@ -1,0 +1,20 @@
+{
+  "steps": {
+    "mode": "stage",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "app_pids_before_settings": [
+      59025,
+      59027
+    ],
+    "open": "created",
+    "settings_pid": 59131,
+    "stage_loaded": "[2026-11-22 16:47:14][INFO] [YUI][spike-stage] spike_stage_vrm_loaded {\"ms\":853}",
+    "focus": "focused"
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:47:09][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:47:11][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ],
+  "error": "no such window: WebDriverError: No window could be found when running \"window\" with method \"POST\"\n    at FetchRequest._request (file:///Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/webdriver/build/node.js:2316:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Browser.wrapCommandFn (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1100:23)\n    at async Object.to (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/wdio/scenario.spec.mjs:50:5)\n    at async Module.default (file:///Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-a3832e6d33ecf9d77/spike/2035/cost.mjs:58:3)\n    at async Context.<anonymous> (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/wdio/scenario.spec.mjs:112:7)\n    at async Context.executeAsync (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1231:20)\n    at async Context.testFrameworkFnWrapper (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1312:14)"
+}

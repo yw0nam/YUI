@@ -1,0 +1,49 @@
+{
+  "steps": {
+    "mode": "stage",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "open": "created",
+    "settings_pid": 66383,
+    "stage_loaded": "[2026-11-22 16:57:42][INFO] [YUI][spike-stage] spike_stage_vrm_loaded {\"ms\":859}",
+    "focus": "focused",
+    "settings_visibility": "visible",
+    "pet_visibility": "visible",
+    "shown": {
+      "label": "pet shown",
+      "settings_wc_mb": 803,
+      "other_wc_mb": 824,
+      "gpu_mb": 726,
+      "total_mb": 2353,
+      "settings_wc_cpu_pct": 1.7,
+      "other_wc_cpu_pct": 11.2,
+      "gpu_cpu_pct": 4.6
+    },
+    "stage_frames_pet_shown": null,
+    "pet_hide": "hidden",
+    "pet_visibility_hidden": "hidden",
+    "hidden": {
+      "label": "pet hidden",
+      "settings_wc_mb": 800,
+      "other_wc_mb": 818,
+      "gpu_mb": 693,
+      "total_mb": 2311,
+      "settings_wc_cpu_pct": 0.2,
+      "other_wc_cpu_pct": 0.3,
+      "gpu_cpu_pct": 0.1
+    },
+    "stage_frames_pet_hidden": null,
+    "directive": "sent",
+    "stage_motion_after_directive": null,
+    "directive_latency_ms": {
+      "n": 0,
+      "p50": null,
+      "p95": null,
+      "max": null
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:57:37][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:57:40][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

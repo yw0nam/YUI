@@ -1,0 +1,98 @@
+{
+  "steps": {
+    "mode": "stage",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "app_pids_before_settings": [
+      53657,
+      53659
+    ],
+    "open": "created",
+    "settings_pid": 53745,
+    "stage_loaded": "[2026-11-22 16:42:55][INFO] [YUI][spike-stage] spike_stage_vrm_loaded {\"ms\":928}",
+    "focus": "focused",
+    "settings_visibility": "visible",
+    "pet_visibility": "visible",
+    "shown": {
+      "label": "pet shown",
+      "settings_wc_mb": 804,
+      "other_wc_mb": 826,
+      "gpu_mb": 739,
+      "total_mb": 2369,
+      "settings_wc_cpu_pct": 7.4,
+      "other_wc_cpu_pct": 9,
+      "gpu_cpu_pct": 4.8,
+      "per_pid": {
+        "53657": {
+          "kind": "gpu",
+          "mb": 739,
+          "cpu_pct": 4.8
+        },
+        "53659": {
+          "kind": "web",
+          "mb": 826,
+          "cpu_pct": 9
+        },
+        "53745": {
+          "kind": "web",
+          "mb": 804,
+          "cpu_pct": 7.4
+        }
+      }
+    },
+    "stage_frames_pet_shown": {
+      "frames_10s": 216,
+      "p50_ms": 49.99999999999818,
+      "p95_ms": 51
+    },
+    "directive": "sent",
+    "stage_motion_after_directive": {
+      "id": "happy",
+      "vrma_path": "/motions/happy.vrma"
+    },
+    "directive_latency_ms": {
+      "n": 50,
+      "p50": 1,
+      "p95": 2,
+      "max": 6
+    },
+    "pet_hide": "hidden",
+    "pet_visibility_hidden": "hidden",
+    "hidden": {
+      "label": "pet hidden",
+      "settings_wc_mb": 803,
+      "other_wc_mb": 813,
+      "gpu_mb": 738,
+      "total_mb": 2354,
+      "settings_wc_cpu_pct": 12.4,
+      "other_wc_cpu_pct": 0.7,
+      "gpu_cpu_pct": 6.9,
+      "per_pid": {
+        "53657": {
+          "kind": "gpu",
+          "mb": 738,
+          "cpu_pct": 6.9
+        },
+        "53659": {
+          "kind": "web",
+          "mb": 813,
+          "cpu_pct": 0.7
+        },
+        "53745": {
+          "kind": "web",
+          "mb": 803,
+          "cpu_pct": 12.4
+        }
+      }
+    },
+    "stage_frames_pet_hidden": {
+      "frames_10s": 600,
+      "p50_ms": 17,
+      "p95_ms": 18
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:42:50][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:42:52][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

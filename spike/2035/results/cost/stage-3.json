@@ -1,0 +1,49 @@
+{
+  "steps": {
+    "mode": "stage",
+    "on_top": "on_top=true",
+    "pet_moved": "moved",
+    "app_pids_before_settings": [
+      56595,
+      56597
+    ],
+    "open": "created",
+    "settings_pid": 56694,
+    "stage_loaded": "[2026-11-22 16:45:01][INFO] [YUI][spike-stage] spike_stage_vrm_loaded {\"ms\":856}",
+    "focus": "focused",
+    "settings_visibility": "visible",
+    "pet_visibility": "visible",
+    "shown": {
+      "label": "pet shown",
+      "settings_wc_mb": 807,
+      "other_wc_mb": 824,
+      "gpu_mb": 718,
+      "total_mb": 2349,
+      "settings_wc_cpu_pct": 2.8,
+      "other_wc_cpu_pct": 8.1,
+      "gpu_cpu_pct": 4.4,
+      "per_pid": {
+        "56595": {
+          "kind": "gpu",
+          "mb": 718,
+          "cpu_pct": 4.4
+        },
+        "56597": {
+          "kind": "web",
+          "mb": 824,
+          "cpu_pct": 8.1
+        },
+        "56694": {
+          "kind": "web",
+          "mb": 807,
+          "cpu_pct": 2.8
+        }
+      }
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 16:44:57][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 16:44:59][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ],
+  "error": "no such window: WebDriverError: No window could be found when running \"window\" with method \"POST\"\n    at FetchRequest._request (file:///Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/webdriver/build/node.js:2316:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Browser.wrapCommandFn (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1100:23)\n    at async Object.to (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/wdio/scenario.spec.mjs:50:5)\n    at async stageFrames (file:///Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-a3832e6d33ecf9d77/spike/2035/cost.mjs:30:3)\n    at async Module.default (file:///Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-a3832e6d33ecf9d77/spike/2035/cost.mjs:64:34)\n    at async Context.<anonymous> (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/wdio/scenario.spec.mjs:112:7)\n    at async Context.executeAsync (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1231:20)\n    at async Context.testFrameworkFnWrapper (/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI/.claude/skills/yui-runtime-evidence/node_modules/@wdio/utils/build/index.js:1312:14)"
+}
