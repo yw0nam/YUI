@@ -810,10 +810,14 @@ YUI/
         search/                      # Settings search
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
-        together/                    # The Together page's character list
-          characters-section.ts      # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
-          characters-section.css     # Character row styles
-          together-rows.ts           # The page's switch rows and the chain cap
+        together/                    # The Together page, rendered with React
+          together-page.ts           # The page's facade: its React root, and the chain-cap reflection it runs on open
+          together-page-view.tsx     # The switch rows, the chain cap, and the characters on the desktop
+          chain-cap/                 # The cap on characters addressing each other
+            chain-cap-row.tsx        # The override input over the bundled default, committed on change and reflected while unfocused
+          characters/                # The page's character list
+            characters-section.tsx   # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
+            characters-section.css   # Character row styles
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
           agent/                     # Reasoning-effort control
             agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
@@ -838,8 +842,8 @@ YUI/
             push-reason.css          # Reason line styles
           screen/                    # Screen-watch threshold knobs
             screen-section.ts        # Screen-watch threshold knobs and their redraw
-          reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and rate-limit cap rows
-            reactions-section.ts     # Listener-port, presence, proactive-gap, and rate-limit cap inputs and their redraw
+          reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and Proactive cap rows
+            reactions-section.ts     # Listener-port, presence, proactive-gap, and Proactive cap inputs and their redraw
             thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, editable while the Thread reactions switch is off
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
