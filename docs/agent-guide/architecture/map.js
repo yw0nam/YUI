@@ -4842,6 +4842,24 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/quick-controls/switches/descriptor-row.tsx"
     },
     {
+      "id": "idle-motion-switch",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Switch: an idle variant's checked state, label, the baseline's disabled state and the flipped value on click",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/motion/idle-motion/idle-motion-section.tsx"
+    },
+    {
+      "id": "express-motion-switch",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Switch: an express motion's checked state, label and the flipped value on click",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"
+    },
+    {
       "id": "silence-slider",
       "from": "ui/quick-controls",
       "to": "ui/controls",
