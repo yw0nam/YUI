@@ -234,6 +234,7 @@ describe("createQuickControls — settings layout", () => {
 
     const row = panel(qc, "together").querySelector(".yui-unified-switch");
     expect(row?.closest("[hidden]")).toBeNull();
+    expect(row?.closest("[role=tabpanel]")?.id).toBe("yui-panel-together");
 
     qc.dispose();
   });
