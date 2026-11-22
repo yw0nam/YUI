@@ -69,9 +69,11 @@ export function RelationRow({
     if (!el) return;
     const commit = (): void => {
       const next = Number(el.value);
-      refocus.current = el.ownerDocument.activeElement === el;
+      const focused = el.ownerDocument.activeElement === el;
       const { band: stored, applied } = store.set(target, next, SET_BY_USER, Date.now());
       if (applied > 0) log.info("relation_set", { target, value: next, band: stored });
+      // Only a write re-renders the rows, so only a write may leave a claim on focus.
+      refocus.current = focused && applied > 0;
       setDraft(null);
     };
     el.addEventListener("change", commit);
