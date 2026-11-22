@@ -2,7 +2,7 @@
  * Character tab — two stacks: the Body page's VRM list with import, relations rows and camera view
  * reset, and the Motion page's mouth-gain, idle and express motion rows. `rows` picks
  * which render; the same rows drive markup, handlers and subscriptions, so only rendered rows are
- * bound.
+ * bound. The Body page renders itself; this module relays the open, close and dispose hooks.
  */
 
 import type { AvatarOption } from "../../../config/validators/avatar/types";
@@ -17,10 +17,8 @@ import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-set
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
-import { createRelationsEditSection } from "../body/relations/relations-edit-section";
-import { bindViewpointReset } from "../body/viewpoint/viewpoint-row";
-import { createVrmList } from "../body/vrm/vrm-list";
-import { bodyHtml, type CharacterRows, motionHtml } from "./character-html";
+import { createBodyPage } from "../body/body-page";
+import { type CharacterRows, motionHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
 import { createIdleMotionList } from "./idle-motion/idle-motion-section";
@@ -81,32 +79,23 @@ export function createCharacterTab(deps: {
     presets: () => readonly PresetEntry[];
   };
 }): CharacterTab {
-  const { rows, vrmSelection, isOpen, log } = deps;
+  const { rows, isOpen, log } = deps;
 
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  el.innerHTML = bodyHtml(rows);
-  const motionEl = document.createElement("div");
-  motionEl.className = "yui-tab-stack";
-  motionEl.innerHTML = motionHtml(rows);
-
-  const vrmList = createVrmList({
-    root: el,
-    vrmSelection,
+  const bodyPage = createBodyPage({
+    vrmSelection: deps.vrmSelection,
     swapVrm: deps.swapVrm,
     importVrm: deps.importVrm,
     removeUserVrm: deps.removeUserVrm,
+    isOpen,
     log,
     refreshTooltip: deps.refreshTooltip,
+    onResetView: rows.viewpoint ? required(deps.onResetView, "viewpoint") : undefined,
+    relations: rows.relations ? required(deps.relations, "relations") : undefined,
   });
-  const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
-  const addBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
-  vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
-  addBtn.addEventListener("click", vrmList.handleAddClick);
-  // A swap repaints in its own finally, so the subscription skips it.
-  const unsubscribeVrm = vrmSelection.subscribe(() => {
-    if (isOpen() && !vrmList.isSwapping()) vrmList.render();
-  });
+  const el = bodyPage.el;
+  const motionEl = document.createElement("div");
+  motionEl.className = "yui-tab-stack";
+  motionEl.innerHTML = motionHtml(rows);
 
   const gainRow = rows.gain
     ? createGainRow({ root: motionEl, ...required(deps.gain, "gain"), isOpen, log })
@@ -128,43 +117,24 @@ export function createCharacterTab(deps: {
     if (isOpen()) expressMotionList?.render();
   });
 
-  const relationsSection = rows.relations
-    ? createRelationsEditSection({
-        root: el,
-        ...required(deps.relations, "relations"),
-        isOpen,
-        log,
-      })
-    : null;
-
-  const unbindViewpoint = rows.viewpoint
-    ? bindViewpointReset({ root: el, onReset: required(deps.onResetView, "viewpoint"), log })
-    : null;
-
   return {
     el,
     motionEl,
     refresh(): void {
       gainRow?.refresh();
-      vrmList.render();
+      bodyPage.refresh();
       idleMotionList?.render();
       expressMotionList?.render();
-      relationsSection?.refresh();
     },
     close(): void {
       gainRow?.endPreview();
     },
     dispose(): void {
-      unsubscribeVrm();
       unsubscribeIdleMotion?.();
       unsubscribeExpressMotion?.();
       gainRow?.dispose();
       expressMotionList?.dispose();
-      relationsSection?.dispose();
-      unbindViewpoint?.();
-      vrmList.dispose();
-      vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
-      addBtn.removeEventListener("click", vrmList.handleAddClick);
+      bodyPage.dispose();
       el.remove();
       motionEl.remove();
     },

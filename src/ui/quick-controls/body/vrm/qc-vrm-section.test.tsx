@@ -445,6 +445,19 @@ describe("createQuickControls — VRM section", () => {
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
   });
 
+  it("hands focus back to the roved row once the rename field closes", () => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
+    const input = userRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    expect(document.activeElement).toBe(input);
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+
+    expect(document.activeElement).toBe(qc.el.querySelector('.yui-vrm[data-vrm-id="carlotta"]'));
+  });
+
   it("Esc cancels inline rename without changing the label", () => {
     withUserOption();
     const onCloseWindow = vi.fn();

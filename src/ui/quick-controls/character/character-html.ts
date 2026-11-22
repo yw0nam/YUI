@@ -1,8 +1,7 @@
-/** Body and Motion page markup — the rows the character tab renders, in page order. */
+/** Motion page markup — the rows the character tab renders, in page order. */
 
 import { t } from "../../i18n";
-import { VROID_HUB_URL } from "../constants";
-import { keyLinkHtml, secHeadHtml } from "../markup";
+import { secHeadHtml } from "../markup";
 
 /** Which rows the Character tab renders — and binds, and refreshes. */
 export interface CharacterRows {
@@ -22,40 +21,6 @@ const GAIN_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
                     <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
                   </svg>`;
-
-const EXTERNAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>`;
-
-const vrmsHtml = (): string => `
-        <div class="yui-sec">
-          ${secHeadHtml(t("vrm.section"))}
-          <div class="yui-group">
-            <div class="yui-vrm-scroll">
-              <div class="yui-vrms" role="radiogroup" aria-label="${t("vrm.group_aria")}"></div>
-            </div>
-            <div class="yui-vrm-foot">
-              <button class="yui-vrm yui-vrm--add is-ready" type="button">
-                <span class="yui-vrm__tick" aria-hidden="true"></span>
-                <span class="yui-vrm__body"><span class="yui-vrm__name">${t("vrm.add")}</span></span>
-              </button>
-              <p class="yui-vrm__import-error" role="status" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
-                <span>${t("vrm.import_error")}</span>
-              </p>
-            </div>
-          </div>
-          <p class="yui-sec__foot">${keyLinkHtml(VROID_HUB_URL, "vrm.hub_link", "yui-vrm__hub", EXTERNAL_ICON)}</p>
-        </div>`;
-
-const relationsHtml = (): string => `
-        <div class="yui-sec yui-relations">
-          ${secHeadHtml(t("relations.section"))}
-          <p class="yui-sec__note yui-relations__note"></p>
-          <p class="yui-sec__note yui-relations__off" hidden>${t("relations.off_note")}</p>
-          <div class="yui-group yui-relations__rows" role="group" aria-label="${t("relations.section")}"></div>
-        </div>`;
 
 const gainHtml = (): string => `
         <div class="yui-sec">
@@ -88,21 +53,6 @@ const expressMotionHtml = (): string => `
           <p class="yui-sec__note">${t("express_motion.sub")}</p>
           <div class="yui-group yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
         </div>`;
-
-const viewpointHtml = (): string => `
-        <div class="yui-sec">
-          ${secHeadHtml(t("viewpoint.section"), `<button class="yui-link-btn yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>`)}
-          <p class="yui-sec__note">${t("viewpoint.sub")}</p>
-        </div>`;
-
-/** The Body page: the VRM list, the relations rows and the view reset. */
-export function bodyHtml(rows: CharacterRows): string {
-  return [
-    vrmsHtml(),
-    rows.relations ? relationsHtml() : "",
-    rows.viewpoint ? viewpointHtml() : "",
-  ].join("");
-}
 
 /** The Motion page's character rows: mouth gain, idle and express motions. */
 export function motionHtml(rows: CharacterRows): string {

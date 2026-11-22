@@ -14,7 +14,7 @@ import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 import { createPendingImport, type PendingImport } from "./pending-import";
 
-const REMOVE_CONFIRM_MS = 4000;
+export const REMOVE_CONFIRM_MS = 4000;
 
 interface UserAssetOption {
   id: string;
