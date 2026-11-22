@@ -458,6 +458,22 @@ describe("createQuickControls — VRM section", () => {
     expect(document.activeElement).toBe(qc.el.querySelector('.yui-vrm[data-vrm-id="carlotta"]'));
   });
 
+  it("a rename does not come back when its option leaves the list and returns", () => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
+    expect(userRow(qc).classList.contains("yui-vrm--renaming")).toBe(true);
+    act(() => vrmSelection.removeUserOption("cat"));
+    act(() => vrmSelection.select("aria")); // repaints with the option gone
+    act(() => vrmSelection.addUserOption(USER_OPTION));
+    act(() => vrmSelection.select("mirai"));
+
+    expect(userRow(qc)).not.toBeNull();
+    expect(qc.el.querySelector(".yui-vrm--renaming")).toBeNull();
+  });
+
   it("Esc cancels inline rename without changing the label", () => {
     withUserOption();
     const onCloseWindow = vi.fn();
