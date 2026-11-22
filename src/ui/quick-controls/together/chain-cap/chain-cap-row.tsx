@@ -26,19 +26,13 @@ export function ChainCapRow({
   // The committed override; a change re-renders the row so the effect repaints the input.
   useSyncExternalStore(store.subscribe, () => store.current().addressed_chain_max);
   const inputRef = useRef<HTMLInputElement>(null);
-  const subRef = useRef<HTMLSpanElement>(null);
 
   // The input shows the override or the bundled default, and never overwrites the user's typing.
   const reflect = useCallback(() => {
-    const defaults = getDefaults?.();
-    if (subRef.current && defaults)
-      subRef.current.textContent = t(CHAIN_CAP_FIELD.subKey, {
-        n: defaults.cooldown_ms / 60_000,
-      });
     const input = inputRef.current;
     if (!input || document.activeElement === input) return;
     const override = store.current().addressed_chain_max;
-    const effective = override > 0 ? override : (defaults?.addressed_chain_max ?? 0);
+    const effective = override > 0 ? override : (getDefaults?.()?.addressed_chain_max ?? 0);
     input.value = effective > 0 ? String(effective) : "";
   }, [store, getDefaults]);
 
@@ -68,9 +62,7 @@ export function ChainCapRow({
         <label className="yui-input-row__label" htmlFor={CHAIN_CAP_FIELD.id}>
           {t(CHAIN_CAP_FIELD.labelKey)}
         </label>
-        <span className="yui-input-row__sub" ref={subRef}>
-          {t(CHAIN_CAP_FIELD.subKey)}
-        </span>
+        <span className="yui-input-row__sub">{t(CHAIN_CAP_FIELD.subKey)}</span>
       </div>
       <div className="yui-num">
         <input
