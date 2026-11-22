@@ -1,6 +1,6 @@
 /** One relations row: the glyph, the target's name and sub line, and a slider that previews on drag and commits on release. */
 
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import type { RelationBand } from "../../../../contract/types";
 import type { Logger } from "../../../../logger";
 import {
@@ -9,6 +9,7 @@ import {
   type RelationRecord,
   SET_BY_USER,
 } from "../../../../settings/relations/relations-store";
+import { Slider } from "../../../controls/slider";
 import { t } from "../../../i18n";
 import { ageText, glyphEl } from "../../preset/relations/relation-glyph";
 import type { RelationsPort } from "./relations-port";
@@ -44,10 +45,8 @@ export function RelationRow({
 }) {
   // The slider's value while it is held; null at rest, when the stored record shows.
   const [draft, setDraft] = useState<number | null>(null);
-  const slider = useRef<HTMLInputElement>(null);
   const label = useRef<HTMLSpanElement>(null);
   const glyph = useRef<HTMLElement>(null);
-  const refocus = useRef(false);
 
   const value = draft ?? record?.value ?? 0;
   const band = bandOf(value);
@@ -63,29 +62,11 @@ export function RelationRow({
     if (glyph.current) glyph.current.dataset.band = rated ? band : "none";
   }, [rated, band]);
 
-  // A release commits on the native change event, which React's onChange does not carry.
-  useEffect(() => {
-    const el = slider.current;
-    if (!el) return;
-    const commit = (): void => {
-      const next = Number(el.value);
-      const focused = el.ownerDocument.activeElement === el;
-      const { band: stored, applied } = store.set(target, next, SET_BY_USER, Date.now());
-      if (applied > 0) log.info("relation_set", { target, value: next, band: stored });
-      // Only a write re-renders the rows, so only a write may leave a claim on focus.
-      refocus.current = focused && applied > 0;
-      setDraft(null);
-    };
-    el.addEventListener("change", commit);
-    return () => el.removeEventListener("change", commit);
-  }, [store, target, log]);
-
-  // The row moved to its new place, and a moved focused node loses focus in WebKit.
-  useLayoutEffect(() => {
-    if (!refocus.current) return;
-    refocus.current = false;
-    slider.current?.focus();
-  });
+  function commit(next: number): void {
+    const { band: stored, applied } = store.set(target, next, SET_BY_USER, Date.now());
+    if (applied > 0) log.info("relation_set", { target, value: next, band: stored });
+    setDraft(null);
+  }
 
   return (
     <div
@@ -110,27 +91,28 @@ export function RelationRow({
           )}
         </span>
       </div>
-      <div className="yui-relations__ctl">
-        <input
-          ref={slider}
-          type="range"
-          className="yui-gain__slider yui-relations__slider"
+      <div
+        className="yui-relations__ctl"
+        style={
+          {
+            "--pos": String(Math.max(0, value) / (2 * MAX)),
+            "--neg": String(Math.max(0, -value) / (2 * MAX)),
+          } as CSSProperties
+        }
+      >
+        <Slider
+          className="yui-relations__slider"
           min={-MAX}
           max={MAX}
           step={1}
           value={value}
-          onChange={(e) => setDraft(Number(e.target.value))}
-          aria-label={t("relations.slider_aria", { name: selfName, target: name })}
-          aria-valuetext={
+          onValueChange={setDraft}
+          onValueCommitted={commit}
+          label={t("relations.slider_aria", { name: selfName, target: name })}
+          valueText={
             rated ? `${t(`relation.band.${band}`)}, ${signed(value)}` : t("relations.not_rated")
           }
           data-band={band}
-          style={
-            {
-              "--pos": String(Math.max(0, value) / (2 * MAX)),
-              "--neg": String(Math.max(0, -value) / (2 * MAX)),
-            } as CSSProperties
-          }
         />
         <span className="yui-relations__value">{signed(value)}</span>
       </div>

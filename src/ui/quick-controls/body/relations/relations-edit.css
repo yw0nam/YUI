@@ -37,13 +37,6 @@
 /* The fill grows from the centre: amber on the positive side, Ash on the negative, Ember Red while hostile. */
 .yui-relations__slider {
   --neg-fill: var(--yui-text-dim);
-  --track: linear-gradient(
-    to right,
-    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
-    var(--neg-fill) calc(50% - var(--neg, 0) * 100%) 50%,
-    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
-    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
-  );
   position: relative;
   flex: 1;
   min-width: 0;
@@ -53,16 +46,18 @@
   --neg-fill: var(--yui-danger);
 }
 
-.yui-relations__slider::-webkit-slider-runnable-track {
-  background: var(--track);
+.yui-relations__slider .yui-slider__track::before {
+  background: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--neg-fill) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
+    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
+  );
 }
 
-.yui-relations__slider::-moz-range-track {
-  background: var(--track);
-}
-
-.yui-relations__slider::-moz-range-progress {
-  background: none;
+.yui-relations__slider .yui-slider__fill {
+  display: none;
 }
 
 /* Wide enough for `−20`, so the slider keeps its width while the number changes. */

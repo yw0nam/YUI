@@ -5,6 +5,7 @@
  * Importing this module also installs the jsdom CSS.escape polyfill.
  */
 
+import { fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import { createVrmSelection } from "../../io/assets/vrm-selection";
@@ -257,4 +258,25 @@ export function fakePlugins(initial: PluginHostSnapshot | null = null) {
     for (const listener of listeners) listener(snapshot);
   };
   return { host, manage, emit };
+}
+
+/** Presses a Slider's control at `at` (0 to 1 of its width); a press previews, a release commits. */
+export function pressSlider(input: HTMLElement, at: number) {
+  const control = input.closest<HTMLElement>(".yui-slider__control")!;
+  control.getBoundingClientRect = () =>
+    ({ left: 0, right: 100, width: 100, top: 0, bottom: 10, height: 10, x: 0, y: 0 }) as DOMRect;
+  control.setPointerCapture = () => {};
+  control.hasPointerCapture = () => false;
+  let last = at;
+  const point = () => ({ clientX: last * 100, clientY: 5, pointerId: 1 });
+  fireEvent.pointerDown(control, { button: 0, ...point() });
+  return {
+    moveTo(fraction: number): void {
+      last = fraction;
+      fireEvent.pointerMove(document, { buttons: 1, ...point() });
+    },
+    release(): void {
+      fireEvent.pointerUp(document, point());
+    },
+  };
 }

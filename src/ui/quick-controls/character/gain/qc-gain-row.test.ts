@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
@@ -240,7 +241,7 @@ describe("createQuickControls — gain row", () => {
       gain: qc.el.querySelector<HTMLInputElement>(
         "input.yui-gain__slider:not(.yui-vad__slider)[type=range]",
       )!,
-      vad: qc.el.querySelector<HTMLInputElement>("input.yui-vad__slider[type=range]")!,
+      vad: qc.el.querySelector<HTMLInputElement>(".yui-vad__slider input")!,
     };
   }
 
@@ -250,16 +251,11 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const { vad: vadSlider } = sliders(qc);
-    act(() => {
-      vadSlider.value = "2000";
-      vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    fireEvent.change(vadSlider, { target: { value: "2000" } });
 
     expect(vad.get().silenceMs).toBe(2000);
     expect(onGainPreview).not.toHaveBeenCalled();
     expect(lipsync.get().gain).toBe(2);
-
-    act(() => vadSlider.dispatchEvent(new Event("pointerup", { bubbles: true })));
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
 
     qc.dispose();
@@ -290,8 +286,7 @@ describe("createQuickControls — gain row", () => {
 
     gainSlider.value = "4";
     gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
-    vadSlider.value = "2500";
-    vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.change(vadSlider, { target: { value: "2500" } });
 
     expect(lipsync.get().gain).toBe(2);
     expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
