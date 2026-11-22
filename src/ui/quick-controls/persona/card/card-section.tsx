@@ -3,15 +3,7 @@
  * list, the file action row, its status lines and the export panel.
  */
 
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type FormEvent, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   CARD_FIELD_MAX_LEN,
   type Card,
@@ -27,9 +19,8 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG, PLUS_SVG } from "../../constants";
 import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { cardBase, presetEntry } from "./card-entry";
-import type { CardIo, CardIoPorts, CardLine } from "./card-io";
-import { takeImportNotice } from "./card-io";
-import { PresetExportPanel } from "./preset-export-panel";
+import { CardFileRow } from "./card-file-row";
+import type { CardIo, CardIoPorts } from "./card-io";
 import "./card-section.css";
 
 type TextField =
@@ -91,18 +82,13 @@ export function CardSection({
   io: CardIo;
   /** Whether this window's card import runs, and its changes. */
   importBusy: CardIoPorts["importBusy"];
-  vrmSelection: Parameters<typeof PresetExportPanel>[0]["vrmSelection"];
-  speakerSelection: Parameters<typeof PresetExportPanel>[0]["speakerSelection"];
+  vrmSelection: Parameters<typeof CardFileRow>[0]["vrmSelection"];
+  speakerSelection: Parameters<typeof CardFileRow>[0]["speakerSelection"];
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   log: Logger;
   /** Repaints the section from the stores and the edit's own card. */
   refresh(): void;
 }) {
-  const [line, setLine] = useState<CardLine | null>(null);
-  const [panel, setPanel] = useState({ open: false, epoch: 0 });
-  // The one-shot notice the import leaves for this mount.
-  const [notice] = useState(takeImportNotice);
-  const busy = useSyncExternalStore(importBusy.subscribe, importBusy.isBusy);
   const thumbRef = useRef<HTMLSpanElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const fieldRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -212,22 +198,6 @@ export function CardSection({
   function resetCard(): void {
     agentSettings.resetCard();
     log.info("card_reset");
-  }
-
-  async function importCard(): Promise<void> {
-    const next = await io.importPreset();
-    if (next) setLine(next);
-  }
-
-  async function exportPng(): Promise<void> {
-    const next = await io.exportPng();
-    if (next) setLine(next);
-  }
-
-  async function exportPreset(parts: Parameters<typeof io.exportPreset>[0]): Promise<boolean> {
-    const next = await io.exportPreset(parts);
-    if (next) setLine(next);
-    return next !== null && !next.error;
   }
 
   return (
@@ -385,55 +355,16 @@ export function CardSection({
         </details>
         <p className="yui-sec__foot">{t("card.macros")}</p>
       </div>
-      <div className="yui-row yui-row--action yui-card__io">
-        <button
-          className="yui-link-btn yui-card-import"
-          type="button"
-          disabled={busy}
-          onClick={() => void importCard()}
-        >
-          {t("card.import")}
-        </button>
-        <button
-          className="yui-link-btn yui-card-export-preset"
-          type="button"
-          onClick={() => setPanel((p) => ({ open: true, epoch: p.epoch + 1 }))}
-        >
-          {t("card.export_preset")}
-        </button>
-        <button
-          className="yui-link-btn yui-card-export-png"
-          type="button"
-          disabled={!hasPicture}
-          onClick={() => void exportPng()}
-        >
-          {t("card.export_png")}
-        </button>
-      </div>
-      <p className="yui-row__sub yui-card__io-note">
-        {hasPicture ? t("card.io_note") : t("card.png_no_picture", { note: t("card.io_note") })}
-      </p>
-      <p className="yui-card__io-notice" hidden={!notice}>
-        {t("card.import_voice_notice")}
-      </p>
-      <PresetExportPanel
-        key={panel.epoch}
-        open={panel.open}
+      <CardFileRow
+        io={io}
+        importBusy={importBusy}
+        hasPicture={hasPicture}
+        cardLabel={() => cardName(card, shown)}
         vrmSelection={vrmSelection}
         speakerSelection={speakerSelection}
-        entry={presetEntry}
-        cardLabel={() => cardName(card, shown)}
         inspectPresetVrm={inspectPresetVrm}
-        onExport={exportPreset}
-        onClose={() => setPanel((p) => ({ ...p, open: false }))}
         log={log}
       />
-      <p className="yui-card__io-done" role="status" hidden={line?.error !== false}>
-        {line?.error === false ? line.text : ""}
-      </p>
-      <p className="yui-card__io-error" role="status" hidden={line?.error !== true}>
-        {line?.error === true ? line.text : ""}
-      </p>
     </div>
   );
 }
