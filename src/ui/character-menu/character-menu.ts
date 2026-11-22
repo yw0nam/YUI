@@ -396,8 +396,9 @@ export function createCharacterMenu(deps: {
       }
       // Closed while the window widened: put it back at once.
       if (phase !== "opening") {
-        await deps.restore();
-        phase = "closed";
+        await deps.restore().finally(() => {
+          phase = "closed";
+        });
         return;
       }
       placement = placed;

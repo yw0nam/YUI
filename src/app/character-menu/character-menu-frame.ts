@@ -50,12 +50,17 @@ export function createMenuFrame(deps: {
   return {
     async place(widths) {
       locomotion.hold(true);
-      await locomotion.abortTravel();
+      let fold: Fold | null = null;
+      try {
+        // A cancelled stroll or climb may still be unparking its travel.
+        await locomotion.abortTravel();
+      } catch (err) {
+        log.warn("abort_travel_failed", { error: String(err) });
+      }
       // Read before the widen, while her box is the whole window.
       const tap = renderer.getTapPoints();
       const silhouette = renderer.getSilhouetteBounds();
       const box = { width: overlay.clientWidth, height: overlay.clientHeight };
-      let fold: Fold | null = null;
       try {
         fold = await widen(widths);
       } catch (err) {
