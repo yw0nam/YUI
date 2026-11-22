@@ -21,7 +21,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-it("keeps a keyboard preview running until blur, which ends it and logs the gain", () => {
+function build() {
   setLocale("en");
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
   const onPreviewEnd = vi.fn();
@@ -37,6 +37,11 @@ it("keeps a keyboard preview running until blur, which ends it and logs the gain
   pages.push(page);
   const slider = within(page.el).getByRole("slider");
   act(() => slider.focus());
+  return { log, onPreviewEnd, slider };
+}
+
+it("keeps a keyboard preview running until blur, which ends it and logs the gain", () => {
+  const { log, onPreviewEnd, slider } = build();
 
   fireEvent.keyDown(slider, { key: "ArrowRight" });
   expect(onPreviewEnd).not.toHaveBeenCalled();
@@ -45,4 +50,14 @@ it("keeps a keyboard preview running until blur, which ends it and logs the gain
   act(() => slider.blur());
   expect(onPreviewEnd).toHaveBeenCalledOnce();
   expect(log.info).toHaveBeenCalledWith("mouth_gain_change", { gain: 2.1 });
+});
+
+it("keeps a preview from a change of the slider's input running until blur", () => {
+  const { onPreviewEnd, slider } = build();
+
+  fireEvent.change(slider, { target: { value: "3" } });
+  expect(onPreviewEnd).not.toHaveBeenCalled();
+
+  act(() => slider.blur());
+  expect(onPreviewEnd).toHaveBeenCalledOnce();
 });
