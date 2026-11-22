@@ -99,7 +99,7 @@ A short client-side utterance from a pool, covering the silence between a firing
 _Avoid_: thinking, placeholder, stall
 
 **Come-along**:
-Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes. Its entry is set by an Entry family.
+Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family.
 _Avoid_: summon, follow
 
 **Entry family**:
@@ -107,11 +107,11 @@ One of four groups (glad, plain, glum, sulking) that a Come-along takes its entr
 _Avoid_: mood, entry type
 
 **Page reaction**:
-The short reaction she plays once when she enters a settings page, and again when a shown change (outfit, voice or pace) appears. Idling follows it.
+The short reaction she plays once when she enters a settings page, and again when a shown change (body, voice or pace) appears. Idling follows it.
 _Avoid_: cue, page animation
 
 **Signature color**:
-A character's own color: a second color role beside amber, bounded to her stage, her name tag and the Character menu's hovered pill. Its default derives from her avatar hue.
+A character's own color: a second color role beside amber, bounded to the Settings stage (its ground and her name) and the Character menu's hovered pill. Its default derives from her avatar hue.
 _Avoid_: accent, character color, theme color
 
 ### Relations
@@ -206,12 +206,12 @@ The card a right-click on the character opens beside her in its own window: her 
 _Avoid_: quick panel, popover
 
 **Character menu**:
-The pill menu around her, opened by a right-click on her in the pet window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list. It takes the place of the Quick card.
+The pill menu around her, opened by a right-click on her in the pet window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
 _Avoid_: quick card, context menu, radial menu, pie menu, ring menu
 
 **Settings stage**:
-The stage area on the left of the settings window, where the character comes along and docks. It holds her name, her state and a caption of what she is doing, in her signature color.
-_Avoid_: stage window, stage panel
+The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing, in her signature color.
+_Avoid_: stage window, stage panel, dock
 
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.
