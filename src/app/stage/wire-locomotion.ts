@@ -116,8 +116,10 @@ export function wireLocomotion(deps: {
   register(travelFrame.dispose);
 
   // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
-  // stroll at once; an ordinary turn walks on.
+  // stroll at once; an ordinary turn walks on. A hold keeps her still the way a drag does.
   let dragging = false;
+  let held = false;
+  let onWidenAbort: (() => void) | null = null;
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -127,7 +129,7 @@ export function wireLocomotion(deps: {
     getDescendConfig: () => getConfig().avatar.descend,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging,
+    isDragging: () => dragging || held,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -181,6 +183,8 @@ export function wireLocomotion(deps: {
       climberRef?.cancel();
       percherRef?.cancel();
       sitter.cancel();
+      onWidenAbort?.();
+      onWidenAbort = null;
       // A cancelled climb or stroll may still be unparking its travel.
       return travelFrame.abort();
     },
@@ -205,7 +209,7 @@ export function wireLocomotion(deps: {
     getJumpConfig: () => getConfig().avatar.jump,
     getFallConfig: () => fallConfigFor(getConfig().avatar.fall, fallSettings.get().enabled),
     getMotionKind: (id) => getConfig().motions[id]?.kind,
-    isBusy: dispatcher.isPipelineBusy,
+    isBusy: () => held || dispatcher.isPipelineBusy(),
     walker,
     sitter,
     dropSource: windowSources,
@@ -232,7 +236,7 @@ export function wireLocomotion(deps: {
     getWalkConfig: () => getConfig().avatar.walk,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging,
+    isDragging: () => dragging || held,
     isBusy: dispatcher.isPipelineBusy,
     walker,
     faller,
@@ -246,6 +250,14 @@ export function wireLocomotion(deps: {
   register(climbSettings.subscribe((state) => climber.setEnabled(state.enabled)));
   register(climber.dispose);
 
+  const cancel = (): void => {
+    walker.cancel();
+    faller.cancel();
+    climber.cancel();
+    percher.cancel();
+    sitter.cancel();
+  };
+
   return {
     walker,
     sitter,
@@ -253,16 +265,20 @@ export function wireLocomotion(deps: {
     setDragging(next) {
       dragging = next;
     },
-    cancel: () => {
-      walker.cancel();
-      faller.cancel();
-      climber.cancel();
-      percher.cancel();
-      sitter.cancel();
-    },
+    cancel,
     abortTravel: () => travelFrame.abort(),
-    hold: (_on) => {},
-    widen: async () => travelFrame.travel.begin({ x: 0, y: 0 }),
+    hold(on) {
+      if (on) cancel();
+      else onWidenAbort = null;
+      held = on;
+    },
+    async widen(via, onAbort) {
+      const win = travelFrame.getWindow();
+      const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+      onWidenAbort = onAbort;
+      // She ends where she starts: the travel only parks the window over the via origins.
+      return travelFrame.travel.begin({ x: pos.x / scale, y: pos.y / scale }, via);
+    },
     frame: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
