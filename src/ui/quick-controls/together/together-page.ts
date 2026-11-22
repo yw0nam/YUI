@@ -8,13 +8,11 @@ import type {
   GuardrailsSettingsStore,
   RateLimitDefaults,
 } from "../../../settings/backend/guardrails-settings";
-import type { PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { SwitchRow } from "../switch-row";
 import type { ChainCapReflect } from "./chain-cap/chain-cap-row";
+import type { WindowsPort } from "./characters/characters-section";
 import { TogetherPageView } from "./together-page-view";
-
-type WindowsPort = Pick<PetWindows, "get" | "open" | "close" | "subscribe" | "invalidate">;
 
 export interface TogetherPage {
   el: HTMLElement;

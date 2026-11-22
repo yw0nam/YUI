@@ -6,17 +6,14 @@ import type {
   GuardrailsSettingsStore,
   RateLimitDefaults,
 } from "../../../settings/backend/guardrails-settings";
-import type { PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { Switch } from "../../controls/switch";
 import { t } from "../../i18n";
 import type { SwitchRow } from "../switch-row";
 import { type ChainCapReflect, ChainCapRow } from "./chain-cap/chain-cap-row";
-import { CharactersSection } from "./characters/characters-section";
+import { CharactersSection, type WindowsPort } from "./characters/characters-section";
 
-type WindowsPort = Pick<PetWindows, "get" | "open" | "close" | "subscribe" | "invalidate">;
-
-// A rendered row always has a store; the follower keeps the repaint on a store change.
+// A rendered row always has a store; useSyncExternalStore subscribes here for the repaint.
 const subscribeNever = () => () => {};
 
 /** One switch row rendered from its descriptor: the label, the sub line, and the store-backed state. */
@@ -25,13 +22,7 @@ function DescriptorRow({ row, log }: { row: SwitchRow; log: Logger }) {
   return (
     <div className="yui-row">
       <div className="yui-row__main">
-        <span className="yui-row__label">
-          {row.labelIcon ? (
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a descriptor's constant glyph shared with the template
-            <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: row.labelIcon }} />
-          ) : null}
-          {t(row.labelKey)}
-        </span>
+        <span className="yui-row__label">{t(row.labelKey)}</span>
         {row.subKey ? <span className="yui-row__sub">{t(row.subKey)}</span> : null}
       </div>
       <Switch

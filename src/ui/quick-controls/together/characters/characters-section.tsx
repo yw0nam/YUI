@@ -11,7 +11,7 @@ import { useSnapshot } from "../../../quick-card/use-snapshot";
 import { avatarEl } from "../../../unified/avatar";
 import "./characters-section.css";
 
-type WindowsPort = Pick<PetWindows, "get" | "open" | "close" | "subscribe" | "invalidate">;
+export type WindowsPort = Pick<PetWindows, "get" | "open" | "close" | "subscribe" | "invalidate">;
 
 /** The preset's face, mounted as a vanilla element the re-renders keep in place. */
 function Face({ entry }: { entry: PresetEntry }) {
