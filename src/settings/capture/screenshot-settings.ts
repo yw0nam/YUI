@@ -42,6 +42,8 @@ export function createScreenshotSettings(opts?: { storage?: ScreenshotStorage })
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<ScreenshotSettings>,
 
     setEnabled(enabled: boolean): void {
       core.commit({ ...core.current(), enabled });
