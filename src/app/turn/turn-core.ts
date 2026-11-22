@@ -113,6 +113,7 @@ export async function wireTurnCore(
     restoreSignals?: DispatcherDeps["onTurnDropped"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openSettings?: DispatcherDeps["openSettings"];
+    turnNotice: DispatcherDeps["turnNotice"];
     getCardText?: DispatcherDeps["getCardText"];
     /** Where voice-on intent is kept across runs; a window that passes none starts every run silent. */
     voicePersistence?: VoicePersistence;
@@ -239,6 +240,7 @@ export async function wireTurnCore(
     onTurnClosed: deps.onTurnClosed,
     addressedTo: deps.addressedTo,
     openSettings: deps.openSettings,
+    turnNotice: deps.turnNotice,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
     t,

@@ -23,7 +23,7 @@ function build(extra: Partial<Parameters<typeof createQuickControls>[0]>) {
     ...defaultQcArgs(document.querySelector<HTMLElement>("#app")!),
     ...extra,
   });
-  qc.open({ tab: "react" });
+  qc.open({ page: "react" });
   return qc;
 }
 

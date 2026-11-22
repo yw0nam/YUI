@@ -53,6 +53,7 @@ YUI/
       turn/                          # The path of a turn: sources, voice, and push
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
+        report-turn-failure.ts       # Where a failed user turn shows: the open input, or a notice on the status pill
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
@@ -136,11 +137,9 @@ YUI/
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
-        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
-        wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
+        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` and `focus` params set to the requested page and field
+        wire-settings-page.ts        # Takes the URL's page and focus, and answers an opener's page request: switches to the opener's character, then selects the page and focuses the field it names
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
-      voice/                         # Desktop voice wiring
-        voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -390,7 +389,7 @@ YUI/
         thread-reaction-thresholds-settings.ts # The waiting count and wait that start a Thread reaction without a chip tap under yui.thread-reaction-thresholds, device-wide
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
-        settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
+        settings-pages.ts            # The settings page ids, character pages and app pages, the focus field ids, and the checks for a page and a focus
         message-window-settings.ts   # Message-window mode and last outer position under the window's preset key
         window-geometry-settings.ts  # Per-window-label size and position the user's drags and resizes leave
     io/                              # I/O layer: chat, voice, window and OS seams
@@ -461,6 +460,7 @@ YUI/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
         mic-error.ts                   # The mic failure cause codes the voice status carries
+        open-mic-settings.ts           # Opens the macOS Microphone privacy pane, offered by the status pill beside a blocked mic
         filler/                        # TTFT filler phrases spoken while a turn is thinking
           filler-loop.ts               # Bounded, event-aware TTFT filler scheduler
           filler-pool.ts               # Resolves the effective filler pool per language and tier
@@ -640,6 +640,7 @@ YUI/
         hold-to-fold.ts              # A press held past 500 ms folds the chips and swallows the release's click
         voice-input-status.ts        # Voice-input status model
         voice-error-dwell.ts         # How long a voice-turn failure holds the status pill's voice error state
+        turn-notice.ts               # The status pill's failed-turn notice, its action, and how long it holds
         signal-chips.ts              # One pill per signal group beside the avatar, above the delegation chip
         signal-chips-model.ts        # The signal groups beside the avatar, newest first, in memory only
         signal-details.ts            # One signal group's source line, kind, label, time, what YUI said, and its raw items
@@ -649,7 +650,7 @@ YUI/
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
         signal-chips.css             # Signal-chip pill, details sheet, and fold styles
       notices/                       # One-off and error notices
-        turn-error.ts                # Backend-failure reason to inline input-error message
+        turn-error.ts                # Backend-failure reason to its message, its next step (Connect, Change key, Check connection or Retry), and where it shows
         fade-out.ts                  # Settle callback for elements that fade before leaving the a11y tree
         boot-error.ts                # Boot-failure notice card
         chain-reset-notice.ts        # One-off notice when the backend resets a broken response chain

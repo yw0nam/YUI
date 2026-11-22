@@ -32,11 +32,12 @@ import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
-import type { SettingsPage } from "../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { isMacOS, isWindows } from "../tauri-env";
+import type { TurnNoticeStore } from "../ui/chips/turn-notice";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
@@ -73,7 +74,9 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   /** Opens the settings window on a page, on the main character or this window's own. */
-  openSettings(page?: SettingsPage): void;
+  openSettings(page?: SettingsPage, focus?: SettingsFocus): void;
+  /** The status pill's failed-turn notice. */
+  turnNotice: TurnNoticeStore;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
   /** Subscribes to Quick start's confirmed key for this preset. */
@@ -231,6 +234,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       screenCapturer: phase1.screenCapturer,
       openSettings: phase1.openSettings,
+      turnNotice: phase1.turnNotice,
       windowTools,
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,

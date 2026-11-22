@@ -12,6 +12,7 @@ const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
     open: vi.fn(),
     dispose: vi.fn(),
     selectedTab: vi.fn(() => "general" as const),
+    windowFocused: vi.fn(),
   })),
   initLogger: vi.fn(async () => {}),
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
@@ -62,7 +63,7 @@ it("reopens the remounted panel on the tab the user was on when the language cha
   i18n.setLocale("ko");
   await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledTimes(2));
   const remounted = createQuickControls.mock.results[1]!.value;
-  expect(remounted.open).toHaveBeenCalledWith({ tab: "general" });
+  expect(remounted.open).toHaveBeenCalledWith({ page: "general" });
 }, 15_000);
 
 it("reloads when the pet window's preset switch arrives over the settings bridge", async () => {

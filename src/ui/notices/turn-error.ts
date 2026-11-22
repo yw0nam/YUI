@@ -1,17 +1,9 @@
-/**
- * Backend-call failure reason → inline input-error message.
- *
- * Delegates to the i18n dictionary. Only the reasons a user-initiated turn can
- * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
- * anything else renders nothing rather than inventing text. A network_drop carrying
- * the server's {status, message} detail renders the status and the server text, and one without
- * a status renders the server text alone; a 429 renders the rate-limit line instead.
- */
+/** A failed turn's reason → its message, its next step, and the surface that shows it. */
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
-import type { SettingsPage } from "../../settings/panels/settings-pages";
+import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { t } from "../i18n";
 
 /** Rendered server-message budget — one line, cut with an ellipsis past this. */
@@ -55,40 +47,64 @@ export function turnErrorMessage(
   }
 }
 
-/**
- * Whether the settings panel can resolve a failure. Only an unconfigured backend
- * qualifies — every other failure is outside the panel. Takes a raw string because
- * the status pill reads its reason off an untyped status detail.
- */
-export function isSettingsFixable(reason: string): boolean {
-  return reason === "not_configured";
-}
+export type FailureAction = "connect" | "change_key" | "check_connection" | "retry";
 
-/**
- * The in-place fix an inline error carries, if the host opens a settings panel that can resolve it.
- * The label names the step, so the message itself only states the condition.
- */
-export function turnErrorFixAction(
+const ACTION_LABEL_KEY: Record<Exclude<FailureAction, "retry">, string> = {
+  connect: "hint.setup_action",
+  change_key: "input.action_change_key",
+  check_connection: "input.action_check_connection",
+};
+
+/** The next step a failed turn offers: open the key entry, check the connection, or resend. */
+export function failureAction(
   reason: TurnFailure,
-  openSettings?: (tab: SettingsPage) => void,
-): InputErrorAction | undefined {
-  if (!openSettings || !isSettingsFixable(reason)) return undefined;
-  return { label: t("hint.setup_action"), onClick: () => openSettings("conn") };
+  detail?: TurnErrorDetail,
+): FailureAction | undefined {
+  switch (reason) {
+    case "not_configured":
+      return "connect";
+    case "http_4xx_drop":
+      return "change_key";
+    case "network_drop": {
+      const status = detail?.status;
+      if (status === undefined || (status >= 500 && status < 600)) return "retry";
+      return status >= 400 && status < 500 && status !== 429 ? "check_connection" : undefined;
+    }
+    case "network_stall":
+      return "retry";
+    default:
+      return undefined;
+  }
 }
 
-type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };
+/** The button of a keyed action, which opens the key entry; retry is the composer's own, so it has none. */
+export function fixAction(
+  action: FailureAction | undefined,
+  openSettings?: (tab: SettingsPage, focus?: SettingsFocus) => void,
+): InputErrorAction | undefined {
+  if (!openSettings || !action || action === "retry") return undefined;
+  return {
+    label: t(ACTION_LABEL_KEY[action]),
+    onClick: () => (action === "connect" ? openSettings("conn") : openSettings("conn", "chat_key")),
+  };
+}
+
+type TurnFailureAction =
+  | { kind: "show_input_error" }
+  | { kind: "voice_error" }
+  | { kind: "notice" };
 
 /**
  * Routes a classified user-turn failure to the UI surface it belongs to. Routes by
  * `source` (which trigger actually failed), not by the input form's CURRENT open
  * state alone — a typed turn dismissed with Escape mid-flight must not get
- * misrouted to the status pill's voice error just because the form happens to be closed by
+ * misrouted to the voice error just because the form happens to be closed by
  * the time the failure arrives.
  *  - text + input open   -> the inline input error.
- *  - text + input closed -> nothing (the user already dismissed it; log-only).
- *  - voice                -> always the status pill's voice error state.
+ *  - text + input closed -> a notice on the status pill (the closed input dropped the text).
+ *  - voice                -> the status pill's voice error state, and a notice beside it.
  */
 export function routeTurnFailure(source: UserTurnSource, isInputOpen: boolean): TurnFailureAction {
   if (source === "voice") return { kind: "voice_error" };
-  return isInputOpen ? { kind: "show_input_error" } : { kind: "none" };
+  return isInputOpen ? { kind: "show_input_error" } : { kind: "notice" };
 }

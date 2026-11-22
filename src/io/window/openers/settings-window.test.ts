@@ -187,6 +187,47 @@ describe("createSettingsWindowOpener page request", () => {
     expect(order).toEqual(["show", "focus", "emit"]);
     expect(WebviewWindow).not.toHaveBeenCalled();
   });
+
+  it("a new Tauri window carries the key focus in its URL", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+
+    createSettingsWindowOpener("a", vi.fn())("conn", "chat_key");
+
+    await vi.waitFor(() =>
+      expect(WebviewWindow).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ url: "settings.html?preset=a&page=conn&focus=chat_key" }),
+      ),
+    );
+  });
+
+  it("the browser window carries the key focus in its URL", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+    createSettingsWindowOpener(undefined, vi.fn())("conn", "chat_key");
+
+    expect(open).toHaveBeenCalledWith(
+      "/settings.html?page=conn&focus=chat_key",
+      expect.any(String),
+      "width=760,height=680",
+    );
+  });
+
+  it("an open window is asked for the key focus with its page", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    WebviewWindow.getByLabel.mockResolvedValue({ show: vi.fn(), setFocus: vi.fn() } as never);
+    const emit = vi.fn();
+
+    createSettingsWindowOpener("a", emit)("conn", "chat_key");
+
+    await vi.waitFor(() =>
+      expect(emit).toHaveBeenCalledExactlyOnceWith({
+        preset: "a",
+        page: "conn",
+        focus: "chat_key",
+      }),
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

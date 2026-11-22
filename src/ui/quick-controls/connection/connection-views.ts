@@ -25,14 +25,24 @@ export function createConnectionViews(deps: {
   initial: ConnectionView;
   /** Quick start came into view — it re-reads its state from the stores. */
   onQuickShown: () => void;
+  /** Quick start is in view on entry or came into view — it checks the stored key. */
+  onQuickEntered: () => void;
   /** Detailed settings is in view on entry or came into view — the chat section evaluates its model list read. */
   onDetailEntered: () => void;
+  /** Quick start holds the key field of the server in use. */
+  holdsKey: () => boolean;
+  /** Quick start opens its key field and focuses it. */
+  focusQuickKey: () => void;
+  /** Detailed settings focuses its chat key field. */
+  focusDetailKey: () => void;
 }): {
   /** The Connection page was entered (panel open on it, or its rail item selected). */
   entered(): void;
+  /** Shows the view that holds the chat key of the server in use and focuses that field. */
+  focusKey(): void;
   dispose(): void;
 } {
-  const { panel, quick, detail, initial, onQuickShown, onDetailEntered } = deps;
+  const { panel, quick, detail, initial, onQuickShown, onQuickEntered, onDetailEntered } = deps;
 
   const seg = document.createElement("div");
   seg.className = "yui-seg yui-conn-views";
@@ -79,8 +89,10 @@ export function createConnectionViews(deps: {
     if (current === view) return;
     current = view;
     reflect();
-    if (view === "quick") onQuickShown();
-    else onDetailEntered();
+    if (view === "quick") {
+      onQuickShown();
+      onQuickEntered();
+    } else onDetailEntered();
   }
 
   const segment = createStoreSegment({
@@ -104,6 +116,13 @@ export function createConnectionViews(deps: {
   return {
     entered: () => {
       if (current === "detail") onDetailEntered();
+      else onQuickEntered();
+    },
+    focusKey: () => {
+      const view = deps.holdsKey() ? "quick" : "detail";
+      select(view);
+      if (view === "quick") deps.focusQuickKey();
+      else deps.focusDetailKey();
     },
     dispose(): void {
       segment.dispose();

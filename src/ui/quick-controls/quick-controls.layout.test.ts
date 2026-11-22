@@ -230,7 +230,7 @@ describe("createQuickControls — settings layout", () => {
     const endpointsSettings = createEndpointsSettings();
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildFullQc({ endpointsSettings, unifiedChatSwitch: createFlagSettings(false) });
-    qc.open({ tab: "together" });
+    qc.open({ page: "together" });
 
     const row = panel(qc, "together").querySelector(".yui-unified-switch");
     expect(row?.closest("[hidden]")).toBeNull();
@@ -445,7 +445,7 @@ describe("createQuickControls — Reactions tab layout", () => {
       pacerGapSettings: inMemoryPacerGapStore(),
       rateLimitSettings: createGuardrailsSettings(),
     });
-    qc.open({ tab: "react" });
+    qc.open({ page: "react" });
     return { qc, panel: qc.el.querySelector<HTMLElement>("#yui-panel-react")! };
   }
 

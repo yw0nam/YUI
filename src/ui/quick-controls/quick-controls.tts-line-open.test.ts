@@ -62,7 +62,7 @@ describe("createQuickControls — the TTS line on open", () => {
       }),
     });
 
-    qc.open({ tab: "conn" });
+    qc.open({ page: "conn" });
     for (let i = 0; i < 5; i += 1) await tick();
 
     const line = qc.el.querySelector<HTMLElement>('[data-svc="tts"] .yui-chat-status');

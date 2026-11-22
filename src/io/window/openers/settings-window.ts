@@ -1,7 +1,11 @@
 /** Settings opens the main or bound companion window and shares storage change notifications. */
 
 import { createLogger } from "../../../logger";
-import type { SettingsPage } from "../../../settings/panels/settings-pages";
+import type {
+  PageRequest,
+  SettingsFocus,
+  SettingsPage,
+} from "../../../settings/panels/settings-pages";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 import type { SettingsBridge } from "../../bridge/settings-bridge";
@@ -19,11 +23,12 @@ function panelBackground(theme: string | undefined): [number, number, number] {
 
 type EmitSettingsPage = SettingsBridge["emitSettingsPage"];
 
-/** `settings.html` with the preset and page the window opens on. */
-function settingsUrl(boundId?: string | null, page?: SettingsPage): string {
+/** `settings.html` with the preset, page and focused field the window opens on. */
+function settingsUrl(boundId?: string | null, request?: PageRequest): string {
   const query = [
     ...(boundId == null ? [] : [`preset=${encodeURIComponent(boundId)}`]),
-    ...(page ? [`page=${page}`] : []),
+    ...(request ? [`page=${request.page}`] : []),
+    ...(request?.focus ? [`focus=${request.focus}`] : []),
   ].join("&");
   return query ? `${SETTINGS_URL}?${query}` : SETTINGS_URL;
 }
@@ -48,11 +53,11 @@ export function openSettingsWindow(env: SettingsWindowEnv): void {
 /** If already open, focus and show; else create new. No step throws. */
 async function openTauriSettingsWindow(
   boundId: string | null | undefined,
-  page: SettingsPage | undefined,
+  request: PageRequest | undefined,
   emitSettingsPage: EmitSettingsPage,
 ): Promise<void> {
   const label = boundId == null ? SETTINGS_LABEL : windowLabel("settings", boundId);
-  const url = settingsUrl(boundId, page);
+  const url = settingsUrl(boundId, request);
   try {
     const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
     const existing = await WebviewWindow.getByLabel(label);
@@ -63,7 +68,7 @@ async function openTauriSettingsWindow(
       } catch (err) {
         log.warn("settings_window_focus_failed", { error: String(err) });
       }
-      emitSettingsPage({ preset: boundId ?? null, ...(page ? { page } : {}) });
+      emitSettingsPage({ preset: boundId ?? null, ...request });
       return;
     }
     // Window params mirror src-tauri/src/tray.rs open_settings — keep both in sync.
@@ -89,10 +94,10 @@ async function openTauriSettingsWindow(
   }
 }
 
-function openBrowserSettingsWindow(boundId?: string | null, page?: SettingsPage): void {
+function openBrowserSettingsWindow(boundId?: string | null, request?: PageRequest): void {
   try {
     window.open(
-      `/${settingsUrl(boundId, page)}`,
+      `/${settingsUrl(boundId, request)}`,
       boundId == null ? "yui-settings" : `yui-${windowLabel("settings", boundId)}`,
       "width=760,height=680",
     );
@@ -131,16 +136,17 @@ export function closeSettingsWindow(): void {
   }
 }
 
-/** Return opener with wired side effects. Branches to Tauri/browser per call; `page` is where the window lands. */
+/** Return opener with wired side effects. Branches to Tauri/browser per call; `page` is where the window lands, `focus` the field it focuses there. */
 export function createSettingsWindowOpener(
   boundId: string | null | undefined,
   emitSettingsPage: EmitSettingsPage,
-): (page?: SettingsPage) => void {
-  return (page) => {
+): (page?: SettingsPage, focus?: SettingsFocus) => void {
+  return (page, focus) => {
+    const request = page && { page, ...(focus ? { focus } : {}) };
     openSettingsWindow({
       isTauri: isTauri(),
-      createTauriWindow: () => void openTauriSettingsWindow(boundId, page, emitSettingsPage),
-      openBrowserWindow: () => openBrowserSettingsWindow(boundId, page),
+      createTauriWindow: () => void openTauriSettingsWindow(boundId, request, emitSettingsPage),
+      openBrowserWindow: () => openBrowserSettingsWindow(boundId, request),
     });
   };
 }

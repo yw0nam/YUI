@@ -305,3 +305,96 @@ describe("createQuickStart — the state it reads from the stores", () => {
     expect(s.el(".yui-start__connected").querySelector(".yui-start__replay")).toBeNull();
   });
 });
+
+describe("createQuickStart — Change key", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("a confirmed replacement writes only the key and says Key replaced", async () => {
+    const s = setup();
+    s.endpointsSettings.set({
+      chat_base_url: GEMINI_PRESET.url,
+      chat_model: "models/custom",
+      chat_api: "responses",
+    });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    const replace = [...s.page.el.querySelectorAll("button")].find(
+      (b) => b.textContent === "Change key",
+    );
+    expect(replace?.closest("[hidden]")).toBeNull();
+
+    replace!.click();
+    await s.connect("AIza-new");
+
+    expect(s.chatKeySettings.get().apiKey).toBe("AIza-new");
+    expect(s.endpointsSettings.get()).toMatchObject({
+      chat_base_url: GEMINI_PRESET.url,
+      chat_model: "models/custom",
+      chat_api: "responses",
+    });
+    expect(s.proactiveSettings.get().enabled).toBe(true);
+    expect(s.scheduleSettings.get().enabled).toBe(true);
+    expect(s.onConnected).not.toHaveBeenCalled();
+    expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
+  });
+
+  it("a stored-key check that answers after Replace wrote a new key shows nothing", async () => {
+    let answerOld: (res: Response) => void = () => {};
+    const s = setup((_, init) => {
+      const auth = new Headers(init?.headers).get("Authorization");
+      return auth === "Bearer AIza-old"
+        ? new Promise<Response>((r) => (answerOld = r))
+        : Promise.resolve(models());
+    });
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    s.page.focusKey();
+    await settle();
+
+    await s.connect("AIza-new");
+    answerOld(new Response("{}", { status: 400 }));
+    await settle();
+    await settle();
+
+    expect(s.chatKeySettings.get().apiKey).toBe("AIza-new");
+    expect(s.visibleText('[role="alert"]')).toEqual([]);
+    expect(s.visibleText('[role="status"]')).toEqual(["Key replaced"]);
+  });
+
+  it("reuses the verdict on the same key checked less than 60 seconds ago", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-old");
+    s.page.reflect();
+    const settled = async () => {
+      await settle();
+      await settle();
+    };
+
+    s.page.entered();
+    await settled();
+    s.page.focusKey();
+    await settled();
+
+    expect(s.fetchMock).toHaveBeenCalledTimes(1);
+    expect(s.visibleText('[role="status"]')).toEqual([
+      "Connected. You can start talking now.",
+      "This key still works.",
+    ]);
+
+    s.chatKeySettings.setApiKey("AIza-other");
+    s.page.entered();
+    await settled();
+    vi.setSystemTime(Date.now() + 60_000);
+    s.page.entered();
+    await settled();
+
+    expect(s.fetchMock).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+});

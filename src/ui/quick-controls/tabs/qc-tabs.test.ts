@@ -218,9 +218,9 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("open({ tab }) lands directly on the requested tab", () => {
+  it("open({ page }) lands directly on the requested tab", () => {
     const qc = buildQc();
-    qc.open({ tab: "conn" });
+    qc.open({ page: "conn" });
 
     const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
     expect(conn.getAttribute("aria-selected")).toBe("true");
@@ -231,10 +231,10 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("open({ tab }) moves focus to that tab without a visible focus ring", () => {
+  it("open({ page }) moves focus to that tab without a visible focus ring", () => {
     const qc = buildQc();
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    qc.open({ tab: "conn" });
+    qc.open({ page: "conn" });
 
     expect(focus).toHaveBeenLastCalledWith(expect.objectContaining({ focusVisible: false }));
     expect(focus.mock.contexts.at(-1)).toBe(qc.el.querySelector("#yui-tab-conn"));
@@ -267,10 +267,10 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("open({ tab }) switches an already-open panel to that tab", () => {
+  it("open({ page }) switches an already-open panel to that tab", () => {
     const qc = buildQc();
     qc.open();
-    qc.open({ tab: "conn" });
+    qc.open({ page: "conn" });
 
     const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
     expect(conn.getAttribute("aria-selected")).toBe("true");
@@ -279,7 +279,7 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("open({ tab }) reaches every tab the tablist renders, hist closing the character's pages", () => {
+  it("open({ page }) reaches every tab the tablist renders, hist closing the character's pages", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
     const names: SettingsPage[] = [
       "conn",
@@ -305,7 +305,7 @@ describe("createQuickControls — tab rail", () => {
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
     for (const name of names) {
-      qc.open({ tab: name });
+      qc.open({ page: name });
       const target = tabs(qc).find((tab) => tab.id === `yui-tab-${name}`)!;
       expect(target.getAttribute("aria-selected")).toBe("true");
       expect(panelFor(qc, target).hidden).toBe(false);

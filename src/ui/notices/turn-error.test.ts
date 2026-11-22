@@ -8,12 +8,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../i18n";
-import {
-  isSettingsFixable,
-  routeTurnFailure,
-  turnErrorFixAction,
-  turnErrorMessage,
-} from "./turn-error";
+import { failureAction, fixAction, routeTurnFailure, turnErrorMessage } from "./turn-error";
 
 describe("turnErrorMessage", () => {
   beforeEach(() => setLocale("en"));
@@ -56,24 +51,13 @@ describe("turnErrorMessage", () => {
   });
 
   it.each([
-    [
-      "en",
-      "Not connected yet",
-      "The connection stopped responding",
-      "Not connected yet. Open settings to connect",
-    ],
-    ["ko", "아직 연결 안 됨", "연결 응답 없음", "아직 연결 안 됨. 설정을 열어 연결하기"],
-    [
-      "ja",
-      "まだ接続していません",
-      "接続が応答しなくなりました",
-      "まだ接続していません。設定を開いて接続する",
-    ],
-  ] as const)("says it in plain words in %s", (locale, notConfigured, stall, voiceFix) => {
+    ["en", "Not connected yet", "The connection stopped responding"],
+    ["ko", "아직 연결 안 됨", "연결 응답 없음"],
+    ["ja", "まだ接続していません", "接続が応答しなくなりました"],
+  ] as const)("says it in plain words in %s", (locale, notConfigured, stall) => {
     setLocale(locale);
     expect(turnErrorMessage("not_configured")).toBe(notConfigured);
     expect(turnErrorMessage("network_stall")).toBe(stall);
-    expect(t("voice.error.not_configured_fix")).toBe(voiceFix);
   });
 
   it("follows the active locale (ko)", () => {
@@ -148,55 +132,48 @@ describe("turnErrorMessage — server error detail", () => {
   });
 });
 
-describe("turnErrorFixAction", () => {
-  beforeEach(() => setLocale("en"));
-  afterEach(() => setLocale("en"));
-
-  it("gives not_configured the setup action, opening Connection", () => {
-    const openSettings = vi.fn();
-
-    const action = turnErrorFixAction("not_configured", openSettings);
-
-    expect(action?.label).toBe("Connect");
-    action?.onClick();
-    expect(openSettings).toHaveBeenCalledWith("conn");
-  });
-
-  it("offers nothing when the host has no settings opener", () => {
-    expect(turnErrorFixAction("not_configured")).toBeUndefined();
-    expect(turnErrorFixAction("not_configured", () => {})).toBeDefined();
-  });
-
-  it("offers nothing for failures the settings panel cannot fix", () => {
-    const reasons = [
-      "http_4xx_drop",
-      "network_drop",
-      "network_stall",
-      "parse_error",
-      "superseded_by_user",
-    ] as const;
-    for (const reason of reasons) {
-      expect(turnErrorFixAction(reason, () => {})).toBeUndefined();
-    }
+describe("failureAction", () => {
+  it.each([
+    ["not_configured", undefined, "connect"],
+    ["http_4xx_drop", undefined, "change_key"],
+    ["network_drop", { status: 400, message: "bad request" }, "check_connection"],
+    ["network_drop", { status: 404, message: "not found" }, "check_connection"],
+    ["network_drop", { status: 499, message: "closed" }, "check_connection"],
+    ["network_drop", { status: 500, message: "oops" }, "retry"],
+    ["network_drop", { status: 503, message: "overloaded" }, "retry"],
+    ["network_drop", { message: "rate limit reached" }, "retry"],
+    ["network_drop", undefined, "retry"],
+    ["network_stall", undefined, "retry"],
+    ["network_drop", { status: 429, message: "quota" }, undefined],
+    ["parse_error", undefined, undefined],
+    ["superseded_by_user", undefined, undefined],
+  ] as const)("gives %s with %j the action %s", (reason, detail, expected) => {
+    expect(failureAction(reason, detail)).toBe(expected);
   });
 });
 
-describe("isSettingsFixable", () => {
-  it("is true only for not_configured — the one failure the panel resolves", () => {
-    expect(isSettingsFixable("not_configured")).toBe(true);
-    for (const reason of [
-      "http_4xx_drop",
-      "network_drop",
-      "network_stall",
-      "parse_error",
-      "superseded_by_user",
-    ] as const) {
-      expect(isSettingsFixable(reason)).toBe(false);
-    }
+describe("fixAction", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => setLocale("en"));
+
+  it.each([
+    ["connect", "Connect", []],
+    ["change_key", "Change key", ["chat_key"]],
+    ["check_connection", "Check connection", ["chat_key"]],
+  ] as const)("gives %s a button labelled %s that opens Connection", (action, label, focus) => {
+    const openSettings = vi.fn();
+
+    const button = fixAction(action, openSettings);
+
+    expect(button?.label).toBe(label);
+    button?.onClick();
+    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn", ...focus);
   });
 
-  it("is false for a detail string that is not a classified failure", () => {
-    expect(isSettingsFixable("Voice input failed")).toBe(false);
+  it("gives retry, no action and a host without a settings opener no button", () => {
+    expect(fixAction("retry", () => {})).toBeUndefined();
+    expect(fixAction(undefined, () => {})).toBeUndefined();
+    expect(fixAction("change_key")).toBeUndefined();
   });
 });
 
@@ -205,8 +182,8 @@ describe("routeTurnFailure", () => {
     expect(routeTurnFailure("text", true)).toEqual({ kind: "show_input_error" });
   });
 
-  it("text turn + input closed (dismissed mid-flight, e.g. Escape) -> nothing, log-only", () => {
-    expect(routeTurnFailure("text", false)).toEqual({ kind: "none" });
+  it("text turn + input closed (dismissed mid-flight, e.g. Escape) -> a notice on the status pill", () => {
+    expect(routeTurnFailure("text", false)).toEqual({ kind: "notice" });
   });
 
   it("voice turn -> the voice-indicator error state, regardless of input-open state", () => {

@@ -38,7 +38,7 @@ describe("opener capability wiring", () => {
     ]);
   });
 
-  it("main window grants exactly one opener:allow-open-url scoped to http/https/mailto/tel", () => {
+  it("main window grants exactly one opener:allow-open-url: the web schemes and the one microphone privacy URL", () => {
     const entries = openerEntries(DEFAULT_CAPABILITY);
     expect(entries).toHaveLength(1);
     expect(entries[0].allow).toEqual([
@@ -46,6 +46,7 @@ describe("opener capability wiring", () => {
       { url: "https://*" },
       { url: "mailto:*" },
       { url: "tel:*" },
+      { url: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" },
     ]);
   });
 
