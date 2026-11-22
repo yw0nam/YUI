@@ -87,10 +87,10 @@ import { createHistoryPage } from "./history/history-page";
 import { createListeningPage } from "./listening/listening-page";
 import { createPanelShell } from "./panel-shell";
 import { createPermsPage } from "./perms/perms-page";
+import { createPersonaPage } from "./persona/persona-page";
 import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
-import { createActiveHoursSection } from "./sections/active-hours/active-hours-section";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBasePaceSection } from "./sections/base-pace/base-pace-section";
 import type { CardIoPorts } from "./sections/card/card-io";
@@ -726,16 +726,19 @@ export function createQuickControls({
     log,
   });
 
-  // ── Active hours (Persona page, above the card) — the per-character span editor ──
-  const activeHours = activeHoursSettings
-    ? createActiveHoursSection({
-        root: el,
+  // ── Persona page (active hours above the card) — the per-character span editor ──
+  const persona = activeHoursSettings
+    ? createPersonaPage({
         activeHoursSettings,
         agentSettings,
         getPersona,
         log,
       })
     : undefined;
+  if (persona) {
+    const page = el.querySelector<HTMLElement>("#yui-panel-persona")!;
+    page.insertBefore(persona.el, page.querySelector(".yui-card"));
+  }
 
   // ── General page (language · appearance · text size · your name · Help · Developer Tools) ──
   const generalPage = createGeneralPage({
@@ -858,7 +861,7 @@ export function createQuickControls({
     { close: listeningPage.close, dispose: listeningPage.dispose },
     agent,
     card,
-    activeHours && { dispose: activeHours.dispose },
+    persona && { dispose: persona.dispose },
     { dispose: generalPage.dispose },
     filler,
     {

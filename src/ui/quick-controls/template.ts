@@ -25,7 +25,6 @@ import { foldHtml } from "./fold";
 import { capRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
-import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";
 import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
@@ -207,7 +206,7 @@ ${panelOpenHtml("voice")}
           </div>
         </div>
       </div>
-${panelOpenHtml("persona")}${activeHoursSectionHtml()}${cardSectionHtml()}
+${panelOpenHtml("persona")}${cardSectionHtml()}
       </div>
 ${panelOpenHtml("body")}
       </div>
