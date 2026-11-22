@@ -174,6 +174,8 @@ export function createFillerSettings(opts?: { storage?: FillerStorage; locale?: 
 
   return {
     get: core.get,
+    /** The live state without a copy: the same object until a write. */
+    current: core.current as () => Readonly<FillerSettings>,
 
     setEnabled(enabled: boolean): void {
       core.commit({ ...core.current(), enabled });
