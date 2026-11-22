@@ -34,6 +34,7 @@ afterEach(() => {
     for (const qc of qcs.splice(0)) qc.dispose();
   });
   document.body.innerHTML = "";
+  document.body.removeAttribute("tabindex");
 });
 
 describe("createQuickControls — speaker section", () => {
@@ -1319,6 +1320,33 @@ describe("createQuickControls — speaker section", () => {
     expect(qc.el.querySelector(".yui-spk__note")).toBeNull();
 
     vi.useRealTimers();
+  });
+
+  it("returns focus to the refresh button once a keyboard-started refresh settles", async () => {
+    let resolveRefresh: () => void = () => {};
+    refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(
+      () =>
+        new Promise<void>((res) => {
+          resolveRefresh = res;
+        }),
+    );
+    const qc = buildQc();
+    act(() => qc.open());
+    const refresh = () =>
+      qc.el.querySelector<HTMLElement>('.yui-spk[data-spk-id="ayase"] .yui-spk__refresh')!;
+
+    refresh().focus();
+    act(() => refresh().click());
+    // A real engine drops focus from a control that turns disabled; jsdom keeps it, so the test drops it.
+    expect(refresh().hasAttribute("disabled")).toBe(true);
+    document.body.tabIndex = -1;
+    document.body.focus();
+    expect(document.activeElement).toBe(document.body);
+
+    resolveRefresh();
+    await flush();
+
+    expect(document.activeElement).toBe(refresh());
   });
 
   it("ignores a re-entrant refresh while the same row is already refreshing", async () => {
