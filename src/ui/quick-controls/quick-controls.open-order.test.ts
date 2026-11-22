@@ -38,7 +38,6 @@ vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
   createAgentSection: () => ({
     reflect: rec("agent", "reflect"),
-    reflectLanguage: rec("agent", "reflectLanguage"),
     dispose: () => {},
   }),
 }));
@@ -115,7 +114,6 @@ describe("createQuickControls — open order", () => {
       "screen.reflect",
       "agent.reflect",
       "filler.reflect",
-      "agent.reflectLanguage",
       "connectionTab.refresh",
       "session.reflect",
       "historyTab.refresh",

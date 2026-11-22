@@ -10,8 +10,6 @@ import type { createTextSizeSettings } from "../../settings/appearance/text-size
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
 import type { ThreadReactionThresholdsSettingsStore } from "../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../settings/threads/thread-turns-settings";
-import { createAppearanceSection } from "./sections/appearance/appearance-section";
-import { createTextSizeSection } from "./sections/appearance/text-size-section";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -82,6 +80,7 @@ import { createConnectionViews } from "./connection/connection-views";
 import { createQuickStart } from "./connection/quick-start/quick-start";
 import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
+import { createGeneralPage } from "./general/general-page";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createListeningPage } from "./listening/listening-page";
@@ -95,7 +94,6 @@ import { createAgentSection } from "./sections/agent/agent-section";
 import { createBasePaceSection } from "./sections/base-pace/base-pace-section";
 import type { CardIoPorts } from "./sections/card/card-io";
 import { createCardSection } from "./sections/card/card-section";
-import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
@@ -103,7 +101,6 @@ import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createSessionSection } from "./sections/session/session-section";
 import { createSpeakerList } from "./sections/speaker/speaker-list";
-import { createUserNameSection } from "./sections/user-name/user-name-section";
 import { createWorkflowsSection } from "./sections/workflows/workflows-section";
 import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
@@ -489,8 +486,6 @@ export function createQuickControls({
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
-    showDevtools: !!onOpenDevtools,
-    showHelp: !!onGuide,
     showHistory: !!transcript,
     showPlugins: !!plugins,
     showPreset: !!presetRegistry,
@@ -712,19 +707,6 @@ export function createQuickControls({
     isOpen: shell.isOpen,
     log,
   });
-  const appearance = createAppearanceSection({
-    root: el,
-    themeSettings,
-    isOpen: shell.isOpen,
-    log,
-  });
-  const textSize = createTextSizeSection({
-    root: el,
-    textSizeSettings,
-    isOpen: shell.isOpen,
-    log,
-  });
-
   // ── Card section (send switch · card fields · greetings · import/export) ──
   const card = createCardSection({
     root: el,
@@ -759,13 +741,17 @@ export function createQuickControls({
       })
     : undefined;
 
-  // ── Your name (General page) ──
-  const userName = createUserNameSection({
-    root: el,
+  // ── General page (language · appearance · text size · your name · Help · Developer Tools) ──
+  const generalPage = createGeneralPage({
+    themeSettings,
+    textSizeSettings,
     userNameSettings,
     getPersona,
-    isOpen: shell.isOpen,
+    onGuide,
+    onOpenDevtools,
+    log,
   });
+  el.querySelector("#yui-panel-general")!.append(generalPage.el);
 
   // ── Thinking filler section (language segment · phrase-pool textareas) ──
   const filler = createFillerSection({
@@ -859,8 +845,9 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
-  const unbindHelp = onGuide ? bindHelpSection(el, onGuide) : undefined;
+  // Quick start's Help rows are the delegated ones; the General page handles its own.
+  const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
+  const unbindHelp = onGuide ? bindHelpSection(connPanel, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     quickStart,
@@ -874,11 +861,8 @@ export function createQuickControls({
     agent,
     card,
     activeHours && { dispose: activeHours.dispose },
-    userName,
+    { dispose: generalPage.dispose },
     filler,
-    { reflect: agent.reflectLanguage },
-    appearance,
-    textSize,
     {
       reflect: connectionTab.refresh,
       close: () => {
@@ -897,7 +881,6 @@ export function createQuickControls({
     presetStrip,
     workflows,
     { dispose: cueLists.destroy },
-    unbindDevtools && { dispose: unbindDevtools },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },

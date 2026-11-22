@@ -41,8 +41,6 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,
-    showDevtools: false,
-    showHelp: false,
     showHistory: true,
   });
   document.body.append(root);

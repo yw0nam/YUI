@@ -1,0 +1,58 @@
+/* ── Segment — one cell per option, wrapping to a new line when the row has no room; the checked cell carries the selected fill ── */
+.yui-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+}
+
+.yui-seg__btn {
+  /* Equal cells on a line, none narrower than its label. */
+  flex: 1 0 0;
+  min-width: max-content;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: calc(var(--yui-radius-control) - 2px);
+  background: transparent;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-seg__btn:hover {
+  color: var(--yui-text);
+}
+
+.yui-seg__btn:active {
+  transform: scale(0.98);
+}
+
+.yui-seg__btn[aria-checked="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-seg__btn:disabled {
+  cursor: default;
+}
+
+.yui-seg__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-seg__btn:active {
+    transform: none;
+  }
+}

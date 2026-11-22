@@ -25,6 +25,8 @@ export function createThemeSettings(opts?: { storage?: ThemeStorage }) {
   });
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<ThemeSettings>,
     setTheme(theme: Theme): void {
       core.commit({ theme });
     },

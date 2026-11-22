@@ -427,7 +427,7 @@ describe("createQuickControls — construction and disposal", () => {
 
       qc.dispose();
       qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
-      qc.el.querySelector<HTMLButtonElement>(".yui-help-btn")!.click();
+      qc.el.querySelector<HTMLButtonElement>("#yui-panel-conn [data-guide]")!.click();
       qc.el.querySelector<HTMLButtonElement>(".yui-hint-dot")!.click();
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 

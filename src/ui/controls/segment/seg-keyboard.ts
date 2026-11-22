@@ -1,8 +1,4 @@
-// ── Shared segmented-control keyboard pattern ──
-// Arrows/Home/End always navigate (clamped by the domain's own select/move function); an optional
-// commit step handles Space/Enter separately for patterns where focus doesn't imply selection
-// (see handleLangSegKeydown). getBaseIndex lets each caller define its own "current position" —
-// by checked state for combined navigate+select segments, by focus for roving-focus-only segments.
+/** Arrow, Home, End and Space/Enter for a segmented control, navigating from the caller's current index. */
 export interface SegKeydownConfig {
   length: number;
   getBaseIndex: () => number;

@@ -6,7 +6,7 @@
 
 import { FILLER_LANGS } from "../../../../config/validators/filler";
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
-import { handleSegmentKeydown } from "../../seg-keyboard";
+import { handleSegmentKeydown } from "../../../controls/segment";
 import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
 
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;

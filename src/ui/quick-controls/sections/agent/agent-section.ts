@@ -1,9 +1,4 @@
-/**
- * Agent section — owns the locale picker segment and the reasoning-effort segment. On push the
- * effort segment is disabled with its reason.
- * Same pattern as sibling sections: explicit deps + wired from shell.
- * This module owns handlers, subscriptions, redraws, teardown.
- */
+/** Agent section — owns the reasoning-effort segment. On push the segment is disabled with its reason. */
 
 import type { Logger } from "../../../../logger";
 import {
@@ -11,9 +6,9 @@ import {
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
-import { getLocale, type Locale, setLocale, t } from "../../../i18n";
-import { LANG_PICKER_ORDER, SEG_LABEL_KEYS } from "../../constants";
-import { handleSegmentKeydown } from "../../seg-keyboard";
+import { handleSegmentKeydown } from "../../../controls/segment";
+import { t } from "../../../i18n";
+import { SEG_LABEL_KEYS } from "../../constants";
 import { pushReasonHtml } from "../push-reason/push-reason";
 
 /** The reasoning-effort row in a section of its own. */
@@ -40,7 +35,7 @@ type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
 
 interface AgentSectionDeps {
-  /** Panel root (el) — query the locale segment and effort segment here. */
+  /** Panel root (el) — query the effort segment here. */
   root: HTMLElement;
   /** Reasoning-effort store — its subscription redraws the segment. */
   agentSettings: AgentSettingsStore;
@@ -57,9 +52,7 @@ interface AgentSectionDeps {
 interface AgentSection {
   /** Render the effort segment from the store; disabled with its reason on push. */
   reflect(): void;
-  /** Render the locale segment from the current display language. */
-  reflectLanguage(): void;
-  /** Permanent teardown — unsubscribe the store and remove all listeners. */
+  /** Permanent teardown — unsubscribe the stores and remove the listeners. */
   dispose(): void;
 }
 
@@ -69,9 +62,6 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const effortReasonEl = segEl.closest(".yui-row")!.querySelector<HTMLElement>(".yui-push-reason")!;
-  // Language picker segment (3 buttons) node.
-  const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
-  const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
 
   function reflectAgent(): void {
     const push = isPushMode();
@@ -86,74 +76,12 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     });
   }
 
-  // Language picker — reflects current display language onto selected seg.
-  function reflectLanguage(): void {
-    const idx = Math.max(0, LANG_PICKER_ORDER.indexOf(getLocale()));
-    langSegButtons.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-  }
-
   const unsubscribeAgent = agentSettings.subscribe(() => {
     if (isOpen()) reflectAgent();
   });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (isOpen()) reflectAgent();
   });
-
-  // Language picker — WAI-ARIA "selection doesn't follow focus" radio pattern.
-  // setLocale changes entire UI language and triggers host remount (expensive/destructive),
-  // so arrows only move focus; Space/Enter/click commits.
-
-  // Arrows/Home/End — roving tabindex + move focus only (no commit/aria-checked change).
-  function moveLocaleFocus(index: number): void {
-    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
-    const btn = langSegButtons[clamped];
-    if (!btn) return;
-    for (const b of langSegButtons) b.tabIndex = -1;
-    btn.tabIndex = 0;
-    btn.focus();
-  }
-
-  // Commit (click/Space/Enter) — only path that actually changes display language.
-  function commitLocale(index: number): void {
-    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
-    const locale = langSegButtons[clamped]?.dataset.locale as Locale | undefined;
-    if (!locale) return;
-    log.info("ui_language_change", { locale });
-    setLocale(locale);
-    // locale seg has no store subscription — directly reflect aria/tabindex until remount.
-    reflectLanguage();
-    langSegButtons[clamped]?.focus();
-  }
-
-  function handleLangSegClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    const idx = langSegButtons.indexOf(btn);
-    if (idx < 0) return;
-    commitLocale(idx);
-  }
-
-  function handleLangSegKeydown(e: KeyboardEvent): void {
-    handleSegmentKeydown(e, langSegButtons, {
-      length: langSegButtons.length,
-      // Arrow baseline: currently focused radio (else checked one, else 0).
-      getBaseIndex: () => {
-        const active = document.activeElement;
-        const focusIdx = active instanceof HTMLButtonElement ? langSegButtons.indexOf(active) : -1;
-        const checkedIdx = langSegButtons.findIndex(
-          (b) => b.getAttribute("aria-checked") === "true",
-        );
-        return focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
-      },
-      onNavigate: (index) => moveLocaleFocus(index),
-      // The shared handler's preventDefault stops the native button click from committing twice.
-      onCommit: (index) => commitLocale(index),
-    });
-  }
 
   // ── Reasoning-effort segment ──
 
@@ -184,19 +112,14 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     });
   }
 
-  langSegEl.addEventListener("click", handleLangSegClick);
-  langSegEl.addEventListener("keydown", handleLangSegKeydown);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
 
   return {
     reflect: reflectAgent,
-    reflectLanguage,
     dispose(): void {
       unsubscribeAgent();
       unsubscribeEndpoints();
-      langSegEl.removeEventListener("click", handleLangSegClick);
-      langSegEl.removeEventListener("keydown", handleLangSegKeydown);
       segEl.removeEventListener("click", handleSegClick);
       segEl.removeEventListener("keydown", handleSegKeydown);
     },

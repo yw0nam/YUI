@@ -25,6 +25,8 @@ export function createTextSizeSettings(opts?: { storage?: TextSizeStorage }) {
   });
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<TextSizeSettings>,
     setScale(scale: TextSize): void {
       core.commit({ scale });
     },

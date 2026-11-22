@@ -27,6 +27,8 @@ export function createUserNameSettings(opts?: { storage?: UserNameStorage }) {
   });
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<UserNameSettings>,
     setName(s: string): void {
       core.commit({ name: coerceName(s) });
     },

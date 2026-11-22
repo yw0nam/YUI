@@ -27,19 +27,25 @@ describe("createQuickControls — help section", () => {
     vi.restoreAllMocks();
   });
 
-  function press(qc: ReturnType<typeof createQuickControls>, guide: GuideKey): void {
-    qc.el.querySelector<HTMLButtonElement>(`#yui-panel-general [data-guide="${guide}"]`)!.click();
+  function press(panel: string, qc: ReturnType<typeof createQuickControls>, guide: GuideKey): void {
+    qc.el.querySelector<HTMLButtonElement>(`#yui-panel-${panel} [data-guide="${guide}"]`)!.click();
   }
 
   it("a button submits the current-locale request text with its guide key", () => {
     const qc = createQuickControls({ ...defaultQcArgs(mount), onGuide });
     qc.open();
 
-    press(qc, "controls");
+    press("general", qc, "controls");
+    expect(onGuide).toHaveBeenCalledTimes(1);
     expect(onGuide).toHaveBeenLastCalledWith("controls", "YUI 조작법 알려줘");
 
-    press(qc, "capabilities");
+    press("general", qc, "capabilities");
+    expect(onGuide).toHaveBeenCalledTimes(2);
     expect(onGuide).toHaveBeenLastCalledWith("capabilities", "YUI로 뭘 할 수 있는지 알려줘");
+
+    press("conn", qc, "controls");
+    expect(onGuide).toHaveBeenCalledTimes(3);
+    expect(onGuide).toHaveBeenLastCalledWith("controls", "YUI 조작법 알려줘");
   });
 
   it("the General page opens with the Help section first", () => {
