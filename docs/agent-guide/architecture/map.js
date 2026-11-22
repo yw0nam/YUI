@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, and the Segment, a radio segment the caller labels and owns the value of.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Segment, a radio segment the caller labels and owns the value of, and, built on Base UI, the Slider, a range slider that reports each change and each commit, and the Checkbox, a tri-state checkbox drawn as a switch.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4833,13 +4833,49 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/quick-controls/listening/listening-page-view.tsx"
     },
     {
-      "id": "together-switch",
+      "id": "descriptor-switch",
       "from": "ui/quick-controls",
       "to": "ui/controls",
-      "carries": "Switch: checked state, label and the flipped value on click",
+      "carries": "Switch: a Together or Motion switch row's checked state, label and the flipped value on click",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/together/together-page-view.tsx"
+      "wiring": "src/ui/quick-controls/switches/descriptor-row.tsx"
+    },
+    {
+      "id": "silence-slider",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Slider: the silence wait, its range and label; each change and each commit",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/listening/silence/silence-slider.tsx"
+    },
+    {
+      "id": "relations-slider",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Slider: a relation's value, range, label, spoken band and data-band; each change and each commit",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/body/relations/relation-row.tsx"
+    },
+    {
+      "id": "gain-slider",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Slider: the mouth gain, its range and label; each change, each commit with its reason, and the blur",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/motion/gain/gain-row.tsx"
+    },
+    {
+      "id": "express-checkbox",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Checkbox: an express motion group's checked and mixed state, label, and a click or Space",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"
     },
     {
       "id": "plugins-switch",
