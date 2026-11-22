@@ -1,63 +1,7 @@
 /* Quick-controls panel controls — switch, segment, fields, text buttons, disclosure, slider,
    and two-step confirm. Tokens in ../tokens.css. */
 
-/* ── Switch — OFF=subdued, ON=amber lit (the one selection amber keeps) ── */
-.yui-switch {
-  --w: 2.25rem;
-  --h: 1.3125rem;
-  position: relative;
-  flex: 0 0 auto;
-  width: var(--w);
-  height: var(--h);
-  border: 0;
-  padding: 0;
-  border-radius: var(--yui-radius-pill);
-  background: var(--yui-track);
-  cursor: pointer;
-  /* The focus ring is a box-shadow and appears at once, so only the track colour moves. */
-  transition: background var(--yui-dur) var(--yui-ease);
-}
-
-.yui-switch::after {
-  content: "";
-  position: absolute;
-  top: 0.15625rem;
-  left: 0.15625rem;
-  width: calc(var(--h) - 0.3125rem);
-  height: calc(var(--h) - 0.3125rem);
-  border-radius: 50%;
-  background: var(--yui-knob);
-  box-shadow: 0 1px 2px var(--yui-knob-shadow);
-  transition: transform var(--yui-dur) var(--yui-ease);
-}
-
-.yui-switch[aria-checked="true"] {
-  background: var(--yui-accent);
-}
-
-.yui-switch[aria-checked="true"]::after {
-  transform: translateX(calc(var(--w) - var(--h)));
-}
-
-/* Half-way — a question (the Plugins page's consent) waits before the switch turns on. */
-.yui-switch[aria-checked="mixed"] {
-  background: var(--yui-accent-soft);
-}
-
-.yui-switch[aria-checked="mixed"]::after {
-  transform: translateX(calc((var(--w) - var(--h)) / 2));
-}
-
-.yui-switch:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-/* Locked on — the baseline idle variant cannot be turned off. */
-.yui-switch[disabled] {
-  opacity: 0.45;
-  cursor: default;
-}
+@import "../controls/switch/switch.css";
 
 /* ── Segment — one cell per option, wrapping to a new line when the row has no room; the checked cell carries the selected fill ── */
 .yui-seg {
@@ -586,8 +530,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-switch,
-  .yui-switch::after,
   .yui-more > summary svg,
   .yui-fold > summary svg {
     transition: none;

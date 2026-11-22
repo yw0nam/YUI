@@ -1,5 +1,7 @@
 /** A boolean switch the caller labels and owns the state of. */
 
+import "./switch.css";
+
 export interface SwitchProps {
   checked: boolean;
   onCheckedChange(checked: boolean): void;
@@ -9,7 +11,7 @@ export interface SwitchProps {
   className?: string;
 }
 
-export function Switch({ checked, label, className }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, label, className }: SwitchProps) {
   return (
     <button
       className={className ? `yui-switch ${className}` : "yui-switch"}
@@ -17,6 +19,7 @@ export function Switch({ checked, label, className }: SwitchProps) {
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      onClick={() => onCheckedChange(!checked)}
     />
   );
 }
