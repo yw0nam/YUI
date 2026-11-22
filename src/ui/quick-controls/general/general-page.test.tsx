@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-/**
- * general-page.test.tsx — the General page through its facade: the three segments, the user name
- * row, and the cross-page language cases that need the composer.
- */
+/** general-page.test.tsx — the General page through its facade: its three segments and the user name row. */
 
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
