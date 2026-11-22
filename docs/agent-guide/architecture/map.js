@@ -1241,6 +1241,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/character-menu",
+      "module": "display",
+      "label": "character menu",
+      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge; a list replaces its column in place with Back, Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; Esc, a click outside it or another app closes it, and only its pills take the pointer.",
+      "paths": [
+        "src/ui/character-menu"
+      ]
+    },
+    {
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
@@ -1409,9 +1418,18 @@ globalThis.YUI_MAP =
       "id": "app/controls",
       "module": "wiring",
       "label": "controls wiring",
-      "role": "The pet window's stage context menu that sends the quick-card open request from the character's live silhouette (the renderer's alpha grab), the popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.",
+      "role": "The pet window's popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.",
       "paths": [
         "src/app/controls"
+      ]
+    },
+    {
+      "id": "app/character-menu",
+      "module": "wiring",
+      "label": "character menu wiring",
+      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
+      "paths": [
+        "src/app/character-menu"
       ]
     },
     {
@@ -3356,7 +3374,7 @@ globalThis.YUI_MAP =
       "id": "user-quick-card",
       "from": "user",
       "to": "ui/quick-card",
-      "carries": "a right-click on the stage opens the card's window docked beside her; a tile, a select, Reset, Turn off or All settings… press; Escape or a click outside it closes it; a pointerdown on its head without a button starts the window drag",
+      "carries": "the DEV __yuiQuick global opens the card's window docked beside her; a tile, a select, Reset, Turn off or All settings… press; Escape or a click outside it closes it; a pointerdown on its head without a button starts the window drag",
       "kind": "user",
       "transport": "shared"
     },
@@ -3425,21 +3443,110 @@ globalThis.YUI_MAP =
     },
     {
       "id": "quick-card-open",
-      "from": "app/controls",
+      "from": "app/dev",
       "to": "app/quick-card-window",
-      "carries": "the stage context menu's open request for the quick-card window, sent once the window has reported ready",
+      "carries": "the DEV __yuiQuick global's open request for the quick-card window, sent once the window has reported ready",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
+      "wiring": "src/app/dev/wire-dev-globals.ts"
     },
     {
       "id": "quick-card-ready",
       "from": "app/quick-card-window",
-      "to": "app/controls",
+      "to": "app/dev",
       "carries": "yui://quick-card-ready: the card window has booted; the controller then sends a request it held since the create",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
+      "wiring": "src/app/dev/wire-dev-globals.ts"
+    },
+    {
+      "id": "user-character-menu",
+      "from": "user",
+      "to": "ui/character-menu",
+      "carries": "a right-click on her opens the menu; a pill pick, ↑ ↓ ← →, Home, End, Tab, Enter or Space; Esc cancels a confirm, goes back or closes; a click outside it or in another app closes it",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "character-menu-stores",
+      "from": "ui/character-menu",
+      "to": "settings",
+      "carries": "Rest flips yui.dnd, Pace sets the base pace (Less, Normal, More as low, normal, high), Keep bubble and Unified chat flip their switch rows' stores, a confirmed Turn off → petWindows.close(id), Settings and a trailing More… → openSettings(page)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-vrm",
+      "from": "io/assets",
+      "to": "ui/character-menu",
+      "carries": "vrmSelection list and active id → the Body list; a pick → swapVrm(option)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-voice",
+      "from": "io/voice/voices",
+      "to": "ui/character-menu",
+      "carries": "speakerSelection list and active id → the Voice list; a pick → swapSpeaker(option)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-listen",
+      "from": "ui/chips",
+      "to": "ui/character-menu",
+      "carries": "main only: voiceInputStatus get and set(listening or idle) → Listen",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-talk",
+      "from": "ui/character-menu",
+      "to": "ui/surfaces",
+      "carries": "Talk → summonInput once the menu has closed, or dismissInput while the input is open; isInputOpen marks Talk ON",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-reset",
+      "from": "ui/character-menu",
+      "to": "io/chat/conversation",
+      "carries": "Reset chat, once confirmed → resetConversation: the turn stopped, the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-threads",
+      "from": "ui/character-menu",
+      "to": "io/window/openers",
+      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the window is restored; the Threads pill's count is main's waiting Threads the user has not picked",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/character-menu-ports.ts"
+    },
+    {
+      "id": "character-menu-threads-request",
+      "from": "app/character-menu",
+      "to": "app/threads-chip",
+      "carries": "yui://threads-open-request {tab: \"threads\" | \"terminal\"}: a bound pet window's Threads or Terminal pick; main opens the Threads window",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
+    },
+    {
+      "id": "character-menu-widen",
+      "from": "app/character-menu",
+      "to": "app/stage",
+      "carries": "hold(true) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via, onAbort) parks the travel frame over her position and the via origins; travel.end() then hold(false) on close; onAbort when an agent move ends the widen",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "threads-shell-event",

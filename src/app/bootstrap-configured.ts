@@ -41,6 +41,11 @@ import type { TurnNoticeStore } from "../ui/chips/turn-notice";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
+import {
+  type CharacterMenuHost,
+  createCharacterMenuPorts,
+} from "./character-menu/character-menu-ports";
+import { wireCharacterMenu } from "./character-menu/wire-character-menu";
 import { wireDndRoot } from "./dnd/wire-dnd-root";
 import { wireTrayDnd } from "./dnd/wire-tray-dnd";
 import { wireRelations } from "./relations/wire-relations";
@@ -91,6 +96,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   unifiedShown: UnifiedShown;
   /** Emits that this preset's user turn for a send id is over, or never started. */
   emitUserTurnDone(event: UserTurnDone): void;
+  /** What the Character menu reaches outside this window's stores. */
+  menuHost: CharacterMenuHost;
   /** Subscribes to the unified chat window's messages routed to a preset. */
   onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
   isDisposed(): boolean;
@@ -412,6 +419,30 @@ const realFactories: ConfiguredBootstrapFactories = {
       speak: voice.turnOutput.speak,
     });
     register(greeting.dispose);
+    register(
+      wireCharacterMenu({
+        stage,
+        overlay: surfaces.el,
+        kind: phase1.bound === true ? "bound" : "main",
+        name: phase1.menuHost.name,
+        renderer,
+        locomotion,
+        ports: createCharacterMenuPorts({
+          host: phase1.menuHost,
+          stores: settings,
+          surfaces,
+          voiceInputStatus: phase1.voiceInputStatus,
+          openSettings: phase1.openSettings,
+          vrm: phase1.vrm,
+          speaker: phase1.speaker,
+          conversation: phase1.conversation,
+          config,
+          pushSocket: phase1.pushSocket,
+          threads: phase1.threads,
+          stopTurn: () => void stopTurn(),
+        }),
+      }),
+    );
     register(
       wireFirstConversation({
         ...firstRunHint,

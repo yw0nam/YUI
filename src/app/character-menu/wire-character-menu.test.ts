@@ -26,7 +26,7 @@ function wired(frameWindow: () => unknown) {
   const locomotion = {
     hold: vi.fn(),
     abortTravel: vi.fn(async () => {}),
-    widen: vi.fn(async () => ({ win: {} as never, end })),
+    widen: vi.fn(async (_via: unknown, _onAbort: () => void) => ({ win: {} as never, end })),
     frame: {
       frameWindow: vi.fn(frameWindow) as never,
       listMonitors: vi.fn(async () => [
@@ -132,7 +132,7 @@ it("closes when an agent move ends the widened window", async () => {
   const { locomotion, rightClick, talk } = wired(tauriWindow);
   rightClick();
   await vi.waitFor(() => expect(talk()).not.toBeNull());
-  const onAbort = locomotion.widen.mock.calls[0]?.[1] as (() => void) | undefined;
+  const onAbort = locomotion.widen.mock.calls[0]?.[1];
 
   onAbort?.();
 

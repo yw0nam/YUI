@@ -268,14 +268,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const quickCardWindow = createQuickCardWindowController({ boundId, bridge: windowBridge });
   register(() => quickCardWindow.dispose());
   wirePetControls({
-    stage,
     stores: settingsStores,
-    renderer,
-    boundId,
-    voiceInputStatus,
     remoteSurfaces: remote,
     openSettings,
-    quickCardWindow,
     register,
   });
 
@@ -338,6 +333,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
       unifiedShown,
       emitUserTurnDone: windowBridge.emitUserTurnDone,
       onUserTurnRouted: windowBridge.onUserTurnRouted,
+      menuHost: {
+        boundId,
+        name: characterName.get,
+        petWindows: role.petWindows,
+        threadsWindow,
+        emitThreadsOpenRequest: windowBridge.emitThreadsOpenRequest,
+        announceSessionReset: sessionReset.announce,
+      },
       onStopTurns: windowBridge.onStopTurns,
       emitVoiceSegment: windowBridge.emitVoiceSegment,
       emitSpeechOnset: windowBridge.emitSpeechOnset,
