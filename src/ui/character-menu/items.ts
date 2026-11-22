@@ -74,6 +74,7 @@ const choice = (
 const BACK = (): MenuItem => ({
   id: "back",
   label: t("character_menu.back"),
+  aria: t("character_menu.back_aria"),
   glyph: "back",
   role: "back",
 });
@@ -81,6 +82,7 @@ const BACK = (): MenuItem => ({
 const moreItems = (list: "body" | "voice"): MenuItem => ({
   id: `${list}-more`,
   label: t("character_menu.more_items"),
+  aria: t(`character_menu.${list}_more_aria`),
   glyph: "out",
   role: "action",
 });
@@ -97,6 +99,7 @@ export function topItems(
     {
       id: "settings",
       label: t("character_menu.settings"),
+      aria: t("character_menu.settings_aria"),
       glyph: "settings",
       role: "action",
     } as const,
