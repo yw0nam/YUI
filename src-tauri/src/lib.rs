@@ -64,6 +64,10 @@ mod window_frame;
 #[cfg(desktop)]
 mod window_dock;
 
+// SPIKE #1971 (never merged).
+#[cfg(desktop)]
+mod spike_stage;
+
 // The Threads window's native number and its no-focus order-front.
 #[cfg(desktop)]
 mod threads_window;

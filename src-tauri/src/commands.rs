@@ -45,6 +45,8 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::window_dock::window_dock_detach,
         #[cfg(desktop)]
+        crate::spike_stage::spike_native,
+        #[cfg(desktop)]
         crate::threads_window::threads_order_front,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_snapshot,

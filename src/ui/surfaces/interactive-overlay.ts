@@ -28,4 +28,6 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-sigdetails",
   ".yui-threadchip:not([hidden])",
   ".yui-ask-card:not([hidden])",
+  // SPIKE #1971 (never merged).
+  ".spike-hit",
 ] as const;

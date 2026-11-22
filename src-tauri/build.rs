@@ -32,6 +32,7 @@ const COMMANDS: &[&str] = &[
     "set_frame_logical",
     "window_dock_attach",
     "window_dock_detach",
+    "spike_native",
     "threads_order_front",
     "plugin_host_snapshot",
     "plugin_host_add_local",

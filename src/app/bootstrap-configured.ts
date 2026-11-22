@@ -46,6 +46,7 @@ import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
+import { startSpikeStage } from "./spike-stage/spike-stage";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
@@ -361,6 +362,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       cameraSettings: settings.cameraSettings,
       register,
     });
+    // SPIKE #1971 (never merged).
+    startSpikeStage({ renderer, root });
     ensureActive();
 
     const summonHotkey = wireSummonHotkey({
