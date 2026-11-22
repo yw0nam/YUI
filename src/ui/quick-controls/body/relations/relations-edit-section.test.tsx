@@ -134,6 +134,28 @@ describe("createCharacterTab — relations", () => {
     expect(document.activeElement).toBe(slider);
   });
 
+  it("a release that writes nothing leaves no claim on focus for a later write elsewhere", () => {
+    const { row } = build();
+    const slider = (target: string) =>
+      row(target).querySelector<HTMLInputElement>(".yui-relations__slider")!;
+    const earlier = slider("user");
+    const later = slider("aaaa0001");
+
+    later.focus();
+    act(() => {
+      later.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    earlier.focus();
+    act(() => {
+      fireEvent.input(earlier, { target: { value: "8" } });
+    });
+    act(() => {
+      earlier.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(document.activeElement).toBe(earlier);
+  });
+
   it("restores an unrated row released at 0 without writing or logging", () => {
     const { store, row } = build();
     const slider = row("cccc0003").querySelector<HTMLInputElement>(".yui-relations__slider")!;
