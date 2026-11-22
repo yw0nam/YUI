@@ -500,6 +500,30 @@ describe("createQuickControls — card section", () => {
     expect(info.mock.calls.filter((c) => String(c[0]).includes("card_export"))).toHaveLength(1);
   });
 
+  it("keeps the saved line when a later action is cancelled or dismissed", async () => {
+    pictured();
+    let pngRuns = 0;
+    const exportCardPng = vi.fn(
+      async (): Promise<"written" | "cancelled"> => (++pngRuns === 1 ? "written" : "cancelled"),
+    );
+    const importPreset = vi.fn(async () => null);
+    build({ exportCardPng, importPreset });
+    fireEvent.click(ioButton("Export card only (PNG)…"));
+    await vi.waitFor(() => expect(doneLine()).toBe("Saved"));
+
+    await act(async () => {
+      fireEvent.click(ioButton("Export card only (PNG)…"));
+    });
+    expect(exportCardPng).toHaveBeenCalledTimes(2);
+    expect(doneLine()).toBe("Saved");
+
+    await act(async () => {
+      fireEvent.click(ioButton("Import…"));
+    });
+    expect(importPreset).toHaveBeenCalledTimes(1);
+    expect(doneLine()).toBe("Saved");
+  });
+
   it.each([
     ["allowed", ["VRM", "Included", "Mine"]],
     ["prohibited", ["VRM", "Left out", "This VRM does not allow redistribution"]],
