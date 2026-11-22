@@ -6,7 +6,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../../i18n";
-import { makeVrmSelection } from "../test-helpers";
+import { makeVrmSelection, USER_OPTION } from "../test-helpers";
 import { type CharacterRows, createCharacterTab } from "./character-tab";
 
 // React's act() only flushes in a test environment that says so.
@@ -83,6 +83,25 @@ describe("createCharacterTab", () => {
 
     act(() => tab.refresh());
     expect(checked()).toBe("aria");
+  });
+
+  it("an open drops an armed remove, so the next click only arms again", () => {
+    const vrmSelection = makeVrmSelection();
+    vrmSelection.addUserOption(USER_OPTION);
+    const removeUserVrm = vi.fn(async () => {});
+    const { tab } = build({ vrmSelection, removeUserVrm });
+    act(() => tab.refresh());
+    const row = () => tab.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="cat"]')!;
+    const remove = () => row().querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
+
+    act(() => remove().click());
+    expect(row().classList.contains("is-remove-armed")).toBe(true);
+    act(() => tab.refresh());
+    expect(row().classList.contains("is-remove-armed")).toBe(false);
+    act(() => remove().click());
+
+    expect(row().classList.contains("is-remove-armed")).toBe(true);
+    expect(removeUserVrm).not.toHaveBeenCalled();
   });
 
   it("repaints on a selection change while open and stops after dispose", () => {
