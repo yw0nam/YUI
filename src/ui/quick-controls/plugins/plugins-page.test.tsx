@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 /**
- * plugins-page.test.ts — the Plugins page over the MCP host's snapshot, catalog and commands.
+ * plugins-page.test.tsx — the Plugins page over the MCP host's snapshot, catalog and commands.
  */
 
+import { within } from "@testing-library/dom";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   CatalogEntry,
@@ -12,7 +15,10 @@ import type {
 } from "../../../io/mcp-host/mcp-host";
 import { setLocale } from "../../i18n";
 import { fakePlugins } from "../test-helpers";
-import { createPluginsPage } from "./plugins-page";
+import { createPluginsPage, type PluginsPage } from "./plugins-page";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const server = (
   pluginId: string,
@@ -68,31 +74,39 @@ const CATALOG: CatalogEntry[] = [
 ];
 
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const pages: PluginsPage[] = [];
 
 function mountPage(snapshot: PluginHostSnapshot | null = SNAPSHOT) {
   const fake = fakePlugins(snapshot);
   fake.manage.catalog.mockResolvedValue(CATALOG);
   const page = createPluginsPage({ host: fake.host, manage: fake.manage, log });
+  pages.push(page);
   document.body.append(page.el);
   return { ...fake, page };
+}
+
+/** Enters the page and lets the catalog load settle. */
+async function enter(page: PluginsPage): Promise<void> {
+  await act(async () => {
+    page.entered();
+  });
 }
 
 const group = (el: HTMLElement, id: string): HTMLElement =>
   el.querySelector<HTMLElement>(`[data-pid="${id}"]`)!;
 
-const button = (root: HTMLElement, text: string): HTMLButtonElement =>
-  Array.from(root.querySelectorAll("button")).find((b) => b.textContent?.trim() === text)!;
-
 describe("createPluginsPage", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
+    act(() => {
+      for (const page of pages.splice(0)) page.dispose();
+    });
     document.body.innerHTML = "";
   });
 
   it("lists the installed plugins and the catalog entries not installed", async () => {
     const { page } = mountPage();
-    page.entered();
-    await vi.waitFor(() => expect(page.el.textContent).toContain("calendar-ics"));
+    await enter(page);
 
     expect(
       Array.from(page.el.querySelectorAll<HTMLElement>("[data-pid]"), (g) => g.dataset.pid),
@@ -100,13 +114,12 @@ describe("createPluginsPage", () => {
     expect(group(page.el, "browser").querySelector(".yui-plg-hid")?.textContent).toBe(
       "Hidden tool browser: a built-in tool uses this name",
     );
-    const weather = group(page.el, "weather");
-    expect(button(weather, "Allow again…").dataset.act).toBe("reapprove");
-    expect(weather.querySelector(".yui-plg-sv")).toBeNull();
-    expect(button(weather, "Update to v0.5.0").dataset.act).toBe("update");
-    expect(
-      Array.from(page.el.querySelectorAll<HTMLElement>("[data-cid]"), (b) => b.dataset.cid),
-    ).toEqual(["calendar-ics"]);
+    const weather = within(group(page.el, "weather"));
+    expect(weather.getByRole("button", { name: "Allow again…" })).toBeTruthy();
+    expect(group(page.el, "weather").querySelector(".yui-plg-sv")).toBeNull();
+    expect(weather.getByRole("button", { name: "Update to v0.5.0" })).toBeTruthy();
+    expect(within(page.el).getByRole("button", { name: "Install calendar-ics" })).toBeTruthy();
+    expect(within(page.el).queryByRole("button", { name: "Install weather" })).toBeNull();
   });
 
   it("asks consent with the launch command, then lists the declared tools once started", async () => {
@@ -140,22 +153,28 @@ describe("createPluginsPage", () => {
       });
     });
 
-    group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!.click();
+    act(() => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("switch", {
+          name: "Turn on calendar-ics",
+        }),
+      );
+    });
     const consent = group(page.el, "calendar-ics").querySelector<HTMLElement>(".yui-plg-consent")!;
     expect(consent.querySelector(".yui-plg-cmd")?.textContent).toBe(
       "/plugins/calendar-ics/bin/calendar-ics --stdio",
     );
 
-    button(consent, "Allow").click();
+    await act(async () => {
+      fireEvent.click(within(consent).getByRole("button", { name: "Allow" }));
+    });
     expect(manage.enable).toHaveBeenCalledWith("calendar-ics");
-    await vi.waitFor(() =>
-      expect(
-        Array.from(
-          group(page.el, "calendar-ics").querySelectorAll(".yui-plg-consent .yui-plg-tools__name"),
-          (n) => n.textContent,
-        ),
-      ).toEqual(["calendar_today"]),
-    );
+    expect(
+      Array.from(
+        group(page.el, "calendar-ics").querySelectorAll(".yui-plg-consent .yui-plg-tools__name"),
+        (n) => n.textContent,
+      ),
+    ).toEqual(["calendar_today"]);
   });
 
   it("keeps the switch off while a plugin's step-1 consent is open", () => {
@@ -167,14 +186,18 @@ describe("createPluginsPage", () => {
     });
     const { page } = mountPage({ revision: 1, plugins: [fresh] });
     const toggle = () =>
-      group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!;
+      within(group(page.el, "calendar-ics")).getByRole("switch", { name: "Turn on calendar-ics" });
     const panel = () => group(page.el, "calendar-ics").querySelector(".yui-plg-consent");
 
-    toggle().click();
+    act(() => {
+      fireEvent.click(toggle());
+    });
     expect(panel()).not.toBeNull();
     expect(toggle().getAttribute("aria-checked")).toBe("false");
 
-    toggle().click();
+    act(() => {
+      fireEvent.click(toggle());
+    });
     expect(panel()).toBeNull();
   });
 
@@ -201,11 +224,20 @@ describe("createPluginsPage", () => {
     const question = () =>
       group(page.el, "calendar-ics").querySelector(".yui-plg-consent__q")?.textContent;
 
-    group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!.click();
-    button(group(page.el, "calendar-ics"), "Allow").click();
+    act(() => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("switch", {
+          name: "Turn on calendar-ics",
+        }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(group(page.el, "calendar-ics")).getByRole("button", { name: "Allow" }),
+      );
+    });
     // enable has resolved and the page has settled while the snapshot still says starting.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    emit(started("failed", 3));
+    act(() => emit(started("failed", 3)));
 
     expect(question()).toBe("Some servers could not start.");
   });
@@ -213,33 +245,38 @@ describe("createPluginsPage", () => {
   it("shows an install rejection as the host sent it, with a Retry that installs again", async () => {
     const { page, manage } = mountPage();
     manage.install.mockRejectedValue("checksum mismatch: x");
-    page.entered();
-    await vi.waitFor(() =>
-      expect(page.el.querySelector('[data-cid="calendar-ics"]')).not.toBeNull(),
+    await enter(page);
+
+    await act(async () => {
+      fireEvent.click(within(page.el).getByRole("button", { name: "Install calendar-ics" }));
+    });
+    const error = page.el.querySelector<HTMLElement>(".yui-plg-err")!;
+    expect(error.querySelector("span")?.textContent).toBe(
+      "Could not install. checksum mismatch: x",
     );
 
-    page.el.querySelector<HTMLButtonElement>('[data-cid="calendar-ics"]')!.click();
-    await vi.waitFor(() =>
-      expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
-        "Could not install. checksum mismatch: x",
-      ),
-    );
-
-    button(page.el.querySelector<HTMLElement>(".yui-plg-err")!, "Retry").click();
+    await act(async () => {
+      fireEvent.click(within(error).getByRole("button", { name: "Retry" }));
+    });
     expect(manage.install.mock.calls).toEqual([["calendar-ics"], ["calendar-ics"]]);
   });
 
   it("deletes a plugin only after its inline confirm", () => {
     const { page, manage } = mountPage();
 
-    button(group(page.el, "browser"), "Delete").click();
+    act(() => {
+      fireEvent.click(within(group(page.el, "browser")).getByRole("button", { name: "Delete" }));
+    });
     expect(manage.remove).not.toHaveBeenCalled();
     const confirm = group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!;
     expect(confirm.querySelector(".yui-confirm__q")?.textContent).toBe(
       "Delete browser's code and data?",
     );
+    expect(document.activeElement).toBe(within(confirm).getByRole("button", { name: "Cancel" }));
 
-    button(confirm, "Delete").click();
+    act(() => {
+      fireEvent.click(within(confirm).getByRole("button", { name: "Delete" }));
+    });
     expect(manage.remove.mock.calls).toEqual([["browser"]]);
   });
 
@@ -250,13 +287,20 @@ describe("createPluginsPage", () => {
       throw "os error 5";
     });
 
-    button(group(page.el, "browser"), "Delete").click();
-    button(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!, "Delete").click();
+    act(() => {
+      fireEvent.click(within(group(page.el, "browser")).getByRole("button", { name: "Delete" }));
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!).getByRole(
+          "button",
+          { name: "Delete" },
+        ),
+      );
+    });
 
-    await vi.waitFor(() =>
-      expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
-        "Could not delete it. os error 5",
-      ),
+    expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
+      "Could not delete it. os error 5",
     );
     expect(page.el.querySelector('[data-pid="browser"]')).toBeNull();
   });
@@ -267,17 +311,25 @@ describe("createPluginsPage", () => {
       emit({ revision: 2, plugins: SNAPSHOT.plugins.filter((p) => p.id !== "browser") });
       throw "os error 5";
     });
-    page.entered();
-    await vi.waitFor(() =>
-      expect(page.el.querySelector('[data-cid="calendar-ics"]')).not.toBeNull(),
-    );
-    button(group(page.el, "browser"), "Delete").click();
-    button(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!, "Delete").click();
-    await vi.waitFor(() => expect(page.el.querySelector(".yui-plg-err")).not.toBeNull());
+    await enter(page);
+    act(() => {
+      fireEvent.click(within(group(page.el, "browser")).getByRole("button", { name: "Delete" }));
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!).getByRole(
+          "button",
+          { name: "Delete" },
+        ),
+      );
+    });
+    expect(page.el.querySelector(".yui-plg-err")).not.toBeNull();
 
-    page.el.querySelector<HTMLButtonElement>('[data-cid="calendar-ics"]')!.click();
+    await act(async () => {
+      fireEvent.click(within(page.el).getByRole("button", { name: "Install calendar-ics" }));
+    });
 
-    await vi.waitFor(() => expect(manage.install.mock.calls).toEqual([["calendar-ics"]]));
+    expect(manage.install.mock.calls).toEqual([["calendar-ics"]]);
     expect(page.el.querySelector(".yui-plg-err")).toBeNull();
   });
 

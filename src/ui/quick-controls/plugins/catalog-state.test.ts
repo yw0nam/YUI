@@ -23,7 +23,7 @@ describe("createCatalogState", () => {
           load = resolve;
         }),
     );
-    const state = createCatalogState({ manage: { catalog }, plugins: () => [], render: () => {} });
+    const state = createCatalogState({ manage: { catalog }, plugins: () => [], notify: () => {} });
 
     state.check();
     state.dispose();

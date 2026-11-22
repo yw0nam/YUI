@@ -1,16 +1,25 @@
 /** The Plugins page's catalog: its load, the updates it offers, and "Check for updates". */
 
 import type { CatalogEntry, McpHostManage, PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
-import type { CatalogView } from "./catalog-markup";
-import type { CheckState } from "./installed-markup";
 import { SOURCES } from "./plugin-parts";
 
 /** How long "Check for updates" shows its result. */
 const CHECK_RESULT_MS = 4000;
 
+/** "Check for updates": idle, the catalog reload in flight, or its result. */
+export type CheckState = null | "busy" | { updates: number };
+
+/** The list's state and the entries whose id is not installed. */
+export interface CatalogList {
+  state: "loading" | "error" | "ok";
+  entries: CatalogEntry[];
+  /** The host's rejection when `state` is `error`. */
+  error: string;
+}
+
 export interface CatalogState {
   /** The list state and the entries whose id is not installed. */
-  list(installed: ReadonlySet<string>): Pick<CatalogView, "state" | "entries" | "error">;
+  list(installed: ReadonlySet<string>): CatalogList;
   /** Loads the catalog; a call while a load is in flight joins it. */
   load(): Promise<void>;
   /** The catalog version an update would install; null when none is due. */
@@ -24,15 +33,16 @@ export interface CatalogState {
 export function createCatalogState(deps: {
   manage: Pick<McpHostManage, "catalog">;
   plugins: () => PluginHostPlugin[];
-  render: () => void;
+  notify: () => void;
 }): CatalogState {
-  const { manage, plugins, render } = deps;
-  let state: CatalogView["state"] = "loading";
+  const { manage, plugins, notify } = deps;
+  let state: CatalogList["state"] = "loading";
   let entries: CatalogEntry[] = [];
   let error = "";
   let inFlight: Promise<void> | null = null;
   let checked: CheckState = null;
   let checkTimer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
 
   function updateTo(p: PluginHostPlugin): string | null {
     if (!SOURCES[p.source].fromCatalog || state !== "ok") return null;
@@ -44,7 +54,7 @@ export function createCatalogState(deps: {
     if (inFlight) return inFlight;
     // A list already shown stays while it reloads.
     if (state !== "ok") state = "loading";
-    render();
+    notify();
     inFlight = manage
       .catalog()
       .then(
@@ -59,7 +69,7 @@ export function createCatalogState(deps: {
       )
       .finally(() => {
         inFlight = null;
-        render();
+        notify();
       });
     return inFlight;
   }
@@ -76,14 +86,18 @@ export function createCatalogState(deps: {
     check: () => {
       checked = "busy";
       void load().then(() => {
+        if (disposed) return;
         checked = state === "ok" ? { updates: plugins().filter((p) => updateTo(p)).length } : null;
-        render();
+        notify();
         checkTimer = setTimeout(() => {
           checked = null;
-          render();
+          notify();
         }, CHECK_RESULT_MS);
       });
     },
-    dispose: () => clearTimeout(checkTimer),
+    dispose: () => {
+      disposed = true;
+      clearTimeout(checkTimer);
+    },
   };
 }
