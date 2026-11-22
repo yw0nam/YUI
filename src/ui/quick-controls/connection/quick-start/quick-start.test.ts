@@ -306,7 +306,7 @@ describe("createQuickStart — the state it reads from the stores", () => {
   });
 });
 
-describe("createQuickStart — Change key", () => {
+describe("createQuickStart — Replace key", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
     document.body.innerHTML = "";
@@ -322,7 +322,7 @@ describe("createQuickStart — Change key", () => {
     s.chatKeySettings.setApiKey("AIza-old");
     s.page.reflect();
     const replace = [...s.page.el.querySelectorAll("button")].find(
-      (b) => b.textContent === "Change key",
+      (b) => b.textContent === "Replace key",
     );
     expect(replace?.closest("[hidden]")).toBeNull();
 

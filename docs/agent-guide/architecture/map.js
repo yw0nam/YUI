@@ -4277,7 +4277,7 @@ globalThis.YUI_MAP =
       "id": "controls-models",
       "from": "ui/quick-controls",
       "to": "io/chat/models",
-      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
+      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Replace key, a failed turn's Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
       "kind": "call",
       "transport": "request"
     },

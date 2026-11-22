@@ -108,7 +108,7 @@ tr:last-child td { border-bottom: 0; }
 
   <section class="part">
     <h2>2. Quick start once connected (Settings › Connection)</h2>
-    <p class="note">Today the connected state hides the key field and says Connected whatever the last call returned. After (A): a Key row with <b>Change key</b> always sits under the done line; click it to open the paste row. After (B): a 401 or 403 swaps the done line for the rejected line and opens the key rows, until a call succeeds.</p>
+    <p class="note">Today the connected state hides the key field and says Connected whatever the last call returned. After (A): a Key row with <b>Replace key</b> always sits under the done line; click it to open the paste row. After (B): a 401 or 403 swaps the done line for the rejected line and opens the key rows, until a call succeeds.</p>
     <div class="frames" id="p2"></div>
   </section>
 
@@ -176,7 +176,7 @@ tr:last-child td { border-bottom: 0; }
     changeKey: "Change key",
     retry: "Retry",
     micSettings: "Open mic settings",
-    replaceKey: "Change key",
+    replaceKey: "Replace key",
     keyLabel: "Key",
     keySub: "You can replace it with a new key at any time.",
     rejected: "Google no longer accepts this key. Paste a new key to keep talking.",
@@ -253,7 +253,7 @@ tr:last-child td { border-bottom: 0; }
     </div></div></div>`;
   document.getElementById("p2").innerHTML = [
     frame(cap("Settings window 760 × 680 · connected", "before"), settingsWin(connected.before)),
-    frame(cap("(A) Connected, with Change key · click it", "after"), settingsWin(connected.replace)),
+    frame(cap("(A) Connected, with Replace key · click it", "after"), settingsWin(connected.replace)),
     frame(cap("(B) Key rejected, the landing of Change key", "after"), settingsWin(connected.rejected)),
   ].join("");
   document.getElementById("p2").addEventListener("click", (e) => {
@@ -297,7 +297,7 @@ tr:last-child td { border-bottom: 0; }
     ["Input, 429", S.rate, "unchanged, no action", "input.error_rate_limit", "existing"],
     ["Status pill, mic", S.micDenied, `${S.micDenied} + <b>${S.micSettings}</b>`, "voice.error.mic_denied (stays) · voice.action_mic_settings", "NEW action"],
     ["Quick start, connected", "(no key row)", `Row <b>${S.keyLabel}</b> · ${S.keySub}`, "start.key_label · start.key_sub", "NEW"],
-    ["Quick start, connected", "(no key row)", `<b>${S.replaceKey}</b>`, "input.action_change_key", "reused"],
+    ["Quick start, connected", "(no key row)", `<b>${S.replaceKey}</b>`, "start.replace_key", "NEW"],
     ["Quick start, after 401 or 403", S.done, S.rejected, "start.key_rejected", "NEW"],
     ["Quick start, key rows", "Make a key · Open key page · Paste the key · Connect", "same, reused", "start.make_label · start.make_link · start.paste_label · start.connect", "existing"],
     ["Pill note (option B only)", "(nothing)", "the input's condition text + the same action", "input.error_* · input.action_*", "reused"],
