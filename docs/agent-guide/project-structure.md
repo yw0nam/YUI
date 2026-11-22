@@ -700,24 +700,32 @@ YUI/
         keyed-render.ts              # Keyed re-render: focus by data-fk, a fade-in of new data-k blocks, and a switch that slides from its previous state
         keyed-render.css             # The keyed block's fade-in
         row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
-        character/                   # The Body page and the Motion and desktop page's character rows
-          character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain and motions
-          character-html.ts          # Markup of the two stacks
-          vrm/                       # VRM list
-            vrm-list.ts              # VRM asset list
+        body/                        # The Body page, rendered with React
+          body-page.ts               # The page's facade: its React root, and the open hook that re-reads every source
+          body-page-view.tsx         # The VRM section, the relations rows and the view reset
+          vrm/                       # The VRM radiogroup
+            use-vrm-list.ts          # The list's state and rules: roving focus, swap, rename, armed remove, import and the store subscription
+            vrm-section.tsx          # The radiogroup, the import row, and the VRoid Hub link
+            vrm-row.tsx              # One VRM radio, with the rename and remove buttons of an imported one
+            rename-input.tsx         # The inline rename field
             vrm-list.css             # VRM list styles
+          relations/                 # Relations section
+            relations-edit-section.tsx # One slider row per target that sets the relation by hand, shown while the Relations switch is on
+            relation-row.tsx         # One row: the glyph, the name and sub line, and the slider that previews on drag and commits on release
+            relations-port.ts        # What the section reads from the relations store and switch, each redrawing only while the panel is open
+            relations-edit.css       # Relations rows, the centre-out slider fill, and the number
+          viewpoint/                 # Camera view reset
+            viewpoint-row.tsx        # Camera view reset button
+        character/                   # The Motion and desktop page's character rows, and the tab that relays the Body page's hooks
+          character-tab.ts           # Builds the Motion stack: mouth gain and motions; mounts the Body page's stack
+          character-html.ts          # Markup of the Motion stack
           idle-motion/               # Ambient idle pool
             idle-motion-section.ts   # Idle variant switches
           express-motion/            # Express motion vocabulary
             express-motion-section.ts  # Express motion categories
             express-motion-section.css # Express motion styles
-          relations/                 # Relations section
-            relations-edit-section.ts  # One slider row per target that sets the relation by hand, shown while the Relations switch is on
-            relations-edit.css       # Relations rows, the centre-out slider fill, and the number
           gain/                      # Mouth gain
             gain-row.ts              # Mouth gain preview
-          viewpoint/                 # Camera view reset
-            viewpoint-row.ts         # Camera view reset button
         connection/                  # Connection page and its endpoint/API-key section
           connection-views.ts        # The Quick start | Detailed settings switch and the one view it shows
           connection-views.css       # The switch's segment and the view wrappers
@@ -854,7 +862,7 @@ YUI/
           speaker/                   # TTS speaker picker of the Voice page
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles
-          user-asset-list/           # Shared scaffolding for the VRM and speaker asset lists, and its two-phase import
+          user-asset-list/           # Shared scaffolding for the speaker asset list and its two-phase import; the VRM list reuses its glyphs and roving-id rule
             user-asset-list.ts       # Shared asset-list state: rename, removal, roving focus, and swap orchestration
             user-asset-list.css      # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
             pending-import.ts        # The two-phase import: a staged copy named by a row, discarded on Esc
