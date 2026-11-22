@@ -385,7 +385,7 @@ describe("createSettingsBridge", () => {
 
   it("delivers a bound pet window's request to open the Threads window on a tab, and ignores another tab", () => {
     const t = createFakeTransport();
-    const a = createSettingsBridge(t, { windowKind: "settings" });
+    const a = createSettingsBridge(t, { windowKind: "pet" });
     const b = createSettingsBridge(t, { windowKind: "pet" });
     const cb = vi.fn();
     b.onThreadsOpenRequest(cb);
