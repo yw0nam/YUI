@@ -41,9 +41,6 @@ vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/filler/filler-section", () => ({
-  createFillerSection: () => ({ reflect: rec("filler", "reflect"), dispose: () => {} }),
-}));
 vi.mock("./connection/connection-tab", () => ({
   createConnectionTab: () => ({
     el: document.createElement("div"),
@@ -77,11 +74,11 @@ vi.mock("./motion/motion-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/speaker/speaker-list", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./sections/speaker/speaker-list")>()),
-  createSpeakerList: () => ({
-    render: rec("speakerList", "render"),
-    stopAudition: () => {},
+vi.mock("./voice/voice-page", () => ({
+  createVoicePage: () => ({
+    el: document.createElement("div"),
+    refresh: rec("voicePage", "refresh"),
+    close: () => {},
     dispose: () => {},
   }),
 }));
@@ -119,13 +116,12 @@ describe("createQuickControls — open order", () => {
       "reactions.reflect",
       "screen.reflect",
       "agent.reflect",
-      "filler.reflect",
       "connectionTab.refresh",
       "delegationFeed.sync",
       "historyPage.refresh",
       "bodyPage.refresh",
       "motionPage.refresh",
-      "speakerList.render",
+      "voicePage.refresh",
       "shell.refreshVoiceList",
       "perms.loadMonitorsIfEnabled",
     ]);

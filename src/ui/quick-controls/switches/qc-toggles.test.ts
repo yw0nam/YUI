@@ -335,11 +335,11 @@ describe("createQuickControls — toggles", () => {
     const ttsSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-tts-switch")!;
     expect(ttsSettings.get().enabled).toBe(true);
 
-    ttsSwitch.click();
+    act(() => ttsSwitch.click());
     expect(ttsSettings.get().enabled).toBe(false);
     expect(ttsSwitch.getAttribute("aria-checked")).toBe("false");
 
-    ttsSwitch.click();
+    act(() => ttsSwitch.click());
     expect(ttsSettings.get().enabled).toBe(true);
     expect(ttsSwitch.getAttribute("aria-checked")).toBe("true");
 
@@ -352,10 +352,10 @@ describe("createQuickControls — toggles", () => {
     qc.open();
 
     const ttsSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-tts-switch")!;
-    ttsSettings.setEnabled(false);
+    act(() => ttsSettings.setEnabled(false));
     expect(ttsSwitch.getAttribute("aria-checked")).toBe("false");
 
-    ttsSettings.setEnabled(true);
+    act(() => ttsSettings.setEnabled(true));
     expect(ttsSwitch.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
@@ -369,9 +369,10 @@ describe("createQuickControls — toggles", () => {
     expect(ttsSwitch).not.toBeNull();
     expect(ttsSwitch!.getAttribute("aria-checked")).toBe("true");
     expect(ttsSwitch!.getAttribute("role")).toBe("switch");
+    expect(ttsSwitch!.closest(".yui-row")!.querySelector(".yui-row__label svg")).not.toBeNull();
 
     // No ttsSettings injected — clicking must not throw and aria-checked stays put.
-    expect(() => ttsSwitch!.click()).not.toThrow();
+    expect(() => act(() => ttsSwitch!.click())).not.toThrow();
     expect(ttsSwitch!.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
@@ -451,11 +452,11 @@ describe("createQuickControls — message-window row", () => {
     expect(qc.el.querySelector<HTMLElement>("#yui-panel-voice")!.contains(sw)).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
-    sw.click();
+    act(() => sw.click());
     expect(messageWindowSettings.get().mode).toBe("popped");
     expect(sw.getAttribute("aria-checked")).toBe("true");
 
-    sw.click();
+    act(() => sw.click());
     expect(messageWindowSettings.get().mode).toBe("docked");
 
     qc.dispose();
@@ -466,7 +467,7 @@ describe("createQuickControls — message-window row", () => {
     const qc = createQuickControls({ ...defaultQcArgs(mount), messageWindowSettings });
     qc.open();
 
-    messageWindowSettings.setMode("popped");
+    act(() => messageWindowSettings.setMode("popped"));
     expect(
       qc.el
         .querySelector<HTMLButtonElement>(".yui-message-window-switch")!

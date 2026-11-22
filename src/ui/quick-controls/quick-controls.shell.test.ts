@@ -388,14 +388,13 @@ describe("createQuickControls — construction and disposal", () => {
           "unsub:proactive",
           "unsub:settings",
           "unsub:idleThrottle",
-          "unsub:messageWindow",
           "unsub:voice",
           "unsub:delegations",
           "clearInterval:delegations",
         ].sort(),
       );
       // settings releases four: the Permissions page's own subscription and its three field reads.
-      expect(log).toHaveLength(11);
+      expect(log).toHaveLength(10);
     });
 
     it("releases the speaker store", () => {

@@ -6,23 +6,41 @@ import { Switch } from "../../controls/switch";
 import { t } from "../../i18n";
 import type { SwitchRow } from "../switch-row";
 
-// A rendered row always has a store; useSyncExternalStore subscribes here for the repaint.
+// A row with no store or no lock has nothing to follow.
 const subscribeNever = () => () => {};
+const never = () => false;
 
 export function DescriptorRow({ row, log }: { row: SwitchRow; log: Logger }) {
-  const enabled = useSyncExternalStore(row.subscribe ?? subscribeNever, row.getEnabled);
+  // An unavailable row has no store to read, so it shows its initial state.
+  const enabled = useSyncExternalStore(
+    row.subscribe ?? subscribeNever,
+    row.isAvailable ? row.getEnabled : () => row.initialEnabled,
+  );
+  const { lock } = row;
+  const locked = useSyncExternalStore(lock?.subscribe ?? subscribeNever, lock?.get ?? never);
+  const sub = locked && lock ? t(lock.reasonKey) : row.subKey ? t(row.subKey) : null;
   return (
     <div className="yui-row">
       <div className="yui-row__main">
-        <span className="yui-row__label">{t(row.labelKey)}</span>
-        {row.subKey ? <span className="yui-row__sub">{t(row.subKey)}</span> : null}
+        {row.labelIcon ? (
+          <span
+            className="yui-row__label"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the label
+            dangerouslySetInnerHTML={{ __html: `${row.labelIcon}${t(row.labelKey)}` }}
+          />
+        ) : (
+          <span className="yui-row__label">{t(row.labelKey)}</span>
+        )}
+        {sub ? <span className="yui-row__sub">{sub}</span> : null}
       </div>
       <Switch
         className={row.selector.slice(1)}
-        checked={enabled}
+        // The store keeps its value while locked, so unlocking shows it again.
+        checked={!locked && enabled}
+        disabled={locked}
         label={t(row.ariaKey)}
         onCheckedChange={() => {
-          if (!row.isAvailable) return;
+          if (!row.isAvailable || locked) return;
           const next = !row.getEnabled();
           row.setEnabled(next);
           if (row.logKey) log.info(row.logKey, { enabled: next });

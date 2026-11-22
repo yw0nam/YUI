@@ -28,9 +28,8 @@ import { settingsSearchHtml } from "./search/settings-search";
 import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
-import { speakerPickerHtml } from "./sections/speaker/speaker-list";
 import type { SwitchRow } from "./switch-row";
-import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
+import { switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
@@ -136,45 +135,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       </div>`
     : "";
 
-  // Thinking filler section — its enable switch rides the title row.
-  const fillerRow = visibleSwitchRows.find(
-    (row) => row.tab === "voice" && row.position === "filler",
-  );
-  function fillerStackHtml(labelKey: string, subKey: string, cls: string, ariaKey: string): string {
-    return `
-            <div class="yui-stack">
-              <span class="yui-row__label">${t(labelKey)}</span>
-              <span class="yui-row__sub">${t(subKey)}</span>
-              <textarea class="yui-textarea yui-textarea--short ${cls}" spellcheck="false" rows="3" aria-label="${t(ariaKey)}"></textarea>
-            </div>`;
-  }
-  const fillerHtml = fillerRow
-    ? `
-      <div class="yui-sec yui-filler">
-        ${secHeadHtml(t("filler.section"), switchButtonHtml(fillerRow))}
-        ${fillerRow.subKey ? `<p class="yui-sec__note">${t(fillerRow.subKey)}</p>` : ""}
-        <div class="yui-group">
-          <div class="yui-row">
-            <div class="yui-row__main">
-              <span class="yui-row__label">${t("filler.lang_label")}</span>
-              <span class="yui-row__sub">${t("filler.lang_sub")}</span>
-            </div>
-            <div class="yui-seg yui-filler-lang-seg" role="radiogroup" aria-label="${t("filler.lang_aria")}">
-              <button class="yui-seg__btn" type="button" role="radio" data-lang="ja" aria-checked="false" tabindex="-1">日本語</button>
-              <button class="yui-seg__btn" type="button" role="radio" data-lang="en" aria-checked="false" tabindex="-1">English</button>
-              <button class="yui-seg__btn" type="button" role="radio" data-lang="ko" aria-checked="false" tabindex="-1">한국어</button>
-            </div>
-          </div>${fillerStackHtml("filler.first_label", "filler.first_sub", "yui-filler-first-textarea", "filler.first_aria")}${fillerStackHtml("filler.repeat_label", "filler.repeat_sub", "yui-filler-repeat-textarea", "filler.repeat_aria")}
-        </div>
-        <p class="yui-sec__foot">${t("filler.hint")}</p>
-        <details class="yui-more">
-          <summary>${DISCLOSURE_CHEV_SVG}${t("filler.more")}</summary>
-          <div class="yui-group">${fillerStackHtml("filler.long_wait_label", "filler.long_wait_sub", "yui-filler-long-wait-textarea", "filler.long_wait_aria")}${fillerStackHtml("filler.timeout_label", "filler.timeout_sub", "yui-filler-timeout-textarea", "filler.timeout_aria")}${fillerStackHtml("filler.unreachable_label", "filler.unreachable_sub", "yui-filler-unreachable-textarea", "filler.unreachable_aria")}${fillerStackHtml("filler.threads_open_label", "filler.threads_open_sub", "yui-filler-threads-open-textarea", "filler.threads_open_aria")}${fillerStackHtml("filler.threads_raise_label", "filler.threads_raise_sub", "yui-filler-threads-raise-textarea", "filler.threads_raise_aria")}${fillerStackHtml("filler.tool_label", "filler.tool_sub", "yui-filler-tool-textarea", "filler.tool_aria")}
-          </div>
-        </details>
-      </div>`
-    : "";
-
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
   const initialPage = initialPageOf(openOnQuickStart);
   const tabHtml = (id: SettingsPage, icon: string, opts?: { tipKey?: string }): string =>
@@ -196,14 +156,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
 ${panelOpenHtml("conn")}
       </div>
 ${panelOpenHtml("voice")}
-        <div class="yui-sec">
-          <div class="yui-group">${switchRowsHtml("voice")}
-          </div>${speakerPickerHtml()}
-        </div>${fillerHtml}
-        <div class="yui-sec">
-          <div class="yui-group">${switchRowsHtml("voice", "after-filler")}
-          </div>
-        </div>
       </div>
 ${panelOpenHtml("persona")}
       </div>

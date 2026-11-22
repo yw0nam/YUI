@@ -1,4 +1,4 @@
-/* ── VRM section — row, tick, and state styles shared with speakers in user-asset-list.css ── */
+/* ── VRM section — row, tick, and state styles shared with the asset lists in asset-list.css ── */
 .yui-vrm:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--yui-accent-soft);

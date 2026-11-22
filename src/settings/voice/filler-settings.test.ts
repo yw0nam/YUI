@@ -44,6 +44,18 @@ function pool(first: string[], repeat: string[] = []): Partial<FillerPool> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerSettings — defaults", () => {
+  it("current returns the same object until a write", () => {
+    const store = createFillerSettings({ storage: makeMemStorage() });
+    const before = store.current();
+
+    expect(store.current()).toBe(before);
+
+    store.setEnabled(!before.enabled);
+
+    expect(store.current()).not.toBe(before);
+    expect(store.current().enabled).toBe(!before.enabled);
+  });
+
   it("no storage → enabled:true, language:'ja', customPools:{}", () => {
     const store = createFillerSettings();
     const s = store.get();

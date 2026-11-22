@@ -457,7 +457,6 @@ const ja: Record<string, string> = {
   "vrm.remove_confirm": "削除しますか？",
   "vrm.remove_confirm_aria": "削除しますか？ {name}",
   "vrm.name_aria": "VRM の名前",
-  "vrm.import_overwrite_warn": "同じ名前の既存のモデルを上書きします",
   "vrm.rename_hint_save": "保存",
   "vrm.rename_hint_cancel": "キャンセル",
   "vrm.loading": "読み込み中…",

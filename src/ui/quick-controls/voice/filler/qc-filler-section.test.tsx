@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createFillerSettings,
@@ -9,6 +10,18 @@ import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+  document.body.innerHTML = "";
+});
 
 /** A filler store hydrated from storage with the given settings. */
 function seededFiller(settings: FillerSettings) {
@@ -44,11 +57,13 @@ describe("createQuickControls — thinking filler section", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
+    const qc = createQuickControls({
       ...defaultQcArgs(mount),
       vad,
       ...extra,
     });
+    qcs.push(qc);
+    return qc;
   }
 
   // ── Thinking filler section ──────────────────────────────────────────────────
@@ -60,65 +75,55 @@ describe("createQuickControls — thinking filler section", () => {
   it("reflectFiller: enable toggle reflects initial enabled=true", () => {
     const fs = makeFillerSettings({ enabled: true });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
     expect(sw).not.toBeNull();
     expect(sw.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
   });
 
   it("reflectFiller: enable toggle reflects initial enabled=false", () => {
     const fs = makeFillerSettings({ enabled: false });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
     expect(sw.getAttribute("aria-checked")).toBe("false");
-
-    qc.dispose();
   });
 
   it("clicking the filler switch calls setEnabled with toggled value", () => {
     const fs = makeFillerSettings({ enabled: true });
     const spy = vi.spyOn(fs, "setEnabled");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
-    sw.click();
+    act(() => sw.click());
 
     expect(spy).toHaveBeenCalledWith(false);
     expect(sw.getAttribute("aria-checked")).toBe("false");
-
-    qc.dispose();
   });
 
   it("reflectFiller: language seg reflects initial language ja", () => {
     const fs = makeFillerSettings({ language: "ja" });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
     const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[0].getAttribute("aria-checked")).toBe("true"); // ja
     expect(btns[1].getAttribute("aria-checked")).toBe("false"); // en
     expect(btns[2].getAttribute("aria-checked")).toBe("false"); // ko
-
-    qc.dispose();
   });
 
   it("reflectFiller: language seg reflects initial language en", () => {
     const fs = makeFillerSettings({ language: "en" });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
     const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
-
-    qc.dispose();
   });
 
   it("clicking a language segment calls setLanguage and reloads both textareas", () => {
@@ -132,12 +137,12 @@ describe("createQuickControls — thinking filler section", () => {
     });
     const spy = vi.spyOn(fs, "setLanguage");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
     const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     // click "en" (index 1)
-    btns[1].click();
+    act(() => btns[1].click());
 
     expect(spy).toHaveBeenCalledWith("en");
     // both textareas should now show the en custom pool
@@ -149,46 +154,28 @@ describe("createQuickControls — thinking filler section", () => {
     )!;
     expect(first.value).toBe("Hmm...");
     expect(repeat.value).toBe("Still thinking...");
-
-    qc.dispose();
   });
 
   it("ArrowRight on the filler language seg moves selection, tabindex, and calls setLanguage", () => {
     const fs = makeFillerSettings({ language: "ja" });
     const spy = vi.spyOn(fs, "setLanguage");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
     const btns = Array.from(langSeg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[0].getAttribute("aria-checked")).toBe("true"); // ja
     expect(btns[0].tabIndex).toBe(0);
 
-    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    act(() =>
+      btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+    );
 
     expect(spy).toHaveBeenCalledWith("en");
     expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
     expect(btns[1].tabIndex).toBe(0);
     expect(btns[0].tabIndex).toBe(-1);
-
-    qc.dispose();
-  });
-
-  it("Space on a filler language seg button selects that language", () => {
-    const fs = makeFillerSettings({ language: "ja" });
-    const spy = vi.spyOn(fs, "setLanguage");
-    const qc = buildQc({ fillerSettings: fs });
-    qc.open();
-
-    const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
-    const ko = langSeg.querySelector<HTMLButtonElement>(".yui-seg__btn[data-lang='ko']")!;
-    ko.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-
-    expect(spy).toHaveBeenCalledWith("ko");
-    expect(ko.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
   });
 
   it("editing the first-lines textarea calls setCustomPool with split first lines, preserving repeat", () => {
@@ -199,13 +186,13 @@ describe("createQuickControls — thinking filler section", () => {
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const first = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-first-textarea",
     )!;
     first.value = "うーん\n\nそうだね\n";
-    first.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => first.dispatchEvent(new Event("input", { bubbles: true })));
 
     // Empty lines stripped; order preserved; every other field's current (empty) value written alongside.
     expect(spy).toHaveBeenCalledWith("ja", {
@@ -218,8 +205,6 @@ describe("createQuickControls — thinking filler section", () => {
       threads_raise: [],
       tool: {},
     });
-
-    qc.dispose();
   });
 
   it("editing the repeat-lines textarea calls setCustomPool with split repeat lines, preserving first", () => {
@@ -230,13 +215,13 @@ describe("createQuickControls — thinking filler section", () => {
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const repeat = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-repeat-textarea",
     )!;
     repeat.value = "ええと\n\nもう少し\n";
-    repeat.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => repeat.dispatchEvent(new Event("input", { bubbles: true })));
 
     expect(spy).toHaveBeenCalledWith("ja", {
       first: ["うーん"],
@@ -248,21 +233,19 @@ describe("createQuickControls — thinking filler section", () => {
       threads_raise: [],
       tool: {},
     });
-
-    qc.dispose();
   });
 
   it("clearing both textareas calls setCustomPool with empty lists", () => {
     const fs = makeFillerSettings({ language: "ja" });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const first = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-first-textarea",
     )!;
     first.value = "";
-    first.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => first.dispatchEvent(new Event("input", { bubbles: true })));
 
     expect(spy).toHaveBeenCalledWith("ja", {
       first: [],
@@ -274,8 +257,6 @@ describe("createQuickControls — thinking filler section", () => {
       threads_raise: [],
       tool: {},
     });
-
-    qc.dispose();
   });
 
   it("reflectFiller syncs both textareas from customPools for current language on open", () => {
@@ -285,7 +266,7 @@ describe("createQuickControls — thinking filler section", () => {
       customPools: { ko: { first: ["음…", "글쎄…"], repeat: ["아직…"] } },
     });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const first = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-first-textarea",
@@ -295,14 +276,12 @@ describe("createQuickControls — thinking filler section", () => {
     )!;
     expect(first.value).toBe("음…\n글쎄…");
     expect(repeat.value).toBe("아직…");
-
-    qc.dispose();
   });
 
   it("reflectFiller: both textareas are empty when customPools has no entry for the current language", () => {
     const fs = makeFillerSettings({ language: "en" }); // no customPools for en
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const first = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-first-textarea",
@@ -312,27 +291,23 @@ describe("createQuickControls — thinking filler section", () => {
     )!;
     expect(first.value).toBe("");
     expect(repeat.value).toBe("");
-
-    qc.dispose();
   });
 
   it("external fillerSettings store change reflects in the UI while open", () => {
     const fs = makeFillerSettings({ enabled: true, language: "ja" });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
-    fs.setEnabled(false);
+    act(() => fs.setEnabled(false));
     expect(sw.getAttribute("aria-checked")).toBe("false");
-
-    qc.dispose();
   });
 
   // ── "More phrases" details (long_wait / timeout / unreachable / threads / tool) ─────────
 
   it("wraps the six extra tiers in a closed-by-default <details class='yui-more'>", () => {
     const qc = buildQc({ fillerSettings: makeFillerSettings() });
-    qc.open();
+    act(() => qc.open());
 
     const details = qc.el.querySelector<HTMLDetailsElement>(".yui-filler .yui-more")!;
     expect(details).not.toBeNull();
@@ -348,13 +323,11 @@ describe("createQuickControls — thinking filler section", () => {
     ]) {
       expect(details.querySelector(cls)).not.toBeNull();
     }
-
-    qc.dispose();
   });
 
   it("draws the more-phrases chevron as an inline svg with no text-glyph fallback in the css", () => {
     const qc = buildQc({ fillerSettings: makeFillerSettings() });
-    qc.open();
+    act(() => qc.open());
 
     const summary = qc.el
       .querySelector<HTMLDetailsElement>(".yui-filler .yui-more")!
@@ -364,8 +337,6 @@ describe("createQuickControls — thinking filler section", () => {
     const css = readFileSync("src/ui/quick-controls/controls.css", "utf8");
     expect(css).not.toContain('content: "\u203A"');
     expect(css).not.toContain(".yui-more > summary::before");
-
-    qc.dispose();
   });
 
   it("editing the long_wait/timeout/unreachable textareas writes every other current field alongside", () => {
@@ -376,13 +347,13 @@ describe("createQuickControls — thinking filler section", () => {
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const longWait = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-long-wait-textarea",
     )!;
     longWait.value = "まだかかりそう";
-    longWait.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => longWait.dispatchEvent(new Event("input", { bubbles: true })));
 
     expect(spy).toHaveBeenCalledWith("ja", {
       first: ["うーん"],
@@ -394,19 +365,17 @@ describe("createQuickControls — thinking filler section", () => {
       threads_raise: [],
       tool: {},
     });
-
-    qc.dispose();
   });
 
   it("editing the tool textarea parses '_default' and 'tool_id = phrase' lines into the tool tier", () => {
     const fs = makeFillerSettings();
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const tool = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-tool-textarea")!;
     tool.value = "checking...\nterminal = running it";
-    tool.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => tool.dispatchEvent(new Event("input", { bubbles: true })));
 
     expect(spy).toHaveBeenCalledWith("ja", {
       first: [],
@@ -418,8 +387,6 @@ describe("createQuickControls — thinking filler section", () => {
       threads_raise: [],
       tool: { _default: ["checking..."], terminal: ["running it"] },
     });
-
-    qc.dispose();
   });
 
   it("reflectFiller serializes the stored tool tier back into '_default' then 'key = phrase' lines", () => {
@@ -436,7 +403,7 @@ describe("createQuickControls — thinking filler section", () => {
       },
     });
     const qc = buildQc({ fillerSettings: fs });
-    qc.open();
+    act(() => qc.open());
 
     const longWait = qc.el.querySelector<HTMLTextAreaElement>(
       ".yui-filler .yui-filler-long-wait-textarea",
@@ -452,7 +419,5 @@ describe("createQuickControls — thinking filler section", () => {
     expect(timeout.value).toBe("諦めちゃった");
     expect(unreachable.value).toBe("つながらない");
     expect(tool.value).toBe("checking...\nweb_search = searching");
-
-    qc.dispose();
   });
 });

@@ -454,7 +454,6 @@ const ko: Record<string, string> = {
   "vrm.remove_confirm": "삭제할까요?",
   "vrm.remove_confirm_aria": "삭제할까요? {name}",
   "vrm.name_aria": "VRM 이름",
-  "vrm.import_overwrite_warn": "같은 이름의 기존 모델을 덮어써요",
   "vrm.rename_hint_save": "저장",
   "vrm.rename_hint_cancel": "취소",
   "vrm.loading": "불러오는 중…",

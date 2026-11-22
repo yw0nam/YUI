@@ -4836,7 +4836,7 @@ globalThis.YUI_MAP =
       "id": "descriptor-switch",
       "from": "ui/quick-controls",
       "to": "ui/controls",
-      "carries": "Switch: a Together or Motion switch row's checked state, label and the flipped value on click",
+      "carries": "Switch: a Together, Voice or Motion switch row's checked state, disabled while locked, label and the flipped value on click",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/switches/descriptor-row.tsx"
@@ -4894,6 +4894,24 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"
+    },
+    {
+      "id": "filler-switch",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Switch: checked state, label and the flipped value on click",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
+    },
+    {
+      "id": "filler-segment",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Segment: the options, the checked value and the chosen value on click or key",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
     },
     {
       "id": "plugins-switch",

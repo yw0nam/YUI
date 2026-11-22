@@ -3,9 +3,11 @@
 import type { MouseEvent, ReactNode } from "react";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import { t } from "../../../i18n";
-import { REMOVE_SVG, RENAME_SVG } from "../../sections/user-asset-list/user-asset-list";
-import { RenameInput } from "./rename-input";
-import type { VrmList } from "./use-vrm-list";
+import { RenameInput } from "../../asset-list/rename-input";
+import type { AssetList } from "../../asset-list/use-asset-list";
+import { REMOVE_SVG, RENAME_SVG } from "../../constants";
+
+type VrmList = AssetList<AvatarOption>;
 
 function Actions({ option, list }: { option: AvatarOption; list: VrmList }) {
   const armed = list.armedId === option.id;
@@ -62,6 +64,8 @@ export function VrmRow({ option, list }: { option: AvatarOption; list: VrmList }
     children = (
       <RenameInput
         label={option.label}
+        classPrefix="yui-vrm"
+        namespace="vrm"
         onCommit={(label) => list.commitRename(option.id, label)}
         onCancel={list.cancelRename}
       />
