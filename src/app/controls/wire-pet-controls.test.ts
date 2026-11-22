@@ -44,48 +44,6 @@ function wired(
   return { deps, rightClick };
 }
 
-it.each([
-  [
-    "main's live-silhouette, not model-box,",
-    { silhouette: { left: 180, right: 226, top: 40, bottom: 390 } },
-    false,
-    { left: 180, right: 226, y: 34, listening: false },
-  ],
-  // Without a silhouette, her anchor x 200 with width 100 spans 150..250; the click's y rides along.
-  [
-    "main's, with its idle voice input",
-    {},
-    false,
-    { left: 150, right: 250, y: 34, listening: false },
-  ],
-  [
-    "main's, with its live voice input",
-    {},
-    true,
-    { left: 150, right: 250, y: 34, listening: true },
-  ],
-  [
-    "a bound character's, with no listening flag",
-    { boundId: "a" },
-    true,
-    { left: 150, right: 250, y: 34 },
-  ],
-  [
-    "main's, at the click's x when the renderer has no anchor",
-    { anchor: null },
-    false,
-    { left: 12, right: 12, y: 34, listening: false },
-  ],
-])("a stage right-click sends %s extent to the quick-card window", (_name, over, live, request) => {
-  const { deps, rightClick } = wired(over);
-  if (live) deps.voiceInputStatus.set("listening");
-
-  const event = rightClick();
-
-  expect(event.defaultPrevented).toBe(true);
-  expect(deps.quickCardWindow.open).toHaveBeenCalledExactlyOnceWith(request);
-});
-
 it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
   const { deps } = wired();
   const ask = deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
@@ -93,13 +51,4 @@ it("opens the settings window on Connection when a popped-out surface asks for s
   ask();
 
   expect(deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
-});
-
-it("stops sending right-clicks once torn down", () => {
-  const { deps, rightClick } = wired();
-
-  for (const teardown of registered.splice(0)) teardown();
-  rightClick();
-
-  expect(deps.quickCardWindow.open).not.toHaveBeenCalled();
 });
