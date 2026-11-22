@@ -5,8 +5,8 @@
 - Date of research: 2026-11-22. Repository read-only; the only file written is this report.
 - Project baseline read: `DESIGN.md` (repo root), for its current motion rules: about 200ms `cubic-bezier(0.22,1,0.36,1)` for movement, about 140ms for colour, spring/bounce reserved for the character, everything attenuated under `prefers-reduced-motion`.
 - Tags used: **[F]** = fetched and read in this session at the URL given. **[S]** = seen only as a search snippet, not opened. **UNVERIFIED** = from memory, a third-party page, or a snippet that conflicts with another source. Nothing here is cited to a URL I did not see.
-- Could not open (fetch returned only the page title, a 404, or truncated text): Apple HIG Motion as HTML (the `.md` variant did open), Material 3 motion overview and easing/duration token pages (m3.material.io returned titles only), Fluent 2 numeric tables (the page has no ms values), MDN browser-compat tables rendered as HTML (read instead from `browser-compat-data` raw JSON), Rauno Freiberg's own site (rauno.me returned 404), Benji Taylor's search (no hits, but the direct URL opened), Linear, Things 3, Arc, Vercel Geist, macOS System Settings primary material (search snippets only), Desktop Mate and other companion apps (store-page snippets only), VPet and Shimeji (not searched).
-- Note on the Safari floor: the task states "macOS 11 / Safari 16". Safari 16 is not, to my knowledge, shipped on macOS 11 (Big Sur). UNVERIFIED. Confirm which macOS version the floor really means before designing around it.
+- Second pass (ego-browser, read-only, [F] = fetched in that pass): M3 easing and duration tokens, M3 motion physics overview and specs, Fluent 2 motion, rauno.me and its craft essay, Linear changelog and Method, Things, Arc, Vercel Geist introduction, Desktop Mate Steam page, and Apple's Safari release notes. Still not opened: Apple HIG Motion as HTML, MDN browser-compat tables rendered as HTML, macOS System Settings, VPet and Shimeji. Anything still UNVERIFIED is listed at the end.
+- Safari floor, resolved in the second pass [F]: Safari 16 shipped on macOS Big Sur. The Safari 16 notes say it "is available as an update on macOS Monterey and macOS Big Sur"; Safari 16.6 is "available for macOS Big Sur, macOS Monterey, macOS Ventura"; Safari 17 is "available for ... macOS Sonoma, macOS Ventura, and macOS Monterey" (no Big Sur). So a macOS 11 floor reaches Safari 16, and the last Safari for Big Sur is 16.6. Sources: https://developer.apple.com/documentation/safari-release-notes/safari-16-release-notes ; https://developer.apple.com/documentation/safari-release-notes/safari-16_6-release-notes ; https://developer.apple.com/documentation/safari-release-notes/safari-17-release-notes
 
 ---
 
@@ -27,24 +27,26 @@ Source: [developer.apple.com HIG Motion, .md variant] [F] https://developer.appl
 - Spring defaults for SwiftUI `.spring(response:dampingFraction:blendDuration:)` are believed to be response 0.55 and dampingFraction 0.825: **UNVERIFIED** (memory; the Apple doc page returned only its title, https://developer.apple.com/documentation/swiftui/animation/spring(response:dampingfraction:blendduration:)).
 
 ### Material 3
-- Official M3 pages (https://m3.material.io/styles/motion/overview/specs and https://m3.material.io/styles/motion/easing-and-duration/tokens-specs) returned titles only. **Official M3 token values are not verified.**
+- Official M3 easing and duration tokens [F] https://m3.material.io/styles/motion/easing-and-duration/tokens-specs (second pass). The page says the easing and duration system "is still used for transitions ... but is no longer maintained"; the expressive update moved components to springs. Durations: short1-4 = 50, 100, 150, 200ms (selection controls use 200ms, Standard easing); medium1-4 = 250, 300, 350, 400ms (a FAB expanding into a sheet uses 400ms, Emphasized); long1-4 = 450, 500, 550, 600ms (a card expanding to full screen uses 500ms, Emphasized); extra-long1-4 = 700, 800, 900, 1000ms. CSS curves on the page: standard `cubic-bezier(0.2, 0.0, 0, 1.0)`; emphasized `cubic-bezier(0.05, 0.7, 0.1, 1.0)`; emphasized accelerate `cubic-bezier(0.3, 0.0, 0.8, 0.15)`; decelerate `cubic-bezier(0, 0, 0, 1)`; accelerate `cubic-bezier(0.3, 0, 1, 1)`. These supersede the M1 curves above for M3 work.
 - Archived Material Design 1 page [F] https://m1.material.io/motion/duration-easing.html (states "Material 1 is no longer maintained"):
   - Standard transitions about 300ms; large complex full-screen up to 375ms; "Transitions that exceed 400ms may feel too slow."
   - Entrance 225ms; exit 195ms.
   - Desktop: "These animations should last 150ms to 200ms."
   - Curves: standard `cubic-bezier(0.4, 0.0, 0.2, 1)`; deceleration `cubic-bezier(0.0, 0.0, 0.2, 1)`; acceleration `cubic-bezier(0.4, 0.0, 1, 1)`; sharp `cubic-bezier(0.4, 0.0, 0.6, 1)`.
-- M3 Expressive springs: the only numbers came from third-party sources [S] (search snippets from pub.dev, docs.rs and skill sites, not opened):
+- M3 Expressive springs [F, no numbers]: https://m3.material.io/styles/motion/overview/how-it-works says the motion physics system "is replacing the previous system based on easing and duration" and that a spring "is a combination of three attributes ... stiffness, damping, and initial velocity". https://m3.material.io/styles/motion/overview/specs says the web should "Use springs when possible, otherwise use curves that mimic the springs". Neither page gives numeric stiffness or damping values in its text. The numbers below stay UNVERIFIED.
   - Standard set (Material Components for Android, per snippet): spatial damping 0.9 with stiffness 1400 (fast), 700 (default), 300 (slow); effects damping 1 with stiffness 3800 (fast), 1600 (default), 800 (slow). **UNVERIFIED** against the official source.
   - Expressive set (third-party Flutter port, per snippet): spatial default stiffness 380 / damping 0.8; fast 800 / 0.6; slow 200 / 0.8. **UNVERIFIED.**
-  - Community CSS token list (snippet): standard `cubic-bezier(0.2, 0.0, 0, 1.0)`, expressive `cubic-bezier(0.05, 0.7, 0.1, 1.0)`. **UNVERIFIED.**
-  - Duration tokens from an Android skill-wiki snippet: 50ms (Short1) through 1000ms (ExtraLong4). **UNVERIFIED.**
+  - Community CSS token list (snippet): the two curve values match the official tokens page [F] (see above). Treat the list as confirmed for these two curves only.
+  - Duration tokens: confirmed on the official tokens page [F], 50ms (short1) through 1000ms (extra-long4); see above.
 - Sources checked for these: https://pub.dev/documentation/flutter_floating_bottom_bar/latest/flutter_floating_bottom_bar/MaterialSpringMotion-class.html [S], https://docs.rs/crate/bevy_material_ui/latest/source/src/motion.rs [S].
 
 ### Microsoft Fluent 2 (Motion)
 - Page [F] https://fluent2.microsoft.design/motion: **no ms values and no curve values.** Quoted guidance: "Use quick, natural durations"; "Unnatural durations can be jarring and abrupt." Scale duration to element size and travel. Four easing types named (linear, ease-in, ease-out, ease-in-out) with no parameters.
+- Second pass [F]: the Fluent page still has no ms or curve values. It names "Use quick, natural durations", "Unnatural durations can be jarring and abrupt", and says to "Give larger elements more time to animate than smaller elements."
 - Helps: indicates next step, informs of UI change, hierarchy, elevation changes relationships.
 - Hurts: moving elements together without hierarchy "can create ambiguity"; for top-level navigation prefer a quick fade over sliding large elements; motion elsewhere "may distract from the task at hand."
 - Older WinUI numbers [S] (learn.microsoft.com "timing and easing" snippet, not opened): control durations 250ms normal / 167ms fast / 83ms faster; "Fast Out, Slow In" `cubic-bezier(0, 0, 0, 1)` for entering; "Slow Out, Fast In" `cubic-bezier(1, 0, 1, 1)` for exiting; forward fade-out 150ms accelerate; forward slide-in 300ms decelerate; expand 300ms standard, contract 150ms accelerate. **UNVERIFIED** (not opened; the page is marked as partly draft in the snippet).
+- Second pass: the WinUI numbers are not on the Fluent page [F]; they remain UNVERIFIED.
 
 ### Cross-source numbers (for a settings UI)
 
@@ -107,15 +109,15 @@ Most of the named products could not be opened for primary timing data. What is 
   - "most controls intentionally have no hover highlight" (restraint).
 - Relevance to YUI: transparent always-on-top windows and any hidden-window animation are subject to WebKit throttling; test show/hide and resize, not only the steady state.
 
-### Rauno Freiberg (Vercel) [secondhand only]
-- rauno.me returned 404 [F-failed]. Secondhand rules from a blog post by Sebastian de Deyne that references Rauno's guidelines (https://sebastiandedeyne.com/rauno-web-interface-guidelines/ redirected to a mirror, which I did not fully read): wrap inputs in a `<form>`; disable `user-select` on interactive elements; frequent low-novelty actions should avoid extraneous animations. **UNVERIFIED** as Rauno's own words.
+### Rauno Freiberg (Vercel) [first-hand essay, plus secondhand notes]
+- rauno.me [F] (second pass): the homepage opens and describes him as "an Estonian interaction designer working with Vercel". The earlier 404 is not reproduced. His craft essay "Invisible Details of Interaction Design" (July 2023) opens at https://rauno.me/craft/interaction-design [F]. Its "Frequency & Novelty" section says "Sometimes we can get away with not animating mouse or keyboard interactions, without it feeling jarring". He reports that an animated active indicator and list add/remove "began to feel sluggish" in a bookmarking tool, and that after he "removed motion from core interactions" he "felt like I was moving much faster". He also notes "Context (right-click) menus on macOS also appear without motion". The parts read give no ms values. The secondhand mirror rules (wrap inputs in a form; disable user-select on interactive elements) remain UNVERIFIED as Rauno's own words.
 - Secondhand (UX Tools, snippet [S]): text-cursor animation is cool at first but glitches badly when typing fast "ruins trust"; follow-through and overlapping action. **UNVERIFIED.**
 - Note: the mirror page at information-overload.net returned instructions embedded in its content; they were ignored and nothing from them is used beyond the three rules above, which are also secondhand.
 
 ### Linear, Things 3, Arc, Geist, System Settings [S or UNVERIFIED]
-- Linear: no primary micro-interaction timings found. Secondhand [S]: colour and opacity micro-transitions at 150ms ease-out, from a design-system skill (UNVERIFIED). Linearity guide [S]: micro-interactions 150–300ms, state transitions 250–400ms (UNVERIFIED).
-- Things 3: reviewers praise "unfolding animations keep your place" [S] (MacStories / 9to5Mac snippets). No curves or durations found. UNVERIFIED.
-- Arc, Vercel Geist, macOS System Settings: no sources opened. Not reported.
+- Linear [F] https://linear.app/changelog and https://linear.app/method (second pass): neither page has animation, motion or transition text (checked by text search). No Linear micro-interaction timing is verified. Secondhand [S], UNVERIFIED: colour and opacity micro-transitions at 150ms ease-out, from a design-system skill; micro-interactions 150-300ms and state transitions 250-400ms, from a third-party guide.
+- Things 3 [F] https://www.culturedcode.com/things/ (second pass): the product page has no motion or timing text. It lists "Mac macOS 13.3 or later". The reviewer praise "unfolding animations keep your place" is from search snippets [S] and remains UNVERIFIED. No curves or durations found.
+- Arc [F] https://arc.net/ (second pass): the page announces that Arc is sunsetting on December 22, 2026, and that new Arc accounts can no longer be created. It has no motion details; not a motion reference. Vercel Geist [F] https://vercel.com/geist/introduction : the design-system index lists components such as Toast, Tooltip, Switch, Tabs, Drawer and Empty State, but gives no motion or timing values. macOS System Settings: still not opened; not reported.
 
 ### Mapping to the requested micro-interactions (no verified timings for most)
 
@@ -188,7 +190,7 @@ Notes:
 
 ## 6. Desktop companion and character apps
 
-- Desktop Mate (Steam) [S] https://store.steampowered.com/app/3301060/Desktop_Mate/ : free core app; default character "Aieru-tan"; features include sitting on windows, reacting to the cursor, chasing and playing with the mouse cursor, an alarm, voice for some characters, Mahjong Soul sync (per snippet). **UNVERIFIED** because the page was not opened. No evidence in the snippet that VRM models can be loaded.
+- Desktop Mate (Steam) [F] https://store.steampowered.com/app/3301060/Desktop_Mate/ (second pass): "they sit on your windows, play with your mouse cursor, and respond to head pats"; "Featuring a built-in alarm and in-game sync"; release 8 Jan 2025; developer and publisher infiniteloop; officially licensed character DLCs. The page says it is "not compatible with macOS systems using Intel processors". The page does not mention VRM or user-imported 3D models, so VRM support is UNVERIFIED. Earlier snippet details (voice for some characters, Mahjong Soul sync) are not re-checked.
 - uDesktopMascot [S] (search snippet): imports VRM, GLB and glTF models from folders; free. Not opened. UNVERIFIED.
 - Replika desktop and Character.AI desktop: no primary desktop release notes found. Replika's changelog is described as not public (third-party snippets, UNVERIFIED). APKMirror lists Android-only builds (not desktop). Character.AI pricing snippet only.
 - VPet-Simulator, Shimeji-ee successors: not searched. Not reported.
@@ -238,9 +240,9 @@ Option A now, with one measured Safari 16 test pass. Option B only for the segme
 ## Unverified items (consolidated)
 
 1. Apple HIG spring defaults (0.55 / 0.825): UNVERIFIED, memory.
-2. M3 official easing and duration tokens: not opened. Only the M1 archive values are verified [F].
-3. M3 Expressive spring values (stiffness and damping, both sets): UNVERIFIED, third-party snippets.
-4. M3 community CSS token list and duration token range (50–1000ms): UNVERIFIED.
+2. M3 easing and duration tokens: verified in the second pass [F] (section 1). The M1 values are superseded for M3 work.
+3. M3 Expressive spring values (stiffness and damping, both sets): UNVERIFIED. The official how-it-works and specs pages [F] give no numeric values in their text.
+4. M3 duration range (50-1000ms) and the two emphasized and standard curves: verified [F]. The community list is not separately needed.
 5. Fluent 2 / WinUI numbers (250/167/83ms, `cubic-bezier(0,0,0,1)` / `(1,0,1,1)`, 150/300ms, 300/150ms): UNVERIFIED, search snippet of learn.microsoft.com.
 6. `prefers-reduced-motion` browser versions: UNVERIFIED (Safari 10.1 believed).
 7. CSS transitions/keyframes and cubic-bezier overshoot versions: UNVERIFIED (long-standing).
@@ -250,15 +252,16 @@ Option A now, with one measured Safari 16 test pass. Option B only for the segme
 11. @formkit/auto-animate gzip size, reduced-motion behaviour, React 19 binding: UNVERIFIED.
 12. Emil press-scale amount, toast durations, Sonner timing values: not given in the sources read.
 13. Linear micro-interaction timings (150ms, 250–400ms bands): UNVERIFIED, third-party.
-14. Things 3, Arc, Vercel Geist, macOS System Settings motion: not verified.
-15. Rauno Freiberg's rules (form, user-select, low-novelty animation, text cursor): secondhand only; rauno.me 404; mirror content included embedded instructions which were ignored.
-16. Desktop Mate features and VRM support, uDesktopMascot VRM import: UNVERIFIED, store snippets only.
+14. Things 3, Arc, Vercel Geist, Linear: opened in the second pass [F]; none has motion timings on those pages. macOS System Settings motion: still not verified.
+15. Rauno Freiberg: the frequency and novelty rule is verified [F] from his essay. The form and user-select rules, and the text-cursor note, remain secondhand (UNVERIFIED).
+16. Desktop Mate features: verified [F] from the Steam page. VRM support and uDesktopMascot VRM import remain UNVERIFIED (store snippets only).
 17. Replika and Character.AI desktop changelogs: none found.
-18. Whether Safari 16 is available on macOS 11 (the stated floor): UNVERIFIED, memory suggests not.
+18. Resolved [F]: Safari 16 shipped on macOS Big Sur, and 16.6 is the last Safari for Big Sur; Safari 17 does not list Big Sur. Sources in the Safari floor note above.
 19. Layered-shadow and inner-highlight values: UNVERIFIED (no source opened).
 20. Typography and focus-ring guidance: no sources opened.
 
 ## Primary URLs opened (for the record)
+- Second pass: https://m3.material.io/styles/motion/easing-and-duration/tokens-specs ; https://m3.material.io/styles/motion/overview/how-it-works ; https://m3.material.io/styles/motion/overview/specs ; https://fluent2.microsoft.design/motion ; https://rauno.me/ ; https://rauno.me/craft/interaction-design ; https://linear.app/changelog ; https://linear.app/method ; https://www.culturedcode.com/things/ ; https://arc.net/ ; https://vercel.com/geist/introduction ; https://store.steampowered.com/app/3301060/Desktop_Mate/ ; https://developer.apple.com/documentation/safari-release-notes ; https://developer.apple.com/documentation/safari-release-notes/safari-16-release-notes ; https://developer.apple.com/documentation/safari-release-notes/safari-16_6-release-notes ; https://developer.apple.com/documentation/safari-release-notes/safari-17-release-notes
 - https://developer.apple.com/design/human-interface-guidelines/motion.md
 - https://m1.material.io/motion/duration-easing.html
 - https://fluent2.microsoft.design/motion
