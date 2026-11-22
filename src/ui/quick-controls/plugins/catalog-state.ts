@@ -85,6 +85,7 @@ export function createCatalogState(deps: {
     checkState: () => checked,
     check: () => {
       checked = "busy";
+      notify();
       void load().then(() => {
         if (disposed) return;
         checked = state === "ok" ? { updates: plugins().filter((p) => updateTo(p)).length } : null;
