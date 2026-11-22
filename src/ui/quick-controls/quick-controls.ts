@@ -105,8 +105,7 @@ import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
 import { createTogetherPage } from "./together/together-page";
-import { createFillerSection } from "./voice/filler/filler-section";
-import { createSpeakerList } from "./voice/speaker/speaker-list";
+import { createVoicePage } from "./voice/voice-page";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -453,7 +452,7 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
-  // The Listening, Together and Motion pages render their own switch rows, so the template gets the rest.
+  // The Voice, Listening, Together and Motion pages render their own switch rows, so the template gets the rest.
   const rows = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
@@ -473,7 +472,11 @@ export function createQuickControls({
     threadReactionsSettings,
   });
   const TOGGLE_SPECS = rows.filter(
-    (row) => row.tab !== "listening" && row.tab !== "together" && row.tab !== "motion",
+    (row) =>
+      row.tab !== "listening" &&
+      row.tab !== "together" &&
+      row.tab !== "motion" &&
+      row.tab !== "voice",
   );
 
   el.innerHTML = buildPanelHtml({
@@ -585,9 +588,6 @@ export function createQuickControls({
     : null;
   const hintTooltip = createHintTooltip({ root: el });
 
-  // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
-  let disposed = false;
-
   // ── Body page (VRM list · relations rows · view reset) ──
   const bodyPage = createBodyPage({
     vrmSelection,
@@ -629,9 +629,10 @@ export function createQuickControls({
     host: el.querySelector("#yui-panel-motion")!,
   });
 
-  // ── Speaker section ──
-  const speakerList = createSpeakerList({
-    root: el,
+  // ── Voice page (switch rows · speaker list · thinking filler) ──
+  const voicePage = createVoicePage({
+    rows: rows.filter((row) => row.tab === "voice"),
+    fillerSettings,
     speakerSelection,
     swapSpeaker,
     refreshSpeaker,
@@ -643,9 +644,9 @@ export function createQuickControls({
     canPasteVoiceId,
     log,
     refreshTooltip: hintTooltip.refresh,
-    isDisposed: () => disposed,
     isOpen: () => shell.isOpen(),
   });
+  el.querySelector("#yui-panel-voice")!.append(voicePage.el);
 
   // ── shell (open/close lifecycle) ──
   const shell = createPanelShell({
@@ -739,14 +740,6 @@ export function createQuickControls({
     log,
   });
   el.querySelector("#yui-panel-general")!.append(generalPage.el);
-
-  // ── Thinking filler section (language segment · phrase-pool textareas) ──
-  const filler = createFillerSection({
-    root: el,
-    fillerSettings,
-    isOpen: shell.isOpen,
-    reflectSwitchRows: () => switchRows.reflect(),
-  });
 
   // ── Listening page (voice switch · STT key · silence threshold · barge-in · bubble · readings) ──
   const listeningPage = createListeningPage({
@@ -850,7 +843,6 @@ export function createQuickControls({
     agent,
     { reflect: persona.reflect, dispose: persona.dispose },
     { dispose: generalPage.dispose },
-    filler,
     {
       reflect: connectionTab.refresh,
       close: () => {
@@ -865,7 +857,7 @@ export function createQuickControls({
     { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
     { reflect: bodyPage.refresh, dispose: bodyPage.dispose },
     { reflect: motionPage.refresh, close: motionPage.close, dispose: motionPage.dispose },
-    { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
+    { reflect: voicePage.refresh, close: voicePage.close, dispose: voicePage.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
     presetStrip,
     workflows,
@@ -881,7 +873,6 @@ export function createQuickControls({
   shell.open();
 
   function dispose(): void {
-    disposed = true;
     for (const section of sections) section.dispose?.();
     shell.dispose();
     el.remove();

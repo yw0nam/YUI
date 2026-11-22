@@ -1,6 +1,6 @@
 /* ── Speaker section — row is div[role=radio]. To nest ▶ preview <button>,
    row cannot be <button> (invalid nested HTML). List·row·state styles shared with VRM
-   in user-asset-list.css. ── */
+   in asset-list.css. ── */
 
 .yui-spk:focus-visible {
   outline: none;

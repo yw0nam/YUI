@@ -9,12 +9,12 @@ import { t } from "../../i18n";
 import { reflectFoldOff } from "../fold";
 import type { SwitchRow } from "../switch-row";
 
-export function switchButtonHtml(row: SwitchRow): string {
+function switchButtonHtml(row: SwitchRow): string {
   return `<button class="yui-switch ${row.selector.slice(1)}" type="button" role="switch" aria-checked="${String(row.initialEnabled)}" aria-label="${t(row.ariaKey)}"></button>`;
 }
 
 export function switchRowHtml(row: SwitchRow): string {
-  const label = `<span class="yui-row__label">${row.labelIcon ?? ""}${t(row.labelKey)}</span>`;
+  const label = `<span class="yui-row__label">${t(row.labelKey)}</span>`;
   const sub = row.subKey ? `<span class="yui-row__sub">${t(row.subKey)}</span>` : "";
   return `
           <div class="yui-row">
@@ -24,7 +24,7 @@ export function switchRowHtml(row: SwitchRow): string {
 }
 
 /**
- * Set each visible, available row's switch from its store, and a locked row's switch off with its reason.
+ * Set each visible, available row's switch from its store.
  * A switch heading a source group dims that group's fold while off.
  */
 export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[]): void {
@@ -32,15 +32,10 @@ export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[])
     if (!row.isVisible || !row.isAvailable) continue;
     const button = root.querySelector<HTMLButtonElement>(row.selector);
     if (!button) continue;
-    // The store keeps its value while locked, so unlocking shows it again.
-    const locked = row.lock?.get() === true;
-    button.setAttribute("aria-checked", String(!locked && row.getEnabled()));
+    const enabled = row.getEnabled();
+    button.setAttribute("aria-checked", String(enabled));
     const fold = button.closest(".yui-group")?.querySelector(":scope > .yui-fold");
-    if (fold) reflectFoldOff(fold, locked || !row.getEnabled());
-    if (!row.lock) continue;
-    button.disabled = locked;
-    const sub = button.closest(".yui-row")?.querySelector(".yui-row__sub");
-    if (sub) sub.textContent = locked ? t(row.lock.reasonKey) : row.subKey ? t(row.subKey) : "";
+    if (fold) reflectFoldOff(fold, !enabled);
   }
 }
 
@@ -55,7 +50,7 @@ export function bindSwitchRows(
   isOpen?: () => boolean,
 ): { reflect(): void; dispose(): void } {
   const handleClick = (row: SwitchRow): void => {
-    if (!row.isAvailable || row.lock?.get()) return;
+    if (!row.isAvailable) return;
     const next = !row.getEnabled();
     row.setEnabled(next);
     if (row.logKey) log.info(row.logKey, { enabled: next });
@@ -68,15 +63,13 @@ export function bindSwitchRows(
   });
   const followed = isOpen
     ? rows.flatMap((row) =>
-        [row.subscribe, row.lock?.subscribe].flatMap((subscribe) =>
-          subscribe
-            ? [
-                subscribe(() => {
-                  if (isOpen()) reflectSwitchRows(root, rows);
-                }),
-              ]
-            : [],
-        ),
+        row.subscribe
+          ? [
+              row.subscribe(() => {
+                if (isOpen()) reflectSwitchRows(root, rows);
+              }),
+            ]
+          : [],
       )
     : [];
   return {

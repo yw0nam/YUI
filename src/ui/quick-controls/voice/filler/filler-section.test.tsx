@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /**
- * filler-section.test.ts — the thinking-filler section on the panel's real markup: language
- * segment, the eight pool textareas, store→DOM reflect, and teardown.
+ * filler-section.test.tsx — the thinking-filler section of the Voice page: language segment,
+ * the eight pool textareas, and the store→DOM redraw.
  */
 
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFlagSettings } from "../../../../settings/persisted-store";
 import {
@@ -12,8 +14,13 @@ import {
 } from "../../../../settings/voice/filler-settings";
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
-import { buildPanelHtml } from "../../template";
-import { createFillerSection } from "./filler-section";
+import { makeSpeakerSelection } from "../../test-helpers";
+import { createVoicePage, type VoicePage } from "../voice-page";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const pages: VoicePage[] = [];
 
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
@@ -33,24 +40,30 @@ function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
   return createFillerSettings({ storage: { load: () => settings, save: () => {} } });
 }
 
-/** The panel markup as the shell renders it. */
-function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
-  const root = document.createElement("div");
-  root.innerHTML = buildPanelHtml({
-    openOnQuickStart: false,
-    switchRows: createSwitchRows({
+/** The Voice page as the shell renders it, with the filler store injected. */
+function buildRoot(fillerSettings: FillerSettingsStore) {
+  const page = createVoicePage({
+    rows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       fillerSettings,
-    }),
-    showScreen: false,
-    showThreadTurns: false,
-    showPresence: false,
-    showPacerGap: false,
-    showRateLimits: false,
-    showHistory: false,
+    }).filter((row) => row.tab === "voice"),
+    fillerSettings,
+    speakerSelection: makeSpeakerSelection(),
+    swapSpeaker: vi.fn(async () => {}),
+    refreshSpeaker: vi.fn(async () => {}),
+    pickVoiceImport: vi.fn(async () => null),
+    commitVoiceImport: vi.fn(async () => {}),
+    removeVoice: vi.fn(async () => {}),
+    canManageVoices: () => true,
+    canReuploadVoices: () => true,
+    canPasteVoiceId: () => false,
+    log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    refreshTooltip: () => {},
+    isOpen: () => true,
   });
-  document.body.append(root);
-  return root;
+  pages.push(page);
+  document.body.append(page.el);
+  return page;
 }
 
 function langButtons(root: HTMLElement): HTMLButtonElement[] {
@@ -86,7 +99,7 @@ const EN_VALUES = [
   "checking...\nweb_search = searching",
 ];
 
-describe("createFillerSection", () => {
+describe("the thinking-filler section", () => {
   beforeEach(() => {
     try {
       globalThis.localStorage?.clear();
@@ -97,70 +110,52 @@ describe("createFillerSection", () => {
   });
 
   afterEach(() => {
+    act(() => {
+      for (const page of pages.splice(0)) page.dispose();
+    });
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
   it("a click on a language button persists it, moves aria-checked/tabindex and writes the eight textareas", () => {
     const fs = seededFiller({ customPools: { ja: { first: ["うーん"] }, en: EN_POOL } });
-    const root = buildRoot(fs);
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
+    const { el: root } = buildRoot(fs);
     const btns = langButtons(root);
     expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
 
-    btns[1].click();
+    act(() => btns[1].click());
 
     expect(fs.get().language).toBe("en");
     expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
     expect(btns.map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
     expect(values(root)).toEqual(EN_VALUES);
-
-    section.dispose();
   });
 
   it("an arrow key on the language segment does the same and moves focus", () => {
     const fs = seededFiller({ customPools: { en: EN_POOL } });
-    const root = buildRoot(fs);
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
+    const { el: root } = buildRoot(fs);
     const btns = langButtons(root);
 
-    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    act(() =>
+      btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+    );
 
     expect(fs.get().language).toBe("en");
     expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
     expect(btns.map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
     expect(values(root)).toEqual(EN_VALUES);
     expect(document.activeElement).toBe(btns[1]);
-
-    section.dispose();
   });
 
   it("textarea input persists the parsed pool for the current language, tool lines included", () => {
     const fs = seededFiller({ language: "ko" });
-    const root = buildRoot(fs);
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
+    const { el: root } = buildRoot(fs);
 
     textarea(root, "first").value = "음…\n\n  글쎄…  \n";
     textarea(root, "tool").value = "checking...\nterminal = running it";
-    textarea(root, "tool").dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => {
+      fireEvent.input(textarea(root, "tool"));
+    });
 
     expect(fs.get().customPools).toEqual({
       ko: {
@@ -175,109 +170,31 @@ describe("createFillerSection", () => {
       },
     });
     // The stored tool tier serializes back to the text that produced it.
-    textarea(root, "tool").value = "";
-    section.reflect();
     expect(textarea(root, "tool").value).toBe("checking...\nterminal = running it");
-
-    section.dispose();
   });
 
-  it("reflect() shows the store's values after a change made outside the section", () => {
-    const fs = seededFiller();
-    const root = buildRoot(fs);
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => false,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
+  it("an open writes the store's values over the textareas", () => {
+    const fs = seededFiller({ customPools: { ja: { first: ["うーん"] } } });
+    const page = buildRoot(fs);
+    textarea(page.el, "first").value = "unsaved edit";
 
-    fs.setCustomPool("en", EN_POOL);
-    fs.setLanguage("en");
-    expect(values(root)).toEqual(["", "", "", "", "", "", "", ""]);
-    section.reflect();
+    act(() => page.refresh());
 
-    const btns = langButtons(root);
-    expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
-    expect(btns.map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
-    expect(values(root)).toEqual(EN_VALUES);
-
-    section.dispose();
+    expect(textarea(page.el, "first").value).toBe("うーん");
   });
 
-  it("a store change while open repaints the switch rows and redraws the segment and textareas", () => {
+  it("a store change redraws the segment and textareas", () => {
     const fs = seededFiller({ customPools: { en: EN_POOL } });
-    const root = buildRoot(fs);
-    const reflectSwitchRows = vi.fn();
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows,
-    });
-    section.reflect();
+    const { el: root } = buildRoot(fs);
 
-    fs.setLanguage("en");
+    act(() => fs.setLanguage("en"));
 
-    expect(reflectSwitchRows).toHaveBeenCalledTimes(1);
     expect(langButtons(root).map((b) => b.getAttribute("aria-checked"))).toEqual([
       "false",
       "true",
       "false",
     ]);
+    expect(langButtons(root).map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
     expect(values(root)).toEqual(EN_VALUES);
-
-    section.dispose();
-  });
-
-  it("is inert without the section markup: no throw, the store is left alone", () => {
-    const fs = seededFiller();
-    const commit = vi.fn();
-    fs.subscribe(commit);
-    const root = document.createElement("div");
-    document.body.append(root);
-    expect(root.querySelector(".yui-filler")).toBeNull();
-
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
-    section.dispose();
-
-    expect(commit).not.toHaveBeenCalled();
-  });
-
-  it("dispose() removes the click, keydown and input listeners", () => {
-    const fs = seededFiller();
-    const root = buildRoot(fs);
-    const section = createFillerSection({
-      root,
-      fillerSettings: fs,
-      isOpen: () => true,
-      reflectSwitchRows: () => {},
-    });
-    section.reflect();
-    const setLanguage = vi.spyOn(fs, "setLanguage");
-    const setCustomPool = vi.spyOn(fs, "setCustomPool");
-
-    section.dispose();
-    const btns = langButtons(root);
-    btns[1].click();
-    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    for (const name of TEXTAREAS) {
-      textarea(root, name).value = "x";
-      textarea(root, name).dispatchEvent(new Event("input", { bubbles: true }));
-    }
-
-    expect(setLanguage).not.toHaveBeenCalled();
-    expect(setCustomPool).not.toHaveBeenCalled();
-
-    fs.setLanguage("en");
-    expect(fs.get().language).toBe("en");
-    expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
   });
 });

@@ -243,6 +243,7 @@ export function createSwitchRows({
       initialEnabled: fillerSettings.get().enabled,
       getEnabled: () => fillerSettings.get().enabled,
       setEnabled: (v) => fillerSettings.setEnabled(v),
+      subscribe: (cb) => fillerSettings.subscribe(cb),
     },
     {
       selector: ".yui-unified-switch",

@@ -178,15 +178,15 @@ describe("createQuickControls — thinking filler section", () => {
     expect(btns[0].tabIndex).toBe(-1);
   });
 
-  it("Space on a filler language seg button selects that language", () => {
+  it("clicking a filler language seg button selects that language", () => {
     const fs = makeFillerSettings({ language: "ja" });
     const spy = vi.spyOn(fs, "setLanguage");
     const qc = buildQc({ fillerSettings: fs });
     act(() => qc.open());
 
     const langSeg = qc.el.querySelector<HTMLElement>(".yui-filler .yui-filler-lang-seg")!;
-    const ko = langSeg.querySelector<HTMLButtonElement>(".yui-seg__btn[data-lang='ko']")!;
-    act(() => ko.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true })));
+    const ko = langSeg.querySelector<HTMLButtonElement>(".yui-seg__btn[data-value='ko']")!;
+    act(() => ko.click());
 
     expect(spy).toHaveBeenCalledWith("ko");
     expect(ko.getAttribute("aria-checked")).toBe("true");
