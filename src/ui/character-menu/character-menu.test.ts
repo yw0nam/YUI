@@ -186,3 +186,16 @@ it("runs a closing pick once the window is restored", async () => {
   await vi.waitFor(() => expect(order).toEqual(["restore", "settings"]));
   expect(menu.isOpen()).toBe(false);
 });
+
+it("runs a closing pick even when the window fails to restore", async () => {
+  const { menu, actions, restore } = build();
+  restore.mockImplementation(async () => {
+    throw new Error("frame call failed");
+  });
+  await menu.open();
+
+  click("settings");
+
+  await vi.waitFor(() => expect(actions.settings).toHaveBeenCalledOnce());
+  expect(menu.isOpen()).toBe(false);
+});
