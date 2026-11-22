@@ -17,7 +17,6 @@ import { Switch } from "../../../controls/switch";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG, PLUS_SVG } from "../../constants";
-import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { cardBase, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
 import type { CardIo, CardIoPorts } from "./card-io";
@@ -93,8 +92,6 @@ export function CardSection({
   const nameRef = useRef<HTMLInputElement>(null);
   const fieldRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const greetRefs = useRef(new Map<number, HTMLTextAreaElement>());
-  const sendMain = useRef<HTMLDivElement>(null);
-  const pushReason = useRef<HTMLElement | null>(null);
 
   const a = agentSettings.current();
   const push = isPushMode();
@@ -107,25 +104,13 @@ export function CardSection({
   const help = t("card.help_aria");
 
   useLayoutEffect(() => {
-    const main = sendMain.current;
-    if (main && !pushReason.current) {
-      main.insertAdjacentHTML("beforeend", pushReasonHtml("push.reason_card"));
-      pushReason.current = main.querySelector<HTMLElement>(".yui-push-reason");
-    }
-    if (pushReason.current) pushReason.current.hidden = !isPushMode();
-  });
-
-  useLayoutEffect(() => {
     const name = nameRef.current;
     if (name && name.getAttribute("aria-invalid") !== "true") setValue(name, cardName(card, shown));
     for (const [field, el] of Object.entries(fieldRefs.current))
       setValue(el, card[field as TextField]);
     for (const [i, el] of greetRefs.current) setValue(el, card.alternate_greetings[i] ?? "");
     const thumb = thumbRef.current;
-    if (thumb) {
-      thumb.hidden = !hasPicture;
-      if (hasPicture) thumb.replaceChildren(avatarEl(shown, 36));
-    }
+    if (thumb && hasPicture) thumb.replaceChildren(avatarEl(shown, 36));
   });
 
   function base(): Card {
@@ -226,9 +211,15 @@ export function CardSection({
       </div>
       <div className="yui-group yui-group--switch">
         <div className="yui-row">
-          <div className="yui-row__main" ref={sendMain}>
+          <div className="yui-row__main">
             <span className="yui-row__label">{t("card.send_label")}</span>
             <span className="yui-row__sub">{t("card.send_sub")}</span>
+            <span className="yui-row__sub yui-push-reason" hidden={!push}>
+              {`${t("push.reason_card")} `}
+              <button className="yui-link-btn yui-push-reason__link" type="button">
+                {t("push.to_transport")}
+              </button>
+            </span>
           </div>
           <Switch
             className="yui-card-switch"
@@ -242,7 +233,7 @@ export function CardSection({
       <div className="yui-card-body" hidden={!open}>
         <div className="yui-group">
           <div className="yui-card__namerow">
-            <span className="yui-card-thumb" ref={thumbRef} hidden />
+            <span className="yui-card-thumb" ref={thumbRef} hidden={!hasPicture} />
             <div className="yui-row yui-input-row">
               <div className="yui-row__main">
                 <label className="yui-input-row__label" htmlFor="yui-card-name">
