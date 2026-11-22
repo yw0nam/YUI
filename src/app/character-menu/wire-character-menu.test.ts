@@ -24,7 +24,12 @@ afterEach(() => {
   for (const teardown of teardowns.splice(0)) teardown();
 });
 
-function wired(frameWindow: () => unknown) {
+type MenuRenderer = Parameters<typeof wireCharacterMenu>[0]["renderer"];
+
+function wired(
+  frameWindow: () => unknown,
+  renderer: MenuRenderer = { getTapPoints: () => null, getSilhouetteBounds: () => null },
+) {
   const end = vi.fn(async () => {});
   const locomotion = {
     hold: vi.fn(),
@@ -50,7 +55,7 @@ function wired(frameWindow: () => unknown) {
       overlay,
       kind: "main",
       name: () => "Yui",
-      renderer: { getTapPoints: () => null, getSilhouetteBounds: () => null },
+      renderer,
       locomotion,
       ports: {
         read: () => ({
@@ -161,4 +166,18 @@ it("opens in the window as it is where there is no OS window to widen", async ()
   await vi.waitFor(() => expect(document.activeElement).toBe(talk()));
   expect(locomotion.widen).not.toHaveBeenCalled();
   expect(box("width")).toBe("");
+});
+
+it("releases her and stays closed when the menu cannot be placed", async () => {
+  const { locomotion, rightClick, talk } = wired(tauriWindow, {
+    getTapPoints: () => {
+      throw new Error("no bones yet");
+    },
+    getSilhouetteBounds: () => null,
+  });
+
+  rightClick();
+
+  await vi.waitFor(() => expect(locomotion.hold).toHaveBeenLastCalledWith(false));
+  expect(talk()).toBeNull();
 });
