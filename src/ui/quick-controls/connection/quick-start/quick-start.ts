@@ -159,8 +159,8 @@ export function createQuickStart(deps: QuickStartDeps): {
   el.className = "yui-tab-stack";
   el.innerHTML = pageHtml(deps.showHelp, deps.onReplay ? replayRowHtml() : "");
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
-  const keySection = el.querySelector<HTMLElement>(".yui-start__keys")!.parentElement!;
   const keys = el.querySelector<HTMLElement>(".yui-start__keys")!;
+  const keySection = keys.parentElement!;
   const keyRow = el.querySelector<HTMLElement>(".yui-start__keyrow")!;
   const replace = el.querySelector<HTMLButtonElement>(".yui-start__replace")!;
   const makeRow = el.querySelector<HTMLElement>(".yui-start__make")!;
