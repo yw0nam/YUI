@@ -1,30 +1,37 @@
 /** The Active hours editor: the span rows, the add action, and Reset to default; any edit writes the whole list. */
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import type { PersonaConfig } from "../../../../config/validators/persona/types";
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
+import { spansInUse } from "../../../../settings/active-hours/card-active-hours";
 import { MAX_SPANS, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
-import { t } from "../../../i18n";
+import type { SettingsStores } from "../../../../settings/settings-stores";
+import { getLocale, t } from "../../../i18n";
 import { PLUS_SVG } from "../../constants";
 import { SpanRow } from "./span-row";
 
-export interface ActiveHoursView {
-  /** The user's edited spans; null while the card's apply. */
-  edited: Span[] | null;
-  /** The spans the rows show: the edited ones, else the card's. */
-  spans: Span[];
-}
-
 export function ActiveHours({
-  view,
   store,
+  agentSettings,
+  getPersona,
   log,
 }: {
-  view: { get(): ActiveHoursView; subscribe(cb: () => void): () => void };
-  store: Pick<ActiveHoursSettingsStore, "setSpans" | "reset">;
+  store: Pick<ActiveHoursSettingsStore, "current" | "subscribe" | "setSpans" | "reset">;
+  agentSettings: Pick<SettingsStores["agentSettings"], "current" | "subscribe">;
+  /** The bundled config's default cards; undefined until the config loads. */
+  getPersona?: () => PersonaConfig | undefined;
   log: Logger;
 }) {
-  const { edited, spans } = useSyncExternalStore(view.subscribe, view.get);
+  const edited = useSyncExternalStore(store.subscribe, () => store.current().spans);
+  const userCard = useSyncExternalStore(
+    agentSettings.subscribe,
+    () => agentSettings.current().card,
+  );
+  const spans = useMemo(
+    () => spansInUse(edited, userCard ?? getPersona?.()?.cards[getLocale()]),
+    [edited, userCard, getPersona],
+  );
   const full = spans.length >= MAX_SPANS;
 
   // The whole row list is one edit: written only while every row holds a valid time.

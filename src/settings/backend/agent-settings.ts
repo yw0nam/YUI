@@ -79,6 +79,7 @@ export function createAgentSettings(opts?: { storage?: AgentStorage }) {
 
   return {
     get: core.get,
+    current: core.current,
 
     setReasoningEffort(e: ReasoningEffort): void {
       commit({ reasoning_effort: coerceEffort(e) });

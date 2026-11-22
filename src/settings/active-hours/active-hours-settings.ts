@@ -32,6 +32,7 @@ export function createActiveHoursSettings(opts?: { storage?: ActiveHoursStorage 
 
   return {
     get: core.get,
+    current: core.current,
 
     setSpans(spans: Span[]): void {
       core.commit({ spans: structuredClone(spans) });
