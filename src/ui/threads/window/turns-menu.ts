@@ -5,8 +5,8 @@ import {
   THREAD_TURNS,
   type ThreadTurnsLevel,
 } from "../../../settings/threads/thread-turns-settings";
-import { subscribe as subscribeLocale, t } from "../../i18n";
 import { handleSegmentKeydown } from "../../controls/segment";
+import { subscribe as subscribeLocale, t } from "../../i18n";
 
 const BELL_SVG =
   '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
