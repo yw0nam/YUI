@@ -10,6 +10,7 @@ import "../styles.css";
 import "../ui/quick-controls/settings-window.css";
 import { createDisposers } from "../app/disposers";
 import { bootCompanion } from "../app/pet-windows/companion-window";
+import { mountSpikeStage } from "../app/settings-window/spike-stage";
 import { wireSettingsWindow } from "../app/settings-window/wire-settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -28,6 +29,8 @@ async function bootstrap(): Promise<void> {
   const companion = await bootCompanion("settings", lifecycle, log);
   if (!companion.alive) return;
   await wireSettingsWindow({ app, lifecycle, presetRegistry: companion.registry });
+  // SPIKE #2035: option B stage render.
+  await mountSpikeStage(app).catch((error) => log.error("spike_stage_failed", { error: String(error) }));
 }
 
 void bootstrap().catch((error) => {
