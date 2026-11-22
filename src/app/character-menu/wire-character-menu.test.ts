@@ -8,7 +8,7 @@ import { wireCharacterMenu } from "./wire-character-menu";
 
 let stage: HTMLElement;
 let overlay: HTMLElement;
-let statusPill: HTMLElement;
+let root: HTMLElement;
 const teardowns: Array<() => void> = [];
 
 beforeEach(() => {
@@ -16,8 +16,9 @@ beforeEach(() => {
   document.body.innerHTML = "";
   stage = document.createElement("div");
   overlay = document.createElement("div");
-  statusPill = document.createElement("div");
-  document.body.append(stage, overlay, statusPill);
+  root = document.createElement("div");
+  root.append(stage, overlay);
+  document.body.append(root);
 });
 afterEach(() => {
   for (const teardown of teardowns.splice(0)) teardown();
@@ -45,8 +46,8 @@ function wired(frameWindow: () => unknown) {
   teardowns.push(
     wireCharacterMenu({
       stage,
+      root,
       overlay,
-      statusPill,
       kind: "main",
       name: () => "Yui",
       renderer: { getTapPoints: () => null, getSilhouetteBounds: () => null },
@@ -91,6 +92,8 @@ function wired(frameWindow: () => unknown) {
   return { locomotion, end, openSettings, rightClick, talk };
 }
 
+const box = (edge: "left" | "width") => root.style.getPropertyValue(`--yui-box-${edge}`);
+
 // Her 400px window at logical 300,517; with nothing measured her own half bounds both reaches.
 const tauriWindow = () => ({
   outerPosition: async () => ({ x: 600, y: 1034 }),
@@ -113,12 +116,8 @@ it("opens the menu on a right-click on her, widened around her and holding her s
     ],
     expect.any(Function),
   );
-  expect([overlay.style.left, overlay.style.width]).toEqual(["0px", "400px"]);
-  // The status pill centres on her box and keeps its gutters inside it.
-  expect([statusPill.style.left, statusPill.style.getPropertyValue("max-width")]).toEqual([
-    "200px",
-    "calc(400px - 1.5rem)",
-  ]);
+  // Her own box inside the widened window, which the UI layer and the status pill lay out in.
+  expect([box("left"), box("width")]).toEqual(["0px", "400px"]);
 });
 
 it("restores the window, unpins the overlay and releases her before a closing pick runs", async () => {
@@ -137,8 +136,7 @@ it("restores the window, unpins the overlay and releases her before a closing pi
 
   await vi.waitFor(() => expect(order).toEqual(["end", "settings"]));
   expect(locomotion.hold).toHaveBeenLastCalledWith(false);
-  expect([overlay.style.left, overlay.style.width]).toEqual(["", ""]);
-  expect([statusPill.style.left, statusPill.style.getPropertyValue("max-width")]).toEqual(["", ""]);
+  expect([box("left"), box("width")]).toEqual(["", ""]);
 });
 
 it("closes when an agent move ends the widened window", async () => {
@@ -162,5 +160,5 @@ it("opens in the window as it is where there is no OS window to widen", async ()
 
   await vi.waitFor(() => expect(document.activeElement).toBe(talk()));
   expect(locomotion.widen).not.toHaveBeenCalled();
-  expect(overlay.style.width).toBe("");
+  expect(box("width")).toBe("");
 });

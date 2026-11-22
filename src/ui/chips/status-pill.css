@@ -4,7 +4,8 @@
 .yui-status {
   position: absolute;
   top: 4.5%;
-  left: 50%;
+  /* The centre of her own box, which the Character menu sets while it widens the window. */
+  left: calc(var(--yui-box-left, 0px) + var(--yui-box-width, 100%) / 2);
   transform: translate(-50%, -6px);
   display: inline-flex;
   align-items: center;
@@ -124,7 +125,7 @@
    does not fit ends in an ellipsis. */
 .yui-status[data-message] {
   width: max-content;
-  max-width: calc(100% - 1.5rem);
+  max-width: calc(var(--yui-box-width, 100%) - 1.5rem);
 }
 
 .yui-status__label {

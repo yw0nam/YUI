@@ -10,10 +10,10 @@ import { createMenuFrame } from "./character-menu-frame";
 /** Returns the teardown. */
 export function wireCharacterMenu(deps: {
   stage: HTMLElement;
-  /** The pet window's UI layer, pinned to her own box while the menu is open. */
+  /** The pet root, which carries her own box while the menu widens the window. */
+  root: HTMLElement;
+  /** The pet window's UI layer the menu draws in. */
   overlay: HTMLElement;
-  /** The status pill, which sits outside the UI layer and is pinned to her box with it. */
-  statusPill: HTMLElement | null;
   kind: MenuKind;
   name: () => string;
   renderer: Pick<Renderer, "getTapPoints" | "getSilhouetteBounds">;
@@ -21,8 +21,7 @@ export function wireCharacterMenu(deps: {
   ports: { read(): MenuState; actions: MenuActions };
 }): () => void {
   const frame = createMenuFrame({
-    overlay: deps.overlay,
-    statusPill: deps.statusPill,
+    root: deps.root,
     renderer: deps.renderer,
     locomotion: deps.locomotion,
     focusWindow: focusCurrentWindow,

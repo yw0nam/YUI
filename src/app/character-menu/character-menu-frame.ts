@@ -1,4 +1,4 @@
-/** The pet window around an open Character menu: held still and widened over her, her UI layer pinned to her own box. */
+/** The pet window around an open Character menu: held still and widened over her, her own box set on the pet root. */
 
 import { logicalWorkArea, monitorAtLogical } from "../../io/window/geometry/screen-geometry";
 import type { Travel } from "../../io/window/geometry/travel-frame";
@@ -10,19 +10,16 @@ import type { wireLocomotion } from "../stage/wire-locomotion";
 
 const log = createLogger("character-menu-frame");
 
-/** The status pill's gutters inside its window; the stylesheet sets the same. */
-const STATUS_GUTTERS = "1.5rem";
-
 export function createMenuFrame(deps: {
-  overlay: HTMLElement;
-  statusPill: HTMLElement | null;
+  /** The pet root: her UI lays out in the box it names in --yui-box-left and --yui-box-width. */
+  root: HTMLElement;
   renderer: Pick<Renderer, "getTapPoints" | "getSilhouetteBounds">;
   locomotion: Pick<ReturnType<typeof wireLocomotion>, "hold" | "widen" | "abortTravel" | "frame">;
   focusWindow: () => Promise<void>;
   /** An agent move ended the widened window under the open menu. */
   onAbort: () => void;
 }): { place(widths: MenuWidths): Promise<MenuPlacement>; restore(): Promise<void> } {
-  const { overlay, renderer, locomotion } = deps;
+  const { root, renderer, locomotion } = deps;
   let travel: Travel | null = null;
 
   async function widen(widths: MenuWidths): Promise<Fold | null> {
@@ -46,11 +43,8 @@ export function createMenuFrame(deps: {
     ];
     travel = await locomotion.widen(via, deps.onAbort);
     // Her UI keeps laying out in her own box inside the widened window.
-    const left = x - Math.min(x, ...via.map((p) => p.x));
-    overlay.style.setProperty("left", `${left}px`);
-    overlay.style.setProperty("width", `${width}px`);
-    deps.statusPill?.style.setProperty("left", `${left + width / 2}px`);
-    deps.statusPill?.style.setProperty("max-width", `calc(${width}px - ${STATUS_GUTTERS})`);
+    root.style.setProperty("--yui-box-left", `${x - Math.min(x, ...via.map((p) => p.x))}px`);
+    root.style.setProperty("--yui-box-width", `${width}px`);
     return plan.fold;
   }
 
@@ -67,7 +61,7 @@ export function createMenuFrame(deps: {
       // Read before the widen, while her box is the whole window.
       const tap = renderer.getTapPoints();
       const silhouette = renderer.getSilhouetteBounds();
-      const box = { width: overlay.clientWidth, height: overlay.clientHeight };
+      const box = { width: root.clientWidth, height: root.clientHeight };
       try {
         fold = await widen(widths);
       } catch (err) {
@@ -95,10 +89,8 @@ export function createMenuFrame(deps: {
       try {
         await ending?.end();
       } finally {
-        overlay.style.removeProperty("left");
-        overlay.style.removeProperty("width");
-        deps.statusPill?.style.removeProperty("left");
-        deps.statusPill?.style.removeProperty("max-width");
+        root.style.removeProperty("--yui-box-left");
+        root.style.removeProperty("--yui-box-width");
         locomotion.hold(false);
       }
     },
