@@ -423,6 +423,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       wireCharacterMenu({
         stage,
         overlay: surfaces.el,
+        statusPill: root.querySelector<HTMLElement>(".yui-status"),
         kind: phase1.bound === true ? "bound" : "main",
         name: phase1.menuHost.name,
         renderer,

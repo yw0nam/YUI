@@ -12,6 +12,8 @@ export function wireCharacterMenu(deps: {
   stage: HTMLElement;
   /** The pet window's UI layer, pinned to her own box while the menu is open. */
   overlay: HTMLElement;
+  /** The status pill, which sits outside the UI layer and is pinned to her box with it. */
+  statusPill: HTMLElement | null;
   kind: MenuKind;
   name: () => string;
   renderer: Pick<Renderer, "getTapPoints" | "getSilhouetteBounds">;
