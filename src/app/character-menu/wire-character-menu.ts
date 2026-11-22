@@ -22,6 +22,7 @@ export function wireCharacterMenu(deps: {
 }): () => void {
   const frame = createMenuFrame({
     overlay: deps.overlay,
+    statusPill: deps.statusPill,
     renderer: deps.renderer,
     locomotion: deps.locomotion,
     focusWindow: focusCurrentWindow,

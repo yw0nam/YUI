@@ -10,8 +10,12 @@ import type { wireLocomotion } from "../stage/wire-locomotion";
 
 const log = createLogger("character-menu-frame");
 
+/** The status pill's gutters inside its window; the stylesheet sets the same. */
+const STATUS_GUTTERS = "1.5rem";
+
 export function createMenuFrame(deps: {
   overlay: HTMLElement;
+  statusPill: HTMLElement | null;
   renderer: Pick<Renderer, "getTapPoints" | "getSilhouetteBounds">;
   locomotion: Pick<ReturnType<typeof wireLocomotion>, "hold" | "widen" | "abortTravel" | "frame">;
   focusWindow: () => Promise<void>;
@@ -42,8 +46,11 @@ export function createMenuFrame(deps: {
     ];
     travel = await locomotion.widen(via, deps.onAbort);
     // Her UI keeps laying out in her own box inside the widened window.
-    overlay.style.setProperty("left", `${x - Math.min(x, ...via.map((p) => p.x))}px`);
+    const left = x - Math.min(x, ...via.map((p) => p.x));
+    overlay.style.setProperty("left", `${left}px`);
     overlay.style.setProperty("width", `${width}px`);
+    deps.statusPill?.style.setProperty("left", `${left + width / 2}px`);
+    deps.statusPill?.style.setProperty("max-width", `calc(${width}px - ${STATUS_GUTTERS})`);
     return plan.fold;
   }
 
@@ -90,6 +97,8 @@ export function createMenuFrame(deps: {
       } finally {
         overlay.style.removeProperty("left");
         overlay.style.removeProperty("width");
+        deps.statusPill?.style.removeProperty("left");
+        deps.statusPill?.style.removeProperty("max-width");
         locomotion.hold(false);
       }
     },
