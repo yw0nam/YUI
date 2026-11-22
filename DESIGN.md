@@ -133,7 +133,7 @@ This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Dr
 - Warm-when-present: when a surface appears, a small amber warmth meets humanist warmth.
 - Legible-on-anything: readable over any background through self-contrast, not the backdrop.
 - Calm motion: feedback transitions, one slow float on the speech bubble, and short travel and reactions for the character that never block input. Under reduced motion, her travel fades and the Character menu's pills only fade in.
-- Her stage: the settings window is where she comes along, in her signature color.
+- Her stage: the settings window is where she comes along.
 
 ## 2. Colors
 
@@ -173,9 +173,6 @@ Components name a colour by its role, never by a value. Each role below has one 
 - **Ink**: dark text for the count on the folded delegation chip's amber badge, in both themes. Body text on a floating surface stays Text.
 - **Danger**: undo, failure messaging, the failed-delegation dot and the hostile end of a relation glyph. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
 - **Ok**: the status pill's tool-done check, the finished-delegation dot and Quick start's done line (`.yui-start__done`). Hue 150 keeps it clear of both Amber and Danger; the soft variant carries the connected ring in the settings panel.
-
-### Signature color
-Each character has a signature color. It is a second color role beside amber, bounded to the places named here. Its default derives from the character's avatar hue, taken from her preset id, at the theme's avatar lightness and chroma (`--yui-avatar-l`, `--yui-avatar-c`). The signature color appears on the Settings stage (its ground and her name) and as the ring around a hovered Character menu pill. In the Character menu, amber marks ON states and focus only, and the signature color takes neither role.
 
 ### Panel tokens
 
@@ -290,7 +287,7 @@ Two pill columns flank her at the shoulder line, 24px clear of her silhouette. T
 
 The pet window widens only while the menu is open, to about 500px, and it restores when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
 
-Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. Where space is tight, a pill shows its glyph only, and its label shows on hover or focus. The accessible name is the glossary term, so Rest is named "Do-not-disturb". A preset may supply its own image for an item, stored as `menuIcons` in its asset folder. An item without one shows its glyph.
+Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. Where space is tight, a pill shows its glyph only, and its label shows on hover or focus. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
 
 The top level holds Talk, Rest, Listen, Body ›, Voice ›, Pace ›, Settings and More ›. More holds Threads with its waiting count, Keep bubble, Unified chat, Terminal, Reset chat and Turn off. An item that cannot act in a window is hidden: Listen shows in the main window only, and Turn off shows only in a bound pet window. The Threads chip on the character opens Threads while something waits.
 
@@ -300,10 +297,10 @@ Reset chat and Turn off morph in place into "Sure?" and "Cancel", with focus on 
 
 Focus goes to the first pill when the menu opens, and focus stays inside the menu while it is open. Arrows, Tab and Shift+Tab move in reading order, and Home and End also work. Enter or Space picks. In a second level, ← or Esc goes back, and Esc at the top level closes the menu. The menu adds no global shortcut.
 
-The plate is opaque, with a hairline edge and one Float shadow, and it has no glass. Amber marks ON states and focus only. A hovered pill takes her signature color as a ring. Pills pop out from her chest in keyboard order, 30ms apart, over 320ms. Under reduced motion they only fade. In the transparent pet window, visible menu surfaces take pointer input, and the area around them passes clicks through.
+The plate is opaque, with a hairline edge and one Float shadow, and it has no glass. Amber marks ON states and focus only. Pills pop out from her chest in keyboard order, 30ms apart, over 320ms. Under reduced motion they only fade. In the transparent pet window, visible menu surfaces take pointer input, and the area around them passes clicks through.
 
 ### Settings stage
-The settings window is her stage. A stage area sits on its left, in her signature color, and holds her name, her state and a caption of what she is doing. The stage area is at least 400px wide, the pet window's width, so the 341px input fits beside her. The stage's tuning values (the stay chance, the mood decay, the rare-entry share and the travel time) have defaults in the `stage` section of `configs/avatar.json`. The backend may also receive an opt-in `settings opened {page}` event, which is off by default and switched in Proactive › Advanced; the backend decides whether she says anything.
+The settings window is her stage. A stage area sits on its left and holds her name, her state and a caption of what she is doing. The stage area is at least 400px wide, the pet window's width, so the 341px input fits beside her. The stage's tuning values (the stay chance, the mood decay, the rare-entry share and the travel time) have defaults in the `stage` section of `configs/avatar.json`. The backend may also receive an opt-in `settings opened {page}` event, which is off by default and switched in Proactive › Advanced; the backend decides whether she says anything.
 
 She comes along when the settings window opens, and she returns home when it closes. Her entry comes from the entry family for her last backend emotion, as the table below sets it. One variant in the family is picked at random, and never the same one twice in a row. One entry in about 20 is reserved for a rare variant. By default, after 30 minutes without a new emotion, her emotion decays to neutral. A backend that sends no emotion is always neutral. The client holds this table and computes no mood of its own.
 
@@ -415,7 +412,7 @@ When the window's preset changes a relation, the glyph's new segments grow from 
 - **Do** let the Surface's alpha carry contrast on the bubble, the text input, the name plate and the status pill, and trade the bubble's frost for Plate under `prefers-reduced-transparency`.
 - **Do** finish frequent picks in place in the Character menu, and confirm a destructive pick inline, with focus on Cancel.
 - **Do** keep her travel and reactions short, and keep the window usable while they play.
-- **Do** use the signature color only where § Signature color names it, and keep amber for ON states and focus in the Character menu.
+- **Do** keep amber for ON states and focus in the Character menu.
 
 ### Don't:
 - **Don't** look like an **enterprise SaaS chatbot widget** (bordered card, gradient accent, generic widget tone).
@@ -430,4 +427,3 @@ When the window's preset changes a relation, the glyph's new segments grow from 
 - **Don't** block input while she travels or reacts.
 - **Don't** widen the pet window except while the Character menu is open.
 - **Don't** open the Character menu on a long-press, or let it time out.
-- **Don't** use the signature color for ON states or focus.
