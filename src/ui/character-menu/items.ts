@@ -56,10 +56,16 @@ const list = (id: ListId): MenuItem => ({
   role: "list",
 });
 
-const choice = (list: ListId, value: string, label: string, current: string): MenuItem => ({
+const choice = (
+  list: ListId,
+  value: string,
+  label: string,
+  current: string,
+  glyph: string = list,
+): MenuItem => ({
   id: `${list}:${value}`,
   label,
-  glyph: list,
+  glyph,
   role: "choice",
   on: value === current,
   value,
@@ -108,13 +114,19 @@ export function listItems(id: ListId, kind: MenuKind, state: MenuState): MenuIte
   if (id === "voice")
     return [
       BACK(),
+      // The empty id is no voice.
       ...state.voices.map((o) =>
-        choice("voice", o.id, o.id === "" ? t("character_menu.voice_none") : o.label, state.voice),
+        o.id === ""
+          ? choice("voice", "", t("character_menu.voice_none"), state.voice, "mute")
+          : choice("voice", o.id, o.label, state.voice),
       ),
       moreItems("voice"),
     ];
   if (id === "pace")
-    return [BACK(), ...PACES.map(([pace, key]) => choice("pace", pace, t(key), state.pace))];
+    return [
+      BACK(),
+      ...PACES.map(([pace, key]) => choice("pace", pace, t(key), state.pace, `pace-${pace}`)),
+    ];
   // The waiting count belongs to main, which owns the Threads.
   const badge = kind === "main" && state.waiting > 0 ? state.waiting : undefined;
   return [
