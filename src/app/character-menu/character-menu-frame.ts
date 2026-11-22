@@ -48,51 +48,63 @@ export function createMenuFrame(deps: {
     return plan.fold;
   }
 
+  async function restore(): Promise<void> {
+    const ending = travel;
+    travel = null;
+    try {
+      await ending?.end();
+    } finally {
+      root.style.removeProperty("--yui-box-left");
+      root.style.removeProperty("--yui-box-width");
+      locomotion.hold(false);
+    }
+  }
+
+  async function place(widths: MenuWidths): Promise<MenuPlacement> {
+    locomotion.hold(true);
+    let fold: Fold | null = null;
+    try {
+      // A cancelled stroll or climb may still be unparking its travel.
+      await locomotion.abortTravel();
+    } catch (err) {
+      log.warn("abort_travel_failed", { error: String(err) });
+    }
+    // Read before the widen, while her box is the whole window.
+    const tap = renderer.getTapPoints();
+    const silhouette = renderer.getSilhouetteBounds();
+    const box = { width: root.clientWidth, height: root.clientHeight };
+    try {
+      fold = await widen(widths);
+    } catch (err) {
+      log.info("widen_skipped", { error: String(err) });
+    }
+    // No OS window to widen: the menu opens inside the window as it is.
+    fold ??= planMenu({
+      centre: box.width / 2,
+      half: box.width / 2,
+      workArea: { x: 0, y: 0, ...box },
+      widths,
+    }).fold;
+    // The keyboard reaches the menu only while this window holds focus.
+    void deps.focusWindow().catch((err) => log.warn("focus_failed", { error: String(err) }));
+    return {
+      fold,
+      top: tap?.head?.y ?? box.height * 0.4,
+      chest: tap?.chest ?? { x: box.width / 2, y: box.height / 2 },
+      head: silhouette?.top ?? box.height * 0.25,
+    };
+  }
+
   return {
     async place(widths) {
-      locomotion.hold(true);
-      let fold: Fold | null = null;
       try {
-        // A cancelled stroll or climb may still be unparking its travel.
-        await locomotion.abortTravel();
+        return await place(widths);
       } catch (err) {
-        log.warn("abort_travel_failed", { error: String(err) });
-      }
-      // Read before the widen, while her box is the whole window.
-      const tap = renderer.getTapPoints();
-      const silhouette = renderer.getSilhouetteBounds();
-      const box = { width: root.clientWidth, height: root.clientHeight };
-      try {
-        fold = await widen(widths);
-      } catch (err) {
-        log.info("widen_skipped", { error: String(err) });
-      }
-      // No OS window to widen: the menu opens inside the window as it is.
-      fold ??= planMenu({
-        centre: box.width / 2,
-        half: box.width / 2,
-        workArea: { x: 0, y: 0, ...box },
-        widths,
-      }).fold;
-      // The keyboard reaches the menu only while this window holds focus.
-      void deps.focusWindow().catch((err) => log.warn("focus_failed", { error: String(err) }));
-      return {
-        fold,
-        top: tap?.head?.y ?? box.height * 0.4,
-        chest: tap?.chest ?? { x: box.width / 2, y: box.height / 2 },
-        head: silhouette?.top ?? box.height * 0.25,
-      };
-    },
-    async restore() {
-      const ending = travel;
-      travel = null;
-      try {
-        await ending?.end();
-      } finally {
-        root.style.removeProperty("--yui-box-left");
-        root.style.removeProperty("--yui-box-width");
-        locomotion.hold(false);
+        // A failed placement never leaves her held or the window widened.
+        await restore();
+        throw err;
       }
     },
+    restore,
   };
 }

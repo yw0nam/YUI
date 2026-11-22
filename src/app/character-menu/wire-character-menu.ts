@@ -1,11 +1,14 @@
 /** Wires the Character menu into the pet window: a right-click on her opens it around her. */
 
 import { focusCurrentWindow, listenCurrentWindowBlur } from "../../io/window/current-window";
+import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { createCharacterMenu, type MenuActions } from "../../ui/character-menu/character-menu";
 import type { MenuKind, MenuState } from "../../ui/character-menu/items";
 import type { wireLocomotion } from "../stage/wire-locomotion";
 import { createMenuFrame } from "./character-menu-frame";
+
+const log = createLogger("wire-character-menu");
 
 /** Returns the teardown. */
 export function wireCharacterMenu(deps: {
@@ -50,7 +53,7 @@ export function wireCharacterMenu(deps: {
   });
   function onContextMenu(e: MouseEvent): void {
     e.preventDefault();
-    void menu.open();
+    menu.open().catch((err) => log.warn("open_failed", { error: String(err) }));
   }
   deps.stage.addEventListener("contextmenu", onContextMenu);
   return () => {
