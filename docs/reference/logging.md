@@ -184,7 +184,7 @@ A `character_desktop_toggle` turn-on that the open-preset cap refused logs nothi
 
 ## Character menu
 
-`app/character-menu/character-menu-ports.ts` (namespace `character-menu-ports`) writes the stores the menu's items act on, and `app/character-menu/character-menu-frame.ts` (namespace `character-menu-frame`) widens and restores the pet window around it. Both run in the pet window and log at `info` unless a row says otherwise.
+`app/character-menu/character-menu-ports.ts` (namespace `character-menu-ports`) writes the stores the menu's items act on, and `app/character-menu/character-menu-frame.ts` (namespace `character-menu-frame`) widens and restores the pet window around it. `app/character-menu/wire-character-menu.ts` (namespace `wire-character-menu`) opens the menu on a right-click, and `ui/character-menu/character-menu.ts` (namespace `character-menu`) closes it. All four run in the pet window and log at `info` unless a row says otherwise.
 
 ### Menu actions
 
@@ -202,6 +202,8 @@ The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_t
 | `character-menu-frame` | `widen_skipped` | `error` | The widen threw (outside the app there is no frame to set), so the menu opens in the window as it is. |
 | `character-menu-frame` | `focus_failed` | `error` | Taking OS focus threw (`warn` level). |
 | `character-menu-frame` | `abort_travel_failed` | `error` | Waiting for a cancelled travel to unpark threw (`warn` level). |
+| `wire-character-menu` | `open_failed` | `error` | Opening the menu threw; she is released, the window is restored and the menu stays closed (`warn` level). |
+| `character-menu` | `restore_failed` | `error` | Restoring the window on close threw; the menu still closes and a closing pick still runs (`warn` level). |
 
 ## Threads window
 
