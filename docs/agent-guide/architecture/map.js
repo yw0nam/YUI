@@ -1548,6 +1548,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/keyed-rows"
       ]
+    },
+    {
+      "id": "ui/controls",
+      "module": "display",
+      "label": "controls",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of.",
+      "paths": [
+        "src/ui/controls"
+      ]
     }
   ],
   "edges": [
@@ -4840,6 +4849,15 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/chips/delegation-rows.ts"
+    },
+    {
+      "id": "perms-switch",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Switch: checked state, label and the flipped value on click",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/perms/perms-page-view.tsx"
     },
     {
       "id": "workflow-rows-keyed",

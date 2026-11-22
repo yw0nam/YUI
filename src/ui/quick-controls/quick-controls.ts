@@ -85,6 +85,7 @@ import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
+import { createPermsPage } from "./perms/perms-page";
 import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
@@ -101,7 +102,6 @@ import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createReadingsSection } from "./sections/readings/readings-section";
 import { createScreenSection } from "./sections/screen/screen-section";
-import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
 import { createSessionSection } from "./sections/session/session-section";
 import { createSpeakerList } from "./sections/speaker/speaker-list";
 import { createUserNameSection } from "./sections/user-name/user-name-section";
@@ -670,7 +670,7 @@ export function createQuickControls({
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
-      screenshot.loadMonitorsIfEnabled();
+      permsPage.loadMonitorsIfEnabled();
     },
     onClose: () => {
       for (const section of sections) section.close?.();
@@ -808,14 +808,9 @@ export function createQuickControls({
     isOpen: shell.isOpen,
   });
 
-  // ── Screenshot section (attach switch · monitor list) ──
-  const screenshot = createScreenshotSection({
-    root: el,
-    settings,
-    sourceProvider,
-    log,
-    isOpen: shell.isOpen,
-  });
+  // ── Permissions page (attach switch · monitor list · screen requests) ──
+  const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen: shell.isOpen });
+  el.querySelector("#yui-panel-perms")!.append(permsPage.el);
 
   // ── Plugins page (installed plugins · catalog · consent) ──
   const pluginsPage = plugins ? createPluginsPage({ ...plugins, log }) : undefined;
@@ -880,7 +875,7 @@ export function createQuickControls({
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     quickStart,
-    screenshot,
+    { dispose: permsPage.dispose },
     pluginsPage,
     switchRows,
     basePace,

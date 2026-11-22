@@ -302,40 +302,6 @@ ${panelOpenHtml("listening")}
         </div>${readingsSectionHtml()}
       </div>
 ${panelOpenHtml("perms")}
-        <div class="yui-sec">
-          <div class="yui-group">
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/>
-                  </svg>
-                  ${t("screenshot.label")}
-                </span>
-                <span class="yui-row__sub">${t("screenshot.foot_off")}</span>
-              </div>
-              <button class="yui-switch yui-screenshot-switch" type="button" role="switch" aria-checked="false" aria-label="${t("screenshot.label")}"></button>
-            </div>
-            <div class="yui-stack yui-source">
-              <span class="yui-row__label">${t("screenshot.source_label")}</span>
-              <div class="yui-monitors" role="radiogroup" aria-label="${t("screenshot.source_aria")}"></div>
-            </div>
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/>
-                  </svg>
-                  ${t("screenshot.request_label")}
-                </span>
-                <span class="yui-row__sub">${t("screenshot.request_foot_off")}</span>
-              </div>
-              <button class="yui-switch yui-screenshot-requests-switch" type="button" role="switch" aria-checked="false" aria-label="${t("screenshot.request_label")}"></button>
-            </div>
-          </div>
-        </div>
       </div>
 ${
   showPlugins

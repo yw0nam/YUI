@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Settings panel layout, section placement, segment sizing and screenshot hints.
 
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
@@ -68,6 +69,9 @@ const IDLE_POOL = {
   variants: ["/motions/calm.vrma", "/motions/idle_01.vrma"],
 };
 const EXPRESS_VOCAB = ["happy", "laugh"];
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("createQuickControls — settings layout", () => {
   let mount: HTMLElement;
@@ -275,7 +279,7 @@ describe("createQuickControls — settings layout", () => {
     expect(sw.getAttribute("aria-checked")).toBe("false");
     expect(sub.textContent).toBe(t("screenshot.foot_off"));
 
-    settings.setEnabled(true);
+    act(() => settings.setEnabled(true));
     expect(sw.getAttribute("aria-checked")).toBe("true");
     expect(sub.textContent).toBe(t("screenshot.foot_on"));
     expect(qc.el.querySelector(".yui-quick__foot")).toBeNull();
