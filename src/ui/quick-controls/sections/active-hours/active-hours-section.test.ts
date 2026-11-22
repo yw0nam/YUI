@@ -23,6 +23,8 @@ import type { Span } from "../../../../settings/active-hours/spans";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { PersistedStorage } from "../../../../settings/persisted-store";
 import { setLocale } from "../../../i18n";
+import { createQuickControls } from "../../quick-controls";
+import { defaultQcArgs } from "../../test-helpers";
 import { activeHoursSectionHtml, createActiveHoursSection } from "./active-hours-section";
 
 const YUI_SPANS: Span[] = [
@@ -139,5 +141,14 @@ describe("createActiveHoursSection", () => {
     expect(store.get().spans).toBeNull();
     expect(reset.hidden).toBe(true);
     section.dispose();
+  });
+
+  it("renders nothing without the active hours store", () => {
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const qc = createQuickControls({ ...defaultQcArgs(mount) });
+    qc.open();
+    expect(qc.el.querySelector(".yui-hours")).toBeNull();
+    qc.dispose();
   });
 });
