@@ -56,7 +56,6 @@ import { createThreadsClient } from "../io/threads/threads-client";
 import { micSettingsOpener } from "../io/voice/open-mic-settings";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
-import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { createThreadsWindowController } from "../io/window/openers/threads-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
@@ -265,8 +264,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     presetIdForWindow(),
   );
 
-  const quickCardWindow = createQuickCardWindowController({ boundId, bridge: windowBridge });
-  register(() => quickCardWindow.dispose());
   wirePetControls({
     stores: settingsStores,
     remoteSurfaces: remote,
@@ -286,7 +283,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Access requests wait on the main chip beside the Threads.
   const terminal = bound ? null : createTerminalClient();
   if (terminal) register(() => terminal.dispose());
-  // The chip, the tray's Terminal item and every quick card open one Threads window.
+  // The chip, the tray's Terminal item and every bound window's Character menu open one Threads window.
   const threadsWindow = bound ? null : createThreadsWindowController({ bridge: windowBridge });
   if (threadsWindow) register(() => threadsWindow.dispose());
   register(
@@ -413,8 +410,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
           screenshotSettings: settingsStores.screenshotSettings,
           lipsyncSettings: settingsStores.lipsyncSettings,
           agentSettings: settingsStores.agentSettings,
-          quickCardWindow,
-          boundId,
           speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,

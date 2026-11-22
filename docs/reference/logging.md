@@ -127,7 +127,7 @@ These modules log at `info` unless a row says otherwise:
 - `ui/unified/sequence.ts` (namespace `sequence`)
 - `io/window/openers/unified-window.ts` (namespace `unified-window`)
 - The Together page's switch row and Characters list (namespace `quick-controls`, in the settings window)
-- The quick card's Unified chat tile (namespace `quick-card`, in the quick-card window)
+- The Character menu's Unified chat item (namespace `character-menu-ports`, in the pet window)
 
 ### Sending, speech and stop
 
@@ -157,8 +157,9 @@ Field notes for `route`:
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `quick-controls`, `quick-card` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or tile. |
-| `quick-card`, `bootstrap` | `dnd_toggle` | `enabled`, `via` | The user flipped the Do not disturb switch on the quick card (`via` is `quick_card`) or the tray's Do Not Disturb item (`via` is `tray`). |
+| `quick-controls`, `character-menu-ports` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or menu item. |
+| `character-menu-ports`, `bootstrap` | `dnd_toggle` | `enabled`, `via` | The user flipped the Do not disturb switch on the Character menu's Rest item (`via` is `character_menu`) or the tray's Do Not Disturb item (`via` is `tray`). |
+| `character-menu-ports` | `bubble_persist_toggle` | `enabled` | The user flipped the Keep bubble item. |
 | `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
 | `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. |
 
@@ -181,56 +182,26 @@ A `character_desktop_toggle` turn-on that the open-preset cap refused logs nothi
 | `companion-column` | `drag_failed` | `window`, `error` | Starting the OS drag threw. |
 | `companion-column` | `resize_failed` | `window`, `error` | Setting the window's height to its column threw. |
 
-## Quick-card window
+## Character menu
 
-`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window through `io/window/openers/ready-window.ts` (namespace `ready-window`).
+`app/character-menu/character-menu-ports.ts` (namespace `character-menu-ports`) writes the stores the menu's items act on, and `app/character-menu/character-menu-frame.ts` (namespace `character-menu-frame`) widens and restores the pet window around it. Both run in the pet window and log at `info` unless a row says otherwise.
 
-The modules below run in the quick-card window. All modules in this section, `quick-card-window` and `ready-window` included, log at `info` unless a row says otherwise.
-
-- `windows/quick-card-main.ts` (namespace `quick-card-main`) boots it.
-- `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
-- `ui/quick-card/` (namespace `quick-card`) is the card.
-- `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores.
-- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) places and moves the window.
-- `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it.
-
-The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
-
-### Window creation and boot
+### Menu actions
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `ready-window` | `window_destroy_timeout` | `label` | A leftover card or Threads window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
-| `quick-card-window` | `quick_card_window_create_error` | `error` | The card window could not be created (`error` level). |
-| `ready-window` | `window_open_failed` | `label`, `error` | Creating or reusing the card or Threads window threw (`error` level). |
-| `quick-card-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
-| `wire-quick-card-window` | `config_load_failed` | `error` | The bundled config did not load; the card runs on the stored settings (`warn` level). |
-| `wire-quick-card-window` | `avatar_config_read_failed` | `fallback`, `error` | The config's VRM list could not be read; the VRM selection keeps its built-in default (`warn` level). |
+| `character-menu-ports` | `select_failed` | `error` | Applying a Body or Voice choice threw (`warn` level). |
+| `character-menu-ports` | `session_reset` | none | Reset chat started a new session. |
 
-### Card tiles and stores
+The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_toggle` and `unified_chat_toggle` under `character-menu-ports`; "Switches and characters" lists them.
+
+### Widening
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `quick-card` | `select_failed` | `error` | Applying a Body or Reference voice choice threw (`warn` level). |
-| `quick-card-ports` | `session_reset` | none | Reset conversation started a new session. |
-
-### Docking
-
-| Namespace | Event | Fields | When |
-|---|---|---|---|
-| `quick-card-dock` | `quick_card_detached` | none | The first move of the card window after a head pointerdown detached it. |
-| `quick-card-dock` | `quick_card_drag_failed` | `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
-| `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
-| `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
-
-### Closing
-
-| Namespace | Event | Fields | When |
-|---|---|---|---|
-| `quick-card-close` | `quick_card_focus_lost` | none | A poll tick found no YUI window holding focus, so the card closed. |
-| `quick-card-close` | `quick_card_focus_listen_failed` | `error` | Listening to the window's focus failed, so the focus poll never starts (`warn` level). |
-| `quick-card-close` | `quick_card_hide_failed` | `error` | Hiding the card window threw (`warn` level). |
-| `quick-card-close` | `quick_card_focus_poll_failed` | `error` | A focus poll tick threw (`debug` level). |
+| `character-menu-frame` | `widen_skipped` | `error` | The widen threw (outside the app there is no frame to set), so the menu opens in the window as it is. |
+| `character-menu-frame` | `focus_failed` | `error` | Taking OS focus threw (`warn` level). |
+| `character-menu-frame` | `abort_travel_failed` | `error` | Waiting for a cancelled travel to unpark threw (`warn` level). |
 
 ## Threads window
 

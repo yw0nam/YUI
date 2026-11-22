@@ -2,8 +2,6 @@
 
 Every key, click, and menu that moves her.
 
-![The quick card that a right-click on the character opens](/shots/quick-card.png)
-
 ## Keyboard
 
 | Keys | What happens |
@@ -12,7 +10,7 @@ Every key, click, and menu that moves her.
 | `/` | Opens the text input while her window has focus |
 | `Enter` | Sends the message |
 | `Shift+Enter` | Starts a new line |
-| `Esc` | Closes the text input, or the quick card |
+| `Esc` | Closes the text input, or the Character menu |
 
 ## Mouse on the character
 
@@ -26,7 +24,7 @@ Every key, click, and menu that moves her.
 | Wheel | Zooms in and out |
 | `Ctrl` + wheel | Resizes her, feet in place |
 | `Shift` + drag | Orbits the camera |
-| Right-click | Opens the quick card: Do not disturb, Voice, Listen, Keep bubble, Unified chat, Threads, Terminal, Body, Reference voice, Reset…, Turn off for another character, All settings… |
+| Right-click | Opens the Character menu around her: Talk, Rest (Do not disturb), Listen, Settings, Body, Voice, Pace, and More (Threads, Keep bubble, Unified chat, Terminal, Reset chat, Turn off for another character) |
 
 ## Text input
 
@@ -60,7 +58,7 @@ Every key, click, and menu that moves her.
 
 | Action | What happens |
 | --- | --- |
-| Listen | The Listen switch in her quick card, main window only, or **Voice input** on Listening and bubble |
+| Listen | Listen in her Character menu, main window only, or **Voice input** on Listening and bubble |
 | Barge-in | On by default; speaking while she talks cuts her off |
 | Reading dictionary | Changes only the text sent to the voice, never the bubble |
 
@@ -68,7 +66,7 @@ Every key, click, and menu that moves her.
 
 | Item | What it does |
 | --- | --- |
-| Tray menu | Show / Hide Character, Do Not Disturb (a check that mirrors the quick card's switch), Settings…, Terminal, and Quit YUI |
+| Tray menu | Show / Hide Character, Do Not Disturb (a check that mirrors the Character menu's Rest), Settings…, Terminal, and Quit YUI |
 | Waiting for you chip | Threads that wait for your answer; tap it to open the Threads window |
 | Status pill | The tool she is running; a moon while Do not disturb is on |
 | Signal pill | One per Signal group; tap it for details, the cross dismisses it, and **+N** unfolds the rest |

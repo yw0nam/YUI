@@ -1,4 +1,4 @@
-/** Start fresh — the one path the History page and the quick card reset the conversation by. */
+/** Start fresh — the one path the History page and the Character menu reset the conversation by. */
 
 import type { Logger } from "../../../logger";
 import type { createChatHistoryStore } from "./chat-history-store";

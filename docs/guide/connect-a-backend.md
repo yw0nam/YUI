@@ -4,7 +4,7 @@ Connect any OpenAI-compatible model, or an agent that keeps its own memory.
 
 ![Settings window, Connection page, Chat section with a provider and a model filled in](/shots/settings-connection.png)
 
-1. Right-click the character and choose **All settings…**.
+1. Right-click the character and choose **Settings**.
 2. Open **Connection**. With no chat connected, it opens Quick start, which takes a Google Gemini key for the free tier.
 3. Pick a **Provider** (OpenAI, Ollama, LM Studio, Groq, Google Gemini, Hermes Agent, or Custom).
 

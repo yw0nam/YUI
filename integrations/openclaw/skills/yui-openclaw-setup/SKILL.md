@@ -68,7 +68,7 @@ curl -s http://127.0.0.1:18789/v1/responses -H "Authorization: Bearer $TOKEN" -H
 
 ## 6. Point YUI at the gateway
 
-The user does this in **Settings → Connection** (right-click the character → **All settings…**):
+The user does this in **Settings → Connection** (right-click the character → **Settings**):
 
 | Field | Value |
 | --- | --- |

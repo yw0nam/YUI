@@ -1,4 +1,4 @@
-/** Main's other ways into the Threads window: the tray's Terminal item and a quick card's request open it on their tab, with no chip to grow from. */
+/** Main's other ways into the Threads window: the tray's Terminal item and a bound Character menu's request open it on their tab, with no chip to grow from. */
 
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";

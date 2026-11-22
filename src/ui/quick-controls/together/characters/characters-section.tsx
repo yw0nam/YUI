@@ -7,8 +7,8 @@ import { OPEN_PRESET_CAP, type PetWindows } from "../../../../settings/preset/pe
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
 import { Switch } from "../../../controls/switch";
 import { t } from "../../../i18n";
-import { useSnapshot } from "../../../quick-card/use-snapshot";
 import { avatarEl } from "../../../unified/avatar";
+import { useSnapshot } from "../../../use-snapshot/use-snapshot";
 import "./characters-section.css";
 
 export type WindowsPort = Pick<PetWindows, "get" | "open" | "close" | "subscribe" | "invalidate">;

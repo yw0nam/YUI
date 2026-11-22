@@ -55,7 +55,7 @@ For each server that answers, show the user the remaining model ids. Ask whether
 
 Once the user picks a server and a model, set `chat_base_url` to `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio, set `chat_model` to the chosen id, and leave `chat_api` at `chat_completions`. When neither server answers, or the user declines both, continue with the question below.
 
-Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → All settings… → Connection)?" On "later", go to step 4.
+Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → Settings → Connection)?" On "later", go to step 4.
 
 Otherwise, collect what the user has. Every URL starts with `http://` or `https://`. The config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
 
@@ -134,7 +134,7 @@ Report to the user:
 
 1. The paths written, never a key value.
 2. The tool-call test result, one of the seven results above.
-3. What was skipped, with the place to set it later: right-click the character → All settings… → Connection.
+3. What was skipped, with the place to set it later: right-click the character → Settings → Connection.
 4. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend, she idles. A chat turn answers with a pointer to the Connection tab.
 5. What the connection keeps across turns and where long-term memory comes from: [what the connection remembers](https://github.com/yw0nam/YUI/blob/main/docs/guide/connect-a-backend.md#what-the-connection-remembers).
 6. The optional services (TTS, STT, backend agents) are covered in [Connect a backend](connect-a-backend.md) and [Voice in and out](voice.md).

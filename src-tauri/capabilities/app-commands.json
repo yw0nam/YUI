@@ -9,8 +9,6 @@
     "settings-*",
     "message",
     "message-*",
-    "quick-card",
-    "quick-card-*",
     "unified",
     "devtools",
     "threads"
@@ -45,8 +43,6 @@
     "allow-thread-answer",
     "allow-thread-seen",
     "allow-thread-read",
-    "allow-window-dock-attach",
-    "allow-window-dock-detach",
     "allow-terminal-snapshot",
     "allow-terminal-open",
     "allow-terminal-close",

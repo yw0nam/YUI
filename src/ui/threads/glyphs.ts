@@ -1,4 +1,4 @@
-/** The Threads and Terminal glyphs, drawn in the Threads window and on the quick card that opens it. */
+/** The Threads and Terminal glyphs, drawn in the Threads window and in the Character menu that opens it. */
 
 /** A 24px line glyph that draws without a stylesheet. */
 export const glyph = (paths: string): string =>

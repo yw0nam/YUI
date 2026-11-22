@@ -1,6 +1,6 @@
 /** Where the Character menu's columns go beside her, and how far the widened window reaches. */
 
-import { roomierSide } from "../../io/window/geometry/quick-card-position";
+import { roomierSide } from "../../io/window/geometry/roomier-side";
 
 /** A column's inner edge from her centre: her 64px half-width plus 24px clear. */
 const GUTTER_PX = 88;

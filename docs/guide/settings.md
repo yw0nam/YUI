@@ -1,6 +1,6 @@
 # Settings
 
-The settings window opens from **Settings…** in the tray menu or from **All settings…** on her quick card. The strip picks the character it edits, and the rail splits into two groups: that character's pages and every character's. The search box highlights the rows that match and dims a page with no match.
+The settings window opens from **Settings…** in the tray menu or from **Settings** in her Character menu. The strip picks the character it edits, and the rail splits into two groups: that character's pages and every character's. The search box highlights the rows that match and dims a page with no match.
 
 ![Settings window, Connection page, Chat section with a provider and a model filled in](/shots/settings-connection.png)
 

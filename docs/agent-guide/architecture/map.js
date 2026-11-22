@@ -893,7 +893,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's dock, follow and snap rules and its macOS child-window link, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel frame, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, which side of her has more room, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel frame, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -902,7 +902,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, Threads and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card or Threads window reports ready, closes those companions and watches their owner window. The Threads window's opener also opens or raises it without focus for a Thread reaction, reports whether it is open, and settles each such request on its presented report, its closed report, or a failed open or dispose.",
+      "role": "Opens and places the message, settings, devtools, unified chat, Threads and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id; keeps a request made before the Threads window reports ready, closes those companions and watches their owner window. The Threads window's opener also opens or raises it without focus for a Thread reaction, reports whether it is open, and settles each such request on its presented report, its closed report, or a failed open or dispose.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -1228,16 +1228,8 @@ globalThis.YUI_MAP =
       "label": "quick controls",
       "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line over a Key row with Replace key, the voice step and Help once connected, the stored key checked when the connected view shows (a refused key swaps the done line for Key rejected, and Replace key writes only the key), and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
-        "src/ui/quick-controls"
-      ]
-    },
-    {
-      "id": "ui/quick-card",
-      "module": "settings",
-      "label": "quick card",
-      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), a Do not disturb switch above the tiles, the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Threads and Terminal buttons that ask main to open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
-      "paths": [
-        "src/ui/quick-card"
+        "src/ui/quick-controls",
+        "src/ui/use-snapshot"
       ]
     },
     {
@@ -1373,7 +1365,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, opens the Threads window from its tap, and passes each tap on to the reaction wiring; the chip hides from the open until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, opens the Threads window from its tap, and passes each tap on to the reaction wiring; the chip hides from the open until the window's closed report. The tray's Terminal item and a bound pet window's Character menu Threads or Terminal item open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -1400,7 +1392,7 @@ globalThis.YUI_MAP =
       "id": "app/settings",
       "module": "wiring",
       "label": "settings wiring",
-      "role": "Store bags, the config store with its live merges and reload, avatar selection, and the settings side the settings and quick-card windows share.",
+      "role": "Store bags, the config store with its live merges and reload, avatar selection, and the settings side of the settings window.",
       "paths": [
         "src/app/settings"
       ]
@@ -1430,15 +1422,6 @@ globalThis.YUI_MAP =
       "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
       "paths": [
         "src/app/character-menu"
-      ]
-    },
-    {
-      "id": "app/quick-card-window",
-      "module": "wiring",
-      "label": "quick-card window wiring",
-      "role": "The quick-card window's wiring: the settings side it shares with the settings window, the card's ports, the mirrored push socket and voice state, the dock that places the window docked beside the character, follows her window, detaches on a head drag and snaps a near drop back, and the close that hides the window when no YUI window holds focus.",
-      "paths": [
-        "src/app/quick-card-window"
       ]
     },
     {
@@ -2752,7 +2735,7 @@ globalThis.YUI_MAP =
       "id": "drop-release-source",
       "from": "shell/os-event-watcher",
       "to": "dispatcher/sources/gesture",
-      "carries": "window_drop_release: the dragged window's label; a quick-card or Threads window's release settles nothing in a pet window",
+      "carries": "window_drop_release: the dragged window's label; the Threads window's release settles nothing in a pet window",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
@@ -2761,7 +2744,7 @@ globalThis.YUI_MAP =
       "id": "threads-window-label",
       "from": "dispatcher/sources/gesture",
       "to": "io/window/openers",
-      "carries": "THREADS_WINDOW_LABEL: with the quick-card label prefix, the windows whose drags settle in their own windows and never perch the character",
+      "carries": "THREADS_WINDOW_LABEL: the window whose drag settles in its own window and never perches the character",
       "kind": "call",
       "transport": "shared"
     },
@@ -3371,95 +3354,6 @@ globalThis.YUI_MAP =
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
-      "id": "user-quick-card",
-      "from": "user",
-      "to": "ui/quick-card",
-      "carries": "the DEV __yuiQuick global opens the card's window docked beside her; a tile, a select, Reset, Turn off or All settings… press; Escape or a click outside it closes it; a pointerdown on its head without a button starts the window drag",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "quick-card-stores",
-      "from": "ui/quick-card",
-      "to": "settings",
-      "carries": "the Do not disturb switch and a tile flip their store (yui.dnd, TTS on, keep bubble, the Unified chat switch) and repaint on its change; Turn off → petWindows.close(id)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-registry",
-      "from": "settings",
-      "to": "ui/quick-card",
-      "carries": "the window's preset entry (name, face) and the chat transport in effect, repainted on a registry or endpoints change",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-push",
-      "from": "io/chat/push",
-      "to": "ui/quick-card",
-      "carries": "on push, getState() and onState → the head's connected, connecting, reconnecting, refused or offline line",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-vrm",
-      "from": "io/assets",
-      "to": "ui/quick-card",
-      "carries": "vrmSelection list, active id and subscribe → the Body select; a pick → swapVrm(option)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-voice",
-      "from": "io/voice/voices",
-      "to": "ui/quick-card",
-      "carries": "speakerSelection list, active id and subscribe → the Reference voice select; a pick → swapSpeaker(option)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-listen",
-      "from": "ui/chips",
-      "to": "ui/quick-card",
-      "carries": "main only: voiceInputStatus get, set(listening or idle) and subscribe → the Listen tile",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-reset",
-      "from": "ui/quick-card",
-      "to": "io/chat/conversation",
-      "carries": "Reset, once confirmed → resetConversation, the History page's start fresh: the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-ports.ts"
-    },
-    {
-      "id": "quick-card-open",
-      "from": "app/dev",
-      "to": "app/quick-card-window",
-      "carries": "the DEV __yuiQuick global's open request for the quick-card window, sent once the window has reported ready",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/dev/wire-dev-globals.ts"
-    },
-    {
-      "id": "quick-card-ready",
-      "from": "app/quick-card-window",
-      "to": "app/dev",
-      "carries": "yui://quick-card-ready: the card window has booted; the controller then sends a request it held since the create",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/dev/wire-dev-globals.ts"
-    },
-    {
       "id": "user-character-menu",
       "from": "user",
       "to": "ui/character-menu",
@@ -3640,17 +3534,8 @@ globalThis.YUI_MAP =
       "id": "threads-tray-open",
       "from": "app/threads-chip",
       "to": "io/window/openers",
-      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a quick card's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
+      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a bound Character menu's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
       "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
-    },
-    {
-      "id": "quick-card-threads-request",
-      "from": "app/quick-card-window",
-      "to": "app/threads-chip",
-      "carries": "yui://threads-open-request {tab: \"threads\" | \"terminal\"}: the card's Threads or Terminal button; unscoped, so any preset's card reaches main, which owns the Threads window",
-      "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
     },
@@ -3817,33 +3702,6 @@ globalThis.YUI_MAP =
       "wiring": "src/io/window/geometry/threads-position.ts"
     },
     {
-      "id": "quick-card-placement",
-      "from": "app/quick-card-window",
-      "to": "io/window/geometry",
-      "carries": "quickCardBeside, followOwner, snapTarget and clampQuickCard: the docked placement 12px from her roomier side, the follow of the owner window's moves, the 24px drop magnet, and the work-area clamp of a grown card",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
-    },
-    {
-      "id": "quick-card-drag-shell",
-      "from": "app/quick-card-window",
-      "to": "shell/window",
-      "carries": "drag_window from a head pointerdown: the OS drag of the card window; window_dock_attach {parentLabel} and window_dock_detach: the macOS child-window link that moves the docked card with her pet window (false elsewhere)",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
-    },
-    {
-      "id": "drop-release-quick-card",
-      "from": "shell/os-event-watcher",
-      "to": "app/quick-card-window",
-      "carries": "window_drop_release {label}: the drop of a drag the card started, then the 24px magnet",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
-    },
-    {
       "id": "settings-open-controls",
       "from": "app/controls",
       "to": "io/window/openers",
@@ -3851,15 +3709,6 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"
-    },
-    {
-      "id": "quick-card-open-settings",
-      "from": "app/quick-card-window",
-      "to": "io/window/openers",
-      "carries": "openSettings(): the card's All settings…, which lands the settings window on this character",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/wire-quick-card-window.ts"
     },
     {
       "id": "settings-page-emit",
@@ -5996,16 +5845,6 @@ globalThis.YUI_MAP =
         "role": "The message window of one bound pet window, message.html?preset=<id>: the same bubble, input, and plate, drawn from pet-<id>'s surface ops."
       },
       {
-        "id": "quick-card",
-        "label": "quick-card",
-        "role": "The quick card in its own frameless window, quick-card.html: the tiles and rows over that preset's stores, docked beside the character, placed and moved by the dock, hidden on close."
-      },
-      {
-        "id": "quick-card-<id>",
-        "label": "quick-card-<id>",
-        "role": "The quick-card window of one bound pet window, quick-card.html?preset=<id>: the same card over that preset's stores."
-      },
-      {
         "id": "unified",
         "label": "unified",
         "role": "The unified chat window, unified.html: a frameless 340 px column that is the only chat path while it shows; the cast chips, one dialogue box showing one character's line at a time, and the composer that routes a message to one preset or, in sequence, to all"
@@ -6133,34 +5972,6 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
-        "id": "quick-card-open-pet",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://quick-card-open {left, right, y, listening?}: seed the Listen tile, place the window docked, show and focus",
-        "kind": "bridge"
-      },
-      {
-        "id": "quick-card-ready-card",
-        "from": "quick-card",
-        "to": "pet",
-        "carries": "yui://quick-card-ready: the controller sends a request it held since the create",
-        "kind": "bridge"
-      },
-      {
-        "id": "quick-card-open-bound",
-        "from": "pet-<id>",
-        "to": "quick-card-<id>",
-        "carries": "yui://quick-card-open {left, right, y}: seed nothing and place the window docked, show and focus",
-        "kind": "bridge"
-      },
-      {
-        "id": "quick-card-ready-bound",
-        "from": "quick-card-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://quick-card-ready: the controller sends a request it held since the create",
-        "kind": "bridge"
-      },
-      {
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
@@ -6168,17 +5979,10 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
-        "id": "threads-open-request-quick-card",
-        "from": "quick-card",
+        "id": "threads-open-request-bound",
+        "from": "pet-<id>",
         "to": "pet",
-        "carries": "yui://threads-open-request {tab}: the card's Threads or Terminal button; main opens the Threads window on that tab",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-open-request-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "pet",
-        "carries": "yui://threads-open-request {tab}: unscoped, so a bound character's card reaches main, which owns the Threads window",
+        "carries": "yui://threads-open-request {tab}: unscoped, so a bound character's Character menu Threads or Terminal item reaches main, which owns the Threads window",
         "kind": "bridge"
       },
       {
@@ -6207,146 +6011,6 @@ globalThis.YUI_MAP =
         "from": "threads",
         "to": "pet",
         "carries": "yui://threads-closed: the chip leaves its open state",
-        "kind": "bridge"
-      },
-      {
-        "id": "quick-card-owner-move",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "the owner window's tauri://move: on macOS AppKit moves the linked child card with her and the dock only switches sides; elsewhere a docked card moves by her delta",
-        "kind": "tauri-event"
-      },
-      {
-        "id": "quick-card-owner-move-bound",
-        "from": "pet-<id>",
-        "to": "quick-card-<id>",
-        "carries": "the owner window's tauri://move: on macOS AppKit moves the linked child card with her and the dock only switches sides; elsewhere a docked card moves by her delta",
-        "kind": "tauri-event"
-      },
-      {
-        "id": "settings-changed-quick-card",
-        "from": "quick-card",
-        "to": "pet",
-        "carries": "yui://settings-changed: reload stores from localStorage (a tile, Body, Reference voice)",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-to-quick-card",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://settings-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://settings-changed: reload stores from localStorage (a tile, Body, Reference voice)",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-to-quick-card-bound",
-        "from": "pet-<id>",
-        "to": "quick-card-<id>",
-        "carries": "yui://settings-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-set-quick-card",
-        "from": "quick-card",
-        "to": "pet",
-        "carries": "yui://voice-set: boolean, the Listen tile; main only",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-state-quick-card",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://voice-state: {state}, mirrored on the Listen tile; main only",
-        "kind": "bridge"
-      },
-      {
-        "id": "session-reset-quick-card",
-        "from": "quick-card",
-        "to": "pet",
-        "carries": "yui://session-reset: {presetId}; the pet window stops its reply and greets",
-        "kind": "bridge"
-      },
-      {
-        "id": "session-reset-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://session-reset: {presetId}; the pet window stops its reply and greets",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-reset-quick-card",
-        "from": "quick-card",
-        "to": "pet",
-        "carries": "yui://push-reset: Reset conversation on push; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-reset-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://push-reset: Reset conversation on push; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-quick-card",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://push-state, answered on yui://push-state-ask; the head's transport line",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-quick-card-bound",
-        "from": "pet-<id>",
-        "to": "quick-card-<id>",
-        "carries": "yui://push-state, answered on yui://push-state-ask; the head's transport line",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "pet",
-        "carries": "yui://pet-windows-changed: Turn off; main reconciles and closes pet-<id>",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-to-quick-card",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://pet-windows-changed: reload yui.windows",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-quick-card",
-        "from": "pet",
-        "to": "quick-card",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings-quick-card",
-        "from": "settings",
-        "to": "quick-card",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-page-quick-card",
-        "from": "quick-card",
-        "to": "settings",
-        "carries": "yui://settings-page: {preset}; All settings… on an open settings window",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-page-quick-card-bound",
-        "from": "quick-card-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://settings-page: {preset}; All settings… on an open settings window",
         "kind": "bridge"
       },
       {
