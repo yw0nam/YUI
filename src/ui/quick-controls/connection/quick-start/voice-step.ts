@@ -14,9 +14,8 @@ import type {
 } from "../../../../settings/backend/endpoints-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import { getLocale, t } from "../../../i18n";
-import { CHATKEY_EYE_SVG, FISH_KEY_URL, FISH_PRESET } from "../../constants";
+import { CHATKEY_EYE_SVG, FISH_KEY_URL, FISH_PRESET, ICON_WARN } from "../../constants";
 import { keyLinkHtml, secHeadHtml } from "../../markup";
-import { ICON_WARN } from "../../plugins/plugin-parts";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import "./quick-start.css";
 

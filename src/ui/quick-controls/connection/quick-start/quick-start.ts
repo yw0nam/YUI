@@ -15,9 +15,8 @@ import type { createProactiveSettings } from "../../../../settings/cues/proactiv
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import { t } from "../../../i18n";
-import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
+import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET, ICON_WARN } from "../../constants";
 import { keyLinkHtml, secHeadHtml } from "../../markup";
-import { ICON_WARN } from "../../plugins/plugin-parts";
 import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import { createModelRead, type ModelReadPhase } from "../chat/model-read";

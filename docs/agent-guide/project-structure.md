@@ -688,8 +688,6 @@ YUI/
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
-        keyed-render.ts              # Keyed re-render: focus by data-fk, a fade-in of new data-k blocks, and a switch that slides from its previous state
-        keyed-render.css             # The keyed block's fade-in
         row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
         body/                        # The Body page, rendered with React
           body-page.ts               # The page's facade: its React root, and the open hook that re-reads every source
@@ -799,13 +797,19 @@ YUI/
             monitor-load.ts          # The list's load: one request at a time, its state, and the retry after a failure
             monitor-list.tsx         # One radio per monitor, or the empty or error notice
             monitor-list.css         # Monitor row and notice styles
-        plugins/                     # The Plugins page: installed plugins and the catalog
-          plugins-page.ts            # The page over the host's snapshot: its one call path for enable, disable, update, install, add from folder and remove, the consent and confirm state, the log tail, and the keyed render
+        plugins/                     # The Plugins page: installed plugins and the catalog, rendered with React
+          plugins-page.ts            # The page's facade: its React root, and the open hook that loads the catalog
+          plugins-page-view.tsx      # The Installed and Available sections over one store, and Escape closing a pending panel
+          plugins-state.ts           # The page's state and actions outside React: consent, confirms, updates, installs, logs, and the snapshot subscription
           catalog-state.ts           # The catalog's load (an in-flight call joins it), the entries not installed, the updates offered, and Check for updates' timed count
-          installed-markup.ts        # The Installed section: one group per plugin with its switch, consent steps, server lines, hidden names, tools, and log
-          catalog-markup.ts          # The Available section: the catalog entries not installed, and Add from folder
-          plugin-parts.ts            # The per-source record (badge, review note, warning, removal text), the version, the escaping, the Failure shape, and the inline error line
-          plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, and catalog rows; a stopped server's shared status dot dims here
+          installed-section.tsx      # The Installed section: its head state, one group per plugin, the foot and a failed delete
+          plugin-group.tsx           # One plugin's row and switch, its re-approval note, disclosures, remove confirm, action row and log
+          plugin-consent.tsx         # The consent panel: step 1's facts, then the starting, started or failed step 2
+          plugin-lines.tsx           # The server line, the hidden-name note and the tool list the group and the consent panel share
+          catalog-section.tsx        # The Available section: the catalog entries not installed, and Add from folder
+          plugin-sources.ts          # The per-source record (review note, warning, removal text) and the Failure shape
+          plugin-parts.tsx           # The source badge and its icons, the version, the inline error line, the keyed block and the page's fade-in flag
+          plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, catalog rows and the keyed block's fade-in; a stopped server's shared status dot dims here
         search/                      # Settings search
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
