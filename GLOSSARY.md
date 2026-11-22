@@ -110,10 +110,6 @@ _Avoid_: mood, entry type
 The short reaction she plays once when she enters a settings page, and again when a shown change (body, voice or pace) appears. Idling follows it.
 _Avoid_: cue, page animation
 
-**Signature color**:
-A character's own color: a second color role beside amber, bounded to the Settings stage (its ground and her name) and the Character menu's hovered pill. Its default derives from her avatar hue.
-_Avoid_: accent, character color, theme color
-
 ### Relations
 
 **Relation**:
@@ -210,7 +206,7 @@ The pill menu around her, opened by a right-click on her in the pet window: two 
 _Avoid_: quick card, context menu, radial menu, pie menu, ring menu
 
 **Settings stage**:
-The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing, in her signature color.
+The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing.
 _Avoid_: stage window, stage panel, dock
 
 **Aside**:
