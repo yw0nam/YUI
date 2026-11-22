@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DelegationItem } from "../../../io/chat/push/push-frames";
-import { DELEGATION_REFRESH_MS } from "../../chips/delegation-rows";
+import type { DelegationItem } from "../../../../io/chat/push/push-frames";
+import { DELEGATION_REFRESH_MS } from "../../../chips/delegation-rows";
 import { createDelegationSync } from "./delegation-sync";
 
 const RUNNING: DelegationItem = { id: "d-1", title: "work", started_at: 0, state: "running" };

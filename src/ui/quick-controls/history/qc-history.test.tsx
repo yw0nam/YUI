@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // History tab session accordion over the persisted transcript.
 
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
@@ -13,6 +14,22 @@ import {
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+const track = (qc: ReturnType<typeof createQuickControls>) => {
+  qcs.push(qc);
+  return qc;
+};
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+  document.body.innerHTML = "";
+});
 
 function seedStore() {
   const store = createChatHistoryStore();
@@ -68,12 +85,12 @@ describe("createQuickControls — history tab", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({ ...defaultQcArgs(mount), ...extra });
+    return track(createQuickControls({ ...defaultQcArgs(mount), ...extra }));
   }
 
   it("closes the character's pages with a history tab, wired to its own panel, when a transcript is injected", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     expect(tabs).toHaveLength(11);
@@ -87,23 +104,19 @@ describe("createQuickControls — history tab", () => {
     expect(histTab.hasAttribute("title")).toBe(false);
     const panel = qc.el.querySelector<HTMLElement>(`#${histTab.getAttribute("aria-controls")}`)!;
     expect(panel.getAttribute("aria-labelledby")).toBe(histTab.id);
-
-    qc.dispose();
   });
 
   it("omits the history tab when no transcript is injected", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     expect(qc.el.querySelectorAll('[role="tab"]')).toHaveLength(10);
     expect(qc.el.querySelector(".yui-hist")).toBeNull();
-
-    qc.dispose();
   });
 
   it("End key selects the general tab, which closes the rail after history", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
@@ -112,20 +125,16 @@ describe("createQuickControls — history tab", () => {
 
     expect(tabs.map((tab) => tab.id).at(-1)).toBe("yui-tab-general");
     expect(tabs[10].getAttribute("aria-selected")).toBe("true");
-
-    qc.dispose();
   });
 
   it("renders one row per session, newest first, with message counts", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows).toHaveLength(2);
     expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
     expect(rows[1].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
-
-    qc.dispose();
   });
 
   const signalRecord = (turn_id: string, ts: number, said: string | null): SignalRecord => ({
@@ -143,7 +152,7 @@ describe("createQuickControls — history tab", () => {
     const signalHistory = createSignalHistoryStore();
     signalHistory.append([signalRecord("t9", Date.parse("2026-08-13T09:14:00Z"), null)]);
     const qc = buildQc({ transcript: seedStore(), signalHistory });
-    qc.open();
+    act(() => qc.open());
 
     const row = qc.el.querySelector<HTMLElement>(".yui-hist__turn.is-signal")!;
     expect(row.querySelector(".yui-hist__say.is-silent")!.textContent).toBe("Did not speak");
@@ -152,8 +161,6 @@ describe("createQuickControls — history tab", () => {
       qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
         .textContent,
     ).toBe("3 messages");
-
-    qc.dispose();
   });
 
   it("folds a signal record into the assistant row of its turn without an extra row", () => {
@@ -163,7 +170,7 @@ describe("createQuickControls — history tab", () => {
     const signalHistory = createSignalHistoryStore();
     signalHistory.append([signalRecord("t1", ts - 1000, "CI is red")]);
     const qc = buildQc({ transcript: store, signalHistory });
-    qc.open();
+    act(() => qc.open());
 
     const rows = qc.el.querySelectorAll(".yui-hist__turn");
     expect(rows).toHaveLength(1);
@@ -171,8 +178,6 @@ describe("createQuickControls — history tab", () => {
     expect(rows[0].querySelector(".yui-hist__source .yui-signal-line__src")!.textContent).toBe(
       "gh",
     );
-
-    qc.dispose();
   });
 
   it("uses the singular form in English at n=1 and the plural form at n=2", () => {
@@ -183,25 +188,25 @@ describe("createQuickControls — history tab", () => {
       ts: Date.parse("2026-08-13T09:12:00Z"),
     });
     const qc = buildQc({ transcript: store });
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows).toHaveLength(1);
     expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toBe("1 message");
 
-    store.append({ role: "assistant", text: "hello", ts: Date.parse("2026-08-13T09:13:00Z") });
+    act(() =>
+      store.append({ role: "assistant", text: "hello", ts: Date.parse("2026-08-13T09:13:00Z") }),
+    );
 
     expect(
       qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
         .textContent,
     ).toBe("2 messages");
-
-    qc.dispose();
   });
 
   it("expands the current session by default and collapses the older ones", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows[0].getAttribute("aria-expanded")).toBe("true");
@@ -211,28 +216,24 @@ describe("createQuickControls — history tab", () => {
     expect(groups[0].classList.contains("is-open")).toBe(true);
     expect(groups[0].querySelectorAll(".yui-hist__turn")).toHaveLength(2);
     expect(groups[1].querySelectorAll(".yui-hist__turn")).toHaveLength(0);
-
-    qc.dispose();
   });
 
   it("shows a first-utterance preview on collapsed session rows only", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows[0].querySelector(".yui-hist__sess-preview")).toBeNull();
     expect(rows[1].querySelector(".yui-hist__sess-preview")!.textContent).toContain(
       "vLLM 서버 올리는 것 좀 도와줘",
     );
-
-    qc.dispose();
   });
 
   it("clicking a collapsed session expands it in place", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1].click();
+    act(() => qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1].click());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows[1].getAttribute("aria-expanded")).toBe("true");
@@ -240,49 +241,41 @@ describe("createQuickControls — history tab", () => {
     expect(groups[1].querySelectorAll(".yui-hist__turn")).toHaveLength(2);
     // the current session stays open — sessions toggle independently
     expect(rows[0].getAttribute("aria-expanded")).toBe("true");
-
-    qc.dispose();
   });
 
   it("keeps focus on the session row it just toggled", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const row = qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1];
     row.focus();
-    row.click();
+    act(() => row.click());
 
     const after = qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess")[1];
     expect(document.activeElement).toBe(after);
-
-    qc.dispose();
   });
 
   it("points each session row at the turn log it discloses", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const row = qc.el.querySelector<HTMLButtonElement>(".yui-hist__sess")!;
     const log = qc.el.querySelector<HTMLElement>(".yui-hist__log")!;
     expect(row.getAttribute("aria-controls")).toBe(log.id);
     expect(log.getAttribute("role")).toBe("region");
     expect(log.getAttribute("aria-labelledby")).toBe(row.id);
-
-    qc.dispose();
   });
 
   it("clicking the open current session collapses it", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const row = qc.el.querySelector<HTMLButtonElement>(".yui-hist__sess")!;
-    row.click();
+    act(() => row.click());
 
     const after = qc.el.querySelector<HTMLButtonElement>(".yui-hist__sess")!;
     expect(after.getAttribute("aria-expanded")).toBe("false");
     expect(qc.el.querySelector(".yui-hist__turn")).toBeNull();
-
-    qc.dispose();
   });
 
   it.each([
@@ -300,7 +293,7 @@ describe("createQuickControls — history tab", () => {
       cards: { en: card, ja: card, ko: card },
     };
     const qc = buildQc({ transcript: seedStore(), getPersona: () => persona });
-    qc.open();
+    act(() => qc.open());
 
     const turns = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-hist__turn"));
     expect(turns[0].classList.contains("is-yui")).toBe(false);
@@ -309,70 +302,60 @@ describe("createQuickControls — history tab", () => {
     expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBe(who);
     expect(turns[0].querySelector(".yui-hist__say")!.textContent).toBe("방금 그 빌드 왜 실패했어?");
     expect(turns[0].querySelector(".yui-hist__ts")!.textContent).toMatch(/^\d{2}:\d{2}$/);
-
-    qc.dispose();
   });
 
   it("renders user text as plain text — markup is never injected", () => {
     const store = createChatHistoryStore();
     store.append({ role: "user", text: "<img src=x onerror=alert(1)> **bold**", ts: 1 });
     const qc = buildQc({ transcript: store });
-    qc.open();
+    act(() => qc.open());
 
     const say = qc.el.querySelector<HTMLElement>(".yui-hist__say")!;
     expect(say.querySelector("img")).toBeNull();
     expect(say.querySelector("strong")).toBeNull();
     expect(say.textContent).toBe("<img src=x onerror=alert(1)> **bold**");
-
-    qc.dispose();
   });
 
   it("live-updates when a turn is appended to the store", () => {
     const store = seedStore();
     const qc = buildQc({ transcript: store });
-    qc.open();
+    act(() => qc.open());
     expect(qc.el.querySelectorAll(".yui-hist__turn")).toHaveLength(2);
 
-    store.append({ role: "user", text: "하나 더", ts: Date.parse("2026-08-13T09:20:00Z") });
+    act(() =>
+      store.append({ role: "user", text: "하나 더", ts: Date.parse("2026-08-13T09:20:00Z") }),
+    );
 
     expect(qc.el.querySelectorAll(".yui-hist__turn")).toHaveLength(3);
     expect(qc.el.querySelectorAll(".yui-hist__sess")[0].textContent).toContain("3");
-
-    qc.dispose();
   });
 
   it("live-updates when a new session boundary is written", () => {
     const store = seedStore();
     const qc = buildQc({ transcript: store });
-    qc.open();
+    act(() => qc.open());
     expect(qc.el.querySelectorAll(".yui-hist__sess")).toHaveLength(2);
 
-    store.startNewSession(Date.parse("2026-08-13T10:00:00Z"));
+    act(() => store.startNewSession(Date.parse("2026-08-13T10:00:00Z")));
 
     expect(qc.el.querySelectorAll(".yui-hist__sess")).toHaveLength(3);
     expect(qc.el.querySelectorAll(".yui-hist__turn")).toHaveLength(0);
-
-    qc.dispose();
   });
 
   it("renders the storage footnote", () => {
     const qc = buildQc({ transcript: seedStore() });
-    qc.open();
+    act(() => qc.open());
 
     const foot = qc.el.querySelector<HTMLElement>(".yui-hist__foot")!;
     expect(foot.textContent).toContain("200");
-
-    qc.dispose();
   });
 
   it("shows an empty note when nothing has been said yet", () => {
     const qc = buildQc({ transcript: createChatHistoryStore() });
-    qc.open();
+    act(() => qc.open());
 
     expect(qc.el.querySelector(".yui-hist__turn")).toBeNull();
     expect(qc.el.querySelector(".yui-hist__empty")).not.toBeNull();
-
-    qc.dispose();
   });
 });
 
@@ -401,18 +384,20 @@ describe("createQuickControls — start fresh action in the History tab", () => 
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      sessionStore,
-      sessionDiagnostics,
-      transcript: seedStore(),
-      ...extra,
-    });
+    return track(
+      createQuickControls({
+        ...defaultQcArgs(mount),
+        sessionStore,
+        sessionDiagnostics,
+        transcript: seedStore(),
+        ...extra,
+      }),
+    );
   }
 
   it("renders the action under the session list", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const panel = qc.el.querySelector<HTMLElement>("#yui-panel-hist")!;
     const action = panel.querySelector<HTMLElement>(".yui-hist__action")!;
@@ -426,19 +411,15 @@ describe("createQuickControls — start fresh action in the History tab", () => 
       panel.querySelector(".yui-hist")!.compareDocumentPosition(action) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-
-    qc.dispose();
   });
 
   it("omits the action when the reset stores are absent", () => {
-    const qc = createQuickControls({ ...defaultQcArgs(mount), transcript: seedStore() });
-    qc.open();
+    const qc = track(createQuickControls({ ...defaultQcArgs(mount), transcript: seedStore() }));
+    act(() => qc.open());
 
     expect(qc.el.querySelector("#yui-panel-hist")).not.toBeNull();
     expect(qc.el.querySelector(".yui-hist__action")).toBeNull();
     expect(qc.el.querySelector(".yui-session__reset")).toBeNull();
-
-    qc.dispose();
   });
 
   it("confirming runs the one reset path: session id, diagnostics, transcript boundary", () => {
@@ -450,25 +431,25 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     const startNewSession = vi.spyOn(transcript, "startNewSession");
 
     const qc = buildQc({ transcript });
-    qc.open();
+    act(() => qc.open());
 
     const confirm = qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!;
     const reset = qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!;
     expect(confirm.hidden).toBe(true);
-    reset.click();
+    act(() => reset.click());
     // the confirm takes the link's place rather than stacking under it
     expect(confirm.hidden).toBe(false);
     expect(reset.hidden).toBe(true);
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click(),
+    );
 
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(clearDiag).toHaveBeenCalledTimes(1);
     expect(startNewSession).toHaveBeenCalledTimes(1);
     expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
     expect(reset.hidden).toBe(false);
-
-    qc.dispose();
   });
 
   it("announces the reset after the transcript boundary is written", () => {
@@ -476,13 +457,16 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     const order: string[] = [];
     vi.spyOn(transcript, "startNewSession").mockImplementation(() => order.push("boundary"));
     const qc = buildQc({ transcript, announceSessionReset: () => order.push("announce") });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click(),
+    );
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click(),
+    );
 
     expect(order).toEqual(["boundary", "announce"]);
-    qc.dispose();
   });
 
   it("cancelling dismisses the confirm without resetting anything", () => {
@@ -492,26 +476,32 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     const startNewSession = vi.spyOn(transcript, "startNewSession");
 
     const qc = buildQc({ transcript });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__cancel")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click(),
+    );
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__cancel")!.click(),
+    );
 
     expect(clearSession).not.toHaveBeenCalled();
     expect(startNewSession).not.toHaveBeenCalled();
     expect(qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!.hidden).toBe(true);
-
-    qc.dispose();
   });
 
   it("shows the new boundary in the list right after a confirmed reset", () => {
     const transcript = seedStore();
     const qc = buildQc({ transcript });
-    qc.open();
+    act(() => qc.open());
     expect(qc.el.querySelectorAll(".yui-hist__sess")).toHaveLength(2);
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click(),
+    );
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click(),
+    );
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows).toHaveLength(3);
@@ -519,8 +509,6 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     expect(rows[0].getAttribute("aria-expanded")).toBe("true");
     expect(qc.el.querySelector(".yui-hist__empty")).not.toBeNull();
     expect(rows[1].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
-
-    qc.dispose();
   });
 });
 
@@ -547,21 +535,21 @@ describe("createQuickControls — start fresh keeps the transcript", () => {
   it("start fresh opens a new session group instead of erasing prior turns", () => {
     const store = createChatHistoryStore();
     store.append({ role: "user", text: "keep me", ts: 1 });
-    const qc = createQuickControls({
-      ...defaultQcArgs(mount),
-      sessionStore: createSessionStore(),
-      sessionDiagnostics: createSessionDiagnosticsStore(),
-      transcript: store,
-    });
-    qc.open();
+    const qc = track(
+      createQuickControls({
+        ...defaultQcArgs(mount),
+        sessionStore: createSessionStore(),
+        sessionDiagnostics: createSessionDiagnosticsStore(),
+        transcript: store,
+      }),
+    );
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-session__confirm")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-session__reset")!.click());
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-session__confirm")!.click());
 
     expect(store.entriesAfterLastBoundary()).toEqual([]);
     expect(store.sessions()).toHaveLength(2);
     expect(store.sessions()[1].entries[0].text).toBe("keep me");
-
-    qc.dispose();
   });
 });

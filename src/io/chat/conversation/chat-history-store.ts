@@ -117,6 +117,27 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
   });
 }
 
+/** The sessions of a transcript, newest first; the running one is always present, older empty ones are dropped. */
+export function projectSessions(items: Readonly<ChatHistoryItem[]>): ChatSession[] {
+  const out: ChatSession[] = [];
+  let openedAt: number | null = null;
+  let entries: ChatHistoryEntry[] = [];
+  const flush = (): void => {
+    out.push({ startedAt: openedAt ?? entries[0]?.ts ?? null, entries });
+  };
+  for (const item of items) {
+    if (isBoundary(item)) {
+      flush();
+      openedAt = item.ts;
+      entries = [];
+    } else {
+      entries.push({ ...item });
+    }
+  }
+  flush();
+  return out.filter((s, i) => i === out.length - 1 || s.entries.length > 0).reverse();
+}
+
 export function createChatHistoryStore(opts?: { storage?: ChatHistoryStorage }) {
   const core = createPersistedStore<ChatHistoryItem[]>({
     storage: opts?.storage,
@@ -209,23 +230,7 @@ export function createChatHistoryStore(opts?: { storage?: ChatHistoryStorage }) 
      * present (even before its first turn); older empty sessions are dropped.
      */
     sessions(): ChatSession[] {
-      const out: ChatSession[] = [];
-      let openedAt: number | null = null;
-      let entries: ChatHistoryEntry[] = [];
-      const flush = (): void => {
-        out.push({ startedAt: openedAt ?? entries[0]?.ts ?? null, entries });
-      };
-      for (const item of core.current()) {
-        if (isBoundary(item)) {
-          flush();
-          openedAt = item.ts;
-          entries = [];
-        } else {
-          entries.push({ ...item });
-        }
-      }
-      flush();
-      return out.filter((s, i) => i === out.length - 1 || s.entries.length > 0).reverse();
+      return projectSessions(core.current());
     },
 
     reloadFromStorage: core.reloadFromStorage,

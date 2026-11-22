@@ -39,7 +39,6 @@ function render(switchRows: readonly SwitchRow[], showThreadTurns = false): HTML
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
     openOnQuickStart: false,
-    hasSession: false,
     switchRows,
     showScreen: true,
     showThreadTurns,
