@@ -91,6 +91,8 @@ export function createRelationsStore(opts?: { storage?: RelationsStorage }) {
   });
 
   return {
+    /** The live state without a copy: the same object until a write. */
+    current: core.current as () => Readonly<Relations>,
     all: (): Relations => structuredClone(core.current()),
     /** Applies `delta` as far as the daily cap and the range allow. */
     rate(target: string, delta: number, why: string, nowMs: number): RateOutcome {

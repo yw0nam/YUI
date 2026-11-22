@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import { createVrmSelection } from "../../../../io/assets/vrm-selection";
@@ -21,6 +22,18 @@ import {
   makeVrmSelection,
   USER_OPTION,
 } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+  document.body.innerHTML = "";
+});
 
 describe("createQuickControls — VRM section", () => {
   let mount: HTMLElement;
@@ -85,7 +98,7 @@ describe("createQuickControls — VRM section", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
+    const qc = createQuickControls({
       ...defaultQcArgs(mount),
       lipsync,
       onGainPreview,
@@ -106,16 +119,18 @@ describe("createQuickControls — VRM section", () => {
       removeVoice,
       ...extra,
     });
+    qcs.push(qc);
+    return qc;
   }
 
   // ── VRM section ─────────────────────────────────────────────────────────────
 
   // microtask flush — swapVrm is async; let its promise settle before asserting.
-  const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+  const flush = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 
   it("renders one .yui-vrm radio per vrmSelection.list() entry", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const group = qc.el.querySelector<HTMLElement>(".yui-vrms[role=radiogroup]");
     expect(group).not.toBeNull();
@@ -123,13 +138,11 @@ describe("createQuickControls — VRM section", () => {
     expect(rows).toHaveLength(3); // carlotta · aria · mirai
     const names = Array.from(rows).map((r) => r.querySelector(".yui-vrm__name")!.textContent);
     expect(names).toEqual(["Carlotta", "Aria", "Mirai"]);
-
-    qc.dispose();
   });
 
   it("marks the active row aria-checked and shows the '사용 중' badge", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
@@ -139,17 +152,15 @@ describe("createQuickControls — VRM section", () => {
     for (const r of rows) {
       if (r !== active) expect(r.querySelector(".yui-vrm__badge")).toBeNull();
     }
-
-    qc.dispose();
   });
 
   it("clicking a non-active row calls swapVrm with that option and shows loading", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     const aria = rows[1]; // Aria
-    aria.click();
+    act(() => aria.click());
 
     expect(swapVrm).toHaveBeenCalledOnce();
     expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "aria", url: "/vrms/aria.vrm" });
@@ -160,16 +171,14 @@ describe("createQuickControls — VRM section", () => {
     const group = qc.el.querySelector<HTMLElement>(".yui-vrms")!;
     expect(group.getAttribute("aria-busy")).toBe("true");
     expect(group.classList.contains("is-swapping")).toBe(true);
-
-    qc.dispose();
   });
 
   it("on resolve the active tick + badge move to the new row and loading clears", async () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    rows[1].click(); // Aria
+    act(() => rows[1].click()); // Aria
     await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
@@ -182,8 +191,6 @@ describe("createQuickControls — VRM section", () => {
     expect(group.getAttribute("aria-busy")).not.toBe("true");
     expect(group.classList.contains("is-swapping")).toBe(false);
     expect(vrmSelection.getActiveId()).toBe("aria");
-
-    qc.dispose();
   });
 
   it("on reject shows the inline error and leaves the active selection unchanged", async () => {
@@ -191,10 +198,10 @@ describe("createQuickControls — VRM section", () => {
       throw new Error("load failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    rows[2].click(); // Mirai
+    act(() => rows[2].click()); // Mirai
     await flush();
 
     const errorRow = qc.el.querySelector<HTMLButtonElement>(".yui-vrm.is-error")!;
@@ -208,26 +215,22 @@ describe("createQuickControls — VRM section", () => {
     expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Carlotta");
     // loading cleared
     expect(qc.el.querySelector(".yui-vrm[aria-busy=true]")).toBeNull();
-
-    qc.dispose();
   });
 
   it("clicking the already-active row is a no-op (no swapVrm)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
-    active.click();
+    act(() => active.click());
 
     expect(swapVrm).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("the '파일에서 추가…' row is enabled and invokes the import handler on click", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
     expect(add.disabled).toBe(false);
@@ -238,27 +241,23 @@ describe("createQuickControls — VRM section", () => {
     // it is NOT a radio (excluded from the radiogroup roving order)
     expect(add.getAttribute("role")).not.toBe("radio");
 
-    add.click();
+    act(() => add.click());
     expect(importVrm).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 
   it("the VRM section foot links to VRoid Hub", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const link = qc.el.querySelector<HTMLAnchorElement>(".yui-vrm__hub")!;
     expect(link.getAttribute("href")).toBe("https://hub.vroid.com/en/users/36144806");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.textContent).toBe("VRoid Hub에서 모델 찾기");
-
-    qc.dispose();
   });
 
   it("caps the list in a scroll container; the add-row footer lives OUTSIDE it", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const scroll = qc.el.querySelector<HTMLElement>(".yui-vrm-scroll")!;
     const group = qc.el.querySelector<HTMLElement>(".yui-vrms")!;
@@ -268,18 +267,18 @@ describe("createQuickControls — VRM section", () => {
     // the pinned footer (and its add-row) is NOT inside the scroll container
     expect(scroll.contains(foot)).toBe(false);
     expect(foot.querySelector(".yui-vrm--add")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("ArrowDown on the VRM radiogroup moves roving focus to the next row WITHOUT swapping", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     rows[0].focus();
     // active is row 0 (Carlotta); ArrowDown → roving focus to row 1 (Aria), no commit
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
 
     expect(document.activeElement).toBe(rows[1]);
     expect(rows[1].tabIndex).toBe(0);
@@ -289,34 +288,28 @@ describe("createQuickControls — VRM section", () => {
     expect(rows[0].getAttribute("aria-checked")).toBe("true");
     expect(swapVrm).not.toHaveBeenCalled();
     expect(vrmSelection.getActiveId()).toBe("carlotta");
-
-    qc.dispose();
   });
 
   it("Enter on a focused non-active VRM row selects it (swaps)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 
     expect(swapVrm).toHaveBeenCalledOnce();
     expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "aria" });
-
-    qc.dispose();
   });
 
   it("Space on a focused non-active VRM row selects it (swaps)", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
-    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    act(() => rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true })));
 
     expect(swapVrm).toHaveBeenCalledOnce();
     expect(swapVrm.mock.calls[0][0]).toMatchObject({ id: "mirai" });
-
-    qc.dispose();
   });
 
   it("renders a label with HTML metacharacters as literal text (no innerHTML injection)", () => {
@@ -326,30 +319,26 @@ describe("createQuickControls — VRM section", () => {
       defaultValue: "/vrms/carlotta.vrm",
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const name = qc.el.querySelector<HTMLElement>(".yui-vrm[role=radio] .yui-vrm__name")!;
     expect(name.textContent).toBe(evil);
     // no element was parsed from the label — proves textContent, not innerHTML
     expect(name.querySelector("img")).toBeNull();
     expect(qc.el.querySelector(".yui-vrms img")).toBeNull();
-
-    qc.dispose();
   });
 
   it("End key on the VRM radiogroup moves roving focus to the last row WITHOUT swapping", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     rows[0].focus();
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    act(() => rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })));
 
     expect(document.activeElement).toBe(rows[2]);
     expect(rows[2].tabIndex).toBe(0);
     expect(swapVrm).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("keeps the roving VRM tabindex on the last-roved row across a re-render", async () => {
@@ -359,18 +348,20 @@ describe("createQuickControls — VRM section", () => {
       throw new Error("load failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     rows[0].focus();
     // rove down to Aria (unchecked) without committing → vrmRovedId = aria
-    rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
     expect(rows[1].tabIndex).toBe(0);
 
     // commit Mirai (a DIFFERENT row than the roved Aria); its swap REJECTS, so active stays
     // carlotta but finally still re-renders. A wrong rovedId re-point on commit would move
     // the tab stop to Mirai — this asserts it stays on the roved Aria.
-    rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     await flush();
 
     const after = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
@@ -379,22 +370,18 @@ describe("createQuickControls — VRM section", () => {
     expect(after[1].tabIndex).toBe(0);
     expect(after[0].tabIndex).toBe(-1);
     expect(after[2].tabIndex).toBe(-1);
-
-    qc.dispose();
   });
 
   it("reflects an external vrmSelection change (cross-window) while open", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     // simulate another window committing a selection
-    vrmSelection.select("mirai");
+    act(() => vrmSelection.select("mirai"));
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-vrm[role=radio]"));
     const active = rows.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.querySelector(".yui-vrm__name")!.textContent).toBe("Mirai");
-
-    qc.dispose();
   });
 
   // ── BYO-VRM: user rows + import + rename + remove ───────────────────────────
@@ -412,7 +399,7 @@ describe("createQuickControls — VRM section", () => {
   it("renders a user option as a div[role=radio] row carrying rename + remove controls", () => {
     withUserOption();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const row = userRow(qc);
     expect(row).not.toBeNull();
@@ -422,29 +409,25 @@ describe("createQuickControls — VRM section", () => {
     expect(row.querySelector(".yui-vrm__name")!.textContent).toBe("깜냥이");
     expect(row.querySelector<HTMLButtonElement>(".yui-vrm__rename")).not.toBeNull();
     expect(row.querySelector<HTMLButtonElement>(".yui-vrm__remove")).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("bundled rows stay <button> radios with no rename/remove controls", () => {
     withUserOption();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const carlotta = qc.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="carlotta"]')!;
     expect(carlotta.tagName).toBe("BUTTON");
     expect(carlotta.querySelector(".yui-vrm__rename")).toBeNull();
     expect(carlotta.querySelector(".yui-vrm__remove")).toBeNull();
-
-    qc.dispose();
   });
 
   it("pencil opens inline rename; Enter commits via renameUserOption", () => {
     withUserOption();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
 
     // entering rename re-renders — re-query the now-renaming row
     const row = userRow(qc);
@@ -455,40 +438,65 @@ describe("createQuickControls — VRM section", () => {
     expect(row.querySelector(".yui-vrm__rename-hint")).not.toBeNull();
 
     input.value = "냥이";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
 
     expect(vrmSelection.list().find((o) => o.id === "cat")!.label).toBe("냥이");
     // input is gone after commit
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
+  });
 
-    qc.dispose();
+  it("hands focus back to the roved row once the rename field closes", () => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
+    const input = userRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
+    expect(document.activeElement).toBe(input);
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+
+    expect(document.activeElement).toBe(qc.el.querySelector('.yui-vrm[data-vrm-id="carlotta"]'));
+  });
+
+  it("a rename does not come back when its option leaves the list and returns", () => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
+    expect(userRow(qc).classList.contains("yui-vrm--renaming")).toBe(true);
+    act(() => vrmSelection.removeUserOption("cat"));
+    act(() => vrmSelection.select("aria")); // repaints with the option gone
+    act(() => vrmSelection.addUserOption(USER_OPTION));
+    act(() => vrmSelection.select("mirai"));
+
+    expect(userRow(qc)).not.toBeNull();
+    expect(qc.el.querySelector(".yui-vrm--renaming")).toBeNull();
   });
 
   it("Esc cancels inline rename without changing the label", () => {
     withUserOption();
     const onCloseWindow = vi.fn();
     const qc = buildQc({ onCloseWindow });
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click());
     const input = userRow(qc).querySelector<HTMLInputElement>(".yui-ep-input")!;
     input.value = "버려질 이름";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 
     expect(vrmSelection.list().find((o) => o.id === "cat")!.label).toBe("깜냥이");
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
     // Esc cancels the rename only — it must NOT close the settings window
     expect(onCloseWindow).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("trash removes the option via removeUserVrm then store removeUserOption", async () => {
     withUserOption();
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     expect(userRow(qc).classList.contains("is-remove-armed")).toBe(true);
     expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.textContent).toBe(
       "삭제할까요?",
@@ -499,15 +507,13 @@ describe("createQuickControls — VRM section", () => {
     expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.dataset.tip).toBe(
       "삭제할까요?",
     );
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
     expect(removeUserVrm).toHaveBeenCalledOnce();
     expect(removeUserVrm.mock.calls[0][0]).toBe("cat");
     expect(vrmSelection.list().map((o) => o.id)).not.toContain("cat");
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).toBeNull();
-
-    qc.dispose();
   });
 
   it("closes a tooltip that was open across the click that arms and re-renders its anchor", () => {
@@ -515,18 +521,16 @@ describe("createQuickControls — VRM section", () => {
     try {
       withUserOption();
       const qc = buildQc();
-      qc.open();
+      act(() => qc.open());
 
       const remove = userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
       remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
       vi.advanceTimersByTime(150);
       expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
 
-      remove.click();
+      act(() => remove.click());
 
       expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-
-      qc.dispose();
     } finally {
       vi.useRealTimers();
     }
@@ -540,16 +544,14 @@ describe("createQuickControls — VRM section", () => {
       storeStillHadCatAtDelete = vrmSelection.list().some((o) => o.id === "cat");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
     expect(storeStillHadCatAtDelete).toBe(true);
     expect(vrmSelection.list().map((o) => o.id)).not.toContain("cat");
-
-    qc.dispose();
   });
 
   it("keeps the entry in the store when the native file delete fails (no divergence)", async () => {
@@ -558,17 +560,15 @@ describe("createQuickControls — VRM section", () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
     // file delete failed → store must NOT have dropped the entry; row stays visible.
     expect(vrmSelection.list().map((o) => o.id)).toContain("cat");
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
-
-    qc.dispose();
   });
 
   it("does NOT fall back / swap the renderer when deleting the active VRM file fails", async () => {
@@ -578,28 +578,26 @@ describe("createQuickControls — VRM section", () => {
       throw new Error("native delete failed");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
     swapVrm.mockClear();
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
     // store still active on cat, no fallback swap attempted.
     expect(vrmSelection.getActiveId()).toBe("cat");
     expect(swapVrm).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("removing the active user VRM falls back to default and swaps the renderer", async () => {
     withUserOption();
     vrmSelection.select("cat");
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
-    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click();
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
     // store fell back to the bundled default
@@ -607,24 +605,20 @@ describe("createQuickControls — VRM section", () => {
     // renderer reloaded onto the fallback
     expect(swapVrm).toHaveBeenCalled();
     expect(swapVrm.mock.calls.at(-1)![0]).toMatchObject({ id: "carlotta" });
-
-    qc.dispose();
   });
 
   it("clicking the add button enters the importing state (loading row)", () => {
     // import handler that never resolves — pins the transient importing row
     importVrm = vi.fn<() => Promise<void>>(() => new Promise<void>(() => {}));
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click());
 
     const loading = qc.el.querySelector<HTMLElement>(".yui-vrm__loading")!;
     expect(loading).not.toBeNull();
     expect(loading.querySelector(".yui-vrm__spin")).not.toBeNull();
     expect(loading.querySelector(".yui-vrm__loading-name")!.textContent).toContain("불러오는 중");
-
-    qc.dispose();
   });
 
   it("a failed import shows the inline error and clears the importing row", async () => {
@@ -632,9 +626,9 @@ describe("createQuickControls — VRM section", () => {
       throw new Error("bad vrm");
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click());
     await flush();
 
     const err = qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!;
@@ -643,8 +637,6 @@ describe("createQuickControls — VRM section", () => {
     expect(err.textContent).toContain("불러올 수 없는 파일이에요");
     // the transient loading row is gone once the import settles
     expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
-
-    qc.dispose();
   });
 
   it("a successful import clears the importing row and error notice", async () => {
@@ -652,15 +644,188 @@ describe("createQuickControls — VRM section", () => {
       vrmSelection.addUserOption(USER_OPTION);
     });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click());
     await flush();
 
     expect(qc.el.querySelector(".yui-vrm__loading")).toBeNull();
     expect(qc.el.querySelector<HTMLElement>(".yui-vrm__import-error")!.hidden).toBe(true);
     expect(qc.el.querySelector('.yui-vrm[data-vrm-id="cat"]')).not.toBeNull();
+  });
 
-    qc.dispose();
+  // ── Armed remove: its four ways out, and the re-entry guard ─────────────────
+
+  const removeBtn = (qc: { el: HTMLElement }) =>
+    userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
+  const armed = (qc: { el: HTMLElement }) => userRow(qc).classList.contains("is-remove-armed");
+
+  it.each([
+    ["Escape", () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))],
+    ["a click outside the remove buttons", () => document.body.click()],
+  ])("%s disarms, so the next remove click only arms again", async (_name, disarm) => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => removeBtn(qc).click());
+    expect(armed(qc)).toBe(true);
+    act(() => {
+      disarm();
+    });
+    expect(armed(qc)).toBe(false);
+    expect(removeBtn(qc).getAttribute("aria-label")).toBe("삭제");
+    act(() => removeBtn(qc).click());
+    await flush();
+
+    expect(removeUserVrm).not.toHaveBeenCalled();
+    expect(armed(qc)).toBe(true);
+  });
+
+  it("disarms by itself after four seconds", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      act(() => qc.open());
+
+      act(() => removeBtn(qc).click());
+      act(() => {
+        vi.advanceTimersByTime(3999);
+      });
+      expect(armed(qc)).toBe(true);
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+
+      expect(armed(qc)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the focused remove button, relabelled, when the arm times out", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      act(() => qc.open());
+
+      act(() => removeBtn(qc).click());
+      const button = removeBtn(qc);
+      button.focus();
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+
+      expect(removeBtn(qc)).toBe(button);
+      expect(document.activeElement).toBe(button);
+      expect(button.getAttribute("aria-label")).toBe("삭제");
+      expect(button.dataset.tip).toBe("삭제");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("arming another row disarms the first", () => {
+    withUserOption();
+    vrmSelection.addUserOption({ ...USER_OPTION, id: "dog", label: "멍멍이" });
+    const qc = buildQc();
+    act(() => qc.open());
+    const dog = () => qc.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="dog"]')!;
+
+    act(() => removeBtn(qc).click());
+    act(() => dog().querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+
+    expect(armed(qc)).toBe(false);
+    expect(dog().classList.contains("is-remove-armed")).toBe(true);
+  });
+
+  it("an unrelated repaint disarms the armed row", () => {
+    withUserOption();
+    const qc = buildQc();
+    act(() => qc.open());
+
+    act(() => removeBtn(qc).click());
+    act(() => vrmSelection.select("aria"));
+
+    expect(armed(qc)).toBe(false);
+  });
+
+  it("ignores another remove while one is in flight", async () => {
+    withUserOption();
+    vrmSelection.addUserOption({ ...USER_OPTION, id: "dog", label: "멍멍이" });
+    removeUserVrm = vi.fn<(id: string) => Promise<void>>(() => new Promise<void>(() => {}));
+    const qc = buildQc();
+    act(() => qc.open());
+    const dog = () => qc.el.querySelector<HTMLElement>('.yui-vrm[data-vrm-id="dog"]')!;
+
+    act(() => removeBtn(qc).click());
+    act(() => removeBtn(qc).click());
+    expect(userRow(qc).getAttribute("aria-busy")).toBe("true");
+    expect(removeBtn(qc).disabled).toBe(true);
+    act(() => dog().querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    act(() => dog().querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
+    await flush();
+
+    expect(dog().classList.contains("is-remove-armed")).toBe(false);
+    expect(removeUserVrm).toHaveBeenCalledOnce();
+  });
+
+  it("clears the four-second timer when the panel is disposed", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      act(() => qc.open());
+
+      act(() => removeBtn(qc).click());
+      const withTimer = vi.getTimerCount();
+      act(() => qc.dispose());
+
+      expect(vi.getTimerCount()).toBeLessThan(withTimer);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // ── Keyboard: wrap-around, and nothing moves while a swap runs ──────────────
+
+  it("ArrowDown on the last row wraps to the first, and ArrowUp on the first to the last", () => {
+    const qc = buildQc();
+    act(() => qc.open());
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-vrm[role=radio]"));
+
+    rows[2].focus();
+    act(() =>
+      rows[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect(document.activeElement).toBe(rows[0]);
+
+    act(() =>
+      rows[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })),
+    );
+    expect(document.activeElement).toBe(rows[2]);
+    expect(rows[2].tabIndex).toBe(0);
+    expect(rows[0].tabIndex).toBe(-1);
+  });
+
+  it("ignores keys while a swap is running", async () => {
+    swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(() => new Promise<void>(() => {}));
+    const qc = buildQc();
+    act(() => qc.open());
+    const rows = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-vrm[role=radio]"));
+    act(() => rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(swapVrm).toHaveBeenCalledOnce();
+
+    act(() =>
+      rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    act(() => rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    await flush();
+
+    expect(rows[2].tabIndex).toBe(-1);
+    expect(rows[0].tabIndex).toBe(0);
+    expect(swapVrm).toHaveBeenCalledOnce();
   });
 });

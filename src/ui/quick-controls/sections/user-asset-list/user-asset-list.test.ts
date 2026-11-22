@@ -106,7 +106,8 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
       activeId = option.id;
     }),
     deriveId: vi.fn((name: string) => name.trim()),
-    importFn: vi.fn(async () => {}),
+    pickImport: vi.fn(async () => null),
+    commitImport: vi.fn(async () => {}),
     render: defaultRender,
     ...overrides,
   };
@@ -126,7 +127,6 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
     removeFile: vi.mocked(cfg.removeFile),
     removeFromStore: vi.mocked(cfg.removeFromStore),
     swap: vi.mocked(cfg.swap),
-    importFn: vi.mocked(cfg.importFn),
     render: vi.mocked(cfg.render),
     log,
     dispose: () => {
@@ -356,45 +356,6 @@ describe("remove flow", () => {
       error: "Error: swap failed",
     });
     expect(h.render).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("import flow", () => {
-  it("guards reentry while importing", async () => {
-    let resolveImport: () => void = () => {};
-    const importFn = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveImport = resolve;
-        }),
-    );
-    const h = makeHarness({ importFn });
-    const first = h.list.runImport();
-    const second = h.list.runImport(); // ignored — already importing
-    expect(h.list.isImporting()).toBe(true);
-    expect(importFn).toHaveBeenCalledTimes(1);
-    resolveImport();
-    await first;
-    await second;
-    expect(h.list.isImporting()).toBe(false);
-  });
-
-  it("shows inline error and logs on failure, hides error at the next attempt", async () => {
-    const h = makeHarness({ importFn: vi.fn(async () => Promise.reject(new Error("bad file"))) });
-    await h.list.runImport();
-    expect(h.importErrorEl.hidden).toBe(false);
-    expect(h.log.error).toHaveBeenCalledWith("fake_import_failed", { error: "Error: bad file" });
-
-    h.importFn.mockResolvedValueOnce(undefined);
-    await h.list.runImport();
-    expect(h.importErrorEl.hidden).toBe(true);
-  });
-
-  it("handleAddClick starts the import", async () => {
-    const h = makeHarness();
-    h.list.handleAddClick();
-    await Promise.resolve();
-    expect(h.importFn).toHaveBeenCalledTimes(1);
   });
 });
 

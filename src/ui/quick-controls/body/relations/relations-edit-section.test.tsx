@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
 // The Body page's Relations section: the rows, the slider's preview and commit, and the switch's effect.
 
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createRelationsStore, type Relations } from "../../../settings/relations/relations-store";
-import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
-import { setLocale } from "../../i18n";
-import { makeVrmSelection } from "../test-helpers";
-import { type CharacterRows, createCharacterTab } from "./character-tab";
+import {
+  createRelationsStore,
+  type Relations,
+} from "../../../../settings/relations/relations-store";
+import { createRelationsSwitch } from "../../../../settings/relations/relations-switch";
+import { setLocale } from "../../../i18n";
+import { type CharacterRows, createCharacterTab } from "../../character/character-tab";
+import { makeVrmSelection } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const tabs: ReturnType<typeof createCharacterTab>[] = [];
 
 const NOW = new Date(2026, 9, 22, 12, 0).getTime();
 const HOUR = 3_600_000;
@@ -42,6 +52,9 @@ describe("createCharacterTab — relations", () => {
   });
 
   afterEach(() => {
+    act(() => {
+      for (const tab of tabs.splice(0)) tab.dispose();
+    });
     document.body.innerHTML = "";
     vi.useRealTimers();
   });
@@ -59,8 +72,9 @@ describe("createCharacterTab — relations", () => {
       log,
       relations: { store, relationsSwitch, self: "default", presets: () => PRESETS },
     });
+    tabs.push(tab);
     document.body.append(tab.el);
-    tab.refresh();
+    act(() => tab.refresh());
     const rows = () => [...tab.el.querySelectorAll<HTMLElement>(".yui-relations__row")];
     const row = (target: string) =>
       tab.el.querySelector<HTMLElement>(`.yui-relations__row[data-target="${target}"]`)!;
@@ -68,7 +82,7 @@ describe("createCharacterTab — relations", () => {
   }
 
   it("lists rated targets first, you first then close first, and unrated targets after", () => {
-    const { tab, rows, row } = build();
+    const { rows, row } = build();
     const klukai = row("cccc0003");
 
     expect(rows().map((r) => r.dataset.target)).toEqual([
@@ -83,22 +97,24 @@ describe("createCharacterTab — relations", () => {
     expect(klukai.querySelector(".yui-relations__slider")?.getAttribute("aria-valuetext")).toBe(
       "Not rated yet",
     );
-    tab.dispose();
   });
 
   it("previews a drag without writing, then commits on change with the manual reason, without the daily cap", () => {
-    const { tab, store, rows, row } = build();
+    const { store, rows, row } = build();
     const slider = row("cccc0003").querySelector<HTMLInputElement>(".yui-relations__slider")!;
     slider.focus();
 
-    slider.value = "5";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => {
+      fireEvent.input(slider, { target: { value: "5" } });
+    });
 
     expect(row("cccc0003").querySelector(".yui-relations__value")?.textContent).toBe("+5");
     expect(slider.getAttribute("aria-valuetext")).toBe("warm, +5");
     expect(store.all().cccc0003).toBeUndefined();
 
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    act(() => {
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 
     expect(store.all().cccc0003).toEqual({
       value: 5,
@@ -116,18 +132,42 @@ describe("createCharacterTab — relations", () => {
     );
     expect(row("cccc0003").querySelector(".yui-relations__slider")).toBe(slider);
     expect(document.activeElement).toBe(slider);
-    tab.dispose();
+  });
+
+  it("a release that writes nothing leaves no claim on focus for a later write elsewhere", () => {
+    const { row } = build();
+    const slider = (target: string) =>
+      row(target).querySelector<HTMLInputElement>(".yui-relations__slider")!;
+    const earlier = slider("user");
+    const later = slider("aaaa0001");
+
+    later.focus();
+    act(() => {
+      later.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    earlier.focus();
+    act(() => {
+      fireEvent.input(earlier, { target: { value: "8" } });
+    });
+    act(() => {
+      earlier.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(document.activeElement).toBe(earlier);
   });
 
   it("restores an unrated row released at 0 without writing or logging", () => {
-    const { tab, store, row } = build();
+    const { store, row } = build();
     const slider = row("cccc0003").querySelector<HTMLInputElement>(".yui-relations__slider")!;
 
     for (const value of ["5", "0"]) {
-      slider.value = value;
-      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      act(() => {
+        fireEvent.input(slider, { target: { value } });
+      });
     }
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    act(() => {
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 
     expect(store.all().cccc0003).toBeUndefined();
     expect(row("cccc0003").classList.contains("is-unrated")).toBe(true);
@@ -135,7 +175,6 @@ describe("createCharacterTab — relations", () => {
     expect(row("cccc0003").querySelector<HTMLElement>(".yui-glyph")?.dataset.band).toBe("none");
     expect(slider.getAttribute("aria-valuetext")).toBe("Not rated yet");
     expect(log.info).not.toHaveBeenCalledWith("relation_set", expect.anything());
-    tab.dispose();
   });
 
   it("hides the rows while the switch is off and shows them again", () => {
@@ -145,11 +184,10 @@ describe("createCharacterTab — relations", () => {
         (s) => !tab.el.querySelector<HTMLElement>(s)!.hidden,
       );
 
-    relationsSwitch.setEnabled(false);
+    act(() => relationsSwitch.setEnabled(false));
     expect(shown()).toEqual([false, false, true]);
 
-    relationsSwitch.setEnabled(true);
+    act(() => relationsSwitch.setEnabled(true));
     expect(shown()).toEqual([true, true, false]);
-    tab.dispose();
   });
 });
