@@ -135,6 +135,15 @@ describe("createQuickControls — active hours", () => {
     expect(row.textContent).not.toContain("next day");
   });
 
+  it("writes the spans on change, not while a time input is being typed", () => {
+    build();
+    const end = timesOf(rows()[0]!)[1]!;
+    fireEvent.input(end, { target: { value: "13:00" } });
+    expect(store.get().spans).toBeNull();
+    fireEvent.change(end, { target: { value: "13:00" } });
+    expect(store.get().spans?.[0]).toEqual({ start: "08:00", end: "13:00", pace: "low" });
+  });
+
   it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
     build();
     expect(rows()).toHaveLength(3);
