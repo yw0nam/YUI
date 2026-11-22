@@ -1,0 +1,1133 @@
+{
+  "steps": {
+    "front_at_start": {
+      "cmd": "front",
+      "pid": 622,
+      "at": 1795341567459,
+      "name": "other"
+    },
+    "A_screens": {
+      "screens": [
+        {
+          "frame": [
+            0,
+            0,
+            1728,
+            1117
+          ],
+          "visible": [
+            0,
+            0,
+            1728,
+            1084
+          ],
+          "dockBottomH": 0,
+          "menuBarH": 33,
+          "scale": 2
+        }
+      ],
+      "cmd": "screens"
+    },
+    "A_frame": {
+      "canvas": [
+        3456,
+        2234
+      ],
+      "dpr": 2,
+      "h": 1117,
+      "inner": [
+        1728,
+        1117
+      ],
+      "monitor": {
+        "height": 1117,
+        "scale": 2,
+        "width": 1728,
+        "x": 0,
+        "y": 0
+      },
+      "scale": 2,
+      "w": 1728,
+      "x": 0,
+      "y": 0
+    },
+    "A_native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "A_app": {
+      "policy": "regular",
+      "active": false,
+      "hidden": false,
+      "cmd": "app"
+    },
+    "A_stage_window": {
+      "layer": 5,
+      "owner": "YUI Verify",
+      "x": 0,
+      "pid": 43890,
+      "h": 1117,
+      "id": 2711,
+      "w": 1728,
+      "y": 0
+    },
+    "A_menubar_band": [
+      {
+        "y": 0,
+        "w": 38,
+        "x": 1033,
+        "owner": "other",
+        "h": 33,
+        "pid": 630,
+        "layer": 25,
+        "id": 119
+      },
+      {
+        "layer": 25,
+        "pid": 630,
+        "y": 0,
+        "id": 205,
+        "w": 38,
+        "owner": "other",
+        "h": 33,
+        "x": 995
+      },
+      {
+        "id": 33,
+        "pid": 630,
+        "y": 0,
+        "h": 33,
+        "x": 1563,
+        "w": 167,
+        "owner": "other",
+        "layer": 25
+      },
+      {
+        "pid": 630,
+        "y": 0,
+        "w": 32,
+        "layer": 25,
+        "owner": "other",
+        "id": 32,
+        "h": 33,
+        "x": 1300
+      },
+      {
+        "id": 37,
+        "owner": "other",
+        "y": 0,
+        "x": 1451,
+        "w": 38,
+        "h": 33,
+        "pid": 630,
+        "layer": 25
+      },
+      {
+        "pid": 630,
+        "id": 145,
+        "owner": "other",
+        "h": 33,
+        "y": 0,
+        "layer": 25,
+        "x": 1103,
+        "w": 38
+      },
+      {
+        "id": 136,
+        "x": 1071,
+        "owner": "other",
+        "layer": 25,
+        "w": 32,
+        "h": 33,
+        "pid": 630,
+        "y": 0
+      },
+      {
+        "w": 38,
+        "id": 120,
+        "x": 1226,
+        "owner": "other",
+        "layer": 25,
+        "y": 0,
+        "h": 33,
+        "pid": 630
+      }
+    ],
+    "A_dock_band": [
+      {
+        "pid": 43890,
+        "owner": "YUI Verify",
+        "y": 0,
+        "w": 1728,
+        "x": 0,
+        "h": 1117,
+        "id": 2711,
+        "layer": 5
+      },
+      {
+        "pid": 622,
+        "y": 33,
+        "w": 1728,
+        "h": 1084,
+        "id": 96,
+        "owner": "other",
+        "layer": 0,
+        "x": 0
+      },
+      {
+        "owner": "other",
+        "h": 1084,
+        "w": 1728,
+        "x": 0,
+        "layer": 0,
+        "pid": 617,
+        "y": 33,
+        "id": 109
+      },
+      {
+        "id": 215,
+        "pid": 10269,
+        "x": 0,
+        "w": 1728,
+        "owner": "other",
+        "y": 33,
+        "layer": 0,
+        "h": 1050
+      },
+      {
+        "x": 0,
+        "w": 1728,
+        "owner": "other",
+        "id": 48,
+        "h": 1117,
+        "y": 0,
+        "layer": -2147483603,
+        "pid": 633
+      },
+      {
+        "y": 0,
+        "x": 0,
+        "owner": "Dock",
+        "id": 8,
+        "layer": -2147483624,
+        "pid": 629,
+        "w": 1728,
+        "h": 1117
+      },
+      {
+        "pid": 398,
+        "x": 0,
+        "y": 0,
+        "layer": -2147483626,
+        "h": 1117,
+        "owner": "Window Server",
+        "id": 2,
+        "w": 1728
+      }
+    ],
+    "A_shot_menubar": "/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-acb4378b9e518a276/spike/1971/results/behaviour-1/A-stage-under-menubar.png",
+    "B_panel": {
+      "panel": {
+        "bottom": 878,
+        "height": 640,
+        "left": 484,
+        "right": 1244,
+        "top": 238,
+        "width": 760,
+        "x": 484,
+        "y": 238
+      },
+      "pills": [
+        {
+          "bottom": 467,
+          "height": 30,
+          "left": 1288,
+          "right": 1398,
+          "top": 437,
+          "width": 110,
+          "x": 1288,
+          "y": 437
+        },
+        {
+          "bottom": 467,
+          "height": 30,
+          "left": 1413,
+          "right": 1523,
+          "top": 437,
+          "width": 110,
+          "x": 1413,
+          "y": 437
+        },
+        {
+          "bottom": 467,
+          "height": 30,
+          "left": 1538,
+          "right": 1648,
+          "top": 437,
+          "width": 110,
+          "x": 1538,
+          "y": 437
+        }
+      ]
+    },
+    "B_body": {
+      "count": 451,
+      "maxY": 987,
+      "mid": {
+        "x": 1418,
+        "y": 767
+      },
+      "minY": 567
+    },
+    "B_cover": {
+      "at": 1795341570880,
+      "cmd": "cover",
+      "window": 2720
+    },
+    "B_native_passthrough": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "B_transparent": [
+      {
+        "x": 350,
+        "y": 200,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 900,
+        "y": 180,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 1650,
+        "y": 200,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 400,
+        "y": 1050,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 1000,
+        "y": 1060,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 1650,
+        "y": 1060,
+        "window": 2720,
+        "owner": "probe",
+        "to_cover": true
+      },
+      {
+        "x": 1273,
+        "y": 482,
+        "window": 96,
+        "owner": "other",
+        "to_cover": false
+      },
+      {
+        "x": 1663,
+        "y": 1067,
+        "window": 96,
+        "owner": "other",
+        "to_cover": false
+      },
+      {
+        "x": 470,
+        "y": 600,
+        "window": 96,
+        "owner": "other",
+        "to_cover": false
+      },
+      {
+        "x": 1256,
+        "y": 600,
+        "window": 96,
+        "owner": "other",
+        "to_cover": false
+      }
+    ],
+    "B_transparent_pass": "6/10",
+    "B_interactive": [
+      {
+        "name": "input",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 66,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "stage_area",
+        "x": 634,
+        "y": 558,
+        "takes_click": true,
+        "enter_latency_ms": 78,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "form_blank",
+        "x": 1084,
+        "y": 798,
+        "takes_click": true,
+        "enter_latency_ms": 73,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "panel_edge",
+        "x": 486,
+        "y": 240,
+        "takes_click": true,
+        "enter_latency_ms": 76,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "pill_0",
+        "x": 1343,
+        "y": 452,
+        "takes_click": true,
+        "enter_latency_ms": 83,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "pill_1",
+        "x": 1468,
+        "y": 452,
+        "takes_click": true,
+        "enter_latency_ms": 75,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "pill_2",
+        "x": 1593,
+        "y": 452,
+        "takes_click": true,
+        "enter_latency_ms": 73,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "body",
+        "x": 1418,
+        "y": 767,
+        "takes_click": true,
+        "enter_latency_ms": 75,
+        "leave_latency_ms": null
+      }
+    ],
+    "B_input_reps": [
+      {
+        "name": "input#0",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 81,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#1",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 77,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#2",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 74,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#3",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 75,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#4",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 81,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#5",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 78,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#6",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 74,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#7",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 71,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#8",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 74,
+        "leave_latency_ms": null
+      },
+      {
+        "name": "input#9",
+        "x": 1014,
+        "y": 328,
+        "takes_click": true,
+        "enter_latency_ms": 79,
+        "leave_latency_ms": null
+      }
+    ],
+    "B_summary": {
+      "interactive_take_clicks": "18/18",
+      "enter_ms": {
+        "n": 18,
+        "p50": 75,
+        "p95": 83,
+        "max": 83
+      },
+      "leave_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    "C0_front": {
+      "at": 1795341589957,
+      "pid": 622,
+      "name": "other",
+      "cmd": "front"
+    },
+    "C0_native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "C1_unfocusable_native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": false,
+      "ignores_mouse": false,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "C2_after_setFocus": {
+      "front": {
+        "at": 1795341590635,
+        "cmd": "front",
+        "name": "YUI Verify",
+        "pid": 43890
+      },
+      "native": {
+        "activation_policy": 0,
+        "app_active": true,
+        "can_become_key": true,
+        "ignores_mouse": false,
+        "is_key": true,
+        "is_main": true,
+        "level": 5
+      },
+      "page": {
+        "active": "",
+        "hasFocus": true,
+        "visibility": "visible"
+      }
+    },
+    "C3_focus_input": {
+      "active": "spike-in-1",
+      "hasFocus": true
+    },
+    "C3_keys1": {
+      "ax_trusted": true,
+      "sent": 3,
+      "cmd": "keys"
+    },
+    "C3_after_abc": {
+      "inputs": [
+        "abc",
+        "",
+        ""
+      ],
+      "page": {
+        "active": "spike-in-1",
+        "hasFocus": true,
+        "visibility": "visible"
+      }
+    },
+    "C3_after_tab": {
+      "active": "spike-in-2",
+      "hasFocus": true,
+      "visibility": "visible"
+    },
+    "C3_after_xy": [
+      "abc",
+      "xy",
+      ""
+    ],
+    "C3_after_escape": {
+      "panel_open": false,
+      "keylog": [
+        {
+          "key": "a",
+          "t": 1795341590716,
+          "target": "spike-in-1",
+          "trusted": true
+        },
+        {
+          "key": "b",
+          "t": 1795341590727,
+          "target": "spike-in-1",
+          "trusted": true
+        },
+        {
+          "key": "c",
+          "t": 1795341590757,
+          "target": "spike-in-1",
+          "trusted": true
+        },
+        {
+          "key": "Tab",
+          "t": 1795341591125,
+          "target": "spike-in-1",
+          "trusted": true
+        },
+        {
+          "key": "x",
+          "t": 1795341591343,
+          "target": "spike-in-2",
+          "trusted": true
+        },
+        {
+          "key": "y",
+          "t": 1795341591374,
+          "target": "spike-in-2",
+          "trusted": true
+        },
+        {
+          "key": "Escape",
+          "t": 1795341591622,
+          "target": "spike-in-2",
+          "trusted": true
+        }
+      ]
+    },
+    "C4_closed_unfocusable": {
+      "front": {
+        "pid": 43890,
+        "name": "YUI Verify",
+        "cmd": "front",
+        "at": 1795341592507
+      },
+      "native": {
+        "activation_policy": 0,
+        "app_active": true,
+        "can_become_key": false,
+        "ignores_mouse": false,
+        "is_key": true,
+        "is_main": true,
+        "level": 5
+      }
+    },
+    "C5_deactivate": {
+      "activation_policy": 0,
+      "app_active": true,
+      "can_become_key": false,
+      "ignores_mouse": false,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "C5_after_deactivate": {
+      "front": {
+        "pid": 43890,
+        "name": "YUI Verify",
+        "cmd": "front",
+        "at": 1795341593022
+      },
+      "native": {
+        "activation_policy": 0,
+        "app_active": true,
+        "can_become_key": false,
+        "ignores_mouse": false,
+        "is_key": false,
+        "is_main": false,
+        "level": 5
+      }
+    },
+    "D1_activate_other": {
+      "cmd": "activate",
+      "at": 1795341593870
+    },
+    "D1_floating": {
+      "front": {
+        "cmd": "front",
+        "at": 1795341594473,
+        "pid": 622,
+        "name": "other"
+      },
+      "zorder": [
+        "stage@5",
+        "cover@0"
+      ],
+      "native": {
+        "activation_policy": 0,
+        "app_active": false,
+        "can_become_key": true,
+        "ignores_mouse": true,
+        "is_key": false,
+        "is_main": false,
+        "level": 5
+      },
+      "blur": [
+        {
+          "ev": "tauri.focus=false",
+          "t": 1795341593874,
+          "after_ms": 9
+        },
+        {
+          "ev": "window.blur",
+          "t": 1795341593875,
+          "after_ms": 10
+        },
+        {
+          "ev": "window.focus",
+          "t": 1795341594005,
+          "after_ms": 140
+        },
+        {
+          "ev": "tauri.focus=true",
+          "t": 1795341594005,
+          "after_ms": 140
+        },
+        {
+          "ev": "window.blur",
+          "t": 1795341594440,
+          "after_ms": 575
+        },
+        {
+          "ev": "tauri.focus=false",
+          "t": 1795341594441,
+          "after_ms": 576
+        }
+      ]
+    },
+    "D1_shot": "/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-acb4378b9e518a276/spike/1971/results/behaviour-1/D1-panel-over-other-app.png",
+    "D2_normal_level_other_active": {
+      "zorder": [
+        "stage@0",
+        "cover@0"
+      ],
+      "native": {
+        "activation_policy": 0,
+        "app_active": false,
+        "can_become_key": true,
+        "ignores_mouse": true,
+        "is_key": false,
+        "is_main": false,
+        "level": 0
+      }
+    },
+    "D2_normal_level_other_reactivated": {
+      "zorder": [
+        "cover@0",
+        "stage@0"
+      ],
+      "front": {
+        "pid": 43967,
+        "at": 1795341595472,
+        "name": "probe",
+        "cmd": "front"
+      }
+    },
+    "D2_normal_level_yui_focused": {
+      "zorder": [
+        "stage@0",
+        "cover@0"
+      ],
+      "front": {
+        "pid": 622,
+        "at": 1795341596035,
+        "name": "other",
+        "cmd": "front"
+      }
+    },
+    "D2_normal_level_back_to_other": {
+      "zorder": [
+        "cover@0",
+        "stage@0"
+      ],
+      "front": {
+        "pid": 43967,
+        "at": 1795341596547,
+        "name": "probe",
+        "cmd": "front"
+      }
+    },
+    "D3_floating_again": {
+      "zorder": [
+        "stage@5",
+        "cover@0"
+      ],
+      "front": {
+        "pid": 43967,
+        "at": 1795341596909,
+        "name": "probe",
+        "cmd": "front"
+      }
+    },
+    "D_cover": {
+      "window": 2725,
+      "at": 1795341593563,
+      "cmd": "cover"
+    },
+    "E_shot_in_panel": "/Users/nam-young-woo/Desktop/codes/waifu/2026/YUI-agent-acb4378b9e518a276/spike/1971/results/behaviour-1/E-in-panel-stage-area.png",
+    "E_stage_moves": [
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1.000000000007276,
+          "n": 91,
+          "p50": 0,
+          "p95": 1
+        },
+        "ms": 1504,
+        "raf_interval_ms": {
+          "max": 23.999999999992724,
+          "n": 90,
+          "p50": 17,
+          "p95": 22.000000000007276
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18.999999999992724,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 18.000000000007276
+        }
+      },
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1.000000000007276,
+          "n": 91,
+          "p50": 0,
+          "p95": 1
+        },
+        "ms": 1515,
+        "raf_interval_ms": {
+          "max": 22,
+          "n": 90,
+          "p50": 17,
+          "p95": 20
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18.000000000007276,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1,
+          "n": 90,
+          "p50": 0,
+          "p95": 1
+        },
+        "ms": 1507,
+        "raf_interval_ms": {
+          "max": 23,
+          "n": 89,
+          "p50": 16,
+          "p95": 22
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 19.000000000007276,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1.000000000007276,
+          "n": 90,
+          "p50": 0,
+          "p95": 1
+        },
+        "ms": 1503,
+        "raf_interval_ms": {
+          "max": 29.000000000007276,
+          "n": 89,
+          "p50": 16,
+          "p95": 21.999999999992724
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 29,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 18.000000000007276
+        }
+      },
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1.000000000007276,
+          "n": 91,
+          "p50": 0,
+          "p95": 1
+        },
+        "ms": 1515,
+        "raf_interval_ms": {
+          "max": 22.000000000007276,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 22
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 23.999999999992724,
+          "n": 90,
+          "p50": 17,
+          "p95": 19
+        }
+      },
+      {
+        "mode": "stage",
+        "move_call_ms": {
+          "max": 1,
+          "n": 91,
+          "p50": 0,
+          "p95": 0.999999999992724
+        },
+        "ms": 1510,
+        "raf_interval_ms": {
+          "max": 23,
+          "n": 90,
+          "p50": 16,
+          "p95": 22
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 20,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      }
+    ],
+    "E_os_moves": [
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 6,
+          "n": 91,
+          "p50": 2,
+          "p95": 4
+        },
+        "ms": 1516,
+        "raf_interval_ms": {
+          "max": 24,
+          "n": 90,
+          "p50": 16.000000000007276,
+          "p95": 21
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 22.000000000007276,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 6.000000000007276,
+          "n": 91,
+          "p50": 2,
+          "p95": 3
+        },
+        "ms": 1519,
+        "raf_interval_ms": {
+          "max": 22,
+          "n": 90,
+          "p50": 17,
+          "p95": 19.999999999992724
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 19,
+          "n": 90,
+          "p50": 1.999999999992724,
+          "p95": 3
+        },
+        "ms": 1513,
+        "raf_interval_ms": {
+          "max": 34,
+          "n": 89,
+          "p50": 16.000000000007276,
+          "p95": 21
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18.999999999992724,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 7,
+          "n": 91,
+          "p50": 2,
+          "p95": 3.999999999992724
+        },
+        "ms": 1518,
+        "raf_interval_ms": {
+          "max": 21.000000000007276,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 21
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 19.000000000007276,
+          "n": 90,
+          "p50": 16.999999999992724,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 6,
+          "n": 90,
+          "p50": 1,
+          "p95": 2.000000000007276
+        },
+        "ms": 1502,
+        "raf_interval_ms": {
+          "max": 20,
+          "n": 89,
+          "p50": 17,
+          "p95": 19
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      },
+      {
+        "mode": "base",
+        "move_call_ms": {
+          "max": 3,
+          "n": 91,
+          "p50": 1.999999999992724,
+          "p95": 2.000000000014552
+        },
+        "ms": 1510,
+        "raf_interval_ms": {
+          "max": 20,
+          "n": 90,
+          "p50": 17,
+          "p95": 19.000000000007276
+        },
+        "rendered_frames": 91,
+        "rendered_interval_ms": {
+          "max": 18.000000000014552,
+          "n": 90,
+          "p50": 17,
+          "p95": 18
+        }
+      }
+    ],
+    "front_before_restore": {
+      "at": 1795341633265,
+      "name": "other",
+      "pid": 614,
+      "cmd": "front"
+    },
+    "restore": {
+      "ok": false,
+      "cmd": "restore",
+      "at": 1795341633268
+    },
+    "front_at_end": {
+      "at": 1795341633569,
+      "name": "other",
+      "pid": 614,
+      "cmd": "front"
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 18:59:24][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 18:59:26][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

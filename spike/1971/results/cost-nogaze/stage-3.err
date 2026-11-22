@@ -1,0 +1,15 @@
+moved to /Users/nam-young-woo/.Trash/yui-verify-1122-185448
+Application-Support
+Caches
+WebKit
+
+Execution of 1 workers started at 2026-11-22T09:54:50.369Z
+
+[0-0] RUNNING in undefined - file:///wdio/scenario.spec.mjs
+[0-0] PASSED in undefined - file:///wdio/scenario.spec.mjs
+
+ "DotReporter" Reporter:
+.
+
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:20  
+

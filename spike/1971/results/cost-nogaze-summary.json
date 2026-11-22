@@ -1,0 +1,173 @@
+{
+ "base n=7": {
+  "frames_10s": 222,
+  "web_mb": 822,
+  "gpu_proc_mb": 363,
+  "app_mb": 64,
+  "total_mb": 1251,
+  "web_cpu_pct": 15.7,
+  "gpu_proc_cpu_pct": 3.8,
+  "app_cpu_pct": 11.7,
+  "gpu_proc_gpu_ms_per_s": 22.3,
+  "windowserver_gpu_ms_per_s": 136.46,
+  "machine_gpu_util_pct_median": 77,
+  "load1": 4.36
+ },
+ "base frame": [
+  "400x600@2 canvas 800,1200"
+ ],
+ "stage n=7": {
+  "frames_10s": 224,
+  "web_mb": 1147,
+  "gpu_proc_mb": 384,
+  "app_mb": 66,
+  "total_mb": 1597,
+  "web_cpu_pct": 15.1,
+  "gpu_proc_cpu_pct": 3.8,
+  "app_cpu_pct": 12.3,
+  "gpu_proc_gpu_ms_per_s": 42.71,
+  "windowserver_gpu_ms_per_s": 175.21,
+  "machine_gpu_util_pct_median": 86,
+  "load1": 4
+ },
+ "stage frame": [
+  "1728x1117@2 canvas 3456,2234"
+ ],
+ "ratio_stage_over_base": {
+  "frames_10s": 1.01,
+  "web_mb": 1.4,
+  "gpu_proc_mb": 1.06,
+  "app_mb": 1.03,
+  "total_mb": 1.28,
+  "web_cpu_pct": 0.96,
+  "gpu_proc_cpu_pct": 1,
+  "app_cpu_pct": 1.05,
+  "gpu_proc_gpu_ms_per_s": 1.92,
+  "windowserver_gpu_ms_per_s": 1.28,
+  "machine_gpu_util_pct_median": 1.12,
+  "load1": 0.92
+ },
+ "per_run": {
+  "web_mb": {
+   "base": [
+    812,
+    828,
+    823,
+    845,
+    817,
+    821,
+    822
+   ],
+   "stage": [
+    1161,
+    1137,
+    1147,
+    1132,
+    1126,
+    1177,
+    1151
+   ]
+  },
+  "gpu_proc_mb": {
+   "base": [
+    363,
+    363,
+    360,
+    362,
+    363,
+    361,
+    364
+   ],
+   "stage": [
+    384,
+    384,
+    384,
+    383,
+    383,
+    391,
+    381
+   ]
+  },
+  "web_cpu_pct": {
+   "base": [
+    12.3,
+    12.2,
+    14.2,
+    16.1,
+    15.7,
+    16.8,
+    16.5
+   ],
+   "stage": [
+    9.4,
+    13.1,
+    15.1,
+    14.4,
+    15.7,
+    15.8,
+    15.7
+   ]
+  },
+  "gpu_proc_gpu_ms_per_s": {
+   "base": [
+    21.4,
+    22.3,
+    22.09,
+    21.29,
+    22.77,
+    24.57,
+    24.46
+   ],
+   "stage": [
+    38.76,
+    46.82,
+    45.65,
+    38.78,
+    42.58,
+    42.71,
+    44.24
+   ]
+  },
+  "windowserver_gpu_ms_per_s": {
+   "base": [
+    151.96,
+    153.57,
+    130.67,
+    135.96,
+    129.23,
+    136.46,
+    138.35
+   ],
+   "stage": [
+    173.1,
+    175.21,
+    206.28,
+    173.66,
+    176.77,
+    173.67,
+    175.9
+   ]
+  },
+  "frames_10s": {
+   "base": [
+    224,
+    223,
+    224,
+    222,
+    222,
+    222,
+    221
+   ],
+   "stage": [
+    218,
+    227,
+    225,
+    225,
+    222,
+    219,
+    224
+   ]
+  }
+ },
+ "rejected": []
+}

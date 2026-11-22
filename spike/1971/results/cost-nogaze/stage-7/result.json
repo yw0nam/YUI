@@ -1,0 +1,106 @@
+{
+  "steps": {
+    "mode": "stage",
+    "front_at_start": {
+      "name": "YUI Verify",
+      "pid": 41368,
+      "at": 1795341480235,
+      "cmd": "front"
+    },
+    "config": {
+      "mode": "stage",
+      "place": {
+        "x": 1268,
+        "y": 477
+      }
+    },
+    "frame": {
+      "canvas": [
+        3456,
+        2234
+      ],
+      "dpr": 2,
+      "h": 1117,
+      "inner": [
+        1728,
+        1117
+      ],
+      "monitor": {
+        "height": 1117,
+        "scale": 2,
+        "width": 1728,
+        "x": 0,
+        "y": 0
+      },
+      "scale": 2,
+      "w": 1728,
+      "x": 0,
+      "y": 0
+    },
+    "passthrough_at": 1795341482706,
+    "native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "visibility": "visible",
+    "sample": {
+      "secs": 10.351,
+      "frames_10s": 224,
+      "frame_interval_ms": {
+        "max": 52,
+        "n": 223,
+        "p50": 49,
+        "p95": 51
+      },
+      "web_mb": 1151,
+      "gpu_proc_mb": 381,
+      "app_mb": 67,
+      "total_mb": 1599,
+      "web_cpu_pct": 15.7,
+      "gpu_proc_cpu_pct": 4.1,
+      "app_cpu_pct": 12.2,
+      "gpu_proc_gpu_ms_per_s": 44.24,
+      "windowserver_gpu_ms_per_s": 175.9,
+      "machine_gpu_util_pct_median": 89,
+      "load1": 5.8,
+      "per_pid": [
+        {
+          "pid": 41369,
+          "kind": "gpu",
+          "mb": 381,
+          "cpu": 4.1,
+          "gpu_ms_s": 44.24
+        },
+        {
+          "pid": 41371,
+          "kind": "web",
+          "mb": 1151,
+          "cpu": 15.7,
+          "gpu_ms_s": 0
+        },
+        {
+          "pid": 41368,
+          "kind": "app",
+          "mb": 67,
+          "cpu": 12.2,
+          "gpu_ms_s": 0
+        }
+      ]
+    },
+    "front_at_end": {
+      "name": "other",
+      "cmd": "front",
+      "at": 1795341498468,
+      "pid": 617
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 18:57:57][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 18:58:00][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

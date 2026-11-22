@@ -1,0 +1,8 @@
+{"note":"control: windowNumberAtPoint skips a window with ignoresMouseEvents=true (own process, cover 2237 over back 2238)"}
+{"at":1795340218971,"window":2237,"cmd":"cover"}
+{"cmd":"back","window":2238}
+{"layer":0,"owner":"probe","y":400,"pid":96010,"cmd":"hit","x":190,"window":2237,"cover":2237}
+{"cmd":"ignore","ignores":true}
+{"y":400,"pid":96010,"cmd":"hit","x":190,"layer":0,"window":2238,"cover":2237,"owner":"probe"}
+{"ignores":false,"cmd":"ignore"}
+{"layer":0,"owner":"probe","y":400,"pid":96010,"cmd":"hit","x":190,"window":2237,"cover":2237}

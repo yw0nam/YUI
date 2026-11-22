@@ -1,0 +1,106 @@
+{
+  "steps": {
+    "mode": "stage",
+    "front_at_start": {
+      "cmd": "front",
+      "name": "other",
+      "pid": 617,
+      "at": 1795341292857
+    },
+    "config": {
+      "mode": "stage",
+      "place": {
+        "x": 1268,
+        "y": 477
+      }
+    },
+    "frame": {
+      "canvas": [
+        3456,
+        2234
+      ],
+      "dpr": 2,
+      "h": 1117,
+      "inner": [
+        1728,
+        1117
+      ],
+      "monitor": {
+        "height": 1117,
+        "scale": 2,
+        "width": 1728,
+        "x": 0,
+        "y": 0
+      },
+      "scale": 2,
+      "w": 1728,
+      "x": 0,
+      "y": 0
+    },
+    "passthrough_at": 1795341295281,
+    "native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "visibility": "visible",
+    "sample": {
+      "secs": 10.334,
+      "frames_10s": 225,
+      "frame_interval_ms": {
+        "max": 54,
+        "n": 224,
+        "p50": 49,
+        "p95": 51
+      },
+      "web_mb": 1147,
+      "gpu_proc_mb": 384,
+      "app_mb": 66,
+      "total_mb": 1597,
+      "web_cpu_pct": 15.1,
+      "gpu_proc_cpu_pct": 4,
+      "app_cpu_pct": 12.5,
+      "gpu_proc_gpu_ms_per_s": 45.65,
+      "windowserver_gpu_ms_per_s": 206.28,
+      "machine_gpu_util_pct_median": 72,
+      "load1": 3.98,
+      "per_pid": [
+        {
+          "pid": 35450,
+          "kind": "gpu",
+          "mb": 384,
+          "cpu": 4,
+          "gpu_ms_s": 45.65
+        },
+        {
+          "pid": 35453,
+          "kind": "web",
+          "mb": 1147,
+          "cpu": 15.1,
+          "gpu_ms_s": 0
+        },
+        {
+          "pid": 35448,
+          "kind": "app",
+          "mb": 66,
+          "cpu": 12.5,
+          "gpu_ms_s": 0
+        }
+      ]
+    },
+    "front_at_end": {
+      "cmd": "front",
+      "name": "other",
+      "pid": 622,
+      "at": 1795341311043
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 18:54:50][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 18:54:52][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}

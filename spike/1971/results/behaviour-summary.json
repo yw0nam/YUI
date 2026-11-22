@@ -1,0 +1,379 @@
+{
+ "run1": {
+  "transparent_not_stage": "10/10",
+  "interactive_take_clicks": "18/18",
+  "misses": [],
+  "enter_ms": [
+   66,
+   71,
+   73,
+   73,
+   74,
+   74,
+   74,
+   75,
+   75,
+   75,
+   76,
+   77,
+   78,
+   78,
+   79,
+   81,
+   81,
+   83
+  ],
+  "leave_ms": [],
+  "keys": {
+   "abc": "abc",
+   "tab_to": "spike-in-2",
+   "xy": "xy",
+   "escape_closed_panel": true
+  },
+  "front_after_setFocus": "YUI Verify",
+  "front_after_close_unfocusable": "YUI Verify",
+  "front_after_deactivate": "YUI Verify",
+  "front_after_hide_app": null,
+  "stage_on_screen_after_hide_app": null,
+  "front_after_unhide_quiet": null,
+  "D_floating_other_active": [
+   "stage@5",
+   "cover@0"
+  ],
+  "D_blur_after_other_activates_ms": [
+   9
+  ],
+  "D_normal_other_reactivated": [
+   "cover@0",
+   "stage@0"
+  ],
+  "D_normal_yui_focused": [
+   "stage@0",
+   "cover@0"
+  ],
+  "D_normal_back_to_other": [
+   "cover@0",
+   "stage@0"
+  ],
+  "D_floating_again": [
+   "stage@5",
+   "cover@0"
+  ],
+  "stage_move_frame_ms_p95_max": [
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    29
+   ],
+   [
+    19,
+    24
+   ],
+   [
+    18,
+    20
+   ]
+  ],
+  "os_move_frame_ms_p95_max": [
+   [
+    18,
+    22
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    18
+   ]
+  ],
+  "stage_setViewWindow_call_ms_max": 1.000000000007276,
+  "os_setPosition_call_ms_max": 19
+ },
+ "run2": {
+  "transparent_not_stage": "10/10",
+  "interactive_take_clicks": "17/18",
+  "misses": [
+   "input#9"
+  ],
+  "enter_ms": [
+   51,
+   67,
+   71,
+   71,
+   73,
+   74,
+   74,
+   74,
+   75,
+   75,
+   75,
+   76,
+   76,
+   77,
+   79,
+   85,
+   90
+  ],
+  "leave_ms": [
+   8,
+   9,
+   9,
+   9,
+   10,
+   10,
+   12,
+   13,
+   13,
+   15,
+   15,
+   16,
+   16,
+   16,
+   16,
+   17,
+   68,
+   341
+  ],
+  "keys": {
+   "abc": "",
+   "tab_to": "spike-in-2",
+   "xy": "xy",
+   "escape_closed_panel": true
+  },
+  "front_after_setFocus": "probe",
+  "front_after_close_unfocusable": "other",
+  "front_after_deactivate": "other",
+  "front_after_hide_app": "other",
+  "stage_on_screen_after_hide_app": false,
+  "front_after_unhide_quiet": "other",
+  "D_floating_other_active": [],
+  "D_blur_after_other_activates_ms": [
+   8
+  ],
+  "D_normal_other_reactivated": [],
+  "D_normal_yui_focused": [],
+  "D_normal_back_to_other": [
+   "cover@0",
+   "stage@0"
+  ],
+  "D_floating_again": [
+   "stage@5",
+   "cover@0"
+  ],
+  "stage_move_frame_ms_p95_max": [
+   [
+    18,
+    36
+   ],
+   [
+    18,
+    28
+   ],
+   [
+    18,
+    22
+   ],
+   [
+    17,
+    108
+   ],
+   [
+    18,
+    35
+   ],
+   [
+    17,
+    18
+   ]
+  ],
+  "os_move_frame_ms_p95_max": [
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    19
+   ],
+   [
+    18,
+    23
+   ],
+   [
+    18,
+    20
+   ],
+   [
+    18,
+    22
+   ]
+  ],
+  "stage_setViewWindow_call_ms_max": 1.000000000007276,
+  "os_setPosition_call_ms_max": 10.000000000007276
+ },
+ "run3": {
+  "transparent_not_stage": "10/10",
+  "interactive_take_clicks": "17/18",
+  "misses": [
+   "body"
+  ],
+  "enter_ms": [
+   42,
+   44,
+   45,
+   49,
+   60,
+   69,
+   69,
+   72,
+   74,
+   76,
+   76,
+   76,
+   76,
+   77,
+   78,
+   79,
+   91
+  ],
+  "leave_ms": [
+   6,
+   7,
+   7,
+   7,
+   8,
+   8,
+   8,
+   9,
+   9,
+   9,
+   9,
+   9,
+   11,
+   11,
+   11,
+   13,
+   15
+  ],
+  "keys": {
+   "abc": "abc",
+   "tab_to": "spike-in-2",
+   "xy": "xy",
+   "escape_closed_panel": true
+  },
+  "front_after_setFocus": "YUI Verify",
+  "front_after_close_unfocusable": "YUI Verify",
+  "front_after_deactivate": "YUI Verify",
+  "front_after_hide_app": "other",
+  "stage_on_screen_after_hide_app": false,
+  "front_after_unhide_quiet": "YUI Verify",
+  "D_floating_other_active": [
+   "stage@5",
+   "cover@0"
+  ],
+  "D_blur_after_other_activates_ms": [],
+  "D_normal_other_reactivated": [
+   "cover@0",
+   "stage@0"
+  ],
+  "D_normal_yui_focused": [
+   "stage@0",
+   "cover@0"
+  ],
+  "D_normal_back_to_other": [
+   "cover@0",
+   "stage@0"
+  ],
+  "D_floating_again": [
+   "stage@5",
+   "cover@0"
+  ],
+  "stage_move_frame_ms_p95_max": [
+   [
+    18,
+    19
+   ],
+   [
+    17,
+    18
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    19,
+    44
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    18
+   ]
+  ],
+  "os_move_frame_ms_p95_max": [
+   [
+    18,
+    20
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    21
+   ],
+   [
+    18,
+    18
+   ],
+   [
+    18,
+    20
+   ]
+  ],
+  "stage_setViewWindow_call_ms_max": 1.000000000007276,
+  "os_setPosition_call_ms_max": 8
+ },
+ "notes": [
+  "run1 used the first scenario version: leave latency unmeasured (it waited for the cover, which an owner window covered)",
+  "run2: the owner's own input reached YUI during B (a Control keydown in the keylog); its C/D readings are confounded"
+ ]
+}

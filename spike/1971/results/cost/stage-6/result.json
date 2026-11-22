@@ -1,0 +1,106 @@
+{
+  "steps": {
+    "mode": "stage",
+    "front_at_start": {
+      "name": "YUI Verify",
+      "at": 1795341092586,
+      "pid": 28367,
+      "cmd": "front"
+    },
+    "config": {
+      "mode": "stage",
+      "place": {
+        "x": 1268,
+        "y": 477
+      }
+    },
+    "frame": {
+      "canvas": [
+        3456,
+        2234
+      ],
+      "dpr": 2,
+      "h": 1117,
+      "inner": [
+        1728,
+        1117
+      ],
+      "monitor": {
+        "height": 1117,
+        "scale": 2,
+        "width": 1728,
+        "x": 0,
+        "y": 0
+      },
+      "scale": 2,
+      "w": 1728,
+      "x": 0,
+      "y": 0
+    },
+    "passthrough_at": 1795341094155,
+    "native": {
+      "activation_policy": 0,
+      "app_active": false,
+      "can_become_key": true,
+      "ignores_mouse": true,
+      "is_key": false,
+      "is_main": false,
+      "level": 5
+    },
+    "visibility": "visible",
+    "sample": {
+      "secs": 10.34,
+      "frames_10s": 397,
+      "frame_interval_ms": {
+        "max": 55,
+        "n": 396,
+        "p50": 17,
+        "p95": 50
+      },
+      "web_mb": 1114,
+      "gpu_proc_mb": 383,
+      "app_mb": 62,
+      "total_mb": 1559,
+      "web_cpu_pct": 15.2,
+      "gpu_proc_cpu_pct": 6.2,
+      "app_cpu_pct": 11.6,
+      "gpu_proc_gpu_ms_per_s": 76.73,
+      "windowserver_gpu_ms_per_s": 219.05,
+      "machine_gpu_util_pct_median": 73,
+      "load1": 4.73,
+      "per_pid": [
+        {
+          "pid": 28368,
+          "kind": "gpu",
+          "mb": 383,
+          "cpu": 6.2,
+          "gpu_ms_s": 76.73
+        },
+        {
+          "pid": 28370,
+          "kind": "web",
+          "mb": 1114,
+          "cpu": 15.2,
+          "gpu_ms_s": 0
+        },
+        {
+          "pid": 28367,
+          "kind": "app",
+          "mb": 62,
+          "cpu": 11.6,
+          "gpu_ms_s": 0
+        }
+      ]
+    },
+    "front_at_end": {
+      "name": "other",
+      "pid": 614,
+      "cmd": "front",
+      "at": 1795341109987
+    }
+  },
+  "vrm_loaded": [
+    "[2026-11-22 18:51:28][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}",
+    "[2026-11-22 18:51:31][INFO] [YUI][renderer] vrm_loaded {\"expressions\":[\"neutral\",\"aa\",\"ih\",\"ou\",\"ee\",\"oh\",\"blink\",\"blinkLeft\",\"blinkRight\",\"angry\",\"relaxed\",\"happy\",\"sad\",\"surprised\"],\"has_mouth\":true}"
+  ]
+}
