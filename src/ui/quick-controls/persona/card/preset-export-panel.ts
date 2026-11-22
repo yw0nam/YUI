@@ -10,7 +10,6 @@ import type { SpeakerOption } from "../../../../io/voice/voices/speaker-selectio
 import type { Logger } from "../../../../logger";
 import type { PresetEntry } from "../../../../settings/preset/active-preset";
 import { t } from "../../../i18n";
-import { escapeAttr } from "../../markup";
 import type { CardIoPorts, PresetExportParts } from "./card-io";
 import "./preset-export-panel.css";
 
@@ -46,29 +45,6 @@ const VRM_STATUS: Record<Inspected, { tone: Tone; status: string; reason?: strin
     reason: "preset_export.vrm_unreadable",
   },
 };
-
-export function presetExportPanelHtml(): string {
-  const rights = escapeAttr(t("preset_export.rights"));
-  return `
-          <div class="yui-preset-export" hidden>
-            <p class="yui-preset-export__title">${t("preset_export.title")}</p>
-            <div class="yui-group yui-preset-export__items"></div>
-            <p class="yui-sec__foot">${t("preset_export.foot")}</p>
-            <div class="yui-group yui-preset-export__rights">
-              <div class="yui-row">
-                <div class="yui-row__main">
-                  <span class="yui-row__label">${t("preset_export.rights")}</span>
-                  <span class="yui-row__sub">${t("preset_export.rights_sub")}</span>
-                </div>
-                <button class="yui-switch" type="button" role="checkbox" aria-checked="false" aria-label="${rights}"></button>
-              </div>
-            </div>
-            <div class="yui-preset-export__acts">
-              <button class="yui-pill yui-preset-export__cancel" type="button">${t("preset_export.cancel")}</button>
-              <button class="yui-pill yui-preset-export__go" type="button" disabled>${t("preset_export.go")}</button>
-            </div>
-          </div>`;
-}
 
 export function createPresetExportPanel(deps: {
   /** The `.yui-preset-export` element. */
