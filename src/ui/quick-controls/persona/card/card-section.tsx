@@ -1,15 +1,16 @@
 /**
  * Card section of the Persona page: the fields, the send switch, Reset to default, the greeting
- * list, the file action row and the export panel. The file actions stay vanilla until their port.
+ * list, the file action row, its status lines and the export panel.
  */
 
 import {
   type FormEvent,
-  type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
+  useSyncExternalStore,
 } from "react";
 import {
   CARD_FIELD_MAX_LEN,
@@ -26,7 +27,9 @@ import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG, PLUS_SVG } from "../../constants";
 import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { cardBase, presetEntry } from "./card-entry";
-import type { CardIo } from "./card-io";
+import type { CardIo, CardIoPorts, CardLine } from "./card-io";
+import { takeImportNotice } from "./card-io";
+import { PresetExportPanel } from "./preset-export-panel";
 import "./card-section.css";
 
 type TextField =
@@ -71,6 +74,10 @@ export function CardSection({
   getPersona,
   isPushMode,
   io,
+  importBusy,
+  vrmSelection,
+  speakerSelection,
+  inspectPresetVrm,
   log,
   refresh,
 }: {
@@ -81,12 +88,21 @@ export function CardSection({
   getPersona?: () => PersonaConfig | undefined;
   /** Whether push chat is the effective mode; on push only the file actions stay enabled. */
   isPushMode: () => boolean;
-  /** The card's file row, export panel and drop, wired by the page once it has rendered. */
-  io?: CardIo;
+  io: CardIo;
+  /** Whether this window's card import runs, and its changes. */
+  importBusy: CardIoPorts["importBusy"];
+  vrmSelection: Parameters<typeof PresetExportPanel>[0]["vrmSelection"];
+  speakerSelection: Parameters<typeof PresetExportPanel>[0]["speakerSelection"];
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   log: Logger;
   /** Repaints the section from the stores and the edit's own card. */
   refresh(): void;
 }) {
+  const [line, setLine] = useState<CardLine | null>(null);
+  const [panel, setPanel] = useState({ open: false, epoch: 0 });
+  // The one-shot notice the import leaves for this mount.
+  const [notice] = useState(takeImportNotice);
+  const busy = useSyncExternalStore(importBusy.subscribe, importBusy.isBusy);
   const thumbRef = useRef<HTMLSpanElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const fieldRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -99,6 +115,7 @@ export function CardSection({
   const own = a.card !== null;
   const card = a.card ?? cardBase(getPersona);
   const shown = presetEntry();
+  const hasPicture = Boolean(shown.thumbnail);
   // The user's Send card switch folds the body; on push the greetings stay reachable.
   const open = push || a.send_card;
   const help = t("card.help_aria");
@@ -120,10 +137,9 @@ export function CardSection({
     for (const [i, el] of greetRefs.current) setValue(el, card.alternate_greetings[i] ?? "");
     const thumb = thumbRef.current;
     if (thumb) {
-      thumb.hidden = !shown.thumbnail;
-      if (shown.thumbnail) thumb.replaceChildren(avatarEl(shown, 36));
+      thumb.hidden = !hasPicture;
+      if (hasPicture) thumb.replaceChildren(avatarEl(shown, 36));
     }
-    io?.reflect(Boolean(shown.thumbnail));
   });
 
   function base(): Card {
@@ -198,8 +214,18 @@ export function CardSection({
     log.info("card_reset");
   }
 
-  function onIoClick(e: ReactMouseEvent<HTMLElement>): void {
-    io?.handle(e.nativeEvent);
+  async function importCard(): Promise<void> {
+    setLine(await io.importPreset());
+  }
+
+  async function exportPng(): Promise<void> {
+    setLine(await io.exportPng());
+  }
+
+  async function exportPreset(parts: Parameters<typeof io.exportPreset>[0]): Promise<boolean> {
+    const next = await io.exportPreset(parts);
+    setLine(next);
+    return next !== null && !next.error;
   }
 
   return (
@@ -358,51 +384,54 @@ export function CardSection({
         <p className="yui-sec__foot">{t("card.macros")}</p>
       </div>
       <div className="yui-row yui-row--action yui-card__io">
-        <button className="yui-link-btn yui-card-import" type="button" onClick={onIoClick}>
+        <button
+          className="yui-link-btn yui-card-import"
+          type="button"
+          disabled={busy}
+          onClick={() => void importCard()}
+        >
           {t("card.import")}
         </button>
-        <button className="yui-link-btn yui-card-export-preset" type="button" onClick={onIoClick}>
+        <button
+          className="yui-link-btn yui-card-export-preset"
+          type="button"
+          onClick={() => setPanel((p) => ({ open: true, epoch: p.epoch + 1 }))}
+        >
           {t("card.export_preset")}
         </button>
-        <button className="yui-link-btn yui-card-export-png" type="button" onClick={onIoClick}>
+        <button
+          className="yui-link-btn yui-card-export-png"
+          type="button"
+          disabled={!hasPicture}
+          onClick={() => void exportPng()}
+        >
           {t("card.export_png")}
         </button>
       </div>
-      <p className="yui-row__sub yui-card__io-note" />
-      <p className="yui-card__io-notice" hidden>
+      <p className="yui-row__sub yui-card__io-note">
+        {hasPicture ? t("card.io_note") : t("card.png_no_picture", { note: t("card.io_note") })}
+      </p>
+      <p className="yui-card__io-notice" hidden={!notice}>
         {t("card.import_voice_notice")}
       </p>
-      <div className="yui-preset-export" hidden>
-        <p className="yui-preset-export__title">{t("preset_export.title")}</p>
-        <div className="yui-group yui-preset-export__items" />
-        <p className="yui-sec__foot">{t("preset_export.foot")}</p>
-        <div className="yui-group yui-preset-export__rights">
-          <div className="yui-row">
-            <div className="yui-row__main">
-              <span className="yui-row__label">{t("preset_export.rights")}</span>
-              <span className="yui-row__sub">{t("preset_export.rights_sub")}</span>
-            </div>
-            {/* biome-ignore lint/a11y/useSemanticElements: the rights control is a switch-styled button */}
-            <button
-              className="yui-switch"
-              type="button"
-              role="checkbox"
-              aria-checked={false}
-              aria-label={t("preset_export.rights")}
-            />
-          </div>
-        </div>
-        <div className="yui-preset-export__acts">
-          <button className="yui-pill yui-preset-export__cancel" type="button">
-            {t("preset_export.cancel")}
-          </button>
-          <button className="yui-pill yui-preset-export__go" type="button" disabled>
-            {t("preset_export.go")}
-          </button>
-        </div>
-      </div>
-      <p className="yui-card__io-done" role="status" hidden />
-      <p className="yui-card__io-error" role="status" hidden />
+      <PresetExportPanel
+        key={panel.epoch}
+        open={panel.open}
+        vrmSelection={vrmSelection}
+        speakerSelection={speakerSelection}
+        entry={presetEntry}
+        cardLabel={() => cardName(card, shown)}
+        inspectPresetVrm={inspectPresetVrm}
+        onExport={exportPreset}
+        onClose={() => setPanel((p) => ({ ...p, open: false }))}
+        log={log}
+      />
+      <p className="yui-card__io-done" role="status" hidden={line?.error !== false}>
+        {line?.error === false ? line.text : ""}
+      </p>
+      <p className="yui-card__io-error" role="status" hidden={line?.error !== true}>
+        {line?.error === true ? line.text : ""}
+      </p>
     </div>
   );
 }

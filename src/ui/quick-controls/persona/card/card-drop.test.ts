@@ -2,7 +2,7 @@
 /**
  * card-drop.test.ts — the drop cover of the settings window.
  *
- * Pins src/ui/quick-controls/sections/card/card-drop.ts: the drag and busy looks, the refusals
+ * Pins src/ui/quick-controls/persona/card/card-drop.ts: the drag and busy looks, the refusals
  * shown before anything is read, the one import a single card file starts, the refusal's 2.4 s,
  * and that nothing reaches the cover or the import after dispose.
  */

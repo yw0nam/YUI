@@ -6,7 +6,7 @@ import type { ActiveHoursSettingsStore } from "../../../settings/active-hours/ac
 import type { createAgentSettings } from "../../../settings/backend/agent-settings";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { ActiveHoursSection } from "./active-hours/active-hours-section";
-import type { CardIo } from "./card/card-io";
+import type { CardIo, CardIoPorts } from "./card/card-io";
 import { CardSection } from "./card/card-section";
 
 export function PersonaPageView({
@@ -16,6 +16,10 @@ export function PersonaPageView({
   getPersona,
   isPushMode,
   io,
+  importBusy,
+  vrmSelection,
+  speakerSelection,
+  inspectPresetVrm,
   log,
   refresh,
 }: {
@@ -24,7 +28,11 @@ export function PersonaPageView({
   registry?: Pick<PresetRegistry, "rename">;
   getPersona?: () => PersonaConfig | undefined;
   isPushMode: () => boolean;
-  io?: CardIo;
+  io: CardIo;
+  importBusy: CardIoPorts["importBusy"];
+  vrmSelection: Parameters<typeof CardSection>[0]["vrmSelection"];
+  speakerSelection: Parameters<typeof CardSection>[0]["speakerSelection"];
+  inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   log: Logger;
   refresh(): void;
 }) {
@@ -44,6 +52,10 @@ export function PersonaPageView({
         getPersona={getPersona}
         isPushMode={isPushMode}
         io={io}
+        importBusy={importBusy}
+        vrmSelection={vrmSelection}
+        speakerSelection={speakerSelection}
+        inspectPresetVrm={inspectPresetVrm}
         log={log}
         refresh={refresh}
       />
