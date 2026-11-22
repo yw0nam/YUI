@@ -52,13 +52,13 @@ vi.mock("./connection/connection-tab", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/session/session-section", () => ({
-  createSessionSection: () => ({ reflect: rec("session", "reflect"), dispose: () => {} }),
+vi.mock("./delegations/delegation-feed", () => ({
+  createDelegationFeed: () => ({ sync: rec("delegationFeed", "sync"), dispose: () => {} }),
 }));
-vi.mock("./history/history-tab", () => ({
-  createHistoryTab: () => ({
+vi.mock("./history/history-page", () => ({
+  createHistoryPage: () => ({
     el: document.createElement("div"),
-    refresh: rec("historyTab", "refresh"),
+    refresh: rec("historyPage", "refresh"),
     dispose: () => {},
   }),
 }));
@@ -115,8 +115,8 @@ describe("createQuickControls — open order", () => {
       "agent.reflect",
       "filler.reflect",
       "connectionTab.refresh",
-      "session.reflect",
-      "historyTab.refresh",
+      "delegationFeed.sync",
+      "historyPage.refresh",
       "characterTab.refresh",
       "speakerList.render",
       "shell.refreshVoiceList",

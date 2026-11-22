@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Session context readout and delegated-work list through the whole panel.
 
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../../io/chat/conversation/session-diagnostics";
@@ -11,6 +12,26 @@ import { createEndpointsSettings } from "../../../../settings/backend/endpoints-
 import { setLocale, t } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+const track = (qc: ReturnType<typeof createQuickControls>) => {
+  qcs.push(qc);
+  return qc;
+};
+/** Disposes one panel inside act and drops it from the afterEach sweep. */
+const dispose = (qc: ReturnType<typeof createQuickControls>) => {
+  qcs.splice(qcs.indexOf(qc), 1);
+  act(() => qc.dispose());
+};
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+});
 
 const NOW = 1_789_365_900_000;
 
@@ -104,13 +125,15 @@ describe("createQuickControls — session section delegated list", () => {
   function buildQc(delegations: ReturnType<typeof fakeDelegations>) {
     // The occupancy readout and the delegated list share the session section, which renders
     // once the three stores it needs are given.
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      transcript: createChatHistoryStore(),
-      sessionStore: createSessionStore(),
-      sessionDiagnostics: createSessionDiagnosticsStore(),
-      delegations,
-    });
+    return track(
+      createQuickControls({
+        ...defaultQcArgs(mount),
+        transcript: createChatHistoryStore(),
+        sessionStore: createSessionStore(),
+        sessionDiagnostics: createSessionDiagnosticsStore(),
+        delegations,
+      }),
+    );
   }
 
   function delegEl(qc: { el: HTMLElement }): HTMLElement {
@@ -125,20 +148,20 @@ describe("createQuickControls — session section delegated list", () => {
 
   it("stays hidden while the mirrored list is empty", () => {
     const qc = buildQc(fakeDelegations());
-    qc.open();
+    act(() => qc.open());
 
     expect(delegEl(qc).hidden).toBe(true);
-
-    qc.dispose();
   });
 
   it("shows the list under the context stat line once items arrive", () => {
     const delegations = fakeDelegations();
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
     expect(delegEl(qc).hidden).toBe(true);
 
-    delegations.emit([done("d-2", 12 * 60_000), running("d-1", 4 * 60_000)]);
+    act(() => {
+      delegations.emit([done("d-2", 12 * 60_000), running("d-1", 4 * 60_000)]);
+    });
 
     expect(delegEl(qc).hidden).toBe(false);
     expect(qc.el.querySelector<HTMLElement>(".yui-session__deleg-title")!.textContent).toBe(
@@ -146,73 +169,75 @@ describe("createQuickControls — session section delegated list", () => {
     );
     // Same rows as the chip's popover: running first, elapsed for running, done-ago for done.
     expect(rowTimes(qc)).toEqual(["4분", "끝남 · 12분 전"]);
-
-    qc.dispose();
   });
 
   it("hides again when the list empties", () => {
     const delegations = fakeDelegations([running("d-1", 60_000)]);
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
     expect(delegEl(qc).hidden).toBe(false);
 
-    delegations.emit([]);
+    act(() => {
+      delegations.emit([]);
+    });
 
     expect(delegEl(qc).hidden).toBe(true);
-
-    qc.dispose();
   });
 
   it("opens a finished item's summary under its row in the session section", () => {
     const delegations = fakeDelegations();
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
 
-    delegations.emit([{ ...done("d-1", 60_000), status: "ok", summary: "All green." }]);
+    act(() => {
+      delegations.emit([{ ...done("d-1", 60_000), status: "ok", summary: "All green." }]);
+    });
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-session__deleg-rows button")!.click();
+    act(() => {
+      qc.el.querySelector<HTMLButtonElement>(".yui-session__deleg-rows button")!.click();
+    });
 
     expect(qc.el.querySelector(".yui-deleg__summary-text")!.textContent).toBe("All green.");
-
-    qc.dispose();
   });
 
   it("refreshes the times once a minute while items are held", () => {
     const delegations = fakeDelegations([running("d-1", 4 * 60_000)]);
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
     expect(rowTimes(qc)).toEqual(["4분"]);
 
-    vi.advanceTimersByTime(60_000);
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
 
     expect(rowTimes(qc)).toEqual(["5분"]);
-
-    qc.dispose();
   });
 
   it("asks the mirror to refresh on the minute tick, so it re-filters past its TTL", () => {
     const delegations = fakeDelegations([running("d-1", 4 * 60_000)]);
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
 
-    vi.advanceTimersByTime(60_000);
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
 
     expect(delegations.refresh).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 
   it("does not arm the minute timer for a list of finished items", () => {
     const delegations = fakeDelegations();
     const qc = buildQc(delegations);
-    qc.open();
+    act(() => qc.open());
 
-    delegations.emit([done("d-1", 60_000)]);
-    vi.advanceTimersByTime(60_000);
+    act(() => {
+      delegations.emit([done("d-1", 60_000)]);
+    });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
 
     expect(delegations.refresh).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   // The rows come from the history; with the transport down the lost line sits above them.
@@ -223,15 +248,17 @@ describe("createQuickControls — session section delegated list", () => {
     ) {
       const endpointsSettings = createEndpointsSettings();
       endpointsSettings.set({ chat_api: "push" });
-      return createQuickControls({
-        ...defaultQcArgs(mount),
-        transcript: createChatHistoryStore(),
-        sessionStore: createSessionStore(),
-        sessionDiagnostics: createSessionDiagnosticsStore(),
-        endpointsSettings,
-        delegations,
-        pushSocket,
-      });
+      return track(
+        createQuickControls({
+          ...defaultQcArgs(mount),
+          transcript: createChatHistoryStore(),
+          sessionStore: createSessionStore(),
+          sessionDiagnostics: createSessionDiagnosticsStore(),
+          endpointsSettings,
+          delegations,
+          pushSocket,
+        }),
+      );
     }
 
     function lostEl(qc: { el: HTMLElement }): HTMLElement {
@@ -248,77 +275,71 @@ describe("createQuickControls — session section delegated list", () => {
         delegations,
         fakePushSocket({ kind: "reconnecting", delay_ms: 4_000 }),
       );
-      qc.open();
+      act(() => qc.open());
 
       expect(delegEl(qc).hidden).toBe(false);
       expect(lostEl(qc).hidden).toBe(false);
       expect(lostEl(qc).textContent).toContain(t("deleg.chip_lost"));
       expect(rowsEl(qc).hidden).toBe(false);
       expect(rowTimes(qc)).toEqual(["1분"]);
-
-      qc.dispose();
     });
 
     it("leaves no status line outside the service sections, with the chat section holding exactly one", () => {
       const qc = buildPushQc(fakeDelegations(), fakePushSocket({ kind: "failed", code: 4401 }));
-      qc.open();
+      act(() => qc.open());
 
       const outside = [...qc.el.querySelectorAll<HTMLElement>(".yui-chat-status")].filter(
         (line) => line.closest(".yui-svc") === null,
       );
       expect(outside).toHaveLength(0);
       expect(qc.el.querySelectorAll('.yui-svc[data-svc="chat"] .yui-chat-status')).toHaveLength(1);
-
-      qc.dispose();
     });
 
     it("shows the lost line with nothing on the list at all", () => {
       const qc = buildPushQc(fakeDelegations(), fakePushSocket({ kind: "failed", code: 4401 }));
-      qc.open();
+      act(() => qc.open());
 
       expect(delegEl(qc).hidden).toBe(false);
       expect(lostEl(qc).hidden).toBe(false);
-
-      qc.dispose();
     });
 
     it("hides the lost line while the socket is ready", () => {
       const delegations = fakeDelegations([running("d-1", 60_000)]);
       const qc = buildPushQc(delegations, fakePushSocket());
-      qc.open();
+      act(() => qc.open());
 
       expect(lostEl(qc).hidden).toBe(true);
       expect(rowsEl(qc).hidden).toBe(false);
       expect(rowTimes(qc)).toEqual(["1분"]);
-
-      qc.dispose();
     });
 
     it("drops the lost line once the socket returns", () => {
       const delegations = fakeDelegations();
       const pushSocket = fakePushSocket({ kind: "connecting" });
       const qc = buildPushQc(delegations, pushSocket);
-      qc.open();
+      act(() => qc.open());
 
       expect(lostEl(qc).hidden).toBe(false);
       expect(rowsEl(qc).hidden).toBe(false);
 
-      pushSocket.emit({ kind: "ready", chat_id: "yui-3f9a2c1d" });
-      delegations.emit([running("d-1", 4 * 60_000)]);
+      act(() => {
+        pushSocket.emit({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+      });
+      act(() => {
+        delegations.emit([running("d-1", 4 * 60_000)]);
+      });
 
       expect(lostEl(qc).hidden).toBe(true);
       expect(rowsEl(qc).hidden).toBe(false);
       expect(rowTimes(qc)).toEqual(["4분"]);
-
-      qc.dispose();
     });
   });
 
   it("stops its subscription and minute timer on dispose", () => {
     const delegations = fakeDelegations([running("d-1", 60_000)]);
     const qc = buildQc(delegations);
-    qc.open();
-    qc.dispose();
+    act(() => qc.open());
+    dispose(qc);
 
     expect(delegations.listenerCount()).toBe(0);
     expect(() => vi.advanceTimersByTime(120_000)).not.toThrow();
@@ -327,14 +348,16 @@ describe("createQuickControls — session section delegated list", () => {
   describe("minute timer", () => {
     it("ticks while the panel was never opened", () => {
       const delegations = fakeDelegations();
-      const qc = createQuickControls({ ...defaultQcArgs(mount), delegations });
+      track(createQuickControls({ ...defaultQcArgs(mount), delegations }));
 
-      delegations.emit([running("d-1", 60_000)]);
-      vi.advanceTimersByTime(60_000);
+      act(() => {
+        delegations.emit([running("d-1", 60_000)]);
+      });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
 
       expect(delegations.refresh).toHaveBeenCalledOnce();
-
-      qc.dispose();
     });
 
     it("asks the mirror to refresh before it redraws the rows", () => {
@@ -343,24 +366,28 @@ describe("createQuickControls — session section delegated list", () => {
         delegations.setSilently([running("d-2", 10 * 60_000)]);
       });
       const qc = buildQc(delegations);
-      qc.open();
+      act(() => qc.open());
       expect(rowTimes(qc)).toEqual(["4분"]);
 
-      vi.advanceTimersByTime(60_000);
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
 
       expect(rowTimes(qc)).toEqual(["11분"]);
-
-      qc.dispose();
     });
 
     it("does not arm after dispose", () => {
       const delegations = fakeDelegations();
       const qc = buildQc(delegations);
-      qc.open();
-      qc.dispose();
+      act(() => qc.open());
+      dispose(qc);
 
-      delegations.emit([running("d-1", 60_000)]);
-      vi.advanceTimersByTime(120_000);
+      act(() => {
+        delegations.emit([running("d-1", 60_000)]);
+      });
+      act(() => {
+        vi.advanceTimersByTime(120_000);
+      });
 
       expect(delegations.refresh).not.toHaveBeenCalled();
     });
@@ -399,39 +426,40 @@ describe("createQuickControls — session section", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     // The session section sits on the History page, which renders with a transcript.
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      transcript: createChatHistoryStore(),
-      sessionDiagnostics,
-      sessionStore,
-      ...extra,
-    });
+    return track(
+      createQuickControls({
+        ...defaultQcArgs(mount),
+        transcript: createChatHistoryStore(),
+        sessionDiagnostics,
+        sessionStore,
+        ...extra,
+      }),
+    );
   }
 
   it("renders the session section", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
     expect(qc.el.querySelector(".yui-session")).not.toBeNull();
-    qc.dispose();
   });
 
   it("keeps only the occupancy stat — the start-fresh action left for the History tab", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const section = qc.el.querySelector<HTMLElement>(".yui-session")!;
     expect(section.querySelector(".yui-session__stat")).not.toBeNull();
     expect(section.querySelector(".yui-session__action")).toBeNull();
     expect(section.querySelector(".yui-session__reset")).toBeNull();
     expect(section.querySelector(".yui-confirm")).toBeNull();
-
-    qc.dispose();
   });
 
   it("renders used/max and percent from the diagnostics store", () => {
-    sessionDiagnostics.setUsage(18200, 200000);
+    act(() => {
+      sessionDiagnostics.setUsage(18200, 200000);
+    });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
     expect(value.textContent).toContain("18.2K");
@@ -440,36 +468,34 @@ describe("createQuickControls — session section", () => {
     expect(pct.textContent).toContain("9%");
     const fill = qc.el.querySelector<HTMLElement>(".yui-meter__fill")!;
     expect(fill.style.width).toBe("9%");
-
-    qc.dispose();
   });
 
   it("handles a null contextWindow gracefully (no bar, muted readout)", () => {
-    sessionDiagnostics.setUsage(18200, null);
+    act(() => {
+      sessionDiagnostics.setUsage(18200, null);
+    });
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
     expect(qc.el.querySelector(".yui-meter")).toBeNull();
     const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
     expect(value.querySelector(".pct")).toBeNull();
     // still shows the used count formatted
     expect(value.textContent).toContain("18.2K");
-
-    qc.dispose();
   });
 
   it("live-updates the readout when the diagnostics store notifies while open", () => {
     const qc = buildQc();
-    qc.open();
+    act(() => qc.open());
 
-    sessionDiagnostics.setUsage(100000, 200000);
+    act(() => {
+      sessionDiagnostics.setUsage(100000, 200000);
+    });
 
     const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
     expect(value.textContent).toContain("100K");
     expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain(
       "50%",
     );
-
-    qc.dispose();
   });
 });

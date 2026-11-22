@@ -4,6 +4,7 @@
  * the Hermes provider preset, the hidden model row, the connection status line, and the reset frame.
  */
 
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
@@ -13,6 +14,9 @@ import { createEndpointsSettings } from "../../../settings/backend/endpoints-set
 import { setLocale, t } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("createQuickControls — push mode", () => {
   let mount: HTMLElement;
@@ -379,8 +383,12 @@ describe("createQuickControls — push mode", () => {
     const qc = buildQc({ pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click(),
+    );
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click(),
+    );
 
     expect(sendReset).toHaveBeenCalledTimes(1);
 
@@ -391,8 +399,12 @@ describe("createQuickControls — push mode", () => {
     const qc = buildQc({ pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click(),
+    );
+    act(() =>
+      qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click(),
+    );
 
     expect(sendReset).not.toHaveBeenCalled();
 

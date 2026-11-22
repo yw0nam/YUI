@@ -80,9 +80,10 @@ import { createConnectionViews } from "./connection/connection-views";
 import { createQuickStart } from "./connection/quick-start/quick-start";
 import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
+import { createDelegationFeed } from "./delegations/delegation-feed";
 import { createGeneralPage } from "./general/general-page";
 import { createHintTooltip } from "./hint-tooltip";
-import { createHistoryTab } from "./history/history-tab";
+import { createHistoryPage } from "./history/history-page";
 import { createListeningPage } from "./listening/listening-page";
 import { createPanelShell } from "./panel-shell";
 import { createPermsPage } from "./perms/perms-page";
@@ -99,7 +100,6 @@ import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
-import { createSessionSection } from "./sections/session/session-section";
 import { createSpeakerList } from "./sections/speaker/speaker-list";
 import { createWorkflowsSection } from "./sections/workflows/workflows-section";
 import { createSwitchRows } from "./switch-row";
@@ -232,9 +232,9 @@ interface QuickControlsOptions {
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: SessionStore;
   /** Unified conversation transcript. Feeds the History tab; "Start fresh" closes the running session in it. */
-  transcript?: Pick<ChatHistoryStore, "startNewSession" | "sessions" | "subscribe">;
+  transcript?: Pick<ChatHistoryStore, "startNewSession" | "current" | "subscribe">;
   /** Signal records. Feed the History tab beside the turns they ran in. */
-  signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
+  signalHistory?: Pick<SignalHistoryStore, "current" | "subscribe">;
   /** Thinking filler settings store. Gates the filler section and the card export's filler pools. */
   fillerSettings: FillerSettingsStore;
   /** Per-character active hours store. With it, the Persona page renders the Active hours editor. */
@@ -446,8 +446,6 @@ export function createQuickControls({
   onFirstConversationConnected,
   onReplayFirstConversation,
 }: QuickControlsOptions): QuickControls {
-  // The context-occupancy readout renders when both stores are injected.
-  const hasSession = !!sessionDiagnostics && !!sessionStore;
   const log = createLogger("quick-controls");
 
   const el = document.createElement("div");
@@ -476,7 +474,6 @@ export function createQuickControls({
   }).filter((row) => row.tab !== "listening");
 
   el.innerHTML = buildPanelHtml({
-    hasSession,
     switchRows: TOGGLE_SPECS,
     openOnQuickStart,
     showBasePace: !!basePaceSettings,
@@ -544,23 +541,26 @@ export function createQuickControls({
     focusDetailKey: () => connectionTab.focusChatKey(),
   });
 
-  // ── History tab (session accordion + start fresh) — only with a transcript store. ──
-  const historyTab = transcript
-    ? createHistoryTab({
+  // ── History page (session accordion · start fresh · Session section) — only with a transcript store. ──
+  // The delegated list's sync lives with the panel, whether or not the page is there.
+  const delegationFeed = createDelegationFeed(delegations);
+  const historyPage = transcript
+    ? createHistoryPage({
         transcript,
         signalHistory,
         sessionDiagnostics,
         sessionStore,
         announceSessionReset,
         pushSocket,
-        getChatApi: () => (isPushMode() ? "push" : undefined),
+        isPushMode,
+        delegations: delegationFeed,
         agentSettings,
         getPersona,
         isOpen: () => shell.isOpen(),
         log,
       })
     : null;
-  if (historyTab) el.querySelector("#yui-panel-hist .yui-tabpanel__title")!.after(historyTab.el);
+  if (historyPage) el.querySelector("#yui-panel-hist")!.append(historyPage.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
     ? createPresetStrip({
@@ -773,16 +773,6 @@ export function createQuickControls({
   });
   el.querySelector("#yui-panel-listening")!.append(listeningPage.el);
 
-  // ── Session section (context readout · delegated-work list and its minute refresh) ──
-  const session = createSessionSection({
-    root: el,
-    sessionDiagnostics,
-    pushSocket,
-    isPushMode,
-    delegations,
-    isOpen: shell.isOpen,
-  });
-
   // ── Permissions page (attach switch · monitor list · screen requests) ──
   const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen: shell.isOpen });
   el.querySelector("#yui-panel-perms")!.append(permsPage.el);
@@ -872,8 +862,8 @@ export function createQuickControls({
       dispose: connectionTab.dispose,
     },
     { dispose: connectionViews.dispose },
-    session,
-    historyTab && { reflect: historyTab.refresh, dispose: historyTab.dispose },
+    { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
+    historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
     characters && { reflect: characters.refresh, dispose: characters.dispose },
     { reflect: characterTab.refresh, close: characterTab.close, dispose: characterTab.dispose },
     { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },

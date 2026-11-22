@@ -93,6 +93,9 @@ export function createSignalHistoryStore(opts?: { storage?: SignalHistoryStorage
   });
 
   return {
+    /** The live records without a copy; a render reads from it. */
+    current: core.current as () => Readonly<SignalRecord[]>,
+
     append(records: SignalRecord[]): void {
       // The other window may have appended since the last sync — merge before committing.
       core.reloadFromStorage();

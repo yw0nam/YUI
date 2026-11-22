@@ -13,7 +13,10 @@ export const tsOf = (row: HistoryRow): number =>
   row.kind === "chat" ? row.entry.ts : row.records[0].ts;
 
 /** Sessions newest first in, one row list per session out; a record joins the newest session that started at or before it. */
-export function mergeSessionRows(sessions: ChatSession[], records: SignalRecord[]): HistoryRow[][] {
+export function mergeSessionRows(
+  sessions: ChatSession[],
+  records: Readonly<SignalRecord[]>,
+): HistoryRow[][] {
   const chat: HistoryRow[][] = sessions.map((s) =>
     s.entries.map((entry) => ({ kind: "chat", entry, signals: [] })),
   );

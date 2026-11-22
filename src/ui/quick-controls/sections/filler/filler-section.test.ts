@@ -38,7 +38,6 @@ function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
     openOnQuickStart: false,
-    hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       fillerSettings,

@@ -1,7 +1,6 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 
 import type { SettingsPage } from "../../settings/panels/settings-pages";
-import "./sections/session/session-section.css";
 import { t } from "../i18n";
 import {
   DISCLOSURE_CHEV_SVG,
@@ -42,8 +41,6 @@ import { togetherRowsHtml } from "./together/together-rows";
 interface PanelHtmlOptions {
   /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
   openOnQuickStart: boolean;
-  /** Whether the context-occupancy readout renders. */
-  hasSession: boolean;
   switchRows: readonly SwitchRow[];
   /** Whether How often she speaks up renders — true when the base pace store is injected. */
   showBasePace?: boolean;
@@ -70,7 +67,6 @@ interface PanelHtmlOptions {
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     openOnQuickStart,
-    hasSession,
     switchRows,
     showBasePace,
     showScreen,
@@ -144,27 +140,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
         <details class="yui-more">
           <summary>${DISCLOSURE_CHEV_SVG}${t("reactions.advanced")}</summary>${advancedGroupsHtml}
         </details>
-      </div>`
-    : "";
-
-  // Session section — token occupancy readout.
-  const sessionHtml = hasSession
-    ? `
-      <div class="yui-sec">
-        ${secHeadHtml(t("session.section"))}
-        <div class="yui-group yui-session">
-          <div class="yui-stack yui-session__stat">
-            <div class="yui-session__statline">
-              <span class="yui-session__label">${t("session.context")}</span>
-              <span class="yui-session__value"></span>
-            </div>
-          </div>
-          <div class="yui-stack yui-session__deleg" hidden>
-            <h3 class="yui-session__deleg-title">${t("deleg.list_title")}</h3>
-            <p class="yui-session__deleg-lost" hidden><span class="yui-session__deleg-lost-dot" aria-hidden="true"></span><span>${t("deleg.chip_lost")}</span></p>
-            <div class="yui-session__deleg-rows"></div>
-          </div>
-        </div>
       </div>`
     : "";
 
@@ -243,7 +218,7 @@ ${panelOpenHtml("body")}
       </div>
 ${
   showHistory
-    ? `${panelOpenHtml("hist")}${sessionHtml}
+    ? `${panelOpenHtml("hist")}
       </div>
 `
     : ""
