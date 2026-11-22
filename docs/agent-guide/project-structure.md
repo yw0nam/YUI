@@ -700,7 +700,9 @@ YUI/
             speaker-row.tsx          # One speaker radio, with its rename, remove, refresh and preview buttons
             use-pending-import.ts    # The two-phase import: a staged copy named by a row, discarded on Esc or when the list goes
             use-reference-refresh.ts # The per-row reference-voice refresh, its done dwell and its re-entry guard
-            use-audition.ts          # The preview: one clip at a time
+            audition.ts              # The preview: one clip at a time, held by the Voice facade so its close stops it
+            use-audition.ts          # The playing row for the list, and the stops when a swap starts or that row leaves the list
+            speaker-rules.ts         # The ids another provider's voice holds, and the removal of a bundled or imported option from the store
             manual-voice-id.tsx      # The paste-a-voice-id field and its refusals
             speaker-list.css         # Speaker list styles
           filler/                    # The thinking filler
