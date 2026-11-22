@@ -106,7 +106,7 @@ import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
-import { createCharactersSection } from "./together/characters-section";
+import { createTogetherPage } from "./together/together-page";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -453,8 +453,8 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
-  // The Listening page renders its own switch rows, so the template gets the rest.
-  const TOGGLE_SPECS = createSwitchRows({
+  // The Listening and Together pages render their own switch rows, so the template gets the rest.
+  const rows = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
     oneVoiceSettings,
@@ -471,7 +471,8 @@ export function createQuickControls({
     unifiedShown,
     relationsSwitch,
     threadReactionsSettings,
-  }).filter((row) => row.tab !== "listening");
+  });
+  const TOGGLE_SPECS = rows.filter((row) => row.tab !== "listening" && row.tab !== "together");
 
   el.innerHTML = buildPanelHtml({
     switchRows: TOGGLE_SPECS,
@@ -486,7 +487,6 @@ export function createQuickControls({
     showHistory: !!transcript,
     showPlugins: !!plugins,
     showPreset: !!presetRegistry,
-    showCharacters: !!presetRegistry && !!petWindows,
   });
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
@@ -578,10 +578,6 @@ export function createQuickControls({
         getDefaultChatApi,
       })
     : null;
-  const characters =
-    presetRegistry && petWindows
-      ? createCharactersSection({ root: el, registry: presetRegistry, petWindows, boundId, log })
-      : null;
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -773,6 +769,18 @@ export function createQuickControls({
   });
   el.querySelector("#yui-panel-listening")!.append(listeningPage.el);
 
+  // ── Together page (switch rows · chain cap · characters on the desktop) ──
+  const togetherPage = createTogetherPage({
+    rows: rows.filter((row) => row.tab === "together"),
+    rateLimitSettings,
+    getRateLimitDefaults,
+    registry: presetRegistry,
+    petWindows,
+    boundId,
+    log,
+  });
+  el.querySelector("#yui-panel-together")!.append(togetherPage.el);
+
   // ── Permissions page (attach switch · monitor list · screen requests) ──
   const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen: shell.isOpen });
   el.querySelector("#yui-panel-perms")!.append(permsPage.el);
@@ -864,7 +872,7 @@ export function createQuickControls({
     { dispose: connectionViews.dispose },
     { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
     historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
-    characters && { reflect: characters.refresh, dispose: characters.dispose },
+    { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
     { reflect: characterTab.refresh, close: characterTab.close, dispose: characterTab.dispose },
     { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },

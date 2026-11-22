@@ -29,4 +29,19 @@ describe("Switch", () => {
     fireEvent.click(sw);
     expect(onCheckedChange).toHaveBeenLastCalledWith(false);
   });
+
+  it("renders natively disabled from its prop and ignores a click", () => {
+    const onCheckedChange = vi.fn();
+    const { getByRole, rerender } = render(
+      <Switch checked={false} label="Attach" disabled onCheckedChange={onCheckedChange} />,
+    );
+    const sw = getByRole("switch", { name: "Attach" }) as HTMLButtonElement;
+    expect(sw.disabled).toBe(true);
+
+    fireEvent.click(sw);
+    expect(onCheckedChange).not.toHaveBeenCalled();
+
+    rerender(<Switch checked={false} label="Attach" onCheckedChange={onCheckedChange} />);
+    expect(sw.disabled).toBe(false);
+  });
 });

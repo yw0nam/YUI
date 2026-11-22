@@ -246,11 +246,11 @@ describe("createQuickControls — toggles", () => {
     const toggle = qc.el.querySelector<HTMLButtonElement>(selector)!;
     expect(settings.get().enabled).toBe(initialEnabled);
 
-    toggle.click();
+    act(() => toggle.click());
     expect(settings.get().enabled).toBe(!initialEnabled);
     expect(toggle.getAttribute("aria-checked")).toBe(String(!initialEnabled));
 
-    toggle.click();
+    act(() => toggle.click());
     expect(settings.get().enabled).toBe(initialEnabled);
     expect(toggle.getAttribute("aria-checked")).toBe(String(initialEnabled));
 
@@ -266,10 +266,10 @@ describe("createQuickControls — toggles", () => {
     qc.open();
 
     const toggle = qc.el.querySelector<HTMLButtonElement>(selector)!;
-    settings.setEnabled(!initialEnabled);
+    act(() => settings.setEnabled(!initialEnabled));
     expect(toggle.getAttribute("aria-checked")).toBe(String(!initialEnabled));
 
-    settings.setEnabled(initialEnabled);
+    act(() => settings.setEnabled(initialEnabled));
     expect(toggle.getAttribute("aria-checked")).toBe(String(initialEnabled));
 
     qc.dispose();

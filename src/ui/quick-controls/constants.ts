@@ -87,11 +87,6 @@ export const CHAIN_CAP_FIELD: RateLimitFieldDef = {
   subKey: "reactions.rate_addressed_sub",
 };
 
-export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
-  ...PROACTIVE_CAP_FIELDS,
-  CHAIN_CAP_FIELD,
-];
-
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds
 // (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit.
 // Clearing a field clears the override,

@@ -34,8 +34,6 @@ import { speakerPickerHtml } from "./sections/speaker/speaker-list";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
-import { charactersSectionHtml } from "./together/characters-section";
-import { togetherRowsHtml } from "./together/together-rows";
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
@@ -60,8 +58,6 @@ interface PanelHtmlOptions {
   showPlugins?: boolean;
   /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;
-  /** Whether the Together page lists the characters — true with the registry and the open-window store. */
-  showCharacters?: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -78,7 +74,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showHistory,
     showPlugins,
     showPreset,
-    showCharacters,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
 
@@ -222,7 +217,7 @@ ${
       </div>
 `
     : ""
-}${panelOpenHtml("together")}${togetherRowsHtml(switchRowsHtml("together"), !!showRateLimits)}${showCharacters ? charactersSectionHtml() : ""}
+}${panelOpenHtml("together")}
       </div>
 ${panelOpenHtml("listening")}
       </div>

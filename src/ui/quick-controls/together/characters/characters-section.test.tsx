@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { createPetWindows } from "../../../settings/preset/pet-windows";
-import { createPresetRegistry } from "../../../settings/preset/preset-registry";
-import { setLocale } from "../../i18n";
-import { charactersSectionHtml, createCharactersSection } from "./characters-section";
+import { createPetWindows } from "../../../../settings/preset/pet-windows";
+import { createPresetRegistry } from "../../../../settings/preset/preset-registry";
+import { setLocale } from "../../../i18n";
+import { createTogetherPage } from "../together-page";
 
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const pages: ReturnType<typeof createTogetherPage>[] = [];
 
 beforeEach(() => {
   localStorage.clear();
@@ -24,25 +27,27 @@ beforeEach(() => {
   setLocale("en");
 });
 afterEach(() => {
+  act(() => {
+    for (const page of pages.splice(0)) page.dispose();
+  });
   document.body.innerHTML = "";
 });
 
 function build(boundId: string | null = null) {
-  const root = document.body.appendChild(document.createElement("div"));
-  root.innerHTML = charactersSectionHtml();
   const registry = createPresetRegistry();
   const petWindows = createPetWindows();
   if (boundId) petWindows.open(boundId);
-  const section = createCharactersSection({ root, registry, petWindows, boundId, log });
-  section.refresh();
+  const page = createTogetherPage({ rows: [], registry, petWindows, boundId, log });
+  pages.push(page);
+  document.body.append(page.el);
   const row = (name: string) =>
-    [...root.querySelectorAll<HTMLElement>(".yui-chars__row")].find(
+    [...page.el.querySelectorAll<HTMLElement>(".yui-chars__row")].find(
       (r) => r.querySelector(".yui-row__label")?.textContent === name,
     )!;
   const sw = (name: string) => row(name).querySelector<HTMLButtonElement>(".yui-switch")!;
   const meta = (name: string) => row(name).querySelector(".yui-chars__meta")!.textContent;
-  const count = () => root.querySelector(".yui-chars__count")!.textContent;
-  return { root, petWindows, section, row, sw, meta, count };
+  const count = () => page.el.querySelector(".yui-chars__count")!.textContent;
+  return { petWindows, row, sw, meta, count };
 }
 
 it("lists every character with its state; main's switch is on and locked", () => {
@@ -65,19 +70,19 @@ it("lists every character with its state; main's switch is on and locked", () =>
 it("switching an off row opens it on the desktop, and switching it again closes it", () => {
   const { sw, meta, count, petWindows } = build();
 
-  sw("perlica").click();
+  fireEvent.click(sw("perlica"));
   expect(petWindows.get()).toEqual(["bbbb0002"]);
   expect(meta("perlica")).toBe("On the desktop");
   expect(count()).toBe("2 of 4 on the desktop");
 
-  sw("perlica").click();
+  fireEvent.click(sw("perlica"));
   expect(petWindows.get()).toEqual([]);
   expect(meta("perlica")).toBe("Off · settings kept");
 });
 
 it("at the cap an off row's switch is disabled with the reason, and the four stay", () => {
   const { sw, row, petWindows, count } = build();
-  for (const name of ["perlica", "shino", "klukai"]) sw(name).click();
+  for (const name of ["perlica", "shino", "klukai"]) fireEvent.click(sw(name));
 
   expect(count()).toBe("4 of 4 on the desktop");
   expect(sw("carlotta").disabled).toBe(true);
@@ -100,11 +105,11 @@ it("in a bound window its own character is locked on, with the reason", () => {
   ]);
   const reason = row("perlica").querySelector<HTMLElement>(".yui-chars__reason")!;
   expect([reason.hidden, reason.textContent]).toEqual([false, "This window's character"]);
-  sw("perlica").click();
+  fireEvent.click(sw("perlica"));
   expect(petWindows.get()).toEqual(["bbbb0002"]);
 });
 
-// jsdom computes no stylesheet display; `.yui-row__sub { display: block }` would beat the attribute.
+// jsdom computes no stylesheet display; `.yui-chars__reason[hidden]` keeps the attribute decisive.
 it("hides a reason line whose hidden attribute is set", () => {
   const css = readFileSync(resolve(__dirname, "characters-section.css"), "utf-8");
   expect(css).toMatch(/\n\.yui-chars__reason\[hidden\] \{\s*display: none;\s*\}/);
@@ -112,13 +117,15 @@ it("hides a reason line whose hidden attribute is set", () => {
 
 it("a switch another window beat to the last place logs nothing and shows the reason", () => {
   const { sw, row, petWindows } = build();
-  for (const name of ["perlica", "shino"]) sw(name).click();
+  for (const name of ["perlica", "shino"]) fireEvent.click(sw(name));
+  const invalidate = vi.spyOn(petWindows, "invalidate");
   log.info.mockClear();
   createPetWindows().open("dddd0004");
 
-  sw("carlotta").click();
+  fireEvent.click(sw("carlotta"));
 
   expect(petWindows.get()).toEqual(["bbbb0002", "cccc0003", "dddd0004"]);
+  expect(invalidate).toHaveBeenCalled();
   expect(log.info).not.toHaveBeenCalled();
   expect(row("carlotta").querySelector<HTMLElement>(".yui-chars__reason")!.hidden).toBe(false);
 });
