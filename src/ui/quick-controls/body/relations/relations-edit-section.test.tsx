@@ -4,11 +4,14 @@
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createRelationsStore, type Relations } from "../../../settings/relations/relations-store";
-import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
-import { setLocale } from "../../i18n";
-import { makeVrmSelection } from "../test-helpers";
-import { type CharacterRows, createCharacterTab } from "./character-tab";
+import {
+  createRelationsStore,
+  type Relations,
+} from "../../../../settings/relations/relations-store";
+import { createRelationsSwitch } from "../../../../settings/relations/relations-switch";
+import { setLocale } from "../../../i18n";
+import { type CharacterRows, createCharacterTab } from "../../character/character-tab";
+import { makeVrmSelection } from "../../test-helpers";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
