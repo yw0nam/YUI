@@ -13,7 +13,13 @@ describe("RenameInput", () => {
   it("after a refused Enter, an edited name commits on the next Enter", () => {
     const onCommit = vi.fn((name: string) => name !== "taken");
     const { container } = render(
-      <RenameInput label="taken" onCommit={onCommit} onCancel={vi.fn()} />,
+      <RenameInput
+        label="taken"
+        classPrefix="yui-vrm"
+        namespace="vrm"
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />,
     );
     const input = container.querySelector<HTMLInputElement>(".yui-ep-input")!;
 

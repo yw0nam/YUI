@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { BodyPageView } from "./body-page-view";
 import { createRelationsPort, type RelationsDeps } from "./relations/relations-port";
-import type { VrmListDeps } from "./vrm/use-vrm-list";
+import type { VrmSectionProps } from "./vrm/vrm-section";
 
 export interface BodyPage {
   el: HTMLElement;
@@ -15,7 +15,7 @@ export interface BodyPage {
 }
 
 export function createBodyPage(
-  deps: Omit<VrmListDeps, "revision"> & {
+  deps: Omit<VrmSectionProps, "revision"> & {
     /** The view reset section renders with it. */
     onResetView?: () => void;
     /** The relations section renders with it. */

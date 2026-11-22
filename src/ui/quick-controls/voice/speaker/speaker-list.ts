@@ -17,10 +17,9 @@ import type {
 import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
+import { REMOVE_SVG, RENAME_SVG } from "../../constants";
 import {
   createUserAssetList,
-  REMOVE_SVG,
-  RENAME_SVG,
   resolveRovedId,
 } from "../../sections/user-asset-list/user-asset-list";
 
