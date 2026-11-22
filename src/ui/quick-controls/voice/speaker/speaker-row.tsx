@@ -1,6 +1,6 @@
 /** One speaker radio: a div holding the row's buttons, since a button in a button is invalid. */
 
-import type { MouseEvent } from "react";
+import { type MouseEvent, useLayoutEffect, useRef } from "react";
 import type { SpeakerOption } from "../../../../io/voice/voices/speaker-selection";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
@@ -62,6 +62,15 @@ export function SpeakerRow({
   ]
     .filter(Boolean)
     .join(" ");
+  const refreshButton = useRef<HTMLButtonElement>(null);
+  // A button that turns disabled loses focus, so a refresh pressed from it hands focus back once it settles.
+  const refreshHadFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (refreshing || !refreshHadFocus.current) return;
+    refreshHadFocus.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body) refreshButton.current?.focus();
+  }, [refreshing]);
   if (renaming) {
     return (
       // biome-ignore lint/a11y/useSemanticElements: the row holds buttons, so it is a div
@@ -136,6 +145,7 @@ export function SpeakerRow({
         )}
         {managed && canReupload && (
           <button
+            ref={refreshButton}
             className={
               refreshing
                 ? "yui-spk__refresh is-refreshing"
@@ -154,7 +164,10 @@ export function SpeakerRow({
               { name: label },
             )}
             disabled={!hasClip || refreshing}
-            onClick={(e) => stop(e, () => hasClip && onRefresh(option))}
+            onClick={(e) => {
+              refreshHadFocus.current = document.activeElement === e.currentTarget;
+              stop(e, () => hasClip && onRefresh(option));
+            }}
             // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
             dangerouslySetInnerHTML={{ __html: done ? SPK_CHECK_SVG : SPK_REFRESH_SVG }}
           />
