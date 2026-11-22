@@ -30,16 +30,16 @@ export function ChainCapRow({
 
   // The input shows the override or the bundled default, and never overwrites the user's typing.
   const reflect = useCallback(() => {
-    const input = inputRef.current;
-    if (!input || document.activeElement === input) return;
     const defaults = getDefaults?.();
-    const override = store.current().addressed_chain_max;
-    const effective = override > 0 ? override : (defaults?.addressed_chain_max ?? 0);
-    input.value = effective > 0 ? String(effective) : "";
     if (subRef.current && defaults)
       subRef.current.textContent = t(CHAIN_CAP_FIELD.subKey, {
         n: defaults.cooldown_ms / 60_000,
       });
+    const input = inputRef.current;
+    if (!input || document.activeElement === input) return;
+    const override = store.current().addressed_chain_max;
+    const effective = override > 0 ? override : (defaults?.addressed_chain_max ?? 0);
+    input.value = effective > 0 ? String(effective) : "";
   }, [store, getDefaults]);
 
   useLayoutEffect(reflect);
