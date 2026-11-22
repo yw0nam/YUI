@@ -1,14 +1,11 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 
-import { TEXT_SIZES } from "../../settings/appearance/text-size-settings";
-import { THEMES } from "../../settings/appearance/theme-settings";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
-import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
+import { t } from "../i18n";
 import {
   DISCLOSURE_CHEV_SVG,
   initialPageOf,
-  LANG_PICKER_ORDER,
   PLUS_SVG,
   PROACTIVE_CAP_FIELDS,
   SCREEN_KNOB_FIELDS,
@@ -32,11 +29,9 @@ import { settingsSearchHtml } from "./search/settings-search";
 import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";
 import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { cardSectionHtml } from "./sections/card/card-section";
-import { helpSectionHtml } from "./sections/help/help-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
 import { speakerPickerHtml } from "./sections/speaker/speaker-list";
-import { userNameRowHtml } from "./sections/user-name/user-name-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
@@ -62,9 +57,6 @@ interface PanelHtmlOptions {
   showPacerGap: boolean;
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
   showRateLimits: boolean;
-  showDevtools: boolean;
-  /** Whether the Help section renders — true when a guide handler is injected. */
-  showHelp: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
   /** Whether the Plugins page renders — true when the MCP host is injected. */
@@ -87,8 +79,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showPresence,
     showPacerGap,
     showRateLimits,
-    showDevtools,
-    showHelp,
     showHistory,
     showPlugins,
     showPreset,
@@ -102,12 +92,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       .map(switchRowHtml)
       .join("");
   }
-  // Language picker seg (3 positions) — display language switch. Host re-mounts via i18n.subscribe.
-  const langButtonsHtml = LANG_PICKER_ORDER.map(
-    (l) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
-  ).join("");
-
   // Proactive page: one group per source, its switch row over a fold of its details.
   const sourceGroupHtml = (switchHtml: string, fold: string): string =>
     switchHtml || fold
@@ -311,44 +295,7 @@ ${panelOpenHtml("motion")}
           </div>
         </div>
       </div>
-${panelOpenHtml("general")}${showHelp ? helpSectionHtml() : ""}
-        <div class="yui-sec">
-          <div class="yui-group">
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("language.label")}</span>
-                <span class="yui-row__sub">${t("language.sub")}</span>
-              </div>
-              <div class="yui-seg yui-lang-seg" role="radiogroup" aria-label="${t("language.aria")}">${langButtonsHtml}</div>
-            </div>
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("appearance.label")}</span>
-                <span class="yui-row__sub">${t("appearance.sub")}</span>
-              </div>
-              <div class="yui-seg yui-theme-seg" role="radiogroup" aria-label="${t("appearance.aria")}">${THEMES.map((theme) => `<button class="yui-seg__btn" type="button" role="radio" data-theme="${theme}" aria-checked="false" tabindex="-1">${t(`appearance.${theme}`)}</button>`).join("")}</div>
-            </div>
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("textsize.label")}</span>
-                <span class="yui-row__sub">${t("textsize.sub")}</span>
-                <span class="yui-textsize-sample">${t("textsize.sample")}</span>
-              </div>
-              <div class="yui-seg yui-textsize-seg" role="radiogroup" aria-label="${t("textsize.label")}">${TEXT_SIZES.map((scale) => `<button class="yui-seg__btn" type="button" role="radio" aria-checked="false" tabindex="-1">${scale * 100}%</button>`).join("")}</div>
-            </div>${userNameRowHtml()}${
-              showDevtools
-                ? `
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("devtools.label")}</span>
-                <span class="yui-row__sub">${t("devtools.sub")}</span>
-              </div>
-              <button class="yui-link-btn yui-devtools-open" type="button">${t("devtools.open")}</button>
-            </div>`
-                : ""
-            }
-          </div>
-        </div>
+${panelOpenHtml("general")}
       </div>
       </div>
     </div>

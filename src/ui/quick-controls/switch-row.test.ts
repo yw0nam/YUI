@@ -46,8 +46,6 @@ function render(switchRows: readonly SwitchRow[], showThreadTurns = false): HTML
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,
-    showDevtools: false,
-    showHelp: false,
     showHistory: false,
   });
   return root;

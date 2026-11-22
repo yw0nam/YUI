@@ -48,8 +48,6 @@ function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,
-    showDevtools: false,
-    showHelp: false,
     showHistory: false,
   });
   document.body.append(root);
