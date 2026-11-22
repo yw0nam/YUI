@@ -47,6 +47,8 @@ export function createApiKeySettings(opts: CreateApiKeySettingsOptions = {}) {
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<ApiKeySettings>,
 
     setApiKey(v: string): void {
       if (typeof v !== "string") return;

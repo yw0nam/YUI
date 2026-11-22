@@ -766,6 +766,16 @@ YUI/
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
+        listening/                   # The Listening page, rendered with React
+          listening-page.ts          # The page's facade: its React root, and the STT draft it commits on close and dispose
+          listening-page-view.tsx    # The voice switch, the STT key row, the silence slider, the barge-in and bubble switches, and the reading dictionary
+          silence/
+            silence-slider.tsx       # The silence threshold slider: its range, readout and fill from the vad store, and the release log
+          stt-key/
+            stt-key-row.tsx          # The masked STT key input, its reveal and clear buttons, the sub line, and the commit on blur, close and dispose
+          readings/
+            readings-section.tsx     # The reading textarea, its edits, and the line naming skipped lines
+            readings-section.css     # Reading dictionary textarea and skipped-line styles
         perms/                       # The Permissions page, rendered with React
           perms-page.ts              # The page's facade: its React root, and when the monitor list loads
           perms-page-view.tsx        # The screenshot attach and screen request switches and the screen source stack
@@ -807,7 +817,7 @@ YUI/
             preset-export-panel.ts   # The inline list of what a preset file carries, the rights check, and Export…
             preset-export-panel.css  # The export panel's status inks and actions
           key-row/                   # One secret API key row
-            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows and the Listening page's STT row
+            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
@@ -826,14 +836,9 @@ YUI/
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
-          voice-input/               # Voice input switch and silence slider
-            voice-input-section.ts   # Voice switch, VAD slider binding, their subscriptions and redraw; the switch row is absent when the panel hides it
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
-          readings/                  # The reading dictionary of the Listening page
-            readings-section.ts      # The reading textarea, its edits, and the line naming skipped lines
-            readings-section.css     # Reading dictionary textarea and skipped-line styles
           speaker/                   # TTS speaker picker of the Voice page
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles

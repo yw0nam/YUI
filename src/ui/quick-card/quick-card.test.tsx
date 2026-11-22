@@ -9,7 +9,6 @@ import type { PushSocketState } from "../../io/chat/push/push-socket";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
 import { createSwitchRows } from "../quick-controls/switch-row";
 import { createQuickCard } from "./quick-card";
@@ -46,7 +45,6 @@ function build(over: Record<string, unknown> = {}) {
   const dndSettings = createFlagSettings(false);
   const rows = createSwitchRows({
     idleThrottleSettings: createFlagSettings(false),
-    vad: createVadSettings(),
     fillerSettings: createFillerSettings(),
     ttsSettings,
     bubblePersistSettings,

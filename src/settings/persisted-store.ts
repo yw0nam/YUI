@@ -165,6 +165,9 @@ export function createFlagSettings(
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<{ enabled: boolean }>,
+
     setEnabled: (enabled: boolean) => core.commit({ enabled }),
     reloadFromStorage: core.reloadFromStorage,
     subscribe: core.subscribe,

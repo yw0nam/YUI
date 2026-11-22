@@ -4,7 +4,6 @@ import type { MessageWindowSettingsStore } from "../../settings/panels/message-w
 import type { FlagSettingsStore } from "../../settings/persisted-store";
 import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
-import type { createVadSettings } from "../../settings/voice/vad-settings";
 import { isTauri } from "../../tauri-env";
 
 export interface SwitchRow {
@@ -27,7 +26,6 @@ export interface SwitchRow {
   lock?: { reasonKey: string; get(): boolean; subscribe(onChange: () => void): () => void };
 }
 
-type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
@@ -35,7 +33,6 @@ interface SwitchRowOptions {
   idleThrottleSettings: FlagSettingsStore;
   ttsSettings?: FlagSettingsStore;
   oneVoiceSettings?: FlagSettingsStore;
-  vad: VadSettingsStore;
   gazeSettings?: FlagSettingsStore;
   climbSettings?: FlagSettingsStore;
   fallSettings?: FlagSettingsStore;
@@ -76,7 +73,6 @@ export function createSwitchRows({
   idleThrottleSettings,
   ttsSettings,
   oneVoiceSettings,
-  vad,
   gazeSettings,
   climbSettings,
   fallSettings,
@@ -125,19 +121,6 @@ export function createSwitchRows({
       setEnabled: (v) => ttsSettings!.setEnabled(v),
       logKey: "tts_output_toggle",
       subscribe: ttsSettings ? (cb) => ttsSettings.subscribe(cb) : undefined,
-    },
-    {
-      selector: ".yui-bargein-switch",
-      labelKey: "voice_input.bargein_label",
-      ariaKey: "voice_input.bargein_aria",
-      tab: "listening",
-      position: "after-vad",
-      isVisible: true,
-      isAvailable: true,
-      initialEnabled: vad.get().bargeIn,
-      getEnabled: () => vad.get().bargeIn,
-      setEnabled: (v) => vad.setBargeIn(v),
-      logKey: "bargein_toggle",
     },
     createBubblePersistRow(bubblePersistSettings),
     {

@@ -26,7 +26,7 @@ import {
   TAB_ICON_VOICE,
 } from "./constants";
 import { foldHtml } from "./fold";
-import { capRowHtml, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
+import { capRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
 import { activeHoursSectionHtml } from "./sections/active-hours/active-hours-section";
@@ -35,7 +35,6 @@ import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
-import { readingsSectionHtml } from "./sections/readings/readings-section";
 import { speakerPickerHtml } from "./sections/speaker/speaker-list";
 import { userNameRowHtml } from "./sections/user-name/user-name-section";
 import type { SwitchRow } from "./switch-row";
@@ -46,7 +45,6 @@ import { togetherRowsHtml } from "./together/together-rows";
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
-  showVoiceInput?: boolean;
   /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
   openOnQuickStart: boolean;
   /** Whether the context-occupancy readout renders. */
@@ -79,7 +77,6 @@ interface PanelHtmlOptions {
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
-    showVoiceInput = true,
     openOnQuickStart,
     hasSession,
     switchRows,
@@ -269,37 +266,6 @@ ${
 }${panelOpenHtml("together")}${togetherRowsHtml(switchRowsHtml("together"), !!showRateLimits)}${showCharacters ? charactersSectionHtml() : ""}
       </div>
 ${panelOpenHtml("listening")}
-        <div class="yui-sec">
-          <div class="yui-group">
-            ${
-              showVoiceInput
-                ? `<div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  </svg>
-                  ${t("voice_input.label")}
-                </span>
-                <span class="yui-row__sub">${t("voice_input.sub")}</span>
-              </div>
-              <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
-            </div>`
-                : ""
-            }${keyRowHtml("sttkey")}${switchRowsHtml("listening")}
-            <div class="yui-gain">
-              <div class="yui-gain__head">
-                <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
-                <span class="yui-gain__value yui-vad__value">1500 ms</span>
-              </div>
-              <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
-              <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
-            </div>${switchRowsHtml("listening", "after-vad")}
-          </div>
-        </div>${readingsSectionHtml()}
       </div>
 ${panelOpenHtml("perms")}
       </div>

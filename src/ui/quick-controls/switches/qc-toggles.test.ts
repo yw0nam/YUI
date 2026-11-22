@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
@@ -24,6 +25,9 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("createQuickControls — toggles", () => {
   let mount: HTMLElement;
@@ -383,11 +387,11 @@ describe("createQuickControls — toggles", () => {
     const bargeInSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-bargein-switch")!;
     expect(vad.get().bargeIn).toBe(true);
 
-    bargeInSwitch.click();
+    act(() => bargeInSwitch.click());
     expect(vad.get().bargeIn).toBe(false);
     expect(bargeInSwitch.getAttribute("aria-checked")).toBe("false");
 
-    bargeInSwitch.click();
+    act(() => bargeInSwitch.click());
     expect(vad.get().bargeIn).toBe(true);
     expect(bargeInSwitch.getAttribute("aria-checked")).toBe("true");
 
@@ -400,10 +404,10 @@ describe("createQuickControls — toggles", () => {
     qc.open();
 
     const bargeInSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-bargein-switch")!;
-    vad.setBargeIn(false);
+    act(() => vad.setBargeIn(false));
     expect(bargeInSwitch.getAttribute("aria-checked")).toBe("false");
 
-    vad.setBargeIn(true);
+    act(() => vad.setBargeIn(true));
     expect(bargeInSwitch.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
@@ -527,7 +531,7 @@ describe("createQuickControls — keep bubble until dismissed switch", () => {
     expect(qc.el.querySelector<HTMLElement>("#yui-panel-listening")!.contains(sw)).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
-    sw.click();
+    act(() => sw.click());
     expect(bubblePersistSettings.get().enabled).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("true");
 
@@ -539,7 +543,7 @@ describe("createQuickControls — keep bubble until dismissed switch", () => {
     const qc = createQuickControls({ ...defaultQcArgs(mount), bubblePersistSettings });
     qc.open();
 
-    bubblePersistSettings.setEnabled(true);
+    act(() => bubblePersistSettings.setEnabled(true));
     expect(
       qc.el
         .querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!

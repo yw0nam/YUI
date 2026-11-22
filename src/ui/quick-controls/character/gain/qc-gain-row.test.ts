@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
@@ -22,6 +23,9 @@ import {
   makeVrmSelection,
 } from "../../test-helpers";
 import { PREVIEW_PEAK_RMS } from "./gain-row";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("createQuickControls — gain row", () => {
   let mount: HTMLElement;
@@ -246,14 +250,16 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const { vad: vadSlider } = sliders(qc);
-    vadSlider.value = "2000";
-    vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    act(() => {
+      vadSlider.value = "2000";
+      vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 
     expect(vad.get().silenceMs).toBe(2000);
     expect(onGainPreview).not.toHaveBeenCalled();
     expect(lipsync.get().gain).toBe(2);
 
-    vadSlider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    act(() => vadSlider.dispatchEvent(new Event("pointerup", { bubbles: true })));
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
 
     qc.dispose();
@@ -280,7 +286,7 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const { gain: gainSlider, vad: vadSlider } = sliders(qc);
-    qc.dispose();
+    act(() => qc.dispose());
 
     gainSlider.value = "4";
     gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
