@@ -1,10 +1,10 @@
 /** The Active hours editor: the span rows, the add action, and Reset to default; any edit writes the whole list. */
 
-import { useSyncExternalStore } from "react";
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
 import { MAX_SPANS, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
 import { t } from "../../../i18n";
+import { useSnapshot } from "../../../react/use-snapshot";
 import { PLUS_SVG } from "../../constants";
 import { SpanRow } from "./span-row";
 
@@ -16,15 +16,17 @@ export interface ActiveHoursView {
 }
 
 export function ActiveHours({
-  view,
+  read,
+  subscribe,
   store,
   log,
 }: {
-  view: { get(): ActiveHoursView; subscribe(cb: () => void): () => void };
+  read: () => ActiveHoursView;
+  subscribe: (cb: () => void) => () => void;
   store: Pick<ActiveHoursSettingsStore, "setSpans" | "reset">;
   log: Logger;
 }) {
-  const { edited, spans } = useSyncExternalStore(view.subscribe, view.get);
+  const { edited, spans } = useSnapshot(read, subscribe);
   const full = spans.length >= MAX_SPANS;
 
   // The whole row list is one edit: written only while every row holds a valid time.

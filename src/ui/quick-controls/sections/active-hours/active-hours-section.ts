@@ -41,28 +41,20 @@ export function createActiveHoursSection(deps: ActiveHoursSectionDeps): ActiveHo
 
   // The card this section reads spans from: the user's card, else the default card of the UI language.
   const card = () => agentSettings.get().card ?? getPersona?.()?.cards[getLocale()];
-  // The stores clone on every read, so the view is read once per change and kept until the next.
+  // The stores clone on every read, so the view is a fresh object per call; useSnapshot keeps one until the next change.
   const read = (): ActiveHoursView => {
     const edited = store.get().spans;
     return { edited, spans: spansInUse(edited, card()) };
   };
-  let snapshot = read();
-  const view = {
-    get: () => snapshot,
-    subscribe(cb: () => void): () => void {
-      const onChange = () => {
-        snapshot = read();
-        cb();
-      };
-      const offs = [store.subscribe(onChange), agentSettings.subscribe(onChange)];
-      return () => {
-        for (const off of offs) off();
-      };
-    },
+  const subscribe = (cb: () => void): (() => void) => {
+    const offs = [store.subscribe(cb), agentSettings.subscribe(cb)];
+    return () => {
+      for (const off of offs) off();
+    };
   };
 
   const root = createRoot(sec);
-  flushSync(() => root.render(createElement(ActiveHours, { view, store, log })));
+  flushSync(() => root.render(createElement(ActiveHours, { read, subscribe, store, log })));
 
   return {
     dispose(): void {
