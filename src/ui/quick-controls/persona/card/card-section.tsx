@@ -215,16 +215,18 @@ export function CardSection({
   }
 
   async function importCard(): Promise<void> {
-    setLine(await io.importPreset());
+    const next = await io.importPreset();
+    if (next) setLine(next);
   }
 
   async function exportPng(): Promise<void> {
-    setLine(await io.exportPng());
+    const next = await io.exportPng();
+    if (next) setLine(next);
   }
 
   async function exportPreset(parts: Parameters<typeof io.exportPreset>[0]): Promise<boolean> {
     const next = await io.exportPreset(parts);
-    setLine(next);
+    if (next) setLine(next);
     return next !== null && !next.error;
   }
 
