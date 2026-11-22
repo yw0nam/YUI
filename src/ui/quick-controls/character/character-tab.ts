@@ -17,13 +17,13 @@ import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-set
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
+import { createRelationsEditSection } from "../body/relations/relations-edit-section";
+import { bindViewpointReset } from "../body/viewpoint/viewpoint-row";
+import { createVrmList } from "../body/vrm/vrm-list";
 import { bodyHtml, type CharacterRows, motionHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
 import { createIdleMotionList } from "./idle-motion/idle-motion-section";
-import { createRelationsEditSection } from "./relations/relations-edit-section";
-import { bindViewpointReset } from "./viewpoint/viewpoint-row";
-import { createVrmList } from "./vrm/vrm-list";
 
 export type { CharacterRows } from "./character-html";
 

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
@@ -20,6 +21,18 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const qcs: ReturnType<typeof createQuickControls>[] = [];
+
+afterEach(() => {
+  act(() => {
+    for (const qc of qcs.splice(0)) qc.dispose();
+  });
+  document.body.innerHTML = "";
+});
 
 describe("createQuickControls — viewpoint row", () => {
   let mount: HTMLElement;
@@ -84,7 +97,7 @@ describe("createQuickControls — viewpoint row", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
+    const qc = createQuickControls({
       ...defaultQcArgs(mount),
       lipsync,
       onGainPreview,
@@ -105,30 +118,28 @@ describe("createQuickControls — viewpoint row", () => {
       removeVoice,
       ...extra,
     });
+    qcs.push(qc);
+    return qc;
   }
 
   // ── viewpoint reset (camera orbit) ─────────────────────────────────────────
 
   it("renders the viewpoint reset button only when onResetViewpoint is provided", () => {
     const without = buildQc();
-    without.open();
+    act(() => without.open());
     expect(without.el.querySelector(".yui-viewpoint-reset")).toBeNull();
-    without.dispose();
 
     const withReset = buildQc({ onResetViewpoint: vi.fn() });
-    withReset.open();
+    act(() => withReset.open());
     expect(withReset.el.querySelector(".yui-viewpoint-reset")).not.toBeNull();
-    withReset.dispose();
   });
 
   it("clicking the viewpoint reset button invokes onResetViewpoint", () => {
     const onResetViewpoint = vi.fn();
     const qc = buildQc({ onResetViewpoint });
-    qc.open();
+    act(() => qc.open());
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click();
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click());
     expect(onResetViewpoint).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 });
