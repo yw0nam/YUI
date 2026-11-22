@@ -394,7 +394,8 @@ describe("createQuickControls — construction and disposal", () => {
           "clearInterval:delegations",
         ].sort(),
       );
-      expect(log).toHaveLength(8);
+      // settings releases four: the Permissions page's own subscription and its three field reads.
+      expect(log).toHaveLength(11);
     });
 
     it("releases the speaker store", () => {

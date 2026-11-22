@@ -13,12 +13,8 @@
 }
 
 /* ── Source stack — shown under the screenshot row only while it is ON ── */
-.yui-source {
+.yui-source[data-on="false"] {
   display: none;
-}
-
-.yui-quick.is-on .yui-source {
-  display: block;
 }
 
 /* Monitor row's dimensions meta text — VRM/speaker rows have no equivalent. */

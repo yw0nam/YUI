@@ -17,10 +17,10 @@ const { order, rec } = vi.hoisted(() => {
   return { order, rec };
 });
 
-vi.mock("./sections/screenshot/screenshot-section", () => ({
-  createScreenshotSection: () => ({
-    reflect: rec("screenshot", "reflect"),
-    loadMonitorsIfEnabled: rec("screenshot", "loadMonitorsIfEnabled"),
+vi.mock("./perms/perms-page", () => ({
+  createPermsPage: () => ({
+    el: document.createElement("div"),
+    loadMonitorsIfEnabled: rec("perms", "loadMonitorsIfEnabled"),
     dispose: () => {},
   }),
 }));
@@ -113,7 +113,6 @@ describe("createQuickControls — open order", () => {
     qc.open();
 
     expect(order).toEqual([
-      "screenshot.reflect",
       "switchRows.reflect",
       "reactions.reflect",
       "screen.reflect",
@@ -127,7 +126,7 @@ describe("createQuickControls — open order", () => {
       "characterTab.refresh",
       "speakerList.render",
       "shell.refreshVoiceList",
-      "screenshot.loadMonitorsIfEnabled",
+      "perms.loadMonitorsIfEnabled",
     ]);
     qc.dispose();
   });
