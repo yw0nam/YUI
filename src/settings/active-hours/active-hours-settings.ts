@@ -32,6 +32,8 @@ export function createActiveHoursSettings(opts?: { storage?: ActiveHoursStorage 
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<ActiveHoursSettings>,
 
     setSpans(spans: Span[]): void {
       core.commit({ spans: structuredClone(spans) });
