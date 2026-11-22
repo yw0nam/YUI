@@ -25,6 +25,9 @@ export function createReadingsSettings(opts?: { storage?: ReadingsStorage }) {
   });
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<ReadingsSettings>,
+
     setText(text: string): void {
       core.commit({ text });
     },

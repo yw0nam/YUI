@@ -38,6 +38,8 @@ export function createVadSettings(opts?: { storage?: VadStorage }) {
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<VadSettings>,
 
     setSilenceMs(ms: number): void {
       if (!Number.isFinite(ms)) return;
