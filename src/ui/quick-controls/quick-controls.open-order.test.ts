@@ -34,9 +34,6 @@ vi.mock("./sections/reactions/reactions-section", () => ({
 vi.mock("./sections/screen/screen-section", () => ({
   createScreenSection: () => ({ reflect: rec("screen", "reflect"), dispose: () => {} }),
 }));
-vi.mock("./sections/voice-input/voice-input-section", () => ({
-  createVoiceInputSection: () => ({ reflect: rec("voiceInput", "reflect"), dispose: () => {} }),
-}));
 vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
   createAgentSection: () => ({
@@ -116,7 +113,6 @@ describe("createQuickControls — open order", () => {
       "switchRows.reflect",
       "reactions.reflect",
       "screen.reflect",
-      "voiceInput.reflect",
       "agent.reflect",
       "filler.reflect",
       "agent.reflectLanguage",

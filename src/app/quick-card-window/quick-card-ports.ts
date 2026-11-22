@@ -51,7 +51,6 @@ export function createQuickCardPorts(deps: {
     | "bubblePersistSettings"
     | "unifiedChatSwitch"
     | "idleThrottleSettings"
-    | "vadSettings"
     | "fillerSettings"
     | "dndSettings"
   >;
@@ -76,7 +75,6 @@ export function createQuickCardPorts(deps: {
   const api = () => effectiveChatApi(stores.endpointsSettings.get().chat_api, getDefaultChatApi());
   const rows = createSwitchRows({
     idleThrottleSettings: stores.idleThrottleSettings,
-    vad: stores.vadSettings,
     fillerSettings: stores.fillerSettings,
     ttsSettings: stores.ttsSettings,
     bubblePersistSettings: stores.bubblePersistSettings,

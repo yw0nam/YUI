@@ -3,7 +3,6 @@ import { page } from "vitest/browser";
 import "../../styles.css";
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
 import { createSwitchRows } from "../quick-controls/switch-row";
 import { createQuickCard } from "./quick-card";
@@ -25,7 +24,6 @@ it.each(["dawn", "hearth"] as const)("paints the quick card in %s", async (theme
   const dnd = createFlagSettings(false);
   const rows = createSwitchRows({
     idleThrottleSettings: createFlagSettings(false),
-    vad: createVadSettings(),
     fillerSettings: createFillerSettings(),
     ttsSettings: createFlagSettings(true),
     bubblePersistSettings: createFlagSettings(false),

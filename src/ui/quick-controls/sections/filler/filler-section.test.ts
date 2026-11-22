@@ -10,7 +10,6 @@ import {
   createFillerSettings,
   type FillerSettings,
 } from "../../../../settings/voice/filler-settings";
-import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
 import { buildPanelHtml } from "../../template";
@@ -42,7 +41,6 @@ function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
-      vad: createVadSettings(),
       fillerSettings,
     }),
     showScreen: false,

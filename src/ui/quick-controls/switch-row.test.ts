@@ -5,7 +5,6 @@ import { createScreenKnobSettings } from "../../settings/capture/screen-settings
 import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings } from "../../settings/voice/vad-settings";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
 import { bindSwitchRows, reflectSwitchRows } from "./switches/switch-rows";
 import { buildPanelHtml } from "./template";
@@ -15,7 +14,6 @@ function makeSwitchRows(): SwitchRow[] {
     idleThrottleSettings: createFlagSettings(true),
     ttsSettings: createFlagSettings(false),
     oneVoiceSettings: createFlagSettings(true),
-    vad: createVadSettings(),
     gazeSettings: createFlagSettings(true),
     climbSettings: createFlagSettings(true),
     fallSettings: createFlagSettings(true),
@@ -28,7 +26,6 @@ function makeSwitchRows(): SwitchRow[] {
         save: () => {},
       },
     }),
-    bubblePersistSettings: createFlagSettings(false),
     messageWindowSettings: createMessageWindowSettings(),
     screenSettings: createFlagSettings(false),
     screenKnobSettings: createScreenKnobSettings(),
@@ -67,11 +64,13 @@ describe("SwitchRow descriptor", () => {
   });
 
   it("renders and reflects every visible, available descriptor entry", () => {
-    const switchRows = makeSwitchRows().map((row, index) => ({
-      ...row,
-      initialEnabled: index % 2 !== 0,
-      getEnabled: () => index % 2 === 0,
-    }));
+    const switchRows = makeSwitchRows()
+      .filter((row) => row.isVisible)
+      .map((row, index) => ({
+        ...row,
+        initialEnabled: index % 2 !== 0,
+        getEnabled: () => index % 2 === 0,
+      }));
     const root = render(switchRows);
 
     for (const [index, row] of switchRows.entries()) {
@@ -96,7 +95,6 @@ describe("SwitchRow descriptor", () => {
     const unifiedChatSwitch = createFlagSettings(false);
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
-      vad: createVadSettings(),
       fillerSettings: createFillerSettings(),
       unifiedChatSwitch,
     });
@@ -116,7 +114,6 @@ describe("SwitchRow descriptor", () => {
     const threadReactionsSettings = createFlagSettings(true);
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
-      vad: createVadSettings(),
       fillerSettings: createFillerSettings(),
       threadReactionsSettings,
     });
@@ -141,7 +138,6 @@ describe("SwitchRow descriptor", () => {
     const listeners = new Set<(shown: boolean) => void>();
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
-      vad: createVadSettings(),
       fillerSettings: createFillerSettings(),
       messageWindowSettings,
       unifiedShown: {
@@ -183,7 +179,6 @@ describe("SwitchRow descriptor", () => {
     const listeners = new Set<(shown: boolean) => void>();
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
-      vad: createVadSettings(),
       fillerSettings: createFillerSettings(),
       messageWindowSettings,
       unifiedShown: {

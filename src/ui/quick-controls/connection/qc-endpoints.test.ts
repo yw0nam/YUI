@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
@@ -26,6 +28,9 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("createQuickControls — endpoints + API keys", () => {
   let mount: HTMLElement;
@@ -582,20 +587,21 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(qc.el.querySelector("#yui-panel-listening")!.contains(input)).toBe(true);
     expect(qc.el.querySelector('.yui-svc[data-svc="stt"]')!.contains(input)).toBe(false);
 
-    sttKeySettings.setApiKey("sk-stt-elsewhere");
+    act(() => sttKeySettings.setApiKey("sk-stt-elsewhere"));
     expect(input.value).toBe("sk-stt-elsewhere");
 
-    input.value = "sk-stt-abc";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-stt-abc" } });
+    fireEvent.blur(input);
     expect(setSpy).toHaveBeenCalledWith("sk-stt-abc");
     expect(sttKeySettings.get().apiKey).toBe("sk-stt-abc");
 
-    qc.el
-      .querySelector<HTMLButtonElement>(
-        '.yui-input-row[data-key-prefix="sttkey"] .yui-chatkey__clear',
-      )!
-      .click();
+    act(() =>
+      qc.el
+        .querySelector<HTMLButtonElement>(
+          '.yui-input-row[data-key-prefix="sttkey"] .yui-chatkey__clear',
+        )!
+        .click(),
+    );
     expect(clearSpy).toHaveBeenCalled();
     expect(sttKeySettings.get().apiKey).toBe("");
 

@@ -1,0 +1,180 @@
+// @vitest-environment jsdom
+/**
+ * listening-page.test.tsx — the Listening page renders the voice switch, the STT key, the silence
+ * slider, the barge-in and bubble switches and the reading dictionary, and drives their stores.
+ */
+
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "../../../logger";
+import { createSttKeySettings } from "../../../settings/backend/api-key-settings";
+import { createReadingsSettings } from "../../../settings/voice/readings-settings";
+import {
+  createVadSettings,
+  VAD_SILENCE_DEFAULT,
+  VAD_SILENCE_MIN,
+} from "../../../settings/voice/vad-settings";
+import { createVoiceInputStatus } from "../../chips/voice-input-status";
+import { setLocale } from "../../i18n";
+import { createQuickControls } from "../quick-controls";
+import { defaultQcArgs, inMemoryApiKeyStorage } from "../test-helpers";
+import { createListeningPage } from "./listening-page";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const pages: ReturnType<typeof createListeningPage>[] = [];
+
+function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
+  const voiceStatus = createVoiceInputStatus();
+  const vad = createVadSettings({ storage: { load: () => null, save: () => {} } });
+  const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
+  const page = createListeningPage({
+    showVoiceInput,
+    voiceStatus,
+    vad,
+    sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+    readingsSettings: createReadingsSettings({
+      storage: { load: () => ({ text: "" }), save: () => {} },
+    }),
+    log,
+  });
+  pages.push(page);
+  document.body.append(page.el);
+  return {
+    page,
+    voiceStatus,
+    vad,
+    voiceSwitch: page.el.querySelector<HTMLButtonElement>(".yui-voice-switch"),
+    slider: page.el.querySelector<HTMLInputElement>(".yui-vad__slider")!,
+  };
+}
+
+function close(page: ReturnType<typeof createListeningPage>): void {
+  act(() => page.dispose());
+  pages.splice(pages.indexOf(page), 1);
+}
+
+afterEach(() => {
+  act(() => {
+    for (const page of pages.splice(0)) page.dispose();
+  });
+  document.body.innerHTML = "";
+  setLocale("en");
+  vi.restoreAllMocks();
+});
+
+describe("createListeningPage — voice input", () => {
+  it("the voice switch and the silence slider follow their stores", () => {
+    const { page, voiceStatus, vad, slider } = build();
+
+    act(() => voiceStatus.set("listening"));
+    expect(page.el.querySelector(".yui-voice-switch")!.getAttribute("aria-checked")).toBe("true");
+
+    act(() => vad.setSilenceMs(VAD_SILENCE_MIN + 200));
+    expect(slider.value).toBe(String(VAD_SILENCE_MIN + 200));
+  });
+
+  it("dispose stops the store following, the switch click and the slider input", () => {
+    const { page, voiceStatus, vad, voiceSwitch, slider } = build();
+    close(page);
+
+    act(() => voiceStatus.set("listening"));
+    expect(voiceSwitch!.getAttribute("aria-checked")).toBe("false");
+
+    act(() => vad.setSilenceMs(VAD_SILENCE_MIN + 200));
+    expect(slider.value).not.toBe(String(VAD_SILENCE_MIN + 200));
+
+    act(() => voiceStatus.set("idle"));
+    voiceSwitch!.click();
+    expect(voiceStatus.get().state).toBe("idle");
+
+    const before = vad.get().silenceMs;
+    slider.value = String(VAD_SILENCE_MIN + 300);
+    slider.dispatchEvent(new Event("input"));
+    expect(vad.get().silenceMs).toBe(before);
+  });
+});
+
+describe("createListeningPage — voice silence slider", () => {
+  beforeEach(() => setLocale("ko"));
+
+  function sliderOf(page: ReturnType<typeof createListeningPage>): HTMLInputElement {
+    return page.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+  }
+
+  it("renders the silence-window slider with min 500 / max 3000 / step 50", () => {
+    const { page } = build();
+
+    const slider = sliderOf(page);
+    expect(slider).not.toBeNull();
+    expect(slider.min).toBe("500");
+    expect(slider.max).toBe("3000");
+    expect(slider.step).toBe("50");
+  });
+
+  it("reflects the vad store value (default 1500 ms) on the readout", () => {
+    const { page } = build();
+
+    const slider = sliderOf(page);
+    expect(slider.value).toBe(String(VAD_SILENCE_DEFAULT));
+    const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
+    expect(value.textContent).toBe("1500 ms");
+  });
+
+  it("dragging the slider calls vad.setSilenceMs and updates the readout", () => {
+    const { page, vad } = build();
+    const setSpy = vi.spyOn(vad, "setSilenceMs");
+
+    const slider = sliderOf(page);
+    fireEvent.input(slider, { target: { value: "2000" } });
+
+    expect(setSpy).toHaveBeenCalledWith(2000);
+    expect(vad.get().silenceMs).toBe(2000);
+    const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
+    expect(value.textContent).toBe("2000 ms");
+  });
+
+  it("does NOT render the legacy voice details (세부 설정) block", () => {
+    const { page } = build();
+    expect(page.el.querySelector(".yui-voice-details")).toBeNull();
+    expect(page.el.querySelector(".yui-voice-status")).toBeNull();
+    expect(page.el.querySelector(".yui-setting-grid")).toBeNull();
+  });
+
+  it("retains a working silence slider without a voice switch", () => {
+    const { page, vad, voiceSwitch } = build({ showVoiceInput: false });
+    expect(voiceSwitch).toBeNull();
+
+    const slider = sliderOf(page);
+    fireEvent.input(slider, { target: { value: "2000" } });
+    expect(vad.get().silenceMs).toBe(2000);
+  });
+});
+
+describe("createQuickControls — reading dictionary placement", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  it("renders as the last section of the Listening page", () => {
+    const qc = createQuickControls(defaultQcArgs(mount));
+    const input = qc.el.querySelector("#yui-panel-listening")!;
+    expect(input.querySelector(".yui-reading")).toBe(input.querySelector(".yui-sec:last-child"));
+    act(() => qc.dispose());
+  });
+});

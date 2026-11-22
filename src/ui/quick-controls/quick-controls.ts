@@ -84,6 +84,7 @@ import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
+import { createListeningPage } from "./listening/listening-page";
 import { createPanelShell } from "./panel-shell";
 import { createPermsPage } from "./perms/perms-page";
 import { createPluginsPage } from "./plugins/plugins-page";
@@ -97,15 +98,12 @@ import { createCardSection } from "./sections/card/card-section";
 import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
-import { createKeyRow } from "./sections/key-row/key-row";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
-import { createReadingsSection } from "./sections/readings/readings-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createSessionSection } from "./sections/session/session-section";
 import { createSpeakerList } from "./sections/speaker/speaker-list";
 import { createUserNameSection } from "./sections/user-name/user-name-section";
-import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows/workflows-section";
 import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
@@ -460,11 +458,11 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
+  // The Listening page renders its own switch rows, so the template gets the rest.
   const TOGGLE_SPECS = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
     oneVoiceSettings,
-    vad,
     gazeSettings,
     climbSettings,
     fallSettings,
@@ -478,12 +476,11 @@ export function createQuickControls({
     unifiedShown,
     relationsSwitch,
     threadReactionsSettings,
-  });
+  }).filter((row) => row.tab !== "listening");
 
   el.innerHTML = buildPanelHtml({
     hasSession,
     switchRows: TOGGLE_SPECS,
-    showVoiceInput,
     openOnQuickStart,
     showBasePace: !!basePaceSettings,
     showScreen: !!screenSettings && !!screenKnobSettings,
@@ -762,19 +759,12 @@ export function createQuickControls({
       })
     : undefined;
 
-  // ── Your name (General page) · the shared STT key (Listening page) ──
+  // ── Your name (General page) ──
   const userName = createUserNameSection({
     root: el,
     userNameSettings,
     getPersona,
     isOpen: shell.isOpen,
-  });
-  const sttKeyRow = createKeyRow({
-    root: el,
-    idPrefix: "sttkey",
-    store: sttKeySettings,
-    isOpen: shell.isOpen,
-    log,
   });
 
   // ── Thinking filler section (language segment · phrase-pool textareas) ──
@@ -785,18 +775,17 @@ export function createQuickControls({
     reflectSwitchRows: () => switchRows.reflect(),
   });
 
-  // ── Reading dictionary section (word=reading textarea · skipped-line message) ──
-  const readings = createReadingsSection({ root: el, readingsSettings });
-
-  // ── Voice input section (voice switch · silence threshold slider) ──
-  const voiceInput = createVoiceInputSection({
-    root: el,
+  // ── Listening page (voice switch · STT key · silence threshold · barge-in · bubble · readings) ──
+  const listeningPage = createListeningPage({
+    showVoiceInput,
     voiceStatus,
     vad,
-    reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: shell.isOpen,
+    sttKeySettings,
+    readingsSettings,
+    bubblePersistSettings,
     log,
   });
+  el.querySelector("#yui-panel-listening")!.append(listeningPage.el);
 
   // ── Session section (context readout · delegated-work list and its minute refresh) ──
   const session = createSessionSection({
@@ -881,12 +870,11 @@ export function createQuickControls({
     basePace,
     reactions,
     screen,
-    voiceInput,
+    { close: listeningPage.close, dispose: listeningPage.dispose },
     agent,
     card,
     activeHours && { dispose: activeHours.dispose },
     userName,
-    { reflect: sttKeyRow.reflect, close: sttKeyRow.commitIfDirty, dispose: sttKeyRow.dispose },
     filler,
     { reflect: agent.reflectLanguage },
     appearance,
@@ -907,7 +895,6 @@ export function createQuickControls({
     { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
     presetStrip,
-    readings,
     workflows,
     { dispose: cueLists.destroy },
     unbindDevtools && { dispose: unbindDevtools },
