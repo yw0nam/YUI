@@ -683,19 +683,36 @@ YUI/
         markup.ts                    # Panel markup primitives the template and the tab modules share
         fold.ts                      # A source's fold under its switch row, and its Off summary and off line while the switch is off
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
-        constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
+        constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
         row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
+        asset-list/                  # The state and rules the VRM and speaker radiogroups share
+          use-asset-list.ts          # Roving focus, swap, rename, the armed remove with its confirm delay, and the open-gated store subscription
+          rename-input.tsx           # The inline name field: Enter and blur commit, Esc cancels, a refused name stays open, an optional warning after the hint
+          asset-list.css             # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
+        voice/                       # The Voice page, rendered with React
+          voice-page.ts              # The page's facade: its React root, the open hook that re-reads every source, and the close hook that stops the audition
+          voice-page-view.tsx        # The TTS switch and the speaker list, the thinking filler, then the message-window row
+          speaker/                   # The speaker list
+            speaker-section.tsx      # The radiogroup, the import row, the naming row, and the paste-a-voice-id field
+            speaker-row.tsx          # One speaker radio, with its rename, remove, refresh and preview buttons
+            use-pending-import.ts    # The two-phase import: a staged copy named by a row, discarded on Esc or when the list goes
+            use-reference-refresh.ts # The per-row reference-voice refresh, its done dwell and its re-entry guard
+            use-audition.ts          # The preview: one clip at a time
+            manual-voice-id.tsx      # The paste-a-voice-id field and its refusals
+            speaker-list.css         # Speaker list styles
+          filler/                    # The thinking filler
+            filler-section.tsx       # The enable switch, the language segment and the eight phrase-pool textareas with the More phrases fold
+            filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
         body/                        # The Body page, rendered with React
           body-page.ts               # The page's facade: its React root, and the open hook that re-reads every source
           body-page-view.tsx         # The VRM section, the relations rows and the view reset
           vrm/                       # The VRM radiogroup
-            use-vrm-list.ts          # The list's state and rules: roving focus, swap, rename, armed remove, import and the store subscription
             vrm-section.tsx          # The radiogroup, the import row, and the VRoid Hub link
+            use-vrm-import.ts        # The one-shot import: the loading row while it runs and the inline error when it rejects
             vrm-row.tsx              # One VRM radio, with the rename and remove buttons of an imported one
-            rename-input.tsx         # The inline rename field
             vrm-list.css             # VRM list styles
           relations/                 # Relations section
             relations-edit-section.tsx # One slider row per target that sets the relation by hand, shown while the Relations switch is on
@@ -860,19 +877,9 @@ YUI/
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
-          filler/                    # Thinking-filler section
-            filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
-            filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
-          speaker/                   # TTS speaker picker of the Voice page
-            speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
-            speaker-list.css         # Speaker list styles
-          user-asset-list/           # Shared scaffolding for the speaker asset list, its two-phase import and its confirm delay; the VRM list reuses its glyphs, roving-id rule and confirm delay
-            user-asset-list.ts       # Shared asset-list state: rename, removal, roving focus, and swap orchestration
-            user-asset-list.css      # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
-            pending-import.ts        # The two-phase import: a staged copy named by a row, discarded on Esc
-        switches/                    # Switch rows
+        switches/                    # Switch rows, for the pages that have not moved to React, and the React row the Voice and Together pages share
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
-          descriptor-row.tsx         # One switch row rendered from its descriptor, for the pages rendered with React
+          descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: for the pages rendered with React: the Together, Motion and Voice rows, with the lock and its reason
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       controls/                      # Shared React controls; the slider and the checkbox build on Base UI
