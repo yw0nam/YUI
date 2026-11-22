@@ -4842,6 +4842,15 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/quick-controls/together/together-page-view.tsx"
     },
     {
+      "id": "plugins-switch",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Switch: checked state, label and the flipped value on click",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/plugins/plugin-group.tsx"
+    },
+    {
       "id": "workflow-rows-keyed",
       "from": "ui/quick-controls",
       "to": "ui/keyed-rows",

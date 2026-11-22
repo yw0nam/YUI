@@ -807,7 +807,8 @@ YUI/
           plugin-consent.tsx         # The consent panel: step 1's facts, then the starting, started or failed step 2
           plugin-lines.tsx           # The server line, the hidden-name note and the tool list the group and the consent panel share
           catalog-section.tsx        # The Available section: the catalog entries not installed, and Add from folder
-          plugin-parts.tsx           # The per-source record (badge, review note, warning, removal text), the version, the Failure shape, the inline error line, the shared icons and the keyed fade-in
+          plugin-sources.ts          # The per-source record (review note, warning, removal text) and the Failure shape
+          plugin-parts.tsx           # The source badge and its icons, the version, the inline error line, the keyed block and the page's fade-in flag
           plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, catalog rows and the keyed block's fade-in; a stopped server's shared status dot dims here
         search/                      # Settings search
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
