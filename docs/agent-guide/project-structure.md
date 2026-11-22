@@ -765,6 +765,13 @@ YUI/
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
+        perms/                       # The Permissions page, rendered with React
+          perms-page.ts              # The page's facade: its React root, and when the monitor list loads
+          perms-page-view.tsx        # The screenshot attach and screen request switches and the screen source stack
+          monitors/                  # The screen source list
+            monitor-load.ts          # The list's load: one request at a time, its state, and the retry after a failure
+            monitor-list.tsx         # One radio per monitor, or the empty or error notice
+            monitor-list.css         # Monitor row and notice styles
         plugins/                     # The Plugins page: installed plugins and the catalog
           plugins-page.ts            # The page over the host's snapshot: its one call path for enable, disable, update, install, add from folder and remove, the consent and confirm state, the log tail, and the keyed render
           catalog-state.ts           # The catalog's load (an in-flight call joins it), the entries not installed, the updates offered, and Check for updates' timed count
@@ -807,14 +814,9 @@ YUI/
             devtools-row.ts          # Binds the row's button to the devtools window opener
           user-name/                 # "Your name" on the General page
             user-name-section.ts     # The device-wide user name row, its fallback placeholder and redraw
-          monitors/                  # Screen-source radiogroup of the screenshot section
-            monitors-section.ts      # Screen-source list and its load state
-            monitors-section.css     # Monitors section styles
           session/                   # Settings-window context readout and delegated-work list
             session-section.ts       # Readout, delegated list, their subscriptions, redraws and minute refresh
             session-section.css      # Session context-occupancy readout and meter styles
-          screenshot/                # Screenshot-attach switch and when the monitor list loads
-            screenshot-section.ts    # Attach switch, its subscription and redraw, and the monitor-list load
           screen/                    # Screen-watch threshold knobs
             screen-section.ts        # Screen-watch threshold knobs and their redraw
           reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and rate-limit cap rows
@@ -842,6 +844,10 @@ YUI/
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
+      controls/                      # Shared React controls
+        switch/                      # The Switch
+          switch.tsx                 # A boolean switch the caller labels and owns the state of
+          switch.css                 # Switch track, knob, focus and disabled styles
       keyed-rows/                    # Keyed list rows
         keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
       theme/                         # The window theme
