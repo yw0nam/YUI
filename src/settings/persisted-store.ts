@@ -245,6 +245,8 @@ export function createOverrideRecordSettings<T extends ScalarFields<T>>(
 
   return {
     get: core.get,
+    /** The live state without a copy; a render reads one field from it. */
+    current: core.current as () => Readonly<T>,
 
     set(partial: Partial<T>): void {
       const next = { ...core.current() };
