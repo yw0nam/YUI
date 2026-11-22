@@ -28,7 +28,6 @@ export function createMonitorLoad(deps: {
 }): MonitorLoad {
   const { sourceProvider, log } = deps;
   let state: MonitorLoadState = { kind: "idle" };
-  let loaded = false;
   let inflight: Promise<void> | undefined;
   const subscribers = new Set<() => void>();
 
@@ -46,7 +45,6 @@ export function createMonitorLoad(deps: {
       set({ kind: "error" });
       return;
     }
-    loaded = true;
     set(monitors.length === 0 ? { kind: "empty" } : { kind: "list", monitors });
   }
 
@@ -62,6 +60,6 @@ export function createMonitorLoad(deps: {
       });
       return inflight;
     },
-    isLoaded: () => loaded,
+    isLoaded: () => state.kind === "list" || state.kind === "empty",
   };
 }

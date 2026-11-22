@@ -41,7 +41,7 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* Locked on — the baseline idle variant cannot be turned off. */
+/* Disabled — a switch the user cannot change. */
 .yui-switch[disabled] {
   opacity: 0.45;
   cursor: default;

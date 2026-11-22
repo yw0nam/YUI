@@ -22,7 +22,7 @@ export function createPermsPage(deps: {
   settings: ScreenshotSettingsStore;
   sourceProvider: ScreenSourceProvider;
   log: Logger;
-  /** The store loads the list only while the panel is open. */
+  /** Whether the panel is open; a store change loads the list only then. */
   isOpen: () => boolean;
 }): PermsPage {
   const { settings, sourceProvider, log, isOpen } = deps;
