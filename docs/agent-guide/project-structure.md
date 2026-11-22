@@ -685,7 +685,7 @@ YUI/
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
-        controls.css                 # Switch, segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles
+        controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the import of the Switch's CSS from `src/ui/controls/switch/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
@@ -846,6 +846,7 @@ YUI/
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       controls/                      # Shared React controls
         switch/                      # The Switch
+          index.ts                   # Re-exports the Switch and its props type
           switch.tsx                 # A boolean switch the caller labels and owns the state of
           switch.css                 # Switch track, knob, focus and disabled styles
       keyed-rows/                    # Keyed list rows
