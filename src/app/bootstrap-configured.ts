@@ -424,7 +424,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         stage,
         root,
         overlay: surfaces.el,
-        kind: phase1.bound === true ? "bound" : "main",
+        kind: phase1.menuHost.boundId === null ? "main" : "bound",
         name: phase1.menuHost.name,
         renderer,
         locomotion,

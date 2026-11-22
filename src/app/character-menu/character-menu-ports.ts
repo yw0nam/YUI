@@ -15,7 +15,6 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import type { MenuActions } from "../../ui/character-menu/character-menu";
 import type { MenuState } from "../../ui/character-menu/items";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
-import { createSwitchRows, type SwitchRow } from "../../ui/quick-controls/switch-row";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { quickControlsConfigDefaults } from "../settings/config-defaults";
 import type { ConversationStores } from "../settings/conversation-stores";
@@ -52,9 +51,9 @@ function select<T extends { id: string }>(
   if (option) void swap(option).catch((err) => log.warn("select_failed", { error: String(err) }));
 }
 
-function flip(row: SwitchRow, on: boolean): void {
-  row.setEnabled(on);
-  if (row.logKey) log.info(row.logKey, { enabled: on });
+function flip(store: { setEnabled(on: boolean): void }, logKey: string, on: boolean): void {
+  store.setEnabled(on);
+  log.info(logKey, { enabled: on });
 }
 
 export function createCharacterMenuPorts(deps: {
@@ -65,8 +64,6 @@ export function createCharacterMenuPorts(deps: {
     | "basePaceSettings"
     | "bubblePersistSettings"
     | "unifiedChatSwitch"
-    | "idleThrottleSettings"
-    | "fillerSettings"
     | "endpointsSettings"
   >;
   surfaces: Pick<Surfaces, "isInputOpen" | "summonInput" | "dismissInput">;
@@ -84,15 +81,6 @@ export function createCharacterMenuPorts(deps: {
   stopTurn: () => void;
 }): { read(): MenuState; actions: MenuActions } {
   const { host, stores, surfaces, vrm, speaker } = deps;
-  const rows = createSwitchRows({
-    idleThrottleSettings: stores.idleThrottleSettings,
-    fillerSettings: stores.fillerSettings,
-    bubblePersistSettings: stores.bubblePersistSettings,
-    unifiedChatSwitch: stores.unifiedChatSwitch,
-  });
-  const row = (selector: string) => rows.find((r) => r.selector === selector)!;
-  const bubble = row(".yui-bubble-persist-switch");
-  const unified = row(".yui-unified-switch");
   const { getDefaultChatApi } = quickControlsConfigDefaults(deps.config);
   const isPush = () =>
     effectiveChatApi(stores.endpointsSettings.get().chat_api, getDefaultChatApi()) === "push";
@@ -101,8 +89,8 @@ export function createCharacterMenuPorts(deps: {
       talk: surfaces.isInputOpen(),
       rest: stores.dndSettings.get().enabled,
       listen: deps.voiceInputStatus.get().state !== "idle",
-      bubble: bubble.getEnabled(),
-      unified: unified.getEnabled(),
+      bubble: stores.bubblePersistSettings.get().enabled,
+      unified: stores.unifiedChatSwitch.get().enabled,
       bodies: options(vrm.vrmSelection),
       body: vrm.vrmSelection.getActiveId(),
       voices: options(speaker.speakerSelection),
@@ -126,8 +114,8 @@ export function createCharacterMenuPorts(deps: {
         if (host.threadsWindow) host.threadsWindow.open(undefined, tab);
         else host.emitThreadsOpenRequest(tab);
       },
-      bubble: (on) => flip(bubble, on),
-      unified: (on) => flip(unified, on),
+      bubble: (on) => flip(stores.bubblePersistSettings, "bubble_persist_toggle", on),
+      unified: (on) => flip(stores.unifiedChatSwitch, "unified_chat_toggle", on),
       reset: () =>
         resetConversation({
           transcript: deps.conversation.chatHistoryStore,
