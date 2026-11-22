@@ -403,4 +403,19 @@ describe("createPluginsPage", () => {
       ),
     ).toBe(true);
   });
+
+  it("shows Checking… when a check joins the catalog load in flight", () => {
+    const { page, manage } = mountPage();
+    manage.catalog.mockReturnValue(new Promise<CatalogEntry[]>(() => {}));
+    act(() => {
+      page.entered();
+    });
+    expect(within(page.el).getByRole("button", { name: "Check for updates" })).toBeTruthy();
+
+    act(() => {
+      fireEvent.click(within(page.el).getByRole("button", { name: "Check for updates" }));
+    });
+
+    expect(page.el.querySelector(".yui-sec__head .yui-plg-busy")?.textContent).toBe("Checking…");
+  });
 });
