@@ -716,8 +716,8 @@ YUI/
             relations-edit.css       # Relations rows, the centre-out slider fill, and the number
           viewpoint/                 # Camera view reset
             viewpoint-row.tsx        # Camera view reset button
-        character/                   # The Motion and desktop page's character rows, and the tab that relays the Body page's hooks
-          character-tab.ts           # Builds the Motion stack: mouth gain and motions; mounts the Body page's stack
+        character/                   # The Motion and desktop page's character rows, and the tab that mounts the Body page and relays its open and dispose hooks
+          character-tab.ts           # Builds the Motion stack: mouth gain and motions; creates the Body page, which quick-controls mounts
           character-html.ts          # Markup of the Motion stack
           idle-motion/               # Ambient idle pool
             idle-motion-section.ts   # Idle variant switches
@@ -862,7 +862,7 @@ YUI/
           speaker/                   # TTS speaker picker of the Voice page
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles
-          user-asset-list/           # Shared scaffolding for the speaker asset list and its two-phase import; the VRM list reuses its glyphs and roving-id rule
+          user-asset-list/           # Shared scaffolding for the speaker asset list, its two-phase import and its confirm delay; the VRM list reuses its glyphs, roving-id rule and confirm delay
             user-asset-list.ts       # Shared asset-list state: rename, removal, roving focus, and swap orchestration
             user-asset-list.css      # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
             pending-import.ts        # The two-phase import: a staged copy named by a row, discarded on Esc
