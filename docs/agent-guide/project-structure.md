@@ -805,10 +805,11 @@ YUI/
             span-row.tsx             # One span row: its two times, the next-day mark, its pace and remove
             active-hours-section.css # Span row styles
           card/                      # The preset's card
-            card-section.tsx         # The card fields, send switch, reset, greeting list, file row and export panel
+            card-section.tsx         # The card fields, send switch, reset and greeting list
             card-section.css         # Card field, state, and greeting row styles
-            card-entry.ts            # The preset this window edits, and the default card an edit starts from
-            card-io.ts               # The file actions: import, PNG and preset file exports, the picture gate and the one-shot import notice
+            card-file-row.tsx        # The file action row, its picture gate, the status lines, the one-shot notice and the export panel
+            card-entry.ts            # The preset this window edits, the default card an edit starts from, and the card it sends
+            card-io.ts               # The file actions: import, PNG and preset file exports, and the one-shot import notice
             preset-export-panel.tsx  # The inline list of what a preset file carries, the rights check, and Export…
             preset-export-panel.css  # The export panel's status inks and actions
             card-drop.ts             # The drop cover: its busy and drop looks, the refusals before a file is read, and the one import a drop starts
