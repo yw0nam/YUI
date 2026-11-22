@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
@@ -21,8 +22,9 @@ import {
   inMemoryAgentStorage,
   makeSpeakerSelection,
   makeVrmSelection,
+  pressSlider,
 } from "../../test-helpers";
-import { PREVIEW_PEAK_RMS } from "./gain-row";
+import { PREVIEW_PEAK_RMS } from "./gain-preview";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,13 +86,18 @@ describe("createQuickControls — gain row", () => {
     setLocale("ko");
   });
 
+  const built: ReturnType<typeof createQuickControls>[] = [];
+
   afterEach(() => {
+    act(() => {
+      for (const qc of built.splice(0)) qc.dispose();
+    });
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
+    const qc = createQuickControls({
       ...defaultQcArgs(mount),
       lipsync,
       onGainPreview,
@@ -111,7 +118,12 @@ describe("createQuickControls — gain row", () => {
       removeVoice,
       ...extra,
     });
+    built.push(qc);
+    return qc;
   }
+
+  const gainSlider = (qc: ReturnType<typeof buildQc>) =>
+    qc.el.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider input")!;
 
   // ── Slider exists with correct attributes ─────────────────────────────────
 
@@ -119,15 +131,11 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>(
-      "input.yui-gain__slider:not(.yui-vad__slider)[type=range]",
-    );
+    const slider = gainSlider(qc);
     expect(slider).not.toBeNull();
-    expect(slider!.min).toBe("0.5");
-    expect(slider!.max).toBe("6");
-    expect(slider!.value).toBe("2");
-
-    qc.dispose();
+    expect(slider.min).toBe("0.5");
+    expect(slider.max).toBe("6");
+    expect(slider.value).toBe("2");
   });
 
   it("renders a readout .yui-gain__value showing '2.0×' initially", () => {
@@ -137,21 +145,15 @@ describe("createQuickControls — gain row", () => {
     const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout).not.toBeNull();
     expect(readout!.textContent).toBe("2.0×");
-
-    qc.dispose();
   });
 
-  // ── Input event: setGain + preview + readout update ──────────────────────
+  // ── A change: setGain + preview + readout update ──────────────────────
 
-  it("input event sets lipsync gain, calls onGainPreview, and updates readout", () => {
+  it("a change sets lipsync gain, calls onGainPreview, and updates readout", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>(
-      "input.yui-lipsync-gain__slider[type=range]",
-    )!;
-    slider.value = "3";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.change(gainSlider(qc), { target: { value: "3" } });
 
     expect(lipsync.get().gain).toBe(3);
 
@@ -161,26 +163,20 @@ describe("createQuickControls — gain row", () => {
 
     const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout!.textContent).toBe("3.0×");
-
-    qc.dispose();
   });
 
-  // ── pointerup ends preview ────────────────────────────────────────────────
+  // ── A release ends the preview ────────────────────────────────────────────────
 
-  it("pointerup after an input event calls onGainPreviewEnd exactly once", () => {
+  it("a release after a drag calls onGainPreviewEnd exactly once", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>(
-      "input.yui-lipsync-gain__slider[type=range]",
-    )!;
-    slider.value = "3";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-    slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    const drag = pressSlider(gainSlider(qc), 0.5);
+    drag.moveTo(0.6);
+    expect(onGainPreviewEnd).not.toHaveBeenCalled();
+    drag.release();
 
     expect(onGainPreviewEnd).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 
   // ── Escape, the window's close, ends preview if active ─────────────────────
@@ -189,17 +185,12 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>(
-      "input.yui-lipsync-gain__slider[type=range]",
-    )!;
-    slider.value = "1.5";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    // A keyboard step commits at once and leaves the preview running.
+    fireEvent.keyDown(gainSlider(qc), { key: "ArrowLeft" });
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).toHaveBeenCalledOnce();
-
-    qc.dispose();
   });
 
   it("Escape without prior input does NOT call onGainPreviewEnd", () => {
@@ -208,8 +199,6 @@ describe("createQuickControls — gain row", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   // ── External store update reflects in slider + readout ───────────────────
@@ -218,29 +207,22 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    lipsync.setGain(1.5);
+    act(() => lipsync.setGain(1.5));
 
-    const slider = qc.el.querySelector<HTMLInputElement>(
-      "input.yui-lipsync-gain__slider[type=range]",
-    )!;
-    expect(slider.value).toBe("1.5");
+    expect(gainSlider(qc).value).toBe("1.5");
 
     const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout!.textContent).toBe("1.5×");
-
-    qc.dispose();
   });
 
   // ── Gain and VAD sliders stay independent ────────────────────────────────
-  // Both rows are driven by one shared slider binder, so each side effect must reach
+  // Both rows are built on one shared Slider, so each side effect must reach
   // only its own store: the lipsync preview is the gain slider's alone.
 
   function sliders(qc: ReturnType<typeof buildQc>) {
     return {
-      gain: qc.el.querySelector<HTMLInputElement>(
-        "input.yui-gain__slider:not(.yui-vad__slider)[type=range]",
-      )!,
-      vad: qc.el.querySelector<HTMLInputElement>("input.yui-vad__slider[type=range]")!,
+      gain: gainSlider(qc),
+      vad: qc.el.querySelector<HTMLInputElement>(".yui-vad__slider input")!,
     };
   }
 
@@ -250,19 +232,12 @@ describe("createQuickControls — gain row", () => {
     qc.open();
 
     const { vad: vadSlider } = sliders(qc);
-    act(() => {
-      vadSlider.value = "2000";
-      vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    pressSlider(vadSlider, 0.6).release();
 
     expect(vad.get().silenceMs).toBe(2000);
     expect(onGainPreview).not.toHaveBeenCalled();
     expect(lipsync.get().gain).toBe(2);
-
-    act(() => vadSlider.dispatchEvent(new Event("pointerup", { bubbles: true })));
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
-
-    qc.dispose();
   });
 
   it("gain slider input leaves silenceMs untouched", () => {
@@ -270,14 +245,11 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc({ vad });
     qc.open();
 
-    const { gain: gainSlider } = sliders(qc);
-    gainSlider.value = "3";
-    gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    const { gain: gainInput } = sliders(qc);
+    fireEvent.change(gainInput, { target: { value: "3" } });
 
     expect(lipsync.get().gain).toBe(3);
     expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
-
-    qc.dispose();
   });
 
   it("dispose() detaches both sliders, not just one", () => {
@@ -285,13 +257,12 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc({ vad });
     qc.open();
 
-    const { gain: gainSlider, vad: vadSlider } = sliders(qc);
+    const { gain: gainInput, vad: vadSlider } = sliders(qc);
+    built.splice(built.indexOf(qc), 1);
     act(() => qc.dispose());
 
-    gainSlider.value = "4";
-    gainSlider.dispatchEvent(new Event("input", { bubbles: true }));
-    vadSlider.value = "2500";
-    vadSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.change(gainInput, { target: { value: "4" } });
+    fireEvent.change(vadSlider, { target: { value: "2500" } });
 
     expect(lipsync.get().gain).toBe(2);
     expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);

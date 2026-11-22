@@ -4,7 +4,7 @@
  * slider, the barge-in and bubble switches and the reading dictionary, and drives their stores.
  */
 
-import { fireEvent } from "@testing-library/react";
+import { fireEvent, within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
@@ -18,7 +18,7 @@ import {
 import { createVoiceInputStatus } from "../../chips/voice-input-status";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs, inMemoryApiKeyStorage } from "../test-helpers";
+import { defaultQcArgs, inMemoryApiKeyStorage, pressSlider } from "../test-helpers";
 import { createListeningPage } from "./listening-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -40,17 +40,18 @@ function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
       storage: { load: () => ({ text: "" }), save: () => {} },
     }),
     log,
+    host: document.body,
   });
   pages.push(page);
-  document.body.append(page.el);
   return {
     page,
+    log,
     voiceStatus,
     vad,
     sttKeySettings,
     voiceSwitch: page.el.querySelector<HTMLButtonElement>(".yui-voice-switch"),
     keyInput: page.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!,
-    slider: page.el.querySelector<HTMLInputElement>(".yui-vad__slider")!,
+    slider: page.el.querySelector<HTMLInputElement>(".yui-vad__slider input")!,
   };
 }
 
@@ -94,8 +95,7 @@ describe("createListeningPage — voice input", () => {
     expect(voiceStatus.get().state).toBe("idle");
 
     const before = vad.get().silenceMs;
-    slider.value = String(VAD_SILENCE_MIN + 300);
-    slider.dispatchEvent(new Event("input"));
+    fireEvent.change(slider, { target: { value: String(VAD_SILENCE_MIN + 300) } });
     expect(vad.get().silenceMs).toBe(before);
   });
 });
@@ -104,7 +104,7 @@ describe("createListeningPage — voice silence slider", () => {
   beforeEach(() => setLocale("ko"));
 
   function sliderOf(page: ReturnType<typeof createListeningPage>): HTMLInputElement {
-    return page.el.querySelector<HTMLInputElement>('.yui-gain__slider[aria-label="침묵 기준"]')!;
+    return within(page.el).getByRole<HTMLInputElement>("slider", { name: "침묵 기준" });
   }
 
   it("renders the silence-window slider with min 500 / max 3000 / step 50", () => {
@@ -126,14 +126,15 @@ describe("createListeningPage — voice silence slider", () => {
     expect(value.textContent).toBe("1500 ms");
   });
 
-  it("dragging the slider calls vad.setSilenceMs and updates the readout", () => {
-    const { page, vad } = build();
+  it("dragging the slider calls vad.setSilenceMs, updates the readout and logs the commit", () => {
+    const { page, vad, log } = build();
     const setSpy = vi.spyOn(vad, "setSilenceMs");
 
     const slider = sliderOf(page);
-    fireEvent.input(slider, { target: { value: "2000" } });
+    fireEvent.change(slider, { target: { value: "2000" } });
 
     expect(setSpy).toHaveBeenCalledWith(2000);
+    expect(log.info).toHaveBeenCalledWith("vad_silence_change", { silenceMs: 2000 });
     expect(vad.get().silenceMs).toBe(2000);
     const value = slider.closest(".yui-gain")!.querySelector<HTMLElement>(".yui-gain__value")!;
     expect(value.textContent).toBe("2000 ms");
@@ -151,7 +152,7 @@ describe("createListeningPage — voice silence slider", () => {
     expect(voiceSwitch).toBeNull();
 
     const slider = sliderOf(page);
-    fireEvent.input(slider, { target: { value: "2000" } });
+    fireEvent.change(slider, { target: { value: "2000" } });
     expect(vad.get().silenceMs).toBe(2000);
   });
 });
@@ -218,6 +219,24 @@ describe("createQuickControls — reading dictionary placement", () => {
     const qc = createQuickControls(defaultQcArgs(mount));
     const input = qc.el.querySelector("#yui-panel-listening")!;
     expect(input.querySelector(".yui-reading")).toBe(input.querySelector(".yui-sec:last-child"));
+    act(() => qc.dispose());
+  });
+});
+
+describe("createQuickControls — silence slider", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("takes a pointer press on its track in the panel", () => {
+    const mount = document.body.appendChild(document.createElement("div"));
+    const vad = createVadSettings({ storage: { load: () => null, save: () => {} } });
+    const qc = createQuickControls({ ...defaultQcArgs(mount), vad });
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-vad__slider input")!;
+
+    pressSlider(slider, 0.6).release();
+
+    expect(vad.get().silenceMs).toBe(2000);
     act(() => qc.dispose());
   });
 });

@@ -74,7 +74,7 @@ import type { createReadingsSettings } from "../../settings/voice/readings-setti
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
-import { createCharacterTab } from "./character/character-tab";
+import { createBodyPage } from "./body/body-page";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { createConnectionViews } from "./connection/connection-views";
 import { createQuickStart } from "./connection/quick-start/quick-start";
@@ -85,6 +85,7 @@ import { createGeneralPage } from "./general/general-page";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryPage } from "./history/history-page";
 import { createListeningPage } from "./listening/listening-page";
+import { createMotionPage } from "./motion/motion-page";
 import { createPanelShell } from "./panel-shell";
 import { createPermsPage } from "./perms/perms-page";
 import type { CardIoPorts } from "./persona/card/card-io";
@@ -452,7 +453,7 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
-  // The Listening and Together pages render their own switch rows, so the template gets the rest.
+  // The Listening, Together and Motion pages render their own switch rows, so the template gets the rest.
   const rows = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
@@ -471,7 +472,9 @@ export function createQuickControls({
     relationsSwitch,
     threadReactionsSettings,
   });
-  const TOGGLE_SPECS = rows.filter((row) => row.tab !== "listening" && row.tab !== "together");
+  const TOGGLE_SPECS = rows.filter(
+    (row) => row.tab !== "listening" && row.tab !== "together" && row.tab !== "motion",
+  );
 
   el.innerHTML = buildPanelHtml({
     switchRows: TOGGLE_SPECS,
@@ -487,6 +490,9 @@ export function createQuickControls({
     showPlugins: !!plugins,
     showPreset: !!presetRegistry,
   });
+
+  // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
+  mount.appendChild(el);
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
@@ -582,16 +588,8 @@ export function createQuickControls({
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
 
-  // ── Character tab — owns the Body and Motion rows; the shell mounts both stacks and relays open/close. ──
-  const characterTab = createCharacterTab({
-    rows: {
-      vrms: true,
-      gain: true,
-      idleMotion: !!idleMotionSettings,
-      expressMotion: !!expressMotionSettings,
-      viewpoint: !!onResetViewpoint,
-      relations: !!relationsStore && !!relationsSwitch && !!presetRegistry,
-    },
+  // ── Body page (VRM list · relations rows · view reset) ──
+  const bodyPage = createBodyPage({
     vrmSelection,
     swapVrm,
     importVrm,
@@ -600,31 +598,36 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     onResetView: onResetViewpoint,
-    gain: { lipsync, onPreview: onGainPreview, onPreviewEnd: onGainPreviewEnd },
-    ...(idleMotionSettings
-      ? { idleMotion: { settings: idleMotionSettings, getPool: () => getIdlePool?.() } }
-      : {}),
-    ...(expressMotionSettings
-      ? {
-          expressMotion: {
-            settings: expressMotionSettings,
-            getVocabulary: () => getExpressMotions?.() ?? [],
-          },
-        }
-      : {}),
-    ...(relationsStore && relationsSwitch && presetRegistry
-      ? {
-          relations: {
+    relations:
+      relationsStore && relationsSwitch && presetRegistry
+        ? {
             store: relationsStore,
             relationsSwitch,
             self: presetIdForWindow(),
             presets: () => presetRegistry.get().list,
-          },
-        }
-      : {}),
+          }
+        : undefined,
+    host: el.querySelector("#yui-panel-body")!,
   });
-  el.querySelector("#yui-panel-body")!.append(characterTab.el);
-  el.querySelector("#yui-panel-motion .yui-motion-switches")!.before(characterTab.motionEl);
+
+  // ── Motion page (mouth gain · idle and express motions · motion switch rows) ──
+  const motionPage = createMotionPage({
+    rows: rows.filter((row) => row.tab === "motion"),
+    lipsync,
+    onPreview: onGainPreview,
+    onPreviewEnd: onGainPreviewEnd,
+    idleMotion: idleMotionSettings && {
+      settings: idleMotionSettings,
+      getPool: () => getIdlePool?.(),
+    },
+    expressMotion: expressMotionSettings && {
+      settings: expressMotionSettings,
+      getVocabulary: () => getExpressMotions?.() ?? [],
+    },
+    isOpen: () => shell.isOpen(),
+    log,
+    host: el.querySelector("#yui-panel-motion")!,
+  });
 
   // ── Speaker section ──
   const speakerList = createSpeakerList({
@@ -646,7 +649,6 @@ export function createQuickControls({
 
   // ── shell (open/close lifecycle) ──
   const shell = createPanelShell({
-    mount,
     root: el,
     closeWindow: onCloseWindow,
     onOpen: () => {
@@ -755,8 +757,8 @@ export function createQuickControls({
     readingsSettings,
     bubblePersistSettings,
     log,
+    host: el.querySelector("#yui-panel-listening")!,
   });
-  el.querySelector("#yui-panel-listening")!.append(listeningPage.el);
 
   // ── Together page (switch rows · chain cap · characters on the desktop) ──
   const togetherPage = createTogetherPage({
@@ -861,7 +863,8 @@ export function createQuickControls({
     { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
     historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
     { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
-    { reflect: characterTab.refresh, close: characterTab.close, dispose: characterTab.dispose },
+    { reflect: bodyPage.refresh, dispose: bodyPage.dispose },
+    { reflect: motionPage.refresh, close: motionPage.close, dispose: motionPage.dispose },
     { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
     presetStrip,

@@ -5,9 +5,7 @@
  */
 
 interface PanelShellDeps {
-  /** Mount container the panel attaches to. */
-  mount: HTMLElement;
-  /** Panel root node (el). */
+  /** Panel root node (el), already in the document. */
   root: HTMLElement;
   /** Injected by the host when Escape must close the OS window. Without it, Escape is a no-op. */
   closeWindow?: () => void;
@@ -24,7 +22,7 @@ interface PanelShell {
 }
 
 export function createPanelShell(deps: PanelShellDeps): PanelShell {
-  const { mount, root, closeWindow, onOpen, onClose } = deps;
+  const { root, closeWindow, onOpen, onClose } = deps;
 
   let openState = false;
 
@@ -37,7 +35,6 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
   function open(): void {
     if (openState) return;
     openState = true;
-    mount.appendChild(root);
     onOpen();
     focusFirst();
   }

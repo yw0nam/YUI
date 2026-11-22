@@ -128,6 +128,9 @@ describe("createQuickControls — viewpoint row", () => {
     const without = buildQc();
     act(() => without.open());
     expect(without.el.querySelector(".yui-viewpoint-reset")).toBeNull();
+    // Two connected panels repeat every id, and jsdom resolves a `#id` lookup to the first panel.
+    qcs.splice(qcs.indexOf(without), 1);
+    act(() => without.dispose());
 
     const withReset = buildQc({ onResetViewpoint: vi.fn() });
     act(() => withReset.open());

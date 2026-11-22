@@ -685,7 +685,6 @@ YUI/
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
-        slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
         row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
@@ -705,16 +704,18 @@ YUI/
             relations-edit.css       # Relations rows, the centre-out slider fill, and the number
           viewpoint/                 # Camera view reset
             viewpoint-row.tsx        # Camera view reset button
-        character/                   # The Motion and desktop page's character rows, and the tab that mounts the Body page and relays its open and dispose hooks
-          character-tab.ts           # Builds the Motion stack: mouth gain and motions; creates the Body page, which quick-controls mounts
-          character-html.ts          # Markup of the Motion stack
-          idle-motion/               # Ambient idle pool
-            idle-motion-section.ts   # Idle variant switches
-          express-motion/            # Express motion vocabulary
-            express-motion-section.ts  # Express motion categories
-            express-motion-section.css # Express motion styles
+        motion/                      # The Motion and desktop page, rendered with React
+          motion-page.ts             # The page's facade: its React root, the open hook that re-reads every source, and the close hook that ends the gain preview
+          motion-page-view.tsx       # The mouth gain, the idle and express motions, then the motion switch rows
+          motion-ports.ts            # What the page reads, each repainting at once and only while the panel is open
           gain/                      # Mouth gain
-            gain-row.ts              # Mouth gain preview
+            gain-row.tsx             # The gain slider and readout; a release or blur ends the preview and logs the gain
+            gain-preview.ts          # The mouth opening the preview shows, and its end
+          idle-motion/               # Ambient idle pool
+            idle-motion-section.tsx  # Idle variant switches, the baseline locked on
+          express-motion/            # Express motion vocabulary
+            express-motion-section.tsx # Express motion categories: the accordion, each group's tri-state master, and the motion switches
+            express-motion-section.css # Express motion styles
         connection/                  # Connection page and its endpoint/API-key section
           connection-views.ts        # The Quick start | Detailed settings switch and the one view it shows
           connection-views.css       # The switch's segment and the view wrappers
@@ -871,9 +872,18 @@ YUI/
             pending-import.ts        # The two-phase import: a staged copy named by a row, discarded on Esc
         switches/                    # Switch rows
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
+          descriptor-row.tsx         # One switch row rendered from its descriptor, for the pages rendered with React
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
-      controls/                      # Shared React controls
+      controls/                      # Shared React controls; the slider and the checkbox build on Base UI
+        slider/                      # The Slider
+          index.ts                   # Re-exports the Slider and its props type
+          slider.tsx                 # A range slider the caller labels and owns the value of, reporting each change and each commit
+          slider.css                 # Track, fill, knob, hover and focus styles
+        checkbox/                    # The Checkbox
+          index.ts                   # Re-exports the Checkbox and its props type
+          checkbox.tsx               # A tri-state checkbox drawn as a switch, the caller labels and owns the state of
+          checkbox.css               # The mixed state: half the track lit, the knob at the centre
         switch/                      # The Switch
           index.ts                   # Re-exports the Switch and its props type
           switch.tsx                 # A boolean switch the caller labels and owns the state of

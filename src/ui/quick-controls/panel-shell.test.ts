@@ -4,7 +4,7 @@
  * closes the settings window.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPanelShell } from "./panel-shell";
 
 function buildRoot(): HTMLElement {
@@ -17,17 +17,12 @@ function buildRoot(): HTMLElement {
   b.type = "button";
   b.textContent = "last";
   root.append(a, b);
+  // The composer attaches the root before the shell opens it.
+  document.body.append(root);
   return root;
 }
 
 describe("createPanelShell", () => {
-  let mount: HTMLElement;
-
-  beforeEach(() => {
-    mount = document.createElement("div");
-    document.body.appendChild(mount);
-  });
-
   afterEach(() => {
     document.body.innerHTML = "";
     vi.restoreAllMocks();
@@ -36,7 +31,7 @@ describe("createPanelShell", () => {
   function makeShell(root = buildRoot()) {
     return {
       root,
-      shell: createPanelShell({ mount, root, onOpen: () => {}, onClose: () => {} }),
+      shell: createPanelShell({ root, onOpen: () => {}, onClose: () => {} }),
     };
   }
 
@@ -44,7 +39,6 @@ describe("createPanelShell", () => {
     const onClose = vi.fn();
     const closeWindow = vi.fn();
     const shell = createPanelShell({
-      mount,
       root: buildRoot(),
       closeWindow,
       onOpen: () => {},
@@ -64,7 +58,6 @@ describe("createPanelShell", () => {
   it("an Escape inside an open dialog leaves the window open", () => {
     const closeWindow = vi.fn();
     const shell = createPanelShell({
-      mount,
       root: buildRoot(),
       closeWindow,
       onOpen: () => {},

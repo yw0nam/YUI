@@ -1,6 +1,6 @@
-/* Express motion section — category accordion + group master switch, rows of one group. Tokens in ../../../tokens.css. */
+/* Express motion section — category accordion + group master checkbox, rows of one group. Tokens in ../../../tokens.css. */
 
-/* ── Group header — expander on the left, whole-group switch on the right ── */
+/* ── Group header — expander on the left, whole-group checkbox on the right ── */
 .yui-express__head {
   display: flex;
   align-items: center;
@@ -57,15 +57,6 @@
   font-size: var(--yui-fs-caption);
   color: var(--yui-text-mute);
   font-variant-numeric: tabular-nums;
-}
-
-/* Mixed — half the track lit, knob parked mid-travel. */
-.yui-express__master[aria-checked="mixed"] {
-  background: linear-gradient(90deg, var(--yui-accent) 50%, var(--yui-track) 50%);
-}
-
-.yui-express__master[aria-checked="mixed"]::after {
-  transform: translateX(calc((var(--w) - var(--h)) / 2));
 }
 
 /* Open group's motions — indented rows under the header, same hairline rhythm. */

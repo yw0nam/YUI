@@ -1,0 +1,69 @@
+/* ── Slider — a 4px track with an amber fill and a 14px knob that sits flush with the track ends ── */
+.yui-slider {
+  --knob: 14px;
+  display: block;
+  width: 100%;
+  margin: 0.625rem 0;
+}
+
+/* Padded by half a knob, so the knob's centre travels the content box and stays inside the track. */
+.yui-slider__control {
+  display: flex;
+  align-items: center;
+  height: var(--knob);
+  padding-inline: calc(var(--knob) / 2);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.yui-slider__track {
+  flex: 1;
+  height: 4px;
+}
+
+/* The visible track spans the padding too. */
+.yui-slider__track::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--knob) / -2);
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-track);
+}
+
+/* Base UI sets the width to the value; the start reaches back to the visible track's end. */
+.yui-slider__fill {
+  box-sizing: content-box;
+  margin-inline-start: calc(var(--knob) / -2);
+  padding-inline-start: calc(var(--knob) / 2);
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-accent);
+}
+
+.yui-slider__thumb {
+  width: var(--knob);
+  height: var(--knob);
+  border-radius: 50%;
+  background: var(--yui-knob);
+  box-shadow: 0 1px 3px var(--yui-knob-shadow);
+  transition: box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-slider:hover .yui-slider__thumb,
+.yui-slider[data-dragging] .yui-slider__thumb {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 4px var(--yui-accent-faint);
+}
+
+/* The thumb's range input is visually hidden, so the ring follows its focus, over the hover ring. */
+.yui-slider .yui-slider__thumb:has(input:focus-visible) {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 2px var(--yui-accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-slider__thumb {
+    transition: none;
+  }
+}

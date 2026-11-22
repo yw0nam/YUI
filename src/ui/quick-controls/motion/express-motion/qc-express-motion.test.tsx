@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
+import { within } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createExpressMotionSettings } from "../../../../settings/avatar/express-motion-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const VOCAB = ["happy", "laugh", "embarrassed", "sheepish", "calm", "sulk", "idle_lively", "dance"];
 
@@ -23,10 +28,10 @@ describe("createQuickControls — express motion section", () => {
   const toggles = () =>
     Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__toggle"));
   const masters = () =>
-    Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__master"));
+    Array.from(qc.el.querySelectorAll<HTMLElement>('.yui-express__head [role="checkbox"]'));
   const rowSwitches = () =>
     Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-express__rows .yui-switch"));
-  const expand = (index: number) => toggles()[index]!.click();
+  const expand = (index: number) => act(() => toggles()[index]!.click());
 
   beforeEach(() => {
     let rafId = 0;
@@ -42,7 +47,7 @@ describe("createQuickControls — express motion section", () => {
   });
 
   afterEach(() => {
-    qc?.dispose();
+    act(() => qc?.dispose());
     mount.remove();
     vi.restoreAllMocks();
     setLocale("en");
@@ -76,13 +81,13 @@ describe("createQuickControls — express motion section", () => {
     qc = build();
     qc.open();
     expand(0);
-    expect(rowSwitches().map((s) => s.dataset.motion)).toEqual([
-      "happy",
-      "laugh",
-      "embarrassed",
-      "sheepish",
-      "calm",
-      "sulk",
+    expect(rowSwitches().map((s) => s.getAttribute("aria-label"))).toEqual([
+      "기쁨",
+      "웃음",
+      "부끄러움",
+      "멋쩍음",
+      "차분",
+      "삐침",
     ]);
     expect(toggles()[0]!.getAttribute("aria-expanded")).toBe("true");
     expect(
@@ -103,7 +108,7 @@ describe("createQuickControls — express motion section", () => {
     qc = build();
     qc.open();
     expand(0);
-    rowSwitches()[1]!.click();
+    act(() => rowSwitches()[1]!.click());
     expect(expressMotionSettings.get().disabled).toEqual(["laugh"]);
     expect(rowSwitches()[1]!.getAttribute("aria-checked")).toBe("false");
   });
@@ -114,7 +119,7 @@ describe("createQuickControls — express motion section", () => {
     expand(0);
     const sw = rowSwitches()[1]!;
     sw.focus();
-    sw.click();
+    act(() => sw.click());
     expect(rowSwitches()[1]).toBe(sw);
     expect(document.activeElement).toBe(sw);
   });
@@ -153,7 +158,7 @@ describe("createQuickControls — express motion section", () => {
   it("clicking a fully-on master turns the whole group off", () => {
     qc = build();
     qc.open();
-    masters()[1]!.click();
+    act(() => masters()[1]!.click());
     expect(expressMotionSettings.get().disabled).toEqual(["idle_lively", "dance"]);
     expect(masters()[1]!.getAttribute("aria-checked")).toBe("false");
   });
@@ -163,7 +168,7 @@ describe("createQuickControls — express motion section", () => {
     expressMotionSettings.setEnabled("dance", false);
     qc.open();
     expect(masters()[1]!.getAttribute("aria-checked")).toBe("mixed");
-    masters()[1]!.click();
+    act(() => masters()[1]!.click());
     expect(expressMotionSettings.get().disabled).toEqual([]);
     expect(masters()[1]!.getAttribute("aria-checked")).toBe("true");
   });
@@ -171,7 +176,7 @@ describe("createQuickControls — express motion section", () => {
   it("the master switch leaves other groups alone", () => {
     qc = build();
     qc.open();
-    masters()[0]!.click();
+    act(() => masters()[0]!.click());
     expect(expressMotionSettings.get().disabled).not.toContain("dance");
     expect(masters()[1]!.getAttribute("aria-checked")).toBe("true");
   });
@@ -180,11 +185,10 @@ describe("createQuickControls — express motion section", () => {
     qc = build();
     qc.open();
     expand(1);
-    expressMotionSettings.setEnabled("dance", false);
+    act(() => expressMotionSettings.setEnabled("dance", false));
+    // The Motion tab is not the selected one, so the query includes hidden elements.
     expect(
-      rowSwitches()
-        .find((s) => s.dataset.motion === "dance")!
-        .getAttribute("aria-checked"),
+      within(qc.el).getByRole("switch", { name: "춤", hidden: true }).getAttribute("aria-checked"),
     ).toBe("false");
   });
 

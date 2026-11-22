@@ -56,6 +56,7 @@ export function createExpressMotionSettings(opts?: { storage?: ExpressMotionStor
 
   return {
     get: core.get,
+    current: core.current as () => Readonly<ExpressMotionSettings>,
 
     setEnabled(id: string, enabled: boolean): void {
       setAllEnabled([id], enabled);
