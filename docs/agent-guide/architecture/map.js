@@ -4470,7 +4470,7 @@ globalThis.YUI_MAP =
       "id": "conversation-controls",
       "from": "io/chat/conversation",
       "to": "ui/quick-controls",
-      "carries": "sessions() and signal records → History tab; session diagnostics → Session section",
+      "carries": "transcript items, signal records and session diagnostics, read as current() → History page and its Session section",
       "kind": "call",
       "transport": "shared"
     },

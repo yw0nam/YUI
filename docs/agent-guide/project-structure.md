@@ -741,8 +741,6 @@ YUI/
             quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
         cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
-        delegations/                 # Delegated-work refresh for the session section
-          delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         preset/                      # Preset strip above the rail
           preset-strip.ts            # The character header that picks the preset to edit (`?edit=`), the edited preset's note, the page scope lines and the rail's character heading it fills
           character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
@@ -767,12 +765,24 @@ YUI/
             help-section.tsx         # One Ask button per bundled guide
           user-name/
             user-name-row.tsx        # The device-wide user name field, its fallback placeholder, and the blur that settles on the stored name
-        history/                     # History page and its session accordion section
+        history/                     # The History page, rendered with React
+          history-page.ts            # The page's facade: its React root, the start-fresh reset, and the open hook that re-reads every source
+          history-page-view.tsx      # The session list and its footnote, the start-fresh row, then the Session section
+          history-ports.ts           # What the page reads from the transcript, the signal records, the session diagnostics and the push socket, each redrawing only while the panel is open
+          session-list.tsx           # The session accordion: one group per session, the running one open by default
+          turn-row.tsx               # One turn: who spoke, what was said, when, and the source lines of its signals
+          history-time.ts            # The wall-clock time of a turn and the start of a session
+          start-fresh.tsx            # The start-fresh row and its two-step confirm
           character-name.ts          # The edited character's name: its preset's, or its card's while the built-in preset is unnamed
-          history-tab.ts             # The History page's session list, with its start-fresh row
-          history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
+          session/                   # The Session section: the context readout and the delegated work
+            session-readout.tsx      # The context-occupancy readout and meter, and the delegated list with its lost line
+            delegated-rows.tsx       # Mounts the delegation rows the pet window's chip also draws
+            session-section.css      # Session context-occupancy readout and meter styles
+          delegations/               # The delegated list's sync, which lives with the panel and not with the page
+            delegation-feed.ts       # The list's subscription and minute refresh, and the version a page reads to redraw
+            delegation-sync.ts       # Minute refresh timer that follows the running delegated items
         listening/                   # The Listening page, rendered with React
           listening-page.ts          # The page's facade: its React root, and the STT draft it commits on close and dispose
           listening-page-view.tsx    # The voice switch, the STT key row, the silence slider, the barge-in and bubble switches, and the reading dictionary
@@ -826,9 +836,6 @@ YUI/
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
-          session/                   # Settings-window context readout and delegated-work list
-            session-section.ts       # Readout, delegated list, their subscriptions, redraws and minute refresh
-            session-section.css      # Session context-occupancy readout and meter styles
           screen/                    # Screen-watch threshold knobs
             screen-section.ts        # Screen-watch threshold knobs and their redraw
           reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and rate-limit cap rows
