@@ -300,6 +300,21 @@ describe("createQuickControls — card section", () => {
     expect(field("name").getAttribute("aria-invalid")).toBe("false");
   });
 
+  it("commits the name on change only, never on input", () => {
+    const rename = vi.spyOn(registry, "rename");
+    const updateCard = vi.spyOn(agentSettings, "updateCard");
+    build();
+    const name = field("name");
+    fireEvent.input(name, { target: { value: "Mio" } });
+    expect([
+      rename.mock.calls.length,
+      updateCard.mock.calls.length,
+      name.getAttribute("aria-invalid"),
+    ]).toEqual([0, 0, null]);
+    fireEvent.change(name, { target: { value: "Mio" } });
+    expect(updateCard).toHaveBeenCalledWith({ name: "Mio" }, persona.cards.en);
+  });
+
   it("writes the card name for the unnamed built-in preset", () => {
     const rename = vi.spyOn(registry, "rename");
     const updateCard = vi.spyOn(agentSettings, "updateCard");
