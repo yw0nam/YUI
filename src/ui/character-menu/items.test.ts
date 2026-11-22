@@ -79,3 +79,17 @@ it.each([
   expect(items.filter((i) => i.on).map((i) => i.id)).toEqual([current]);
   expect(items.filter((i) => i.role === "choice").map((i) => i.label)).toEqual(labels);
 });
+
+it("names the Settings, Back and More… pills by what they do", () => {
+  const aria = (items: { id: string; aria?: string }[], id: string) =>
+    items.find((i) => i.id === id)?.aria;
+
+  expect(aria(topItems("main", state()).right, "settings")).toBe(
+    "Settings, opens the settings window",
+  );
+  expect(aria(listItems("body", "main", state()), "back")).toBe("Back to the menu");
+  expect(aria(listItems("body", "main", state()), "body-more")).toBe("More bodies, opens Settings");
+  expect(aria(listItems("voice", "main", state()), "voice-more")).toBe(
+    "More voices, opens Settings",
+  );
+});

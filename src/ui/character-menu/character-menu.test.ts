@@ -199,3 +199,18 @@ it("runs a closing pick even when the window fails to restore", async () => {
   await vi.waitFor(() => expect(actions.settings).toHaveBeenCalledOnce());
   expect(menu.isOpen()).toBe(false);
 });
+
+it("names the inline confirm by the pick it confirms", async () => {
+  const { menu } = build();
+  await menu.open();
+  click("more");
+
+  click("reset");
+
+  const sure = mount.querySelector(".yui-cmenu__sure");
+  expect(mount.querySelector(".yui-cmenu__confirm")?.getAttribute("aria-label")).toBe(
+    "Reset chat?",
+  );
+  expect(sure?.getAttribute("aria-label")).toBe("Sure? Reset chat");
+  expect(sure?.querySelector("svg")).not.toBeNull();
+});
