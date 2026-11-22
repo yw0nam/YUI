@@ -1,7 +1,4 @@
-/**
- * The Listening page: the voice switch, the STT key, the silence threshold, barge-in, the speech
- * bubble row and the reading dictionary.
- */
+/** The Listening page: the voice switch, the STT key, the silence threshold, barge-in, the bubble row and the reading dictionary. */
 
 import { type ReactNode, useSyncExternalStore } from "react";
 import type { Logger } from "../../../logger";

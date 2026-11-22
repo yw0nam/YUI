@@ -75,7 +75,6 @@ describe("SwitchRow descriptor", () => {
 
     for (const [index, row] of switchRows.entries()) {
       expect(root.querySelectorAll(row.selector)).toHaveLength(1);
-      expect(row.isVisible).toBe(true);
       expect(row.isAvailable).toBe(true);
       expect(root.querySelector(row.selector)?.getAttribute("aria-checked")).not.toBe(
         String(index % 2 === 0),

@@ -30,11 +30,12 @@ function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
   const voiceStatus = createVoiceInputStatus();
   const vad = createVadSettings({ storage: { load: () => null, save: () => {} } });
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
+  const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
   const page = createListeningPage({
     showVoiceInput,
     voiceStatus,
     vad,
-    sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+    sttKeySettings,
     readingsSettings: createReadingsSettings({
       storage: { load: () => ({ text: "" }), save: () => {} },
     }),
@@ -46,7 +47,9 @@ function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
     page,
     voiceStatus,
     vad,
+    sttKeySettings,
     voiceSwitch: page.el.querySelector<HTMLButtonElement>(".yui-voice-switch"),
+    keyInput: page.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!,
     slider: page.el.querySelector<HTMLInputElement>(".yui-vad__slider")!,
   };
 }
@@ -150,6 +153,46 @@ describe("createListeningPage — voice silence slider", () => {
     const slider = sliderOf(page);
     fireEvent.input(slider, { target: { value: "2000" } });
     expect(vad.get().silenceMs).toBe(2000);
+  });
+});
+
+describe("createListeningPage — STT key row", () => {
+  it("holds a typed draft until blur, then shows the stored, trimmed value", () => {
+    const { sttKeySettings, keyInput } = build();
+
+    fireEvent.input(keyInput, { target: { value: " sk-a " } });
+    expect(sttKeySettings.get().apiKey).toBe("");
+
+    fireEvent.blur(keyInput);
+    expect(sttKeySettings.get().apiKey).toBe("sk-a");
+    expect(keyInput.value).toBe("sk-a");
+  });
+
+  it("commits a typed draft on close, and another on dispose", () => {
+    const { page, sttKeySettings, keyInput } = build();
+
+    fireEvent.input(keyInput, { target: { value: "sk-close" } });
+    act(() => page.close());
+    expect(sttKeySettings.get().apiKey).toBe("sk-close");
+
+    fireEvent.input(keyInput, { target: { value: "sk-dispose" } });
+    close(page);
+    expect(sttKeySettings.get().apiKey).toBe("sk-dispose");
+  });
+
+  it("shows the revealed key and keeps it showing across an unrelated re-render", () => {
+    const { page, vad, keyInput } = build();
+    const toggle = page.el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+    const bargeIn = page.el.querySelector<HTMLButtonElement>(".yui-bargein-switch")!;
+
+    act(() => toggle.click());
+    expect(keyInput.type).toBe("text");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+
+    act(() => bargeIn.click());
+    expect(vad.get().bargeIn).toBe(false);
+    expect(keyInput.type).toBe("text");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
   });
 });
 

@@ -1,14 +1,10 @@
-/**
- * The STT key row: the masked input, its reveal and clear buttons, and the sub line naming whether
- * an override is set. Typing commits nothing; blur, close or dispose does.
- */
+/** The STT key row: the masked input, its reveal and clear buttons, and the sub line naming whether an override is set. */
 
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Logger } from "../../../../logger";
 import type { ApiKeySettingsStore } from "../../../../settings/backend/api-key-settings";
 import { t } from "../../../i18n";
 import { CHATKEY_CLEAR_SVG, CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG } from "../../constants";
-import { toggleKeyReveal } from "../../sections/key-row/key-row";
 
 const ID_PREFIX = "sttkey";
 
@@ -28,7 +24,6 @@ export function SttKeyRow({
 }) {
   const apiKey = useSyncExternalStore(store.subscribe, () => store.current().apiKey);
   const inputRef = useRef<HTMLInputElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
   const dirty = useRef(false);
   const [revealed, setRevealed] = useState(false);
 
@@ -71,11 +66,7 @@ export function SttKeyRow({
   }
 
   function handleToggle(): void {
-    const input = inputRef.current;
-    const button = toggleRef.current;
-    if (!input || !button) return;
-    toggleKeyReveal(input, button, ID_PREFIX);
-    setRevealed(button.getAttribute("aria-pressed") === "true");
+    setRevealed((shown) => !shown);
   }
 
   function handleClear(): void {
@@ -112,7 +103,6 @@ export function SttKeyRow({
         />
         <button
           className="yui-iconbtn yui-chatkey__toggle"
-          ref={toggleRef}
           type="button"
           aria-pressed={revealed}
           aria-label={revealLabel}

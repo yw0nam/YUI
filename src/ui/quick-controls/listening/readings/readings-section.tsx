@@ -1,7 +1,4 @@
-/**
- * The reading dictionary of the Listening page: the textarea, its edits, and the line that names
- * skipped lines.
- */
+/** The reading dictionary of the Listening page: the textarea, its edits, and the line that names skipped lines. */
 
 import { type FormEvent, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { parseReadings } from "../../../../io/voice/tts/readings";
