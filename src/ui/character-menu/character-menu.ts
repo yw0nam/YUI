@@ -1,6 +1,7 @@
 /** The Character menu: two pill columns beside her in the pet window, their lists swapped in place. */
 
 import "./character-menu.css";
+import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
@@ -41,6 +42,8 @@ export interface MenuActions {
   reset(): void;
   turnOff(): void;
 }
+
+const log = createLogger("character-menu");
 
 /** A pill row's pitch: 36px tall plus the 8px gap; the stylesheet sets the same. */
 const ROW_PX = 44;
@@ -240,7 +243,7 @@ export function createCharacterMenu(deps: {
     if (parent) show(null, parent);
   }
 
-  /** Closes, then runs `after` once the window is restored. */
+  /** Closes, then runs `after` once the window is restored, or failed to. */
   function closeThen(after: () => void): void {
     void close().then(after);
   }
@@ -375,6 +378,16 @@ export function createCharacterMenu(deps: {
     void close();
   }
 
+  /** Restores the window; a failed restore still leaves the menu closed, and close() never rejects. */
+  function settle(): Promise<void> {
+    return deps
+      .restore()
+      .catch((err) => log.warn("restore_failed", { error: String(err) }))
+      .finally(() => {
+        phase = "closed";
+      });
+  }
+
   async function open(): Promise<void> {
     if (phase !== "closed") return;
     phase = "opening";
@@ -396,9 +409,7 @@ export function createCharacterMenu(deps: {
       }
       // Closed while the window widened: put it back at once.
       if (phase !== "opening") {
-        await deps.restore().finally(() => {
-          phase = "closed";
-        });
+        await settle();
         return;
       }
       placement = placed;
@@ -418,9 +429,7 @@ export function createCharacterMenu(deps: {
     phase = "closing";
     root.hidden = true;
     root.replaceChildren();
-    pending = deps.restore().finally(() => {
-      phase = "closed";
-    });
+    pending = settle();
     return pending;
   }
 
