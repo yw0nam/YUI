@@ -877,9 +877,9 @@ YUI/
           workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
-        switches/                    # Switch rows, for the pages that have not moved to React, and the React row the Voice and Together pages share
+        switches/                    # Switch rows, for the pages that have not moved to React, and the React row the Voice, Together and Motion pages share
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
-          descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: for the pages rendered with React: the Together, Motion and Voice rows, with the lock and its reason
+          descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion and Voice rows
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       controls/                      # Shared React controls; the slider and the checkbox build on Base UI
