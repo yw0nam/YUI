@@ -1,6 +1,6 @@
 /** The Active hours editor: the span rows, the add action, and Reset to default; any edit writes the whole list. */
 
-import { type ChangeEvent, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import type { PersonaConfig } from "../../../../config/validators/persona/types";
 import type { Logger } from "../../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../../settings/active-hours/active-hours-settings";
@@ -30,32 +30,46 @@ export function ActiveHoursSection({
     () => agentSettings.current().card,
   );
   const spans = spansInUse(edited, userCard ?? getPersona?.()?.cards[getLocale()]);
+  const sec = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
 
   // The whole row list is one edit: read every row, write one setSpans.
-  function commit(skip?: HTMLElement): void {
-    const rows = [
-      ...(list.current?.querySelectorAll<HTMLElement>(".yui-hours__span") ?? []),
-    ].filter((row) => row !== skip);
-    const next: Span[] = [];
-    for (const row of rows) {
-      const [start, end] = row.querySelectorAll<HTMLInputElement>(".yui-time-input");
-      if (!TIME_RE.test(start.value) || !TIME_RE.test(end.value)) return;
-      next.push({
-        start: start.value,
-        end: end.value,
-        pace: row.querySelector<HTMLSelectElement>(".yui-hours__pace")!.value as Pace,
-      });
-    }
-    store.setSpans(next);
-  }
+  const commit = useCallback(
+    (skip?: HTMLElement): void => {
+      const rows = [
+        ...(list.current?.querySelectorAll<HTMLElement>(".yui-hours__span") ?? []),
+      ].filter((row) => row !== skip);
+      const next: Span[] = [];
+      for (const row of rows) {
+        const [start, end] = row.querySelectorAll<HTMLInputElement>(".yui-time-input");
+        if (!TIME_RE.test(start.value) || !TIME_RE.test(end.value)) return;
+        next.push({
+          start: start.value,
+          end: end.value,
+          pace: row.querySelector<HTMLSelectElement>(".yui-hours__pace")!.value as Pace,
+        });
+      }
+      store.setSpans(next);
+    },
+    [store],
+  );
 
-  function onChange(e: ChangeEvent<HTMLDivElement>): void {
-    if ((e.target as HTMLElement).matches(".yui-time-input, .yui-hours__pace")) commit();
-  }
+  const onChange = useCallback(
+    (e: Event): void => {
+      if ((e.target as HTMLElement).matches(".yui-time-input, .yui-hours__pace")) commit();
+    },
+    [commit],
+  );
+
+  useEffect(() => {
+    const el = sec.current;
+    if (!el) return;
+    el.addEventListener("change", onChange);
+    return () => el.removeEventListener("change", onChange);
+  }, [onChange]);
 
   return (
-    <div className="yui-sec yui-hours" onChange={onChange}>
+    <div className="yui-sec yui-hours" ref={sec}>
       <div className="yui-sec__head">
         <h2 className="yui-sec__title">{t("active_hours.label")}</h2>
         <button
