@@ -61,8 +61,9 @@ describe("SwitchRow descriptor", () => {
   });
 
   it("renders and reflects every visible, available descriptor entry", () => {
+    // The Listening and Together pages render their rows in React, so the template holds the rest.
     const switchRows = makeSwitchRows()
-      .filter((row) => row.isVisible)
+      .filter((row) => row.isVisible && row.tab !== "listening" && row.tab !== "together")
       .map((row, index) => ({
         ...row,
         initialEnabled: index % 2 !== 0,
@@ -85,25 +86,6 @@ describe("SwitchRow descriptor", () => {
         String(index % 2 === 0),
       );
     }
-  });
-
-  it("puts the Unified chat row in the Together page, off, and a click flips its store", () => {
-    const unifiedChatSwitch = createFlagSettings(false);
-    const rows = createSwitchRows({
-      idleThrottleSettings: createFlagSettings(true),
-      fillerSettings: createFillerSettings(),
-      unifiedChatSwitch,
-    });
-    const root = render(rows);
-    const button = root.querySelector<HTMLButtonElement>(".yui-unified-switch");
-
-    expect(button?.closest("[role=tabpanel]")?.id).toBe("yui-panel-together");
-    expect(button?.getAttribute("aria-checked")).toBe("false");
-
-    const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });
-    button?.click();
-    expect(unifiedChatSwitch.get().enabled).toBe(true);
-    bound.dispose();
   });
 
   it("puts the Thread reactions row in the Threads group with Thread turns, on, and a click flips its store", () => {

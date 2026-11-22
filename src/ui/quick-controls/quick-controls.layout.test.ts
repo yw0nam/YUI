@@ -571,6 +571,23 @@ describe("createQuickControls — Reactions tab layout", () => {
     ]);
     qc.dispose();
   });
+
+  it("shows the chain cap's config default while no cap is overridden", () => {
+    const { qc } = buildRateQc();
+    qc.open();
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-rate-addressed")!.value).toBe("2");
+    qc.dispose();
+  });
+
+  it("commits the chain cap on change on the Together page", () => {
+    const { rateLimitSettings, qc } = buildRateQc();
+    qc.open();
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-addressed")!;
+    input.value = "5";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(rateLimitSettings.get().addressed_chain_max).toBe(5);
+    qc.dispose();
+  });
 });
 
 describe("createQuickControls — cue-list tab layout", () => {

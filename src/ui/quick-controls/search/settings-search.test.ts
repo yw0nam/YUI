@@ -101,6 +101,32 @@ it.each([
   qc.dispose();
 });
 
+it("matches the cap reason only on the row that shows it", () => {
+  localStorage.setItem(
+    "yui.presets",
+    JSON.stringify({
+      active: "aaaa0001",
+      list: ["aaaa0001", "bbbb0002", "cccc0003", "dddd0004", "eeee0005"].map((id, i) => ({
+        id,
+        name: ["natsume", "perlica", "shino", "klukai", "carlotta"][i],
+      })),
+    }),
+  );
+  localStorage.setItem(
+    "yui.windows",
+    JSON.stringify({ open: ["default", "bbbb0002", "cccc0003", "dddd0004"] }),
+  );
+  const { qc, search, count } = build();
+
+  search("Turn one off first");
+
+  expect(count("together")).toBe("1");
+  qc.dispose();
+  // The seeded storage stays out of the later cases.
+  localStorage.removeItem("yui.presets");
+  localStorage.removeItem("yui.windows");
+});
+
 it("finds Detailed settings rows while Quick start shows, and brings Detailed settings into view", () => {
   const { qc, search, count } = build(true);
   const detail = qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="detail"]')!;

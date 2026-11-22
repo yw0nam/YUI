@@ -1,5 +1,5 @@
 /**
- * Reactions section — owns the agent-port, presence, pacer-gap, and rate-limit cap inputs.
+ * Reactions section — owns the agent-port, presence, pacer-gap, and the Proactive rate-limit cap inputs.
  * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
@@ -18,7 +18,7 @@ import type { ThreadReactionThresholdsSettingsStore } from "../../../../settings
 import type { ThreadTurnsSettingsStore } from "../../../../settings/threads/thread-turns-settings";
 import { t } from "../../../i18n";
 import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
-import { RATE_LIMIT_FIELDS } from "../../constants";
+import { PROACTIVE_CAP_FIELDS } from "../../constants";
 import { createThreadReactionThresholdsRow } from "./thread-reaction-thresholds-row";
 import { createThreadTurnsRow } from "./thread-turns-row";
 
@@ -26,7 +26,7 @@ type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 
 interface ReactionsSectionDeps {
   boundId?: string | null;
-  /** Panel root (el) — query the agent-port, presence, pacer-gap, and cap inputs here. */
+  /** Panel root (el) — query the agent-port, presence, pacer-gap, and Proactive cap inputs here. */
   root: HTMLElement;
   /** Agent notification settings — the agent-port row's store. Absent when the section isn't rendered. */
   agentNotifySettings?: AgentNotifySettingsStore;
@@ -78,7 +78,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
   const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
-  for (const field of RATE_LIMIT_FIELDS) {
+  for (const field of PROACTIVE_CAP_FIELDS) {
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) rateLimitInputs.set(field.key, input);
   }
@@ -108,7 +108,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     if (!rateLimitSettings) return;
     const overrides = rateLimitSettings.get();
     const defaults = getRateLimitDefaults?.();
-    for (const field of RATE_LIMIT_FIELDS) {
+    for (const field of PROACTIVE_CAP_FIELDS) {
       const input = rateLimitInputs.get(field.key);
       if (!input) continue;
       const effective =
@@ -171,7 +171,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   function handleRateLimitChange(e: Event): void {
     const input = e.target;
     if (!rateLimitSettings || !(input instanceof HTMLInputElement)) return;
-    const key = RATE_LIMIT_FIELDS.find((f) => f.id === input.id)?.key;
+    const key = PROACTIVE_CAP_FIELDS.find((f) => f.id === input.id)?.key;
     if (!key) return;
     rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
     reflectRateLimits();

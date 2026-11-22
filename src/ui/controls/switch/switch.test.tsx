@@ -35,7 +35,7 @@ describe("Switch", () => {
     const { getByRole, rerender } = render(
       <Switch checked={false} label="Attach" disabled onCheckedChange={onCheckedChange} />,
     );
-    const sw = getByRole("switch", { name: "Attach" });
+    const sw = getByRole("switch", { name: "Attach" }) as HTMLButtonElement;
     expect(sw.disabled).toBe(true);
 
     fireEvent.click(sw);

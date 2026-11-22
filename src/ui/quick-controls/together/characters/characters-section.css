@@ -3,7 +3,7 @@
   gap: 0.75rem;
 }
 
-.yui-chars__row.is-off .yui-row__label {
+.yui-chars__row[data-off] .yui-row__label {
   color: var(--yui-text-dim);
 }
 
