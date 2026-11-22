@@ -911,7 +911,6 @@ YUI/
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
-      window_dock.rs                 # Runs a closure on a window's NSWindow on the main thread (macOS)
       threads_window.rs              # The Threads window's native window number, and threads_order_front: an order-front that takes no focus
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture

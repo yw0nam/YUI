@@ -13,7 +13,7 @@ pub(crate) fn window_number<R: Runtime>(app: &AppHandle<R>) -> Option<u32> {
     let window = app.get_webview_window(LABEL)?;
     #[cfg(target_os = "macos")]
     {
-        crate::window_dock::macos::with_ns_window(&window, |ns, _| Ok(ns.windowNumber()))
+        with_ns_window(&window, |ns| Ok(ns.windowNumber()))
             .ok()
             .filter(|n| *n > 0)
             .map(|n| n as u32)
@@ -46,7 +46,7 @@ pub fn threads_order_front<R: Runtime>(app: AppHandle<R>) -> Result<(), String> 
 
 #[cfg(target_os = "macos")]
 fn order_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
-    crate::window_dock::macos::with_ns_window(window, |ns, _| {
+    with_ns_window(window, |ns| {
         ns.orderFrontRegardless();
         Ok(())
     })
@@ -77,4 +77,34 @@ fn order_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())
     }
+}
+
+/// Runs `f` on the main thread with the window's NSWindow, blocking until it returns.
+#[cfg(target_os = "macos")]
+fn with_ns_window<R: Runtime, T: Send + 'static>(
+    window: &WebviewWindow<R>,
+    f: impl FnOnce(&objc2_app_kit::NSWindow) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::NSWindow;
+    use std::sync::mpsc;
+
+    let run = |w: &WebviewWindow<R>| -> Result<T, String> {
+        let ptr = w.ns_window().map_err(|e| e.to_string())?;
+        // SAFETY: on the main thread (checked or hopped to below), `ptr` is the live
+        // NSWindow* of `w`, valid for the duration of this call.
+        let ns = unsafe { &*(ptr as *const NSWindow) };
+        f(ns)
+    };
+    if MainThreadMarker::new().is_some() {
+        return run(window);
+    }
+    let (tx, rx) = mpsc::channel();
+    let on_main = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let _ = tx.send(run(&on_main));
+        })
+        .map_err(|e| e.to_string())?;
+    rx.recv().map_err(|e| e.to_string())?
 }
