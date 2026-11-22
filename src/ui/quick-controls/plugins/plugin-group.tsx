@@ -9,11 +9,10 @@ import { HiddenNote, ServerLine, ToolItems } from "./plugin-lines";
 import {
   Badge,
   CHEV_ICON,
-  type EnterRef,
   ErrLine,
+  KeyedBlock,
   SOURCES,
   Spinner,
-  useKeyedEnter,
   Version,
 } from "./plugin-parts";
 import type { PluginsState } from "./plugins-state";
@@ -24,16 +23,7 @@ function countLabel(plugin: PluginHostPlugin): string {
     : t("plugins.tools_n", { n: plugin.tools.length });
 }
 
-function LogBox({
-  plugin,
-  state,
-  animate,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-  animate: EnterRef;
-}) {
-  const ref = useKeyedEnter(animate);
+function LogBox({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const ui = state.uiOf(plugin.id);
   const log = ui.log;
   let body: ReactNode = null;
@@ -41,7 +31,7 @@ function LogBox({
   if (log && "error" in log) body = <ErrLine lead={t("plugins.err_log")} message={log.error} />;
   else if (log?.lines.length) {
     body = (
-      // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the log block's name for screen readers
+      // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the log block keeps its markup, with no role added here
       <pre className="yui-plg-log" aria-label={t("plugins.log_aria", { id: plugin.id })}>
         {log.lines.join("\n")}
       </pre>
@@ -49,7 +39,7 @@ function LogBox({
     count = t("plugins.log_lines", { n: log.lines.length });
   } else if (log) body = <p className="yui-plg-log__foot">{t("plugins.log_empty")}</p>;
   return (
-    <div className="yui-plg-logbox" ref={ref}>
+    <KeyedBlock className="yui-plg-logbox">
       {body}
       <span className="yui-plg-log__foot">
         {count}
@@ -57,29 +47,21 @@ function LogBox({
           {t("plugins.log_folder")}
         </button>
       </span>
-      {ui.revealError ? <ErrLine lead={t("plugins.err_reveal")} message={ui.revealError} /> : null}
-    </div>
+      {ui.revealError ? (
+        <ErrLine lead={t("plugins.err_reveal")} message={ui.revealError} />
+      ) : null}
+    </KeyedBlock>
   );
 }
 
-function RemoveConfirm({
-  plugin,
-  state,
-  animate,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-  animate: EnterRef;
-}) {
-  const ref = useKeyedEnter(animate);
+function RemoveConfirm({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const cancel = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     cancel.current?.focus({ preventScroll: true });
   }, []);
   const source = SOURCES[plugin.source];
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the confirm row the page's own CSS places
-    <div className="yui-confirm" ref={ref} role="group">
+    <KeyedBlock className="yui-confirm" role="group">
       <span className="yui-confirm__q">{t(source.confirm, { id: plugin.id })}</span>
       <button
         ref={cancel}
@@ -92,22 +74,17 @@ function RemoveConfirm({
       <button className="yui-pill yui-pill--go" type="button" onClick={() => state.rmGo(plugin.id)}>
         {t(source.confirmGo)}
       </button>
-    </div>
+    </KeyedBlock>
   );
 }
 
 export function PluginGroup({
   plugin,
   state,
-  animate,
 }: {
   plugin: PluginHostPlugin;
   state: PluginsState;
-  animate: EnterRef;
 }) {
-  const groupRef = useKeyedEnter(animate);
-  const reapRef = useKeyedEnter(animate);
-  const toolsRef = useKeyedEnter(animate);
   const ui = state.uiOf(plugin.id);
   const flow = ui.flow;
   const busy = !!ui.updating;
@@ -133,7 +110,7 @@ export function PluginGroup({
   ) : null;
 
   return (
-    <div className="yui-group" data-pid={plugin.id} ref={groupRef}>
+    <KeyedBlock className="yui-group" data-pid={plugin.id}>
       <div className="yui-row">
         <div className="yui-row__main">
           <span className="yui-row__label">
@@ -159,7 +136,7 @@ export function PluginGroup({
       ) : (
         <>
           {awaitsReapproval && !flow ? (
-            <div className="yui-plg-reap" ref={reapRef}>
+            <KeyedBlock className="yui-plg-reap">
               <p>{t("plugins.reapprove_note")}</p>
               <button
                 className="yui-pill yui-pill--ok"
@@ -169,7 +146,7 @@ export function PluginGroup({
               >
                 {t("plugins.reapprove")}
               </button>
-            </div>
+            </KeyedBlock>
           ) : null}
           {flow ? (
             <ConsentPanel
@@ -177,7 +154,6 @@ export function PluginGroup({
               plugin={plugin}
               flow={flow}
               state={state}
-              animate={animate}
             />
           ) : null}
           {!flow ? (
@@ -189,11 +165,10 @@ export function PluginGroup({
                       server={server}
                       busy={busy}
                       onRetry={(serverId) => state.retry(plugin.id, serverId)}
-                      animate={animate}
                     />
                   ))
                 : null}
-              <HiddenNote plugin={plugin} animate={animate} />
+              {plugin.hidden.length ? <HiddenNote plugin={plugin} /> : null}
               {plugin.tools.length || plugin.skills.length ? (
                 <>
                   <button
@@ -206,9 +181,9 @@ export function PluginGroup({
                     {countLabel(plugin)}
                   </button>
                   {ui.toolsOpen ? (
-                    <div ref={toolsRef}>
+                    <KeyedBlock>
                       <ToolItems plugin={plugin} />
-                    </div>
+                    </KeyedBlock>
                   ) : null}
                 </>
               ) : null}
@@ -217,7 +192,7 @@ export function PluginGroup({
         </>
       )}
       {ui.confirm ? (
-        <RemoveConfirm plugin={plugin} state={state} animate={animate} />
+        <RemoveConfirm plugin={plugin} state={state} />
       ) : (
         <>
           <div className="yui-row yui-row--action">
@@ -261,9 +236,9 @@ export function PluginGroup({
               />
             </div>
           ) : null}
-          {ui.logOpen ? <LogBox plugin={plugin} state={state} animate={animate} /> : null}
+          {ui.logOpen ? <LogBox plugin={plugin} state={state} /> : null}
         </>
       )}
-    </div>
+    </KeyedBlock>
   );
 }

@@ -1,6 +1,6 @@
 /** Markup pieces the Plugins page's sections share. */
 
-import { type ReactNode, type RefObject, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, createContext, useContext, useLayoutEffect, useRef } from "react";
 import type { PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
 
@@ -205,14 +205,39 @@ export function withSlot(
   );
 }
 
-/** Set after the page's first commit; a keyed block that mounts later reads it to fade in. */
-export type EnterRef = RefObject<boolean>;
+/** Set after the page's first commit; a block that mounts later reads it to fade in. */
+const EnterOnMount = createContext<RefObject<boolean>>({ current: false });
 
-/** Adds the fade-in once, when a block mounts after the page's first commit. */
-export function useKeyedEnter(animate: EnterRef): RefObject<HTMLDivElement | null> {
+export function KeyedEnterProvider({
+  animate,
+  children,
+}: {
+  animate: RefObject<boolean>;
+  children: ReactNode;
+}) {
+  return <EnterOnMount.Provider value={animate}>{children}</EnterOnMount.Provider>;
+}
+
+/** One block of the page, faded in when it mounts after the page's first commit. */
+export function KeyedBlock({
+  className,
+  children,
+  ...rest
+}: {
+  className?: string;
+  "data-pid"?: string;
+  role?: string;
+  "aria-label"?: string;
+  children?: ReactNode;
+}) {
+  const animate = useContext(EnterOnMount);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (animate.current) ref.current?.classList.add("yui-keyed-enter");
   }, [animate]);
-  return ref;
+  return (
+    <div ref={ref} className={className} {...rest}>
+      {children}
+    </div>
+  );
 }

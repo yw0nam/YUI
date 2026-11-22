@@ -3,8 +3,8 @@
 import type { PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
 import { HiddenNote, ServerLine, ToolItems } from "./plugin-lines";
-import { Badge, type EnterRef, SHIELD_ICON, SOURCES, Spinner, useKeyedEnter } from "./plugin-parts";
-import type { PluginsState, PluginUi } from "./plugins-state";
+import { Badge, KeyedBlock, SHIELD_ICON, SOURCES, Spinner } from "./plugin-parts";
+import type { PluginUi, PluginsState } from "./plugins-state";
 
 /** The panel a flow shows once enable has resolved: starting, failed, or step 2. */
 function stepTwoPanel(p: PluginHostPlugin): "starting" | "failed" | "started" {
@@ -53,16 +53,7 @@ function Foot({
   );
 }
 
-function StepOne({
-  plugin,
-  state,
-  animate,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-  animate: EnterRef;
-}) {
-  const ref = useKeyedEnter(animate);
+function StepOne({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const many = plugin.servers.length > 1;
   const { warning } = SOURCES[plugin.source];
   const question =
@@ -70,10 +61,8 @@ function StepOne({
       ? t("plugins.consent_q_reapprove")
       : t("plugins.consent_q", { id: plugin.id });
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the consent panel the page's own CSS places
-    <div
+    <KeyedBlock
       className="yui-plg-consent"
-      ref={ref}
       role="group"
       aria-label={t("plugins.consent_aria", { id: plugin.id })}
     >
@@ -126,41 +115,27 @@ function StepOne({
         <button className="yui-pill" type="button" onClick={() => state.cancel(plugin.id)}>
           {t("plugins.cancel")}
         </button>
-        <button
-          className="yui-pill yui-pill--ok"
-          type="button"
-          onClick={() => state.allow(plugin.id)}
-        >
+        <button className="yui-pill yui-pill--ok" type="button" onClick={() => state.allow(plugin.id)}>
           {t("plugins.allow")}
         </button>
       </div>
-    </div>
+    </KeyedBlock>
   );
 }
 
-function Starting({ animate }: { animate: EnterRef }) {
-  const ref = useKeyedEnter(animate);
+function Starting() {
   return (
-    <div className="yui-plg-consent" ref={ref}>
+    <KeyedBlock className="yui-plg-consent">
       <Step n={2} />
       <div className="yui-plg-wait" role="status">
         <Spinner />
         {t("plugins.starting")}
       </div>
-    </div>
+    </KeyedBlock>
   );
 }
 
-function Started({
-  plugin,
-  state,
-  animate,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-  animate: EnterRef;
-}) {
-  const ref = useKeyedEnter(animate);
+function Started({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   const any = plugin.tools.length || plugin.skills.length;
   const question = !any
     ? t("plugins.started_none")
@@ -168,37 +143,24 @@ function Started({
       ? t("plugins.started_both", { n: plugin.tools.length, m: plugin.skills.length })
       : t("plugins.started_tools", { n: plugin.tools.length });
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the consent panel the page's own CSS places
-    <div
+    <KeyedBlock
       className="yui-plg-consent"
-      ref={ref}
       role="group"
       aria-label={t("plugins.step2_aria", { id: plugin.id })}
     >
       <Step n={2} />
       <p className="yui-plg-consent__q">{question}</p>
       {any ? <ToolItems plugin={plugin} /> : null}
-      <HiddenNote plugin={plugin} animate={animate} />
+      {plugin.hidden.length ? <HiddenNote plugin={plugin} /> : null}
       <Foot id={plugin.id} state={state} note="plugins.backend_decides" okKey="plugins.ok" />
-    </div>
+    </KeyedBlock>
   );
 }
 
-function Failed({
-  plugin,
-  state,
-  animate,
-}: {
-  plugin: PluginHostPlugin;
-  state: PluginsState;
-  animate: EnterRef;
-}) {
-  const ref = useKeyedEnter(animate);
+function Failed({ plugin, state }: { plugin: PluginHostPlugin; state: PluginsState }) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the consent panel the page's own CSS places
-    <div
+    <KeyedBlock
       className="yui-plg-consent"
-      ref={ref}
       role="group"
       aria-label={t("plugins.failed_aria", { id: plugin.id })}
     >
@@ -211,12 +173,11 @@ function Failed({
             server={server}
             busy={false}
             onRetry={(serverId) => state.retry(plugin.id, serverId)}
-            animate={animate}
           />
         ))}
       </div>
       <Foot id={plugin.id} state={state} note="plugins.keep_on_note" okKey="plugins.keep_on" />
-    </div>
+    </KeyedBlock>
   );
 }
 
@@ -224,16 +185,14 @@ export function ConsentPanel({
   plugin,
   flow,
   state,
-  animate,
 }: {
   plugin: PluginHostPlugin;
   flow: NonNullable<PluginUi["flow"]>;
   state: PluginsState;
-  animate: EnterRef;
 }) {
-  if (flow === "step1") return <StepOne plugin={plugin} state={state} animate={animate} />;
+  if (flow === "step1") return <StepOne plugin={plugin} state={state} />;
   const panel = flow === "enabling" ? "starting" : stepTwoPanel(plugin);
-  if (panel === "starting") return <Starting animate={animate} />;
-  if (panel === "started") return <Started plugin={plugin} state={state} animate={animate} />;
-  return <Failed plugin={plugin} state={state} animate={animate} />;
+  if (panel === "starting") return <Starting />;
+  if (panel === "started") return <Started plugin={plugin} state={state} />;
+  return <Failed plugin={plugin} state={state} />;
 }

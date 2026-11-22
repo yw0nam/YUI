@@ -3,16 +3,14 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import { t } from "../../i18n";
 import { PluginGroup } from "./plugin-group";
-import { type EnterRef, ErrLine, SectionHead, Spinner } from "./plugin-parts";
+import { ErrLine, SectionHead, Spinner } from "./plugin-parts";
 import type { PluginsState } from "./plugins-state";
 
 export function InstalledSection({
   state,
-  animate,
   onKeyDown,
 }: {
   state: PluginsState;
-  animate: EnterRef;
   onKeyDown(e: KeyboardEvent<HTMLElement>): void;
 }) {
   const plugins = state.snapshot()?.plugins;
@@ -57,7 +55,7 @@ export function InstalledSection({
     );
   else
     body = plugins.map((plugin) => (
-      <PluginGroup key={`${plugin.id}:g`} plugin={plugin} state={state} animate={animate} />
+      <PluginGroup key={plugin.id} plugin={plugin} state={state} />
     ));
   // The snapshot lists only running servers' tools, hidden names already left out.
   const n = plugins?.reduce((sum, plugin) => sum + plugin.tools.length, 0) ?? 0;
