@@ -1,11 +1,10 @@
 /**
- * Shared "user-managed asset list" scaffolding for the VRM and speaker radiogroups:
- * inline rename FSM, delete-file-then-store removal with active-fallback swap, row
- * lookup, roving-tabindex keyboard nav, and the swap orchestration (busy state + error
- * row id); the two-phase import flow lives in `pending-import.ts`. Domain-specific
- * rendering (row markup, refresh/audition, controls-enabled gating of markup) stays in
- * the caller; this module owns only the state + control flow that is identical across
- * domains.
+ * "User-managed asset list" scaffolding of the speaker radiogroup: inline rename FSM,
+ * delete-file-then-store removal with active-fallback swap, row lookup, roving-tabindex
+ * keyboard nav, and the swap orchestration (busy state + error row id); the two-phase
+ * import flow lives in `pending-import.ts`. Domain-specific rendering (row markup,
+ * refresh/audition, controls-enabled gating of markup) stays in the caller. The VRM list
+ * reuses the row glyphs, `resolveRovedId` and `REMOVE_CONFIRM_MS`.
  */
 import "../../row-actions.css";
 import "./user-asset-list.css";
@@ -40,23 +39,21 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   list: () => T[];
   getActiveId: () => string;
   getActive: () => T;
-  /** Renaming-input seed value: opt.label (VRM) vs opt.label ?? opt.id (speaker). */
+  /** Renaming-input seed value: opt.label ?? opt.id (speaker). */
   getLabel: (opt: T) => string;
   rename: (id: string, label: string) => void;
   removeFile: (id: string) => Promise<void>;
   removeFromStore: (id: string) => void;
   /** Perform the actual swap + commit store on success. */
   swap: (option: T) => Promise<void>;
-  /** Predicts the native id a typed name imports under (sanitizeStem for VRM, voiceIdFromName for speaker) — drives the pending-import naming row's overwrite warning (the two-phase pickImport/commitImport path). */
+  /** Predicts the native id a typed name imports under (voiceIdFromName for speaker) — drives the pending-import naming row's overwrite warning. */
   deriveId: (name: string) => string;
   /** An id the import may not take (held elsewhere) — the naming row warns with `${ns}.import_taken_warn` and Enter keeps it open. */
   isImportBlocked?: (id: string) => boolean;
-  /** One-shot import flow (VRM): file select → copy/load → addOption + select. Mutually exclusive with pickImport/commitImport. */
-  importFn?: () => Promise<void>;
   /** Two-phase import pick step (speaker): stages the picked file's copy, returns its staging id + a naming-row seed (null on cancel). */
-  pickImport?: () => Promise<PendingImport | null>;
+  pickImport: () => Promise<PendingImport | null>;
   /** Two-phase import commit step (speaker): uploads the staged copy under the typed name, then addOption + select. */
-  commitImport?: (stagedId: string, name: string) => Promise<void>;
+  commitImport: (stagedId: string, name: string) => Promise<void>;
   /** Domain's full list render — called after any state change that isn't reflected via store subscription. */
   render: () => void;
   /** Per-domain DOM tweak right after a row is marked aria-busy for swap, before the "swapping…" hint (speaker removes its preview button). */
@@ -87,8 +84,8 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   const datasetAttr = camelToKebab(cfg.datasetKey);
 
   const pendingImport = createPendingImport({
-    pickImport: () => cfg.pickImport!(),
-    commitImport: (stagedId, name) => cfg.commitImport!(stagedId, name),
+    pickImport: () => cfg.pickImport(),
+    commitImport: (stagedId, name) => cfg.commitImport(stagedId, name),
     deriveId: cfg.deriveId,
     isImportBlocked: cfg.isImportBlocked,
     hasId: (id) => cfg.list().some((o) => o.id === id),
@@ -110,9 +107,8 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   let errorId: string | null = null;
   // Last row id where arrow roved — kept so re-render doesn't snap roving tabindex back to active.
   let rovedId: string | null = null;
-  // User option id being renamed inline (null if none) · whether the one-shot import is in progress.
+  // User option id being renamed inline (null if none).
   let renamingId: string | null = null;
-  let importing = false;
   let armedRemoveId: string | null = null;
   let removingId: string | null = null;
   let keepArmedForRender = false;
@@ -261,24 +257,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     }
   }
 
-  // "Add from file…" — show importing row and delegate the one-shot import flow (VRM).
-  // Success: store adds row (subscription → re-render); failure: show inline error.
-  async function runImport(): Promise<void> {
-    if (importing) return; // Prevent second import while in progress
-    importing = true;
-    cfg.importErrorEl.hidden = true;
-    cfg.render();
-    try {
-      await cfg.importFn!();
-    } catch (err) {
-      cfg.importErrorEl.hidden = false;
-      cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
-    } finally {
-      importing = false;
-      cfg.render();
-    }
-  }
-
   async function swapTo(option: T): Promise<void> {
     if (swappingId !== null) return; // Prevent second swap while in progress
     if (option.id === cfg.getActiveId()) return; // Already active, no-op
@@ -360,8 +338,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   }
 
   function handleAddClick(): void {
-    if (cfg.pickImport) void pendingImport.start();
-    else void runImport();
+    void pendingImport.start();
   }
 
   function prepareRender(ids: string[]): void {
@@ -402,7 +379,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     getErrorId: (): string | null => errorId,
     getArmedRemoveId: (): string | null => armedRemoveId,
     getPendingImport: pendingImport.get,
-    isImporting: (): boolean => importing || pendingImport.isCommitting(),
+    isImporting: pendingImport.isCommitting,
     isSwapping: (): boolean => swappingId !== null,
     prepareRender,
     focusIfRenaming,
@@ -411,7 +388,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     rowById,
     startRename,
     remove,
-    runImport,
     swapTo,
     handleKeydown,
     handleAddClick,
