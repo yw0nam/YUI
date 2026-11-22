@@ -318,6 +318,22 @@ describe("createQuickControls — card section", () => {
     expect(sec().querySelectorAll(".yui-card-greeting")).toHaveLength(0);
   });
 
+  it("keeps the focus on the row's remove button after removing a middle greeting", () => {
+    agentSettings.setCard({
+      ...EMPTY_CARD,
+      name: "Yui",
+      alternate_greetings: ["one", "two", "three"],
+    });
+    build();
+    const remove = sec().querySelectorAll<HTMLButtonElement>(".yui-card-greeting__remove")[1]!;
+    remove.focus();
+    remove.click();
+    expect(agentSettings.get().card?.alternate_greetings).toEqual(["one", "three"]);
+    expect(document.activeElement).toBe(
+      sec().querySelectorAll<HTMLButtonElement>(".yui-card-greeting__remove")[1],
+    );
+  });
+
   it("redraws a default card on a UI-language change and leaves an own card", () => {
     build();
     setLocale("ja");
