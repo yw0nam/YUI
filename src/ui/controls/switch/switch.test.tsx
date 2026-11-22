@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Switch } from "./switch";
 
@@ -8,7 +9,8 @@ import { Switch } from "./switch";
 
 describe("Switch", () => {
   afterEach(() => {
-    cleanup();
+    act(() => cleanup());
+    document.body.innerHTML = "";
   });
 
   it("is a labelled switch whose click reports the flipped value", () => {

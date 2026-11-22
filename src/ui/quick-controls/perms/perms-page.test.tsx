@@ -220,7 +220,7 @@ describe("monitor list", () => {
 describe("createQuickControls — monitor picker error/empty state", () => {
   let mount: HTMLElement;
 
-  // microtask flush — listMonitors is async; let its promise settle before asserting.
+  // A timer tick, so the async listMonitors() promise settles before asserting.
   const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
   beforeEach(() => {
