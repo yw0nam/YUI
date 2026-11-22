@@ -8,7 +8,7 @@ product
 
 Personal use first (currently the developer), with one wider promise: someone who can install a desktop app reaches a first conversation with the character without a terminal, a coding agent, or knowing a URL or model name. Past that first conversation, the product serves the developer's own use. The source is public under a noncommercial license.
 
-Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window.
+Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay. The main experience is a presence in a corner of the workspace. Settings open in a separate utility window. She comes along into it.
 
 Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools) is handled by the selected backend; YUI is the **body** (rendering + sensing + I/O surfaces) and sends the persona text on the request transports.
 
@@ -22,7 +22,7 @@ Success looks like: **the UI stays out of the way and the character feels alive.
 
 Three words: **warm · present · unobtrusive**.
 
-The character is the source of personality. The UI chrome's job is to **step back**. Nearly invisible at rest (character owns the stage); surfaces only when strictly needed (speech bubble · status pill · input), with the system tray as the persistent OS-level surface, and when chrome appears, it is warm and characterful. Emotional goal: not a tool — **a living presence beside you**.
+The character is the source of personality. On the desktop, the UI chrome's job is to **step back**. The pet window is nearly invisible at rest, and surfaces appear only when strictly needed (speech bubble · status pill · input · chips), with the system tray as the persistent OS-level surface. When chrome appears, it is warm and characterful. The utility windows keep the same tone. Emotional goal: **a living presence beside you**, not a tool.
 
 Core tone in one line: **invisible-by-default, warm-when-present.**
 
@@ -36,14 +36,14 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 
 ## Design Principles
 
-1. **Character is protagonist, UI is backstage staff.** Chrome recedes by default and only appears when it has something to say, then steps back again. (invisible-by-default)
+1. **Character is protagonist, UI is backstage staff.** On the desktop, chrome recedes by default and only appears when it has something to say, then steps back again. (invisible-by-default)
 2. **Warm when present.** When UI surfaces (speech bubble · status pill · input · system tray), be characterful and warm — never like an enterprise widget. (warm-when-present)
-3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent mode · opinions; persona text is user configuration passed to the backend. Surfaces reflect backend signals; they do not fabricate them.
+3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent mode · opinions; persona text is user configuration passed to the backend. Surfaces reflect backend signals; they do not fabricate them. The stage's entry reads the backend's last `emotion_id` through a fixed table, and the client writes no words.
 4. **Legible on anything.** The UI floats over an arbitrary desktop background in a transparent window. Every surface must be legible on any backdrop without heavy containers.
-5. **Calm by default, respectful of attention.** Ambient liveliness is subtle; respect reduced-motion; do not steal attention (rate-limit · DND awareness). A companion does not nag.
-6. **Answer in place.** Once setup is done, no surface sends the user to the settings window to do its job. The character, or the surface beside it, shows the answer where the user already looks. The settings window is for changing configuration, not for reading state.
+5. **Calm by default, respectful of attention.** Ambient liveliness is subtle; respect reduced-motion; do not steal attention (rate-limit · DND awareness). A companion does not nag. Her travel and reactions never block input: the window is usable at once.
+6. **Answer in place.** Once setup is done, no surface sends the user to the settings window to do its job. The character, or the surface beside it, shows the answer where the user already looks. The settings window is for changing configuration, not for reading state. Frequent picks finish in place in the Character menu. Among the Character menu's items, only "Settings" and a trailing "More…" open the settings window.
 
 ## Accessibility & Inclusion
 
-- **Confirmed requirement — respect reduced-motion:** Tier 1 ambient (blink/sway/breathing) and UI transitions run at all times, so they must quietly attenuate under OS `prefers-reduced-motion` (prevents motion sickness / distraction).
+- **Confirmed requirement: respect reduced-motion.** Tier 1 ambient (blink/sway/breathing) and UI transitions run at all times, so they must quietly attenuate under OS `prefers-reduced-motion` (prevents motion sickness / distraction). Under reduced motion, her travel to the settings stage fades, and the Character menu's pills only fade in.
 - **Scope = personal minimum.** Beyond reduced-motion, accessibility is basic-level: emotion/tool-status is not conveyed by color alone, and floating surfaces carry self-contrast (scrim + warm-light text) for legibility on arbitrary backgrounds.

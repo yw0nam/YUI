@@ -120,19 +120,20 @@ The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the fron
 
 **Creative North Star: "The Hearthlight"**
 
-YUI's interface is the glow of a fireplace: it burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the chrome lights up only when it has something to say, then recedes. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans; motion is feedback, never choreography. The whole system's purpose is to *step back*.
+YUI's interface is the glow of a fireplace: it burns warmly in a corner of the room without stealing the gaze. On the desktop, the character is the focus; the chrome lights up only when it has something to say, then recedes. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans. Motion conveys state; her travel and reactions are short moments. On the desktop the system's purpose is to *step back*.
 
 The glow comes in two themes, and the app follows the OS appearance until the user picks one. **Dawn** is the light theme: warm frosted paper over the desktop, dark ink on it, the blur keeping it readable over any window. **Hearth** is the dark theme: the dying embers, a dark scrim under light warm text.
 
-Every surface floats over an arbitrary desktop background in a transparent window, always on top but for the Threads window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, status pill, delegation chip, signal chips, Threads chip, message window, Threads window, boot-failure notice) are the system's entirety and its signature.
+Every surface floats over an arbitrary desktop background in a transparent window, always on top but for the Threads window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, status pill, delegation chip, signal chips, Threads chip, message window, Threads window, boot-failure notice, Character menu) are the system's entirety and its signature.
 
 This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Drift), the messenger chat list (Discord/Slack/KakaoTalk), and the pushy speech bubbles of the old desktop mascot (Clippy). YUI is not a widget, not a messenger, not a mascot.
 
 **Key Characteristics:**
-- Invisible-by-default: chrome is absent at rest; the character and desktop fill the stage.
+- Invisible-by-default: on the desktop, chrome is absent at rest; the character and desktop fill the stage.
 - Warm-when-present: when a surface appears, a small amber warmth meets humanist warmth.
 - Legible-on-anything: readable over any background through self-contrast, not the backdrop.
-- Calm motion: feedback transitions and one slow float on the speech bubble, no choreography, quietly attenuated under reduced-motion.
+- Calm motion: feedback transitions, one slow float on the speech bubble, and short travel and reactions for the character that never block input. Under reduced motion, her travel fades and the Character menu's pills only fade in.
+- Her stage: the settings window is where she comes along, in her signature color.
 
 ## 2. Colors
 
@@ -167,11 +168,14 @@ Components name a colour by its role, never by a value. Each role below has one 
 - **Text dim**: labels, the status pill, secondary text.
 - **Text mute**: disabled text, hints, eyebrows, placeholders.
 - **Hairline**: the thin edge that holds a surface outline against the backdrop; the strong variant marks hover and dividers that need more weight.
-- **Amber**: the sole accent and the only carrier of warmth, as a border, ring, caret, underline or dot. Used in *moments* only: active input border, speech onset caret, focus and hover, the message window's waiting glow (the input border while thinking, the bubble border while responding) and the close end of a relation glyph. The soft and faint variants carry focus rings and underlines.
+- **Amber**: the accent and the carrier of warmth, as a border, ring, caret, underline or dot. Used in *moments* only: active input border, speech onset caret, focus and hover, the message window's waiting glow (the input border while thinking, the bubble border while responding) and the close end of a relation glyph. The soft and faint variants carry focus rings and underlines.
 - **Amber ink**: the same hue deepened (Dawn) or lifted (Hearth) so amber holds contrast as text or an icon on a Surface: links on hover and focus, the History page's character name, the status pill's notice action, the speech action links.
 - **Ink**: dark text for the count on the folded delegation chip's amber badge, in both themes. Body text on a floating surface stays Text.
 - **Danger**: undo, failure messaging, the failed-delegation dot and the hostile end of a relation glyph. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
 - **Ok**: the status pill's tool-done check, the finished-delegation dot and Quick start's done line (`.yui-start__done`). Hue 150 keeps it clear of both Amber and Danger; the soft variant carries the connected ring in the settings panel.
+
+### Signature color
+Each character has a signature color. It is a second color role beside amber, bounded to the places named here. Its default derives from the character's avatar hue, taken from her preset id, at the theme's avatar lightness and chroma (`--yui-avatar-l`, `--yui-avatar-c`). The signature color appears on the Settings stage (its ground and her name) and as the ring around a hovered Character menu pill. In the Character menu, amber marks ON states and focus only, and the signature color takes neither role.
 
 ### Panel tokens
 
@@ -279,6 +283,61 @@ A dismissible floating notice (`boot-error.css`) shown when config or VRM loadin
 ### Quick card
 The card a right-click opens in its own small window docked beside the character (`quick-card/quick-card.css`): it sits 12px from her edge on the side with more free screen space and travels with her window while docked, on macOS as one window with hers; dragging it by its head detaches it, stays where dropped, and a drop whose edge comes within 24px of hers snaps it back beside her and docks it again. The card fills the window at 272px wide inside the transparent 8px margin the window adds for its shadow, with 14px padding and the floating 14px corners, on Plate (`--yui-scrim-strong`) with no frost, a Hairline edge and one Float shadow; its window is sized to it, so it never scrolls. The head is the character's 30px face, the name at the head size (600) over the transport line in Text mute at the caption size (for push, the socket state worded as the chat status words it), and a 30px round × in Text dim. Above the tiles, a Quiet caption sits over one Hairline-edged group that holds the Do not disturb row and its switch. Four tiles follow in a 2×2 grid with an 8px gap: Voice, Listen, Keep bubble and Unified chat, each at least 64px tall with 12px corners and a Hairline edge, a label (600) over its state in Text mute. An on tile (`aria-checked="true"`) takes Amber faint with an Amber-soft edge and its state in Amber ink. A tile that cannot act is disabled at 45% opacity: Listen outside the main window reads "Main only", and a locked tile names its reason in a tooltip. Under the tiles, in the same two columns and gap, sit two 40px buttons, Threads and Terminal, each a 16px glyph in Text dim before its label (600) with a Hairline edge and 12px corners; they are buttons, not switches, so they carry no state and no amber, and one opens the Threads window on its tab, without the grow, and closes the card. A Hairline then opens 36px rows: Body and Reference voice as borderless chevron selects in Text dim that apply on change (Reference voice reads "None" when the character has no voice); Conversation with a "Reset…" text button that becomes an inline "Reset this conversation?" with a Cancel pill, which takes focus, and a Danger-edged Reset pill; and Turn off for a bound character. A full-width "All settings…" button with a Hairline-strong edge opens the settings window on that character. ×, Escape, All settings…, Threads, Terminal, Turn off and a click in another app close the card; a click on the character or another YUI window keeps it open.
 
+### Character menu
+A right-click on the character opens the Character menu around her. The menu draws in the pet window and is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
+
+Two pill columns flank her at the shoulder line, 24px clear of her silhouette. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
+
+The pet window widens only while the menu is open, to about 500px, and it restores when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
+
+Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. Where space is tight, a pill shows its glyph only, and its label shows on hover or focus. The accessible name is the glossary term, so Rest is named "Do-not-disturb". A preset may supply its own image for an item, stored as `menuIcons` in its asset folder. An item without one shows its glyph.
+
+The top level holds Talk, Rest, Listen, Body ›, Voice ›, Pace ›, Settings and More ›. More holds Threads with its waiting count, Keep bubble, Unified chat, Terminal, Reset chat and Turn off. An item that cannot act in a window is hidden: Listen shows in the main window only, and Turn off shows only in a bound pet window. The Threads chip on the character opens Threads while something waits.
+
+Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once, and Body spins her into the picked body. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads and a confirmed Turn off close the menu.
+
+Reset chat and Turn off morph in place into "Sure?" and "Cancel", with focus on Cancel.
+
+Focus goes to the first pill when the menu opens, and focus stays inside the menu while it is open. Arrows, Tab and Shift+Tab move in reading order, and Home and End also work. Enter or Space picks. In a second level, ← or Esc goes back, and Esc at the top level closes the menu. The menu adds no global shortcut.
+
+The plate is opaque, with a hairline edge and one Float shadow, and it has no glass. Amber marks ON states and focus only. A hovered pill takes her signature color as a ring. Pills pop out from her chest in keyboard order, 30ms apart, over 320ms. Under reduced motion they only fade. In the transparent pet window, visible menu surfaces take pointer input, and the area around them passes clicks through.
+
+### Settings stage
+The settings window is her stage. A stage area sits on its left, in her signature color, and holds her name, her state and a caption of what she is doing. The stage area is at least 400px wide, the pet window's width, so the 341px input fits beside her. The stage's tuning values (the stay chance, the mood decay, the rare-entry share and the travel time) have defaults in the `stage` section of `configs/avatar.json`. The backend may also receive an opt-in `settings opened {page}` event, which is off by default and switched in Proactive › Advanced; the backend decides whether she says anything.
+
+She comes along when the settings window opens, and she returns home when it closes. Her entry comes from the entry family for her last backend emotion, as the table below sets it. One variant in the family is picked at random, and never the same one twice in a row. One entry in about 20 is reserved for a rare variant. By default, after 30 minutes without a new emotion, her emotion decays to neutral. A backend that sends no emotion is always neutral. The client holds this table and computes no mood of its own.
+
+| Family | Emotions | Entry |
+|---|---|---|
+| Glad | happy, surprised | she skips in (`jump`, `dance`) |
+| Plain | neutral, relaxed, curious, thinking | she walks, vanishes and appears, or peeks |
+| Glum | sad, sleepy, embarrassed | a slow walk, or a yawn and then she appears |
+| Sulking | angry | with a default probability of 60% she stays on the desktop and plays `sulk`, and the Settings stage caption reads "Yui stayed on the desktop"; otherwise she comes along glumly and sulks on the Settings stage |
+
+Her travel takes 600 to 900ms by default, and the window is usable at once. When the distance is long, she vanishes and appears instead. Under reduced motion she fades. On another monitor, she leaves from her spot and enters the Settings stage with an entry family. Travel and reactions use ease-out curves, and motion never blocks input.
+
+Closing the settings window returns her to her spot, with an entry picked at random from the plain family. Minimizing returns her too. Losing focus keeps her docked. If her monitor is gone, she lands on the floor line of the nearest monitor.
+
+While the settings window is open, she is docked into it as a native child at normal level. On macOS she follows the window with no lag, and other apps can cover both windows. Her speech bubble and text input stay with her while she is docked, so the user can talk while changing settings. Closing settings undocks her, and focus returns as it does for any closed window.
+
+She reacts once when she enters a settings page, and again when a shown change (body, voice or pace) appears. Then she idles. Fast page flicks skip the reaction. The other reactions use existing clips.
+
+| Page | Reaction |
+|---|---|
+| Connection | `thinking`, with a ring prop |
+| Voice | `happy`, with sound waves |
+| Persona | `calm`, with a card prop |
+| Body | a model spin, done in code |
+| History | `thinking` |
+| Together | `laugh` |
+| Listening | the `curious` emotion |
+| Permissions | `cover_eyes` (new clip) while screen watch is off |
+| Proactive | Less: `sleepy`; Normal: `idle`; More: `idle_lively` |
+| Motion | previews the motion she plays |
+| General | `wave` (new clip) |
+
+Reaction props, such as sound waves, a card and rings, draw on the Settings stage, behind and around her. Props she holds draw in her own 3D scene.
+
 ### Settings row + switch
 The settings panel (`quick-controls.css`, its controls in `controls.css`) is a rail beside a column of sections. The rail is 10rem with text labels: a search field on top, then two titled groups, the edited character's pages (Connection, Voice, Persona, Body, History) under the character's name and every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General) under "Every character", each heading in Text mute at the caption size (600), General pinned to the bottom. While a search is set each rail item shows its match count in Text mute, a page with none dims, a matching row takes the `--yui-selected` fill, and a query opens each fold that holds a match, which clearing the query folds again. A panel narrower than 30rem (the settings window near its 480px minimum) turns the rail into 3rem of icons, each page named by its `aria-label` and tooltip, the headings into one Hairline between the groups, and hides the search field; a row's control wrapped under its label spans the row. Each page opens with a Text-mute scope line, "Applies to {name} only" or "Applies to every character", over a 1.25rem title (600, letter-spacing -0.015em); the Connection page hides it while Quick start shows. A section is a 0.875rem title (600) with an optional control or state text at its right, an optional Text-mute note, and one or more groups. A group is one borderless surface (`--yui-group-bg`, 12px corners) whose rows are split by a Hairline. A row is at least 3rem tall with 0.625rem × 0.875rem padding: a 0.8125rem label (500) over a 0.75rem Text-mute sub-line on the left, its control on the right. An add row closes its group with a plus and a text button. The General page opens with the Help section, then the Language row, then the Appearance row, then the Text size row, then Your name. The Appearance row is a three-position segment (Dawn · Hearth · Follow system) in the same segment control as Language, and the Text size row a five-position one (90% · 100% · 112.5% · 125% · 140%) over a sample line at the speech size on a Surface card with a Hairline edge; either choice applies to every open window at once and persists. A segment's cells wrap to a new line when its row has no room. The Proactive page opens with How often she speaks up, a three-position segment (Less · Normal · More) over a Text-mute foot line, two short sentences saying it applies to every character all day, scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins while scheduled greetings keep their times, and how much More and Less change it from the pace factors, then a link to Persona › Active hours. Under What she reacts to, each of five source groups (Quiet for a while, Scheduled greetings, Screen changes, Thread reactions, External signals) is one borderless group: a switch row over a fold, and the fold's body dims while its switch is off and stays editable, except as named here. While off, the fold's summary reads Off in place of its summary, and its open body starts with one Text-mute line, "Off. These apply once you turn it on." The Thread turns row closes the Thread reactions fold, a three-position segment (Off · When it needs me · Every message); while External signals is off the row rests at 55% opacity, its cells are disabled, and a Text-mute line gives the reason. Workflows follows, and Advanced closes the page folded. Selection is neutral: the selected rail item and the checked segment cell take the `--yui-selected` fill with Text at 600, and a checked radio tick fills with Text. The switch (2.25rem track) is the one control that keeps amber, calm and grey when off (`--yui-track`) and a full Amber track with the knob (`--yui-knob`, shadowed in `--yui-knob-shadow`) slid right when on (`aria-checked="true"`). While a plugin's step-1 consent is open its switch rests half-way (`aria-checked="mixed"`): the knob at the centre on the Amber-soft track. Fields sit on `--yui-field` with a transparent edge at rest, a Hairline on hover, and an Amber border plus an Amber-soft ring on focus. A focused button shows a 2px Amber-soft ring. The Together page carries the Unified chat switch, which lets main open the unified chat window while two or more presets are open, and the Characters list: one row per character with a 28px face, the name over its state in Text mute, and an "On the desktop" switch. Main's switch, and a bound window's own, is locked on; with four on the desktop an off row's switch is disabled and a Text-mute line gives the reason. A control the push transport cannot use stays in place, disabled, with a Text-mute reason under its label and a "Change transport" link in Amber ink. In the settings window the preset row is the character header: one button per character with a 28px face, the name (600) over its transport and window state at the caption size in Text mute; the edited one takes the `--yui-selected` fill, one in no window sits at 55% opacity and stays clickable, and the manage button closes the row. Where a native picker exists, each row of the preset manage list carries a photo button beside rename; it opens the photo dialog, after the picker when the preset has no photo yet. The panel's disclosures are the filler's More phrases, the card's Advanced fields, the Proactive page's Advanced and each source fold on that page, each a chevron summary over its content and closed by default.
 
@@ -347,20 +406,28 @@ When the window's preset changes a relation, the glyph's new segments grow from 
 
 ### Do:
 - **Do** micro-tint every neutral toward amber (chroma ~0.004–0.02) in OKLCH; never `#000`/`#fff`.
-- **Do** keep Amber ≤10% of a surface, ignited only in *moments* (active input, speech onset, hover, the message window's waiting glow).
+- **Do** keep Amber ≤10% of a surface, ignited only in *moments* (active input, speech onset, hover outside the Character menu, the message window's waiting glow).
 - **Do** give a floating surface its own material, light glass under dark ink in Dawn and dark scrim under light text in Hearth, and only where legibility is needed (the speech bubble), never decoratively.
 - **Do** keep motion Responsive: smooth enter/exit and feedback on an ease-out exponential curve, attenuated under `prefers-reduced-motion`. A pulse that runs on a loop (the status pill's dot, the name plate's breath, the input's ember) reverses on every cycle, so it alone runs `ease-in-out`; every enter, exit and feedback curve stays ease-out, except the spring and bounce below. Spring and bounce belong only to the main character and the moments she causes: her landing on a seat, the Threads chip's wiggle when a Thread or a request starts waiting, the Threads window she opens or raises for a Thread reaction. Each plays once per event and never loops; settings and every other UI transition stay ease-out.
 - **Do** stay flat, adding the single Float shadow only when a surface lifts.
 - **Do** lay the settings panel out as titled sections of borderless groups with Hairline-split rows, and keep its selection neutral. Amber stays on switches, focus and hover.
 - **Do** keep controls off the text: the bubble's buttons ride its top edge, outside the box — the one exception is the speech actions, a row of inline links under the text that wraps with a 14px gap. They sit inside the box but outside its scrolling text, so a long line never scrolls them away.
 - **Do** let the Surface's alpha carry contrast on the bubble, the text input, the name plate and the status pill, and trade the bubble's frost for Plate under `prefers-reduced-transparency`.
+- **Do** finish frequent picks in place in the Character menu, and confirm a destructive pick inline, with focus on Cancel.
+- **Do** keep her travel and reactions short, and keep the window usable while they play.
+- **Do** use the signature color only where § Signature color names it, and keep amber for ON states and focus in the Character menu.
 
 ### Don't:
 - **Don't** look like an **enterprise SaaS chatbot widget** (bordered card, gradient accent, generic widget tone).
-- **Don't** stack chat lists, message rows, or channel chrome like a **messenger app** (Discord/Slack/KakaoTalk) on the character's stage; on the stage the past shows only as the speech bubble's backlog of the current session, opened on demand; older sessions are readable inside the settings panel's History page and the unified chat window the user switches on, and the stage never becomes a second place to talk.
+- **Don't** stack chat lists, message rows, or channel chrome like a **messenger app** (Discord/Slack/KakaoTalk) on the desktop; the past shows only as the speech bubble's backlog of the current session, opened on demand; older sessions are readable inside the settings panel's History page and the unified chat window the user switches on, and the desktop never becomes a second place to talk. On the Settings stage, talk uses the same bubble and input (§ Settings stage).
 - **Don't** use pushy, garish speech bubbles like an **old desktop mascot** (Clippy), the exact opposite of non-intrusive.
 - **Don't** overuse glassmorphism: the frosted backdrop is purposeful in the one speech bubble only, otherwise skip it.
 - **Don't** use colored side-stripe borders (an accent or status color line >1px on one edge), gradient text (`background-clip: text`), identical card grids, or modal-first patterns.
 - **Don't** put uppercase or letter-spaced eyebrow labels, per-row bordered cards, or dashed add buttons in the settings panel.
 - **Don't** use amber as a fill: warmth is a point, not a plane (the 10% Warmth Rule). The fills are the count badges on the folded delegation chip and on the Threads chip, each sized as a point so a pending count stays visible over any desktop.
 - **Don't** import decorative asset packs (3D icons, hand-drawn illustrations) or spring/bounce motion presets; icons are inline line glyphs (the Two-Stroke Rule). Motion is ease-out, except the looping pulses and the character's own spring and bounce named above, which are hand-written keyframes.
+- **Don't** open the settings window for a frequent pick. Among the Character menu's items, only "Settings" and a trailing "More…" open it.
+- **Don't** block input while she travels or reacts.
+- **Don't** widen the pet window except while the Character menu is open.
+- **Don't** open the Character menu on a long-press, or let it time out.
+- **Don't** use the signature color for ON states or focus.

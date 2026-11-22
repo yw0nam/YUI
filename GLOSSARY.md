@@ -98,6 +98,22 @@ Backend-independent idle life — blink, sway, breath. Runs always; attenuates u
 A short client-side utterance from a pool, covering the silence between a firing and the brain's first speech, or announcing a Thread reaction. It is stagecraft, not thinking, and never influences what the brain says.
 _Avoid_: thinking, placeholder, stall
 
+**Come-along**:
+Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family.
+_Avoid_: summon, follow
+
+**Entry family**:
+One of four groups (glad, plain, glum, sulking) that a Come-along takes its entry from, picked from the last backend emotion through a fixed client table.
+_Avoid_: mood, entry type
+
+**Page reaction**:
+The short reaction she plays once when she enters a settings page, and again when a shown change (body, voice or pace) appears. Idling follows it.
+_Avoid_: cue, page animation
+
+**Signature color**:
+A character's own color: a second color role beside amber, bounded to the Settings stage (its ground and her name) and the Character menu's hovered pill. Its default derives from her avatar hue.
+_Avoid_: accent, character color, theme color
+
 ### Relations
 
 **Relation**:
@@ -188,6 +204,14 @@ _Avoid_: avatar pill, presence badge, recipient chip
 **Quick card**:
 The card a right-click on the character opens beside her in its own window: her face, name and transport line, a Do-not-disturb switch above four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, Threads and Terminal buttons that open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
 _Avoid_: quick panel, popover
+
+**Character menu**:
+The pill menu around her, opened by a right-click on her in the pet window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
+_Avoid_: quick card, context menu, radial menu, pie menu, ring menu
+
+**Settings stage**:
+The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing, in her signature color.
+_Avoid_: stage window, stage panel, dock
 
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.
