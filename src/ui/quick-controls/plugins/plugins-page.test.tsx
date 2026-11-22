@@ -369,4 +369,38 @@ describe("createPluginsPage", () => {
       "Tools: 4, skills: 1",
     );
   });
+
+  it("fades a block that appears after the page's first render, and not one already there", () => {
+    const { page } = mountPage({
+      revision: 1,
+      plugins: [
+        plugin({
+          id: "yui-test",
+          source: "local",
+          servers: [server("yui-test", "main")],
+          tools: [
+            {
+              name: "t1",
+              server: "yui-test/main",
+              description: null,
+              inputSchema: {},
+              meta: null,
+            },
+          ],
+        }),
+      ],
+    });
+    const installed = group(page.el, "yui-test");
+    expect(installed.classList.contains("yui-keyed-enter")).toBe(false);
+
+    act(() => {
+      fireEvent.click(within(installed).getByRole("button", { name: "Tools: 1" }));
+    });
+
+    expect(
+      installed.querySelector(".yui-plg-tools")!.parentElement!.classList.contains(
+        "yui-keyed-enter",
+      ),
+    ).toBe(true);
+  });
 });
