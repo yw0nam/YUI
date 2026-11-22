@@ -17,7 +17,8 @@ import { Switch } from "../../../controls/switch";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG, PLUS_SVG } from "../../constants";
-import { cardBase, presetEntry } from "./card-entry";
+import { setValue } from "../set-value";
+import { cardBase, currentCard, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
 import type { CardIo, CardIoPorts } from "./card-io";
 import "./card-section.css";
@@ -50,13 +51,6 @@ const ADVANCED: Stack[] = [
   { field: "system_prompt", label: "card.system_prompt", rows: 4, sub: "card.system_prompt_sub" },
   { field: "post_history_instructions", label: "card.post_history", rows: 2 },
 ];
-
-// A focused control keeps what the user is typing; it catches up on blur.
-function setValue(el: HTMLInputElement | HTMLTextAreaElement | null, value: string): void {
-  if (!el) return;
-  if (document.hasFocus() && document.activeElement === el) return;
-  if (el.value !== value) el.value = value;
-}
 
 export function CardSection({
   agentSettings,
@@ -117,17 +111,13 @@ export function CardSection({
     return cardBase(getPersona);
   }
 
-  function currentCard(): Card {
-    return agentSettings.current().card ?? base();
-  }
-
   function onInput(e: FormEvent<HTMLDivElement>): void {
     const el = e.target as HTMLInputElement | HTMLTextAreaElement;
     const field = el.dataset.cardField as TextField | "name" | undefined;
     if (field && field !== "name") {
       agentSettings.updateCard({ [field]: el.value }, base());
     } else if (el.dataset.greetingIndex !== undefined) {
-      const next = [...currentCard().alternate_greetings];
+      const next = [...currentCard(agentSettings, getPersona).alternate_greetings];
       next[Number(el.dataset.greetingIndex)] = el.value;
       agentSettings.updateCard({ alternate_greetings: next }, base());
     }
@@ -165,13 +155,15 @@ export function CardSection({
   }
 
   function addGreeting(): void {
-    const next = [...currentCard().alternate_greetings, ""];
+    const next = [...currentCard(agentSettings, getPersona).alternate_greetings, ""];
     setGreetings(next);
     greetRefs.current.get(next.length - 1)?.focus();
   }
 
   function removeGreeting(index: number): void {
-    setGreetings(currentCard().alternate_greetings.filter((_, i) => i !== index));
+    setGreetings(
+      currentCard(agentSettings, getPersona).alternate_greetings.filter((_, i) => i !== index),
+    );
   }
 
   function toggleSend(): void {

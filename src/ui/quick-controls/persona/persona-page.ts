@@ -3,7 +3,7 @@
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { Card, PersonaConfig } from "../../../config/validators/persona/types";
+import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { SubscribeFileDrop } from "../../../io/window/file-drop/file-drop";
 import type { Logger } from "../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../settings/active-hours/active-hours-settings";
@@ -13,7 +13,7 @@ import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { subscribe as subscribeLocale } from "../../i18n";
 import { createCardDrop } from "./card/card-drop";
-import { cardBase, presetEntry } from "./card/card-entry";
+import { currentCard, presetEntry } from "./card/card-entry";
 import type { CardIoPorts } from "./card/card-io";
 import { createCardIo } from "./card/card-io";
 import { PersonaPageView } from "./persona-page-view";
@@ -56,7 +56,6 @@ export function createPersonaPage(deps: {
   log: Logger;
 }): PersonaPage {
   const { agentSettings, endpointsSettings, registry, isOpen } = deps;
-  const currentCard = (): Card => agentSettings.current().card ?? cardBase(deps.getPersona);
   const io = createCardIo({
     ports: {
       importPreset: deps.importPreset,
@@ -65,7 +64,7 @@ export function createPersonaPage(deps: {
       exportPresetFile: deps.exportPresetFile,
       exportCardPng: deps.exportCardPng,
     },
-    currentCard,
+    currentCard: () => currentCard(agentSettings, deps.getPersona),
     entry: presetEntry,
     fillerPools: () => deps.fillerSettings.get().customPools,
     activeHoursSpans: () => deps.activeHoursSettings?.get().spans ?? null,

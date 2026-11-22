@@ -4,13 +4,7 @@ import { useLayoutEffect, useRef } from "react";
 import { PACES, type Span, wrapsMidnight } from "../../../../settings/active-hours/spans";
 import { t } from "../../../i18n";
 import { CROSS_SVG } from "../../constants";
-
-// A focused control keeps what the user is typing; it catches up on blur.
-function setValue(el: HTMLInputElement | HTMLSelectElement | null, value: string): void {
-  if (!el) return;
-  if (document.hasFocus() && document.activeElement === el) return;
-  if (el.value !== value) el.value = value;
-}
+import { setValue } from "../set-value";
 
 export function SpanRow({ span, onRemove }: { span: Span; onRemove(row: HTMLElement): void }) {
   const row = useRef<HTMLDivElement>(null);
