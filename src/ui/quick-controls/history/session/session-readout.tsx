@@ -2,13 +2,12 @@
 
 import { type ReactNode, useSyncExternalStore } from "react";
 import { t } from "../../../i18n";
-import type { DelegationFeed } from "../delegations/delegation-feed";
+import type { DelegationFeed } from "../../delegations/delegation-feed";
 import type { HistoryPorts } from "../history-ports";
 import { DelegatedRows } from "./delegated-rows";
 import "./session-section.css";
 
-// Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,
-// below 100K shows one decimal (dropping .0), 100K+ shows integer.
+// "18.2K" / "18K" / "200K": under 1000 as-is, under 100K one decimal without .0, from 100K whole.
 function formatTokenCount(n: number): string {
   if (n < 1000) return String(n);
   const k = n / 1000;
@@ -23,7 +22,7 @@ function Occupancy({
 }): ReactNode {
   const { usedTokens: used, contextWindow: max } = useSyncExternalStore(
     diagnostics.subscribe,
-    diagnostics.read,
+    diagnostics.current,
   );
   // With no contextWindow the readout shows the usage alone, with no bar or percent.
   const pct =
@@ -66,7 +65,7 @@ export function SessionReadout({
   lost: HistoryPorts["lost"];
   delegations: DelegationFeed;
 }) {
-  const isLost = useSyncExternalStore(lost.subscribe, lost.read);
+  const isLost = useSyncExternalStore(lost.subscribe, lost.current);
   useSyncExternalStore(delegations.subscribe, delegations.version);
   const items = delegations.get();
   return (

@@ -6,7 +6,7 @@ import type { SignalRecord } from "../../../io/chat/conversation/signal-history-
 import type { PushSocketPanelPort } from "../connection/connection-tab";
 
 export interface Readable<T> {
-  read(): T;
+  current(): T;
   subscribe(cb: () => void): () => void;
 }
 
@@ -19,15 +19,13 @@ export interface HistoryPorts {
   lost: Readable<boolean>;
 }
 
-type Source<T> = { current(): T; subscribe(cb: () => void): () => void };
-
 const NO_SIGNALS: Readonly<SignalRecord[]> = [];
 const never = (): (() => void) => () => {};
 
 export function createHistoryPorts(deps: {
-  transcript: Source<Readonly<ChatHistoryItem[]>>;
-  signalHistory?: Source<Readonly<SignalRecord[]>>;
-  sessionDiagnostics?: Source<Readonly<SessionDiagnostics>>;
+  transcript: Readable<Readonly<ChatHistoryItem[]>>;
+  signalHistory?: Readable<Readonly<SignalRecord[]>>;
+  sessionDiagnostics?: Readable<Readonly<SessionDiagnostics>>;
   pushSocket?: Pick<PushSocketPanelPort, "getState" | "onState">;
   isPushMode: () => boolean;
   isOpen: () => boolean;
@@ -39,8 +37,8 @@ export function createHistoryPorts(deps: {
       subscribe(() => {
         if (isOpen()) cb();
       });
-  const readable = <T>(source: Source<T>): Readable<T> => ({
-    read: () => source.current(),
+  const readable = <T>(source: Readable<T>): Readable<T> => ({
+    current: () => source.current(),
     subscribe: whileOpen((cb) => source.subscribe(cb)),
   });
 
@@ -48,13 +46,13 @@ export function createHistoryPorts(deps: {
     transcript: readable(deps.transcript),
     signals: deps.signalHistory
       ? readable(deps.signalHistory)
-      : { read: () => NO_SIGNALS, subscribe: never },
+      : { current: () => NO_SIGNALS, subscribe: never },
     diagnostics: deps.sessionDiagnostics && readable(deps.sessionDiagnostics),
     lost: pushSocket
       ? {
-          read: () => isPushMode() && pushSocket.getState().kind !== "ready",
+          current: () => isPushMode() && pushSocket.getState().kind !== "ready",
           subscribe: whileOpen((cb) => pushSocket.onState(cb)),
         }
-      : { read: () => false, subscribe: never },
+      : { current: () => false, subscribe: never },
   };
 }

@@ -741,6 +741,9 @@ YUI/
             quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
         cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
+        delegations/                 # The delegated list's sync, which lives with the panel and not with a page
+          delegation-feed.ts         # The list's subscription and minute refresh, and the version a page reads to redraw
+          delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         preset/                      # Preset strip above the rail
           preset-strip.ts            # The character header that picks the preset to edit (`?edit=`), the edited preset's note, the page scope lines and the rail's character heading it fills
           character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
@@ -780,9 +783,6 @@ YUI/
             session-readout.tsx      # The context-occupancy readout and meter, and the delegated list with its lost line
             delegated-rows.tsx       # Mounts the delegation rows the pet window's chip also draws
             session-section.css      # Session context-occupancy readout and meter styles
-          delegations/               # The delegated list's sync, which lives with the panel and not with the page
-            delegation-feed.ts       # The list's subscription and minute refresh, and the version a page reads to redraw
-            delegation-sync.ts       # Minute refresh timer that follows the running delegated items
         listening/                   # The Listening page, rendered with React
           listening-page.ts          # The page's facade: its React root, and the STT draft it commits on close and dispose
           listening-page-view.tsx    # The voice switch, the STT key row, the silence slider, the barge-in and bubble switches, and the reading dictionary

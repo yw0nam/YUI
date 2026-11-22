@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-/**
- * session-readout.test.tsx — the Session section through the History page: when the readout and the
- * lost line redraw, and what the page's disposal releases.
- */
+/** The Session section through the History page: when the readout and the lost line redraw, and what disposal releases. */
 
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,8 +12,8 @@ import type { Logger } from "../../../../logger";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { setLocale } from "../../../i18n";
 import type { PushSocketPanelPort } from "../../connection/connection-tab";
+import { createDelegationFeed } from "../../delegations/delegation-feed";
 import { countSubscriptions, inMemoryAgentStorage } from "../../test-helpers";
-import { createDelegationFeed } from "../delegations/delegation-feed";
 import { createHistoryPage } from "../history-page";
 
 // React's act() only flushes in a test environment that says so.

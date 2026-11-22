@@ -9,12 +9,23 @@ import { t } from "../../i18n";
 import { HIST_CHEVRON_SVG } from "../constants";
 import "./history-section.css";
 import type { HistoryPorts } from "./history-ports";
-import { type HistoryRow, mergeSessionRows } from "./history-rows";
+import { type HistoryRow, mergeSessionRows, tsOf } from "./history-rows";
 import { formatSessionStart } from "./history-time";
 import { TurnRow } from "./turn-row";
 
 const keyOf = (session: ChatSession, index: number): string =>
   session.startedAt === null ? `empty-${index}` : String(session.startedAt);
+
+/** A row's kind and time, numbered among the rows that share both, so a row inserted mid-log keeps the others' keys. */
+function turnKeys(rows: HistoryRow[]): string[] {
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const base = `${row.kind}-${tsOf(row)}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return `${base}-${n}`;
+  });
+}
 
 function SessionGroup({
   session,
@@ -74,15 +85,12 @@ function SessionGroup({
         </span>
       </button>
       {open && (
-        // biome-ignore lint/a11y/useSemanticElements: the log keeps its div and explicit region role
+        // biome-ignore lint/a11y/useSemanticElements: a test pins the explicit role attribute on this div
         <div className="yui-hist__log" id={logId} role="region" aria-labelledby={headId}>
           {rows.length === 0 ? (
             <p className="yui-hist__empty">{t("history.empty")}</p>
           ) : (
-            rows.map((row, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: turns carry no id and a log only grows at its end
-              <TurnRow key={i} row={row} name={name} />
-            ))
+            turnKeys(rows).map((turnKey, i) => <TurnRow key={turnKey} row={rows[i]} name={name} />)
           )}
         </div>
       )}
@@ -98,8 +106,8 @@ export function SessionList({
   /** The name the character's lines go under; read on every render. */
   characterName(): string;
 }) {
-  const items = useSyncExternalStore(ports.transcript.subscribe, ports.transcript.read);
-  const records = useSyncExternalStore(ports.signals.subscribe, ports.signals.read);
+  const items = useSyncExternalStore(ports.transcript.subscribe, ports.transcript.current);
+  const records = useSyncExternalStore(ports.signals.subscribe, ports.signals.current);
   const sessions = useMemo(() => projectSessions(items), [items]);
   const rows = useMemo(() => mergeSessionRows(sessions, records), [sessions, records]);
   // Explicit user toggles; sessions without one follow the default (the running session open).

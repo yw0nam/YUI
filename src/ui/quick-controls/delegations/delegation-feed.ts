@@ -1,6 +1,6 @@
 /** The delegated list a React page reads: its sync controller, and a version that moves on every redraw the controller asks for. */
 
-import type { DelegationItem } from "../../../../io/chat/push/push-frames";
+import type { DelegationItem } from "../../../io/chat/push/push-frames";
 import { createDelegationSync } from "./delegation-sync";
 
 export interface DelegationFeed {

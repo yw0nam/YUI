@@ -52,6 +52,9 @@ vi.mock("./connection/connection-tab", () => ({
     dispose: () => {},
   }),
 }));
+vi.mock("./delegations/delegation-feed", () => ({
+  createDelegationFeed: () => ({ sync: rec("delegationFeed", "sync"), dispose: () => {} }),
+}));
 vi.mock("./history/history-page", () => ({
   createHistoryPage: () => ({
     el: document.createElement("div"),
@@ -112,6 +115,7 @@ describe("createQuickControls — open order", () => {
       "agent.reflect",
       "filler.reflect",
       "connectionTab.refresh",
+      "delegationFeed.sync",
       "historyPage.refresh",
       "characterTab.refresh",
       "speakerList.render",

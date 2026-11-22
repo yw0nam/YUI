@@ -1,7 +1,7 @@
 /** The History page: the session list and its footnote, the start-fresh row, then the Session section. */
 
 import { t } from "../../i18n";
-import type { DelegationFeed } from "./delegations/delegation-feed";
+import type { DelegationFeed } from "../delegations/delegation-feed";
 import type { HistoryPorts } from "./history-ports";
 import { SessionReadout } from "./session/session-readout";
 import { SessionList } from "./session-list";

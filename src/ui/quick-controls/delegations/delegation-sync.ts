@@ -1,5 +1,5 @@
-import type { DelegationItem } from "../../../../io/chat/push/push-frames";
-import { DELEGATION_REFRESH_MS } from "../../../chips/delegation-rows";
+import type { DelegationItem } from "../../../io/chat/push/push-frames";
+import { DELEGATION_REFRESH_MS } from "../../chips/delegation-rows";
 
 interface DelegationSyncDeps {
   /** Delegated-work list; absent where nothing mirrors it. */
