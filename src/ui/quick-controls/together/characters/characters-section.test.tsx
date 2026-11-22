@@ -118,12 +118,14 @@ it("hides a reason line whose hidden attribute is set", () => {
 it("a switch another window beat to the last place logs nothing and shows the reason", () => {
   const { sw, row, petWindows } = build();
   for (const name of ["perlica", "shino"]) fireEvent.click(sw(name));
+  const invalidate = vi.spyOn(petWindows, "invalidate");
   log.info.mockClear();
   createPetWindows().open("dddd0004");
 
   fireEvent.click(sw("carlotta"));
 
   expect(petWindows.get()).toEqual(["bbbb0002", "cccc0003", "dddd0004"]);
+  expect(invalidate).toHaveBeenCalled();
   expect(log.info).not.toHaveBeenCalled();
   expect(row("carlotta").querySelector<HTMLElement>(".yui-chars__reason")!.hidden).toBe(false);
 });
