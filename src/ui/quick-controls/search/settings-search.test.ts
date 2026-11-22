@@ -16,6 +16,9 @@ beforeEach(() => {
 afterEach(() => {
   document.body.innerHTML = "";
   setLocale("en");
+  // The seeded storage stays out of the later cases.
+  localStorage.removeItem("yui.presets");
+  localStorage.removeItem("yui.windows");
 });
 
 function build(openOnQuickStart = false) {
@@ -122,9 +125,6 @@ it("matches the cap reason only on the row that shows it", () => {
 
   expect(count("together")).toBe("1");
   qc.dispose();
-  // The seeded storage stays out of the later cases.
-  localStorage.removeItem("yui.presets");
-  localStorage.removeItem("yui.windows");
 });
 
 it("finds Detailed settings rows while Quick start shows, and brings Detailed settings into view", () => {
