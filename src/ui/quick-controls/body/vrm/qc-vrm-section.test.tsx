@@ -688,6 +688,29 @@ describe("createQuickControls — VRM section", () => {
     }
   });
 
+  it("keeps the focused remove button, relabelled, when the arm times out", () => {
+    vi.useFakeTimers();
+    try {
+      withUserOption();
+      const qc = buildQc();
+      act(() => qc.open());
+
+      act(() => removeBtn(qc).click());
+      const button = removeBtn(qc);
+      button.focus();
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+
+      expect(removeBtn(qc)).toBe(button);
+      expect(document.activeElement).toBe(button);
+      expect(button.getAttribute("aria-label")).toBe("삭제");
+      expect(button.dataset.tip).toBe("삭제");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("arming another row disarms the first", () => {
     withUserOption();
     vrmSelection.addUserOption({ ...USER_OPTION, id: "dog", label: "멍멍이" });
