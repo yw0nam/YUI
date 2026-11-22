@@ -101,7 +101,7 @@ export function useVrmList(deps: VrmListDeps): VrmList {
     hadFocus.current ||= !!group?.contains(group.ownerDocument.activeElement);
     dispatch(patch);
   }, []);
-  // A repaint ends an armed remove: the arm survives only the render that sets it.
+  // A repaint drops an armed remove.
   const repaint = useCallback((): void => update({ armed: null }), [update]);
 
   // A swap repaints in its own finally, so the store's notice skips it.

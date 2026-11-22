@@ -20,14 +20,18 @@ export interface RelationsPort {
   log: Logger;
 }
 
-export function createRelationsPort(deps: {
+/** The stores and names the relations rows are built from. */
+export interface RelationsDeps {
   store: RelationsStore;
   relationsSwitch: FlagSettingsStore;
+  /** This window's preset id. */
   self: string;
   presets: () => readonly PresetEntry[];
-  isOpen: () => boolean;
-  log: Logger;
-}): RelationsPort {
+}
+
+export function createRelationsPort(
+  deps: RelationsDeps & { isOpen: () => boolean; log: Logger },
+): RelationsPort {
   const { store, relationsSwitch, isOpen } = deps;
   const whileOpen =
     (subscribe: Subscribe): Subscribe =>

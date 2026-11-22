@@ -3,11 +3,8 @@
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { FlagSettingsStore } from "../../../settings/persisted-store";
-import type { PresetEntry } from "../../../settings/preset/active-preset";
-import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { BodyPageView } from "./body-page-view";
-import { createRelationsPort } from "./relations/relations-port";
+import { createRelationsPort, type RelationsDeps } from "./relations/relations-port";
 import type { VrmListDeps } from "./vrm/use-vrm-list";
 
 export interface BodyPage {
@@ -22,13 +19,7 @@ export function createBodyPage(
     /** The view reset section renders with it. */
     onResetView?: () => void;
     /** The relations section renders with it. */
-    relations?: {
-      store: RelationsStore;
-      relationsSwitch: FlagSettingsStore;
-      /** This window's preset id. */
-      self: string;
-      presets: () => readonly PresetEntry[];
-    };
+    relations?: RelationsDeps;
   },
 ): BodyPage {
   const { relations, onResetView, ...vrm } = deps;

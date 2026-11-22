@@ -1,8 +1,8 @@
 /**
- * Character tab — two stacks: the Body page's VRM list with import, relations rows and camera view
- * reset, and the Motion page's mouth-gain, idle and express motion rows. `rows` picks
- * which render; the same rows drive markup, handlers and subscriptions, so only rendered rows are
- * bound. The Body page renders itself; this module relays the open, close and dispose hooks.
+ * Character tab — the Motion page's mouth-gain, idle and express motion rows, and the Body page's
+ * mount. `rows` picks which render; the same rows drive markup, handlers and subscriptions, so only
+ * rendered rows are bound. The Body page renders itself; this module relays the open and dispose
+ * hooks to it, and the close hook reaches the gain preview only.
  */
 
 import type { AvatarOption } from "../../../config/validators/avatar/types";
@@ -14,10 +14,8 @@ import type {
   IdleVariantPool,
 } from "../../../settings/avatar/idle-motion-settings";
 import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
-import type { FlagSettingsStore } from "../../../settings/persisted-store";
-import type { PresetEntry } from "../../../settings/preset/active-preset";
-import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { createBodyPage } from "../body/body-page";
+import type { RelationsDeps } from "../body/relations/relations-port";
 import { type CharacterRows, motionHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
@@ -71,13 +69,7 @@ export function createCharacterTab(deps: {
     getVocabulary: () => readonly string[];
   };
   /** Required with `rows.relations`. */
-  relations?: {
-    store: RelationsStore;
-    relationsSwitch: FlagSettingsStore;
-    /** This window's preset id. */
-    self: string;
-    presets: () => readonly PresetEntry[];
-  };
+  relations?: RelationsDeps;
 }): CharacterTab {
   const { rows, isOpen, log } = deps;
 
