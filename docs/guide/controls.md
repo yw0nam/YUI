@@ -10,7 +10,7 @@ Every key, click, and menu that moves her.
 | `/` | Opens the text input while her window has focus |
 | `Enter` | Sends the message |
 | `Shift+Enter` | Starts a new line |
-| `Esc` | Closes the text input, or the Character menu |
+| `Esc` | Closes the text input; cancels a confirm, goes Back, or closes the Character menu |
 
 ## Mouse on the character
 

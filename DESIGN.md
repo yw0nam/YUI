@@ -280,15 +280,15 @@ A dismissible floating notice (`boot-error.css`) shown when config or VRM loadin
 ### Character menu
 A right-click on the character opens the Character menu around her. The menu draws in the pet window and is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
 
-Two pill columns flank her at the shoulder line, 24px clear of her silhouette. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
+Two pill columns flank her at the shoulder line, 88px from her centre. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
 
 The pet window widens only while the menu is open, to about 500px, and it restores when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
 
-Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. Where space is tight, a pill shows its glyph only, and its label shows on hover or focus. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
+Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
 
 The top level holds Talk, Rest, Listen, Body ›, Voice ›, Pace ›, Settings and More ›. More holds Threads with its waiting count, Keep bubble, Unified chat, Terminal, Reset chat and Turn off. An item that cannot act in a window is hidden: Listen shows in the main window only, and Turn off shows only in a bound pet window. The Threads chip on the character opens Threads while something waits.
 
-Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once, and Body spins her into the picked body. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads and a confirmed Turn off close the menu.
+Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads, Terminal and a confirmed Turn off close the menu.
 
 Reset chat and Turn off morph in place into "Sure?" and "Cancel", with focus on Cancel.
 

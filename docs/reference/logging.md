@@ -213,6 +213,8 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 |---|---|---|---|
 | `threads-window` | `threads_window_create_error` | `error` | The Threads window could not be created (`error` level). |
 | `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip leaves its open state unless the window is open (`error` level). |
+| `ready-window` | `window_destroy_timeout` | `label` | A leftover Threads window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
+| `ready-window` | `window_open_failed` | `label`, `error` | Creating or reusing the Threads window threw (`error` level). |
 | `snapshot-feed` | `snapshot.invoke_failed` | `command`, `error` | `threads_snapshot` rejected (`warn` level). |
 | `snapshot-feed` | `snapshot.listen_failed` | `event`, `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |

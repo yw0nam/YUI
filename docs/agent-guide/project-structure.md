@@ -86,7 +86,7 @@ YUI/
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surface
-        wire-pet-controls.ts         # The stage context menu that opens the Character menu
+        wire-pet-controls.ts         # The popped-out surfaces' settings asks and the cue locale sync
         wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
         wire-help-guide.ts           # Guide requests the settings window sends over the bridge, submitted as user turns
       settings/                      # Selections and conversation state applied to the running app
