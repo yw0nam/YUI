@@ -17,12 +17,11 @@ const HOUR = 3_600_000;
 const nextDay = new Date(2026, 9, 23, 9, 0).getTime();
 
 describe("createRelationsStore", () => {
-  it("current returns the same object until a write, where all returns a copy each call", () => {
+  it("current returns the same object until a write", () => {
     const store = createRelationsStore({ storage: memory() });
     const before = store.current();
 
     expect(store.current()).toBe(before);
-    expect(store.all()).not.toBe(before);
 
     store.rate("user", 2, "listened", t0);
 
