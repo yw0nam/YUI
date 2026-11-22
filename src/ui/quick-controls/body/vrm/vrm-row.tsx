@@ -25,9 +25,9 @@ function Actions({ option, list }: { option: AvatarOption; list: VrmList }) {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
         dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
       />
-      {/* Armed or not, the button remounts, so a hint open on the old one closes. */}
+      {/* Arming remounts the button, so a hint open on the old one closes; a disarm keeps the node. */}
       <button
-        key={armed ? "armed" : "idle"}
+        key={list.removeKey(option.id)}
         className={armed ? "yui-vrm__remove is-armed" : "yui-vrm__remove"}
         type="button"
         data-tip={armed ? t("vrm.remove_confirm") : t("vrm.remove")}

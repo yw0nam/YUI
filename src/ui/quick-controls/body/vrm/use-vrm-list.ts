@@ -41,6 +41,8 @@ interface ListState {
   importError: boolean;
   /** The remove waiting for its confirming click, from the open it was armed in. */
   armed: { id: string; revision: number } | null;
+  /** The last arm's row and count; it outlives a disarm, so the button keeps its node. */
+  lastArm: { id: string; seq: number } | null;
 }
 
 const INITIAL: ListState = {
@@ -52,6 +54,7 @@ const INITIAL: ListState = {
   importing: false,
   importError: false,
   armed: null,
+  lastArm: null,
 };
 
 const ROW = ".yui-vrm[role=radio]";
@@ -62,6 +65,8 @@ export interface VrmList {
   rovedId: string;
   renamingId: string | null;
   armedId: string | null;
+  /** Changes when the row's remove button is armed, never when it is disarmed. */
+  removeKey(id: string): number;
   errorId: string | null;
   removingId: string | null;
   swappingId: string | null;
@@ -174,7 +179,10 @@ export function useVrmList(deps: VrmListDeps): VrmList {
   async function remove(id: string): Promise<void> {
     if (removing.current) return;
     if (armedId !== id) {
-      update({ armed: { id, revision } });
+      update({
+        armed: { id, revision },
+        lastArm: { id, seq: (state.lastArm?.seq ?? 0) + 1 },
+      });
       return;
     }
     removing.current = true;
@@ -260,6 +268,7 @@ export function useVrmList(deps: VrmListDeps): VrmList {
     rovedId,
     renamingId,
     armedId,
+    removeKey: (id) => (state.lastArm?.id === id ? state.lastArm.seq : 0),
     errorId: state.errorId,
     removingId: state.removingId,
     swappingId: state.swappingId,
