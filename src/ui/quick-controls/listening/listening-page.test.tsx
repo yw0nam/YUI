@@ -18,7 +18,7 @@ import {
 import { createVoiceInputStatus } from "../../chips/voice-input-status";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs, inMemoryApiKeyStorage } from "../test-helpers";
+import { defaultQcArgs, inMemoryApiKeyStorage, pressSlider } from "../test-helpers";
 import { createListeningPage } from "./listening-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -219,6 +219,24 @@ describe("createQuickControls — reading dictionary placement", () => {
     const qc = createQuickControls(defaultQcArgs(mount));
     const input = qc.el.querySelector("#yui-panel-listening")!;
     expect(input.querySelector(".yui-reading")).toBe(input.querySelector(".yui-sec:last-child"));
+    act(() => qc.dispose());
+  });
+});
+
+describe("createQuickControls — silence slider", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("takes a pointer press on its track in the panel", () => {
+    const mount = document.body.appendChild(document.createElement("div"));
+    const vad = createVadSettings({ storage: { load: () => null, save: () => {} } });
+    const qc = createQuickControls({ ...defaultQcArgs(mount), vad });
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-vad__slider input")!;
+
+    pressSlider(slider, 0.6).release();
+
+    expect(vad.get().silenceMs).toBe(2000);
     act(() => qc.dispose());
   });
 });
