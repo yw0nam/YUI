@@ -1,44 +1,4 @@
-/* ── Chat type row — the closed select shows a short name; the open list shows the long ones ── */
-.yui-select-wrap {
-  position: relative;
-}
-
-.yui-select-wrap > .yui-select {
-  display: block;
-  width: 100%;
-}
-
-/* Two classes outrank .yui-select's colour whatever the stylesheet order. */
-.yui-select.yui-chat-type {
-  color: transparent;
-}
-
-/* The popup inherits the select's colour on Chromium, so the options carry their own. */
-.yui-select.yui-chat-type option {
-  color: var(--yui-text);
-  background-color: var(--yui-panel-bg);
-}
-
-/* Over the select's content box: 1px border, then the select's own padding. */
-.yui-chat-type__shown {
-  position: absolute;
-  inset: 0 calc(1.75rem + 1px) 0 calc(0.625rem + 1px);
-  overflow: hidden;
-  font-size: var(--yui-fs-body);
-  line-height: 2rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--yui-text);
-  pointer-events: none;
-}
-
-/* Forced colours override the transparent text, so the select's own text is the visible value. */
-@media (forced-colors: active) {
-  .yui-chat-type__shown {
-    display: none;
-  }
-}
-
+/* ── Chat type row — the description line under the select, and the key page link look ── */
 .yui-chat-type__desc {
   flex-basis: 100%;
   margin: 0;

@@ -38,10 +38,14 @@ async function open(trigger: HTMLElement) {
   });
 }
 
+/** The items of the open popup; a closed popup stays mounted under a hidden positioner. */
+const shownOptions = () =>
+  [...document.querySelectorAll<HTMLElement>('[role="option"]')].filter(
+    (o) => !o.closest("[hidden]"),
+  );
+
 async function pick(name: string) {
-  const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
-    (o) => o.textContent === name,
-  )!;
+  const option = shownOptions().find((o) => o.textContent === name)!;
   await act(async () => {
     fireEvent.pointerDown(option);
     fireEvent.click(option);
@@ -55,7 +59,7 @@ function trigger(): HTMLElement {
   return found!;
 }
 
-async function escape(target: Element) {
+async function pressEscape(target: Element) {
   await act(async () => {
     fireEvent.keyDown(target, { key: "Escape" });
   });
@@ -94,7 +98,7 @@ describe("Select", () => {
 
     await open(select);
 
-    expect([...document.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toEqual([
+    expect(shownOptions().map((o) => o.textContent)).toEqual([
       "Apple, the long name",
       "Banana, the long name",
     ]);
@@ -107,7 +111,7 @@ describe("Select", () => {
 
     await open(trigger());
 
-    expect(document.querySelectorAll('[role="option"]')).toHaveLength(0);
+    expect(shownOptions()).toHaveLength(0);
   });
 
   it("the first Escape in the open popup closes it and returns focus without closing the window; the next closes the window", async () => {
@@ -123,14 +127,14 @@ describe("Select", () => {
     const inside = document.activeElement!;
     expect(inside.closest("[data-base-ui-portal]")).not.toBeNull();
 
-    await escape(inside);
+    await pressEscape(inside);
 
-    expect(document.querySelectorAll('[role="option"]')).toHaveLength(0);
+    expect(shownOptions()).toHaveLength(0);
     expect(document.activeElement).toBe(select);
     expect(closeWindow).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
 
-    await escape(select);
+    await pressEscape(select);
 
     expect(closeWindow).toHaveBeenCalledTimes(1);
     shell.dispose();

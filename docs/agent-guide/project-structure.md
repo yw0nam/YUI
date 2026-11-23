@@ -679,7 +679,7 @@ YUI/
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
-        markup.ts                    # Panel markup primitives the Connection, Help and tab modules share
+        markup.ts                    # Panel markup primitives the template and the tab rail share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines
@@ -737,20 +737,32 @@ YUI/
         connection/                  # Connection page and its endpoint/API-key section
           connection-views.ts        # The Quick start | Detailed settings switch and the one view it shows
           connection-views.css       # The switch's segment and the view wrappers
-          connection-tab.ts          # The Connection page, with the reasoning-effort row after the chat section
-          chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
-          chat-type.css              # The overlay, option colours and description line of that row
-          endpoints-section.ts       # Endpoint URL fields, the chat and TTS key rows, chat-API picker, and resets
-          endpoints-section.css      # Endpoints section, yui-select dropdown, and the shared chat-status dot styles
+          connection-tab.ts          # Detailed settings' own React root, in the shape the views and the composer call, and the push port the panel uses
+          endpoints-section.css      # Endpoints section, the yui-select trigger, and the shared chat-status dot styles
+          detail/                    # Detailed settings, rendered with React
+            detail-settings.tsx      # The chat section, the reasoning-effort row, the STT and TTS sections, and the commit, entry and close the page calls
+            endpoint-form.ts         # The endpoint drafts: typing holds a draft, a commit, blur or close writes it, a reset clears a service
+            endpoint-row.tsx         # One endpoint field row: label, sub line, the field or a control in its place, the URL error
+            select-row.tsx           # A select row: the label, then the control
+            reset-row.tsx            # A service's reset button
+            stt-section.tsx          # The STT section: the disabled type select, URL, model and language, its server line and reset
+            tts-section.tsx          # The TTS section: the provider select, URL, model and key, its server line and reset
+            effort-row.tsx           # The reasoning-effort segment, disabled on push with its reason
           chat/                      # The Chat section of the Connection page, its model list, and its status line
-            chat-section.ts          # The Chat section: protocol and provider preset reflection, the model-list read, and its status line
-            chat-status.ts           # The single writer of the chat status line: text, dot class, and action button
+            chat-section.tsx         # The Chat section: the type and preset selects, the model field, the key, the model-list read and its status line
+            chat-type.tsx            # The chat type row: long names in the popup, the short name on the closed trigger, the description line
+            chat-type.css            # The description line of that row, and the key page link look
+            chat-status.tsx          # One status line: the dot, the state text and the action button, and the push socket's view
             chat-status.css          # Chat status line and reconnect action styles
-            model-combobox.ts        # The chat model input as a combobox filtering the server's model ids
-            model-combobox.css       # The model combobox's list beneath the input
+            model-field.tsx          # The chat model field on Base UI's Autocomplete, filtering the server's model ids
+            model-field.css          # The model list's popup beneath the field
             model-read.ts            # One model-list read at a time: deduped, superseded, and reported as results
             model-status.ts          # Maps the model-list read's phase and the model text to the status line's view
             push-state-text.ts       # Where the push socket stands, in words, for the status line
+          server-line/               # The STT and TTS server lines
+            server-line.tsx          # One line: checks on entry, again when its watched fields or key change, and drops a superseded answer
+            server-line-view.ts      # Maps one server check to the line's view
+            host.ts                  # A URL's host
           quick-start/               # The Connection page's Quick start view, for the free Gemini path
             quick-start-adapter.ts   # Quick start's own React root, in the shape the views and the composer call
             quick-start.tsx          # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
@@ -802,11 +814,9 @@ YUI/
             session-section.css      # Session context-occupancy readout and meter styles
         listening/                   # The Listening page, rendered with React
           listening-page.ts          # The page's facade: its React root, and the STT draft it commits on close and dispose
-          listening-page-view.tsx    # The voice switch, the STT key row, the silence slider, the barge-in and bubble switches, and the reading dictionary
+          listening-page-view.tsx    # The voice switch, the STT key row (a KeyRow), the silence slider, the barge-in and bubble switches, and the reading dictionary
           silence/
             silence-slider.tsx       # The silence threshold slider: its range, readout and fill from the vad store, and the release log
-          stt-key/
-            stt-key-row.tsx          # The masked STT key input, its reveal and clear buttons, the sub line, and the commit on blur, close and dispose
           readings/
             readings-section.tsx     # The reading textarea, its edits, and the line naming skipped lines
             readings-section.css     # Reading dictionary textarea and skipped-line styles
@@ -889,20 +899,18 @@ YUI/
             characters-section.tsx   # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
             characters-section.css   # Character row styles
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
-          agent/                     # Reasoning-effort control
-            agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
           help/                      # The bundled guides
             help-section.ts          # The guide keys, and the delegated click the composer binds on the Connection page's Help buttons
           key-row/                   # One secret API key row
-            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows
+            key-row.tsx              # Masked input, reveal and clear, sub line, commit on blur, close and dispose; the chat, TTS and STT rows
           push-reason/               # Controls the push transport cannot use
-            push-reason.ts           # The reason line under such a control and its link to the chat protocol select
+            push-reason.tsx          # The reason line under such a control, and the delegated click of its link to the chat protocol select
             push-reason.css          # Reason line styles
         switches/                    # The React switch rows the Voice, Together, Motion and Proactive pages share
           descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
-      controls/                      # Shared React controls; the slider, the checkbox, the number field and the segment build on Base UI
+      controls/                      # Shared React controls; the slider, the checkbox, the number field, the segment and the select build on Base UI
         slider/                      # The Slider
           index.ts                   # Re-exports the Slider and its props type
           slider.tsx                 # A range slider the caller labels and owns the value of, reporting each change and each commit
@@ -921,6 +929,10 @@ YUI/
           index.ts                   # Re-exports the Switch and its props type
           switch.tsx                 # A boolean switch the caller labels and owns the state of
           switch.css                 # Switch track, knob, focus and disabled styles
+        select/                      # The Select
+          index.ts                   # Re-exports the Select, its items and props types
+          select.tsx                 # A select on Base UI's Select the caller labels and owns the value of, with a shorter closed name where given
+          select.css                 # The popup and its items over the settings content
         segment/                     # The Segment, and the keys it shares
           index.ts                   # Re-exports the Segment, its options and props, and the key handler
           segment.tsx                # A radio segment the caller labels and owns the value of

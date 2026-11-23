@@ -1,24 +1,30 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ServerCheck } from "../../../../io/chat/models/server-check";
 import { t } from "../../../i18n";
-import { createServerLine } from "./server-line";
+import { ServerLine, type ServerLineRun } from "./server-line";
 
-const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-function lineSection(): HTMLElement {
-  const section = document.createElement("section");
-  section.innerHTML =
-    '<p class="yui-chat-status" hidden><span class="yui-chat-status__dot"></span><span class="yui-chat-status__text"></span><button class="yui-chat-status__action" hidden></button></p>';
-  return section;
+const tick = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+
+/** Renders one line; `run` is what the page calls on entry. */
+function createServerLine(props: Omit<Parameters<typeof ServerLine>[0], "run">) {
+  const handle: ServerLineRun = { current: null };
+  const { container } = render(<ServerLine {...props} run={handle} />);
+  return { section: container, run: () => act(() => handle.current!()) };
 }
 
-describe("createServerLine", () => {
+describe("ServerLine", () => {
+  afterEach(() => {
+    act(() => cleanup());
+  });
+
   it("drops a stale result — two runs, the first resolving last keeps the second's view", async () => {
     const pending: ((result: ServerCheck | null) => void)[] = [];
-    const section = lineSection();
-    const line = createServerLine({
-      section,
+    const { section, run } = createServerLine({
       check: () => new Promise<ServerCheck | null>((resolve) => pending.push(resolve)),
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -28,14 +34,14 @@ describe("createServerLine", () => {
     });
     const text = () => section.querySelector<HTMLElement>(".yui-chat-status__text")!.textContent;
 
-    line.run();
-    line.run();
+    run();
+    run();
     expect(pending).toHaveLength(2);
-    pending[1]?.({ kind: "ok" });
+    act(() => pending[1]?.({ kind: "ok" }));
     await tick();
     expect(text()).toBe(t("svc.server_connected", { host: "h.test" }));
 
-    pending[0]?.({ kind: "unreachable" });
+    act(() => pending[0]?.({ kind: "unreachable" }));
     await tick();
     expect(text()).toBe(t("svc.server_connected", { host: "h.test" }));
   });
@@ -43,9 +49,7 @@ describe("createServerLine", () => {
   it("does not re-check when an endpoints notify leaves the watched value unchanged", async () => {
     let notify: (() => void) | undefined;
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const section = lineSection();
-    const line = createServerLine({
-      section,
+    const { run } = createServerLine({
       check,
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -57,11 +61,11 @@ describe("createServerLine", () => {
       isOpen: () => true,
     });
 
-    line.run();
+    run();
     await tick();
     expect(check).toHaveBeenCalledTimes(1);
 
-    notify?.();
+    act(() => notify?.());
     await tick();
     expect(check).toHaveBeenCalledTimes(1);
   });
@@ -69,9 +73,7 @@ describe("createServerLine", () => {
   it("re-checks when the key store notifies", async () => {
     let keyNotify: (() => void) | undefined;
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const section = lineSection();
-    const line = createServerLine({
-      section,
+    const { run } = createServerLine({
       check,
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -83,11 +85,11 @@ describe("createServerLine", () => {
       isOpen: () => true,
     });
 
-    line.run();
+    run();
     await tick();
     expect(check).toHaveBeenCalledTimes(1);
 
-    keyNotify?.();
+    act(() => keyNotify?.());
     await tick();
     expect(check).toHaveBeenCalledTimes(2);
   });
@@ -95,9 +97,7 @@ describe("createServerLine", () => {
   it("hides the line and checks nothing while the service has no host", async () => {
     let hostValue = "h.test";
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const section = lineSection();
-    const line = createServerLine({
-      section,
+    const { section, run } = createServerLine({
       check,
       host: () => hostValue,
       watch: () => hostValue,
@@ -107,12 +107,12 @@ describe("createServerLine", () => {
     });
     const lineEl = section.querySelector<HTMLElement>(".yui-chat-status")!;
 
-    line.run();
+    run();
     await tick();
     expect(lineEl.hidden).toBe(false);
 
     hostValue = "";
-    line.run();
+    run();
     await tick();
     expect(lineEl.hidden).toBe(true);
     expect(check).toHaveBeenCalledTimes(1);

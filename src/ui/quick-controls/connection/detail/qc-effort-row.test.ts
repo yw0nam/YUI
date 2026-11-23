@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
@@ -22,7 +24,10 @@ import {
   makeVrmSelection,
 } from "../../test-helpers";
 
-describe("createQuickControls — agent section", () => {
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+describe("createQuickControls — reasoning-effort row", () => {
   let mount: HTMLElement;
   let onGainPreview: Mock<(mouthOpen: number) => void>;
   let onGainPreviewEnd: Mock<() => void>;
@@ -120,7 +125,7 @@ describe("createQuickControls — agent section", () => {
     expect(btns).toHaveLength(5);
     const medium = btns[4];
 
-    medium.click();
+    fireEvent.click(medium);
 
     expect(agentSettings.get().reasoning_effort).toBe("medium");
     expect(medium.getAttribute("aria-checked")).toBe("true");
@@ -128,10 +133,10 @@ describe("createQuickControls — agent section", () => {
       if (b !== medium) expect(b.getAttribute("aria-checked")).toBe("false");
     }
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
-  it("ArrowRight on the segmented control moves selection (roving) and updates the store", () => {
+  it("ArrowRight on the segmented control moves selection (roving) and updates the store", async () => {
     const qc = buildQc();
     qc.open();
 
@@ -140,13 +145,17 @@ describe("createQuickControls — agent section", () => {
     // start at default (index 0)
     expect(btns[0].getAttribute("aria-checked")).toBe("true");
 
-    btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    act(() => btns[0].focus());
+    // Base UI moves focus in a microtask, so the arrow settles inside the awaited act.
+    await act(async () => {
+      fireEvent.keyDown(btns[0], { key: "ArrowRight" });
+    });
 
     expect(agentSettings.get().reasoning_effort).toBe("none");
     expect(btns[1].getAttribute("aria-checked")).toBe("true");
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── reflect store state on open ───────────────────────────────────────────
@@ -163,28 +172,28 @@ describe("createQuickControls — agent section", () => {
     expect(btns[4].getAttribute("aria-checked")).toBe("true"); // medium
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("external agent settings change reflects in the panel while open", () => {
     const qc = buildQc();
     qc.open();
 
-    agentSettings.setReasoningEffort("low");
+    act(() => agentSettings.setReasoningEffort("low"));
 
     const btns = Array.from(
       qc.el.querySelectorAll<HTMLButtonElement>(".yui-effort-seg .yui-seg__btn"),
     );
     expect(btns[3].getAttribute("aria-checked")).toBe("true"); // low
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("releases every agent settings subscription on dispose", () => {
     const counts = countSubscriptions(agentSettings);
     const qc = buildQc();
 
-    qc.dispose();
+    act(() => qc.dispose());
 
     expect(counts.taken).toBeGreaterThan(0);
     expect(counts.released).toBe(counts.taken);
@@ -214,7 +223,7 @@ describe("createQuickControls — agent section", () => {
       expect(reason.textContent).toContain("푸시에서는 얼마나 생각할지 백엔드가 정해요.");
       expect(localeRow.hidden).toBe(false);
 
-      qc.dispose();
+      act(() => qc.dispose());
     });
 
     it("follows a live transport change in both directions", () => {
@@ -223,13 +232,13 @@ describe("createQuickControls — agent section", () => {
       qc.open();
       const { reason, disabled } = agentControls(qc);
 
-      endpointsSettings.set({ chat_api: "push" });
+      act(() => endpointsSettings.set({ chat_api: "push" }));
       expect([disabled(), reason.hidden]).toEqual([true, false]);
 
-      endpointsSettings.set({ chat_api: "responses" });
+      act(() => endpointsSettings.set({ chat_api: "responses" }));
       expect([disabled(), reason.hidden]).toEqual([false, true]);
 
-      qc.dispose();
+      act(() => qc.dispose());
     });
 
     it("disables the segment when the bundled default transport is push", () => {
@@ -238,7 +247,7 @@ describe("createQuickControls — agent section", () => {
 
       expect(agentControls(qc).disabled()).toBe(true);
 
-      qc.dispose();
+      act(() => qc.dispose());
     });
 
     it("keeps the stored effort while the control is disabled", () => {
@@ -249,14 +258,14 @@ describe("createQuickControls — agent section", () => {
 
       expect(agentSettings.get().reasoning_effort).toBe("medium");
 
-      qc.dispose();
+      act(() => qc.dispose());
     });
 
     it("releases every endpoints settings subscription on dispose", () => {
       const counts = countSubscriptions(endpointsSettings);
       const qc = buildQc();
 
-      qc.dispose();
+      act(() => qc.dispose());
 
       expect(counts.taken).toBeGreaterThan(0);
       expect(counts.released).toBe(counts.taken);
@@ -307,6 +316,6 @@ describe("createQuickControls — language picker", () => {
       .closest(".yui-row")!
       .querySelector<HTMLElement>(".yui-row__label")!;
     expect(label.textContent).toBe("추론 강도");
-    qc.dispose();
+    act(() => qc.dispose());
   });
 });

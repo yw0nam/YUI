@@ -15,6 +15,7 @@ import { Switch } from "../../../controls/switch";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, PLUS_SVG } from "../../constants";
+import { PushReason } from "../../sections/push-reason/push-reason";
 import { setValue } from "../set-value";
 import { cardBase, currentCard, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
@@ -204,12 +205,7 @@ export function CardSection({
           <div className="yui-row__main">
             <span className="yui-row__label">{t("card.send_label")}</span>
             <span className="yui-row__sub">{t("card.send_sub")}</span>
-            <span className="yui-row__sub yui-push-reason" hidden={!push}>
-              {`${t("push.reason_card")} `}
-              <button className="yui-link-btn yui-push-reason__link" type="button">
-                {t("push.to_transport")}
-              </button>
-            </span>
+            <PushReason reasonKey="push.reason_card" hidden={!push} />
           </div>
           <Switch
             className="yui-card-switch"

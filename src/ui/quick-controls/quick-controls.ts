@@ -93,7 +93,6 @@ import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { createProactivePage } from "./proactive/proactive-page";
 import { bindSettingsSearch } from "./search/settings-search";
-import { createAgentSection } from "./sections/agent/agent-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createSwitchRows } from "./switch-row";
@@ -518,10 +517,12 @@ export function createQuickControls({
     getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
+    agentSettings,
     isOpen: () => shell.isOpen(),
     getChatApiKey,
     getFetch,
     log,
+    host: el.querySelector<HTMLElement>("#yui-panel-conn")!,
   });
   // ── Quick start (data use · daily limit · key confirmation) ──
   const quickStart = createQuickStart({
@@ -671,15 +672,6 @@ export function createQuickControls({
     },
   });
 
-  // ── Agent section (locale segment · reasoning-effort segment) ──
-  const agent = createAgentSection({
-    root: el,
-    agentSettings,
-    endpointsSettings,
-    isPushMode,
-    isOpen: shell.isOpen,
-    log,
-  });
   // ── Persona page (active hours above the card · the card fields · its file actions) ──
   const persona = createPersonaPage({
     root: el,
@@ -794,7 +786,6 @@ export function createQuickControls({
     pluginsPage,
     { reflect: proactivePage.refresh, dispose: proactivePage.dispose },
     { close: listeningPage.close, dispose: listeningPage.dispose },
-    agent,
     { reflect: persona.reflect, dispose: persona.dispose },
     { dispose: generalPage.dispose },
     {

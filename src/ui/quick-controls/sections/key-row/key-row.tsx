@@ -1,4 +1,8 @@
-/** The STT key row: the masked input, its reveal and clear buttons, and the sub line naming whether an override is set. */
+/**
+ * One secret API key row: the masked input, its reveal and clear buttons, and the sub line naming
+ * whether an override is set. Typing commits nothing; blur, or the page's close or dispose through
+ * `commit`, does. The value lives only in the input and the store.
+ */
 
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Logger } from "../../../../logger";
@@ -6,21 +10,25 @@ import type { ApiKeySettingsStore } from "../../../../settings/backend/api-key-s
 import { t } from "../../../i18n";
 import { CHATKEY_CLEAR_SVG, CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG } from "../../constants";
 
-const ID_PREFIX = "sttkey";
-
-/** The row's commit-if-dirty, which the page facade calls on close and dispose. */
-export interface SttKeyCommit {
+/** The row's commit-if-dirty, which the page calls on close and dispose. */
+export interface KeyRowCommit {
   current: (() => void) | null;
 }
 
-export function SttKeyRow({
+export function KeyRow({
+  idPrefix,
   store,
   log,
   commit,
+  onCommitted,
 }: {
+  /** Stamps the ids and the i18n keys: `chatkey`, `ttskey`, `sttkey`. */
+  idPrefix: string;
   store: ApiKeySettingsStore;
   log: Logger;
-  commit: SttKeyCommit;
+  commit: KeyRowCommit;
+  /** After a typed key lands in the store on blur. */
+  onCommitted?: () => void;
 }) {
   const apiKey = useSyncExternalStore(store.subscribe, () => store.current().apiKey);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,53 +60,46 @@ export function SttKeyRow({
     };
   }, [commit, commitIfDirty]);
 
-  function handleInput(): void {
-    dirty.current = true;
-  }
-
   function handleBlur(): void {
+    const wasDirty = dirty.current;
     commitIfDirty();
     const input = inputRef.current;
-    if (input) {
-      input.value = store.current().apiKey;
-      dirty.current = false;
-    }
-  }
-
-  function handleToggle(): void {
-    setRevealed((shown) => !shown);
+    if (input) input.value = store.current().apiKey;
+    if (wasDirty) onCommitted?.();
   }
 
   function handleClear(): void {
     dirty.current = false;
     if (inputRef.current) inputRef.current.value = "";
     store.clear();
-    log.info(`${ID_PREFIX}_clear`);
+    log.info(`${idPrefix}_clear`);
   }
 
-  const revealLabel = t(revealed ? `${ID_PREFIX}.hide` : `${ID_PREFIX}.show`);
+  const revealLabel = t(revealed ? `${idPrefix}.hide` : `${idPrefix}.show`);
 
   return (
-    <div className="yui-row yui-input-row yui-chatkey" data-key-prefix={ID_PREFIX}>
+    <div className="yui-row yui-input-row yui-chatkey" data-key-prefix={idPrefix}>
       <div className="yui-row__main">
-        <label className="yui-input-row__label" htmlFor={`yui-${ID_PREFIX}-input`}>
-          {t(`${ID_PREFIX}.label`)}
+        <label className="yui-input-row__label" htmlFor={`yui-${idPrefix}-input`}>
+          {t(`${idPrefix}.label`)}
         </label>
         <span className="yui-input-row__sub">
-          {t(apiKey ? `${ID_PREFIX}.sub_override` : `${ID_PREFIX}.sub_default`)}
+          {t(apiKey ? `${idPrefix}.sub_override` : `${idPrefix}.sub_default`)}
         </span>
       </div>
       <div className="yui-input-wrap yui-chatkey__wrap">
         <input
           className="yui-ep-input yui-chatkey__input"
-          id={`yui-${ID_PREFIX}-input`}
+          id={`yui-${idPrefix}-input`}
           ref={inputRef}
           type={revealed ? "text" : "password"}
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
-          aria-label={t(`${ID_PREFIX}.label`)}
-          onInput={handleInput}
+          aria-label={t(`${idPrefix}.label`)}
+          onInput={() => {
+            dirty.current = true;
+          }}
           onBlur={handleBlur}
         />
         <button
@@ -107,17 +108,17 @@ export function SttKeyRow({
           aria-pressed={revealed}
           aria-label={revealLabel}
           data-tip={revealLabel}
-          onClick={handleToggle}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the key row
+          onClick={() => setRevealed((shown) => !shown)}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the other key fields
           dangerouslySetInnerHTML={{ __html: revealed ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG }}
         />
         <button
           className="yui-iconbtn yui-chatkey__clear"
           type="button"
-          aria-label={t(`${ID_PREFIX}.clear`)}
-          data-tip={t(`${ID_PREFIX}.clear`)}
+          aria-label={t(`${idPrefix}.clear`)}
+          data-tip={t(`${idPrefix}.clear`)}
           onClick={handleClear}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the key row
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the other key fields
           dangerouslySetInnerHTML={{ __html: CHATKEY_CLEAR_SVG }}
         />
       </div>

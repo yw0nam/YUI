@@ -24,13 +24,6 @@ vi.mock("./perms/perms-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
-  createAgentSection: () => ({
-    reflect: rec("agent", "reflect"),
-    dispose: () => {},
-  }),
-}));
 vi.mock("./connection/connection-tab", () => ({
   createConnectionTab: () => ({
     el: document.createElement("div"),
@@ -102,7 +95,6 @@ describe("createQuickControls — open order", () => {
     qc.open();
 
     expect(order).toEqual([
-      "agent.reflect",
       "connectionTab.refresh",
       "delegationFeed.sync",
       "historyPage.refresh",

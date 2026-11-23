@@ -24,7 +24,7 @@ import type { Span } from "../../../../settings/active-hours/spans";
 import type { PersistedStorage } from "../../../../settings/persisted-store";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
-import { defaultQcArgs } from "../../test-helpers";
+import { defaultQcArgs, optionNames, pickOption } from "../../test-helpers";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -96,18 +96,18 @@ describe("createQuickControls — active hours", () => {
 
   const rows = () => qc.el.querySelectorAll<HTMLElement>(".yui-hours__span");
   const timesOf = (row: HTMLElement) => row.querySelectorAll<HTMLInputElement>(".yui-time-input");
-  const paceOf = (row: HTMLElement) => row.querySelector<HTMLSelectElement>(".yui-hours__pace")!;
+  const paceOf = (row: HTMLElement) => row.querySelector<HTMLElement>(".yui-hours__pace")!;
 
-  it("renders the card's three spans: start, end, pace, next day on the wrapped one", () => {
+  it("renders the card's three spans: start, end, pace, next day on the wrapped one", async () => {
     build();
     const list = rows();
     expect(list).toHaveLength(3);
     expect(timesOf(list[0]!)[0]!.value).toBe("08:00");
     expect(timesOf(list[0]!)[1]!.value).toBe("12:00");
-    expect(paceOf(list[0]!).value).toBe("low");
-    expect(paceOf(list[0]!).textContent).toContain("Less");
-    expect(paceOf(list[1]!).value).toBe("normal");
-    expect(paceOf(list[2]!).value).toBe("high");
+    expect(paceOf(list[0]!).textContent).toBe("Less");
+    expect(await optionNames(paceOf(list[0]!))).toEqual(["More", "Normal", "Less", "Off"]);
+    expect(paceOf(list[1]!).textContent).toBe("Normal");
+    expect(paceOf(list[2]!).textContent).toBe("More");
     expect(timesOf(list[2]!)[1]!.value).toBe("03:00");
     expect(list[2]!.textContent).toContain("next day");
     expect(list[1]!.textContent).not.toContain("next day");
@@ -144,10 +144,10 @@ describe("createQuickControls — active hours", () => {
     expect(store.get().spans?.[0]).toEqual({ start: "08:00", end: "13:00", pace: "low" });
   });
 
-  it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", () => {
+  it("writes the whole list on a pace edit, shows Reset to default, and reset returns the store to null", async () => {
     build();
     expect(rows()).toHaveLength(3);
-    fireEvent.change(paceOf(rows()[1]!), { target: { value: "off" } });
+    await pickOption(paceOf(rows()[1]!), "Off");
     expect(store.get().spans).toEqual([
       { start: "08:00", end: "12:00", pace: "low" },
       { start: "12:00", end: "22:00", pace: "off" },

@@ -1,21 +1,31 @@
 // @vitest-environment jsdom
 /**
- * chat-type.test.ts — the chat type row tells the three types apart: the open list carries the
- * long names, the closed control and the summary hint show the short name, and the description
+ * chat-type.test.tsx — the chat type row tells the three types apart: the popup carries the
+ * long names, the closed trigger and the summary hint show the short name, and the description
  * line follows the selection.
  */
 import { readFileSync } from "node:fs";
+import { act, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import {
   createChatKeySettings,
   createSttKeySettings,
   createTtsKeySettings,
-} from "../../../settings/backend/api-key-settings";
-import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
-import { type Locale, setLocale, t } from "../../i18n";
-import { CARD_GUIDE_URL } from "../constants";
-import { inMemoryApiKeyStorage } from "../test-helpers";
-import { createConnectionTab } from "./connection-tab";
+} from "../../../../settings/backend/api-key-settings";
+import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { type Locale, setLocale, t } from "../../../i18n";
+import { CARD_GUIDE_URL } from "../../constants";
+import {
+  inMemoryAgentStorage,
+  inMemoryApiKeyStorage,
+  optionNames,
+  pickOption,
+} from "../../test-helpers";
+import { createConnectionTab } from "../connection-tab";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const ORDER = ["chat_completions", "responses", "push"] as const;
 const LONG = {
@@ -43,6 +53,8 @@ describe("chat type row", () => {
     document.body.innerHTML = "";
   });
 
+  const dispose = (tab: { dispose(): void }) => act(() => tab.dispose());
+
   function build(locale: Locale) {
     setLocale(locale);
     const tab = createConnectionTab({
@@ -50,10 +62,11 @@ describe("chat type row", () => {
       chatKeySettings: createChatKeySettings(),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       isOpen: () => true,
       log: { debug() {}, info() {}, warn() {}, error() {} },
+      host: document.body,
     });
-    document.body.append(tab.el);
     tab.refresh();
     return tab;
   }
@@ -61,64 +74,59 @@ describe("chat type row", () => {
   const q = (el: HTMLElement, sel: string) => el.querySelector<HTMLElement>(sel)!;
 
   for (const locale of ["en", "ko"] as const) {
-    it(`${locale}: the open list carries the long names in the agreed order`, () => {
+    it(`${locale}: the open list carries the long names in the agreed order`, async () => {
       const tab = build(locale);
-      const options = [...q(tab.el, ".yui-chat-type").querySelectorAll("option")];
-      expect(options.map((o) => o.value)).toEqual(ORDER);
-      expect(options.map((o) => o.textContent)).toEqual(ORDER.map((a) => LONG[locale][a]));
-      tab.dispose();
+      expect(await optionNames(q(tab.el, ".yui-chat-type"))).toEqual(
+        ORDER.map((a) => LONG[locale][a]),
+      );
+      dispose(tab);
     });
   }
 
-  it("the closed overlay, the summary hint and the description follow the selection", () => {
+  it("the closed trigger, the summary hint and the description follow the selection", async () => {
     const tab = build("en");
-    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    const select = q(tab.el, ".yui-chat-type");
     const desc = q(tab.el, ".yui-chat-type__desc");
     const expected = { chat_completions: "Ollama", responses: "OpenAI", push: "speak first" };
     for (const api of ORDER) {
-      select.value = api;
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-      expect(q(tab.el, ".yui-chat-type__shown").textContent).toBe(SHORT[api]);
+      if (select.textContent !== SHORT[api]) await pickOption(select, LONG.en[api]);
+      expect(select.textContent).toBe(SHORT[api]);
       expect(q(tab.el, ".yui-chat-summary-hint").textContent).toBe(SHORT[api]);
       expect(desc.textContent).toContain(expected[api]);
       expect(desc.getAttribute("aria-live")).toBe("polite");
     }
-    tab.dispose();
+    dispose(tab);
   });
 
-  it("the overlay is hidden from assistive tech and the select keeps its name", () => {
+  it("the select keeps its name while its trigger shows the short one", () => {
     const tab = build("en");
-    expect(q(tab.el, ".yui-chat-type__shown").getAttribute("aria-hidden")).toBe("true");
     expect(q(tab.el, ".yui-chat-type").getAttribute("aria-label")).toBe(t("svc.chat_aria"));
-    tab.dispose();
+    dispose(tab);
   });
 
   for (const locale of ["en", "ko", "ja"] as const) {
-    it(`${locale}: no description names an agent or carries a link`, () => {
+    it(`${locale}: no description names an agent or carries a link`, async () => {
       const tab = build(locale);
-      const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+      const select = q(tab.el, ".yui-chat-type");
       for (const api of ORDER) {
-        select.value = api;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
+        if (api !== "responses") await pickOption(select, t(`svc.chat_option_${api}`));
         const desc = q(tab.el, ".yui-chat-type__desc");
         expect(desc.querySelectorAll("a")).toHaveLength(0);
         expect(desc.textContent).not.toContain("{agent}");
         expect(desc.textContent).not.toContain("Hermes");
       }
-      tab.dispose();
+      dispose(tab);
     });
   }
 
-  it("the fade class leaves when its animation ends, so the next change replays it", () => {
+  it("the fade class leaves when its animation ends, so the next change replays it", async () => {
     const tab = build("en");
-    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
     const desc = q(tab.el, ".yui-chat-type__desc");
-    select.value = "chat_completions";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(q(tab.el, ".yui-chat-type"), LONG.en.chat_completions);
     expect(desc.classList.contains("is-swapping")).toBe(true);
-    desc.dispatchEvent(new Event("animationend"));
+    fireEvent.animationEnd(desc);
     expect(desc.classList.contains("is-swapping")).toBe(false);
-    tab.dispose();
+    dispose(tab);
   });
 
   it("the settings window may open exactly the panel's link URLs through the opener", () => {

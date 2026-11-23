@@ -1,5 +1,8 @@
 /** A select on Base UI's Select: the caller labels it and owns the value; the popup lists the items. */
 
+import { Select as BaseSelect } from "@base-ui/react/select";
+import "./select.css";
+
 export interface SelectItem<V extends string> {
   value: V;
   label: string;
@@ -18,6 +21,52 @@ export interface SelectProps<V extends string> {
   valueLabel?: (value: V) => string;
 }
 
-export function Select<V extends string>(_props: SelectProps<V>) {
-  return null;
+export function Select<V extends string>({
+  id,
+  value,
+  items,
+  onValueChange,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
+  valueLabel,
+}: SelectProps<V>) {
+  return (
+    <BaseSelect.Root
+      value={value}
+      items={items}
+      onValueChange={(next) => {
+        // A native select reports no change when its current option is picked again.
+        if (next !== null && next !== value) onValueChange(next as V);
+      }}
+      disabled={disabled}
+    >
+      <BaseSelect.Trigger
+        id={id}
+        className={className ? `yui-select ${className}` : "yui-select"}
+        aria-label={ariaLabel}
+      >
+        <BaseSelect.Value>
+          {(current: V | null) =>
+            current === null
+              ? ""
+              : (valueLabel?.(current) ?? items.find((item) => item.value === current)?.label)
+          }
+        </BaseSelect.Value>
+      </BaseSelect.Trigger>
+      <BaseSelect.Portal>
+        <BaseSelect.Positioner className="yui-select-pos">
+          <BaseSelect.Popup className="yui-select-pop">
+            <BaseSelect.List className="yui-select-list">
+              {items.map((item) => (
+                <BaseSelect.Item key={item.value} value={item.value} className="yui-select-item">
+                  <BaseSelect.ItemText>{item.label}</BaseSelect.ItemText>
+                </BaseSelect.Item>
+              ))}
+            </BaseSelect.List>
+          </BaseSelect.Popup>
+        </BaseSelect.Positioner>
+      </BaseSelect.Portal>
+    </BaseSelect.Root>
+  );
 }

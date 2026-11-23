@@ -9,9 +9,9 @@ import type { createVadSettings } from "../../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../../chips/voice-input-status";
 import { Switch } from "../../controls/switch";
 import { t } from "../../i18n";
+import { KeyRow, type KeyRowCommit } from "../sections/key-row/key-row";
 import { ReadingsSection } from "./readings/readings-section";
 import { SilenceSlider } from "./silence/silence-slider";
-import { type SttKeyCommit, SttKeyRow } from "./stt-key/stt-key-row";
 
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type ReadingsSettingsStore = ReturnType<typeof createReadingsSettings>;
@@ -126,14 +126,14 @@ export function ListeningPageView({
   readingsSettings: ReadingsSettingsStore;
   bubblePersistSettings?: FlagSettingsStore;
   log: Logger;
-  sttKeyCommit: SttKeyCommit;
+  sttKeyCommit: KeyRowCommit;
 }) {
   return (
     <>
       <div className="yui-sec">
         <div className="yui-group">
           {showVoiceInput ? <VoiceRow voiceStatus={voiceStatus} log={log} /> : null}
-          <SttKeyRow store={sttKeySettings} log={log} commit={sttKeyCommit} />
+          <KeyRow idPrefix="sttkey" store={sttKeySettings} log={log} commit={sttKeyCommit} />
           <SilenceSlider vad={vad} log={log} />
           <BargeInRow vad={vad} log={log} />
           {bubblePersistSettings ? <BubbleRow store={bubblePersistSettings} log={log} /> : null}

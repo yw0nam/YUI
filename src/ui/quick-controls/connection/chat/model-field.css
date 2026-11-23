@@ -1,0 +1,42 @@
+/* ── Chat model field — the server's ids in a popup beneath the field ── */
+.yui-model-pos {
+  z-index: 100;
+  outline: none;
+}
+
+.yui-model-list {
+  box-sizing: border-box;
+  width: var(--anchor-width);
+  max-height: min(11.5rem, var(--available-height));
+  padding: 0.25rem;
+  overflow-y: auto;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-panel-bg);
+  box-shadow: var(--yui-float);
+  font-size: var(--yui-fs-body);
+  outline: none;
+}
+
+.yui-model-list__opt {
+  padding: 0.375rem 0.5rem;
+  border-radius: calc(var(--yui-radius-control) - 2px);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.yui-model-list__opt[data-highlighted] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-model-list__none {
+  padding: 0.375rem 0.375rem;
+  color: var(--yui-text-mute);
+  cursor: default;
+}
+
+.yui-model-list__none:empty {
+  display: none;
+}

@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, and the NumberField, a number field that reports the value committed on blur, Enter or a step.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, the NumberField, a number field that reports the value committed on blur, Enter or a step, and the Select, a select the caller labels and owns the value of, whose popup lists the items and whose closed trigger can show a shorter name.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4903,6 +4903,60 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
+    },
+    {
+      "id": "chat-type-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the chat types with their long names, the short name on the closed trigger, and the picked type",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/chat/chat-type.tsx"
+    },
+    {
+      "id": "chat-preset-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the chat provider presets and Custom, the matched preset, and the picked one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/chat/chat-section.tsx"
+    },
+    {
+      "id": "tts-provider-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the TTS providers, the override or bundled provider, and the picked one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/tts-section.tsx"
+    },
+    {
+      "id": "stt-type-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select, disabled: the one STT type the protocol names",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/stt-section.tsx"
+    },
+    {
+      "id": "effort-segment",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Segment, disabled on push: the reasoning efforts, the stored one and the chosen one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/effort-row.tsx"
+    },
+    {
+      "id": "pace-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: a span's paces, its pace, and the picked one into the span list's write",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/persona/active-hours/span-row.tsx"
     },
     {
       "id": "chain-cap-field",

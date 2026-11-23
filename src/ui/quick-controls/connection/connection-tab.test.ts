@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 /**
- * connection-tab.test.ts — the extracted Connection tab: the TTS provider select, the STT model
+ * connection-tab.test.ts — Detailed settings through its facade: the TTS provider select, the STT model
  * field persisting and resetting with the service, the model list read, and dispose committing.
  */
+import { act, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
+import { createAgentSettings } from "../../../settings/backend/agent-settings";
 import {
   createChatKeySettings,
   createSttKeySettings,
@@ -18,8 +20,22 @@ import {
   endpointDefaultsFromConfig,
 } from "../../../settings/backend/endpoints-settings";
 import { setLocale, t } from "../../i18n";
-import { inMemoryApiKeyStorage } from "../test-helpers";
+import {
+  inMemoryAgentStorage,
+  inMemoryApiKeyStorage,
+  optionNames,
+  pickOption,
+} from "../test-helpers";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection-tab";
+
+// React's act() only flushes in a test environment that says so.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Types into a field the way a user does, then commits it with Enter as a native change would. */
+function commitTyped(input: HTMLInputElement, value: string): void {
+  fireEvent.change(input, { target: { value } });
+  fireEvent.keyDown(input, { key: "Enter" });
+}
 
 describe("createConnectionTab", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
@@ -50,11 +66,12 @@ describe("createConnectionTab", () => {
     checkTtsServer?: () => Promise<ServerCheck | null>;
     getEndpoints?: () => EndpointsConfig | null;
   }) {
-    return createConnectionTab({
+    const tab = createConnectionTab({
       endpointsSettings,
       chatKeySettings,
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
       isOpen: () => true,
       ...extra,
       log: {
@@ -63,7 +80,14 @@ describe("createConnectionTab", () => {
         warn: () => {},
         error: () => {},
       },
+      host: document.body.appendChild(document.createElement("div")),
     });
+    return {
+      ...tab,
+      entered: () => act(() => tab.entered()),
+      close: () => act(() => tab.close()),
+      dispose: () => act(() => tab.dispose()),
+    };
   }
 
   function fakeSocket(state: PushSocketState): PushSocketPanelPort {
@@ -77,23 +101,21 @@ describe("createConnectionTab", () => {
 
   // ── TTS provider ──────────────────────────────────────────────────────────────────────────
 
-  it("offers Irodori, OpenAI and Fish as TTS providers above a model field", () => {
+  it("offers Irodori, OpenAI and Fish as TTS providers above a model field", async () => {
     const tab = build();
 
-    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    const select = tab.el.querySelector<HTMLButtonElement>("#yui-svc-tts-provider")!;
     expect(select.disabled).toBe(false);
-    expect([...select.options].map((o) => o.value)).toEqual(["irodori", "openai", "fish"]);
+    expect(await optionNames(select)).toEqual(["Irodori", "OpenAI", "Fish Audio"]);
     expect(tab.el.querySelector("#yui-ep-tts_model")).not.toBeNull();
 
     tab.dispose();
   });
 
-  it("selecting Fish writes the provider, its URL and default model in one store write", () => {
+  it("selecting Fish writes the provider, its URL and default model in one store write", async () => {
     const tab = build();
 
-    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
-    select.value = "fish";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(tab.el.querySelector("#yui-svc-tts-provider")!, "Fish Audio");
 
     expect(endpointsSettings.get()).toMatchObject({
       tts_provider: "fish",
@@ -110,14 +132,12 @@ describe("createConnectionTab", () => {
     tab.dispose();
   });
 
-  it("selecting OpenAI writes the provider, its URL and default model in one store write", () => {
+  it("selecting OpenAI writes the provider, its URL and default model in one store write", async () => {
     const tab = build();
     const writes = vi.fn();
     endpointsSettings.subscribe(writes);
 
-    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
-    select.value = "openai";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(tab.el.querySelector("#yui-svc-tts-provider")!, "OpenAI");
 
     expect(writes).toHaveBeenCalledOnce();
     expect(endpointsSettings.get()).toMatchObject({
@@ -144,11 +164,11 @@ describe("createConnectionTab", () => {
     });
     const tab = build({ getEndpointDefaults: () => defaults });
     tab.refresh();
-    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
-    expect(select.value).toBe("openai");
+    const select = tab.el.querySelector<HTMLElement>("#yui-svc-tts-provider")!;
+    expect(select.textContent).toBe("OpenAI");
 
-    endpointsSettings.set({ tts_provider: "irodori" });
-    expect(select.value).toBe("irodori");
+    act(() => endpointsSettings.set({ tts_provider: "irodori" }));
+    expect(select.textContent).toBe("Irodori");
 
     tab.dispose();
   });
@@ -159,11 +179,10 @@ describe("createConnectionTab", () => {
     const tab = build();
 
     const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_model")!;
-    model.value = "whisper-large-v3-turbo";
-    model.dispatchEvent(new Event("change", { bubbles: true }));
+    commitTyped(model, "whisper-large-v3-turbo");
     expect(endpointsSettings.get().stt_model).toBe("whisper-large-v3-turbo");
 
-    tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="stt"]')!.click();
+    fireEvent.click(tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="stt"]')!);
     expect(endpointsSettings.get().stt_model).toBe("");
     expect(model.value).toBe("");
 
@@ -190,11 +209,9 @@ describe("createConnectionTab", () => {
     const tab = build();
 
     const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-    url.value = "wss://example.test/ws";
-    url.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(url, { target: { value: "wss://example.test/ws" } });
     const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
-    key.value = "throwaway-key-7731";
-    key.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(key, { target: { value: "throwaway-key-7731" } });
 
     tab.dispose();
 
@@ -202,36 +219,8 @@ describe("createConnectionTab", () => {
     expect(chatKeySettings.get().apiKey).toBe("throwaway-key-7731");
   });
 
-  describe("focusStt", () => {
-    it("scrolls the STT section into view and focuses its URL field", () => {
-      const tab = build();
-      document.body.append(tab.el);
-      const scroll = vi.fn();
-      const section = tab.el.querySelector<HTMLElement>('[data-svc="stt"]')!;
-      section.scrollIntoView = scroll;
-
-      tab.focusStt();
-
-      expect(scroll).toHaveBeenCalledWith({ block: "start" });
-      expect(document.activeElement).toBe(
-        tab.el.querySelector('[data-ep-field="stt_base_url"] input'),
-      );
-      tab.dispose();
-    });
-
-    it("still focuses where the webview has no scrollIntoView", () => {
-      const tab = build();
-      document.body.append(tab.el);
-
-      tab.focusStt();
-
-      expect(document.activeElement?.id).toBe("yui-ep-stt_base_url");
-      tab.dispose();
-    });
-  });
-
   describe("model list read", () => {
-    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const tick = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 
     function modelReadDeps() {
       const calls: { url: string; init: RequestInit }[] = [];
@@ -288,8 +277,7 @@ describe("createConnectionTab", () => {
       const tab = build({ ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-      url.value = "https://typed.test/v1";
-      url.dispatchEvent(new Event("change", { bubbles: true }));
+      commitTyped(url, "https://typed.test/v1");
       await tick();
       await tick();
       deps.settle();
@@ -309,9 +297,8 @@ describe("createConnectionTab", () => {
       });
 
       const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
-      key.value = "typed-key";
-      key.dispatchEvent(new Event("input", { bubbles: true }));
-      key.dispatchEvent(new Event("blur"));
+      fireEvent.input(key, { target: { value: "typed-key" } });
+      fireEvent.blur(key);
       await tick();
       await tick();
       deps.settle();
@@ -328,9 +315,7 @@ describe("createConnectionTab", () => {
       const deps = modelReadDeps();
       const tab = build({ ...deps });
 
-      const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
-      preset.value = "ollama";
-      preset.dispatchEvent(new Event("change", { bubbles: true }));
+      await pickOption(tab.el.querySelector(".yui-chat-preset")!, "Ollama");
       await tick();
       await tick();
 
@@ -338,10 +323,9 @@ describe("createConnectionTab", () => {
       tab.dispose();
     });
 
-    it("picking from the combobox commits the id through the model input", async () => {
+    it("picking from the model list commits the id through the model field", async () => {
       const deps = modelReadDeps();
       const tab = build({ ...deps, getEndpointDefaults: () => defaults });
-      document.body.append(tab.el);
       tab.entered();
       await tick();
       await tick();
@@ -349,9 +333,17 @@ describe("createConnectionTab", () => {
       await tick();
 
       const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
-      model.focus();
-      model.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-      model.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      act(() => model.focus());
+      // The first arrow opens the shut list; the second highlights its first id.
+      await act(async () => {
+        fireEvent.keyDown(model, { key: "ArrowDown" });
+      });
+      await act(async () => {
+        fireEvent.keyDown(model, { key: "ArrowDown" });
+      });
+      await act(async () => {
+        fireEvent.keyDown(model, { key: "Enter" });
+      });
 
       expect(model.value).toBe("m1");
       expect(endpointsSettings.get().chat_model).toBe("m1");
@@ -368,9 +360,7 @@ describe("createConnectionTab", () => {
       tab.entered();
       await tick();
 
-      const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
-      preset.value = "hermes";
-      preset.dispatchEvent(new Event("change", { bubbles: true }));
+      await pickOption(tab.el.querySelector(".yui-chat-preset")!, "Hermes Agent");
       await tick();
 
       expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
@@ -385,15 +375,14 @@ describe("createConnectionTab", () => {
       const tab = build({ ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-      url.value = "https://typed.test/v1";
-      url.dispatchEvent(new Event("change", { bubbles: true }));
+      commitTyped(url, "https://typed.test/v1");
       await tick();
       await tick();
       deps.settle();
       await tick();
       expect(deps.calls[0]?.url).toBe("https://typed.test/v1/models");
 
-      tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="chat"]')!.click();
+      fireEvent.click(tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="chat"]')!);
       await tick();
       await tick();
 
@@ -406,8 +395,7 @@ describe("createConnectionTab", () => {
       const tab = build({ ...deps });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-      url.value = "https://typed.test/v1 ";
-      url.dispatchEvent(new Event("change", { bubbles: true }));
+      commitTyped(url, "https://typed.test/v1 ");
       await tick();
       await tick();
 
@@ -429,8 +417,7 @@ describe("createConnectionTab", () => {
       expect(statusOf(tab).textContent).toContain(t("svc.chat_models_pick", { n: 2 }));
 
       const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
-      model.value = "m1";
-      model.dispatchEvent(new Event("input", { bubbles: true }));
+      fireEvent.input(model, { target: { value: "m1" } });
 
       const text = statusOf(tab).textContent ?? "";
       expect(text).toContain(t("svc.chat_models_read", { n: 2 }));
@@ -452,13 +439,11 @@ describe("createConnectionTab", () => {
       await tick();
 
       const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
-      model.value = "zz";
-      model.dispatchEvent(new Event("input", { bubbles: true }));
+      fireEvent.input(model, { target: { value: "zz" } });
       expect(statusOf(tab).textContent).toBe(t("svc.chat_models_absent"));
       const textNode = tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild;
 
-      model.value = "zz9";
-      model.dispatchEvent(new Event("input", { bubbles: true }));
+      fireEvent.input(model, { target: { value: "zz9" } });
 
       expect(tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild).toBe(
         textNode,
@@ -475,8 +460,7 @@ describe("createConnectionTab", () => {
       expect(deps.calls).toHaveLength(1);
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-      url.value = "not-a-url";
-      url.dispatchEvent(new Event("change", { bubbles: true }));
+      commitTyped(url, "not-a-url");
       await tick();
       await tick();
 
@@ -495,9 +479,7 @@ describe("createConnectionTab", () => {
       tab.entered();
       await tick();
 
-      const type = tab.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
-      type.value = "push";
-      type.dispatchEvent(new Event("change", { bubbles: true }));
+      await pickOption(tab.el.querySelector(".yui-chat-type")!, "Push · persistent connection");
       await tick();
 
       expect(deps.calls[0]?.init.signal).toBeInstanceOf(AbortSignal);
@@ -542,7 +524,7 @@ describe("createConnectionTab", () => {
       expect(action.hidden).toBe(false);
       expect(action.textContent).toBe(t("svc.chat_status_reconnect"));
 
-      action.click();
+      fireEvent.click(action);
       await tick();
       await tick();
 
@@ -552,7 +534,7 @@ describe("createConnectionTab", () => {
   });
 
   describe("server lines", () => {
-    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const tick = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 
     function endpointsWith(field: "stt_base_url" | "tts_base_url", url: string): EndpointsConfig {
       return {
@@ -581,7 +563,7 @@ describe("createConnectionTab", () => {
       expect(line?.hidden).toBe(false);
       const action = line!.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
 
-      action.click();
+      fireEvent.click(action);
       await tick();
       await tick();
 

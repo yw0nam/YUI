@@ -6,6 +6,7 @@
  */
 
 import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import { createVrmSelection } from "../../io/assets/vrm-selection";
@@ -279,4 +280,35 @@ export function pressSlider(input: HTMLElement, at: number) {
       fireEvent.pointerUp(document, point());
     },
   };
+}
+
+/** The items of the open popup; a closed popup stays mounted under a hidden positioner. */
+const openOptions = () =>
+  [...document.querySelectorAll<HTMLElement>('[role="option"]')].filter(
+    (o) => !o.closest("[hidden]"),
+  );
+
+/** Opens a Select from its trigger and picks the option with this name; Base UI takes an item's click only after a pointer press on it. */
+export async function pickOption(trigger: Element, name: string): Promise<void> {
+  await act(async () => {
+    fireEvent.click(trigger);
+  });
+  const option = openOptions().find((o) => o.textContent === name);
+  if (!option) throw new Error(`no option named ${name}`);
+  await act(async () => {
+    fireEvent.pointerDown(option);
+    fireEvent.click(option);
+  });
+}
+
+/** The option names a Select's popup lists: it opens, is read, and closes again on Escape. */
+export async function optionNames(trigger: Element): Promise<(string | null)[]> {
+  await act(async () => {
+    fireEvent.click(trigger);
+  });
+  const names = openOptions().map((o) => o.textContent);
+  await act(async () => {
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+  });
+  return names;
 }
