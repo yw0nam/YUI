@@ -3,7 +3,7 @@
 import type { ChatHistoryItem } from "../../../io/chat/conversation/chat-history-store";
 import type { SessionDiagnostics } from "../../../io/chat/conversation/session-diagnostics";
 import type { SignalRecord } from "../../../io/chat/conversation/signal-history-store";
-import type { PushSocketPanelPort } from "../connection/connection-tab";
+import type { PushSocketPanelPort } from "../connection/connection-page";
 
 export interface Readable<T> {
   current(): T;

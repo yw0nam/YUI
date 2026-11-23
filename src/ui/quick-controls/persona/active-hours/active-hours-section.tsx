@@ -33,30 +33,26 @@ export function ActiveHoursSection({
   const sec = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
 
-  // The whole row list is one edit: read every row, write one setSpans.
+  // The whole row list is one edit: read every row's times, write one setSpans; a pick names its row's pace.
   const commit = useCallback(
-    (skip?: HTMLElement): void => {
-      const rows = [
-        ...(list.current?.querySelectorAll<HTMLElement>(".yui-hours__span") ?? []),
-      ].filter((row) => row !== skip);
+    (edit?: { skip: HTMLElement } | { index: number; pace: Pace }): void => {
+      const rows = [...(list.current?.querySelectorAll<HTMLElement>(".yui-hours__span") ?? [])];
       const next: Span[] = [];
-      for (const row of rows) {
+      for (const [i, row] of rows.entries()) {
+        if (edit && "skip" in edit && row === edit.skip) continue;
         const [start, end] = row.querySelectorAll<HTMLInputElement>(".yui-time-input");
         if (!TIME_RE.test(start.value) || !TIME_RE.test(end.value)) return;
-        next.push({
-          start: start.value,
-          end: end.value,
-          pace: row.querySelector<HTMLSelectElement>(".yui-hours__pace")!.value as Pace,
-        });
+        const pace = edit && "index" in edit && edit.index === i ? edit.pace : spans[i]!.pace;
+        next.push({ start: start.value, end: end.value, pace });
       }
       store.setSpans(next);
     },
-    [store],
+    [store, spans],
   );
 
   const onChange = useCallback(
     (e: Event): void => {
-      if ((e.target as HTMLElement).matches(".yui-time-input, .yui-hours__pace")) commit();
+      if ((e.target as HTMLElement).matches(".yui-time-input")) commit();
     },
     [commit],
   );
@@ -88,8 +84,13 @@ export function ActiveHoursSection({
       <div className="yui-group">
         <div className="yui-cue-list" ref={list}>
           {spans.map((span, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a row is its position in the list
-            <SpanRow key={i} span={span} onRemove={(row) => commit(row)} />
+            <SpanRow
+              // biome-ignore lint/suspicious/noArrayIndexKey: a row is its position in the list
+              key={i}
+              span={span}
+              onPace={(pace) => commit({ index: i, pace })}
+              onRemove={(row) => commit({ skip: row })}
+            />
           ))}
         </div>
         <div className="yui-row yui-row--action">

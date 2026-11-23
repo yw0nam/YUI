@@ -1,30 +1,10 @@
-/** Help section of Quick start once connected: one Ask button per bundled guide. */
+/** The bundled guides, and the delegated click on the Connection page's Help buttons. */
 
 import type { GuideKey } from "../../../../contract";
 import { isGuideKey } from "../../../../io/guide/guide-docs";
 import { t } from "../../../i18n";
-import { secHeadHtml } from "../../markup";
 
 export const GUIDES: readonly GuideKey[] = ["controls", "capabilities"];
-
-export function helpSectionHtml(extraRowsHtml = ""): string {
-  const rows = GUIDES.map(
-    (guide) => `
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t(`help.${guide}.label`)}</span>
-                <span class="yui-row__sub">${t(`help.${guide}.sub`)}</span>
-              </div>
-              <button class="yui-link-btn yui-help-btn" type="button" data-guide="${guide}">${t("help.ask")}</button>
-            </div>`,
-  ).join("");
-  return `
-        <div class="yui-sec">
-          ${secHeadHtml(t("help.section"))}
-          <div class="yui-group">${rows}${extraRowsHtml}
-          </div>
-        </div>`;
-}
 
 /** Calls `onGuide` with the guide key and its request text in the current locale. Returns the detach. */
 export function bindHelpSection(

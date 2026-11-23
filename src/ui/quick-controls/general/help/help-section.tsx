@@ -1,10 +1,18 @@
-/** The General page's Help section: one Ask button per bundled guide. */
+/** The Help section: one Ask button per bundled guide, then the caller's extra rows. */
 
+import type { ReactNode } from "react";
 import type { GuideKey } from "../../../../contract";
 import { t } from "../../../i18n";
 import { GUIDES } from "../../sections/help/help-section";
 
-export function HelpSection({ onGuide }: { onGuide: (guide: GuideKey, text: string) => void }) {
+export function HelpSection({
+  onGuide,
+  children,
+}: {
+  /** Absent where a delegated listener on the panel handles the `data-guide` buttons. */
+  onGuide?: (guide: GuideKey, text: string) => void;
+  children?: ReactNode;
+}) {
   return (
     <div className="yui-sec">
       <div className="yui-sec__head">
@@ -21,12 +29,13 @@ export function HelpSection({ onGuide }: { onGuide: (guide: GuideKey, text: stri
               className="yui-link-btn yui-help-btn"
               type="button"
               data-guide={guide}
-              onClick={() => onGuide(guide, t(`help.${guide}.request`))}
+              onClick={onGuide && (() => onGuide(guide, t(`help.${guide}.request`)))}
             >
               {t("help.ask")}
             </button>
           </div>
         ))}
+        {children}
       </div>
     </div>
   );

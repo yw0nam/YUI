@@ -1225,7 +1225,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; the Proactive page's pace segment sits over her day, and Thread turns, the port and address, and Workflows sit in its External signals fold; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line over a Key row with Replace key, the voice step and Help once connected, the stored key checked when the connected view shows (a refused key swaps the done line for Key rejected, and Replace key writes only the key), and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; the Proactive page's pace segment sits over her day, and Thread turns, the port and address, and Workflows sit in its External signals fold; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link that shows Detailed settings and focuses the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line over a Key row with Replace key, the voice step and Help once connected, the stored key checked when the connected view shows (a refused key swaps the done line for Key rejected, and Replace key writes only the key), and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls",
         "src/ui/use-snapshot"
@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, and the NumberField, a number field that reports the value committed on blur, Enter or a step.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, the NumberField, a number field that reports the value committed on blur, Enter or a step, and the Select, a select the caller labels and owns the value of, whose popup lists the items and whose closed trigger can show a shorter name.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4202,7 +4202,7 @@ globalThis.YUI_MAP =
       "carries": "Turn on voice: checkFishKey(pasted key) → ok, refused or failed; ok → the app language's default voice joins the list unless listed, and is selected",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
     },
     {
       "id": "voice-key-check-http",
@@ -4219,7 +4219,7 @@ globalThis.YUI_MAP =
       "carries": "ok only: endpoints tts_provider fish, tts_base_url and tts_model, the TTS key, and TTS on",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
     },
     {
       "id": "default-voices-config",
@@ -4903,6 +4903,69 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
+    },
+    {
+      "id": "conn-views-segment",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Segment: Quick start and Detailed settings, the view shown, and the one chosen",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/connection-page-view.tsx"
+    },
+    {
+      "id": "chat-type-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the chat types with their long names, the short name on the closed trigger, and the picked type",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/chat/chat-type.tsx"
+    },
+    {
+      "id": "chat-preset-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the chat provider presets and Custom, the matched preset, and the picked one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/chat/chat-section.tsx"
+    },
+    {
+      "id": "tts-provider-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: the TTS providers, the override or bundled provider, and the picked one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/tts-section.tsx"
+    },
+    {
+      "id": "stt-type-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select, disabled: the one STT type the protocol names",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/stt-section.tsx"
+    },
+    {
+      "id": "effort-segment",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Segment, disabled on push: the reasoning efforts, the stored one and the chosen one",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/detail/effort-row.tsx"
+    },
+    {
+      "id": "pace-select",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Select: a span's paces, its pace, and the picked one into the span list's write",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/persona/active-hours/span-row.tsx"
     },
     {
       "id": "chain-cap-field",

@@ -42,7 +42,7 @@ export type ChatTransport = (typeof VALID_CHAT_APIS)[number];
 
 interface EndpointFieldBase {
   key: keyof EndpointOverrides;
-  /** Per-service reset group (endpoints-section.ts's per-service reset buttons); omitted = not reset by any button. */
+  /** Per-service reset group (the reset in ui/quick-controls/connection/detail/endpoint-form.ts); omitted = not reset by any button. */
   resetGroup?: string;
 }
 

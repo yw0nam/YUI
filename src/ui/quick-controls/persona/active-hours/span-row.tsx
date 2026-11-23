@@ -1,21 +1,33 @@
 /** One active-hours span row: start – end (next day) · pace · remove. */
 
 import { useLayoutEffect, useRef } from "react";
-import { PACES, type Span, wrapsMidnight } from "../../../../settings/active-hours/spans";
+import {
+  PACES,
+  type Pace,
+  type Span,
+  wrapsMidnight,
+} from "../../../../settings/active-hours/spans";
+import { Select } from "../../../controls/select";
 import { t } from "../../../i18n";
 import { CROSS_SVG } from "../../constants";
 import { setValue } from "../set-value";
 
-export function SpanRow({ span, onRemove }: { span: Span; onRemove(row: HTMLElement): void }) {
+export function SpanRow({
+  span,
+  onPace,
+  onRemove,
+}: {
+  span: Span;
+  onPace(pace: Pace): void;
+  onRemove(row: HTMLElement): void;
+}) {
   const row = useRef<HTMLDivElement>(null);
   const start = useRef<HTMLInputElement>(null);
   const end = useRef<HTMLInputElement>(null);
-  const pace = useRef<HTMLSelectElement>(null);
 
   useLayoutEffect(() => {
     setValue(start.current, span.start);
     setValue(end.current, span.end);
-    setValue(pace.current, span.pace);
   });
 
   return (
@@ -40,17 +52,13 @@ export function SpanRow({ span, onRemove }: { span: Span; onRemove(row: HTMLElem
           <span className="yui-cue__suffix">{t("active_hours.next_day")}</span>
         )}
       </div>
-      <select
-        ref={pace}
-        className="yui-select yui-hours__pace"
+      <Select<Pace>
+        className="yui-hours__pace"
         aria-label={t("active_hours.pace_aria")}
-      >
-        {PACES.map((p) => (
-          <option key={p} value={p}>
-            {t(`active_hours.pace_${p}`)}
-          </option>
-        ))}
-      </select>
+        value={span.pace}
+        items={PACES.map((p) => ({ value: p, label: t(`active_hours.pace_${p}`) }))}
+        onValueChange={onPace}
+      />
       <button
         type="button"
         className="yui-cue__delete"

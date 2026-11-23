@@ -19,7 +19,7 @@ import {
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
-import { setLocale, t } from "../../i18n";
+import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import {
   defaultQcArgs,
@@ -27,6 +27,8 @@ import {
   inMemoryApiKeyStorage,
   makeSpeakerSelection,
   makeVrmSelection,
+  optionNames,
+  pickOption,
 } from "../test-helpers";
 
 // React's act() only flushes in a test environment that says so.
@@ -145,7 +147,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(fieldIn("tts", "tts_base_url")).toBe(true);
     expect(fieldIn("tts", "tts_model")).toBe(true);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("populates endpoint placeholders from getEndpointDefaults()", () => {
@@ -164,7 +166,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(ph("stt_base_url")).toBe("http://localhost:5517/v1");
     expect(ph("chat_model")).toBe("natsume");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("toggles inline invalid state on a url field via isValidEndpointUrl (empty = no error)", () => {
@@ -176,20 +178,17 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
 
-    input.value = "localhost:5517"; // No scheme → invalid
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "localhost:5517" } });
     expect(row.classList.contains("is-invalid")).toBe(true);
     expect(input.getAttribute("aria-invalid")).toBe("true");
 
-    input.value = "https://localhost:5517/v1"; // Valid
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "https://localhost:5517/v1" } });
     expect(row.classList.contains("is-invalid")).toBe(false);
 
-    input.value = ""; // Empty value = no override → no error
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "" } });
     expect(row.classList.contains("is-invalid")).toBe(false);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reflects and validates a cross-window endpoint change while the focused document is blurred", () => {
@@ -204,12 +203,12 @@ describe("createQuickControls — endpoints + API keys", () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     expect(document.activeElement).toBe(input);
 
-    endpointsSettings.set({ stt_base_url: "localhost:5517" });
+    act(() => endpointsSettings.set({ stt_base_url: "localhost:5517" }));
 
     expect(input.value).toBe("localhost:5517");
     expect(input.getAttribute("aria-invalid")).toBe("true");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("persists an endpoint override into the store and per-section reset clears that section's fields", () => {
@@ -219,16 +218,17 @@ describe("createQuickControls — endpoints + API keys", () => {
     const input = qc.el.querySelector<HTMLInputElement>(
       '.yui-input-row[data-ep-field="chat_base_url"] .yui-ep-input',
     )!;
-    input.value = "https://api.example.com/v1";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "https://api.example.com/v1" } });
+    fireEvent.keyDown(input, { key: "Enter" });
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.example.com/v1");
 
-    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
+    fireEvent.click(
+      qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!,
+    );
     expect(endpointsSettings.get().chat_base_url).toBe("");
     expect(input.value).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("the chat reset clears chat_base_url + chat_model + chat_api + the chat key, leaving other sections intact", () => {
@@ -244,7 +244,9 @@ describe("createQuickControls — endpoints + API keys", () => {
       stt_base_url: "https://s",
     });
 
-    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!.click();
+    fireEvent.click(
+      qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="chat"]')!,
+    );
     expect(endpointsSettings.get().chat_base_url).toBe("");
     expect(endpointsSettings.get().chat_model).toBe("");
     expect(endpointsSettings.get().chat_api).toBe("");
@@ -252,7 +254,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     // STT field is untouched by the chat reset.
     expect(endpointsSettings.get().stt_base_url).toBe("https://s");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("the tts reset clears tts_base_url + tts_model + tts_provider + the tts key", () => {
@@ -263,13 +265,15 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     endpointsSettings.set({ tts_base_url: "http://t", tts_model: "m", tts_provider: "openai" });
 
-    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!.click();
+    fireEvent.click(
+      qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!,
+    );
     expect(endpointsSettings.get().tts_base_url).toBe("");
     expect(endpointsSettings.get().tts_model).toBe("");
     expect(endpointsSettings.get().tts_provider).toBe("");
     expect(ttsKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("the stt reset clears stt_base_url and leaves the shared stt key", () => {
@@ -280,11 +284,13 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     endpointsSettings.set({ stt_base_url: "https://stt.example.com/v1" });
 
-    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="stt"]')!.click();
+    fireEvent.click(
+      qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="stt"]')!,
+    );
     expect(endpointsSettings.get().stt_base_url).toBe("");
     expect(sttKeySettings.get().apiKey).toBe("sk-stt-1");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── chat API key field ────────────────────────────────────────────────────
@@ -310,7 +316,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const connPanel = qc.el.querySelector<HTMLElement>("#yui-panel-conn")!;
     expect(connPanel.contains(input)).toBe(true);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("prefills from the store and says no key is saved without revealing any value", () => {
@@ -327,7 +333,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     // The field says so in copy, not by surfacing a secret.
     expect(input.placeholder).not.toContain("sk-");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reflects an existing override as a masked value and 'saved' sublabel", () => {
@@ -345,7 +351,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       .querySelector<HTMLElement>(".yui-input-row__sub")!;
     expect(sub.textContent).not.toContain("저장된 키가 없어요");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("does not persist intermediate prefixes per keystroke", () => {
@@ -357,15 +363,14 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = chatKeyInput(qc);
     for (const v of ["s", "sk", "sk-", "sk-typed-456"]) {
-      input.value = v;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
+      fireEvent.input(input, { target: { value: v } });
     }
     // No prefix ever reaches the store while typing.
     expect(setSpy).not.toHaveBeenCalled();
     expect(clearSpy).not.toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("commits the full key once on blur", () => {
@@ -375,17 +380,16 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    input.value = "sk-typed-456";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-typed-456" } });
     // Nothing persisted from typing alone.
     expect(setSpy).not.toHaveBeenCalled();
 
-    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    fireEvent.blur(input);
     expect(setSpy).toHaveBeenCalledTimes(1);
     expect(setSpy).toHaveBeenCalledWith("sk-typed-456");
     expect(chatKeySettings.get().apiKey).toBe("sk-typed-456");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("blurring an emptied field calls clear() (empty = no override)", () => {
@@ -396,16 +400,15 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    input.value = "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "" } });
     // Emptying alone does not clear the override.
     expect(clearSpy).not.toHaveBeenCalled();
 
-    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    fireEvent.blur(input);
     expect(clearSpy).toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("flushes a dirty typed key once on Escape (never before it)", () => {
@@ -415,17 +418,18 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    input.value = "sk-unblurred-789";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-unblurred-789" } });
     // Typing without blur persists nothing yet.
     expect(setSpy).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(setSpy).toHaveBeenCalledTimes(1);
     expect(setSpy).toHaveBeenCalledWith("sk-unblurred-789");
     expect(chatKeySettings.get().apiKey).toBe("sk-unblurred-789");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("flushes a dirty typed key on dispose() without a prior blur", () => {
@@ -435,11 +439,10 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    input.value = "sk-disposed-654";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-disposed-654" } });
     expect(setSpy).not.toHaveBeenCalled();
 
-    qc.dispose();
+    act(() => qc.dispose());
     expect(setSpy).toHaveBeenCalledTimes(1);
     expect(setSpy).toHaveBeenCalledWith("sk-disposed-654");
     expect(chatKeySettings.get().apiKey).toBe("sk-disposed-654");
@@ -453,16 +456,17 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    input.value = "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "" } });
     // Emptying without blur does not clear yet.
     expect(clearSpy).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(clearSpy).toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("Escape does not commit when no typing occurred", () => {
@@ -473,12 +477,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc({ chatKeySettings, onCloseWindow: vi.fn() });
     qc.open();
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(setSpy).not.toHaveBeenCalled();
     expect(clearSpy).not.toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("sk-secret-123");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("a dedicated clear button empties the field and the store", () => {
@@ -487,11 +493,11 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc({ chatKeySettings });
     qc.open();
 
-    qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!.click();
+    fireEvent.click(qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!);
     expect(chatKeySettings.get().apiKey).toBe("");
     expect(chatKeyInput(qc).value).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("the show/hide toggle flips the input between password and text", () => {
@@ -505,15 +511,15 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(input.type).toBe("password");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 
-    toggle.click();
+    fireEvent.click(toggle);
     expect(input.type).toBe("text");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
 
-    toggle.click();
+    fireEvent.click(toggle);
     expect(input.type).toBe("password");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("subscribes to the store so cross-window edits reflect into the field", () => {
@@ -521,13 +527,13 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc({ chatKeySettings });
     qc.open();
 
-    chatKeySettings.setApiKey("sk-from-other-window");
+    act(() => chatKeySettings.setApiKey("sk-from-other-window"));
     expect(chatKeyInput(qc).value).toBe("sk-from-other-window");
 
-    chatKeySettings.clear();
+    act(() => chatKeySettings.clear());
     expect(chatKeyInput(qc).value).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reflects a cross-window chat API key change while the focused document is blurred and clears dirty state", () => {
@@ -538,19 +544,20 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = chatKeyInput(qc);
     input.focus();
-    input.value = "sk-local-edit";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-local-edit" } });
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     expect(document.activeElement).toBe(input);
 
-    chatKeySettings.setApiKey("sk-from-other-window");
+    act(() => chatKeySettings.setApiKey("sk-from-other-window"));
 
     expect(input.value).toBe("sk-from-other-window");
     setSpy.mockClear();
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(setSpy).not.toHaveBeenCalled();
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("never writes the key value into the DOM text or attributes", () => {
@@ -564,7 +571,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(row.textContent).not.toContain("sk-secret-123");
     expect(row.innerHTML).not.toContain("sk-secret-123");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── STT / TTS API key rows (mirror the chat key, own stores) ────────────────
@@ -605,7 +612,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(clearSpy).toHaveBeenCalled();
     expect(sttKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("renders a masked TTS key row in the TTS section wired to the tts store", () => {
@@ -621,21 +628,20 @@ describe("createQuickControls — endpoints + API keys", () => {
       true,
     );
 
-    input.value = "sk-tts-xyz";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "sk-tts-xyz" } });
+    fireEvent.blur(input);
     expect(setSpy).toHaveBeenCalledWith("sk-tts-xyz");
     expect(ttsKeySettings.get().apiKey).toBe("sk-tts-xyz");
 
-    qc.el
-      .querySelector<HTMLButtonElement>(
+    fireEvent.click(
+      qc.el.querySelector<HTMLButtonElement>(
         '.yui-input-row[data-key-prefix="ttskey"] .yui-chatkey__clear',
-      )!
-      .click();
+      )!,
+    );
     expect(clearSpy).toHaveBeenCalled();
     expect(ttsKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("the three key rows are independent: editing chat does not touch stt/tts", () => {
@@ -645,14 +651,13 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const chat = keyInput(qc, "chatkey");
-    chat.value = "sk-chat-only";
-    chat.dispatchEvent(new Event("input", { bubbles: true }));
-    chat.dispatchEvent(new Event("blur", { bubbles: true }));
+    fireEvent.input(chat, { target: { value: "sk-chat-only" } });
+    fireEvent.blur(chat);
 
     expect(sttKeySettings.get().apiKey).toBe("");
     expect(ttsKeySettings.get().apiKey).toBe("");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── TTS section: one provider select over shared fields ───────────────────
@@ -665,7 +670,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(qc.el.querySelector(".yui-tts-irodori")).toBeNull();
     expect(qc.el.querySelector(".yui-tts-openai")).toBeNull();
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("shows the TTS URL row and the TTS key row together, and the speaker picker on the Voice page", () => {
@@ -677,7 +682,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(tts.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
     expect(qc.el.querySelector("#yui-panel-voice .yui-spk-scroll")).not.toBeNull();
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("leaves the speaker controls live, with no hint saying they are inactive", () => {
@@ -687,16 +692,16 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(qc.el.querySelector(".yui-spks-hint")).toBeNull();
     expect(qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.disabled).toBe(false);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── Chat API type (chat_api) dropdown ───────────────────────────────────────
 
-  function chatTypeSelect(qc: { el: HTMLElement }): HTMLSelectElement {
-    return qc.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
+  function chatTypeSelect(qc: { el: HTMLElement }): HTMLButtonElement {
+    return qc.el.querySelector<HTMLButtonElement>(".yui-chat-type")!;
   }
 
-  it("renders an interactive Chat-API dropdown (responses/chat_completions/push) in the Chat section", () => {
+  it("renders an interactive Chat-API dropdown (responses/chat_completions/push) in the Chat section", async () => {
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
@@ -707,69 +712,65 @@ describe("createQuickControls — endpoints + API keys", () => {
     );
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
-    expect(Array.from(sel.options).map((o) => o.value)).toEqual([
-      "chat_completions",
-      "responses",
-      "push",
+    expect(await optionNames(sel)).toEqual([
+      "Chat Completions · 기록을 YUI가 보냄",
+      "Responses · 기록을 서버가 보관",
+      "Push · 연결 유지",
     ]);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reflects the effective chat_api on the dropdown: bundled default when no override", () => {
     const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
     qc.open();
-    expect(chatTypeSelect(qc).value).toBe("chat_completions");
-    qc.dispose();
+    expect(chatTypeSelect(qc).textContent).toBe("Chat Completions");
+    act(() => qc.dispose());
   });
 
   it("reflects the effective chat_api on the dropdown: override wins over the default", () => {
     endpointsSettings.set({ chat_api: "chat_completions" });
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
-    expect(chatTypeSelect(qc).value).toBe("chat_completions");
-    qc.dispose();
+    expect(chatTypeSelect(qc).textContent).toBe("Chat Completions");
+    act(() => qc.dispose());
   });
 
   it("falls back to 'responses' when no override and no default is available", () => {
     const qc = buildQc();
     qc.open();
-    expect(chatTypeSelect(qc).value).toBe("responses");
-    qc.dispose();
+    expect(chatTypeSelect(qc).textContent).toBe("Responses");
+    act(() => qc.dispose());
   });
 
-  it("selecting 'chat_completions' persists the override and updates the summary hint", () => {
+  it("selecting 'chat_completions' persists the override and updates the summary hint", async () => {
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
-    const sel = chatTypeSelect(qc);
-    sel.value = "chat_completions";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(chatTypeSelect(qc), "Chat Completions · 기록을 YUI가 보냄");
     expect(endpointsSettings.get().chat_api).toBe("chat_completions");
 
     const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
-    expect(hint.textContent).toBe(t("svc.chat_name_chat_completions"));
+    expect(hint.textContent).toBe("Chat Completions");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
-  it("selecting 'responses' toggles back and persists the override", () => {
+  it("selecting 'responses' toggles back and persists the override", async () => {
     endpointsSettings.set({ chat_api: "chat_completions" });
     const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
     qc.open();
 
-    const sel = chatTypeSelect(qc);
-    sel.value = "responses";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(chatTypeSelect(qc), "Responses · 기록을 서버가 보관");
     expect(endpointsSettings.get().chat_api).toBe("responses");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   // ── Chat provider preset dropdown (chat_base_url autofill) ──────────────────
 
-  function chatPresetSelect(qc: { el: HTMLElement }): HTMLSelectElement {
-    return qc.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+  function chatPresetSelect(qc: { el: HTMLElement }): HTMLButtonElement {
+    return qc.el.querySelector<HTMLButtonElement>(".yui-chat-preset")!;
   }
   function chatUrlInput(qc: { el: HTMLElement }): HTMLInputElement {
     return qc.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
@@ -779,14 +780,14 @@ describe("createQuickControls — endpoints + API keys", () => {
   }
 
   const PRESET_URLS: readonly [string, string][] = [
-    ["openai", "https://api.openai.com/v1"],
-    ["ollama", "http://localhost:11434/v1"],
-    ["lmstudio", "http://localhost:1234/v1"],
-    ["groq", "https://api.groq.com/openai/v1"],
-    ["gemini", "https://generativelanguage.googleapis.com/v1beta/openai"],
+    ["OpenAI", "https://api.openai.com/v1"],
+    ["Ollama", "http://localhost:11434/v1"],
+    ["LM Studio", "http://localhost:1234/v1"],
+    ["Groq", "https://api.groq.com/openai/v1"],
+    ["Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"],
   ];
 
-  it("renders an interactive provider-preset dropdown in the Chat section", () => {
+  it("renders an interactive provider-preset dropdown in the Chat section", async () => {
     const qc = buildQc();
     qc.open();
 
@@ -797,134 +798,120 @@ describe("createQuickControls — endpoints + API keys", () => {
     );
     expect(sel.classList.contains("yui-select")).toBe(true);
     expect(sel.disabled).toBe(false);
-    expect(Array.from(sel.options).map((o) => o.value)).toEqual([
-      ...PRESET_URLS.map(([id]) => id),
-      "hermes",
-      "custom",
-    ]);
     // Brand names are not localized.
-    expect(Array.from(sel.options).map((o) => o.textContent)).toEqual([
+    expect(await optionNames(sel)).toEqual([
       "OpenAI",
       "Ollama",
       "LM Studio",
       "Groq",
       "Google Gemini",
       "Hermes Agent",
-      t("svc.chat_preset_custom"),
+      "직접 입력",
     ]);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
-  it("selecting a provider preset fills the chat base URL field and commits the override", () => {
-    for (const [id, url] of PRESET_URLS) {
+  it("selecting a provider preset fills the chat base URL field and commits the override", async () => {
+    for (const [name, url] of PRESET_URLS) {
       endpointsSettings.set({ chat_base_url: "", chat_model: "", chat_api: "" });
       const qc = buildQc();
       qc.open();
 
-      const sel = chatPresetSelect(qc);
-      sel.value = id;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await pickOption(chatPresetSelect(qc), name);
 
       expect(chatUrlInput(qc).value).toBe(url);
       expect(endpointsSettings.get().chat_base_url).toBe(url);
       // A preset that names a model fills it; the others leave model and chat_api as configured.
       expect(endpointsSettings.get().chat_model).toBe(
-        id === "gemini" ? "models/gemini-3.5-flash-lite" : "",
+        name === "Google Gemini" ? "models/gemini-3.5-flash-lite" : "",
       );
       expect(endpointsSettings.get().chat_api).toBe("");
 
-      qc.dispose();
+      act(() => qc.dispose());
       qc.el.remove();
     }
   });
 
-  it("selecting the Google Gemini preset shows the model in the Chat model field", () => {
+  it("selecting the Google Gemini preset shows the model in the Chat model field", async () => {
     endpointsSettings.set({ chat_base_url: "", chat_model: "", chat_api: "" });
     const qc = buildQc();
     qc.open();
 
-    const sel = chatPresetSelect(qc);
-    sel.value = "gemini";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(chatPresetSelect(qc), "Google Gemini");
 
     expect(chatModelInput(qc).value).toBe("models/gemini-3.5-flash-lite");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
-  it("selecting a preset without a model leaves the chat model unchanged", () => {
+  it("selecting a preset without a model leaves the chat model unchanged", async () => {
     endpointsSettings.set({ chat_base_url: "", chat_model: "gpt-4o-mini", chat_api: "" });
     const qc = buildQc();
     qc.open();
 
-    const sel = chatPresetSelect(qc);
-    sel.value = "groq";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await pickOption(chatPresetSelect(qc), "Groq");
 
     expect(endpointsSettings.get().chat_model).toBe("gpt-4o-mini");
     expect(chatModelInput(qc).value).toBe("gpt-4o-mini");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
-  it("flips the preset dropdown to Custom when the chat base URL is edited by hand", () => {
+  it("flips the preset dropdown to Custom when the chat base URL is edited by hand", async () => {
     const qc = buildQc();
     qc.open();
 
     const sel = chatPresetSelect(qc);
-    sel.value = "ollama";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(sel.value).toBe("ollama");
+    await pickOption(sel, "Ollama");
+    expect(sel.textContent).toBe("Ollama");
 
     const input = chatUrlInput(qc);
-    input.value = "http://localhost:9999/v1";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "http://localhost:9999/v1" } });
+    fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(sel.value).toBe("custom");
+    expect(sel.textContent).toBe("직접 입력");
     expect(endpointsSettings.get().chat_base_url).toBe("http://localhost:9999/v1");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reflects the preset matching the stored chat base URL on open", () => {
     endpointsSettings.set({ chat_base_url: "https://api.groq.com/openai/v1" });
     const qc = buildQc();
     qc.open();
-    expect(chatPresetSelect(qc).value).toBe("groq");
-    qc.dispose();
+    expect(chatPresetSelect(qc).textContent).toBe("Groq");
+    act(() => qc.dispose());
   });
 
   it("shows Custom on open when the stored chat base URL matches no preset", () => {
     endpointsSettings.set({ chat_base_url: "http://localhost:8643/v1" });
     const qc = buildQc();
     qc.open();
-    expect(chatPresetSelect(qc).value).toBe("custom");
-    qc.dispose();
+    expect(chatPresetSelect(qc).textContent).toBe("직접 입력");
+    act(() => qc.dispose());
   });
 
   it("shows Custom on open when no chat base URL override is stored", () => {
     const qc = buildQc();
     qc.open();
-    expect(chatPresetSelect(qc).value).toBe("custom");
-    qc.dispose();
+    expect(chatPresetSelect(qc).textContent).toBe("직접 입력");
+    act(() => qc.dispose());
   });
 
-  it("selecting Custom leaves the chat base URL untouched", () => {
+  it("selecting Custom leaves the chat base URL untouched", async () => {
     endpointsSettings.set({ chat_base_url: "https://api.openai.com/v1" });
     const qc = buildQc();
     qc.open();
 
     const sel = chatPresetSelect(qc);
-    expect(sel.value).toBe("openai");
-    sel.value = "custom";
-    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(sel.textContent).toBe("OpenAI");
+    await pickOption(sel, "직접 입력");
 
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.openai.com/v1");
     expect(chatUrlInput(qc).value).toBe("https://api.openai.com/v1");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("commits a pending endpoint edit when the window closes without a change event", () => {
@@ -932,18 +919,19 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-stt_base_url")!;
-    input.value = "http://localhost:5517";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    fireEvent.input(input, { target: { value: "http://localhost:5517" } });
     expect(endpointsSettings.get().stt_base_url).toBe("");
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(endpointsSettings.get().stt_base_url).toBe("http://localhost:5517");
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 
   it("reads the model list when the Connection tab is selected in the rail", async () => {
-    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const tick = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
     const calls: string[] = [];
     const fetchImpl: typeof globalThis.fetch = (url) => {
       calls.push(String(url));
@@ -956,12 +944,12 @@ describe("createQuickControls — endpoints + API keys", () => {
     endpointsSettings.set({ chat_base_url: "http://localhost:8080/v1" });
     qc.open();
 
-    qc.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!.click();
+    fireEvent.click(qc.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!);
     await tick();
     await tick();
 
     expect(calls).toEqual(["http://localhost:8080/v1/models"]);
 
-    qc.dispose();
+    act(() => qc.dispose());
   });
 });

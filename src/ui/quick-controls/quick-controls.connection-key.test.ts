@@ -4,6 +4,7 @@
  * of the connection the user set up, whichever Connection view the window shows.
  */
 
+import { within } from "@testing-library/dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../i18n";
 import { GEMINI_PRESET } from "./constants";
@@ -117,7 +118,7 @@ describe("createQuickControls — the stored key check", () => {
     const fetchMock = vi.fn(fetchImpl);
     const qc = createQuickControls({ ...args, getFetch: async () => fetchMock });
     qc.open({ page: "conn" });
-    qc.el.querySelector<HTMLButtonElement>('.yui-seg__btn[data-view="quick"]')!.click();
+    within(qc.el).getByRole("radio", { name: "Quick start" }).click();
     await settle();
     await settle();
     const quick = qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="quick"]')!;
@@ -196,7 +197,7 @@ describe("createQuickControls — the stored key check", () => {
     await settle();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    qc.el.querySelector<HTMLButtonElement>('.yui-seg__btn[data-view="quick"]')!.click();
+    within(qc.el).getByRole("radio", { name: "Quick start" }).click();
     await settle();
     vi.setSystemTime(Date.now() + 61_000);
     qc.windowFocused();

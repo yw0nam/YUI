@@ -9,8 +9,8 @@ import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { createReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../../chips/voice-input-status";
+import type { KeyRowCommit } from "../sections/key-row/key-row";
 import { ListeningPageView } from "./listening-page-view";
-import type { SttKeyCommit } from "./stt-key/stt-key-row";
 
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type ReadingsSettingsStore = ReturnType<typeof createReadingsSettings>;
@@ -37,7 +37,7 @@ export function createListeningPage(deps: {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   host.append(el);
-  const sttKeyCommit: SttKeyCommit = { current: null };
+  const sttKeyCommit: KeyRowCommit = { current: null };
   const root = createRoot(el);
   flushSync(() => root.render(createElement(ListeningPageView, { ...view, sttKeyCommit })));
 

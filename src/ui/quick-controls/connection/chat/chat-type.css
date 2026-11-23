@@ -1,0 +1,49 @@
+/* ── Chat type row — the description line under the select, and the key page link look ── */
+.yui-chat-type__desc {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  text-wrap: pretty;
+}
+
+/* The bubble link's treatment: body colour on an amber-soft underline, full amber on hover and focus. */
+.yui-chat-type__link {
+  border-radius: 3px;
+  color: var(--yui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-chat-type__link:hover,
+.yui-chat-type__link:focus-visible {
+  color: var(--yui-accent-ink);
+  text-decoration-color: var(--yui-accent);
+}
+
+.yui-chat-type__link:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+.yui-chat-type__desc.is-swapping {
+  animation: yui-chat-type-desc-in var(--yui-dur-fast) var(--yui-ease);
+}
+
+@keyframes yui-chat-type-desc-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-chat-type__desc.is-swapping {
+    animation: none;
+  }
+}

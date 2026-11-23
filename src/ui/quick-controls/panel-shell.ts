@@ -45,6 +45,8 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
 
   function handleDocKeydown(e: KeyboardEvent): void {
     if (!openState || e.key !== "Escape" || !closeWindow) return;
+    // An Escape that cancels an IME composition belongs to the IME (WKWebView reports keyCode 229).
+    if (e.isComposing || e.keyCode === 229) return;
     // A modal dialog over the panel owns its keys.
     if ((e.target as Element | null)?.closest?.("dialog[open]")) return;
     e.preventDefault();

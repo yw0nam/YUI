@@ -24,18 +24,16 @@ vi.mock("./perms/perms-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
-  createAgentSection: () => ({
-    reflect: rec("agent", "reflect"),
-    dispose: () => {},
-  }),
-}));
-vi.mock("./connection/connection-tab", () => ({
-  createConnectionTab: () => ({
+vi.mock("./connection/connection-page", () => ({
+  createConnectionPage: () => ({
     el: document.createElement("div"),
-    refresh: rec("connectionTab", "refresh"),
+    refresh: rec("connectionPage", "refresh"),
+    entered: () => {},
+    windowFocused: () => {},
+    focusKey: () => {},
+    focusChatType: () => {},
     commit: () => {},
+    close: () => {},
     dispose: () => {},
   }),
 }));
@@ -102,8 +100,7 @@ describe("createQuickControls — open order", () => {
     qc.open();
 
     expect(order).toEqual([
-      "agent.reflect",
-      "connectionTab.refresh",
+      "connectionPage.refresh",
       "delegationFeed.sync",
       "historyPage.refresh",
       "bodyPage.refresh",
