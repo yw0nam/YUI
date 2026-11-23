@@ -2,6 +2,7 @@
 
 import type { MouseEvent, ReactNode } from "react";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
+import { Tip } from "../../../controls/tooltip";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
 import type { AssetList } from "../../asset-list/use-asset-list";
@@ -18,29 +19,32 @@ function Actions({ option, list }: { option: AvatarOption; list: VrmList }) {
   };
   return (
     <>
-      <button
-        className="yui-vrm__rename"
-        type="button"
-        data-tip={t("vrm.rename")}
-        aria-label={t("vrm.rename")}
-        onClick={(e) => stop(e, () => list.startRename(option.id))}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
-        dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
-      />
+      <Tip text={t("vrm.rename")}>
+        <button
+          className="yui-vrm__rename"
+          type="button"
+          aria-label={t("vrm.rename")}
+          onClick={(e) => stop(e, () => list.startRename(option.id))}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
+          dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
+        />
+      </Tip>
       {/* Arming remounts the button, so a hint open on the old one closes; a disarm keeps the node. */}
-      <button
-        key={list.removeKey(option.id)}
-        className={armed ? "yui-vrm__remove is-armed" : "yui-vrm__remove"}
-        type="button"
-        data-tip={armed ? t("vrm.remove_confirm") : t("vrm.remove")}
-        aria-label={armed ? t("vrm.remove_confirm_aria", { name: option.label }) : t("vrm.remove")}
-        disabled={list.removingId === option.id}
-        onClick={(e) => stop(e, () => void list.remove(option.id))}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
-        dangerouslySetInnerHTML={{
-          __html: `${REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span>`,
-        }}
-      />
+      <Tip key={list.removeKey(option.id)} text={armed ? t("vrm.remove_confirm") : t("vrm.remove")}>
+        <button
+          className={armed ? "yui-vrm__remove is-armed" : "yui-vrm__remove"}
+          type="button"
+          aria-label={
+            armed ? t("vrm.remove_confirm_aria", { name: option.label }) : t("vrm.remove")
+          }
+          disabled={list.removingId === option.id}
+          onClick={(e) => stop(e, () => void list.remove(option.id))}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
+          dangerouslySetInnerHTML={{
+            __html: `${REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span>`,
+          }}
+        />
+      </Tip>
     </>
   );
 }

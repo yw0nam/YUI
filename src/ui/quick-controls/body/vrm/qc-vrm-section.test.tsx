@@ -17,9 +17,12 @@ import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import {
   defaultQcArgs,
+  hoverTip,
   inMemoryAgentStorage,
+  keyboardFocus,
   makeSpeakerSelection,
   makeVrmSelection,
+  shownTip,
   USER_OPTION,
 } from "../../test-helpers";
 
@@ -93,7 +96,6 @@ describe("createQuickControls — VRM section", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
@@ -504,9 +506,8 @@ describe("createQuickControls — VRM section", () => {
     expect(
       userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.getAttribute("aria-label"),
     ).toBe("삭제할까요? 깜냥이");
-    expect(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.dataset.tip).toBe(
-      "삭제할까요?",
-    );
+    keyboardFocus(userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!);
+    expect(shownTip()).toBe("삭제할까요?");
     act(() => userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!.click());
     await flush();
 
@@ -524,13 +525,15 @@ describe("createQuickControls — VRM section", () => {
       act(() => qc.open());
 
       const remove = userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__remove")!;
-      remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      vi.advanceTimersByTime(150);
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+      hoverTip(remove);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(shownTip()).toBe("삭제");
 
       act(() => remove.click());
 
-      expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+      expect(shownTip()).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -713,7 +716,7 @@ describe("createQuickControls — VRM section", () => {
 
       act(() => removeBtn(qc).click());
       const button = removeBtn(qc);
-      button.focus();
+      keyboardFocus(button);
       act(() => {
         vi.advanceTimersByTime(4000);
       });
@@ -721,7 +724,7 @@ describe("createQuickControls — VRM section", () => {
       expect(removeBtn(qc)).toBe(button);
       expect(document.activeElement).toBe(button);
       expect(button.getAttribute("aria-label")).toBe("삭제");
-      expect(button.dataset.tip).toBe("삭제");
+      expect(shownTip()).toBe("삭제");
     } finally {
       vi.useRealTimers();
     }

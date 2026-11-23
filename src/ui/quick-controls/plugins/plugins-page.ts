@@ -1,19 +1,23 @@
-/** The Plugins page: its React root, and the open hook that loads the catalog. */
+/** The Plugins page: its view, and the entry that loads the catalog. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type ReactNode, useEffect } from "react";
 import type { McpHost, McpHostManage } from "../../../io/mcp-host/mcp-host";
 import type { Logger } from "../../../logger";
 import { PluginsPageView } from "./plugins-page-view";
-import { createPluginsState } from "./plugins-state";
+import { createPluginsState, type PluginsState } from "./plugins-state";
 import "./plugins-page.css";
 
 export interface PluginsPage {
-  el: HTMLElement;
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
   /** The page was entered: the catalog loads unless a load is in flight. */
   entered(): void;
-  dispose(): void;
+}
+
+/** The view; its unmount releases the page's state. */
+function PluginsPage({ state }: { state: PluginsState }) {
+  useEffect(() => () => state.dispose(), [state]);
+  return createElement(PluginsPageView, { state });
 }
 
 export function createPluginsPage(deps: {
@@ -21,18 +25,10 @@ export function createPluginsPage(deps: {
   manage: McpHostManage;
   log: Logger;
 }): PluginsPage {
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
   const state = createPluginsState(deps);
-  const root = createRoot(el);
-  flushSync(() => root.render(createElement(PluginsPageView, { state })));
-
   return {
-    el,
+    view: () =>
+      createElement("div", { className: "yui-tab-stack" }, createElement(PluginsPage, { state })),
     entered: () => state.load(),
-    dispose(): void {
-      state.dispose();
-      root.unmount();
-    },
   };
 }

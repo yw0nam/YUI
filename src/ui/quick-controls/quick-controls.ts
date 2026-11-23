@@ -82,13 +82,13 @@ import type { createReadingsSettings } from "../../settings/voice/readings-setti
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import type { TabsHandle } from "../controls/tabs";
+import type { TooltipHostHandle } from "../controls/tooltip";
 import { t } from "../i18n";
 import { createBodyPage } from "./body/body-page";
 import { createConnectionPage, type PushSocketPanelPort } from "./connection/connection-page";
 import { initialPageOf } from "./constants";
 import { createDelegationFeed } from "./delegations/delegation-feed";
 import { createGeneralPage } from "./general/general-page";
-import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryPage } from "./history/history-page";
 import { createListeningPage } from "./listening/listening-page";
 import { createMotionPage } from "./motion/motion-page";
@@ -103,7 +103,7 @@ import { createProactivePage } from "./proactive/proactive-page";
 import { bindSettingsSearch } from "./search/settings-search";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
-import { type PageHosts, SettingsPanel } from "./settings-panel";
+import { SettingsPanel } from "./settings-panel";
 import { createSwitchRows } from "./switch-row";
 import { createTogetherPage } from "./together/together-page";
 import { createVoicePage } from "./voice/voice-page";
@@ -324,13 +324,6 @@ interface QuickControlsOptions {
   onReplayFirstConversation?: () => void;
 }
 
-/** A part of the panel the shell redraws on open, closes, and disposes. */
-interface PanelSection {
-  reflect?(): void;
-  close?(): void;
-  dispose?(): void;
-}
-
 interface QuickControls {
   el: HTMLElement;
   /** Shows the panel. The request's page lands instead of the one last left selected, and its focus focuses that field there. */
@@ -473,49 +466,15 @@ export function createQuickControls({
     threadReactionsSettings,
   });
 
-  // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
+  // Attached before the panel renders: Base UI registers a slider's thumb only while it is connected.
   mount.appendChild(el);
 
-  // ── Panel view (preset strip slot · rail · each page's panel and host) ──
   const tabs: { current: TabsHandle | null } = { current: null };
+  const tooltip: { current: TooltipHostHandle | null } = { current: null };
   const presetHeader: { current: PresetHeaderHandle | null } = { current: null };
-  const hosts: PageHosts = {};
-  const root = createRoot(el);
-  flushSync(() =>
-    root.render(
-      createElement(SettingsPanel, {
-        pages: [...CHARACTER_PAGES, ...APP_PAGES].filter(
-          (id) => (id !== "hist" || !!transcript) && (id !== "plugins" || !!plugins),
-        ),
-        initial: initialPageOf(openOnQuickStart),
-        preset: presetRegistry && {
-          // The window reloads into the picked preset; until then it keeps showing this one.
-          edited: createEditedPreset(presetRegistry, presetIdForWindow(), (state) =>
-            onEditTarget(boundId ?? state.active),
-          ),
-          registry: presetRegistry,
-          log,
-          petWindows,
-          boundId,
-          onEditTarget,
-          agentNotifySettings,
-          relationsStore,
-          relationsSwitch,
-          removeCardThumbnail,
-          pickPhoto: pickPresetPhoto,
-          getDefaultChatApi,
-          handle: presetHeader,
-        },
-        tabs,
-        onSelect: (id) => {
-          if (id === "conn") connectionPage.entered();
-          if (id === "plugins") pluginsPage?.entered();
-        },
-        hosts,
-      }),
-    ),
-  );
-  const rail = tabs.current!;
+  const dropHost: { current: HTMLDivElement | null } = { current: null };
+  // The shell exists by the time a page asks: only after the panel renders.
+  const isOpen = (): boolean => shell.isOpen();
 
   // ── Proactive page (how often she speaks up · her day · the sources · Advanced) ──
   const proactivePage = createProactivePage({
@@ -527,7 +486,7 @@ export function createQuickControls({
     scheduleSettings,
     proactiveSettings,
     // Runs on a click, after the tab rail exists.
-    openPersona: () => rail.select("persona"),
+    openPersona: () => tabs.current?.select("persona"),
     pacerGapSettings,
     presenceSettings,
     rateLimitSettings,
@@ -540,14 +499,10 @@ export function createQuickControls({
     boundId,
     workflowSettings,
     log,
-    host: hosts.react!,
   });
 
   // ── Connection page — Quick start (data use · daily limit · key confirmation) or Detailed settings ──
-  const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
   const connectionPage = createConnectionPage({
-    host: hosts.conn!,
-    scope: connPanel.querySelector<HTMLElement>(".yui-tabpanel__scope"),
     initial: openOnQuickStart ? "quick" : "detail",
     quick: {
       endpointsSettings,
@@ -576,7 +531,7 @@ export function createQuickControls({
       getDefaultChatApi,
       pushSocket,
       agentSettings,
-      isOpen: () => shell.isOpen(),
+      isOpen,
       getChatApiKey,
       getFetch,
       log,
@@ -598,12 +553,10 @@ export function createQuickControls({
         delegations: delegationFeed,
         agentSettings,
         getPersona,
-        isOpen: () => shell.isOpen(),
+        isOpen,
         log,
       })
     : null;
-  if (historyPage) hosts.hist!.append(historyPage.el);
-  const hintTooltip = createHintTooltip({ root: el });
 
   // ── Body page (VRM list · relations rows · view reset) ──
   const bodyPage = createBodyPage({
@@ -611,9 +564,8 @@ export function createQuickControls({
     swapVrm,
     importVrm,
     removeUserVrm,
-    isOpen: () => shell.isOpen(),
+    isOpen,
     log,
-    refreshTooltip: hintTooltip.refresh,
     onResetView: onResetViewpoint,
     relations:
       relationsStore && relationsSwitch && presetRegistry
@@ -624,7 +576,6 @@ export function createQuickControls({
             presets: () => presetRegistry.get().list,
           }
         : undefined,
-    host: hosts.body!,
   });
 
   // ── Motion page (mouth gain · idle and express motions · motion switch rows) ──
@@ -641,9 +592,8 @@ export function createQuickControls({
       settings: expressMotionSettings,
       getVocabulary: () => getExpressMotions?.() ?? [],
     },
-    isOpen: () => shell.isOpen(),
+    isOpen,
     log,
-    host: hosts.motion!,
   });
 
   // ── Voice page (switch rows · speaker list · thinking filler) ──
@@ -660,33 +610,12 @@ export function createQuickControls({
     canReuploadVoices,
     canPasteVoiceId,
     log,
-    refreshTooltip: hintTooltip.refresh,
-    isOpen: () => shell.isOpen(),
-    host: hosts.voice!,
-  });
-
-  // ── shell (open/close lifecycle) ──
-  const shell = createPanelShell({
-    root: el,
-    closeWindow: onCloseWindow,
-    onOpen: () => {
-      for (const section of sections) section.reflect?.();
-      // Opening on the Connection page counts as entering it — the model list read follows.
-      if (rail.selected() === "conn") connectionPage.entered();
-      if (rail.selected() === "plugins") pluginsPage?.entered();
-      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
-      refreshVoiceList?.();
-      // Last, so the list the monitors fill is already redrawn.
-      permsPage.loadMonitorsIfEnabled();
-    },
-    onClose: () => {
-      for (const section of sections) section.close?.();
-    },
+    isOpen,
   });
 
   // ── Persona page (active hours above the card · the card fields · its file actions) ──
   const persona = createPersonaPage({
-    root: hosts.drop!,
+    dropHost,
     activeHoursSettings,
     agentSettings,
     endpointsSettings,
@@ -694,7 +623,7 @@ export function createQuickControls({
     registry: presetRegistry,
     getPersona,
     isPushMode,
-    isOpen: shell.isOpen,
+    isOpen,
     vrmSelection,
     speakerSelection,
     importPreset,
@@ -706,7 +635,6 @@ export function createQuickControls({
     subscribeFileDrop,
     log,
   });
-  hosts.persona!.append(persona.el);
 
   // ── General page (language · appearance · text size · your name · Help · Developer Tools) ──
   const generalPage = createGeneralPage({
@@ -717,7 +645,6 @@ export function createQuickControls({
     onGuide,
     onOpenDevtools,
     log,
-    host: hosts.general!,
   });
 
   // ── Listening page (voice switch · STT key · silence threshold · barge-in · bubble · readings) ──
@@ -729,7 +656,6 @@ export function createQuickControls({
     readingsSettings,
     bubblePersistSettings,
     log,
-    host: hosts.listening!,
   });
 
   // ── Together page (switch rows · chain cap · characters on the desktop) ──
@@ -742,26 +668,115 @@ export function createQuickControls({
     boundId,
     log,
   });
-  hosts.together!.append(togetherPage.el);
 
   // ── Permissions page (attach switch · monitor list · screen requests) ──
-  const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen: shell.isOpen });
-  hosts.perms!.append(permsPage.el);
+  const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen });
 
   // ── Plugins page (installed plugins · catalog · consent) ──
   const pluginsPage = plugins ? createPluginsPage({ ...plugins, log }) : undefined;
-  if (pluginsPage) hosts.plugins!.append(pluginsPage.el);
 
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
   }
 
+  // ── The panel's one root: preset strip · rail · every page in its panel · the tooltip ──
+  const root = createRoot(el);
+  flushSync(() =>
+    root.render(
+      createElement(SettingsPanel, {
+        pages: [...CHARACTER_PAGES, ...APP_PAGES].filter(
+          (id) => (id !== "hist" || !!historyPage) && (id !== "plugins" || !!pluginsPage),
+        ),
+        views: {
+          conn: connectionPage.view,
+          voice: voicePage.view,
+          persona: persona.view,
+          body: bodyPage.view,
+          hist: historyPage?.view,
+          together: togetherPage.view,
+          listening: listeningPage.view,
+          perms: permsPage.view,
+          plugins: pluginsPage?.view,
+          react: proactivePage.view,
+          motion: motionPage.view,
+          general: generalPage.view,
+        },
+        initial: initialPageOf(openOnQuickStart),
+        preset: presetRegistry && {
+          // The window reloads into the picked preset; until then it keeps showing this one.
+          edited: createEditedPreset(presetRegistry, presetIdForWindow(), (state) =>
+            onEditTarget(boundId ?? state.active),
+          ),
+          registry: presetRegistry,
+          log,
+          petWindows,
+          boundId,
+          onEditTarget,
+          agentNotifySettings,
+          relationsStore,
+          relationsSwitch,
+          removeCardThumbnail,
+          pickPhoto: pickPresetPhoto,
+          getDefaultChatApi,
+          handle: presetHeader,
+        },
+        connQuickShown: connectionPage.quickShown,
+        tabs,
+        onSelect: (id) => {
+          if (id === "conn") connectionPage.entered();
+          if (id === "plugins") pluginsPage?.entered();
+        },
+        tooltip,
+        dropHost,
+      }),
+    ),
+  );
+  const rail = tabs.current!;
+
   const unbindTransportLinks = bindTransportLinks(el, () => {
     rail.select("conn");
     connectionPage.focusChatType();
   });
   const unbindSearch = bindSettingsSearch(el);
+  // Quick start's Help rows are the delegated ones; the General page handles its own.
+  const unbindHelp = onGuide
+    ? bindHelpSection(el.querySelector<HTMLElement>("#yui-panel-conn")!, onGuide)
+    : undefined;
+
+  // ── shell (open/close lifecycle) ──
+  const shell = createPanelShell({
+    root: el,
+    closeWindow: onCloseWindow,
+    onOpen: () => {
+      // Each page's own redraw, one after another.
+      proactivePage.refresh();
+      persona.reflect();
+      connectionPage.refresh();
+      delegationFeed.sync();
+      historyPage?.refresh();
+      togetherPage.reflect();
+      bodyPage.refresh();
+      motionPage.refresh();
+      voicePage.refresh();
+      // Opening on the Connection page counts as entering it — the model list read follows.
+      if (rail.selected() === "conn") connectionPage.entered();
+      if (rail.selected() === "plugins") pluginsPage?.entered();
+      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
+      refreshVoiceList?.();
+      // Last, so the list the monitors fill is already redrawn.
+      permsPage.loadMonitorsIfEnabled();
+    },
+    onClose: () => {
+      listeningPage.close();
+      connectionPage.commit();
+      connectionPage.close();
+      motionPage.close();
+      voicePage.close();
+      tooltip.current?.close();
+      presetHeader.current?.close();
+    },
+  });
 
   function openPanel(request?: PageRequest): void {
     const tab = request?.page;
@@ -776,44 +791,20 @@ export function createQuickControls({
     return rail.selected() as SettingsPage;
   }
 
-  // Quick start's Help rows are the delegated ones; the General page handles its own.
-  const unbindHelp = onGuide ? bindHelpSection(connPanel, onGuide) : undefined;
-  // Every section the panel redraws on open, closes and disposes, in redraw order.
-  const parts: (PanelSection | null | undefined)[] = [
-    { dispose: permsPage.dispose },
-    pluginsPage,
-    { reflect: proactivePage.refresh, dispose: proactivePage.dispose },
-    { close: listeningPage.close, dispose: listeningPage.dispose },
-    { reflect: persona.reflect, dispose: persona.dispose },
-    { dispose: generalPage.dispose },
-    {
-      reflect: connectionPage.refresh,
-      close: () => {
-        connectionPage.commit();
-        connectionPage.close();
-      },
-      dispose: connectionPage.dispose,
-    },
-    { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
-    historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
-    { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
-    { reflect: bodyPage.refresh, dispose: bodyPage.dispose },
-    { reflect: motionPage.refresh, close: motionPage.close, dispose: motionPage.dispose },
-    { reflect: voicePage.refresh, close: voicePage.close, dispose: voicePage.dispose },
-    { close: hintTooltip.hide, dispose: hintTooltip.dispose },
-    { close: () => presetHeader.current?.close() },
-    { dispose: unbindHelp },
-    { dispose: unbindTransportLinks },
-    { dispose: unbindSearch },
-    { dispose: () => root.unmount() },
-  ];
-  const sections = parts.filter((section): section is PanelSection => !!section);
-
   // The panel fills its window, so it opens at once.
   shell.open();
 
+  // A plain sequence: the first cleanup that throws stops the rest, and the panel stays mounted.
   function dispose(): void {
-    for (const section of sections) section.dispose?.();
+    // The typed keys and endpoints land first: the locale remount and the window's teardown rely on it.
+    listeningPage.close();
+    connectionPage.commit();
+    delegationFeed.dispose();
+    unbindHelp?.();
+    unbindTransportLinks();
+    unbindSearch();
+    root.unmount();
+    voicePage.close();
     shell.dispose();
     el.remove();
   }

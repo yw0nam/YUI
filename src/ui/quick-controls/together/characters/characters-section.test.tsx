@@ -7,10 +7,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createPetWindows } from "../../../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../../../settings/preset/preset-registry";
 import { setLocale } from "../../../i18n";
+import { renderPage } from "../../test-helpers";
 import { createTogetherPage } from "../together-page";
 
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-const pages: ReturnType<typeof createTogetherPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 beforeEach(() => {
   localStorage.clear();
@@ -28,7 +29,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
 });
@@ -37,9 +38,8 @@ function build(boundId: string | null = null) {
   const registry = createPresetRegistry();
   const petWindows = createPetWindows();
   if (boundId) petWindows.open(boundId);
-  const page = createTogetherPage({ rows: [], registry, petWindows, boundId, log });
+  const page = renderPage(createTogetherPage({ rows: [], registry, petWindows, boundId, log }));
   pages.push(page);
-  document.body.append(page.el);
   const row = (name: string) =>
     [...page.el.querySelectorAll<HTMLElement>(".yui-chars__row")].find(
       (r) => r.querySelector(".yui-row__label")?.textContent === name,

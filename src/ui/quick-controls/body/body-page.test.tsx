@@ -8,13 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRelationsStore } from "../../../settings/relations/relations-store";
 import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale, t } from "../../i18n";
-import { makeVrmSelection, pressSlider, USER_OPTION } from "../test-helpers";
+import { makeVrmSelection, pressSlider, renderPage, USER_OPTION } from "../test-helpers";
 import { createBodyPage } from "./body-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const tabs: ReturnType<typeof createBodyPage>[] = [];
+const tabs: { unmount(): void }[] = [];
 
 describe("createBodyPage", () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe("createBodyPage", () => {
 
   afterEach(() => {
     act(() => {
-      for (const tab of tabs.splice(0)) tab.dispose();
+      for (const tab of tabs.splice(0)) tab.unmount();
     });
     document.body.innerHTML = "";
     vi.restoreAllMocks();
@@ -35,17 +35,18 @@ describe("createBodyPage", () => {
     const vrmSelection = makeVrmSelection();
     const onResetView = vi.fn();
     const importVrm = vi.fn(async () => {});
-    const tab = createBodyPage({
-      vrmSelection,
-      swapVrm: async () => {},
-      importVrm,
-      removeUserVrm: async () => {},
-      onResetView,
-      isOpen: () => true,
-      log,
-      host: document.body,
-      ...overrides,
-    });
+    const tab = renderPage(
+      createBodyPage({
+        vrmSelection,
+        swapVrm: async () => {},
+        importVrm,
+        removeUserVrm: async () => {},
+        onResetView,
+        isOpen: () => true,
+        log,
+        ...overrides,
+      }),
+    );
     tabs.push(tab);
     return { tab, vrmSelection, onResetView, importVrm };
   }
@@ -103,11 +104,11 @@ describe("createBodyPage", () => {
     const checked = () =>
       tab.el.querySelector<HTMLElement>(".yui-vrm[aria-checked=true]")?.dataset.vrmId;
     expect(checked()).toBe("aria");
-    act(() => tab.dispose());
+    act(() => tab.unmount());
     const unsubscribed = vi.fn();
     const spy = { ...vrmSelection, subscribe: vi.fn(() => unsubscribed) };
     const second = build({ vrmSelection: spy });
-    act(() => second.tab.dispose());
+    act(() => second.tab.unmount());
     expect(unsubscribed).toHaveBeenCalledTimes(1);
   });
 

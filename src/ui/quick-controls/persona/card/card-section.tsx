@@ -12,6 +12,7 @@ import type { createAgentSettings } from "../../../../settings/backend/agent-set
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
 import { Disclosure } from "../../../controls/disclosure";
 import { Switch } from "../../../controls/switch";
+import { Tip } from "../../../controls/tooltip";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL, PLUS_SVG } from "../../constants";
@@ -182,16 +183,17 @@ export function CardSection({
       <div className="yui-sec__head">
         <h2 className="yui-sec__title">
           {t("card.label")}
-          <a
-            className="yui-hint-dot yui-card__help"
-            href={CARD_GUIDE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={help}
-            data-tip={help}
-          >
-            ?
-          </a>
+          <Tip text={help}>
+            <a
+              className="yui-hint-dot yui-card__help"
+              href={CARD_GUIDE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={help}
+            >
+              ?
+            </a>
+          </Tip>
         </h2>
         <span className="yui-sec__state" hidden={!open || own}>
           {t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] })}

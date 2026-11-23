@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * connection-page.detail.test.ts — Detailed settings through the page facade: the TTS provider select, the STT model
- * field persisting and resetting with the service, the model list read, and dispose committing.
+ * field persisting and resetting with the service, the model list read, and the commit the teardown runs.
  */
 import { act, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,6 +27,7 @@ import {
   inMemoryApiKeyStorage,
   optionNames,
   pickOption,
+  renderPage,
 } from "../test-helpers";
 import { createConnectionPage, type PushSocketPanelPort } from "./connection-page";
 
@@ -54,7 +55,7 @@ describe("createConnectionPage — Detailed settings", () => {
     chatKeySettings = createChatKeySettings();
   });
 
-  // Each page the case built; afterEach disposes those the case left open.
+  // Each page the case built; afterEach unmounts those the case left open.
   const open: (() => void)[] = [];
 
   afterEach(() => {
@@ -72,42 +73,40 @@ describe("createConnectionPage — Detailed settings", () => {
     checkTtsServer?: () => Promise<ServerCheck | null>;
     getEndpoints?: () => EndpointsConfig | null;
   }) {
-    const host = document.body.appendChild(document.createElement("div"));
-    host.innerHTML = '<h1 class="yui-tabpanel__title">Connection</h1>';
-    const tab = createConnectionPage({
-      host,
-      scope: null,
-      initial: "detail",
-      quick: {
-        endpointsSettings,
-        chatKeySettings,
-        proactiveSettings: createProactiveSettings({ locale: "en" }),
-        scheduleSettings: createScheduleSettings({ locale: "en" }),
-        getFetch: async () => undefined,
-        onConnected: () => {},
-        showHelp: false,
-      },
-      detail: {
-        endpointsSettings,
-        chatKeySettings,
-        ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-        sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-        isOpen: () => true,
-        ...extra,
-        log: {
-          debug: () => {},
-          info: () => {},
-          warn: () => {},
-          error: () => {},
+    const tab = renderPage(
+      createConnectionPage({
+        initial: "detail",
+        quick: {
+          endpointsSettings,
+          chatKeySettings,
+          proactiveSettings: createProactiveSettings({ locale: "en" }),
+          scheduleSettings: createScheduleSettings({ locale: "en" }),
+          getFetch: async () => undefined,
+          onConnected: () => {},
+          showHelp: false,
         },
-      },
-    });
+        detail: {
+          endpointsSettings,
+          chatKeySettings,
+          ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+          sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+          agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+          isOpen: () => true,
+          ...extra,
+          log: {
+            debug: () => {},
+            info: () => {},
+            warn: () => {},
+            error: () => {},
+          },
+        },
+      }),
+    );
     let disposed = false;
     const dispose = (): void => {
       if (disposed) return;
       disposed = true;
-      act(() => tab.dispose());
+      tab.unmount();
     };
     open.push(dispose);
     return {
@@ -239,7 +238,7 @@ describe("createConnectionPage — Detailed settings", () => {
 
   // ── Close contract ────────────────────────────────────────────────────────────────────────
 
-  it("dispose() commits dirty key and endpoint inputs", () => {
+  it("commit() lands dirty key and endpoint inputs, as the panel's teardown runs it first", () => {
     const tab = build();
 
     const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
@@ -247,7 +246,7 @@ describe("createConnectionPage — Detailed settings", () => {
     const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
     fireEvent.input(key, { target: { value: "throwaway-key-7731" } });
 
-    tab.dispose();
+    tab.commit();
 
     expect(endpointsSettings.get().chat_base_url).toBe("wss://example.test/ws");
     expect(chatKeySettings.get().apiKey).toBe("throwaway-key-7731");

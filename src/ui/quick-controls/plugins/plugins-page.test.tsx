@@ -14,7 +14,7 @@ import type {
   PluginHostSnapshot,
 } from "../../../io/mcp-host/mcp-host";
 import { setLocale } from "../../i18n";
-import { fakePlugins } from "../test-helpers";
+import { fakePlugins, renderPage } from "../test-helpers";
 import { createPluginsPage, type PluginsPage } from "./plugins-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -74,14 +74,13 @@ const CATALOG: CatalogEntry[] = [
 ];
 
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-const pages: PluginsPage[] = [];
+const pages: { unmount(): void }[] = [];
 
 function mountPage(snapshot: PluginHostSnapshot | null = SNAPSHOT) {
   const fake = fakePlugins(snapshot);
   fake.manage.catalog.mockResolvedValue(CATALOG);
-  const page = createPluginsPage({ host: fake.host, manage: fake.manage, log });
+  const page = renderPage(createPluginsPage({ host: fake.host, manage: fake.manage, log }));
   pages.push(page);
-  document.body.append(page.el);
   return { ...fake, page };
 }
 
@@ -99,7 +98,7 @@ describe("createPluginsPage", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
     act(() => {
-      for (const page of pages.splice(0)) page.dispose();
+      for (const page of pages.splice(0)) page.unmount();
     });
     document.body.innerHTML = "";
   });

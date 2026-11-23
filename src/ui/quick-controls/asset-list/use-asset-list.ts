@@ -48,8 +48,6 @@ export interface AssetListDeps<T extends AssetOption> {
   log: Logger;
   /** Prefix of the log keys: `${logPrefix}_swap`. */
   logPrefix: string;
-  /** Re-measure hover hints after a row's label changes. */
-  refreshTooltip?: () => void;
   /** The rows' class prefix: `yui-vrm` gives `.yui-vrm[role=radio]`, `.yui-vrm__remove`, `.yui-vrm--renaming`. */
   classPrefix: string;
   /** The row dataset key holding the option id: `vrmId` for `data-vrm-id`. */
@@ -110,7 +108,6 @@ export function useAssetList<T extends AssetOption>(deps: AssetListDeps<T>): Ass
     revision,
     log,
     logPrefix,
-    refreshTooltip,
     classPrefix,
     datasetKey,
   } = deps;
@@ -182,9 +179,6 @@ export function useAssetList<T extends AssetOption>(deps: AssetListDeps<T>): Ass
       doc.removeEventListener("keydown", onKey);
     };
   }, [armedId, repaint, classPrefix]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a hint re-measures when the armed row changes
-  useLayoutEffect(() => refreshTooltip?.(), [armedId, refreshTooltip]);
 
   // A commit that dropped the group's focused node hands focus back to the roved row.
   useLayoutEffect(() => {

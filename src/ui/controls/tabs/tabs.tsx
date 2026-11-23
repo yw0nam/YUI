@@ -78,11 +78,12 @@ export function TabsRoot({
 
 export function Tab({ value, ...props }: ComponentProps<typeof Tabs.Tab> & { value: string }) {
   return (
+    // The ids are the tab's contract, kept over any a composed trigger passes.
     <Tabs.Tab
+      {...props}
       value={value}
       id={`yui-tab-${value}`}
       aria-controls={`yui-panel-${value}`}
-      {...props}
     />
   );
 }

@@ -7,6 +7,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Logger } from "../../../../logger";
 import type { ApiKeySettingsStore } from "../../../../settings/backend/api-key-settings";
+import { Tip } from "../../../controls/tooltip";
 import { t } from "../../../i18n";
 import { CHATKEY_CLEAR_SVG } from "../../constants";
 import { RevealToggle } from "./reveal-toggle";
@@ -106,15 +107,16 @@ export function KeyRow({
           revealed={revealed}
           onToggle={() => setRevealed((shown) => !shown)}
         />
-        <button
-          className="yui-iconbtn yui-chatkey__clear"
-          type="button"
-          aria-label={t(`${idPrefix}.clear`)}
-          data-tip={t(`${idPrefix}.clear`)}
-          onClick={handleClear}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the other key fields
-          dangerouslySetInnerHTML={{ __html: CHATKEY_CLEAR_SVG }}
-        />
+        <Tip text={t(`${idPrefix}.clear`)}>
+          <button
+            className="yui-iconbtn yui-chatkey__clear"
+            type="button"
+            aria-label={t(`${idPrefix}.clear`)}
+            onClick={handleClear}
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the other key fields
+            dangerouslySetInnerHTML={{ __html: CHATKEY_CLEAR_SVG }}
+          />
+        </Tip>
       </div>
     </div>
   );

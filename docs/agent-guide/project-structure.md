@@ -675,24 +675,23 @@ YUI/
         use-snapshot.ts              # Binds such a source to a component
         use-notify.ts                # Re-renders a component on each notify of a source it reads itself
       quick-controls/                # Settings panel shell parts and sections
-        quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
+        quick-controls.ts            # Settings panel: creates every page's controller, renders the panel's one React root, and runs the open, close and teardown of its pages in order
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
-        settings-panel.tsx           # The panel's React view: the preset strip, the rail (search field, group headings and tabs on the shared Tabs) and every page's panel with its scope line, title and the host its page mounts into
+        settings-panel.tsx           # The panel's React view: the preset strip, the rail (search field, group headings and tabs on the shared Tabs, each with its tip) and every page's panel with its scope line, title and page, under one shared tooltip
+        page-revision.tsx            # A page's own redraw: the open hook bumps it and only that page renders again
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines, and the rail's tab icons
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
-        hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
-        hint-tooltip.css             # Hint tooltip styles
         row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
         asset-list/                  # The state and rules the VRM and speaker radiogroups share
           use-asset-list.ts          # Roving focus, swap, rename, the armed remove with its confirm delay, and the open-gated store subscription
           rename-input.tsx           # The inline name field: Enter and blur commit, Esc cancels, a refused name stays open, an optional warning after the hint
           asset-list.css             # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
         voice/                       # The Voice page, rendered with React
-          voice-page.ts              # The page's facade: its React root, the open hook that re-reads every source, and the close hook that stops the audition
+          voice-page.ts              # The page's controller: its view, the open hook that re-reads every source, and the close hook that stops the audition
           voice-page-view.tsx        # The TTS switch and the speaker list, the thinking filler, then the message-window row
           speaker/                   # The speaker list
             speaker-section.tsx      # The radiogroup, the import row, the naming row, and the paste-a-voice-id field
@@ -708,7 +707,7 @@ YUI/
             filler-section.tsx       # The enable switch, the language segment and the eight phrase-pool textareas with the More phrases fold
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
         body/                        # The Body page, rendered with React
-          body-page.ts               # The page's facade: its React root, and the open hook that re-reads every source
+          body-page.ts               # The page's controller: its view, and the open hook that re-reads every source
           body-page-view.tsx         # The VRM section, the relations rows and the view reset
           vrm/                       # The VRM radiogroup
             vrm-section.tsx          # The radiogroup, the import row, and the VRoid Hub link
@@ -723,7 +722,7 @@ YUI/
           viewpoint/                 # Camera view reset
             viewpoint-row.tsx        # Camera view reset button
         motion/                      # The Motion and desktop page, rendered with React
-          motion-page.ts             # The page's facade: its React root, the open hook that re-reads every source, and the close hook that ends the gain preview
+          motion-page.ts             # The page's controller: its view, the open hook that re-reads every source, and the close hook that ends the gain preview
           motion-page-view.tsx       # The mouth gain, the idle and express motions, then the motion switch rows
           motion-ports.ts            # What the page reads, each repainting at once and only while the panel is open
           gain/                      # Mouth gain
@@ -735,7 +734,7 @@ YUI/
             express-motion-section.tsx # Express motion categories: the accordion, each group's tri-state master, and the motion switches
             express-motion-section.css # Express motion styles
         connection/                  # The Connection page, rendered with React
-          connection-page.ts         # The page's facade: its React root, the view it shows, the entry, the focus requests, the commit and the push port the panel uses
+          connection-page.ts         # The page's controller: its view, the view it shows (Quick start hides the scope line), the entry, the focus requests, the commit and the push port the panel uses
           connection-page-view.tsx   # The Quick start | Detailed settings switch over both views, both mounted
           connection-page.css        # The views switch's segment and the view wrappers
           endpoints-section.css      # Endpoints section, the key fields, and the shared chat-status dot styles
@@ -794,7 +793,7 @@ YUI/
             reasons-card.tsx         # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         general/                     # The General page, rendered with React
-          general-page.ts            # The page's facade: its React root
+          general-page.ts            # The page's controller: its view
           general-page-view.tsx      # The language, appearance and text size segments, the user name, Help and Developer Tools
           text-size-section.css      # The line at the speech size under the text size segment
           help/
@@ -802,7 +801,7 @@ YUI/
           user-name/
             user-name-row.tsx        # The device-wide user name field, its fallback placeholder, and the blur that settles on the stored name
         history/                     # The History page, rendered with React
-          history-page.ts            # The page's facade: its React root, the start-fresh reset, and the open hook that re-reads every source
+          history-page.ts            # The page's controller: its view, the start-fresh reset, and the open hook that re-reads every source
           history-page-view.tsx      # The session list and its footnote, the start-fresh row, then the Session section
           history-ports.ts           # What the page reads from the transcript, the signal records, the session diagnostics and the push socket, each redrawing only while the panel is open
           session-list.tsx           # The session accordion: one group per session, the running one open by default
@@ -817,7 +816,7 @@ YUI/
             delegated-rows.tsx       # Mounts the delegation rows the pet window's chip also draws
             session-section.css      # Session context-occupancy readout and meter styles
         listening/                   # The Listening page, rendered with React
-          listening-page.ts          # The page's facade: its React root, and the STT draft it commits on close and dispose
+          listening-page.ts          # The page's controller: its view, and the STT draft it commits on close and the panel's teardown
           listening-page-view.tsx    # The voice switch, the STT key row (a KeyRow), the silence slider, the barge-in and bubble switches, and the reading dictionary
           silence/
             silence-slider.tsx       # The silence threshold slider: its range, readout and fill from the vad store, and the release log
@@ -825,14 +824,14 @@ YUI/
             readings-section.tsx     # The reading textarea, its edits, and the line naming skipped lines
             readings-section.css     # Reading dictionary textarea and skipped-line styles
         perms/                       # The Permissions page, rendered with React
-          perms-page.ts              # The page's facade: its React root, and when the monitor list loads
+          perms-page.ts              # The page's controller: its view, and when the monitor list loads
           perms-page-view.tsx        # The screenshot attach and screen request switches and the screen source stack
           monitors/                  # The screen source list
             monitor-load.ts          # The list's load: one request at a time, its state, and the retry after a failure
             monitor-list.tsx         # One radio per monitor, or the empty or error notice
             monitor-list.css         # Monitor row and notice styles
         persona/                     # The Persona page, rendered with React
-          persona-page.ts            # The page's facade: its React root, the card's file actions and drop, and the open hook that redraws it
+          persona-page.ts            # The page's controller: its view, the card's file actions and drop, and the open hook that redraws it
           persona-page-view.tsx      # The Active hours editor above the card
           active-hours/              # The Active hours editor
             active-hours-section.tsx # Span rows (start, end, pace, remove) over the spans in use, and the add and reset actions
@@ -849,7 +848,7 @@ YUI/
             card-drop.ts             # The drop cover: its busy and drop looks, the refusals before a file is read, and the one import a drop starts
             card-drop.css            # Drop cover styles
         plugins/                     # The Plugins page: installed plugins and the catalog, rendered with React
-          plugins-page.ts            # The page's facade: its React root, and the open hook that loads the catalog
+          plugins-page.ts            # The page's controller: its view, and the entry that loads the catalog
           plugins-page-view.tsx      # The Installed and Available sections over one store, and Escape closing a pending panel
           plugins-state.ts           # The page's state and actions outside React: consent, confirms, updates, installs, logs, and the snapshot subscription
           catalog-state.ts           # The catalog's load (an in-flight call joins it), the entries not installed, the updates offered, and Check for updates' timed count
@@ -862,7 +861,7 @@ YUI/
           plugin-parts.tsx           # The source badge and its icons, the version, the inline error line, the keyed block and the page's fade-in flag
           plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, catalog rows and the keyed block's fade-in; a stopped server's shared status dot dims here
         proactive/                   # The Proactive page, rendered with React
-          proactive-page.ts          # The page's facade: its React root, and the open hook that re-reads what no store announces
+          proactive-page.ts          # The page's controller: its view, and the open hook that re-reads what no store announces
           proactive-page-view.tsx    # The pace section, the source groups in order, then Advanced
           proactive-page.css         # The number column: every number row's field shares one width and one unit slot
           proactive-page.test.tsx    # The page's React tests through its facade
@@ -895,7 +894,7 @@ YUI/
           settings-search.ts         # Binds the field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
         together/                    # The Together page, rendered with React
-          together-page.ts           # The page's facade: its React root, and the open hook that re-reads the bundled defaults
+          together-page.ts           # The page's controller: its view, and the open hook that re-reads the bundled defaults
           together-page-view.tsx     # The switch rows, the chain cap, and the characters on the desktop
           chain-cap/                 # The cap on characters addressing each other
             chain-cap-row.tsx        # The chain cap row: a NumberField over the bundled default
@@ -913,7 +912,11 @@ YUI/
             push-reason.css          # Reason line styles
         switches/                    # The React switch rows the Voice, Together, Motion and Proactive pages share
           descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
-      controls/                      # Shared React controls; the slider, the checkbox, the number field, the segment, the select and the tabs build on Base UI
+      controls/                      # Shared React controls; the slider, the checkbox, the number field, the segment, the select, the tabs and the tooltip build on Base UI
+        tooltip/                     # The Tooltip
+          index.ts                   # Re-exports the TooltipHost, the Tip and the host's handle type
+          tooltip.tsx                # One tooltip under a TooltipHost: each Tip makes its child a trigger; hover opens after 150 ms, keyboard focus at once, and focus opens it only after a focus-moving key
+          tooltip.css                # The tip's surface, its layer over the panel's popovers, and its fade
         tabs/                        # The Tabs
           index.ts                   # Re-exports the Tabs state hook, root, tab, panel and handle type
           tabs.tsx                   # Tabs on Base UI's Tabs: `yui-tab-<id>` tabs controlling `yui-panel-<id>` panels kept mounted, hidden with the selection, and a handle that selects or focuses a tab from code

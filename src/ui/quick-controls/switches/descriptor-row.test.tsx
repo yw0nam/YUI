@@ -7,13 +7,13 @@ import { createMessageWindowSettings } from "../../../settings/panels/message-wi
 import { createFlagSettings } from "../../../settings/persisted-store";
 import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { createSwitchRows } from "../switch-row";
-import { makeSpeakerSelection } from "../test-helpers";
-import { createVoicePage, type VoicePage } from "../voice/voice-page";
+import { makeSpeakerSelection, renderPage } from "../test-helpers";
+import { createVoicePage } from "../voice/voice-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: VoicePage[] = [];
+const pages: { unmount(): void }[] = [];
 
 beforeEach(() => {
   // The message-window row renders only where a second window can exist.
@@ -22,7 +22,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
@@ -33,34 +33,34 @@ function build(messageWindowSettings: ReturnType<typeof createMessageWindowSetti
   let shown = true;
   const listeners = new Set<(shown: boolean) => void>();
   const fillerSettings = createFillerSettings();
-  const page = createVoicePage({
-    rows: createSwitchRows({
-      idleThrottleSettings: createFlagSettings(true),
-      fillerSettings,
-      messageWindowSettings,
-      unifiedShown: {
-        get: () => shown,
-        subscribe: (cb) => {
-          listeners.add(cb);
-          return () => listeners.delete(cb);
+  const page = renderPage(
+    createVoicePage({
+      rows: createSwitchRows({
+        idleThrottleSettings: createFlagSettings(true),
+        fillerSettings,
+        messageWindowSettings,
+        unifiedShown: {
+          get: () => shown,
+          subscribe: (cb) => {
+            listeners.add(cb);
+            return () => listeners.delete(cb);
+          },
         },
-      },
-    }).filter((row) => row.tab === "voice"),
-    fillerSettings,
-    speakerSelection: makeSpeakerSelection(),
-    swapSpeaker: vi.fn(async () => {}),
-    refreshSpeaker: vi.fn(async () => {}),
-    pickVoiceImport: vi.fn(async () => null),
-    commitVoiceImport: vi.fn(async () => {}),
-    removeVoice: vi.fn(async () => {}),
-    canManageVoices: () => true,
-    canReuploadVoices: () => true,
-    canPasteVoiceId: () => false,
-    log: { debug() {}, info() {}, warn() {}, error() {} },
-    refreshTooltip: () => {},
-    isOpen: () => true,
-    host: document.body,
-  });
+      }).filter((row) => row.tab === "voice"),
+      fillerSettings,
+      speakerSelection: makeSpeakerSelection(),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      pickVoiceImport: vi.fn(async () => null),
+      commitVoiceImport: vi.fn(async () => {}),
+      removeVoice: vi.fn(async () => {}),
+      canManageVoices: () => true,
+      canReuploadVoices: () => true,
+      canPasteVoiceId: () => false,
+      log: { debug() {}, info() {}, warn() {}, error() {} },
+      isOpen: () => true,
+    }),
+  );
   pages.push(page);
   const unlock = () =>
     act(() => {

@@ -1,20 +1,19 @@
-/** The Motion page: its React root, what the panel's open redraws, and the gain preview its close ends. */
+/** The Motion page: its view, what the panel's open redraws, and the gain preview its close ends. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type ReactNode } from "react";
 import type { Logger } from "../../../logger";
+import { createPageRevision } from "../page-revision";
 import { createGainPreview } from "./gain/gain-preview";
 import { MotionPageView } from "./motion-page-view";
 import { createMotionPorts } from "./motion-ports";
 
 export interface MotionPage {
-  el: HTMLElement;
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
   /** Re-reads every source, the motion catalog included: the open hook. */
   refresh(): void;
   /** Ends a running gain preview: the close hook. */
   close(): void;
-  dispose(): void;
 }
 
 export function createMotionPage(
@@ -23,29 +22,18 @@ export function createMotionPage(
     onPreview: (mouthOpen: number) => void;
     onPreviewEnd: () => void;
     log: Logger;
-    /** The page appends itself here before its first render: Base UI registers a slider's thumb only while it is connected. */
-    host: HTMLElement;
   },
 ): MotionPage {
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  deps.host.append(el);
-  const root = createRoot(el);
   const props = { ports: createMotionPorts(deps), preview: createGainPreview(deps), log: deps.log };
-  let revision = 0;
-  const render = (): void =>
-    flushSync(() => root.render(createElement(MotionPageView, { ...props, revision })));
-  render();
-
+  const revision = createPageRevision();
   return {
-    el,
-    refresh(): void {
-      revision++;
-      render();
-    },
+    view: () =>
+      createElement(
+        "div",
+        { className: "yui-tab-stack" },
+        revision.view((n) => createElement(MotionPageView, { ...props, revision: n })),
+      ),
+    refresh: revision.bump,
     close: props.preview.end,
-    dispose(): void {
-      root.unmount();
-    },
   };
 }

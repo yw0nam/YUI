@@ -18,9 +18,12 @@ import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import {
   defaultQcArgs,
+  hoverTip,
   inMemoryAgentStorage,
+  keyboardFocus,
   makeSpeakerSelection,
   makeVrmSelection,
+  shownTip,
   USER_VOICE,
 } from "../../test-helpers";
 
@@ -102,7 +105,6 @@ describe("createQuickControls — speaker section", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -418,9 +420,6 @@ describe("createQuickControls — speaker section", () => {
         .querySelector<HTMLButtonElement>(".yui-spk__remove")!
         .getAttribute("aria-label"),
     ).toBe("삭제할까요? 내 목소리");
-    expect(userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.dataset.tip).toBe(
-      "삭제할까요?",
-    );
     act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     await flush();
 
@@ -437,15 +436,14 @@ describe("createQuickControls — speaker section", () => {
 
     act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
     const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })));
-    remove.focus();
-    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
+    keyboardFocus(remove);
+    expect(shownTip()).toBe("삭제할까요?");
 
     act(() => document.body.click());
-    remove.blur();
-    remove.focus();
-    expect(remove.dataset.tip).toBe("삭제");
-    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+    act(() => remove.blur());
+    keyboardFocus(remove);
+    expect(remove.getAttribute("aria-describedby")).toBe("yui-hint-tip");
+    expect(shownTip()).toBe("삭제");
   });
 
   it("shows a tooltip for a row button replaced by a re-render", () => {
@@ -460,9 +458,11 @@ describe("createQuickControls — speaker section", () => {
       const rerendered = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
       expect(rerendered.isSameNode(original)).toBe(false);
 
-      act(() => rerendered.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-      vi.advanceTimersByTime(150);
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
+      hoverTip(rerendered);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(shownTip()).toBe("삭제할까요?");
     } finally {
       vi.useRealTimers();
     }
@@ -476,13 +476,15 @@ describe("createQuickControls — speaker section", () => {
       act(() => qc.open());
 
       const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      act(() => remove.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-      vi.advanceTimersByTime(150);
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+      hoverTip(remove);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(shownTip()).toBe("삭제");
 
       act(() => remove.click());
 
-      expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+      expect(shownTip()).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -497,18 +499,15 @@ describe("createQuickControls — speaker section", () => {
 
       act(() => userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click());
       const remove = userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!;
-      act(() =>
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })),
-      );
-      remove.focus();
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제할까요?");
+      keyboardFocus(remove);
+      expect(shownTip()).toBe("삭제할까요?");
 
       act(() => {
         vi.advanceTimersByTime(4000);
       });
 
-      expect(remove.dataset.tip).toBe("삭제");
-      expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe("삭제");
+      expect(remove.getAttribute("aria-describedby")).toBe("yui-hint-tip");
+      expect(shownTip()).toBe("삭제");
     } finally {
       vi.useRealTimers();
     }

@@ -14,13 +14,13 @@ import {
 } from "../../../../settings/voice/filler-settings";
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
-import { makeSpeakerSelection } from "../../test-helpers";
-import { createVoicePage, type VoicePage } from "../voice-page";
+import { makeSpeakerSelection, renderPage } from "../../test-helpers";
+import { createVoicePage } from "../voice-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: VoicePage[] = [];
+const pages: { unmount(): void }[] = [];
 
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
@@ -42,26 +42,26 @@ function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
 
 /** The Voice page as the shell renders it, with the filler store injected. */
 function buildRoot(fillerSettings: FillerSettingsStore) {
-  const page = createVoicePage({
-    rows: createSwitchRows({
-      idleThrottleSettings: createFlagSettings(false),
+  const page = renderPage(
+    createVoicePage({
+      rows: createSwitchRows({
+        idleThrottleSettings: createFlagSettings(false),
+        fillerSettings,
+      }).filter((row) => row.tab === "voice"),
       fillerSettings,
-    }).filter((row) => row.tab === "voice"),
-    fillerSettings,
-    speakerSelection: makeSpeakerSelection(),
-    swapSpeaker: vi.fn(async () => {}),
-    refreshSpeaker: vi.fn(async () => {}),
-    pickVoiceImport: vi.fn(async () => null),
-    commitVoiceImport: vi.fn(async () => {}),
-    removeVoice: vi.fn(async () => {}),
-    canManageVoices: () => true,
-    canReuploadVoices: () => true,
-    canPasteVoiceId: () => false,
-    log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    refreshTooltip: () => {},
-    isOpen: () => true,
-    host: document.body,
-  });
+      speakerSelection: makeSpeakerSelection(),
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      pickVoiceImport: vi.fn(async () => null),
+      commitVoiceImport: vi.fn(async () => {}),
+      removeVoice: vi.fn(async () => {}),
+      canManageVoices: () => true,
+      canReuploadVoices: () => true,
+      canPasteVoiceId: () => false,
+      log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      isOpen: () => true,
+    }),
+  );
   pages.push(page);
   return page;
 }
@@ -111,7 +111,7 @@ describe("the thinking-filler section", () => {
 
   afterEach(() => {
     act(() => {
-      for (const page of pages.splice(0)) page.dispose();
+      for (const page of pages.splice(0)) page.unmount();
     });
     document.body.innerHTML = "";
     vi.restoreAllMocks();

@@ -7,27 +7,27 @@ import { createFlagSettings } from "../../../settings/persisted-store";
 import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { setLocale, t } from "../../i18n";
 import { createSwitchRows } from "../switch-row";
+import { renderPage } from "../test-helpers";
 import { createTogetherPage } from "./together-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: ReturnType<typeof createTogetherPage>[] = [];
+const pages: { unmount(): void }[] = [];
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 function build(
   rows: Parameters<typeof createTogetherPage>[0]["rows"],
   extra?: Partial<Parameters<typeof createTogetherPage>[0]>,
 ) {
-  const page = createTogetherPage({ rows, log, ...extra });
+  const page = renderPage(createTogetherPage({ rows, log, ...extra }));
   pages.push(page);
-  document.body.append(page.el);
   return page;
 }
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   setLocale("en");

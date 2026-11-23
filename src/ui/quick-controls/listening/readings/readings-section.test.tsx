@@ -13,25 +13,26 @@ import { createReadingsSettings } from "../../../../settings/voice/readings-sett
 import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { createVoiceInputStatus } from "../../../chips/voice-input-status";
 import { setLocale } from "../../../i18n";
-import { inMemoryApiKeyStorage } from "../../test-helpers";
+import { inMemoryApiKeyStorage, renderPage } from "../../test-helpers";
 import { createListeningPage } from "../listening-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: ReturnType<typeof createListeningPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 function setup(text = "") {
   const store = createReadingsSettings({ storage: { load: () => ({ text }), save: () => {} } });
-  const page = createListeningPage({
-    showVoiceInput: true,
-    voiceStatus: createVoiceInputStatus(),
-    vad: createVadSettings({ storage: { load: () => null, save: () => {} } }),
-    sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-    readingsSettings: store,
-    log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
-    host: document.body,
-  });
+  const page = renderPage(
+    createListeningPage({
+      showVoiceInput: true,
+      voiceStatus: createVoiceInputStatus(),
+      vad: createVadSettings({ storage: { load: () => null, save: () => {} } }),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      readingsSettings: store,
+      log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
+    }),
+  );
   pages.push(page);
   const textarea = page.el.querySelector<HTMLTextAreaElement>("textarea")!;
   const entry = page.el.querySelector<HTMLElement>(".yui-reading__entry")!;
@@ -46,7 +47,7 @@ describe("ReadingsSection", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
     act(() => {
-      for (const page of pages.splice(0)) page.dispose();
+      for (const page of pages.splice(0)) page.unmount();
     });
     document.body.innerHTML = "";
   });

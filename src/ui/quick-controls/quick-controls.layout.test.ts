@@ -40,8 +40,10 @@ import { createQuickControls } from "./quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,
+  keyboardFocus,
   makeSpeakerSelection,
   makeVrmSelection,
+  shownTip,
 } from "./test-helpers";
 
 const inMemoryValueStorage = () => {
@@ -326,7 +328,8 @@ describe("createQuickControls — proactive tab layout", () => {
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
     expect(tab.getAttribute("aria-label")).toBe("말걸기");
-    expect(tab.dataset.tip).toBe("먼저 말을 거는 규칙");
+    keyboardFocus(tab);
+    expect(shownTip()).toBe("먼저 말을 거는 규칙");
     expect(tab.hasAttribute("title")).toBe(false);
     qc.dispose();
   });

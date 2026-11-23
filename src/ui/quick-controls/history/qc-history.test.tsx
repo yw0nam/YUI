@@ -14,7 +14,7 @@ import {
 } from "../../../io/chat/conversation/signal-history-store";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, keyboardFocus, shownTip } from "../test-helpers";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -81,7 +81,6 @@ describe("createQuickControls — history tab", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
@@ -101,7 +100,8 @@ describe("createQuickControls — history tab", () => {
     expect(histTab.id).toBe("yui-tab-hist");
     expect(histTab.getAttribute("aria-label")).toBe("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
-    expect(histTab.dataset.tip).toBeTruthy();
+    keyboardFocus(histTab);
+    expect(shownTip()).toBeTruthy();
     expect(histTab.hasAttribute("title")).toBe(false);
     const panel = qc.el.querySelector<HTMLElement>(`#${histTab.getAttribute("aria-controls")}`)!;
     expect(panel.getAttribute("aria-labelledby")).toBe(histTab.id);
@@ -381,7 +381,6 @@ describe("createQuickControls — start fresh action in the History tab", () => 
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
@@ -530,7 +529,6 @@ describe("createQuickControls — start fresh keeps the transcript", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 

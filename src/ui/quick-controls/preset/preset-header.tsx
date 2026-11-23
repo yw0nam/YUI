@@ -18,6 +18,7 @@ import { presetIdForWindow, presetNameFor } from "../../../settings/preset/activ
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
+import { Tip } from "../../controls/tooltip";
 import { t } from "../../i18n";
 import { useNotify } from "../../use-snapshot/use-notify";
 import { CharacterHeader } from "./character-header";
@@ -118,22 +119,23 @@ export function PresetHeader(p: PresetHeaderProps) {
           getDefaultChatApi={p.getDefaultChatApi}
           onPick={p.onEditTarget}
         />
-        <button
-          ref={manageBtn}
-          className={
-            managing
-              ? "yui-iconbtn yui-preset__manage is-pressed"
-              : "yui-iconbtn yui-preset__manage"
-          }
-          type="button"
-          aria-label={t("preset.manage")}
-          data-tip={t("preset.manage")}
-          aria-haspopup="dialog"
-          aria-expanded={managing}
-          onClick={() => (managing ? closeManage(true) : setManaging(true))}
-        >
-          {DOTS}
-        </button>
+        <Tip text={t("preset.manage")}>
+          <button
+            ref={manageBtn}
+            className={
+              managing
+                ? "yui-iconbtn yui-preset__manage is-pressed"
+                : "yui-iconbtn yui-preset__manage"
+            }
+            type="button"
+            aria-label={t("preset.manage")}
+            aria-haspopup="dialog"
+            aria-expanded={managing}
+            onClick={() => (managing ? closeManage(true) : setManaging(true))}
+          >
+            {DOTS}
+          </button>
+        </Tip>
       </div>
       <p className="yui-preset__note">{t(`preset.note_${key}`, { name })}</p>
       {p.relationsStore && (

@@ -260,7 +260,12 @@ describe("createQuickControls — tab rail", () => {
       const name = tab.getAttribute("aria-label");
       expect(name).toBeTruthy();
       expect(tab.querySelector(".yui-tab__label")?.textContent).toBe(name);
-      expect(tab.dataset.tip).toBeTruthy();
+      act(() => {
+        fireEvent.keyDown(document.body, { key: "Tab" });
+        tab.focus();
+      });
+      expect(document.querySelector(".yui-hint-tip[data-open]")?.textContent).toBeTruthy();
+      expect(tab.getAttribute("aria-describedby")).toBe("yui-hint-tip");
     }
 
     qc.dispose();

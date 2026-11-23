@@ -2,6 +2,7 @@
 
 import { type MouseEvent, useLayoutEffect, useRef } from "react";
 import type { SpeakerOption } from "../../../../io/voice/voices/speaker-selection";
+import { Tip } from "../../../controls/tooltip";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
 import type { AssetList } from "../../asset-list/use-asset-list";
@@ -115,74 +116,80 @@ export function SpeakerRow({
           <span className="yui-spk__hint">{t("speaker.swapping")}</span>
         ) : null}
         {user && (
-          <button
-            className="yui-spk__rename"
-            type="button"
-            data-tip={t("speaker.rename")}
-            aria-label={t("speaker.rename")}
-            onClick={(e) => stop(e, () => list.startRename(option.id))}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-            dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
-          />
+          <Tip text={t("speaker.rename")}>
+            <button
+              className="yui-spk__rename"
+              type="button"
+              aria-label={t("speaker.rename")}
+              onClick={(e) => stop(e, () => list.startRename(option.id))}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
+              dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
+            />
+          </Tip>
         )}
         {managed && (
           // Arming remounts the button, so a hint open on the old one closes; a disarm keeps the node.
-          <button
+          <Tip
             key={list.removeKey(option.id)}
-            className={armed ? "yui-spk__remove is-armed" : "yui-spk__remove"}
-            type="button"
-            data-tip={armed ? t("speaker.remove_confirm") : t("speaker.remove")}
-            aria-label={
-              armed ? t("speaker.remove_confirm_aria", { name: label }) : t("speaker.remove")
-            }
-            disabled={list.removingId === option.id}
-            onClick={(e) => stop(e, () => void list.remove(option.id))}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the confirm text
-            dangerouslySetInnerHTML={{
-              __html: `${REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span>`,
-            }}
-          />
+            text={armed ? t("speaker.remove_confirm") : t("speaker.remove")}
+          >
+            <button
+              className={armed ? "yui-spk__remove is-armed" : "yui-spk__remove"}
+              type="button"
+              aria-label={
+                armed ? t("speaker.remove_confirm_aria", { name: label }) : t("speaker.remove")
+              }
+              disabled={list.removingId === option.id}
+              onClick={(e) => stop(e, () => void list.remove(option.id))}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the confirm text
+              dangerouslySetInnerHTML={{
+                __html: `${REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span>`,
+              }}
+            />
+          </Tip>
         )}
         {managed && canReupload && (
-          <button
-            ref={refreshButton}
-            className={
-              refreshing
-                ? "yui-spk__refresh is-refreshing"
-                : done
-                  ? "yui-spk__refresh is-done"
-                  : "yui-spk__refresh"
-            }
-            type="button"
-            data-tip={t("speaker.refresh")}
-            aria-label={t(
-              refreshing
-                ? "aria.refresh_speaker_refreshing"
-                : done
-                  ? "aria.refresh_speaker_done"
-                  : "aria.refresh_speaker",
-              { name: label },
-            )}
-            disabled={!hasClip || refreshing}
-            onClick={(e) => {
-              refreshHadFocus.current = document.activeElement === e.currentTarget;
-              stop(e, () => hasClip && onRefresh(option));
-            }}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-            dangerouslySetInnerHTML={{ __html: done ? SPK_CHECK_SVG : SPK_REFRESH_SVG }}
-          />
+          <Tip text={t("speaker.refresh")}>
+            <button
+              ref={refreshButton}
+              className={
+                refreshing
+                  ? "yui-spk__refresh is-refreshing"
+                  : done
+                    ? "yui-spk__refresh is-done"
+                    : "yui-spk__refresh"
+              }
+              type="button"
+              aria-label={t(
+                refreshing
+                  ? "aria.refresh_speaker_refreshing"
+                  : done
+                    ? "aria.refresh_speaker_done"
+                    : "aria.refresh_speaker",
+                { name: label },
+              )}
+              disabled={!hasClip || refreshing}
+              onClick={(e) => {
+                refreshHadFocus.current = document.activeElement === e.currentTarget;
+                stop(e, () => hasClip && onRefresh(option));
+              }}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
+              dangerouslySetInnerHTML={{ __html: done ? SPK_CHECK_SVG : SPK_REFRESH_SVG }}
+            />
+          </Tip>
         )}
         {!swapping && (
-          <button
-            className={playing ? "yui-spk__preview is-playing" : "yui-spk__preview"}
-            type="button"
-            data-tip={t("speaker.preview")}
-            aria-label={t("aria.preview_speaker", { name: label })}
-            disabled={!hasClip}
-            onClick={(e) => stop(e, () => hasClip && onToggleAudition(option))}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-            dangerouslySetInnerHTML={{ __html: playing ? SPK_PAUSE_SVG : SPK_PLAY_SVG }}
-          />
+          <Tip text={t("speaker.preview")}>
+            <button
+              className={playing ? "yui-spk__preview is-playing" : "yui-spk__preview"}
+              type="button"
+              aria-label={t("aria.preview_speaker", { name: label })}
+              disabled={!hasClip}
+              onClick={(e) => stop(e, () => hasClip && onToggleAudition(option))}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
+              dangerouslySetInnerHTML={{ __html: playing ? SPK_PAUSE_SVG : SPK_PLAY_SVG }}
+            />
+          </Tip>
         )}
         {selected && <span className="yui-spk__badge">{t("speaker.in_use")}</span>}
       </div>

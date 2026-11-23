@@ -1,23 +1,22 @@
-/** The Together page: its React root, and the open hook that re-reads the bundled defaults. */
+/** The Together page: its view, and the open hook that re-reads the bundled defaults. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type ReactNode } from "react";
 import type { Logger } from "../../../logger";
 import type {
   GuardrailsSettingsStore,
   RateLimitDefaults,
 } from "../../../settings/backend/guardrails-settings";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
+import { createPageRevision } from "../page-revision";
 import type { SwitchRow } from "../switch-row";
 import type { WindowsPort } from "./characters/characters-section";
 import { TogetherPageView } from "./together-page-view";
 
 export interface TogetherPage {
-  el: HTMLElement;
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
   /** Repaints the page, re-reading the bundled defaults. */
   reflect(): void;
-  dispose(): void;
 }
 
 export function createTogetherPage(deps: {
@@ -31,27 +30,19 @@ export function createTogetherPage(deps: {
   boundId?: string | null;
   log: Logger;
 }): TogetherPage {
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  const root = createRoot(el);
-  const render = (): void =>
-    flushSync(() =>
-      root.render(
-        createElement(TogetherPageView, {
-          ...deps,
-          rateLimitDefaults: deps.getRateLimitDefaults?.(),
-        }),
-      ),
-    );
-  render();
-
+  const revision = createPageRevision();
   return {
-    el,
-    reflect(): void {
-      render();
-    },
-    dispose(): void {
-      root.unmount();
-    },
+    view: () =>
+      createElement(
+        "div",
+        { className: "yui-tab-stack" },
+        revision.view(() =>
+          createElement(TogetherPageView, {
+            ...deps,
+            rateLimitDefaults: deps.getRateLimitDefaults?.(),
+          }),
+        ),
+      ),
+    reflect: revision.bump,
   };
 }

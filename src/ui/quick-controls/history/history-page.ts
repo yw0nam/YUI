@@ -1,8 +1,6 @@
-/** The History page: its React root, and what the panel's open redraws. */
+/** The History page: its view, and what the panel's open redraws. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type ReactNode } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { resetConversation } from "../../../io/chat/conversation/reset-conversation";
@@ -13,15 +11,16 @@ import type { Logger } from "../../../logger";
 import type { createAgentSettings } from "../../../settings/backend/agent-settings";
 import type { PushSocketPanelPort } from "../connection/connection-page";
 import type { DelegationFeed } from "../delegations/delegation-feed";
+import { createPageRevision } from "../page-revision";
 import { editedCharacterName } from "./character-name";
 import { HistoryPageView } from "./history-page-view";
 import { createHistoryPorts } from "./history-ports";
 
 export interface HistoryPage {
-  el: HTMLElement;
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
   /** Re-reads every source and disarms a pending start-fresh confirm — the open hook. */
   refresh(): void;
-  dispose(): void;
 }
 
 export function createHistoryPage(deps: {
@@ -60,9 +59,6 @@ export function createHistoryPage(deps: {
     pushSocket: deps.delegations.present ? pushSocket : undefined,
   });
 
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  const root = createRoot(el);
   const props = {
     ports,
     delegations: deps.delegations,
@@ -78,19 +74,14 @@ export function createHistoryPage(deps: {
           log: deps.log,
         })),
   };
-  let revision = 0;
-  const render = (): void =>
-    flushSync(() => root.render(createElement(HistoryPageView, { ...props, revision })));
-  render();
-
+  const revision = createPageRevision();
   return {
-    el,
-    refresh(): void {
-      revision++;
-      render();
-    },
-    dispose(): void {
-      root.unmount();
-    },
+    view: () =>
+      createElement(
+        "div",
+        { className: "yui-tab-stack" },
+        revision.view((n) => createElement(HistoryPageView, { ...props, revision: n })),
+      ),
+    refresh: revision.bump,
   };
 }

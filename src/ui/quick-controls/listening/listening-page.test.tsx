@@ -18,30 +18,33 @@ import {
 import { createVoiceInputStatus } from "../../chips/voice-input-status";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs, inMemoryApiKeyStorage, pressSlider } from "../test-helpers";
+import { defaultQcArgs, inMemoryApiKeyStorage, pressSlider, renderPage } from "../test-helpers";
 import { createListeningPage } from "./listening-page";
+
+type RenderedPage = ReturnType<typeof renderPage<ReturnType<typeof createListeningPage>>>;
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: ReturnType<typeof createListeningPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
   const voiceStatus = createVoiceInputStatus();
   const vad = createVadSettings({ storage: { load: () => null, save: () => {} } });
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
   const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
-  const page = createListeningPage({
-    showVoiceInput,
-    voiceStatus,
-    vad,
-    sttKeySettings,
-    readingsSettings: createReadingsSettings({
-      storage: { load: () => ({ text: "" }), save: () => {} },
+  const page = renderPage(
+    createListeningPage({
+      showVoiceInput,
+      voiceStatus,
+      vad,
+      sttKeySettings,
+      readingsSettings: createReadingsSettings({
+        storage: { load: () => ({ text: "" }), save: () => {} },
+      }),
+      log,
     }),
-    log,
-    host: document.body,
-  });
+  );
   pages.push(page);
   return {
     page,
@@ -55,14 +58,14 @@ function build({ showVoiceInput = true }: { showVoiceInput?: boolean } = {}) {
   };
 }
 
-function close(page: ReturnType<typeof createListeningPage>): void {
-  act(() => page.dispose());
+function close(page: RenderedPage): void {
+  act(() => page.unmount());
   pages.splice(pages.indexOf(page), 1);
 }
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   setLocale("en");
@@ -103,7 +106,7 @@ describe("createListeningPage — voice input", () => {
 describe("createListeningPage — voice silence slider", () => {
   beforeEach(() => setLocale("ko"));
 
-  function sliderOf(page: ReturnType<typeof createListeningPage>): HTMLInputElement {
+  function sliderOf(page: RenderedPage): HTMLInputElement {
     return within(page.el).getByRole<HTMLInputElement>("slider", { name: "침묵 기준" });
   }
 
@@ -169,15 +172,24 @@ describe("createListeningPage — STT key row", () => {
     expect(keyInput.value).toBe("sk-a");
   });
 
-  it("commits a typed draft on close, and another on dispose", () => {
+  it("commits a typed draft on close", () => {
     const { page, sttKeySettings, keyInput } = build();
 
     fireEvent.input(keyInput, { target: { value: "sk-close" } });
     act(() => page.close());
     expect(sttKeySettings.get().apiKey).toBe("sk-close");
+  });
+
+  it("the panel's teardown commits a typed draft", () => {
+    const mount = document.body.appendChild(document.createElement("div"));
+    const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
+    const qc = createQuickControls({ ...defaultQcArgs(mount), sttKeySettings });
+    const keyInput = qc.el.querySelector<HTMLInputElement>(
+      "#yui-panel-listening .yui-chatkey__input",
+    )!;
 
     fireEvent.input(keyInput, { target: { value: "sk-dispose" } });
-    close(page);
+    act(() => qc.dispose());
     expect(sttKeySettings.get().apiKey).toBe("sk-dispose");
   });
 

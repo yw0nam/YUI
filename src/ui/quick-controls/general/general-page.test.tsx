@@ -16,7 +16,8 @@ import {
   setLocale,
   t,
 } from "../../i18n";
-import { createGeneralPage, type GeneralPage } from "./general-page";
+import { renderPage } from "../test-helpers";
+import { createGeneralPage } from "./general-page";
 import type { GeneralPageViewProps } from "./general-page-view";
 
 // React's act() only flushes in a test environment that says so.
@@ -30,7 +31,7 @@ const persona: PersonaConfig = {
 
 const memory = () => ({ load: () => null, save: () => {} });
 
-const pages: GeneralPage[] = [];
+const pages: { unmount(): void }[] = [];
 
 function build(overrides: Partial<GeneralPageViewProps> = {}) {
   const deps: GeneralPageViewProps = {
@@ -40,7 +41,7 @@ function build(overrides: Partial<GeneralPageViewProps> = {}) {
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
     ...overrides,
   };
-  const page = createGeneralPage({ ...deps, host: document.body });
+  const page = renderPage(createGeneralPage(deps));
   pages.push(page);
   return { page, ...deps };
 }
@@ -49,7 +50,7 @@ beforeEach(() => setLocale("en"));
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   setLocale("en");

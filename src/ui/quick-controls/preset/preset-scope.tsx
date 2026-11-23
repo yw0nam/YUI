@@ -12,10 +12,20 @@ function useEditedName(edited: EditedPreset): string {
 }
 
 /** The line above a page's title: only the edited character, or every character. */
-export function ScopeLine({ page, edited }: { page: string; edited: EditedPreset }) {
+export function ScopeLine({
+  page,
+  edited,
+  hiddenWhile,
+}: {
+  page: string;
+  edited: EditedPreset;
+  /** Hides the line while it reads true. */
+  hiddenWhile?: { get(): boolean; subscribe(cb: () => void): () => void };
+}) {
   const name = useEditedName(edited);
+  useNotify(hiddenWhile?.subscribe);
   return (
-    <p className="yui-tabpanel__scope" data-scope-tab={page}>
+    <p className="yui-tabpanel__scope" data-scope-tab={page} hidden={hiddenWhile?.get()}>
       {(CHARACTER_PAGES as readonly string[]).includes(page)
         ? t("scope.only", { name })
         : t("scope.every")}

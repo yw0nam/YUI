@@ -1,4 +1,40 @@
-import type { ReactElement, ReactNode, Ref } from "react";
+/**
+ * One tooltip shared by every trigger under a `TooltipHost`, on Base UI's Tooltip. A `Tip` composes
+ * the trigger onto its child: hover opens after 150 ms, keyboard focus at once, a press closes it.
+ * Focus opens a tip only after a focus-moving key, so a focus the code moves stays quiet.
+ */
+
+import { mergeProps } from "@base-ui/react/merge-props";
+import { Tooltip } from "@base-ui/react/tooltip";
+import {
+  cloneElement,
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  useContext,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import "./tooltip.css";
+
+const TIP_ID = "yui-hint-tip";
+const OPEN_DELAY_MS = 150;
+const FOCUS_MOVING_KEYS = new Set([
+  "Tab",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+]);
+
+type Handle = ReturnType<typeof Tooltip.createHandle<string>>;
+
+const HandleContext = createContext<Handle | null>(null);
 
 export interface TooltipHostHandle {
   close(): void;
@@ -6,13 +42,76 @@ export interface TooltipHostHandle {
 
 export function TooltipHost({
   children,
+  handle: ref,
 }: {
   children: ReactNode;
   handle?: Ref<TooltipHostHandle>;
 }) {
-  return children;
+  const [handle] = useState(() => Tooltip.createHandle<string>());
+  const keyboard = useRef(false);
+  useImperativeHandle(ref, () => ({ close: () => handle.close() }), [handle]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (FOCUS_MOVING_KEYS.has(e.key)) keyboard.current = true;
+    };
+    const onPointer = (): void => {
+      keyboard.current = false;
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, []);
+
+  return (
+    <HandleContext.Provider value={handle}>
+      {children}
+      <Tooltip.Root
+        handle={handle}
+        disableHoverablePopup
+        onOpenChange={(open, details) => {
+          if (open && details.reason === "trigger-focus" && !keyboard.current) details.cancel();
+        }}
+      >
+        {({ payload }) => (
+          <Tooltip.Portal>
+            <Tooltip.Positioner
+              className="yui-hint-tip-pos"
+              side="bottom"
+              sideOffset={6}
+              collisionPadding={8}
+            >
+              <Tooltip.Popup className="yui-hint-tip" id={TIP_ID} role="tooltip">
+                {payload}
+              </Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        )}
+      </Tooltip.Root>
+    </HandleContext.Provider>
+  );
 }
 
-export function Tip({ children }: { text: string; children: ReactElement<object> }) {
-  return children;
+/** Makes `children`, a button or a link, the trigger of a tip reading `text`; it keeps its own props and ref. */
+export function Tip({ text, children }: { text: string; children: ReactElement<object> }) {
+  const handle = useContext(HandleContext);
+  if (!handle) return children;
+  const own = children.props as { ref?: Ref<HTMLButtonElement> };
+  return (
+    <Tooltip.Trigger
+      handle={handle}
+      payload={text}
+      delay={OPEN_DELAY_MS}
+      ref={own.ref}
+      render={(props, state) =>
+        cloneElement(
+          children,
+          mergeProps(own, props, { "aria-describedby": state.open ? TIP_ID : undefined }),
+        )
+      }
+    />
+  );
 }

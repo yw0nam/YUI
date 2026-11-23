@@ -1,17 +1,16 @@
-/** The Body page: its React root, and what the panel's open redraws. */
+/** The Body page: its view, and what the panel's open redraws. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type ReactNode } from "react";
+import { createPageRevision } from "../page-revision";
 import { BodyPageView } from "./body-page-view";
 import { createRelationsPort, type RelationsDeps } from "./relations/relations-port";
 import type { VrmSectionProps } from "./vrm/vrm-section";
 
 export interface BodyPage {
-  el: HTMLElement;
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
   /** Re-reads every source, the presets included, and drops an armed remove: the open hook. */
   refresh(): void;
-  dispose(): void;
 }
 
 export function createBodyPage(
@@ -20,15 +19,9 @@ export function createBodyPage(
     onResetView?: () => void;
     /** The relations section renders with it. */
     relations?: RelationsDeps;
-    /** The page appends itself here before its first render: Base UI registers a slider's thumb only while it is connected. */
-    host: HTMLElement;
   },
 ): BodyPage {
-  const { relations, onResetView, host, ...vrm } = deps;
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  host.append(el);
-  const root = createRoot(el);
+  const { relations, onResetView, ...vrm } = deps;
   const props = {
     vrm,
     relations:
@@ -36,19 +29,14 @@ export function createBodyPage(
     onResetView,
     log: deps.log,
   };
-  let revision = 0;
-  const render = (): void =>
-    flushSync(() => root.render(createElement(BodyPageView, { ...props, revision })));
-  render();
-
+  const revision = createPageRevision();
   return {
-    el,
-    refresh(): void {
-      revision++;
-      render();
-    },
-    dispose(): void {
-      root.unmount();
-    },
+    view: () =>
+      createElement(
+        "div",
+        { className: "yui-tab-stack" },
+        revision.view((n) => createElement(BodyPageView, { ...props, revision: n })),
+      ),
+    refresh: revision.bump,
   };
 }
