@@ -56,6 +56,7 @@ export function WorkflowList({
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const unmounted = useRef(false);
   const labelRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -79,6 +80,7 @@ export function WorkflowList({
 
   useEffect(
     () => () => {
+      unmounted.current = true;
       for (const timer of timers.current.values()) clearTimeout(timer);
       timers.current.clear();
     },
@@ -86,6 +88,7 @@ export function WorkflowList({
   );
 
   const flashRow = (id: string, state: Flash): void => {
+    if (unmounted.current) return;
     const pending = timers.current.get(id);
     if (pending !== undefined) clearTimeout(pending);
     setFlash((current) => ({ ...current, [id]: state }));
