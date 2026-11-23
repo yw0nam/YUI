@@ -330,6 +330,16 @@ describe("createQuickControls — proactive tab layout", () => {
     expect(tab.hasAttribute("title")).toBe(false);
     qc.dispose();
   });
+
+  it("opens the Persona page from the Active hours link under How often she speaks up", () => {
+    const qc = buildQc({ basePaceSettings: createBasePaceSettings() });
+    qc.open({ page: "react" });
+
+    act(() => qc.el.querySelector<HTMLButtonElement>(".yui-base-pace__link")!.click());
+
+    expect(qc.selectedTab()).toBe("persona");
+    qc.dispose();
+  });
 });
 
 describe("createQuickControls — Reactions tab layout", () => {

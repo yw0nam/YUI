@@ -239,12 +239,6 @@ describe("createProactivePage — Advanced", () => {
     return { deps, page, input: page.el.querySelector<HTMLInputElement>(id) };
   }
 
-  it.each(FIELDS)("shows $name in its unit", ({ id, shown }) => {
-    const { input } = buildAdvanced(id);
-
-    expect(input?.value).toBe(shown);
-  });
-
   it.each(FIELDS)("commits $name on change, converted", ({ id, read, shown, typed, committed }) => {
     const { deps, input } = buildAdvanced(id);
 
@@ -286,7 +280,7 @@ describe("createProactivePage — Advanced", () => {
     expect(input?.value).toBe(externalShown);
   });
 
-  it.each(FIELDS)("snaps an out-of-range $name back on blur", ({
+  it.each(FIELDS)("snaps an out-of-range $name back on change", ({
     id,
     read,
     initial,
@@ -296,10 +290,8 @@ describe("createProactivePage — Advanced", () => {
     const { deps, input } = buildAdvanced(id);
 
     expect(input?.value).toBe(shown);
-    input!.focus();
     input!.value = outOfRange;
     act(() => input!.dispatchEvent(new Event("change")));
-    act(() => input!.blur());
 
     expect(read(deps)).toBe(initial);
     expect(input!.value).toBe(shown);
@@ -403,10 +395,8 @@ describe("createProactivePage — Advanced", () => {
     const input = page.el.querySelector<HTMLInputElement>("#yui-pacer-gap");
 
     act(() => page.dispose());
-    if (input) {
-      input.value = "25";
-      input.dispatchEvent(new Event("change"));
-    }
+    input!.value = "25";
+    input!.dispatchEvent(new Event("change"));
 
     expect(counts.map(({ taken, released }) => [taken > 0, released === taken])).toEqual([
       [true, true],
