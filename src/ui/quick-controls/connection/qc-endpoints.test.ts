@@ -19,7 +19,7 @@ import {
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
-import { setLocale, t } from "../../i18n";
+import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import {
   defaultQcArgs,
@@ -713,9 +713,9 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
     expect(await optionNames(sel)).toEqual([
-      t("svc.chat_option_chat_completions"),
-      t("svc.chat_option_responses"),
-      t("svc.chat_option_push"),
+      "Chat Completions · 기록을 YUI가 보냄",
+      "Responses · 기록을 서버가 보관",
+      "Push · 연결 유지",
     ]);
 
     act(() => qc.dispose());
@@ -724,7 +724,7 @@ describe("createQuickControls — endpoints + API keys", () => {
   it("reflects the effective chat_api on the dropdown: bundled default when no override", () => {
     const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
     qc.open();
-    expect(chatTypeSelect(qc).textContent).toBe(t("svc.chat_name_chat_completions"));
+    expect(chatTypeSelect(qc).textContent).toBe("Chat Completions");
     act(() => qc.dispose());
   });
 
@@ -732,14 +732,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     endpointsSettings.set({ chat_api: "chat_completions" });
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
-    expect(chatTypeSelect(qc).textContent).toBe(t("svc.chat_name_chat_completions"));
+    expect(chatTypeSelect(qc).textContent).toBe("Chat Completions");
     act(() => qc.dispose());
   });
 
   it("falls back to 'responses' when no override and no default is available", () => {
     const qc = buildQc();
     qc.open();
-    expect(chatTypeSelect(qc).textContent).toBe(t("svc.chat_name_responses"));
+    expect(chatTypeSelect(qc).textContent).toBe("Responses");
     act(() => qc.dispose());
   });
 
@@ -747,11 +747,11 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
-    await pickOption(chatTypeSelect(qc), t("svc.chat_option_chat_completions"));
+    await pickOption(chatTypeSelect(qc), "Chat Completions · 기록을 YUI가 보냄");
     expect(endpointsSettings.get().chat_api).toBe("chat_completions");
 
     const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
-    expect(hint.textContent).toBe(t("svc.chat_name_chat_completions"));
+    expect(hint.textContent).toBe("Chat Completions");
 
     act(() => qc.dispose());
   });
@@ -761,7 +761,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc({ getDefaultChatApi: () => "chat_completions" });
     qc.open();
 
-    await pickOption(chatTypeSelect(qc), t("svc.chat_option_responses"));
+    await pickOption(chatTypeSelect(qc), "Responses · 기록을 서버가 보관");
     expect(endpointsSettings.get().chat_api).toBe("responses");
 
     act(() => qc.dispose());
@@ -806,7 +806,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       "Groq",
       "Google Gemini",
       "Hermes Agent",
-      t("svc.chat_preset_custom"),
+      "직접 입력",
     ]);
 
     act(() => qc.dispose());
@@ -870,7 +870,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     fireEvent.input(input, { target: { value: "http://localhost:9999/v1" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(sel.textContent).toBe(t("svc.chat_preset_custom"));
+    expect(sel.textContent).toBe("직접 입력");
     expect(endpointsSettings.get().chat_base_url).toBe("http://localhost:9999/v1");
 
     act(() => qc.dispose());
@@ -888,14 +888,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     endpointsSettings.set({ chat_base_url: "http://localhost:8643/v1" });
     const qc = buildQc();
     qc.open();
-    expect(chatPresetSelect(qc).textContent).toBe(t("svc.chat_preset_custom"));
+    expect(chatPresetSelect(qc).textContent).toBe("직접 입력");
     act(() => qc.dispose());
   });
 
   it("shows Custom on open when no chat base URL override is stored", () => {
     const qc = buildQc();
     qc.open();
-    expect(chatPresetSelect(qc).textContent).toBe(t("svc.chat_preset_custom"));
+    expect(chatPresetSelect(qc).textContent).toBe("직접 입력");
     act(() => qc.dispose());
   });
 
@@ -906,7 +906,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const sel = chatPresetSelect(qc);
     expect(sel.textContent).toBe("OpenAI");
-    await pickOption(sel, t("svc.chat_preset_custom"));
+    await pickOption(sel, "직접 입력");
 
     expect(endpointsSettings.get().chat_base_url).toBe("https://api.openai.com/v1");
     expect(chatUrlInput(qc).value).toBe("https://api.openai.com/v1");

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatKeySettings } from "../../../../settings/backend/api-key-settings";
 import {
@@ -104,9 +104,10 @@ function setup(
   };
 }
 
-describe("createQuickStart", () => {
+describe("QuickStart", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
+    act(() => cleanup());
     document.body.innerHTML = "";
   });
 
@@ -231,9 +232,10 @@ describe("createQuickStart", () => {
   });
 });
 
-describe("createQuickStart — the state it reads from the stores", () => {
+describe("QuickStart — the state it reads from the stores", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
+    act(() => cleanup());
     document.body.innerHTML = "";
   });
 
@@ -328,9 +330,10 @@ describe("createQuickStart — the state it reads from the stores", () => {
   });
 });
 
-describe("createQuickStart — Change key", () => {
+describe("QuickStart — Change key", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
+    act(() => cleanup());
     document.body.innerHTML = "";
   });
 

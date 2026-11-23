@@ -132,7 +132,7 @@ describe("createQuickControls — push mode", () => {
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
-    await pickOption(qc.el.querySelector(".yui-chat-type")!, t("svc.chat_option_push"));
+    await pickOption(qc.el.querySelector(".yui-chat-type")!, "Push · persistent connection");
 
     expect(endpointsSettings.get().chat_api).toBe("push");
 
@@ -174,7 +174,10 @@ describe("createQuickControls — push mode", () => {
     qc.open();
     expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
 
-    await pickOption(qc.el.querySelector(".yui-chat-type")!, t("svc.chat_option_responses"));
+    await pickOption(
+      qc.el.querySelector(".yui-chat-type")!,
+      "Responses · the server keeps the history",
+    );
 
     expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(false);
     expect(modelReason(qc).hidden).toBe(true);
@@ -182,23 +185,12 @@ describe("createQuickControls — push mode", () => {
     act(() => qc.dispose());
   });
 
-  it("the reason's link opens Connection and focuses the chat protocol select, keeping push", () => {
+  it.each([
+    ["Detailed settings", false],
+    ["Quick start", true],
+  ])("from a window showing %s, the reason's link shows Detailed settings and focuses the chat type, keeping push", (_, openOnQuickStart) => {
     endpointsSettings.set({ chat_api: "push" });
-    const qc = buildQc();
-    qc.open({ page: "persona" });
-
-    fireEvent.click(qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!);
-
-    expect(qc.selectedTab()).toBe("conn");
-    expect(document.activeElement).toBe(qc.el.querySelector(".yui-chat-type"));
-    expect(endpointsSettings.get().chat_api).toBe("push");
-
-    act(() => qc.dispose());
-  });
-
-  it("Change transport from Quick start shows Detailed settings and focuses the chat type", () => {
-    endpointsSettings.set({ chat_api: "push" });
-    const qc = buildQc({ openOnQuickStart: true });
+    const qc = buildQc({ openOnQuickStart });
     qc.open({ page: "persona" });
 
     fireEvent.click(qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!);
@@ -211,6 +203,7 @@ describe("createQuickControls — push mode", () => {
     expect(document.activeElement).toBe(qc.el.querySelector(".yui-chat-type"));
     // Focus only: the select's popup stays shut.
     expect(document.querySelector('[role="listbox"]')).toBeNull();
+    expect(endpointsSettings.get().chat_api).toBe("push");
 
     act(() => qc.dispose());
   });

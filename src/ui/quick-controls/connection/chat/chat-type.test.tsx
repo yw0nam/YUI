@@ -51,11 +51,12 @@ describe("chat type row", () => {
     globalThis.localStorage?.clear();
     endpointsSettings = createEndpointsSettings();
   });
+  // Each page the case built, disposed after it.
+  const open: { dispose(): void }[] = [];
   afterEach(() => {
+    for (const tab of open.splice(0)) act(() => tab.dispose());
     document.body.innerHTML = "";
   });
-
-  const dispose = (tab: { dispose(): void }) => act(() => tab.dispose());
 
   function build(locale: Locale) {
     setLocale(locale);
@@ -86,6 +87,7 @@ describe("chat type row", () => {
       },
     });
     tab.refresh();
+    open.push(tab);
     return tab;
   }
 
@@ -97,7 +99,6 @@ describe("chat type row", () => {
       expect(await optionNames(q(tab.el, ".yui-chat-type"))).toEqual(
         ORDER.map((a) => LONG[locale][a]),
       );
-      dispose(tab);
     });
   }
 
@@ -113,13 +114,11 @@ describe("chat type row", () => {
       expect(desc.textContent).toContain(expected[api]);
       expect(desc.getAttribute("aria-live")).toBe("polite");
     }
-    dispose(tab);
   });
 
   it("the select keeps its name while its trigger shows the short one", () => {
     const tab = build("en");
     expect(q(tab.el, ".yui-chat-type").getAttribute("aria-label")).toBe(t("svc.chat_aria"));
-    dispose(tab);
   });
 
   for (const locale of ["en", "ko", "ja"] as const) {
@@ -133,7 +132,6 @@ describe("chat type row", () => {
         expect(desc.textContent).not.toContain("{agent}");
         expect(desc.textContent).not.toContain("Hermes");
       }
-      dispose(tab);
     });
   }
 
@@ -144,7 +142,6 @@ describe("chat type row", () => {
     expect(desc.classList.contains("is-swapping")).toBe(true);
     fireEvent.animationEnd(desc);
     expect(desc.classList.contains("is-swapping")).toBe(false);
-    dispose(tab);
   });
 
   it("the settings window may open exactly the panel's link URLs through the opener", () => {

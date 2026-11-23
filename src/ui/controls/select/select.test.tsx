@@ -125,7 +125,7 @@ describe("Select", () => {
 
     await open(select);
     const inside = document.activeElement!;
-    expect(inside.closest("[data-base-ui-portal]")).not.toBeNull();
+    expect(screen.getByRole("listbox").contains(inside)).toBe(true);
 
     await pressEscape(inside);
 

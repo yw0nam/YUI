@@ -3,6 +3,7 @@
  * connection-page.test.ts — the Connection page's two views: the switch over them, the scope
  * line, and what entering the page or switching the view enters.
  */
+import { within } from "@testing-library/dom";
 import { act, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ServerCheck } from "../../../io/chat/models/server-check";
@@ -74,12 +75,16 @@ function setup(initial: "quick" | "detail" = "quick") {
   const wrapper = (view: string) =>
     panel.querySelector<HTMLElement>(`.yui-conn-view[data-view="${view}"]`)!;
   const cell = (view: "quick" | "detail") =>
-    panel.querySelectorAll<HTMLButtonElement>(".yui-conn-views .yui-seg__btn")[
-      view === "quick" ? 0 : 1
-    ]!;
+    within(panel).getByRole("radio", {
+      name: view === "quick" ? "Quick start" : "Detailed settings",
+    });
   const scope = () => panel.querySelector<HTMLElement>(".yui-tabpanel__scope")!;
+  pages.push(page);
   return { page, connect, detailEntered, quickEntered, wrapper, cell, scope };
 }
+
+// Each page a case built, disposed after it.
+const pages: { dispose(): void }[] = [];
 
 describe("createConnectionPage — the views", () => {
   beforeEach(() => {
@@ -87,6 +92,7 @@ describe("createConnectionPage — the views", () => {
     setLocale("en");
   });
   afterEach(() => {
+    for (const page of pages.splice(0)) act(() => page.dispose());
     document.body.innerHTML = "";
   });
 
@@ -103,19 +109,22 @@ describe("createConnectionPage — the views", () => {
 
     act(() => s.page.entered());
     expect(s.detailEntered).not.toHaveBeenCalled();
-    act(() => s.page.dispose());
   });
 
-  it("clicking Detailed settings shows it, shows the scope line and enters the detail view", () => {
+  it("clicking Detailed settings shows it, shows the scope line and enters the detail view, not Quick start", async () => {
     const s = setup("quick");
+    s.connect();
+    // The STT line's store subscription checks once on the first write; the entry is what counts.
+    s.detailEntered.mockClear();
 
     fireEvent.click(s.cell("detail"));
+    await settle();
 
     expect(s.wrapper("detail").hidden).toBe(false);
     expect(s.wrapper("quick").hidden).toBe(true);
     expect(s.scope().hidden).toBe(false);
     expect(s.detailEntered).toHaveBeenCalledTimes(1);
-    act(() => s.page.dispose());
+    expect(s.quickEntered).not.toHaveBeenCalled();
   });
 
   it("entering the Connection page while the detail view shows enters it", () => {
@@ -126,7 +135,6 @@ describe("createConnectionPage — the views", () => {
     act(() => s.page.entered());
 
     expect(s.detailEntered).toHaveBeenCalledTimes(1);
-    act(() => s.page.dispose());
   });
 
   it("entering the Connection page while Quick start shows enters it", async () => {
@@ -137,7 +145,6 @@ describe("createConnectionPage — the views", () => {
     await settle();
 
     expect(s.quickEntered).toHaveBeenCalledOnce();
-    act(() => s.page.dispose());
   });
 
   it("clicking Quick start goes back and re-reads its state", async () => {
@@ -159,7 +166,6 @@ describe("createConnectionPage — the views", () => {
     fireEvent.click(s.cell("quick"));
     await settle();
     expect(s.quickEntered).toHaveBeenCalledTimes(1);
-    act(() => s.page.dispose());
   });
 
   it("ArrowRight moves the selection to Detailed settings", async () => {
@@ -174,6 +180,5 @@ describe("createConnectionPage — the views", () => {
     expect(s.cell("detail").getAttribute("aria-checked")).toBe("true");
     expect(s.wrapper("detail").hidden).toBe(false);
     expect(s.detailEntered).toHaveBeenCalledTimes(1);
-    act(() => s.page.dispose());
   });
 });

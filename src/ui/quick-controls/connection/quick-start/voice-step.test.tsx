@@ -9,7 +9,7 @@
  * Maybe later writes nothing.
  */
 
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TtsProviderName } from "../../../../contract";
 import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
@@ -150,12 +150,13 @@ function setup(
   };
 }
 
-describe("createVoiceStep — the state it reads", () => {
+describe("VoiceStep — the state it reads", () => {
   beforeEach(() => {
     globalThis.localStorage?.clear();
     setLocale("en");
   });
   afterEach(() => {
+    act(() => cleanup());
     document.body.innerHTML = "";
   });
 
@@ -187,11 +188,12 @@ describe("createVoiceStep — the state it reads", () => {
   });
 });
 
-describe("createVoiceStep — turning voice on", () => {
+describe("VoiceStep — turning voice on", () => {
   beforeEach(() => {
     globalThis.localStorage?.clear();
   });
   afterEach(() => {
+    act(() => cleanup());
     document.body.innerHTML = "";
   });
 

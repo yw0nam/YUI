@@ -54,7 +54,11 @@ describe("createConnectionPage — Detailed settings", () => {
     chatKeySettings = createChatKeySettings();
   });
 
+  // Each page the case built; afterEach disposes those the case left open.
+  const open: (() => void)[] = [];
+
   afterEach(() => {
+    for (const dispose of open.splice(0)) dispose();
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
@@ -99,11 +103,18 @@ describe("createConnectionPage — Detailed settings", () => {
         },
       },
     });
+    let disposed = false;
+    const dispose = (): void => {
+      if (disposed) return;
+      disposed = true;
+      act(() => tab.dispose());
+    };
+    open.push(dispose);
     return {
       ...tab,
       entered: () => act(() => tab.entered()),
       close: () => act(() => tab.close()),
-      dispose: () => act(() => tab.dispose()),
+      dispose,
     };
   }
 
@@ -125,8 +136,6 @@ describe("createConnectionPage — Detailed settings", () => {
     expect(select.disabled).toBe(false);
     expect(await optionNames(select)).toEqual(["Irodori", "OpenAI", "Fish Audio"]);
     expect(tab.el.querySelector("#yui-ep-tts_model")).not.toBeNull();
-
-    tab.dispose();
   });
 
   it("selecting Fish writes the provider, its URL and default model in one store write", async () => {
@@ -145,8 +154,6 @@ describe("createConnectionPage — Detailed settings", () => {
     expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_model")!.value).toBe(
       "s2.1-pro-free",
     );
-
-    tab.dispose();
   });
 
   it("selecting OpenAI writes the provider, its URL and default model in one store write", async () => {
@@ -168,8 +175,6 @@ describe("createConnectionPage — Detailed settings", () => {
     expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_model")!.value).toBe(
       "gpt-4o-mini-tts",
     );
-
-    tab.dispose();
   });
 
   it("the provider select shows the override, else the bundled default", () => {
@@ -186,8 +191,6 @@ describe("createConnectionPage — Detailed settings", () => {
 
     act(() => endpointsSettings.set({ tts_provider: "irodori" }));
     expect(select.textContent).toBe("Irodori");
-
-    tab.dispose();
   });
 
   it("an open select's popup closes when a focus request shows the other view", async () => {
@@ -206,7 +209,6 @@ describe("createConnectionPage — Detailed settings", () => {
     );
     expect(shown()).toEqual([]);
     expect(document.activeElement?.id).toBe("yui-start-key");
-    tab.dispose();
   });
 
   // ── Shared STT model field ────────────────────────────────────────────────────────────────
@@ -221,8 +223,6 @@ describe("createConnectionPage — Detailed settings", () => {
     fireEvent.click(tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="stt"]')!);
     expect(endpointsSettings.get().stt_model).toBe("");
     expect(model.value).toBe("");
-
-    tab.dispose();
   });
 
   it("offers Auto / en / ja for the STT language field and says an empty field auto-detects", () => {
@@ -235,8 +235,6 @@ describe("createConnectionPage — Detailed settings", () => {
     expect(options.map((o) => o.value)).toEqual(["auto", "en", "ja"]);
     const sub = tab.el.querySelector('[data-ep-field="stt_language"] .yui-input-row__sub');
     expect(sub?.textContent).toBe(t("endpoints.stt_language.sub"));
-
-    tab.dispose();
   });
 
   // ── Close contract ────────────────────────────────────────────────────────────────────────
@@ -305,7 +303,6 @@ describe("createConnectionPage — Detailed settings", () => {
       expect(deps.calls[0]?.url).toBe("https://def.test/v1/models");
       expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe("Bearer key-1");
       expect(statusOf(tab).textContent).toContain(t("svc.chat_models_read", { n: 2 }));
-      tab.dispose();
     });
 
     it("Enter on an unchanged chat URL starts no read", async () => {
@@ -320,7 +317,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(deps.calls).toEqual([]);
-      tab.dispose();
     });
 
     it("reads after the URL input commits, with the committed value", async () => {
@@ -335,7 +331,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(deps.calls.map((c) => c.url)).toEqual(["https://typed.test/v1/models"]);
-      tab.dispose();
     });
 
     it("reads after the chat key input commits on blur", async () => {
@@ -359,7 +354,6 @@ describe("createConnectionPage — Detailed settings", () => {
       expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe(
         "Bearer typed-key",
       );
-      tab.dispose();
     });
 
     it("reads when a provider preset commits its URL", async () => {
@@ -371,7 +365,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(deps.calls.map((c) => c.url)).toEqual(["http://localhost:11434/v1/models"]);
-      tab.dispose();
     });
 
     it("picking from the model list commits the id through the model field", async () => {
@@ -398,7 +391,6 @@ describe("createConnectionPage — Detailed settings", () => {
 
       expect(model.value).toBe("m1");
       expect(endpointsSettings.get().chat_model).toBe("m1");
-      tab.dispose();
     });
 
     it("choosing the push preset aborts the read and shows the push state", async () => {
@@ -418,7 +410,6 @@ describe("createConnectionPage — Detailed settings", () => {
       const status = statusOf(tab);
       expect(status.classList.contains("is-ready")).toBe(true);
       expect(status.textContent).toContain(t("svc.chat_status_connected", { id: "yui-7731" }));
-      tab.dispose();
     });
 
     it("resetting the Chat service re-reads against the default URL", async () => {
@@ -438,7 +429,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(deps.calls[1]?.url).toBe("https://def.test/v1/models");
-      tab.dispose();
     });
 
     it("reads the trimmed effective URL a chat turn would use", async () => {
@@ -451,7 +441,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(deps.calls[0]?.url).toBe("https://typed.test/v1/models");
-      tab.dispose();
     });
 
     it("the status follows the model input while typing, without a new request", async () => {
@@ -474,7 +463,6 @@ describe("createConnectionPage — Detailed settings", () => {
       expect(text).toContain(t("svc.chat_models_read", { n: 2 }));
       expect(text).not.toContain(t("svc.chat_models_pick", { n: 2 }));
       expect(deps.calls).toHaveLength(1);
-      tab.dispose();
     });
 
     it("typing two absent names keeps the status text node untouched (announced once)", async () => {
@@ -499,7 +487,6 @@ describe("createConnectionPage — Detailed settings", () => {
       expect(tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild).toBe(
         textNode,
       );
-      tab.dispose();
     });
 
     it("clears an invalid URL instead of reading", async () => {
@@ -517,7 +504,6 @@ describe("createConnectionPage — Detailed settings", () => {
 
       expect(deps.calls).toHaveLength(1);
       expect(statusOf(tab).hidden).toBe(true);
-      tab.dispose();
     });
 
     it("switching to push aborts the read and shows the push state", async () => {
@@ -538,7 +524,6 @@ describe("createConnectionPage — Detailed settings", () => {
       const status = statusOf(tab);
       expect(status.classList.contains("is-ready")).toBe(true);
       expect(status.textContent).toContain(t("svc.chat_status_connected", { id: "yui-7731" }));
-      tab.dispose();
     });
 
     it("aborting on panel close drops the in-flight read", async () => {
@@ -550,7 +535,6 @@ describe("createConnectionPage — Detailed settings", () => {
       tab.close();
 
       expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
-      tab.dispose();
     });
 
     it("offers Reconnect on an unreachable read, and clicking it reads again", async () => {
@@ -580,7 +564,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(calls).toBe(2);
-      tab.dispose();
     });
   });
 
@@ -619,7 +602,6 @@ describe("createConnectionPage — Detailed settings", () => {
       await tick();
 
       expect(checkTtsServer).toHaveBeenCalledTimes(2);
-      tab.dispose();
     });
 
     it("the STT line shows the server the check reached", async () => {
@@ -636,7 +618,6 @@ describe("createConnectionPage — Detailed settings", () => {
       const line = tab.el.querySelector<HTMLElement>('[data-svc="stt"] .yui-chat-status');
       expect(line?.hidden).toBe(false);
       expect(line!.textContent).toContain(t("svc.server_connected", { host: "stt.test" }));
-      tab.dispose();
     });
   });
 });
