@@ -679,7 +679,7 @@ YUI/
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
-        markup.ts                    # Panel markup primitives the template and the tab modules share
+        markup.ts                    # Panel markup primitives the Connection, Help and tab modules share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
@@ -889,7 +889,6 @@ YUI/
             agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
           help/                      # Help section of Quick start
             help-section.ts          # One Ask button per bundled guide, over rows the composer binds
-            base-pace-section.css    # The link's styles
           key-row/                   # One secret API key row
             key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
           push-reason/               # Controls the push transport cannot use
