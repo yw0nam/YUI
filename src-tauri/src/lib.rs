@@ -89,6 +89,9 @@ pub fn run() {
             mcp_host::on_window_event(_window, _event);
             #[cfg(desktop)]
             dropped_files::on_window_event(_window, _event);
+            // SPIKE #2045: a closing settings window releases the pet it owns.
+            #[cfg(target_os = "windows")]
+            window_dock::win32::release_owned_on_close(_window, _event);
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -31,6 +31,7 @@ import { createDisposers } from "../app/disposers";
 import { createCharacterName } from "../app/message/character-name";
 import { wirePlateName } from "../app/message/wire-plate-name";
 import { createPetWindowRole } from "../app/pet-windows/pet-window-role";
+import { wireSpikeDock } from "../app/pet-windows/spike-dock";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
@@ -95,6 +96,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const role = createPetWindowRole({ boundId, disposeWindow, log });
   if (!role || isDisposed()) return { dispose: disposeWindow };
   const { dispose } = role;
+  // SPIKE #2045: dock probe driven from the settings window's probe panel.
+  if (isTauri()) {
+    void wireSpikeDock(boundId).catch((error) =>
+      log.error("spike_dock_wire_failed", { error: String(error) }),
+    );
+  }
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(dispose);
   }

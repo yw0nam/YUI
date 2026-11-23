@@ -47,6 +47,7 @@
     "allow-thread-read",
     "allow-window-dock-attach",
     "allow-window-dock-detach",
+    "allow-spike-dock-zorder",
     "allow-terminal-snapshot",
     "allow-terminal-open",
     "allow-terminal-close",

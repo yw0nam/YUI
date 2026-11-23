@@ -86,3 +86,59 @@ export async function mountSpikeStage(app: HTMLElement): Promise<void> {
     motion: renderer.getCurrentMotion(),
   }));
 }
+
+/**
+ * SPIKE #2045 (never merged): the dock probe panel. Buttons ask this window's pet (`app/pet-windows/spike-dock.ts`)
+ * to dock in a mode; the pet logs the measurements and answers with a status line shown here.
+ */
+export async function mountSpikeDockPanel(): Promise<void> {
+  if (!isTauri()) return;
+  const { emit, listen } = await import("@tauri-apps/api/event");
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  const settingsLabel = getCurrentWindow().label;
+
+  const panel = document.createElement("div");
+  Object.assign(panel.style, {
+    position: "fixed",
+    right: "8px",
+    bottom: "8px",
+    zIndex: "9999",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    padding: "6px 8px",
+    font: "12px system-ui, sans-serif",
+    background: "#fff8d6",
+    color: "#222",
+    border: "1px solid #c9a500",
+    borderRadius: "6px",
+  });
+  const title = document.createElement("div");
+  title.textContent = "Dock spike #2045";
+  const row = document.createElement("div");
+  Object.assign(row.style, { display: "flex", gap: "4px" });
+  const statusLine = document.createElement("div");
+  statusLine.textContent = "off";
+  for (const [mode, label] of [
+    ["a", "A: owner"],
+    ["b", "B: follow"],
+    ["ab", "A+B"],
+    ["off", "Off"],
+  ] as const) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => {
+      statusLine.textContent = `${label}…`;
+      log.warn("spike_dock_request", { mode, settingsLabel });
+      void emit("spike://dock", { settingsLabel, mode });
+    });
+    row.appendChild(button);
+  }
+  panel.append(title, row, statusLine);
+  document.body.appendChild(panel);
+
+  await listen<{ settingsLabel: string; text: string }>("spike://dock-status", ({ payload }) => {
+    if (payload.settingsLabel === settingsLabel) statusLine.textContent = payload.text;
+  });
+}
