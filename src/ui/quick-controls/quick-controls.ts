@@ -77,7 +77,7 @@ import { t } from "../i18n";
 import { createBodyPage } from "./body/body-page";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { createConnectionViews } from "./connection/connection-views";
-import { createQuickStart } from "./connection/quick-start/quick-start";
+import { createQuickStart } from "./connection/quick-start/quick-start-adapter";
 import { initialPageOf } from "./constants";
 import { createDelegationFeed } from "./delegations/delegation-feed";
 import { createGeneralPage } from "./general/general-page";

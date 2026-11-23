@@ -682,6 +682,7 @@ YUI/
         markup.ts                    # Panel markup primitives the Connection, Help and tab modules share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
+        glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
@@ -751,8 +752,11 @@ YUI/
             model-status.ts          # Maps the model-list read's phase and the model text to the status line's view
             push-state-text.ts       # Where the push socket stands, in words, for the status line
           quick-start/               # The Connection page's Quick start view, for the free Gemini path
-            quick-start.ts           # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
-            voice-step.ts            # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
+            quick-start-adapter.ts   # Quick start's own React root, in the shape the views and the composer call
+            quick-start.tsx          # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
+            voice-step.tsx           # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
+            key-link.tsx             # A key page link that the opener opens and plain Tab reaches
+            key-state.ts             # The connected key state: the paste row, the stored key's last check and a replacement, as pure transitions
             quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
         delegations/                 # The delegated list's sync, which lives with the panel and not with a page
           delegation-feed.ts         # The list's subscription and minute refresh, and the version a page reads to redraw
@@ -778,7 +782,7 @@ YUI/
           general-page-view.tsx      # The language, appearance and text size segments, the user name, Help and Developer Tools
           text-size-section.css      # The line at the speech size under the text size segment
           help/
-            help-section.tsx         # One Ask button per bundled guide
+            help-section.tsx         # One Ask button per bundled guide, then the caller's rows; Quick start's connected state shows it too
           user-name/
             user-name-row.tsx        # The device-wide user name field, its fallback placeholder, and the blur that settles on the stored name
         history/                     # The History page, rendered with React
@@ -887,10 +891,10 @@ YUI/
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
           agent/                     # Reasoning-effort control
             agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
-          help/                      # Help section of Quick start
-            help-section.ts          # One Ask button per bundled guide, over rows the composer binds
+          help/                      # The bundled guides
+            help-section.ts          # The guide keys, and the delegated click the composer binds on the Connection page's Help buttons
           key-row/                   # One secret API key row
-            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
+            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles

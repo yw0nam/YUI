@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
-import { ICON_WARN } from "../constants";
+import { WARN_GLYPH } from "../glyphs";
 import { SOURCES } from "./plugin-sources";
 
 const FOLDER_ICON = (
@@ -84,15 +84,8 @@ export const PLUS_ICON = (
   </svg>
 );
 
-/** The warning glyph shared with the Connection quick start's markup. */
 function WarningGlyph() {
-  return (
-    <span
-      className="yui-plg-glyph"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the Connection quick start
-      dangerouslySetInnerHTML={{ __html: ICON_WARN }}
-    />
-  );
+  return <span className="yui-plg-glyph">{WARN_GLYPH}</span>;
 }
 
 const SOURCE_ICONS: Record<PluginHostPlugin["source"], ReactNode> = {

@@ -428,7 +428,11 @@ describe("createQuickControls — construction and disposal", () => {
 
       qc.dispose();
       qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
-      qc.el.querySelector<HTMLButtonElement>("#yui-panel-conn [data-guide]")!.click();
+      // Quick start's Help buttons unmount with its root; a stand-in proves the delegated listener is gone.
+      const guide = document.createElement("button");
+      guide.dataset.guide = "controls";
+      qc.el.querySelector("#yui-panel-conn")!.append(guide);
+      guide.click();
       // The card's help dot unmounts with its page; a tab is the tip target left in the tree.
       qc.el.querySelector<HTMLButtonElement>("#yui-tab-voice")!.click();
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

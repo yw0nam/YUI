@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatKeySettings } from "../../../../settings/backend/api-key-settings";
 import {
@@ -9,13 +10,15 @@ import { createProactiveSettings } from "../../../../settings/cues/proactive-set
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { setLocale } from "../../../i18n";
 import { GEMINI_PRESET } from "../../constants";
-import { createQuickStart } from "./quick-start";
+import { QuickStart, type QuickStartHandle } from "./quick-start";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const REFUSED = "Google did not accept this key. Paste the key you copied again.";
 const FAILED = "Could not reach Google. Check your internet connection and try again.";
 const OWN_SERVER_URL = "http://localhost:8643/v1";
 
-const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 const models = () => new Response(JSON.stringify({ data: [{ id: "m" }] }), { status: 200 });
 
 function setup(
@@ -32,23 +35,38 @@ function setup(
   const proactiveSettings = createProactiveSettings({ locale: "en" });
   const scheduleSettings = createScheduleSettings({ locale: "en" });
   const onConnected = vi.fn();
-  const page = createQuickStart({
-    endpointsSettings,
-    chatKeySettings,
-    proactiveSettings,
-    scheduleSettings,
-    getEndpointDefaults: opts.getEndpointDefaults,
-    getFetch: async () => fetchMock,
-    onConnected,
-    showHelp: opts.showHelp ?? false,
-    onReplay: opts.onReplay,
-  });
-  document.body.append(page.el);
-  const input = page.el.querySelector<HTMLInputElement>('input[type="password"]')!;
-  const button = [...page.el.querySelectorAll("button")].find((b) => b.textContent === "Connect")!;
+  const handle: QuickStartHandle = { current: null };
+  const view = () => (
+    <QuickStart
+      endpointsSettings={endpointsSettings}
+      chatKeySettings={chatKeySettings}
+      proactiveSettings={proactiveSettings}
+      scheduleSettings={scheduleSettings}
+      getEndpointDefaults={opts.getEndpointDefaults}
+      getFetch={async () => fetchMock}
+      onConnected={onConnected}
+      showHelp={opts.showHelp ?? false}
+      onReplay={opts.onReplay}
+      handle={handle}
+    />
+  );
+  const rendered = render(view());
+  const page = {
+    el: rendered.container,
+    reflect: () => rendered.rerender(view()),
+    focusKey: () => act(() => handle.current!.focusKey()),
+    entered: () => act(() => handle.current!.entered()),
+    dispose: () => rendered.unmount(),
+  };
+  // The key group renders under the setup or over the done line, so each read finds the one shown.
+  const input = () => page.el.querySelector<HTMLInputElement>("#yui-start-key")!;
+  const button = () =>
+    [...page.el.querySelectorAll("button")].find((b) => b.textContent === "Connect")!;
   const connect = async (key: string) => {
-    input.value = key;
-    button.click();
+    act(() => {
+      input().value = key;
+      button().click();
+    });
     await settle();
     await settle();
   };
@@ -73,8 +91,12 @@ function setup(
     proactiveSettings,
     scheduleSettings,
     onConnected,
-    input,
-    button,
+    get input() {
+      return input();
+    },
+    get button() {
+      return button();
+    },
     connect,
     expectNothingWritten,
     visibleText,
@@ -290,7 +312,7 @@ describe("createQuickStart — the state it reads from the stores", () => {
     const replay = rows[2]!.querySelector<HTMLButtonElement>(".yui-start__replay")!;
     expect(replay.getAttribute("aria-label")).toBe("Replay the first conversation");
 
-    replay.click();
+    act(() => replay.click());
 
     expect(onReplay).toHaveBeenCalledTimes(1);
   });
@@ -326,7 +348,7 @@ describe("createQuickStart — Change key", () => {
     );
     expect(replace?.closest("[hidden]")).toBeNull();
 
-    replace!.click();
+    act(() => replace!.click());
     await s.connect("AIza-new");
 
     expect(s.chatKeySettings.get().apiKey).toBe("AIza-new");

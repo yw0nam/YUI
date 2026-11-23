@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * voice-step.test.ts — Quick start's voice section.
+ * voice-step.test.tsx — Quick start's voice section.
  *
  * reflect: an empty effective TTS URL shows the step, a configured one shows the configured line,
  * and a missing default-voice table hides the section. Turning on: an empty key asks for one, an
@@ -9,6 +9,7 @@
  * Maybe later writes nothing.
  */
 
+import { act, render } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TtsProviderName } from "../../../../contract";
 import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
@@ -21,7 +22,9 @@ import { createEndpointsSettings } from "../../../../settings/backend/endpoints-
 import { createFlagSettings } from "../../../../settings/persisted-store";
 import { type Locale, setLocale } from "../../../i18n";
 import { inMemoryApiKeyStorage } from "../../test-helpers";
-import { createVoiceStep } from "./voice-step";
+import { VoiceStep } from "./voice-step";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const VOICES = {
   en: { id: "c2536221a1c141ceae2d11fe15503858", name: "Shinobu" },
@@ -53,7 +56,7 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 function setup(
@@ -90,20 +93,29 @@ function setup(
     getEndpoints,
     refresh,
   });
-  const step = createVoiceStep({
-    endpointsSettings,
-    ttsKeySettings,
-    ttsSettings,
-    speakerSelection,
-    getDefaultVoices: opts.getDefaultVoices ?? (() => VOICES),
-    getFetch: async () => fetchMock,
-  });
-  document.body.append(step.el);
+  const view = () => (
+    <VoiceStep
+      endpointsSettings={endpointsSettings}
+      ttsKeySettings={ttsKeySettings}
+      ttsSettings={ttsSettings}
+      speakerSelection={speakerSelection}
+      getDefaultVoices={opts.getDefaultVoices ?? (() => VOICES)}
+      getFetch={async () => fetchMock}
+    />
+  );
+  const rendered = render(view());
+  const step = {
+    el: rendered.container.firstElementChild as HTMLElement,
+    reflect: () => rendered.rerender(view()),
+    dispose: () => rendered.unmount(),
+  };
   const input = step.el.querySelector<HTMLInputElement>("#yui-start-voice-key")!;
   const on = step.el.querySelector<HTMLButtonElement>(".yui-start__voice-turn")!;
   const press = async (key: string) => {
-    input.value = key;
-    on.click();
+    act(() => {
+      input.value = key;
+      on.click();
+    });
     await settle();
     await settle();
     await settle();
@@ -255,7 +267,7 @@ describe("createVoiceStep — turning voice on", () => {
     const s = setup();
     const later = s.step.el.querySelector<HTMLButtonElement>(".yui-start__voice-later")!;
 
-    later.click();
+    act(() => later.click());
 
     expect(s.el(".yui-start__voice-form").hidden).toBe(true);
     expect(s.visibleText(".yui-start__voice-skipped")).toEqual([
@@ -267,7 +279,7 @@ describe("createVoiceStep — turning voice on", () => {
 
   it.each<[string, (s: ReturnType<typeof setup>) => void]>([
     ["dispose", (s) => s.step.dispose()],
-    ["Maybe later", (s) => s.el(".yui-start__voice-later").click()],
+    ["Maybe later", (s) => act(() => s.el(".yui-start__voice-later").click())],
   ])("an ok resolved after %s writes nothing", async (_, interrupt) => {
     let respond: (res: Response) => void = () => {};
     const s = setup(
@@ -278,8 +290,10 @@ describe("createVoiceStep — turning voice on", () => {
     );
 
     await settle();
-    s.input.value = "fish-key";
-    s.on.click();
+    act(() => {
+      s.input.value = "fish-key";
+      s.on.click();
+    });
     await settle();
     interrupt(s);
     respond(new Response("{}", { status: 200 }));

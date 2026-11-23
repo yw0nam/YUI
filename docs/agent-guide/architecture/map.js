@@ -4202,7 +4202,7 @@ globalThis.YUI_MAP =
       "carries": "Turn on voice: checkFishKey(pasted key) → ok, refused or failed; ok → the app language's default voice joins the list unless listed, and is selected",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
     },
     {
       "id": "voice-key-check-http",
@@ -4219,7 +4219,7 @@ globalThis.YUI_MAP =
       "carries": "ok only: endpoints tts_provider fish, tts_base_url and tts_model, the TTS key, and TTS on",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
     },
     {
       "id": "default-voices-config",

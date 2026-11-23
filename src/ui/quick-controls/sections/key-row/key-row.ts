@@ -17,7 +17,7 @@ export interface KeyRow {
 }
 
 /** Flips a key field between masked and shown, with its toggle's icon and label. */
-export function toggleKeyReveal(
+function toggleKeyReveal(
   input: HTMLInputElement,
   toggleBtn: HTMLButtonElement,
   idPrefix: string,
