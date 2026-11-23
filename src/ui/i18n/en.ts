@@ -196,7 +196,7 @@ const en: Record<string, string> = {
   "tabs.persona": "Persona",
   "tabs.body": "Body",
   "tabs.react": "Proactive",
-  "tabs.react_hint": "Rules for when YUI speaks up first",
+  "tabs.react_hint": "Rules for when she speaks up first",
   "tabs.hist": "History",
   "tabs.general": "General",
   "tabs.together": "Together",
@@ -307,10 +307,11 @@ const en: Record<string, string> = {
   "active_hours.pace_aria": "Pace",
   "active_hours.remove_aria": "Remove time span",
   "base_pace.title": "How often she speaks up",
-  "base_pace.foot":
-    "For every character, all day, it scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins; scheduled greetings keep their times. More is about {more}× as often, Less about 1/{less} as often.",
+  "base_pace.foot": "Scheduled greetings keep their times at every pace.",
   "base_pace.link_lead": "Per character and time of day:",
   "base_pace.link": "Persona › Active hours",
+  "day_strip.label": "{name}'s day",
+  "day_strip.checkins": "Check-ins after quiet",
 
   // card
   "card.label": "Card",

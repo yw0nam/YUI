@@ -197,7 +197,7 @@ const ja: Record<string, string> = {
   "tabs.persona": "ペルソナ",
   "tabs.body": "ボディ",
   "tabs.react": "話しかけ",
-  "tabs.react_hint": "ユイの方から話しかけるときのルール",
+  "tabs.react_hint": "自分から話しかけるときのルール",
   "tabs.hist": "履歴",
   "tabs.general": "一般",
   "tabs.together": "みんなで",
@@ -309,10 +309,11 @@ const ja: Record<string, string> = {
   "active_hours.pace_aria": "話しかける頻度",
   "active_hours.remove_aria": "時間帯を削除",
   "base_pace.title": "話しかける頻度",
-  "base_pace.foot":
-    "すべてのキャラクターに一日中、会話のあとの待ち時間（画面への反応の間隔もこれに従います）と「しばらく静かなとき」の反応に効き、時間帯のあいさつは決めた時刻のままです。「多い」は約{more}倍、「少なめ」は約{less}分の1の頻度です。",
+  "base_pace.foot": "時間帯のあいさつは、どの頻度でも決めた時刻のままです。",
   "base_pace.link_lead": "キャラクターと時間帯ごとに：",
   "base_pace.link": "ペルソナ › 活動時間",
+  "day_strip.label": "{name}の一日",
+  "day_strip.checkins": "静かなときの声かけ",
 
   // card
   "card.label": "カード",

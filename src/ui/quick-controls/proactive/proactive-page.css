@@ -1,0 +1,12 @@
+/* One number column: every field on the page shares one width and one unit slot; the cue rows' minute fields keep theirs. */
+.yui-proactive .yui-num {
+  gap: 0.5rem;
+}
+
+.yui-proactive .yui-num > .yui-num-input {
+  width: 5.5rem;
+}
+
+.yui-proactive .yui-num > .yui-cue__suffix {
+  width: 3rem;
+}

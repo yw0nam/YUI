@@ -57,8 +57,14 @@ export interface RateLimitFieldDef {
   subKey: string;
 }
 
-/** The caps on the Proactive page. */
+/** The caps on the Proactive page, the total first. */
 export const PROACTIVE_CAP_FIELDS: readonly RateLimitFieldDef[] = [
+  {
+    key: "overall_max",
+    id: "yui-rate-overall",
+    labelKey: "reactions.rate_overall_label",
+    subKey: "reactions.rate_overall_sub",
+  },
   {
     key: "tier2_max",
     id: "yui-rate-tier2",
@@ -70,12 +76,6 @@ export const PROACTIVE_CAP_FIELDS: readonly RateLimitFieldDef[] = [
     id: "yui-rate-urgent",
     labelKey: "reactions.rate_urgent_label",
     subKey: "reactions.rate_urgent_sub",
-  },
-  {
-    key: "overall_max",
-    id: "yui-rate-overall",
-    labelKey: "reactions.rate_overall_label",
-    subKey: "reactions.rate_overall_sub",
   },
 ];
 

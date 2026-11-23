@@ -38,7 +38,9 @@ export function isValidSpans(v: unknown): v is Span[] {
   return Array.isArray(v) && v.every(isSpan);
 }
 
-const toMinutes = (time: string): number => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+/** The minute of the day an HH:MM time names. */
+export const toMinutes = (time: string): number =>
+  Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 
 /** True when the span's end comes before its start, so it runs past midnight. */
 export function wrapsMidnight(span: Pick<Span, "start" | "end">): boolean {

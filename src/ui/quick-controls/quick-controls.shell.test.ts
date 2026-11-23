@@ -394,7 +394,8 @@ describe("createQuickControls — construction and disposal", () => {
         ].sort(),
       );
       // settings releases four: the Permissions page's own subscription and its three field reads.
-      expect(log).toHaveLength(10);
+      // schedule and proactive release two each: the cue list's and the Proactive page's.
+      expect(log).toHaveLength(12);
     });
 
     it("releases the speaker store", () => {
