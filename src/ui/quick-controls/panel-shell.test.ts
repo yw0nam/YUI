@@ -55,6 +55,30 @@ describe("createPanelShell", () => {
     shell.dispose();
   });
 
+  it.each<[string, KeyboardEventInit]>([
+    ["isComposing", { isComposing: true }],
+    ["keyCode 229", { keyCode: 229 }],
+  ])("Escape while an IME composes (%s) leaves the settings window open", (_, init) => {
+    const onClose = vi.fn();
+    const closeWindow = vi.fn();
+    const shell = createPanelShell({ root: buildRoot(), closeWindow, onOpen: () => {}, onClose });
+    shell.open();
+
+    const e = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    document.dispatchEvent(e);
+
+    expect(closeWindow).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
+
+    shell.dispose();
+  });
+
   it("an Escape inside an open dialog leaves the window open", () => {
     const closeWindow = vi.fn();
     const shell = createPanelShell({
