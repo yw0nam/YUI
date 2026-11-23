@@ -39,6 +39,22 @@ describe("readModels", () => {
     expect(calls[0]?.init).toMatchObject({ redirect: "error", maxRedirections: 0 });
   });
 
+  it("calls the injected fetch unbound, as the browser's native fetch requires", async () => {
+    // The native fetch throws "Illegal invocation" when `this` is not the global or undefined.
+    function nativeLikeFetch(this: unknown): Promise<Response> {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+      return Promise.resolve(jsonResponse({ data: [{ id: "m-1" }] }));
+    }
+
+    const result = await readModels({
+      baseUrl: BASE,
+      signal,
+      fetch: nativeLikeFetch as typeof fetch,
+    });
+
+    expect(result).toEqual({ kind: "ok", ids: ["m-1"] });
+  });
+
   it("sends no Authorization header when no key is given", async () => {
     const { fetchImpl, calls } = recordFetch(() => jsonResponse({ data: [] }));
 

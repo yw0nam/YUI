@@ -65,8 +65,10 @@ export async function readModels(input: {
       redirect: "error",
       maxRedirections: 0,
     };
+    // Unbound: the browser's native fetch throws "Illegal invocation" with `input` as `this`.
+    const fetchImpl = input.fetch;
     const res = await untilAborted(
-      input.fetch(`${input.baseUrl.replace(/\/+$/, "")}/models`, init),
+      fetchImpl(`${input.baseUrl.replace(/\/+$/, "")}/models`, init),
       requestSignal,
     );
     if (!res.ok) {
