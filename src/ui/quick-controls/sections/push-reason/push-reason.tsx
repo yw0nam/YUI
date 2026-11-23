@@ -17,15 +17,10 @@ export function PushReason({ reasonKey, hidden }: { reasonKey: string; hidden: b
   );
 }
 
-/** Every reason link under `root` opens the Connection page and focuses its chat protocol select. */
-export function bindTransportLinks(
-  root: HTMLElement,
-  selectPage: (id: "conn") => void,
-): () => void {
+/** Every reason link under `root` calls `onLink`, which opens the chat protocol select. */
+export function bindTransportLinks(root: HTMLElement, onLink: () => void): () => void {
   function handleClick(e: MouseEvent): void {
-    if (!(e.target as HTMLElement).closest(".yui-push-reason__link")) return;
-    selectPage("conn");
-    root.querySelector<HTMLElement>(".yui-chat-type")?.focus();
+    if ((e.target as HTMLElement).closest(".yui-push-reason__link")) onLink();
   }
   root.addEventListener("click", handleClick);
   return () => root.removeEventListener("click", handleClick);

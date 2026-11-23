@@ -75,9 +75,7 @@ import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createBodyPage } from "./body/body-page";
-import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import { createConnectionViews } from "./connection/connection-views";
-import { createQuickStart } from "./connection/quick-start/quick-start-adapter";
+import { createConnectionPage, type PushSocketPanelPort } from "./connection/connection-page";
 import { initialPageOf } from "./constants";
 import { createDelegationFeed } from "./delegations/delegation-feed";
 import { createGeneralPage } from "./general/general-page";
@@ -505,54 +503,44 @@ export function createQuickControls({
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
 
-  // ── Connection page (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
-  const connectionTab = createConnectionTab({
-    endpointsSettings,
-    chatKeySettings,
-    ttsKeySettings,
-    sttKeySettings,
-    checkSttServer,
-    checkTtsServer,
-    getEndpoints,
-    getEndpointDefaults,
-    getDefaultChatApi,
-    pushSocket,
-    agentSettings,
-    isOpen: () => shell.isOpen(),
-    getChatApiKey,
-    getFetch,
-    log,
-    host: el.querySelector<HTMLElement>("#yui-panel-conn")!,
-  });
-  // ── Quick start (data use · daily limit · key confirmation) ──
-  const quickStart = createQuickStart({
-    endpointsSettings,
-    getEndpointDefaults,
-    chatKeySettings,
-    proactiveSettings,
-    scheduleSettings,
-    getFetch: async () => getFetch?.(),
-    onConnected: () => onFirstConversationConnected?.(),
-    showHelp: !!onGuide,
-    ttsKeySettings,
-    ttsSettings,
-    speakerSelection,
-    getDefaultVoices,
-    onReplay: onReplayFirstConversation,
-  });
-
-  // ── Connection page — Quick start or Detailed settings ──
-  const connectionViews = createConnectionViews({
-    panel: el.querySelector("#yui-panel-conn")!,
-    quick: quickStart.el,
-    detail: connectionTab.el,
+  // ── Connection page — Quick start (data use · daily limit · key confirmation) or Detailed settings ──
+  const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
+  const connectionPage = createConnectionPage({
+    host: connPanel,
+    scope: connPanel.querySelector<HTMLElement>(".yui-tabpanel__scope"),
     initial: openOnQuickStart ? "quick" : "detail",
-    onQuickShown: quickStart.reflect,
-    onQuickEntered: quickStart.entered,
-    onDetailEntered: () => connectionTab.entered(),
-    holdsKey: quickStart.holdsKey,
-    focusQuickKey: quickStart.focusKey,
-    focusDetailKey: () => connectionTab.focusChatKey(),
+    quick: {
+      endpointsSettings,
+      getEndpointDefaults,
+      chatKeySettings,
+      proactiveSettings,
+      scheduleSettings,
+      getFetch: async () => getFetch?.(),
+      onConnected: () => onFirstConversationConnected?.(),
+      showHelp: !!onGuide,
+      ttsKeySettings,
+      ttsSettings,
+      speakerSelection,
+      getDefaultVoices,
+      onReplay: onReplayFirstConversation,
+    },
+    detail: {
+      endpointsSettings,
+      chatKeySettings,
+      ttsKeySettings,
+      sttKeySettings,
+      checkSttServer,
+      checkTtsServer,
+      getEndpoints,
+      getEndpointDefaults,
+      getDefaultChatApi,
+      pushSocket,
+      agentSettings,
+      isOpen: () => shell.isOpen(),
+      getChatApiKey,
+      getFetch,
+      log,
+    },
   });
 
   // ── History page (session accordion · start fresh · Session section) — only with a transcript store. ──
@@ -660,7 +648,7 @@ export function createQuickControls({
     onOpen: () => {
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
-      if (tabRail.selected() === "conn") connectionViews.entered();
+      if (tabRail.selected() === "conn") connectionPage.entered();
       if (tabRail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
@@ -752,12 +740,15 @@ export function createQuickControls({
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
     initial: initialPageOf(openOnQuickStart),
     onSelect: (id) => {
-      if (id === "conn") connectionViews.entered();
+      if (id === "conn") connectionPage.entered();
       if (id === "plugins") pluginsPage?.entered();
     },
   });
 
-  const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
+  const unbindTransportLinks = bindTransportLinks(el, () => {
+    tabRail.select("conn");
+    connectionPage.focusChatType();
+  });
   const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(request?: PageRequest): void {
@@ -769,7 +760,7 @@ export function createQuickControls({
     } else {
       shell.open();
     }
-    if (request?.focus === "chat_key") connectionViews.focusKey();
+    if (request?.focus === "chat_key") connectionPage.focusKey();
   }
 
   function selectedTab(): SettingsPage {
@@ -777,11 +768,9 @@ export function createQuickControls({
   }
 
   // Quick start's Help rows are the delegated ones; the General page handles its own.
-  const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
   const unbindHelp = onGuide ? bindHelpSection(connPanel, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
-    quickStart,
     { dispose: permsPage.dispose },
     pluginsPage,
     { reflect: proactivePage.refresh, dispose: proactivePage.dispose },
@@ -789,14 +778,13 @@ export function createQuickControls({
     { reflect: persona.reflect, dispose: persona.dispose },
     { dispose: generalPage.dispose },
     {
-      reflect: connectionTab.refresh,
+      reflect: connectionPage.refresh,
       close: () => {
-        connectionTab.commit();
-        connectionTab.close();
+        connectionPage.commit();
+        connectionPage.close();
       },
-      dispose: connectionTab.dispose,
+      dispose: connectionPage.dispose,
     },
-    { dispose: connectionViews.dispose },
     { reflect: delegationFeed.sync, dispose: delegationFeed.dispose },
     historyPage && { reflect: historyPage.refresh, dispose: historyPage.dispose },
     { reflect: togetherPage.reflect, dispose: togetherPage.dispose },
@@ -825,7 +813,7 @@ export function createQuickControls({
     el,
     open: openPanel,
     selectedTab,
-    windowFocused: quickStart.windowFocused,
+    windowFocused: connectionPage.windowFocused,
     dispose,
   };
 }

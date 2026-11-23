@@ -11,7 +11,7 @@ import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import type { Logger } from "../../../../logger";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { setLocale } from "../../../i18n";
-import type { PushSocketPanelPort } from "../../connection/connection-tab";
+import type { PushSocketPanelPort } from "../../connection/connection-page";
 import { createDelegationFeed } from "../../delegations/delegation-feed";
 import { countSubscriptions, inMemoryAgentStorage } from "../../test-helpers";
 import { createHistoryPage } from "../history-page";

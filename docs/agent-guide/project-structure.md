@@ -734,10 +734,10 @@ YUI/
           express-motion/            # Express motion vocabulary
             express-motion-section.tsx # Express motion categories: the accordion, each group's tri-state master, and the motion switches
             express-motion-section.css # Express motion styles
-        connection/                  # Connection page and its endpoint/API-key section
-          connection-views.ts        # The Quick start | Detailed settings switch and the one view it shows
+        connection/                  # The Connection page, rendered with React
+          connection-page.ts         # The page's facade: its React root, the view it shows, the entry, the focus requests, the commit and the push port the panel uses
+          connection-page-view.tsx   # The Quick start | Detailed settings switch over both views, both mounted
           connection-views.css       # The switch's segment and the view wrappers
-          connection-tab.ts          # Detailed settings' own React root, in the shape the views and the composer call, and the push port the panel uses
           endpoints-section.css      # Endpoints section, the yui-select trigger, and the shared chat-status dot styles
           detail/                    # Detailed settings, rendered with React
             detail-settings.tsx      # The chat section, the reasoning-effort row, the STT and TTS sections, and the commit, entry and close the page calls
@@ -764,7 +764,6 @@ YUI/
             server-line-view.ts      # Maps one server check to the line's view
             host.ts                  # A URL's host
           quick-start/               # The Connection page's Quick start view, for the free Gemini path
-            quick-start-adapter.ts   # Quick start's own React root, in the shape the views and the composer call
             quick-start.tsx          # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
             voice-step.tsx           # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
             key-link.tsx             # A key page link that the opener opens and plain Tab reaches

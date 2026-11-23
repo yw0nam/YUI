@@ -11,7 +11,7 @@ import type { createSessionStore } from "../../../io/chat/conversation/session-s
 import type { createSignalHistoryStore } from "../../../io/chat/conversation/signal-history-store";
 import type { Logger } from "../../../logger";
 import type { createAgentSettings } from "../../../settings/backend/agent-settings";
-import type { PushSocketPanelPort } from "../connection/connection-tab";
+import type { PushSocketPanelPort } from "../connection/connection-page";
 import type { DelegationFeed } from "../delegations/delegation-feed";
 import { editedCharacterName } from "./character-name";
 import { HistoryPageView } from "./history-page-view";

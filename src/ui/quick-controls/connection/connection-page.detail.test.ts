@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * connection-tab.test.ts — Detailed settings through its facade: the TTS provider select, the STT model
+ * connection-page.detail.test.ts — Detailed settings through the page facade: the TTS provider select, the STT model
  * field persisting and resetting with the service, the model list read, and dispose committing.
  */
 import { act, fireEvent } from "@testing-library/react";
@@ -19,6 +19,8 @@ import {
   type EndpointOverrides,
   endpointDefaultsFromConfig,
 } from "../../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
 import { setLocale, t } from "../../i18n";
 import {
   inMemoryAgentStorage,
@@ -26,7 +28,7 @@ import {
   optionNames,
   pickOption,
 } from "../test-helpers";
-import { createConnectionTab, type PushSocketPanelPort } from "./connection-tab";
+import { createConnectionPage, type PushSocketPanelPort } from "./connection-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -37,7 +39,7 @@ function commitTyped(input: HTMLInputElement, value: string): void {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
-describe("createConnectionTab", () => {
+describe("createConnectionPage — Detailed settings", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let chatKeySettings: ReturnType<typeof createChatKeySettings>;
 
@@ -66,21 +68,36 @@ describe("createConnectionTab", () => {
     checkTtsServer?: () => Promise<ServerCheck | null>;
     getEndpoints?: () => EndpointsConfig | null;
   }) {
-    const tab = createConnectionTab({
-      endpointsSettings,
-      chatKeySettings,
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      isOpen: () => true,
-      ...extra,
-      log: {
-        debug: () => {},
-        info: () => {},
-        warn: () => {},
-        error: () => {},
+    const host = document.body.appendChild(document.createElement("div"));
+    host.innerHTML = '<h1 class="yui-tabpanel__title">Connection</h1>';
+    const tab = createConnectionPage({
+      host,
+      scope: null,
+      initial: "detail",
+      quick: {
+        endpointsSettings,
+        chatKeySettings,
+        proactiveSettings: createProactiveSettings({ locale: "en" }),
+        scheduleSettings: createScheduleSettings({ locale: "en" }),
+        getFetch: async () => undefined,
+        onConnected: () => {},
+        showHelp: false,
       },
-      host: document.body.appendChild(document.createElement("div")),
+      detail: {
+        endpointsSettings,
+        chatKeySettings,
+        ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+        sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+        isOpen: () => true,
+        ...extra,
+        log: {
+          debug: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+        },
+      },
     });
     return {
       ...tab,

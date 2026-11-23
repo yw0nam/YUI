@@ -14,6 +14,8 @@ import {
   createTtsKeySettings,
 } from "../../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { type Locale, setLocale, t } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import {
@@ -22,7 +24,7 @@ import {
   optionNames,
   pickOption,
 } from "../../test-helpers";
-import { createConnectionTab } from "../connection-tab";
+import { createConnectionPage } from "../connection-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -57,15 +59,31 @@ describe("chat type row", () => {
 
   function build(locale: Locale) {
     setLocale(locale);
-    const tab = createConnectionTab({
-      endpointsSettings,
-      chatKeySettings: createChatKeySettings(),
-      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      isOpen: () => true,
-      log: { debug() {}, info() {}, warn() {}, error() {} },
-      host: document.body,
+    const chatKeySettings = createChatKeySettings();
+    const host = document.body.appendChild(document.createElement("div"));
+    host.innerHTML = '<h1 class="yui-tabpanel__title">Connection</h1>';
+    const tab = createConnectionPage({
+      host,
+      scope: null,
+      initial: "detail",
+      quick: {
+        endpointsSettings,
+        chatKeySettings,
+        proactiveSettings: createProactiveSettings({ locale }),
+        scheduleSettings: createScheduleSettings({ locale }),
+        getFetch: async () => undefined,
+        onConnected: () => {},
+        showHelp: false,
+      },
+      detail: {
+        endpointsSettings,
+        chatKeySettings,
+        ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+        sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+        isOpen: () => true,
+        log: { debug() {}, info() {}, warn() {}, error() {} },
+      },
     });
     tab.refresh();
     return tab;
