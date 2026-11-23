@@ -470,7 +470,7 @@
 }
 
 /* Narrow panel: the facts stack under their labels */
-@container (width < 30rem) {
+@container (width <= 30rem) {
   .yui-plg-facts {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.1rem;
