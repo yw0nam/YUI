@@ -898,7 +898,7 @@ YUI/
           descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
-      controls/                      # Shared React controls; the slider, the checkbox and the number field build on Base UI
+      controls/                      # Shared React controls; the slider, the checkbox, the number field and the segment build on Base UI
         slider/                      # The Slider
           index.ts                   # Re-exports the Slider and its props type
           slider.tsx                 # A range slider the caller labels and owns the value of, reporting each change and each commit

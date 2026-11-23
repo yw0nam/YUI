@@ -17,11 +17,13 @@ export interface VoicePage {
 
 export function createVoicePage(
   deps: Omit<VoicePageViewProps, "speaker" | "revision"> &
-    Omit<VoicePageViewProps["speaker"], "audition" | "log">,
+    Omit<VoicePageViewProps["speaker"], "audition" | "log"> & { host: HTMLElement },
 ): VoicePage {
-  const { rows, fillerSettings, log, ...speaker } = deps;
+  const { rows, fillerSettings, log, host, ...speaker } = deps;
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
+  // The page appends itself here before its first render: Base UI registers a radio group's items only while connected.
+  host.append(el);
   const root = createRoot(el);
   const audition = createAudition();
   const props = { rows, fillerSettings, log, speaker: { ...speaker, log, audition } };

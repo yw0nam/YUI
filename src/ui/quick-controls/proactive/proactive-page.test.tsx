@@ -58,9 +58,8 @@ function build(extra?: Partial<Deps>) {
     log: makeLog(),
     ...extra,
   };
-  const page = createProactivePage(deps);
+  const page = createProactivePage({ ...deps, host: document.body });
   pages.push(page);
-  document.body.append(page.el);
   return { page, ...deps };
 }
 
@@ -450,6 +449,7 @@ describe("createProactivePage — Advanced", () => {
       rows: [],
       workflowSettings: createWorkflowSettings(),
       log: makeLog(),
+      host: document.body,
       ...deps,
     });
     const input = page.el.querySelector<HTMLInputElement>("#yui-pacer-gap");
@@ -666,9 +666,9 @@ describe("createProactivePage — the source groups", () => {
       ...(fold?.querySelectorAll<HTMLButtonElement>(".yui-threadturns-seg [role=radio]") ?? []),
     ];
     expect(cells.map((cell) => cell.disabled)).toEqual([false, false, false]);
-    const notable = cells.find((cell) => cell.dataset.value === "notable");
-    expect(notable?.textContent).toBe("When it needs her");
-    if (!notable) return;
+    const turns = fold?.querySelector<HTMLElement>(".yui-threadturns-seg");
+    if (!turns) return;
+    const notable = within(turns).getByRole("radio", { name: "When it needs her" });
     fireEvent.click(notable);
     expect(threadTurnsSettings.get().level).toBe("notable");
 
@@ -994,13 +994,10 @@ describe("createProactivePage — the source groups", () => {
       const { page, threadReactionThresholdsSettings } = buildSources({
         stores: { threadReactionsSettings },
       });
-      const cells = [
-        ...page.el.querySelectorAll<HTMLButtonElement>(
-          ".yui-reaction-thresholds-count-seg [role=radio]",
-        ),
-      ];
+      const countSeg = page.el.querySelector<HTMLElement>(".yui-reaction-thresholds-count-seg")!;
+      const cells = within(countSeg).getAllByRole("radio");
 
-      expect(cells.map((cell) => cell.dataset.value)).toEqual(["0", "2", "3", "5"]);
+      expect(cells.map((cell) => cell.textContent)).toEqual(["Off", "2", "3", "5"]);
       if (!cells[3]) return;
       fireEvent.click(cells[3]);
 

@@ -500,8 +500,8 @@ export function createQuickControls({
     boundId,
     workflowSettings,
     log,
+    host: el.querySelector<HTMLElement>("#yui-panel-react")!,
   });
-  el.querySelector<HTMLElement>("#yui-panel-react")!.append(proactivePage.el);
 
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -649,8 +649,8 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     isOpen: () => shell.isOpen(),
+    host: el.querySelector("#yui-panel-voice")!,
   });
-  el.querySelector("#yui-panel-voice")!.append(voicePage.el);
 
   // ── shell (open/close lifecycle) ──
   const shell = createPanelShell({
@@ -713,8 +713,8 @@ export function createQuickControls({
     onGuide,
     onOpenDevtools,
     log,
+    host: el.querySelector("#yui-panel-general")!,
   });
-  el.querySelector("#yui-panel-general")!.append(generalPage.el);
 
   // ── Listening page (voice switch · STT key · silence threshold · barge-in · bubble · readings) ──
   const listeningPage = createListeningPage({

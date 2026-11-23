@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Segment, a radio segment the caller labels and owns the value of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, and the NumberField, a number field that reports the value committed on blur, Enter or a step.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, and the NumberField, a number field that reports the value committed on blur, Enter or a step.",
       "paths": [
         "src/ui/controls"
       ]

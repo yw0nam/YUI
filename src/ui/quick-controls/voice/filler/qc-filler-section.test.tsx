@@ -156,7 +156,7 @@ describe("createQuickControls — thinking filler section", () => {
     expect(repeat.value).toBe("Still thinking...");
   });
 
-  it("ArrowRight on the filler language seg moves selection, tabindex, and calls setLanguage", () => {
+  it("ArrowRight on the filler language seg moves selection, tabindex, and calls setLanguage", async () => {
     const fs = makeFillerSettings({ language: "ja" });
     const spy = vi.spyOn(fs, "setLanguage");
     const qc = buildQc({ fillerSettings: fs });
@@ -170,6 +170,7 @@ describe("createQuickControls — thinking filler section", () => {
     act(() =>
       btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
     );
+    await act(async () => {});
 
     expect(spy).toHaveBeenCalledWith("en");
     expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en

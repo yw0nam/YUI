@@ -111,7 +111,13 @@ export function FillerSection({
   const fields = (list: readonly PoolField[]) =>
     list.map((field) => <Field key={field.key} field={field} setRef={setRef} />);
   return (
-    <div className="yui-sec yui-filler" onInput={writePool}>
+    <div
+      className="yui-sec yui-filler"
+      onInput={(event) => {
+        // The segment's hidden radio inputs bubble input; only the pool textareas edit the pool.
+        if (event.target instanceof HTMLTextAreaElement) writePool();
+      }}
+    >
       <div className="yui-sec__head">
         <h2 className="yui-sec__title">{t("filler.section")}</h2>
         <Switch

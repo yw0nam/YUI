@@ -60,9 +60,9 @@ function buildRoot(fillerSettings: FillerSettingsStore) {
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     refreshTooltip: () => {},
     isOpen: () => true,
+    host: document.body,
   });
   pages.push(page);
-  document.body.append(page.el);
   return page;
 }
 
@@ -131,14 +131,14 @@ describe("the thinking-filler section", () => {
     expect(values(root)).toEqual(EN_VALUES);
   });
 
-  it("an arrow key on the language segment does the same and moves focus", () => {
+  it("an arrow key on the language segment does the same and moves focus", async () => {
     const fs = seededFiller({ customPools: { en: EN_POOL } });
     const { el: root } = buildRoot(fs);
     const btns = langButtons(root);
 
-    act(() =>
-      btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
-    );
+    await act(async () => {
+      fireEvent.keyDown(btns[0], { key: "ArrowRight" });
+    });
 
     expect(fs.get().language).toBe("en");
     expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
