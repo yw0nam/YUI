@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proactive Redesign Mock</title>
+<!-- Real tokens and the real settings stylesheets; the markup below uses their class names. Mock-only staging, and the proposed classes (mock-*), live in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/search/settings-search.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/hint-tooltip.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/preset/preset.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/base-pace/base-pace-section.css">
+<link rel="stylesheet" href="../../src/ui/quick-controls/sections/workflows/workflows-section.css">
+<link rel="stylesheet" href="../../src/ui/message/cue-list.css">
+<style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+
+/* ── Staging: the mock page around the settings windows ── */
+* { box-sizing: border-box; }
+html { background: var(--yui-panel-bg); }
+body { margin: 0; background: var(--yui-panel-bg); color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5; }
+.wrap { max-width: 880px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 48px; }
+.page-head { display: grid; gap: 8px; }
+h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+.lede { margin: 0; max-width: 70ch; color: var(--yui-text-dim); }
+.mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; width: fit-content; flex: none; }
+.seg button { font: inherit; font-size: var(--yui-fs-sub); padding: 4px 12px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--yui-edge); }
+.seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--yui-accent-soft); outline-offset: 2px; }
+.legend { margin: 0; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.item { display: grid; gap: 12px; min-width: 0; }
+.item h2 { margin: 0; font-size: 1rem; font-weight: 600; text-wrap: balance; }
+.say { margin: 0; max-width: 70ch; color: var(--yui-text-dim); text-wrap: pretty; }
+.copy { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: var(--yui-fs-sub); color: var(--yui-text-dim); }
+.copy .was { color: var(--yui-text-mute); }
+.tag { display: inline-block; padding: 0 6px; border-radius: 999px; border: 1px solid var(--yui-edge-strong); color: var(--yui-text-dim); font-size: var(--yui-fs-caption); line-height: 1.5; white-space: nowrap; vertical-align: 1px; }
+.meas-out { margin: 0; font-size: var(--yui-fs-sub); color: var(--yui-text-mute); font-variant-numeric: tabular-nums; }
+
+/* The settings window at the real 760px width (src-tauri/src/tray.rs), at least the real 680px tall.
+   A narrow page scrolls the window inside its own container, never the page. */
+.win-scroll { overflow-x: auto; margin: 0 -16px; padding: 0 16px 32px; }
+.win { position: relative; width: 762px; border-radius: 12px; overflow: hidden; border: 1px solid var(--yui-edge-strong); box-shadow: var(--yui-float); background: var(--yui-panel-bg); }
+.win .yui-quick { height: auto; min-height: 678px; }
+.win .yui-quick__body { overflow: visible; }
+/* The rail keeps its real width (its longest label) and is clipped to the body's height. */
+.win .yui-tabs { flex: 1 1 0; overflow: hidden; }
+.win .yui-tabpanel { animation: none; }
+.win .yui-hint-tip { position: absolute; }
+.fold-line { position: absolute; left: 0; right: 0; top: 678px; border-top: 1.5px dashed var(--yui-edge-strong); pointer-events: none; }
+.fold-line span { position: absolute; left: 8px; top: -18px; font-size: var(--yui-fs-caption); color: var(--yui-text-mute); background: var(--yui-panel-bg); padding: 0 4px; border-radius: 4px; }
+
+/* A proposed string: a dotted underline, so it reads apart from today's strings without relying on colour. */
+.mock-prop { text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+/* ── Proposed (After only). None of these classes exist in src/ yet. ── */
+/* Item 4: one field width and one unit slot for every number row, so the inputs share both edges. */
+.mock-num { gap: 0.5rem; }
+.mock-num .yui-num-input { width: 5.5rem; }
+.mock-num .yui-cue__suffix { width: 3rem; }
+/* Item 3: the workflow form opens in place; its fields keep the number fields' inset Hairline at rest. */
+.mock-wf-form > * + * { border-top: 1px solid var(--yui-edge); }
+.mock-wf-form .yui-input-wrap:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--yui-edge); }
+.mock-wf-form .yui-row--action { gap: 0.5rem; }
+/* Its × hides while the inline confirm is up (display: grid beats the UA [hidden] rule, as cue-list.css notes). */
+.yui-wf__delete[hidden] { display: none; }
+
+/* Item 2: her day, a 24-hour strip across the section (heights and gaps on the 8px grid; positions are fractions of the
+   track, since the window resizes), and the check-in ladder under it. */
+.mock-day { margin-top: 0.5rem; padding: 16px; font-variant-numeric: tabular-nums; }
+.mock-day > * + * { border-top: 0; }
+.mock-day__lane { position: relative; }
+.mock-day__marks { height: 24px; }
+.mock-day__track { height: 32px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--yui-edge); overflow: hidden; }
+.mock-day__axis, .mock-ladder__axis { height: 16px; }
+.mock-at { position: absolute; left: calc(var(--p) * 100%); transform: translateX(-50%); font-size: var(--yui-fs-caption); line-height: 16px; color: var(--yui-text-mute); white-space: nowrap; }
+.mock-at--start { transform: none; }
+.mock-at--end { transform: translateX(-100%); }
+.mock-day__glabel { top: 8px; color: var(--yui-text-dim); }
+.mock-day__band { position: absolute; top: 0; bottom: 0; left: calc(var(--p) * 100%); width: calc(var(--w) * 100%); display: flex; align-items: center; padding-left: 8px; font-size: var(--yui-fs-caption); color: var(--yui-text-dim); background: var(--yui-selected); }
+.mock-day__band[data-pace="low"] { background: var(--yui-hover); }
+.mock-day__band[data-pace="high"] { background: var(--yui-track); }
+.mock-day__tick { position: absolute; top: 0; bottom: 0; left: calc(var(--p) * 100%); width: 1px; transform: translateX(-0.5px); background: var(--yui-text-mute); }
+.mock-day__now { position: absolute; top: 0; bottom: 0; left: calc(var(--p) * 100%); width: 2px; transform: translateX(-1px); background: var(--yui-text); }
+.mock-face { position: absolute; top: 0; left: calc(var(--p) * 100%); width: 24px; height: 24px; border-radius: 50%; transform: translateX(-50%); background: oklch(var(--yui-avatar-l) var(--yui-avatar-c) 20); box-shadow: 0 0 0 2px var(--yui-panel-bg); }
+.mock-ladder__head { display: flex; justify-content: space-between; gap: 16px; margin-top: 16px; font-size: var(--yui-fs-sub); line-height: 16px; color: var(--yui-text-dim); }
+.mock-ladder__vals { color: var(--yui-text-mute); }
+.mock-ladder__track { position: relative; height: 8px; margin-top: 8px; }
+.mock-ladder__track::before { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 2px; border-radius: 1px; background: var(--yui-edge-strong); }
+/* Each dot rides a full-width layer moved by a fraction of its own width, so only transform animates. */
+.mock-ladder__dot { position: absolute; inset: 0; transform: translateX(calc(var(--p) * 100%)); transition: transform var(--yui-dur) var(--yui-ease); }
+.mock-ladder__dot::before { content: ""; position: absolute; top: 0; left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--yui-text-dim); }
+@media (prefers-reduced-motion: reduce) { .mock-ladder__dot { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="page-head">
+    <span class="mute">mocks/settings · #2026</span>
+    <h1>Proactive page, item by item</h1>
+    <p class="lede">Settings › Proactive, redesigned while it moves to React. Each item below switches between Before (the page on main) and After, in a 760px settings window that shows only the part the item changes. The last window is the whole page with every item applied.</p>
+    <div class="bar">
+      <div class="seg" id="segTheme" role="group" aria-label="Theme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth" aria-pressed="false">Hearth</button></div>
+      <p class="legend"><span class="mock-prop">Dotted underline</span> <span class="tag">proposed</span> marks a proposed string. Every other string is today's, from <code>src/ui/i18n/en.ts</code>.</p>
+    </div>
+  </header>
+
+  <section class="item" id="item-1">
+    <h2>1 · Thread turns moves into the External signals fold</h2>
+    <div class="bar"><div class="seg" data-item="1" role="group" aria-label="Before or after"><button type="button" data-v="before" aria-pressed="false">Before</button><button type="button" data-v="after" aria-pressed="true">After</button></div><span class="mute">Thread reactions and External signals, both folds open. External signals is off, as it ships.</span></div>
+    <div class="win-scroll"><div class="win" data-item="1"></div></div>
+    <p class="say">Today Thread turns sits in the Thread reactions fold, but the External signals switch in the next group locks it: it rests at 55% with its own reason line, and it is the one row that ignores its own fold's dim (<code>controls.css:277</code>). After, it is a row of the External signals fold, so turning External signals off dims it like every other row there, and the fold's Off summary covers it. The reason line, the 55% rule and the CSS exception go away; Thread reactions keeps only its two thresholds.</p>
+    <ul class="copy">
+      <li><span class="was">When it needs me</span> → <span class="mock-prop">When it needs her</span> <span class="tag">proposed</span> (the page speaks of her elsewhere)</li>
+      <li><span class="was">Port and address</span> → <span class="mock-prop">Thread turns, port and address</span> <span class="tag">proposed</span> (the fold title names what it holds)</li>
+      <li><span class="was">Turn on External signals to use this.</span> → removed <span class="tag">removed</span></li>
+    </ul>
+  </section>
+
+  <section class="item" id="item-2">
+    <h2>2 · Her day, under How often she speaks up</h2>
+    <div class="bar"><div class="seg" data-item="2" role="group" aria-label="Before or after"><button type="button" data-v="before" aria-pressed="false">Before</button><button type="button" data-v="after" aria-pressed="true">After</button></div><span class="mute">The top of the page. Press Less, Normal or More.</span></div>
+    <div class="win-scroll"><div class="win" data-item="2"></div></div>
+    <p class="say">Today a three-line rule paragraph sits under Less / Normal / More. After, a 24-hour strip shows the edited character's day: her active-hours spans as shaded bands with their pace, the scheduled greetings as ticks at their times, and her face at now. The short track under it is the check-in ladder after you go quiet; Less, Normal and More re-space its marks by the pace factors in <code>spans.ts:11</code> (×3, ×1, ×0.5). It shows only when the client may start a turn, never what she says, and the segment now sits straight on the section, without a box around it.</p>
+    <ul class="copy">
+      <li><span class="was">For every character, all day, it scales the wait after a conversation … Less about 1/3 as often.</span> → <span class="mock-prop">Scheduled greetings keep their times at every pace.</span> <span class="tag">proposed</span></li>
+      <li><span class="mock-prop">Check-ins after quiet</span> <span class="tag">proposed</span> (the ladder's label; the bands reuse Less / Normal / More)</li>
+    </ul>
+  </section>
+
+  <section class="item" id="item-3">
+    <h2>3 · Workflows moves into the External signals fold</h2>
+    <div class="bar"><div class="seg" data-item="3" role="group" aria-label="Before or after"><button type="button" data-v="before" aria-pressed="false">Before</button><button type="button" data-v="after" aria-pressed="true">After</button></div><span class="mute">External signals on, its fold open, one saved workflow. Try Add workflow and the × on hover.</span></div>
+    <div class="win-scroll"><div class="win" data-item="3"></div></div>
+    <p class="say">Workflows is not something she starts on her own, yet today it is its own section with an add form that is always open. After, it sits in the External signals fold under the port and address, since a workflow normally answers through a signal: the list, then an Add workflow row that opens the Label and URL fields in place. The fields get the inset Hairline the number fields already have, and Delete asks first, with focus on Cancel, as check-in and greeting rows do.</p>
+    <ul class="copy">
+      <li><span class="was">Port and address</span> → <span class="mock-prop">Port, address and workflows</span> <span class="tag">proposed</span></li>
+      <li><span class="was">Add</span> (the always-open form's button) → <span class="mock-prop">Add workflow</span> <span class="tag">proposed</span>; the opened form keeps Add, with Cancel beside it</li>
+    </ul>
+  </section>
+
+  <section class="item" id="item-4">
+    <h2>4 · One number column, and copy fixes</h2>
+    <div class="bar"><div class="seg" data-item="4" role="group" aria-label="Before or after"><button type="button" data-v="before" aria-pressed="false">Before</button><button type="button" data-v="after" aria-pressed="true">After</button></div><span class="mute">Quiet for a while off, Screen changes on, both folds and Advanced open; the rail's tooltip shown.</span></div>
+    <div class="win-scroll"><div class="win" data-item="4"></div></div>
+    <p class="meas-out" id="meas-4"></p>
+    <p class="say">Today each number field is as wide as its largest value and its unit slot varies, so the inputs start anywhere in a 40px spread (616 to 656px on main, with the bundled font). After, every number row on the page takes one 88px field and a 48px unit slot, empty when there is no unit, so every input shares one left and one right edge. Hourly limits put the total first. In code the first two limits count the same turns and urgent signals count in neither (<code>guardrails.ts:70-107</code>), so they are not a sum, and with the shipped 24 and 40 the total never trips; the labels below say what each one counts.</p>
+    <ul class="copy">
+      <li><span class="was">Add reaction</span> → <span class="mock-prop">Add check-in</span> <span class="tag">proposed</span></li>
+      <li><span class="was">4 settings</span> → <span class="mock-prop">10 min · 90 s · 45 min · 5 entries</span> <span class="tag">proposed</span> (the fold's values, as the other folds show)</li>
+      <li><span class="was">Off. These apply once you turn it on.</span> → removed <span class="tag">removed</span> (the summary already reads Off)</li>
+      <li><span class="was">Rules for when YUI speaks up first</span> → <span class="mock-prop">Rules for when she speaks up first</span> <span class="tag">proposed</span></li>
+      <li><span class="was">Total self-started turns per hour</span> → <span class="mock-prop">Turns she starts per hour</span> <span class="tag">proposed</span>, now first</li>
+      <li><span class="was">Times she speaks up per hour</span> → <span class="mock-prop">Check-ins, greetings and signals per hour</span> <span class="tag">proposed</span></li>
+      <li><span class="was">Urgent signal turns per hour</span> → <span class="mock-prop">Urgent signals per hour</span> <span class="tag">proposed</span></li>
+      <li>The Less / Normal / More box goes too; item 2 shows it.</li>
+    </ul>
+  </section>
+
+  <section class="item" id="item-all">
+    <h2>Whole page, after</h2>
+    <p class="say">All four items applied, every fold closed as the page opens. Folds, Advanced, switches and segments all work; the dashed line is where the 680px window ends.</p>
+    <div class="win-scroll"><div class="win" data-item="all"></div></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const plain = (s) => String(s).replace(/<[^>]+>/g, "");
+  const prop = (s) => `<span class="mock-prop">${s}</span>`;
+
+  // Icons as src/ui/quick-controls/constants.ts and message/cue-list.ts write them.
+  const CHEV = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const CUE_CHEV = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const PLUS = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const CROSS = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const PLAY = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor"/></svg>';
+  const I = {
+    conn: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    voice: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 9.5h3l4.5-3.5v12l-4.5-3.5h-3v-5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    persona: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    body: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    hist: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    together: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8.5" r="2.8" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 18.5c.9-2.9 3-4.3 5.5-4.3s4.6 1.4 5.5 4.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M15.5 6.2a2.8 2.8 0 0 1 0 5.4M17.2 14.4c1.6.6 2.7 1.9 3.3 4.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    listening: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    perms: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.8 5.5 6.3v5.1c0 4.1 2.7 7.4 6.5 8.8 3.8-1.4 6.5-4.7 6.5-8.8V6.3L12 3.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m9.3 12 1.9 1.9 3.6-3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    plugins: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 8.5h3.2a.8.8 0 0 0 .7-1.2 2.1 2.1 0 1 1 3.6 0 .8.8 0 0 0 .7 1.2H16v3.2a.8.8 0 0 0 1.2.7 2.1 2.1 0 1 1 0 3.6.8.8 0 0 0-1.2.7V19.5H5v-11Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    react: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    motion: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="13.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.5"/><path d="m8 20 2.6-5 2.9 2.2V21M10.6 15l1.4-6 3.5 2.6 2.5-.8M12 9l-3.2 1.4L7.5 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    general: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/></svg>',
+  };
+
+  // Today's strings (src/ui/i18n/en.ts), verbatim.
+  const T = {
+    scope: "Applies to every character",
+    paceTitle: "How often she speaks up",
+    paceFoot: "For every character, all day, it scales the wait after a conversation (which also spaces screen reactions) and the quiet-for-a-while check-ins; scheduled greetings keep their times. More is about 2× as often, Less about 1/3 as often.",
+    linkLead: "Per character and time of day:",
+    link: "Persona › Active hours",
+    reacts: "What she reacts to",
+    quiet: "Quiet for a while", quietSub: "Checks in on a repeating schedule if you've been quiet at work", quietFold: "Check-ins",
+    screen: "Screen changes", screenSub: "Notices app switches and long stretches, then speaks up first", screenFold: "Timing",
+    screenFoot: "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
+    greet: "Scheduled greetings", greetSub: "Greets you first if you're at your desk at the set time", greetNote: "Also says the day's first hello when you sit down.", greetFold: "Greeting times",
+    threads: "Thread reactions", threadsSub: "When you tap the chip or Threads pile up, she sits on the Threads window.", threadsFold: "When she steps in",
+    signals: "External signals", signalsSub: "Speaks up when a coding agent, a workflow, or another program on your machine sends a signal.", signalsFold: "Port and address",
+    turns: "Thread turns", turnsSub: "Tell the main character about Thread updates. The character decides whether to speak.", turnsReason: "Turn on External signals to use this.",
+    off: "Off", offNote: "Off. These apply once you turn it on.",
+    restart: "Restart the app to apply this change",
+    wf: "Workflows", wfSub: "Fire a saved endpoint on demand; ▶ runs it, and the first run doubles as your connection test.", wfEmpty: "No workflows yet; add one below.",
+    wfUrlError: "Enter a valid URL, e.g. https://example.com/hook",
+    confirmQ: "Delete this entry?", confirmGo: "Delete", cancel: "Cancel",
+    advanced: "Advanced",
+    rateHint: "Hourly limits are a backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
+    tip: "Rules for when YUI speaks up first",
+  };
+
+  // Seeds (src/settings/cues/*-seeds.ts, en) and defaults (configs/screen.json, configs/guardrails.json).
+  const LOOP = [
+    { label: "Quick break", ctx: "It's been quiet for over 5 minutes. Gently suggest looking up and getting a bit of fresh air.", min: 5 },
+    { label: "Check-in", ctx: "No word for over 10 minutes. Casually ask how the work is going. Keep it light, not pushy.", min: 10 },
+    { label: "Long focus", ctx: "It's been a whole 30 minutes. Suggest a short break — sitting that long is rough on the body.", min: 30 },
+  ];
+  const SCHEDULE = [
+    { label: "Morning", ctx: "A morning greeting to start the day. Lightly ask how they're doing as they settle in.", time: "09:00" },
+    { label: "Lunch", ctx: "It's lunchtime. Casually ask if they've eaten and how the morning went.", time: "12:00" },
+    { label: "Evening", ctx: "Time to wrap up the day. Lightly ask how today went.", time: "18:00" },
+    { label: "Late night", ctx: "It's really late. Gently suggest getting some rest — tell them not to push too hard.", time: "23:00" },
+  ];
+
+  // ── Markup helpers, mirroring src/ui/quick-controls (markup.ts, fold.ts, switches/switch-rows.ts) ──
+  const head = (title) => `<div class="yui-sec__head"><h2 class="yui-sec__title">${title}</h2></div>`;
+  const sw = (label, on, src = "") => `<button class="yui-switch" type="button" role="switch" aria-checked="${on}" aria-label="${esc(plain(label))}"${src ? ` data-src="${src}"` : ""}></button>`;
+  const switchRow = (label, sub, on, src = "", extra = "") =>
+    `<div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">${label}</span><span class="yui-row__sub">${sub}</span>${extra}</div>${sw(label, on, src)}</div>`;
+  // A source's fold (fold.ts); `offLine: false` is item 4's drop of the repeated Off line.
+  const fold = (title, aside, body, { open = false, off = false, offLine = true, key = "" } = {}) =>
+    `<details class="yui-fold${off ? " yui-fold--off" : ""}"${open ? " open" : ""}${key ? ` data-fold="${key}"` : ""}><summary>${CHEV}<span class="yui-fold__title">${title}</span><span class="yui-fold__aside"${off ? " hidden" : ""}>${aside}</span><span class="yui-fold__aside yui-fold__aside--off"${off ? "" : " hidden"}>${T.off}</span></summary><div class="yui-fold__body">${offLine ? `<p class="yui-fold__off"${off ? "" : " hidden"}>${T.offNote}</p>` : ""}${body}</div></details>`;
+  // A number row (markup.ts numRowHtml); `fixed` is item 4's one field width and unit slot.
+  const numRow = ({ label, sub = "", hints = [], value, max, unit = "" }, fixed) =>
+    `<div class="yui-row"><div class="yui-row__main"><label class="yui-input-row__label">${label}</label>${sub ? `<span class="yui-input-row__sub">${sub}</span>` : ""}${hints.map((h) => `<span class="yui-row__sub">${h}</span>`).join("")}</div><div class="yui-num${fixed ? " mock-num" : ""}"><input class="yui-num-input" type="number" min="0" max="${max}" inputmode="numeric" data-digits="${String(max).length}" value="${value}" aria-label="${esc(plain(label))}" />${unit || fixed ? `<span class="yui-cue__suffix">${unit}</span>` : ""}</div></div>`;
+  const cells = (list, checked, { disabled = false, cls = "" } = {}) => list.map((c) => `<button class="yui-seg__btn" type="button" role="radio" aria-checked="${plain(c) === checked}" tabindex="-1"${disabled ? " disabled" : ""}>${c}</button>`).join("");
+  const segRow = (cls, label, sub, list, checked, { disabled = false, reason = "", segCls = "" } = {}) =>
+    `<div class="yui-row ${cls}"><div class="yui-row__main"><span class="yui-row__label">${label}</span><span class="yui-row__sub">${sub}</span>${reason}</div><div class="yui-seg ${segCls}" role="radiogroup" aria-label="${esc(plain(label))}">${cells(list, checked, { disabled })}</div></div>`;
+  const cueRow = (c, kind) => {
+    const trig = kind === "time"
+      ? `<input type="time" class="yui-time-input" aria-label="Time" value="${c.time}">`
+      : `<span class="yui-cue__minutes-label">Inactive</span><input type="number" class="yui-num-input" min="1" max="999" aria-label="Inactive minutes" value="${c.min}"><span class="yui-cue__suffix">min</span>`;
+    return `<div class="yui-cue"><div class="yui-cue__collapsed"><button type="button" class="yui-cue__label" aria-expanded="false"><span class="yui-cue__chevron" aria-hidden="true">${CUE_CHEV}</span><span class="yui-cue__name">${esc(c.label)}</span><span class="yui-cue__ctx-preview">${esc(c.ctx)}</span></button><div class="yui-cue__trigger">${trig}</div>${sw("Toggle " + c.label, true)}<button type="button" class="yui-cue__delete" aria-label="Delete">${CROSS}</button></div></div>`;
+  };
+  const cueRows = (list, kind) => `<div class="yui-cue-list">${list.map((c) => cueRow(c, kind)).join("")}</div>`;
+  const addRow = (label, cls = "") => `<div class="yui-row yui-row--action${cls ? " " + cls : ""}"><button class="yui-add-btn" type="button">${PLUS}${label}</button></div>`;
+  const confirmRow = () => `<div class="yui-confirm"><span class="yui-confirm__q">${T.confirmQ}</span><button type="button" class="yui-pill yui-pill--go" data-confirm="go">${T.confirmGo}</button><button type="button" class="yui-pill" data-confirm="cancel">${T.cancel}</button></div>`;
+
+  // ── Rows shared by Before and After ──
+  const screenRows = (fixed) => [
+    { label: "Counts as an app switch after", sub: "Only when the app you left was held this long", value: 10, max: 240, unit: "min" },
+    { label: "New app settles after", sub: "A quick glance is ignored", value: 90, max: 600, unit: "s" },
+    { label: "Notices a long stretch every", sub: "One app held this long counts as a long session", value: 45, max: 480, unit: "min" },
+    { label: "Remembers up to", sub: "How many app switches held during a pause carry into the next screen turn", value: 5, max: 20, unit: "entries" },
+  ].map((f) => numRow(f, fixed)).join("") + `<p class="yui-field-hint">${T.screenFoot}</p>`;
+  const screenAside = (vals) => `${vals[0]} min · ${vals[1]} s · ${vals[2]} min · ${vals[3]} entries`;
+  const portRow = (fixed) => numRow({ label: "Listener port", sub: "Port the completion hook server listens on", hints: [T.restart], value: 8770, max: 65535 }, fixed);
+  const ingressRow = () => `<div class="yui-stack yui-input-row"><span class="yui-input-row__label">Ingress URL</span><span class="yui-row__sub">Send signals to this window.</span><code class="yui-quick__ingress-url">http://127.0.0.1:8770/signals</code><span class="yui-row__sub">${T.restart}</span></div>`;
+  const thresholdRows = () =>
+    segRow("yui-reaction-thresholds-row", "Waiting Threads", "When the chip counts this many, she sits on the Threads window.", ["Off", "2", "3", "5"], "3", { segCls: "yui-reaction-thresholds-count-seg" }) +
+    segRow("yui-reaction-thresholds-row", "Long wait", "When one Thread has waited this long, she sits on the Threads window.", ["Off", "5 min", "10 min", "30 min"], "10 min", { segCls: "yui-reaction-thresholds-wait-seg" });
+  // Before: locked by External signals in the next group, with its reason line (thread-turns-row.ts).
+  const turnsRowBefore = (enabled) => segRow("yui-threadturns-row", T.turns, T.turnsSub, ["Off", "When it needs me", "Every message"], "Off",
+    { disabled: !enabled, segCls: "yui-threadturns-seg", reason: `<span class="yui-row__sub yui-threadturns-reason"${enabled ? " hidden" : ""}>${T.turnsReason}</span>` });
+  // After: an ordinary row of the External signals fold; it dims with the fold and stays editable.
+  const turnsRowAfter = () => segRow("", T.turns, T.turnsSub, ["Off", prop("When it needs her"), "Every message"], "Off");
+  const wfRow = (name) => `<div class="yui-wf"><span class="yui-wf__name">${esc(name)}</span><button type="button" class="yui-wf__fire" aria-label="Fire ${esc(name)}">${PLAY}</button><button type="button" class="yui-wf__delete" aria-label="Delete ${esc(name)}">${CROSS}</button></div>`;
+  const wfFields = () =>
+    `<div class="yui-row yui-input-row" data-wf-field="label"><div class="yui-row__main"><label class="yui-input-row__label">Label</label></div><div class="yui-input-wrap"><input class="yui-ep-input" data-wf="label" type="text" placeholder="e.g. Morning digest" /></div></div>` +
+    `<div class="yui-row yui-input-row" data-wf-field="url"><div class="yui-row__main"><label class="yui-input-row__label">URL</label></div><div class="yui-input-wrap"><input class="yui-ep-input" data-wf="url" type="text" inputmode="url" placeholder="https://…" /></div><p class="yui-input-row__error">${T.wfUrlError}</p></div>`;
+  const workflowsSecBefore = () => `
+      <div class="yui-sec">${head(T.wf)}<p class="yui-sec__note">${T.wfSub}</p>
+        <div class="yui-group yui-wf-list">${wfRow("Morning digest")}</div>
+        <div class="yui-group yui-wf-add mock-wf-before">${wfFields()}<div class="yui-row yui-row--action"><button class="yui-add-btn" type="button" data-wf="go" disabled>${PLUS}Add</button></div></div>
+      </div>`;
+  // After: the list, then an add row that opens the same fields in place.
+  const workflowsInFold = () =>
+    `<div class="yui-row"><div class="yui-row__main"><span class="yui-row__label">${T.wf}</span><span class="yui-row__sub">${T.wfSub}</span></div></div>` +
+    wfRow("Morning digest") +
+    addRow(prop("Add workflow"), "mock-wf-addrow") +
+    `<div class="mock-wf-form" hidden>${wfFields()}<div class="yui-row yui-row--action"><button class="yui-add-btn" type="button" data-wf="go" disabled>${PLUS}Add</button><button class="yui-link-btn" type="button" data-wf="cancel">${T.cancel}</button></div></div>`;
+
+  // ── Item 2: the pace segment and her day ──
+  const PACES = [["low", "Less"], ["normal", "Normal"], ["high", "More"]];
+  const paceSeg = () => `<div class="yui-seg yui-base-pace-seg" role="radiogroup" aria-label="${T.paceTitle}">${PACES.map(([v, l]) => `<button class="yui-seg__btn" type="button" role="radio" data-pace="${v}" aria-checked="${v === "normal"}" tabindex="-1">${l}</button>`).join("")}</div>`;
+  const xh = (h, m = 0) => (h + m / 60) / 24; // fraction of the day
+  const SPANS = [{ s: 9, e: 18, pace: "normal", word: "Normal" }, { s: 18, e: 23, pace: "low", word: "Less" }]; // sample spans of the edited character
+  const GREETINGS = [[9, "09:00"], [12, "12:00"], [18, "18:00"], [23, "23:00"]];
+  const NOW = [14, 20];
+  const CHECKINS = LOOP.map((c) => c.min);
+  const FACTOR = { high: 0.5, normal: 1, low: 3 }; // PACE_FACTOR, src/settings/active-hours/spans.ts:11
+  const LADDER_MAX = 120; // minutes across the ladder
+  const num = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  const ladderVals = (pace) => `${CHECKINS.map((m) => num(m * FACTOR[pace])).join(" · ")} min`;
+  const at = (p, text, cls = "") => `<span class="mock-at ${cls}" style="--p:${p}">${text}</span>`;
+  function dayStrip() {
+    const nowX = xh(NOW[0], NOW[1]);
+    const axis = [0, 6, 12, 18, 24].map((h, i, a) => at(xh(h), `${String(h).padStart(2, "0")}:00`, i === 0 ? "mock-at--start" : i === a.length - 1 ? "mock-at--end" : "")).join("");
+    const ladderAxis = [0, 30, 60, 90, 120].map((m, i, a) => at(m / LADDER_MAX, i === a.length - 1 ? `${m} min` : String(m), i === 0 ? "mock-at--start" : i === a.length - 1 ? "mock-at--end" : "")).join("");
+    return `<div class="yui-group mock-day" role="img" aria-label="Her day: Normal 09:00 to 18:00, Less 18:00 to 23:00; greetings at 09:00, 12:00, 18:00 and 23:00; now 14:20. Check-ins after quiet at ${ladderVals("normal")}.">
+      <div class="mock-day__lane mock-day__marks">${GREETINGS.map(([h, l]) => at(xh(h), l, "mock-day__glabel")).join("")}<span class="mock-face" style="--p:${nowX}" title="Now, 14:20"></span></div>
+      <div class="mock-day__lane mock-day__track">${SPANS.map((s) => `<span class="mock-day__band" data-pace="${s.pace}" style="--p:${xh(s.s)};--w:${xh(s.e) - xh(s.s)}">${s.word}</span>`).join("")}${GREETINGS.map(([h]) => `<span class="mock-day__tick" style="--p:${xh(h)}"></span>`).join("")}<span class="mock-day__now" style="--p:${nowX}"></span></div>
+      <div class="mock-day__lane mock-day__axis">${axis}</div>
+      <div class="mock-ladder__head"><span>${prop("Check-ins after quiet")}</span><span class="mock-ladder__vals">${ladderVals("normal")}</span></div>
+      <div class="mock-ladder__track">${CHECKINS.map((m) => `<span class="mock-ladder__dot" data-min="${m}" style="--p:${m / LADDER_MAX}"></span>`).join("")}</div>
+      <div class="mock-day__lane mock-ladder__axis">${ladderAxis}</div>
+    </div>`;
+  }
+  function setLadder(win, pace) {
+    for (const strip of win.querySelectorAll(".mock-day")) {
+      for (const d of strip.querySelectorAll(".mock-ladder__dot")) d.style.setProperty("--p", String(Number(d.dataset.min) * FACTOR[pace] / LADDER_MAX));
+      strip.querySelector(".mock-ladder__vals").textContent = ladderVals(pace);
+    }
+  }
+  const paceSecBefore = () => `
+      <div class="yui-sec">${head(T.paceTitle)}
+        <div class="yui-group"><div class="yui-stack">${paceSeg()}</div></div>
+        <p class="yui-sec__foot">${T.paceFoot}</p>
+        <p class="yui-sec__foot">${T.linkLead} <button class="yui-link-btn yui-base-pace__link" type="button">${T.link}</button></p>
+      </div>`;
+  const paceSecAfter = () => `
+      <div class="yui-sec">${head(T.paceTitle)}${paceSeg()}${dayStrip()}
+        <p class="yui-sec__foot">${prop("Scheduled greetings keep their times at every pace.")}</p>
+        <p class="yui-sec__foot">${T.linkLead} <button class="yui-link-btn yui-base-pace__link" type="button">${T.link}</button></p>
+      </div>`;
+
+  // ── Advanced ──
+  const advanced = (after, open) => {
+    const wait = { label: "Wait after a conversation", sub: "How long she waits after any conversation before speaking up on her own. Normal uses this; Less and More scale it.", hints: ["0 lets every source speak up without waiting."], value: 10, max: 180, unit: "min" };
+    const presence = { label: "Present when idle for", sub: "You count as at your desk while your last input is this recent", hints: [T.restart], value: 180, max: 3600, unit: "s" };
+    const tier2 = { label: after ? prop("Check-ins, greetings and signals per hour") : "Times she speaks up per hour", sub: "Quiet-for-a-while, greetings, signals and answers to another character, together", value: 24, max: 999 };
+    const urgent = { label: after ? prop("Urgent signals per hour") : "Urgent signal turns per hour", sub: "Signals marked urgent; the 5-minute pause after the total limit never holds them", value: 120, max: 999 };
+    const overall = { label: after ? prop("Turns she starts per hour") : "Total self-started turns per hour", sub: "Crossing it pauses every source for 5 minutes", value: 40, max: 999 };
+    const caps = after ? [overall, tier2, urgent] : [tier2, urgent, overall];
+    return `
+      <div class="yui-sec"><details class="yui-more"${open ? " open" : ""}><summary>${CHEV}${T.advanced}</summary>
+        <div class="yui-group">${numRow(wait, after)}${numRow(presence, after)}</div>
+        <div class="yui-group">${caps.map((c) => numRow(c, after)).join("")}</div>
+        <p class="yui-sec__foot">${T.rateHint}</p>
+      </details></div>`;
+  };
+
+  // ── One window per item ──
+  const VIEWS = {
+    1: (after) => `
+      <div class="yui-sec">${head(T.reacts)}
+        <div class="yui-group">${switchRow(T.threads, T.threadsSub, true)}${fold(T.threadsFold, "3 waiting · 10 min", thresholdRows() + (after ? "" : turnsRowBefore(false)), { open: true })}</div>
+        <div class="yui-group">${switchRow(T.signals, T.signalsSub, false, "signals")}${fold(after ? prop("Thread turns, port and address") : T.signalsFold, "", (after ? turnsRowAfter() : "") + portRow(false) + ingressRow(), { open: true, off: true })}</div>
+      </div>`,
+    2: (after) => (after ? paceSecAfter() : paceSecBefore()),
+    3: (after) => `
+      <div class="yui-sec">${head(T.reacts)}
+        <div class="yui-group">${switchRow(T.signals, T.signalsSub, true, "signals")}${fold(after ? prop("Port, address and workflows") : T.signalsFold, "", portRow(false) + ingressRow() + (after ? workflowsInFold() : ""), { open: true })}</div>
+      </div>${after ? "" : workflowsSecBefore()}`,
+    4: (after) => `
+      <div class="yui-sec">${head(T.reacts)}
+        <div class="yui-group">${switchRow(T.quiet, T.quietSub, false)}${fold(T.quietFold, "5 · 10 · 30 min", cueRows(LOOP, "minutes") + addRow(after ? prop("Add check-in") : "Add reaction"), { open: true, off: true, offLine: !after })}</div>
+        <div class="yui-group">${switchRow(T.screen, T.screenSub, true)}${fold(T.screenFold, after ? prop(screenAside([10, 90, 45, 5])) : "4 settings", screenRows(after), { open: true, offLine: !after, key: after ? "screen" : "" })}</div>
+      </div>${advanced(after, true)}`,
+    all: () => `${paceSecAfter()}
+      <div class="yui-sec">${head(T.reacts)}
+        <div class="yui-group">${switchRow(T.quiet, T.quietSub, true)}${fold(T.quietFold, "5 · 10 · 30 min", cueRows(LOOP, "minutes") + addRow(prop("Add check-in")), { offLine: false })}</div>
+        <div class="yui-group">${switchRow(T.greet, T.greetSub, true, "", `<span class="yui-row__sub">${T.greetNote}</span>`)}${fold(T.greetFold, "09:00 · 12:00 · 18:00 · 23:00", cueRows(SCHEDULE, "time") + addRow("Add greeting"), { offLine: false })}</div>
+        <div class="yui-group">${switchRow(T.screen, T.screenSub, true)}${fold(T.screenFold, prop(screenAside([10, 90, 45, 5])), screenRows(true), { offLine: false, key: "screen" })}</div>
+        <div class="yui-group">${switchRow(T.threads, T.threadsSub, true)}${fold(T.threadsFold, "3 waiting · 10 min", thresholdRows(), { offLine: false })}</div>
+        <div class="yui-group">${switchRow(T.signals, T.signalsSub, false, "signals")}${fold(prop("Thread turns, port and workflows"), "", turnsRowAfter() + portRow(true) + ingressRow() + workflowsInFold(), { off: true, offLine: false })}</div>
+      </div>${advanced(true, false)}`,
+  };
+  const TOP = { 2: true, all: true }; // windows that start at the page top show the scope line and title
+
+  const RAIL = [["Yui"], ["Connection", I.conn], ["Voice", I.voice], ["Persona", I.persona], ["Body", I.body], ["History", I.hist], ["Every character"], ["Together", I.together], ["Listening and bubble", I.listening], ["Permissions", I.perms], ["Plugins", I.plugins], ["Proactive", I.react], ["Motion and desktop", I.motion], ["General", I.general]];
+  const rail = () => `<div class="yui-rail"><input class="yui-search__input" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" /><div class="yui-tabs" role="tablist">${RAIL.map(([name, icon]) => icon
+    ? `<button class="yui-tab" type="button" role="tab" aria-selected="${name === "Proactive"}" tabindex="-1"${name === "General" ? ' id="yui-tab-general"' : ""}>${icon}<span class="yui-tab__label">${name}</span></button>`
+    : `<p class="yui-tabs__group" role="presentation">${name}</p>`).join("")}</div></div>`;
+
+  function render(win) {
+    const key = win.dataset.item;
+    const after = key === "all" || win.dataset.state !== "before";
+    const top = TOP[key] ? `<p class="yui-tabpanel__scope">${T.scope}</p><h1 class="yui-tabpanel__title">Proactive</h1>` : "";
+    const tip = key === "4" ? `<div class="yui-hint-tip is-open" role="tooltip">${after ? prop("Rules for when she speaks up first") : T.tip}</div>` : "";
+    const line = key === "all" ? `<div class="fold-line" aria-hidden="true"><span>680px · window bottom</span></div>` : "";
+    win.innerHTML = `<div class="yui-quick"><div class="yui-quick__cols">${rail()}<div class="yui-quick__body"><div class="yui-tabpanel" role="tabpanel">${top}${VIEWS[key](after)}</div></div></div></div>${tip}${line}`;
+    placeTip(win);
+    measure(win);
+  }
+
+  // The rail tooltip sits under the Proactive tab, as hint-tooltip.ts places it.
+  function placeTip(win) {
+    const tip = win.querySelector(".yui-hint-tip");
+    if (!tip) return;
+    const w = win.getBoundingClientRect();
+    const tab = win.querySelector('.yui-tab[aria-selected="true"]').getBoundingClientRect();
+    tip.style.left = `${tab.left - w.left}px`;
+    tip.style.top = `${tab.bottom - w.top + 6}px`;
+  }
+
+  // Item 4: every number row's input edges, measured from the window's left edge.
+  function measure(win) {
+    if (win.dataset.item !== "4") return;
+    const base = win.getBoundingClientRect().left + 1;
+    const ins = [...win.querySelectorAll(".yui-row .yui-num-input")].filter((i) => i.offsetWidth > 0);
+    const out = document.getElementById("meas-4");
+    if (!ins.length) { out.textContent = "Open the folds and Advanced to measure the number fields."; return; }
+    const range = (xs) => { const lo = Math.min(...xs), hi = Math.max(...xs); return lo === hi ? `${lo}` : `${lo}–${hi}`; };
+    const L = ins.map((i) => Math.round(i.getBoundingClientRect().left - base));
+    const R = ins.map((i) => Math.round(i.getBoundingClientRect().right - base));
+    out.textContent = `Measured in this window, ${ins.length} number fields: left edges ${range(L)}px, right edges ${range(R)}px from the window's left edge.`;
+  }
+
+  // A source switch: the fold under it dims, its summary reads Off (fold.ts reflectFoldOff).
+  function reflectFold(fold, off) {
+    fold.classList.toggle("yui-fold--off", off);
+    for (const aside of fold.querySelectorAll(":scope > summary > .yui-fold__aside")) aside.hidden = aside.classList.contains("yui-fold__aside--off") !== off;
+    const line = fold.querySelector(":scope > .yui-fold__body > .yui-fold__off");
+    if (line) line.hidden = !off;
+  }
+
+  const validUrl = (s) => { try { const u = new URL(s.trim()); return u.protocol === "http:" || u.protocol === "https:"; } catch { return false; } };
+  function validate(scope) {
+    const label = scope.querySelector('[data-wf="label"]').value;
+    const url = scope.querySelector('[data-wf="url"]').value;
+    scope.querySelector('[data-wf="go"]').disabled = label.trim() === "" || !validUrl(url);
+    scope.querySelector('[data-wf-field="url"]').classList.toggle("is-invalid", url.trim() !== "" && !validUrl(url));
+  }
+  function clearForm(scope) {
+    for (const i of scope.querySelectorAll(".yui-ep-input")) i.value = "";
+    validate(scope);
+  }
+  // An empty list shows the empty line; a list with rows drops it.
+  function reflectEmpty(container, before) {
+    const has = container.querySelector(".yui-wf");
+    const empty = container.querySelector(".yui-wf-empty");
+    if (has && empty) empty.remove();
+    if (!has && !empty) {
+      const p = document.createElement("p");
+      p.className = "yui-wf-empty";
+      p.textContent = T.wfEmpty;
+      before ? container.insertBefore(p, before) : container.append(p);
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    const win = t.closest(".win");
+
+    // Before / After per item, and the theme.
+    const pick = t.closest(".seg button");
+    if (pick) {
+      const seg = pick.parentElement;
+      for (const b of seg.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === pick));
+      if (seg.id === "segTheme") {
+        if (pick.dataset.v === "hearth") document.documentElement.setAttribute("data-theme", "hearth");
+        else document.documentElement.removeAttribute("data-theme");
+      } else {
+        const w = document.querySelector(`.win[data-item="${seg.dataset.item}"]`);
+        w.dataset.state = pick.dataset.v;
+        render(w);
+      }
+      return;
+    }
+    if (!win) return;
+
+    const swBtn = t.closest(".yui-switch");
+    if (swBtn) {
+      const on = swBtn.getAttribute("aria-checked") !== "true";
+      swBtn.setAttribute("aria-checked", String(on));
+      const cue = swBtn.closest(".yui-cue");
+      if (cue) { cue.classList.toggle("yui-cue--off", !on); return; }
+      const fold = swBtn.closest(".yui-group")?.querySelector(":scope > .yui-fold");
+      if (fold) reflectFold(fold, !on);
+      // Before: External signals unlocks Thread turns in the other group (thread-turns-row.ts).
+      if (swBtn.dataset.src === "signals") {
+        const seg = win.querySelector(".yui-threadturns-seg");
+        if (seg) {
+          for (const b of seg.querySelectorAll(".yui-seg__btn")) b.disabled = !on;
+          win.querySelector(".yui-threadturns-reason").hidden = on;
+        }
+      }
+      return;
+    }
+
+    const cell = t.closest(".yui-seg__btn");
+    if (cell && !cell.disabled) {
+      const seg = cell.parentElement;
+      for (const b of seg.querySelectorAll(".yui-seg__btn")) b.setAttribute("aria-checked", String(b === cell));
+      if (cell.dataset.pace) setLadder(win, cell.dataset.pace);
+      if (seg.matches(".yui-reaction-thresholds-count-seg, .yui-reaction-thresholds-wait-seg")) {
+        const fold = seg.closest(".yui-fold");
+        const count = fold.querySelector('.yui-reaction-thresholds-count-seg [aria-checked="true"]').textContent;
+        const wait = fold.querySelector('.yui-reaction-thresholds-wait-seg [aria-checked="true"]').textContent;
+        fold.querySelector(".yui-fold__aside").textContent = [count !== "Off" ? `${count} waiting` : "", wait !== "Off" ? wait : ""].filter(Boolean).join(" · ") || "Off";
+      }
+      return;
+    }
+
+    // Delete: Before's workflow row goes at once (workflows-section.ts); every other row asks first, focus on Cancel.
+    const del = t.closest(".yui-wf__delete, .yui-cue__delete");
+    if (del) {
+      const row = del.closest(".yui-wf, .yui-cue");
+      if (row.matches(".yui-wf") && win.dataset.state === "before") {
+        const list = row.parentElement;
+        row.remove();
+        reflectEmpty(list, null);
+        return;
+      }
+      del.hidden = true;
+      if (row.matches(".yui-cue")) row.insertAdjacentHTML("beforeend", confirmRow());
+      else row.insertAdjacentHTML("afterend", confirmRow());
+      const box = row.matches(".yui-cue") ? row.querySelector(".yui-confirm") : row.nextElementSibling;
+      box.querySelector('[data-confirm="cancel"]').focus();
+      return;
+    }
+    const conf = t.closest("[data-confirm]");
+    if (conf) {
+      const box = conf.closest(".yui-confirm");
+      const row = box.closest(".yui-cue") || box.previousElementSibling;
+      if (conf.dataset.confirm === "go") {
+        const container = row.parentElement;
+        box.remove();
+        row.remove();
+        if (row.matches(".yui-wf")) reflectEmpty(container, container.querySelector(".mock-wf-addrow"));
+      } else {
+        box.remove();
+        const d = row.querySelector(".yui-wf__delete, .yui-cue__delete");
+        d.hidden = false;
+        d.focus();
+      }
+      return;
+    }
+
+    // After: Add workflow opens the fields in place; Add saves, Cancel folds them back.
+    const open = t.closest(".mock-wf-addrow .yui-add-btn");
+    if (open) {
+      const addrow = open.closest(".mock-wf-addrow");
+      addrow.hidden = true;
+      addrow.nextElementSibling.hidden = false;
+      addrow.nextElementSibling.querySelector('[data-wf="label"]').focus();
+      return;
+    }
+    const wfBtn = t.closest('[data-wf="go"], [data-wf="cancel"]');
+    if (wfBtn) {
+      const form = wfBtn.closest(".mock-wf-form, .mock-wf-before");
+      if (wfBtn.dataset.wf === "go") {
+        const name = form.querySelector('[data-wf="label"]').value.trim();
+        if (form.matches(".mock-wf-before")) {
+          const list = win.querySelector(".yui-wf-list");
+          list.insertAdjacentHTML("beforeend", wfRow(name));
+          reflectEmpty(list, null);
+        } else {
+          const addrow = form.previousElementSibling;
+          addrow.insertAdjacentHTML("beforebegin", wfRow(name));
+          reflectEmpty(addrow.parentElement, addrow);
+        }
+      }
+      clearForm(form);
+      if (form.matches(".mock-wf-form")) {
+        form.hidden = true;
+        form.previousElementSibling.hidden = false;
+        form.previousElementSibling.querySelector(".yui-add-btn").focus();
+      }
+    }
+  });
+
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t.matches(".yui-ep-input")) validate(t.closest(".mock-wf-form, .mock-wf-before"));
+    // After: the Screen changes summary follows its fields.
+    const fold = t.closest('.yui-fold[data-fold="screen"]');
+    if (fold && t.matches(".yui-num-input")) {
+      const vals = [...fold.querySelectorAll(".yui-row .yui-num-input")].map((i) => i.value || "–");
+      fold.querySelector(".yui-fold__aside .mock-prop").textContent = screenAside(vals);
+    }
+  });
+  document.addEventListener("toggle", (e) => {
+    const win = e.target.closest && e.target.closest(".win");
+    if (win) measure(win);
+  }, true);
+
+  // ?theme=hearth and ?state=before open the mock that way (used for headless screenshots).
+  const q = new URLSearchParams(location.search);
+  if (q.get("theme") === "hearth") document.querySelector('#segTheme [data-v="hearth"]').click();
+  for (const win of document.querySelectorAll(".win")) {
+    if (win.dataset.item !== "all") {
+      win.dataset.state = q.get("state") === "before" ? "before" : "after";
+      for (const b of document.querySelectorAll(`.seg[data-item="${win.dataset.item}"] button`)) b.setAttribute("aria-pressed", String(b.dataset.v === win.dataset.state));
+    }
+    render(win);
+  }
+  const remeasure = () => { for (const win of document.querySelectorAll(".win")) { placeTip(win); measure(win); } };
+  if (document.fonts) document.fonts.ready.then(remeasure);
+  addEventListener("resize", remeasure);
+})();
+</script>
+</body>
+</html>
