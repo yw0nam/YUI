@@ -50,3 +50,20 @@ it("a pointer click on a rail tab, then Down, shows the next tab's tip", async (
     .poll(() => document.querySelector(".yui-hint-tip[data-open]")?.textContent, { timeout: 1000 })
     .toBe("Body");
 });
+
+it.each([
+  ["Home", "yui-tab-conn", "Connection"],
+  ["End", "yui-tab-general", "General"],
+])("%s as the first focus-moving key after a pointer click shows the tip of the tab it reaches", async (key, id, tip) => {
+  qc = createQuickControls({
+    ...defaultQcArgs(document.querySelector<HTMLElement>("#app")!),
+    presetRegistry: createPresetRegistry(),
+  });
+  await userEvent.click(qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key }));
+  qc.el.querySelector<HTMLButtonElement>(`#${id}`)!.focus({ focusVisible: false });
+
+  await expect
+    .poll(() => document.querySelector(".yui-hint-tip[data-open]")?.textContent, { timeout: 1000 })
+    .toBe(tip);
+});

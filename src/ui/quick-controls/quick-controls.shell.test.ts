@@ -194,30 +194,6 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", async () => {
-    const qc = buildQc();
-
-    const reactTab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-
-    act(() => document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
-    act(() => reactTab.focus());
-    expect(shownTip()).toBeUndefined();
-    await act(async () => {
-      fireEvent.keyDown(reactTab, { key: "Home" });
-    });
-    expect(shownTip()).toBe("연결");
-
-    act(() => document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
-    act(() => reactTab.focus());
-    expect(shownTip()).toBeUndefined();
-    await act(async () => {
-      fireEvent.keyDown(reactTab, { key: "End" });
-    });
-    expect(shownTip()).toBe("일반");
-
-    qc.dispose();
-  });
-
   // ── Escape closes the window ──
 
   it("Escape invokes the host's OS-window close path", () => {
