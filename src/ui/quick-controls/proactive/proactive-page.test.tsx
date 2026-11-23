@@ -1016,7 +1016,7 @@ describe("createProactivePage — the source groups", () => {
     });
 
     it("posts without reading the response body and shows success feedback", async () => {
-      const fetchFn = vi.fn().mockResolvedValue({});
+      const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200 });
       vi.stubGlobal("fetch", fetchFn);
       const { page, workflowSettings } = buildSources();
       addWorkflow(workflowSettings);
@@ -1032,9 +1032,30 @@ describe("createProactivePage — the source groups", () => {
       expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-ok")).toBe(true);
       expect(fetchFn).toHaveBeenCalledWith(
         WORKFLOW.url,
-        expect.objectContaining({ method: "POST", mode: "no-cors", body: "{}" }),
+        expect.objectContaining({ method: "POST", body: "{}" }),
       );
       expect(fetchFn.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("logs an HTTP error status and shows error feedback", async () => {
+      const fetchFn = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+      vi.stubGlobal("fetch", fetchFn);
+      const { page, log, workflowSettings } = buildSources();
+      const entry = addWorkflow(workflowSettings);
+      const fire = page.el.querySelector<HTMLButtonElement>(".yui-wf__fire");
+      expect(fire).not.toBeNull();
+      if (!fire) return;
+
+      fireEvent.click(fire);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-err")).toBe(true);
+      expect(log.debug).toHaveBeenCalledWith("workflow_fire_failed", {
+        id: entry.id,
+        status: 500,
+      });
     });
 
     it("logs a rejected post and shows error feedback", async () => {
@@ -1059,7 +1080,7 @@ describe("createProactivePage — the source groups", () => {
     });
 
     it("keeps a fired row, its button and its flash when another entry is added", async () => {
-      const fetchFn = vi.fn().mockResolvedValue({});
+      const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200 });
       vi.stubGlobal("fetch", fetchFn);
       const { page, workflowSettings } = buildSources();
       addWorkflow(workflowSettings);
