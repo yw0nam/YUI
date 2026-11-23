@@ -468,7 +468,7 @@
 }
 
 /* A control wrapped under its label in a narrow panel spans the row. */
-@container (width < 30rem) {
+@container (width <= 30rem) {
   .yui-row > .yui-input-wrap,
   .yui-row > .yui-select,
   .yui-row > .yui-select-wrap,

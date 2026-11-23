@@ -391,7 +391,7 @@
 
 /* A narrow panel (a settings window near its 480px minimum) keeps its content width: the rail
    drops to icons. */
-@container (width < 30rem) {
+@container (width <= 30rem) {
   .yui-rail {
     flex-basis: 3rem;
     padding-inline: 0.375rem;
@@ -412,7 +412,7 @@
     margin: 0.375rem 0.25rem;
     padding: 0;
     border-top: 1px solid var(--yui-edge);
-    color: transparent;
+    font-size: 0;
   }
 
   .yui-tabs__group:first-child {
