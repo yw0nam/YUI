@@ -2,6 +2,7 @@
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createGuardrailsSettings } from "../../../settings/backend/guardrails-settings";
 import { createFlagSettings } from "../../../settings/persisted-store";
 import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { setLocale, t } from "../../i18n";
@@ -14,8 +15,11 @@ import { createTogetherPage } from "./together-page";
 const pages: ReturnType<typeof createTogetherPage>[] = [];
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
-function build(rows: Parameters<typeof createTogetherPage>[0]["rows"]) {
-  const page = createTogetherPage({ rows, log });
+function build(
+  rows: Parameters<typeof createTogetherPage>[0]["rows"],
+  extra?: Partial<Parameters<typeof createTogetherPage>[0]>,
+) {
+  const page = createTogetherPage({ rows, log, ...extra });
   pages.push(page);
   document.body.append(page.el);
   return page;
@@ -87,5 +91,27 @@ describe("createTogetherPage — switch rows", () => {
     expect(unifiedChatSwitch.get().enabled).toBe(true);
     expect(button.getAttribute("aria-checked")).toBe("true");
     expect(log.info).toHaveBeenCalledWith("unified_chat_toggle", { enabled: true });
+  });
+});
+
+describe("createTogetherPage — the chain cap", () => {
+  it("shows the bundled default that loads after first render once the open hook runs", () => {
+    let defaults:
+      | { tier2_max: number; urgent_max: number; addressed_chain_max: number }
+      | undefined;
+    const page = build([], {
+      rateLimitSettings: createGuardrailsSettings(),
+      getRateLimitDefaults: () => defaults,
+    });
+    const input = page.el.querySelector<HTMLInputElement>("#yui-rate-addressed");
+    expect(input).not.toBeNull();
+    if (!input) return;
+
+    expect(input.value).toBe("");
+    act(() => input.focus());
+    defaults = { tier2_max: 24, urgent_max: 120, addressed_chain_max: 2 };
+    act(() => page.reflect());
+
+    expect(input.value).toBe("2");
   });
 });

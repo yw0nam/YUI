@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Segment, a radio segment the caller labels and owns the value of, and, built on Base UI, the Slider, a range slider that reports each change and each commit, and the Checkbox, a tri-state checkbox drawn as a switch.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Segment, a radio segment the caller labels and owns the value of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, and the NumberField, a number field that reports the value committed on blur, Enter or a step.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4894,6 +4894,51 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/motion/gain/gain-row.tsx"
+    },
+    {
+      "id": "number-row-field",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "NumberField: the value, range and unit slot; the committed value on blur, Enter or a step",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
+    },
+    {
+      "id": "chain-cap-field",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "NumberField: the chain cap's override over the bundled default; the committed cap",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/together/chain-cap/chain-cap-row.tsx"
+    },
+    {
+      "id": "advanced-disclosure",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Disclosure: the fold's summary label and its folded rows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/proactive/advanced/advanced-section.tsx"
+    },
+    {
+      "id": "filler-disclosure",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Disclosure: the fold's summary label and its folded rows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
+    },
+    {
+      "id": "card-disclosure",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Disclosure: the fold's summary label and its folded rows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/persona/card/card-section.tsx"
     },
     {
       "id": "express-checkbox",

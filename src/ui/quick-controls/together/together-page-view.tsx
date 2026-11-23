@@ -8,27 +8,26 @@ import type {
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { SwitchRow } from "../switch-row";
 import { DescriptorRow } from "../switches/descriptor-row";
-import { type ChainCapReflect, ChainCapRow } from "./chain-cap/chain-cap-row";
+import { ChainCapRow } from "./chain-cap/chain-cap-row";
 import { CharactersSection, type WindowsPort } from "./characters/characters-section";
 
 export function TogetherPageView({
   rows,
   rateLimitSettings,
-  getRateLimitDefaults,
+  rateLimitDefaults,
   registry,
   petWindows,
   boundId,
   log,
-  capReflect,
 }: {
   rows: readonly SwitchRow[];
   rateLimitSettings?: GuardrailsSettingsStore;
-  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
+  /** The bundled defaults, read by the open hook. */
+  rateLimitDefaults: RateLimitDefaults | undefined;
   registry?: Pick<PresetRegistry, "get" | "subscribe">;
   petWindows?: WindowsPort;
   boundId?: string | null;
   log: Logger;
-  capReflect: ChainCapReflect;
 }) {
   const visible = rows.filter((row) => row.isVisible);
   return (
@@ -40,11 +39,7 @@ export function TogetherPageView({
               <DescriptorRow key={row.selector} row={row} log={log} />
             ))}
             {rateLimitSettings ? (
-              <ChainCapRow
-                store={rateLimitSettings}
-                getDefaults={getRateLimitDefaults}
-                reflectRef={capReflect}
-              />
+              <ChainCapRow store={rateLimitSettings} defaults={rateLimitDefaults} />
             ) : null}
           </div>
         </div>

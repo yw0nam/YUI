@@ -7,8 +7,9 @@ import {
   type RateLimitDefaults,
 } from "../../../../settings/backend/guardrails-settings";
 import type { ClampedIntSettingsStore } from "../../../../settings/persisted-store";
+import { Disclosure } from "../../../controls/disclosure";
 import { t } from "../../../i18n";
-import { DISCLOSURE_CHEV_SVG, PROACTIVE_CAP_FIELDS } from "../../constants";
+import { PROACTIVE_CAP_FIELDS } from "../../constants";
 import { NumberRow } from "../number-row";
 
 function GapRow({ store }: { store: ClampedIntSettingsStore }) {
@@ -22,8 +23,8 @@ function GapRow({ store }: { store: ClampedIntSettingsStore }) {
       min={0}
       max={180}
       unit={t("reactions.minutes_suffix")}
-      value={String(ms / 60_000)}
-      commit={(raw) => store.set(Math.round(Number(raw)) * 60_000)}
+      value={ms / 60_000}
+      commit={(typed) => store.set(Math.round(typed ?? 0) * 60_000)}
     />
   );
 }
@@ -39,8 +40,8 @@ function PresenceRow({ store }: { store: ClampedIntSettingsStore }) {
       min={10}
       max={3600}
       unit={t("reactions.seconds_suffix")}
-      value={String(ms / 1000)}
-      commit={(raw) => store.set(Math.round(Number(raw)) * 1000)}
+      value={ms / 1000}
+      commit={(typed) => store.set(Math.round(typed ?? 0) * 1000)}
     />
   );
 }
@@ -67,8 +68,8 @@ function CapRows({
             sub={t(field.subKey)}
             min={1}
             max={RATE_LIMIT_MAX}
-            value={effective > 0 ? String(effective) : ""}
-            commit={(raw) => store.set({ [field.key]: Math.round(Number(raw)) })}
+            value={effective > 0 ? effective : null}
+            commit={(typed) => store.set({ [field.key]: Math.round(typed ?? 0) })}
           />
         );
       })}
@@ -89,11 +90,7 @@ export function AdvancedSection({
 }) {
   return (
     <div className="yui-sec">
-      <details className="yui-more">
-        <summary
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the label
-          dangerouslySetInnerHTML={{ __html: `${DISCLOSURE_CHEV_SVG}${t("reactions.advanced")}` }}
-        />
+      <Disclosure label={t("reactions.advanced")}>
         {pacerGapSettings || presenceSettings ? (
           <div className="yui-group">
             {pacerGapSettings ? <GapRow store={pacerGapSettings} /> : null}
@@ -106,7 +103,7 @@ export function AdvancedSection({
             <p className="yui-sec__foot">{t("reactions.rate_hint")}</p>
           </>
         ) : null}
-      </details>
+      </Disclosure>
     </div>
   );
 }

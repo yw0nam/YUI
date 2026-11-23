@@ -71,6 +71,14 @@ function disposeNow(page: ReturnType<typeof createProactivePage>) {
   act(() => page.dispose());
 }
 
+/** Types into a number field and blurs it, the commit path its rows share. */
+function typeAndBlur(input: HTMLInputElement | null, value: string) {
+  if (!input) return;
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value } });
+  act(() => input.blur());
+}
+
 beforeEach(() => {
   setLocale("en");
 });
@@ -263,15 +271,14 @@ describe("createProactivePage — Advanced", () => {
     return { deps, page, input: page.el.querySelector<HTMLInputElement>(id) };
   }
 
-  it.each(FIELDS)("commits $name on change, converted", ({ id, read, shown, typed, committed }) => {
+  it.each(FIELDS)("commits $name on blur, converted", ({ id, read, shown, typed, committed }) => {
     const { deps, input } = buildAdvanced(id);
 
     expect(input?.value).toBe(shown);
-    input!.value = typed;
-    act(() => input!.dispatchEvent(new Event("change")));
+    typeAndBlur(input, typed);
 
     expect(read(deps)).toBe(committed);
-    expect(input!.value).toBe(typed);
+    expect(input?.value).toBe(typed);
   });
 
   it.each(FIELDS)("does not commit $name on each keystroke", ({
@@ -285,14 +292,14 @@ describe("createProactivePage — Advanced", () => {
     const { deps, input } = buildAdvanced(id);
 
     expect(input?.value).toBe(shown);
-    input!.focus();
+    if (!input) return;
+    act(() => input.focus());
     for (const partial of [typed.slice(0, 1), typed]) {
-      input!.value = partial;
-      act(() => input!.dispatchEvent(new Event("input", { bubbles: true })));
+      fireEvent.change(input, { target: { value: partial } });
     }
     expect(read(deps)).toBe(initial);
 
-    act(() => input!.dispatchEvent(new Event("change")));
+    act(() => input.blur());
     expect(read(deps)).toBe(committed);
   });
 
@@ -314,11 +321,10 @@ describe("createProactivePage — Advanced", () => {
     const { deps, input } = buildAdvanced(id);
 
     expect(input?.value).toBe(shown);
-    input!.value = outOfRange;
-    act(() => input!.dispatchEvent(new Event("change")));
+    typeAndBlur(input, outOfRange);
 
     expect(read(deps)).toBe(initial);
-    expect(input!.value).toBe(shown);
+    expect(input?.value).toBe(shown);
   });
 
   // 0 is the off position, not a rejected value: the pacer holds nothing at that setting.
@@ -326,11 +332,10 @@ describe("createProactivePage — Advanced", () => {
     const { deps, input } = buildAdvanced("#yui-pacer-gap");
 
     expect(input?.value).toBe("10");
-    input!.value = "0";
-    act(() => input!.dispatchEvent(new Event("change")));
+    typeAndBlur(input, "0");
 
     expect(deps.pacerGapSettings.get().value).toBe(0);
-    expect(input!.value).toBe("0");
+    expect(input?.value).toBe("0");
   });
 
   it("shows the value it kept at once when Enter commits an out-of-range wait", () => {
@@ -338,9 +343,9 @@ describe("createProactivePage — Advanced", () => {
 
     expect(input?.value).toBe("10");
     if (!input) return;
-    input.focus();
-    input.value = "500";
-    act(() => input.dispatchEvent(new Event("change")));
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "500" } });
+    fireEvent.keyDown(input, { key: "Enter" });
 
     expect(deps.pacerGapSettings.get().value).toBe(600_000);
     expect(input.value).toBe("10");
@@ -350,28 +355,38 @@ describe("createProactivePage — Advanced", () => {
     const { deps, input } = buildAdvanced("#yui-presence");
 
     expect(input?.value).toBe("180");
-    input!.focus();
-    input!.value = "300";
+    if (!input) return;
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "300" } });
     act(() => deps.presenceSettings.set(60_000));
-    expect(input!.value).toBe("300");
+    expect(input.value).toBe("300");
 
-    act(() => input!.dispatchEvent(new Event("change")));
-    act(() => input!.blur());
+    act(() => input.blur());
     expect(deps.presenceSettings.get().value).toBe(300_000);
-    expect(input!.value).toBe("300");
+    expect(input.value).toBe("300");
   });
 
-  it("shows an outside change made while focused once an unedited field blurs", () => {
+  it("shows a stored presence at its raw seconds", () => {
     const { deps, input } = buildAdvanced("#yui-presence");
 
     expect(input?.value).toBe("180");
-    input!.focus();
-    act(() => deps.presenceSettings.set(60_000));
-    expect(input!.value).toBe("180");
+    act(() => deps.presenceSettings.set(180_500));
 
-    act(() => input!.blur());
+    expect(input?.value).toBe("180.5");
+  });
+
+  it("shows an outside change at once in a focused field the user has not typed in", () => {
+    const { deps, input } = buildAdvanced("#yui-presence");
+
+    expect(input?.value).toBe("180");
+    if (!input) return;
+    act(() => input.focus());
+    act(() => deps.presenceSettings.set(60_000));
+    expect(input.value).toBe("60");
+
+    act(() => input.blur());
     expect(deps.presenceSettings.get().value).toBe(60_000);
-    expect(input!.value).toBe("60");
+    expect(input.value).toBe("60");
   });
 
   it.each([
@@ -397,11 +412,10 @@ describe("createProactivePage — Advanced", () => {
     const input = page.el.querySelector<HTMLInputElement>("#yui-rate-tier2");
 
     expect(input?.value).toBe("30");
-    input!.value = "";
-    act(() => input!.dispatchEvent(new Event("change")));
+    typeAndBlur(input, "");
 
     expect(deps.rateLimitSettings.get().tier2_max).toBe(0);
-    expect(input!.value).toBe("24");
+    expect(input?.value).toBe("24");
   });
 
   it("lists two hourly limits, speaking up first, then urgent signals counted apart", () => {
@@ -441,8 +455,9 @@ describe("createProactivePage — Advanced", () => {
     const input = page.el.querySelector<HTMLInputElement>("#yui-pacer-gap");
 
     act(() => page.dispose());
-    input!.value = "25";
-    input!.dispatchEvent(new Event("change"));
+    if (!input) return;
+    fireEvent.change(input, { target: { value: "25" } });
+    act(() => input.blur());
 
     expect(counts.map(({ taken, released }) => [taken > 0, released === taken])).toEqual([
       [true, true],
@@ -676,8 +691,7 @@ describe("createProactivePage — the source groups", () => {
     const input = page.el.querySelector<HTMLInputElement>("#yui-screen-settle");
     expect(input).not.toBeNull();
     if (!input) return;
-    input.value = "30";
-    act(() => input.dispatchEvent(new Event("change")));
+    typeAndBlur(input, "30");
 
     expect(fold?.querySelector(".yui-fold__aside")?.textContent).toBe(
       "10 min · 30 s · 45 min · 5 entries",
@@ -708,8 +722,9 @@ describe("createProactivePage — the source groups", () => {
 
     function commit(input: HTMLInputElement | null, value: string) {
       if (!input) return;
-      input.value = value;
-      act(() => input.dispatchEvent(new Event("change")));
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value } });
+      act(() => input.blur());
     }
 
     it("renders the screen group only with both its stores", () => {
@@ -756,8 +771,6 @@ describe("createProactivePage — the source groups", () => {
     const KNOB_COMMITS: {
       name: string;
       id: string;
-      min: string;
-      max: string;
       typed: string;
       read: (store: ReturnType<typeof createScreenKnobSettings>) => number;
       committed: number;
@@ -765,8 +778,6 @@ describe("createProactivePage — the source groups", () => {
       {
         name: "recent_cap, a bare count",
         id: "#yui-screen-recent-cap",
-        min: "0",
-        max: "20",
         typed: "3",
         read: (store) => store.get().recent_cap,
         committed: 3,
@@ -774,20 +785,16 @@ describe("createProactivePage — the source groups", () => {
       {
         name: "a knob in minutes",
         id: "#yui-screen-long-session",
-        min: "5",
-        max: "480",
         typed: "30",
         read: (store) => store.get().long_session_ms,
         committed: 1_800_000,
       },
     ];
 
-    it.each(KNOB_COMMITS)("commits $name on change", ({ id, min, max, typed, read, committed }) => {
+    it.each(KNOB_COMMITS)("commits $name on blur", ({ id, typed, read, committed }) => {
       const { page, screenKnobSettings } = buildScreens();
       const input = page.el.querySelector<HTMLInputElement>(id);
 
-      expect(input?.min).toBe(min);
-      expect(input?.max).toBe(max);
       commit(input, typed);
 
       expect(read(screenKnobSettings)).toBe(committed);
@@ -814,9 +821,15 @@ describe("createProactivePage — the source groups", () => {
         over: { typed: "5000", committed: 600_000, shown: "600" },
         under: { typed: "2", committed: 5_000, shown: "5" },
       },
+      {
+        name: "a knob typed as a fraction",
+        id: "#yui-screen-settle",
+        read: (store) => store.get().settle_ms,
+        over: { typed: "0.3", committed: 0, shown: "90" },
+      },
     ];
 
-    it.each(KNOB_CLAMPS)("clamps a typed $name into the range its row advertises", ({
+    it.each(KNOB_CLAMPS)("keeps a typed $name within its row's bounds", ({
       id,
       read,
       over,
@@ -848,6 +861,24 @@ describe("createProactivePage — the source groups", () => {
       expect(input?.value).toBe("90");
     });
 
+    it("keeps an ArrowUp on a knob at its max from stepping past it", () => {
+      const screenKnobSettings = createScreenKnobSettings();
+      screenKnobSettings.set({ recent_cap: 20 });
+      const { page } = buildScreens({ screenKnobSettings });
+      const setSpy = vi.spyOn(screenKnobSettings, "set");
+      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap");
+      expect(input).not.toBeNull();
+      if (!input) return;
+
+      expect(input.value).toBe("20");
+      act(() => input.focus());
+      fireEvent.keyDown(input, { key: "ArrowUp" });
+
+      expect(input.value).toBe("20");
+      expect(setSpy).not.toHaveBeenCalled();
+      expect(screenKnobSettings.get().recent_cap).toBe(20);
+    });
+
     it("does not commit a numeric knob on every keystroke", () => {
       const { page, screenKnobSettings } = buildScreens();
       const setSpy = vi.spyOn(screenKnobSettings, "set");
@@ -855,15 +886,14 @@ describe("createProactivePage — the source groups", () => {
 
       expect(input).not.toBeNull();
       if (!input) return;
-      input.focus();
+      act(() => input.focus());
       for (const partial of ["3", "30"]) {
-        input.value = partial;
-        act(() => input.dispatchEvent(new Event("input", { bubbles: true })));
+        fireEvent.change(input, { target: { value: partial } });
       }
       expect(setSpy).not.toHaveBeenCalled();
       expect(screenKnobSettings.get().settle_ms).toBe(0);
 
-      act(() => input.dispatchEvent(new Event("change")));
+      act(() => input.blur());
       expect(screenKnobSettings.get().settle_ms).toBe(30_000);
     });
 
@@ -935,17 +965,28 @@ describe("createProactivePage — the source groups", () => {
       const input = port(page);
 
       expect(input?.value).toBe("8770");
-      if (!input) return;
-      input.value = "9000";
-      act(() => input.dispatchEvent(new Event("change")));
+      typeAndBlur(input, "9000");
       expect(setSpy).toHaveBeenCalledWith(9000);
-      expect(input.value).toBe("9000");
+      expect(input?.value).toBe("9000");
 
-      input.value = "80"; // below the 1024 minimum
-      act(() => input.dispatchEvent(new Event("change")));
+      typeAndBlur(input, "80"); // below the 1024 minimum
       expect(setSpy).toHaveBeenCalledWith(80);
       expect(agentNotifySettings.get().port).toBe(9000);
-      expect(input.value).toBe("9000");
+      expect(input?.value).toBe("9000");
+    });
+
+    it("steps the port by one on ArrowUp and by ten with Shift", () => {
+      const { page, agentNotifySettings } = buildSources();
+      const input = port(page);
+
+      expect(input).not.toBeNull();
+      if (!input) return;
+      act(() => input.focus());
+      fireEvent.keyDown(input, { key: "ArrowUp" });
+      expect(agentNotifySettings.get().port).toBe(8771);
+
+      fireEvent.keyDown(input, { key: "ArrowUp", shiftKey: true });
+      expect(agentNotifySettings.get().port).toBe(8781);
     });
 
     it("sets the waiting Threads count from its segment, also while Thread reactions is off", () => {

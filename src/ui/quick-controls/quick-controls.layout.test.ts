@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Settings panel layout, section placement, segment sizing and screenshot hints.
 
+import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -556,18 +557,6 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it("renders every rate-limit cap as a number input", () => {
-    const { qc } = buildRateQc();
-    qc.open();
-    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-addressed"];
-    expect(ids.map((id) => qc.el.querySelector<HTMLInputElement>(id)?.type)).toEqual([
-      "number",
-      "number",
-      "number",
-    ]);
-    qc.dispose();
-  });
-
   describe("Together", () => {
     it("shows the chain cap's config default while no cap is overridden", () => {
       const { qc } = buildRateQc();
@@ -576,12 +565,15 @@ describe("createQuickControls — Reactions tab layout", () => {
       qc.dispose();
     });
 
-    it("commits the chain cap on change on the Together page", () => {
+    it("commits the chain cap on blur on the Together page", () => {
       const { rateLimitSettings, qc } = buildRateQc();
       qc.open();
-      const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-addressed")!;
-      input.value = "5";
-      input.dispatchEvent(new Event("change", { bubbles: true }));
+      const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-addressed");
+      expect(input).not.toBeNull();
+      if (!input) return;
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value: "5" } });
+      act(() => input.blur());
       expect(rateLimitSettings.get().addressed_chain_max).toBe(5);
       qc.dispose();
     });
