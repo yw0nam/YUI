@@ -190,6 +190,25 @@ describe("createConnectionPage — Detailed settings", () => {
     tab.dispose();
   });
 
+  it("an open select's popup closes when a focus request shows the other view", async () => {
+    const tab = build();
+    const shown = () =>
+      [...document.querySelectorAll('[role="option"]')].filter((o) => !o.closest("[hidden]"));
+    await act(async () => {
+      fireEvent.click(tab.el.querySelector(".yui-chat-preset")!);
+    });
+    expect(shown()).toHaveLength(7);
+
+    act(() => tab.focusKey());
+
+    expect(tab.el.querySelector<HTMLElement>('.yui-conn-view[data-view="quick"]')!.hidden).toBe(
+      false,
+    );
+    expect(shown()).toEqual([]);
+    expect(document.activeElement?.id).toBe("yui-start-key");
+    tab.dispose();
+  });
+
   // ── Shared STT model field ────────────────────────────────────────────────────────────────
 
   it("persists stt_model to the store and resets it with the STT service", () => {
@@ -286,6 +305,21 @@ describe("createConnectionPage — Detailed settings", () => {
       expect(deps.calls[0]?.url).toBe("https://def.test/v1/models");
       expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe("Bearer key-1");
       expect(statusOf(tab).textContent).toContain(t("svc.chat_models_read", { n: 2 }));
+      tab.dispose();
+    });
+
+    it("Enter on an unchanged chat URL starts no read", async () => {
+      const deps = modelReadDeps();
+      endpointsSettings.set({ chat_base_url: "https://stored.test/v1" });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
+
+      fireEvent.keyDown(tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!, {
+        key: "Enter",
+      });
+      await tick();
+      await tick();
+
+      expect(deps.calls).toEqual([]);
       tab.dispose();
     });
 
