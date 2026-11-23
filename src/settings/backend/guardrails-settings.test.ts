@@ -106,18 +106,18 @@ describe("guardrails settings — store shape", () => {
     });
   });
 
-  it("loads a stored value that still holds tier3_max and keeps the other caps across a reload", () => {
+  it("drops a stored tier3_max and overall_max and keeps the other caps across a reload", () => {
     const stored = {
       tier2_max: 18,
       tier3_max: 3,
-      overall_max: 50,
+      urgent_max: 50,
+      overall_max: 40,
     } as unknown as RateLimitOverrides;
     const store = createGuardrailsSettings({ storage: inMemoryStorage(stored) });
-    expect(store.get().tier2_max).toBe(18);
-    expect(store.get().overall_max).toBe(50);
+    const kept = { tier2_max: 18, urgent_max: 50, addressed_chain_max: 0 };
+    expect(store.get()).toEqual(kept);
     store.reloadFromStorage();
-    expect(store.get().tier2_max).toBe(18);
-    expect(store.get().overall_max).toBe(50);
+    expect(store.get()).toEqual(kept);
   });
 
   it("reloadFromStorage adopts another window's edit", () => {

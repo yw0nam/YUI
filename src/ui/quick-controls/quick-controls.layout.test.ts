@@ -170,7 +170,6 @@ describe("createQuickControls — settings layout", () => {
         ".yui-wf-add-btn",
         "#yui-pacer-gap",
         "#yui-presence",
-        "#yui-rate-overall",
         "#yui-rate-tier2",
         "#yui-rate-urgent",
       ],
@@ -524,7 +523,6 @@ describe("createQuickControls — Reactions tab layout", () => {
     ).toEqual([
       "Wait after a conversation",
       "Present when idle for",
-      "Total self-started turns per hour",
       "Times she speaks up per hour",
       "Urgent signal turns per hour",
     ]);
@@ -563,9 +561,8 @@ describe("createQuickControls — Reactions tab layout", () => {
   it("renders every rate-limit cap as a number input", () => {
     const { qc } = buildRateQc();
     qc.open();
-    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-overall", "#yui-rate-addressed"];
+    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-addressed"];
     expect(ids.map((id) => qc.el.querySelector<HTMLInputElement>(id)?.type)).toEqual([
-      "number",
       "number",
       "number",
       "number",

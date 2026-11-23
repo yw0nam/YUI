@@ -12,8 +12,11 @@
  *  - §6.4 Evaluation order + dnd_override short-circuit (no counter increment).
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { guardrailsFixture } from "../../config/load-test-helpers";
+import { validateGuardrails } from "../../config/validators/guardrails";
 import type { BusEnvelope } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 
@@ -218,46 +221,69 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
   });
 });
 
-// ── Urgent signals cap (urgent_max) ──────────────────────────────────────────────
+// ── Shipped config (configs/guardrails.json) ───────────────────────────────────
 
-describe("guardrails — urgent signals cap (urgent_max)", () => {
-  it("counts urgent turns toward urgent_max only: the 121st drops while the tier2/overall counters never move", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    // 120 urgent passes — far past tier2_max 6 and overall_max 20, which urgent never touches.
-    for (let i = 0; i < 120; i++) {
-      expect(
-        g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
-      ).toBe(true);
+describe("guardrails — shipped hourly limits", () => {
+  function shipped(): GuardrailsConfig {
+    const path = resolve(process.cwd(), "configs/guardrails.json");
+    return validateGuardrails("configs/guardrails.json", JSON.parse(readFileSync(path, "utf-8")));
+  }
+
+  /** Fires `count` turns from `source`, one second apart from BASE_TS; returns the first drop's call number and the pass count. */
+  function drive(
+    g: Guardrails,
+    c: ReturnType<typeof clock>,
+    source: BusEnvelope["source"],
+    event_name: string,
+    count: number,
+  ): { firstDrop: number; passed: number } {
+    let firstDrop = 0;
+    let passed = 0;
+    for (let i = 0; i < count; i++) {
+      c.set(BASE_TS + i * 1_000);
+      if (g.evaluate(env({ source, event_name })).pass) passed++;
+      else if (firstDrop === 0) firstDrop = i + 1;
     }
-    expect(
-      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
-    ).toBe(false);
-    // overall never moved → no cooldown; the full tier2 budget is still there.
-    expect(g.cooldownActive()).toBe(false);
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(true);
+    return { firstDrop, passed };
+  }
+
+  /** Whether a non-urgent turn passes at `at`. */
+  function turnAt(g: Guardrails, c: ReturnType<typeof clock>, at: number): boolean {
+    c.set(at);
+    return g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass;
+  }
+
+  it("drops the 25th non-urgent turn in an hour, and passes one as soon as the first slot frees", () => {
+    const c = clock();
+    const g = createGuardrails(shipped(), { now: c.now });
+    expect(drive(g, c, "user_input_source", "user.text_submitted", 45)).toEqual({
+      firstDrop: 25,
+      passed: 24,
+    });
+    expect(turnAt(g, c, BASE_TS + 3_599_999)).toBe(false);
+    expect(turnAt(g, c, BASE_TS + 3_600_000)).toBe(true);
   });
 
-  it("an urgent turn passes during the overall cooldown, and urgent_max still caps the next one", () => {
+  it("lets tier2_max alone cap non-urgent turns: raised to 50, the 51st drops", () => {
     const c = clock();
-    const cfg = config();
-    cfg.rate_limit.tier2_max = 1000;
-    cfg.rate_limit.urgent_max = 1;
+    const cfg = shipped();
+    cfg.rate_limit.tier2_max = 50;
     const g = createGuardrails(cfg, { now: c.now });
-    for (let i = 0; i < 20; i++) {
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
-    }
-    g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })); // enters cooldown
-    expect(g.cooldownActive()).toBe(true);
-    expect(
-      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
-    ).toBe(true);
-    expect(g.cooldownActive()).toBe(true);
-    expect(
-      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
-    ).toBe(false);
+    expect(drive(g, c, "user_input_source", "user.text_submitted", 60)).toEqual({
+      firstDrop: 51,
+      passed: 50,
+    });
+    expect(turnAt(g, c, BASE_TS + 3_600_000)).toBe(true);
+  });
+
+  it("drops the 121st urgent turn, and the next non-urgent turn still passes", () => {
+    const c = clock();
+    const g = createGuardrails(shipped(), { now: c.now });
+    expect(drive(g, c, "urgent_signal_source", "signals.urgent", 130)).toEqual({
+      firstDrop: 121,
+      passed: 120,
+    });
+    expect(turnAt(g, c, BASE_TS + 130_000)).toBe(true);
   });
 });
 
