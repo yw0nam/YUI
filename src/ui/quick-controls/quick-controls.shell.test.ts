@@ -362,7 +362,7 @@ describe("createQuickControls — construction and disposal", () => {
       refreshVoiceList: () =>
         seen.push({
           log: [...log],
-          cueSections: mount.querySelectorAll('[data-testid="cue-section"]').length,
+          cueSections: mount.querySelectorAll(".yui-cue-list").length,
         }),
     });
 
@@ -395,8 +395,8 @@ describe("createQuickControls — construction and disposal", () => {
         ].sort(),
       );
       // settings releases four: the Permissions page's own subscription and its three field reads.
-      // schedule and proactive release two each: the cue list's and the Proactive page's.
-      expect(log).toHaveLength(12);
+      // schedule and proactive release one each: the Proactive page's.
+      expect(log).toHaveLength(10);
     });
 
     it("releases the speaker store", () => {

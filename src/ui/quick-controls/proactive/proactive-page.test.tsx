@@ -434,6 +434,74 @@ describe("createProactivePage — Advanced", () => {
   });
 });
 
+describe("createProactivePage — the cue lists", () => {
+  /** A cue list's master switch, found by its title, and the fold of its group. */
+  function cueGroup(page: ReturnType<typeof createProactivePage>, title: string) {
+    const toggle = within(page.el).queryByRole("switch", { name: title });
+    const fold = toggle
+      ?.closest(".yui-group")
+      ?.querySelector<HTMLDetailsElement>(":scope > details");
+    return { toggle, fold };
+  }
+
+  it.each([
+    ["Quiet for a while", "proactiveSettings"],
+    ["Scheduled greetings", "scheduleSettings"],
+  ] as const)("%s: the master switch shows its store's state and a click flips it", (title, key) => {
+    const built = build();
+    const { toggle } = cueGroup(built.page, title);
+
+    expect(toggle?.getAttribute("aria-checked")).toBe("true");
+    if (!toggle) return;
+    fireEvent.click(toggle);
+
+    expect(built[key].get().enabled).toBe(false);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("follows both stores switched off from outside: switches off, folds dimmed and reading Off", () => {
+    const { page, proactiveSettings, scheduleSettings } = build();
+
+    act(() => {
+      proactiveSettings.setEnabled(false);
+      scheduleSettings.setEnabled(false);
+    });
+
+    const groups = ["Quiet for a while", "Scheduled greetings"].map((title) =>
+      cueGroup(page, title),
+    );
+    expect(
+      groups.map(({ toggle, fold }) => [
+        toggle?.getAttribute("aria-checked"),
+        fold?.classList.contains("yui-fold--off"),
+        fold?.querySelector(".yui-fold__aside")?.textContent,
+      ]),
+    ).toEqual([
+      ["false", true, "Off"],
+      ["false", true, "Off"],
+    ]);
+  });
+
+  it("reads Add check-in on the Quiet for a while add row", () => {
+    const { page } = build();
+    const { fold } = cueGroup(page, "Quiet for a while");
+
+    expect(fold?.querySelector("[data-testid='cue-add']")?.textContent).toBe("Add check-in");
+  });
+
+  it("redraws the rows when an entry is added from outside", () => {
+    const { page, proactiveSettings } = build();
+    const { fold } = cueGroup(page, "Quiet for a while");
+
+    expect(fold?.querySelectorAll("[data-testid='cue-row']").length).toBe(3);
+    act(() => {
+      proactiveSettings.addCue();
+    });
+
+    expect(fold?.querySelectorAll("[data-testid='cue-row']").length).toBe(4);
+  });
+});
+
 describe("createProactivePage — the source groups", () => {
   const SCREEN_DEFAULTS: ScreenOverrides = {
     prev_dwell_ms: 600_000,

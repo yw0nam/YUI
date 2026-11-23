@@ -158,8 +158,8 @@ describe("createQuickControls — settings layout", () => {
       [
         ".yui-base-pace-seg",
         ".yui-day",
-        ".yui-loop-cue-section",
-        ".yui-cue-sections",
+        ".yui-cue-list .yui-num-input",
+        ".yui-cue-list .yui-time-input",
         ".yui-screen-switch",
         ".yui-thread-reactions-switch",
         ".yui-reaction-thresholds-count-seg",
@@ -396,16 +396,6 @@ describe("createQuickControls — Reactions tab layout", () => {
     expect(panel!.getAttribute("role")).toBe("tabpanel");
     expect(panel!.getAttribute("aria-labelledby")).toBe("yui-tab-react");
     expect(panel!.hidden).toBe(true);
-    qc.dispose();
-  });
-
-  it("mounts proactiveCueList into .yui-loop-cue-section inside #yui-panel-react", () => {
-    const qc = buildQc();
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const loopSection = reactPanel.querySelector(".yui-loop-cue-section");
-    expect(loopSection).not.toBeNull();
-    expect(loopSection!.querySelector("[data-testid='cue-section']")).not.toBeNull();
     qc.dispose();
   });
 
