@@ -157,6 +157,7 @@ describe("createQuickControls — settings layout", () => {
       "react",
       [
         ".yui-base-pace-seg",
+        ".yui-day",
         ".yui-loop-cue-section",
         ".yui-cue-sections",
         ".yui-screen-switch",
@@ -169,9 +170,9 @@ describe("createQuickControls — settings layout", () => {
         ".yui-wf-list",
         "#yui-pacer-gap",
         "#yui-presence",
+        "#yui-rate-overall",
         "#yui-rate-tier2",
         "#yui-rate-urgent",
-        "#yui-rate-overall",
       ],
     ],
     [
@@ -325,7 +326,7 @@ describe("createQuickControls — proactive tab layout", () => {
     qc.open();
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
     expect(tab.getAttribute("aria-label")).toBe("말걸기");
-    expect(tab.dataset.tip).toBe("유이가 먼저 말을 거는 규칙");
+    expect(tab.dataset.tip).toBe("먼저 말을 거는 규칙");
     expect(tab.hasAttribute("title")).toBe(false);
     qc.dispose();
   });
@@ -524,9 +525,9 @@ describe("createQuickControls — Reactions tab layout", () => {
     ).toEqual([
       "Wait after a conversation",
       "Present when idle for",
+      "Total self-started turns per hour",
       "Times she speaks up per hour",
       "Urgent signal turns per hour",
-      "Total self-started turns per hour",
     ]);
     const wait = panel.querySelector("#yui-pacer-gap")!.closest(".yui-row")!;
     expect(
