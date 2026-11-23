@@ -55,10 +55,8 @@ export function ScreenGroup({
             unit={t(field.suffixKey)}
             value={ms > 0 ? Math.round(ms / field.unitMs) : null}
             commit={(typed) => {
-              const units =
-                typed !== null && typed > 0
-                  ? Math.min(Math.max(Math.round(typed), field.min), field.max)
-                  : 0;
+              const rounded = Math.round(typed ?? 0);
+              const units = rounded > 0 ? Math.min(Math.max(rounded, field.min), field.max) : 0;
               store.set({ [field.key]: units * field.unitMs });
             }}
           />

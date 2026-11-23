@@ -23,7 +23,7 @@ function GapRow({ store }: { store: ClampedIntSettingsStore }) {
       min={0}
       max={180}
       unit={t("reactions.minutes_suffix")}
-      value={Math.round(ms / 60_000)}
+      value={ms / 60_000}
       commit={(typed) => store.set(Math.round(typed ?? 0) * 60_000)}
     />
   );
@@ -40,7 +40,7 @@ function PresenceRow({ store }: { store: ClampedIntSettingsStore }) {
       min={10}
       max={3600}
       unit={t("reactions.seconds_suffix")}
-      value={Math.round(ms / 1000)}
+      value={ms / 1000}
       commit={(typed) => store.set(Math.round(typed ?? 0) * 1000)}
     />
   );

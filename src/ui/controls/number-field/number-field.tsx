@@ -32,6 +32,11 @@ export function NumberField({ id, value, min, max, onCommit, children }: NumberF
       <BaseNumberField.Input
         className="yui-num-input"
         onKeyDown={(event) => {
+          if (event.key === "Home" || event.key === "End") {
+            // Base UI jumps to the bound and commits it; leave the caret move to the browser.
+            event.preventBaseUIHandler();
+            return;
+          }
           if (event.key !== "Enter" || event.defaultPrevented) return;
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
           // Base UI commits on blur; keep the field focused after the commit.
