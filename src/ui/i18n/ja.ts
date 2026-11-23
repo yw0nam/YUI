@@ -709,7 +709,7 @@ const ja: Record<string, string> = {
   "agentNotify.sub":
     "コーディングエージェントやワークフローなど、このマシンのプログラムがシグナルを送ると話しかけます。",
   "agentNotify.aria": "外部シグナル",
-  "agentNotify.fold": "ポートとアドレス",
+  "agentNotify.fold": "スレッドへの反応、ポートとアドレス",
   "threadTurns.label": "スレッドへの反応",
   "threadTurns.sub":
     "スレッドが届くと、メインキャラクターに知らせます。話すかどうかはキャラクターが決めます。",
@@ -829,7 +829,7 @@ const ja: Record<string, string> = {
   "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
   "screen.aria": "画面の変化",
   "screen.timing": "タイミング",
-  "screen.timing_summary": "設定 {n}件",
+  "screen.timing_value": "{n}{unit}",
   "screen.minutes_suffix": "分",
   "screen.seconds_suffix": "秒",
   "screen.prev_dwell_label": "アプリ切り替えとみなす基準",
@@ -862,6 +862,7 @@ const ja: Record<string, string> = {
   "workflows.url_ph": "https://…",
   "workflows.url_error": "正しい URL を入力してください。例: https://example.com/hook",
   "workflows.add": "追加",
+  "workflows.add_row": "ワークフローを追加",
   "workflows.empty": "ワークフローはまだありません。下から追加してください。",
   "workflows.fire_aria": "{name} を実行",
   "workflows.delete_aria": "{name} を削除",

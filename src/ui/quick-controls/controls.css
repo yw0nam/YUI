@@ -273,8 +273,8 @@
   border-top: 1px solid var(--yui-edge);
 }
 
-/* A source switched off: its rows dim but stay editable under the off line; Thread turns follows External signals instead. */
-.yui-fold--off > .yui-fold__body > :not(.yui-threadturns-row, .yui-fold__off) {
+/* A source switched off: its rows dim but stay editable under the off line. */
+.yui-fold--off > .yui-fold__body > :not(.yui-fold__off) {
   opacity: 0.5;
 }
 

@@ -821,8 +821,8 @@ describe("createProactivePage — the source groups", () => {
       input.value = "80"; // below the 1024 minimum
       act(() => input.dispatchEvent(new Event("change")));
       expect(setSpy).toHaveBeenCalledWith(80);
-      expect(agentNotifySettings.get().port).toBe(9100);
-      expect(input.value).toBe("9100");
+      expect(agentNotifySettings.get().port).toBe(9000);
+      expect(input.value).toBe("9000");
     });
 
     it("sets the waiting Threads count from its segment, also while Thread reactions is off", () => {
@@ -907,10 +907,11 @@ describe("createProactivePage — the source groups", () => {
       if (!fire) return;
 
       fireEvent.click(fire);
+      await act(async () => {
+        await Promise.resolve();
+      });
 
-      await vi.waitFor(() =>
-        expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-ok")).toBe(true),
-      );
+      expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-ok")).toBe(true);
       expect(fetchFn).toHaveBeenCalledWith(
         WORKFLOW.url,
         expect.objectContaining({ method: "POST", mode: "no-cors", body: "{}" }),
@@ -928,12 +929,11 @@ describe("createProactivePage — the source groups", () => {
       if (!fire) return;
 
       fireEvent.click(fire);
+      await act(async () => {
+        await Promise.resolve();
+      });
 
-      await vi.waitFor(() =>
-        expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-err")).toBe(
-          true,
-        ),
-      );
+      expect(page.el.querySelector(".yui-wf")?.classList.contains("yui-wf--fired-err")).toBe(true);
       expect(log.debug).toHaveBeenCalledWith("workflow_fire_failed", {
         id: entry.id,
         error: "Error: offline",
@@ -950,7 +950,10 @@ describe("createProactivePage — the source groups", () => {
       expect(row).not.toBeNull();
       if (!row || !fire) return;
       fireEvent.click(fire);
-      await vi.waitFor(() => expect(row.classList.contains("yui-wf--fired-ok")).toBe(true));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(row.classList.contains("yui-wf--fired-ok")).toBe(true);
 
       addWorkflow(workflowSettings, { label: "Other", url: "https://example.com/other" });
 

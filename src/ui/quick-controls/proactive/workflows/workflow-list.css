@@ -1,4 +1,4 @@
-/* ── Workflows — saved webhook rows in one group, the add form in the next ── */
+/* ── Workflows — the saved webhook rows and the add form, straight in the fold body ── */
 .yui-wf {
   display: flex;
   box-sizing: border-box;
@@ -104,4 +104,21 @@
   .yui-wf__fire {
     transition-duration: 0ms !important;
   }
+}
+
+/* The add form: its rows share the fold body's hairline, and its fields take the inset Hairline. */
+.yui-wf-form > * + * {
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-wf-form .yui-input-wrap:not(:focus-within) {
+  box-shadow: inset 0 0 0 1px var(--yui-edge);
+}
+
+.yui-wf-form .yui-row--action {
+  gap: 0.5rem;
+}
+
+.yui-wf__delete[hidden] {
+  display: none;
 }

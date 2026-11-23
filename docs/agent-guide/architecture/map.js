@@ -4921,15 +4921,6 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/plugins/plugin-group.tsx"
-    },
-    {
-      "id": "workflow-rows-keyed",
-      "from": "ui/quick-controls",
-      "to": "ui/keyed-rows",
-      "carries": "reconcileRows: workflow rows kept by key, reordered only when their place changed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/sections/workflows/workflows-section.ts"
     }
   ],
   "flows": [

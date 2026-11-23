@@ -97,11 +97,7 @@ import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
-import { createReactionsSection } from "./sections/reactions/reactions-section";
-import { createScreenSection } from "./sections/screen/screen-section";
-import { createWorkflowsSection } from "./sections/workflows/workflows-section";
 import { createSwitchRows } from "./switch-row";
-import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
 import { createTogetherPage } from "./together/together-page";
@@ -471,20 +467,9 @@ export function createQuickControls({
     relationsSwitch,
     threadReactionsSettings,
   });
-  const TOGGLE_SPECS = rows.filter(
-    (row) =>
-      row.tab !== "listening" &&
-      row.tab !== "together" &&
-      row.tab !== "motion" &&
-      row.tab !== "voice",
-  );
 
   el.innerHTML = buildPanelHtml({
-    switchRows: TOGGLE_SPECS,
     openOnQuickStart,
-    showScreen: !!screenSettings && !!screenKnobSettings,
-    showThreadTurns: !!threadTurnsSettings && !!agentNotifySettings,
-    showReactionThresholds: !!threadReactionThresholdsSettings && !!threadReactionsSettings,
     showHistory: !!transcript,
     showPlugins: !!plugins,
     showPreset: !!presetRegistry,
@@ -493,8 +478,9 @@ export function createQuickControls({
   // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
   mount.appendChild(el);
 
-  // ── Proactive page (how often she speaks up · her day · Advanced) ──
+  // ── Proactive page (how often she speaks up · her day · the sources · Advanced) ──
   const proactivePage = createProactivePage({
+    rows: rows.filter((row) => row.tab === "react"),
     basePaceSettings,
     activeHoursSettings,
     agentSettings,
@@ -507,13 +493,16 @@ export function createQuickControls({
     presenceSettings,
     rateLimitSettings,
     getRateLimitDefaults,
+    screenKnobSettings,
+    getScreenDefaults,
+    agentNotifySettings,
+    threadTurnsSettings,
+    threadReactionThresholdsSettings,
+    boundId,
+    workflowSettings,
+    log,
   });
-  const reactPanel = el.querySelector<HTMLElement>("#yui-panel-react")!;
-  reactPanel.append(proactivePage.el);
-  // The template's source sections sit between her day and Advanced until they move to React.
-  proactivePage.el
-    .querySelector('[data-slot="sources"]')!
-    .append(...reactPanel.querySelectorAll(":scope > .yui-sec"));
+  el.querySelector<HTMLElement>("#yui-panel-react")!.append(proactivePage.el);
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
@@ -587,7 +576,6 @@ export function createQuickControls({
       })
     : null;
   if (historyPage) el.querySelector("#yui-panel-hist")!.append(historyPage.el);
-  const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
     ? createPresetStrip({
         root: el,
@@ -683,31 +671,6 @@ export function createQuickControls({
     onClose: () => {
       for (const section of sections) section.close?.();
     },
-  });
-
-  // ── Switch rows (click binding · store following while open) ──
-  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, shell.isOpen);
-
-  // ── Screen section (screen-watch threshold knobs) ──
-  const screen = createScreenSection({
-    root: el,
-    screenSettings,
-    screenKnobSettings,
-    getScreenDefaults,
-    reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: shell.isOpen,
-  });
-
-  // ── Reactions section (agent port · presence · pacer gap · rate-limit caps) ──
-  const reactions = createReactionsSection({
-    boundId,
-    root: el,
-    agentNotifySettings,
-    threadTurnsSettings,
-    threadReactionThresholdsSettings,
-    threadReactionsSettings,
-    reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: shell.isOpen,
   });
 
   // ── Agent section (locale segment · reasoning-effort segment) ──
@@ -841,10 +804,7 @@ export function createQuickControls({
     quickStart,
     { dispose: permsPage.dispose },
     pluginsPage,
-    switchRows,
     { reflect: proactivePage.refresh, dispose: proactivePage.dispose },
-    reactions,
-    screen,
     { close: listeningPage.close, dispose: listeningPage.dispose },
     agent,
     { reflect: persona.reflect, dispose: persona.dispose },
@@ -866,7 +826,6 @@ export function createQuickControls({
     { reflect: voicePage.refresh, close: voicePage.close, dispose: voicePage.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
     presetStrip,
-    workflows,
     { dispose: cueLists.destroy },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
