@@ -105,12 +105,15 @@ export function DayStrip({
         {t("day_strip.label", { name: entry.name })}
       </p>
       <div className="yui-day__marks">
+        <Face entry={entry} x={now / DAY} />
         {greetings.map((g) => (
           <At key={g.id} x={toMinutes(g.time) / DAY}>
             {g.time}
           </At>
         ))}
-        <Face entry={entry} x={now / DAY} />
+        {greetings.map((g) => (
+          <span key={g.id} className="yui-day__greeting" style={at(toMinutes(g.time) / DAY)} />
+        ))}
       </div>
       <div className="yui-day__track">
         {paceRuns(spans).map((run) => (
@@ -122,9 +125,6 @@ export function DayStrip({
           >
             {t(`active_hours.pace_${run.pace}`)}
           </span>
-        ))}
-        {greetings.map((g) => (
-          <span key={g.id} className="yui-day__greeting" style={at(toMinutes(g.time) / DAY)} />
         ))}
         <span className="yui-day__now" style={at(now / DAY)} />
       </div>

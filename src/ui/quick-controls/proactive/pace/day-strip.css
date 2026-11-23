@@ -1,4 +1,4 @@
-/* Her day: lanes on the 8px grid; every position is a fraction of its lane (--yui-at, --yui-span), so the strip follows the window's width. */
+/* Her day: lanes on the 8px grid (the marks lane stacks her face, the greeting times and their ticks, so none overlaps another); every position is a fraction of its lane (--yui-at, --yui-span), so the strip follows the window's width. */
 .yui-day {
   margin-top: 0.5rem;
   padding: 1rem;
@@ -24,7 +24,7 @@
 }
 
 .yui-day__marks {
-  height: 1.5rem;
+  height: 3rem;
 }
 
 .yui-day__track {
@@ -57,7 +57,7 @@
 }
 
 .yui-day__marks > .yui-day__at {
-  top: 0.5rem;
+  top: 1.5rem;
   color: var(--yui-text-dim);
 }
 
@@ -68,13 +68,13 @@
   left: calc(var(--yui-at) * 100%);
   width: calc(var(--yui-span) * 100%);
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  padding-left: 0.5rem;
+  padding: 0 0.25rem 0 0.5rem;
   overflow: hidden;
   font-size: var(--yui-fs-caption);
+  line-height: 2rem;
   color: var(--yui-text-dim);
   white-space: nowrap;
+  text-overflow: ellipsis;
   background: var(--yui-selected);
 }
 
@@ -93,18 +93,20 @@
 .yui-day__greeting,
 .yui-day__now {
   position: absolute;
-  top: 0;
   bottom: 0;
   left: calc(var(--yui-at) * 100%);
 }
 
+/* A tick under its time that stops at the track's top edge. */
 .yui-day__greeting {
+  height: 0.5rem;
   width: 1px;
   transform: translateX(-0.5px);
   background: var(--yui-text-mute);
 }
 
 .yui-day__now {
+  top: 0;
   width: 2px;
   transform: translateX(-1px);
   background: var(--yui-text);
