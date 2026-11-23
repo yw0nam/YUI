@@ -57,10 +57,10 @@ function buildPage(
     log: noopLog,
     refreshTooltip: () => {},
     isOpen: () => true,
+    host: document.body,
     ...overrides,
   });
   pages.push(page);
-  document.body.append(page.el);
   return { el: page.el, speakerSelection, page };
 }
 

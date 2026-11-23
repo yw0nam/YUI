@@ -62,16 +62,21 @@ export interface ProactivePage {
   dispose(): void;
 }
 
-export function createProactivePage(deps: ProactivePageDeps): ProactivePage {
+export function createProactivePage(
+  deps: ProactivePageDeps & { host: HTMLElement },
+): ProactivePage {
+  const { host, ...view } = deps;
   const el = document.createElement("div");
   el.className = "yui-tab-stack yui-proactive";
+  // The page appends itself here before its first render: Base UI registers a radio group's items only while connected.
+  host.append(el);
   const root = createRoot(el);
   let revision = 0;
   const render = (): void =>
     flushSync(() =>
       root.render(
         createElement(ProactivePageView, {
-          ...deps,
+          ...view,
           rateLimitDefaults: deps.getRateLimitDefaults?.(),
           screenDefaults: deps.getScreenDefaults?.(),
           revision,

@@ -59,9 +59,9 @@ function build(messageWindowSettings: ReturnType<typeof createMessageWindowSetti
     log: { debug() {}, info() {}, warn() {}, error() {} },
     refreshTooltip: () => {},
     isOpen: () => true,
+    host: document.body,
   });
   pages.push(page);
-  document.body.append(page.el);
   const unlock = () =>
     act(() => {
       shown = false;

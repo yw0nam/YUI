@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** general-page.test.tsx — the General page through its facade: its three segments and the user name row. */
 
-import { fireEvent } from "@testing-library/react";
+import { fireEvent, within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
@@ -9,7 +9,13 @@ import type { Logger } from "../../../logger";
 import { createTextSizeSettings } from "../../../settings/appearance/text-size-settings";
 import { createThemeSettings } from "../../../settings/appearance/theme-settings";
 import { createUserNameSettings } from "../../../settings/identity/user-name-settings";
-import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../../i18n";
+import {
+  getLocale,
+  subscribe as i18nSubscribe,
+  LOCALE_DISPLAY_NAMES,
+  setLocale,
+  t,
+} from "../../i18n";
 import { createGeneralPage, type GeneralPage } from "./general-page";
 import type { GeneralPageViewProps } from "./general-page-view";
 
@@ -34,9 +40,8 @@ function build(overrides: Partial<GeneralPageViewProps> = {}) {
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
     ...overrides,
   };
-  const page = createGeneralPage(deps);
+  const page = createGeneralPage({ ...deps, host: document.body });
   pages.push(page);
-  document.body.append(page.el);
   return { page, ...deps };
 }
 
@@ -57,7 +62,9 @@ describe("createGeneralPage", () => {
     themeSettings.setTheme("hearth");
     const { page } = build({ themeSettings });
     const button = (theme: string) =>
-      page.el.querySelector<HTMLButtonElement>(`.yui-theme-seg [data-value="${theme}"]`);
+      within(page.el.querySelector<HTMLElement>(".yui-theme-seg")!).getByRole("radio", {
+        name: t(`appearance.${theme}`),
+      });
 
     expect(button("hearth")?.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(button("system")!);
@@ -104,13 +111,11 @@ describe("createGeneralPage", () => {
       const { page } = build();
       const seg = page.el.querySelector<HTMLElement>(".yui-lang-seg")!;
       expect(seg).not.toBeNull();
-      const btns = [...seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn")];
-      expect(btns.map((b) => b.dataset.value)).toEqual(["ja", "en", "ko"]);
-      expect(btns.map((b) => b.textContent)).toEqual([
-        LOCALE_DISPLAY_NAMES.ja,
-        LOCALE_DISPLAY_NAMES.en,
-        LOCALE_DISPLAY_NAMES.ko,
-      ]);
+      expect(
+        within(seg)
+          .getAllByRole("radio")
+          .map((radio) => radio.textContent),
+      ).toEqual([LOCALE_DISPLAY_NAMES.ja, LOCALE_DISPLAY_NAMES.en, LOCALE_DISPLAY_NAMES.ko]);
     });
 
     it("reflects the current locale as the checked segment on render", () => {
@@ -119,20 +124,23 @@ describe("createGeneralPage", () => {
       const checked = page.el.querySelector<HTMLButtonElement>(
         ".yui-lang-seg .yui-seg__btn[aria-checked='true']",
       )!;
-      expect(checked.dataset.value).toBe("ko");
+      expect(checked.textContent).toBe(LOCALE_DISPLAY_NAMES.ko);
     });
 
     it("clicking a language segment calls setLocale with that locale", () => {
       const { page } = build();
       expect(getLocale()).toBe("en");
-      const koBtn = page.el.querySelector<HTMLButtonElement>(
-        ".yui-lang-seg .yui-seg__btn[data-value='ko']",
-      )!;
+      const koBtn = within(page.el.querySelector<HTMLElement>(".yui-lang-seg")!).getByRole(
+        "radio",
+        {
+          name: LOCALE_DISPLAY_NAMES.ko,
+        },
+      );
       fireEvent.click(koBtn);
       expect(getLocale()).toBe("ko");
     });
 
-    it("arrow keys on the language seg move roving focus only — locale is NOT committed", () => {
+    it("arrow keys on the language seg move roving focus only — locale is NOT committed", async () => {
       const { page } = build();
 
       // Watch whether arrow keys call setLocale (subscription notifies on each setLocale).
@@ -146,6 +154,7 @@ describe("createGeneralPage", () => {
       btns[1].focus();
 
       fireEvent.keyDown(btns[1], { key: "ArrowRight" });
+      await act(async () => {});
 
       // No commit: locale and aria-checked stay put, only focus and roving tabindex move to ko.
       expect(commits).toBe(0);
@@ -158,6 +167,7 @@ describe("createGeneralPage", () => {
 
       // ArrowLeft moves focus back to en button only (still no commit).
       fireEvent.keyDown(btns[2], { key: "ArrowLeft" });
+      await act(async () => {});
       expect(commits).toBe(0);
       expect(getLocale()).toBe("en");
       expect(document.activeElement).toBe(btns[1]);
@@ -166,7 +176,7 @@ describe("createGeneralPage", () => {
       unsub();
     });
 
-    it("Space on the focused locale button commits setLocale exactly once", () => {
+    it("a click on the focused locale button commits setLocale exactly once", async () => {
       const { page } = build();
 
       let commits = 0;
@@ -178,11 +188,12 @@ describe("createGeneralPage", () => {
       // Move focus to ko using arrow keys (no commit).
       btns[1].focus();
       fireEvent.keyDown(btns[1], { key: "ArrowRight" });
+      await act(async () => {});
       expect(commits).toBe(0);
       expect(getLocale()).toBe("en");
 
-      // Space on focused button → commit (exactly once).
-      fireEvent.keyDown(btns[2], { key: " " });
+      // A click on the focused button selects it (exactly once).
+      fireEvent.click(btns[2]);
       expect(commits).toBe(1);
       expect(getLocale()).toBe("ko");
       expect(btns[2].getAttribute("aria-checked")).toBe("true");

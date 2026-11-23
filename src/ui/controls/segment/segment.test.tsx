@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { act } from "react";
+import { act, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Segment, type SegmentProps } from "./segment";
 
@@ -13,38 +13,65 @@ const LETTERS = [
   { value: "c", label: "C" },
 ];
 
+/** Base UI moves focus in a microtask, so a key press settles inside the awaited act. */
+async function press(element: Element, key: string) {
+  await act(async () => {
+    fireEvent.keyDown(element, { key });
+  });
+}
+
+/** Holds the value like a store-backed caller does. */
+function Host({
+  onValueChange,
+  ...props
+}: Omit<SegmentProps<string>, "onValueChange"> & { onValueChange(value: string): void }) {
+  const [value, setValue] = useState(props.value);
+  return (
+    <Segment
+      {...props}
+      value={value}
+      onValueChange={(next) => {
+        onValueChange(next);
+        setValue(next);
+      }}
+    />
+  );
+}
+
 describe("Segment", () => {
   afterEach(() => {
     act(() => cleanup());
     document.body.innerHTML = "";
   });
 
-  it("selects on arrow keys and on a click when focus selects", () => {
+  it("selects the next option on arrows, wraps at the end, and moves focus to a click", async () => {
     const onValueChange = vi.fn();
-    const { getAllByRole, rerender } = render(
-      <Segment label="Letter" options={LETTERS} value="a" onValueChange={onValueChange} />,
+    const { getAllByRole } = render(
+      <Host label="Letter" options={LETTERS} value="a" onValueChange={onValueChange} />,
     );
     const radios = getAllByRole("radio");
-    expect(radios.map((radio) => radio.getAttribute("data-value"))).toEqual(["a", "b", "c"]);
     expect(radios[0].getAttribute("aria-checked")).toBe("true");
     expect(radios[0].tabIndex).toBe(0);
     expect(radios[1].tabIndex).toBe(-1);
 
     radios[0].focus();
-    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    await press(radios[0], "ArrowRight");
     expect(onValueChange).toHaveBeenLastCalledWith("b");
     expect(document.activeElement).toBe(radios[1]);
 
-    rerender(<Segment label="Letter" options={LETTERS} value="b" onValueChange={onValueChange} />);
-    expect(radios[1].getAttribute("aria-checked")).toBe("true");
-    expect(radios[1].tabIndex).toBe(0);
-    expect(radios[0].tabIndex).toBe(-1);
+    await press(radios[1], "ArrowRight");
+    expect(onValueChange).toHaveBeenLastCalledWith("c");
+    await press(radios[2], "ArrowRight");
+    expect(onValueChange).toHaveBeenLastCalledWith("a");
+    expect(document.activeElement).toBe(radios[0]);
 
     fireEvent.click(radios[2]);
     expect(onValueChange).toHaveBeenLastCalledWith("c");
+    expect(document.activeElement).toBe(radios[2]);
+    expect(radios[2].tabIndex).toBe(0);
   });
 
-  it("starts arrows before the first option when nothing is checked", () => {
+  it("keeps the tab stop on the first option and its first arrow on the second when nothing is checked", async () => {
     const onValueChange = vi.fn();
     const { getAllByRole } = render(
       <Segment label="Letter" options={LETTERS} value="z" onValueChange={onValueChange} />,
@@ -58,11 +85,12 @@ describe("Segment", () => {
     expect(radios[0].tabIndex).toBe(0);
 
     radios[0].focus();
-    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
-    expect(onValueChange).toHaveBeenLastCalledWith("a");
+    await press(radios[0], "ArrowRight");
+    expect(onValueChange).toHaveBeenLastCalledWith("b", expect.anything());
+    expect(document.activeElement).toBe(radios[1]);
   });
 
-  it("moves focus without selecting on arrow keys when activation selects", () => {
+  it("moves focus and the tab stop without selecting on arrows when activation selects", async () => {
     const onValueChange = vi.fn();
     const { getAllByRole } = render(
       <Segment
@@ -75,33 +103,45 @@ describe("Segment", () => {
     );
     const radios = getAllByRole("radio");
     radios[0].focus();
-    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    await press(radios[0], "ArrowRight");
     expect(onValueChange).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(radios[1]);
     expect(radios[1].tabIndex).toBe(0);
     expect(radios[0].tabIndex).toBe(-1);
     expect(radios[1].getAttribute("aria-checked")).toBe("false");
 
-    fireEvent.keyDown(radios[1], { key: "Enter" });
-    expect(onValueChange).toHaveBeenLastCalledWith("b");
+    fireEvent.click(radios[1]);
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenLastCalledWith("b", expect.anything());
   });
 
-  it("disables every option and reports nothing", () => {
+  it("disables every option and reports nothing", async () => {
     const onValueChange = vi.fn();
-    const props = {
-      label: "Letter",
-      options: LETTERS,
-      value: "a",
-      onValueChange,
-      disabled: true,
-    } as SegmentProps<string>;
-    const { getAllByRole } = render(<Segment {...props} />);
+    const { getAllByRole } = render(
+      <Segment label="Letter" options={LETTERS} value="a" onValueChange={onValueChange} disabled />,
+    );
     const radios = getAllByRole("radio") as HTMLButtonElement[];
     expect(radios.map((radio) => radio.disabled)).toEqual([true, true, true]);
 
     fireEvent.click(radios[2]);
     radios[0].focus();
-    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    await press(radios[0], "ArrowRight");
     expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it("moves the tab stop to a value set from outside", async () => {
+    const onValueChange = vi.fn();
+    const { getAllByRole, rerender } = render(
+      <Segment label="Letter" options={LETTERS} value="a" onValueChange={onValueChange} />,
+    );
+    const radios = getAllByRole("radio");
+    radios[0].focus();
+    await press(radios[0], "ArrowRight");
+    expect(radios[1].tabIndex).toBe(0);
+
+    rerender(<Segment label="Letter" options={LETTERS} value="c" onValueChange={onValueChange} />);
+    expect(radios[2].getAttribute("aria-checked")).toBe("true");
+    expect(radios[2].tabIndex).toBe(0);
+    expect(radios[1].tabIndex).toBe(-1);
   });
 });
