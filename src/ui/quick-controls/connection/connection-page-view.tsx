@@ -11,11 +11,11 @@ import {
   type DetailSettingsHandle,
 } from "./detail/detail-settings";
 import { QuickStart, type QuickStartDeps, type QuickStartHandle } from "./quick-start/quick-start";
-import "./connection-views.css";
+import "./connection-page.css";
 
 export type ConnectionView = "quick" | "detail";
 
-export interface ConnectionPageViewProps {
+interface ConnectionPageViewProps {
   view: ConnectionView;
   onView(view: ConnectionView): void;
   quick: QuickStartDeps;

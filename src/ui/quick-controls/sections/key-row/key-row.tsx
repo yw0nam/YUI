@@ -8,7 +8,8 @@ import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } 
 import type { Logger } from "../../../../logger";
 import type { ApiKeySettingsStore } from "../../../../settings/backend/api-key-settings";
 import { t } from "../../../i18n";
-import { CHATKEY_CLEAR_SVG, CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG } from "../../constants";
+import { CHATKEY_CLEAR_SVG } from "../../constants";
+import { RevealToggle } from "./reveal-toggle";
 
 /** The row's commit-if-dirty, which the page calls on close and dispose. */
 export interface KeyRowCommit {
@@ -75,8 +76,6 @@ export function KeyRow({
     log.info(`${idPrefix}_clear`);
   }
 
-  const revealLabel = t(revealed ? `${idPrefix}.hide` : `${idPrefix}.show`);
-
   return (
     <div className="yui-row yui-input-row yui-chatkey" data-key-prefix={idPrefix}>
       <div className="yui-row__main">
@@ -102,15 +101,10 @@ export function KeyRow({
           }}
           onBlur={handleBlur}
         />
-        <button
-          className="yui-iconbtn yui-chatkey__toggle"
-          type="button"
-          aria-pressed={revealed}
-          aria-label={revealLabel}
-          data-tip={revealLabel}
-          onClick={() => setRevealed((shown) => !shown)}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the other key fields
-          dangerouslySetInnerHTML={{ __html: revealed ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG }}
+        <RevealToggle
+          idPrefix={idPrefix}
+          revealed={revealed}
+          onToggle={() => setRevealed((shown) => !shown)}
         />
         <button
           className="yui-iconbtn yui-chatkey__clear"

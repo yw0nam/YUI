@@ -737,8 +737,8 @@ YUI/
         connection/                  # The Connection page, rendered with React
           connection-page.ts         # The page's facade: its React root, the view it shows, the entry, the focus requests, the commit and the push port the panel uses
           connection-page-view.tsx   # The Quick start | Detailed settings switch over both views, both mounted
-          connection-views.css       # The switch's segment and the view wrappers
-          endpoints-section.css      # Endpoints section, the yui-select trigger, and the shared chat-status dot styles
+          connection-page.css        # The views switch's segment and the view wrappers
+          endpoints-section.css      # Endpoints section, the key fields, and the shared chat-status dot styles
           detail/                    # Detailed settings, rendered with React
             detail-settings.tsx      # The chat section, the reasoning-effort row, the STT and TTS sections, and the commit, entry and close the page calls
             endpoint-form.ts         # The endpoint drafts: typing holds a draft, a commit, blur or close writes it, a reset clears a service
@@ -767,6 +767,10 @@ YUI/
             quick-start.tsx          # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
             voice-step.tsx           # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
             key-link.tsx             # A key page link that the opener opens and plain Tab reaches
+            paste-key-row.tsx        # A pasted key's row: the field and its reveal, the confirming pill, the checking line, the error with its key page link
+            gemini-connect.ts        # The write once Gemini confirms a key: the key alone, or the whole connection with check-ins and the schedule off
+            stored-key-check.ts      # The stored key's check, its verdict reused on the same key for a minute
+            voice-turn-on.ts         # The write once Fish confirms a key: the Fish preset, the key, TTS on, the default voice active
             key-state.ts             # The connected key state: the paste row, the stored key's last check and a replacement, as pure transitions
             quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
         delegations/                 # The delegated list's sync, which lives with the panel and not with a page
@@ -902,6 +906,7 @@ YUI/
             help-section.ts          # The guide keys, and the delegated click the composer binds on the Connection page's Help buttons
           key-row/                   # One secret API key row
             key-row.tsx              # Masked input, reveal and clear, sub line, commit on blur, close and dispose; the chat, TTS and STT rows
+            reveal-toggle.tsx        # The eye button that shows or masks a key field, which every key field shares
           push-reason/               # Controls the push transport cannot use
             push-reason.tsx          # The reason line under such a control, and the delegated click of its link to the chat protocol select
             push-reason.css          # Reason line styles
@@ -931,7 +936,7 @@ YUI/
         select/                      # The Select
           index.ts                   # Re-exports the Select, its items and props types
           select.tsx                 # A select on Base UI's Select the caller labels and owns the value of, with a shorter closed name where given
-          select.css                 # The popup and its items over the settings content
+          select.css                 # The trigger without OS chrome, and the popup and its items over the settings content
         segment/                     # The Segment, and the keys it shares
           index.ts                   # Re-exports the Segment, its options and props, and the key handler
           segment.tsx                # A radio segment the caller labels and owns the value of

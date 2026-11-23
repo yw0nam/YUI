@@ -4,7 +4,7 @@
  * preset, the key, TTS on, and the app language's default voice as the active speaker.
  */
 
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { EndpointsConfig } from "../../../../contract";
 import { checkFishKey, type FishKeyCheck } from "../../../../io/voice/voices/fish-key-check";
@@ -15,16 +15,17 @@ import type {
   EndpointOverrides,
 } from "../../../../settings/backend/endpoints-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { getLocale, t } from "../../../i18n";
-import { CHATKEY_EYE_OFF_SVG, CHATKEY_EYE_SVG, FISH_KEY_URL, FISH_PRESET } from "../../constants";
-import { WARN_GLYPH } from "../../glyphs";
+import { t } from "../../../i18n";
+import { FISH_KEY_URL, FISH_PRESET } from "../../constants";
 import { KeyLink } from "./key-link";
+import { PasteKeyRow, usePasteKey } from "./paste-key-row";
+import { turnOnVoice } from "./voice-turn-on";
 import "./quick-start.css";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 
-export interface VoiceStepDeps {
+interface VoiceStepDeps {
   endpointsSettings: Pick<EndpointsSettingsStore, "get" | "set">;
   /** The bundled config's endpoints, the fallback for an unset TTS URL. */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
@@ -36,22 +37,14 @@ export interface VoiceStepDeps {
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
 }
 
-interface KeyError {
-  textKey: string;
-  keyLink: boolean;
-}
-
 /** Reads the stores on every render: the step, a result line, or hidden. */
 export function VoiceStep(deps: VoiceStepDeps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const paste = usePasteKey();
   const [checking, setChecking] = useState(false);
-  const [error, setError] = useState<KeyError | null>(null);
-  const [revealed, setRevealed] = useState(false);
   // "Maybe later" hides the step until the panel rebuilds; never persisted.
   const [skipped, setSkipped] = useState(false);
   // The default voice's name once the ok path turned voice on in this window; it keeps voice_is_on over voice_configured.
   const [turnedOnName, setTurnedOnName] = useState<string | null>(null);
-  const [focusRequest, requestFocus] = useReducer((n: number) => n + 1, 0);
   // A completion after unmount, a newer press or "Maybe later" writes nothing.
   const seq = useRef(0);
   const disposed = useRef(false);
@@ -63,44 +56,16 @@ export function VoiceStep(deps: VoiceStepDeps) {
     };
   }, []);
 
-  useLayoutEffect(() => {
-    if (focusRequest > 0) inputRef.current?.focus();
-  }, [focusRequest]);
-
   const voices = deps.getDefaultVoices();
   const url =
     deps.endpointsSettings.get().tts_base_url || deps.getEndpointDefaults?.()?.tts_base_url || "";
   const turnedOnHere = turnedOnName !== null;
 
-  function showError(textKey: string, keyLink: boolean): void {
-    setError({ textKey, keyLink });
-    requestFocus();
-  }
-
   function turnOn(key: string): void {
-    const voices = deps.getDefaultVoices();
-    if (!voices) return;
-    // The owner switch to fish rides this set: the wired voice-list refresh reads it synchronously.
-    deps.endpointsSettings.set({
-      tts_provider: "fish",
-      tts_base_url: FISH_PRESET.url,
-      tts_model: FISH_PRESET.model,
-    });
-    deps.ttsKeySettings.setApiKey(key);
-    deps.ttsSettings.setEnabled(true);
-    const voice = voices[getLocale()];
-    if (!deps.speakerSelection.list().some((o) => o.id === voice.id)) {
-      deps.speakerSelection.addUserOption({
-        id: voice.id,
-        label: voice.name,
-        ref_url: "",
-        source: "user",
-        provider: "fish",
-      });
-    }
-    deps.speakerSelection.pin(voice.id);
-    setTurnedOnName(voice.name);
-    if (inputRef.current) inputRef.current.value = "";
+    const name = turnOnVoice(deps, key);
+    if (name === null) return;
+    setTurnedOnName(name);
+    if (paste.inputRef.current) paste.inputRef.current.value = "";
   }
 
   async function press(key: string): Promise<void> {
@@ -117,16 +82,16 @@ export function VoiceStep(deps: VoiceStepDeps) {
     if (disposed.current || mySeq !== seq.current) return;
     flushSync(() => {
       setChecking(false);
-      if (result === "refused") showError("start.voice_refused", true);
-      else if (result === "failed") showError("start.voice_failed", false);
+      if (result === "refused") paste.showError("start.voice_refused", true);
+      else if (result === "failed") paste.showError("start.voice_failed", false);
       else turnOn(key);
     });
   }
 
   function handleTurn(): void {
-    setError(null);
-    const key = inputRef.current?.value.trim() ?? "";
-    if (key === "") showError("start.need_key", false);
+    paste.clearError();
+    const key = paste.typedKey();
+    if (key === "") paste.showError("start.need_key", false);
     else void press(key);
   }
 
@@ -134,8 +99,6 @@ export function VoiceStep(deps: VoiceStepDeps) {
     seq.current++;
     setSkipped(true);
   }
-
-  const revealLabel = t(revealed ? "chatkey.hide" : "chatkey.show");
 
   return (
     <div className="yui-sec yui-start__voice" hidden={voices === undefined}>
@@ -156,62 +119,24 @@ export function VoiceStep(deps: VoiceStepDeps) {
               className="yui-start__voice-link"
             />
           </div>
-          <div className="yui-row yui-chatkey yui-start__voice-paste">
-            <div className="yui-row__main">
-              <label className="yui-input-row__label" htmlFor="yui-start-voice-key">
-                {t("start.voice_paste_label")}
-              </label>
-            </div>
-            <div className="yui-input-wrap yui-chatkey__wrap">
-              <input
-                ref={inputRef}
-                className="yui-ep-input yui-chatkey__input"
-                id="yui-start-voice-key"
-                type={revealed ? "text" : "password"}
-                placeholder={t("start.paste_placeholder")}
-                autoComplete="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                disabled={checking}
-              />
-              <button
-                className="yui-iconbtn yui-chatkey__toggle"
-                type="button"
-                aria-pressed={revealed}
-                aria-label={revealLabel}
-                data-tip={revealLabel}
-                onClick={() => setRevealed((shown) => !shown)}
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the key rows
-                dangerouslySetInnerHTML={{
-                  __html: revealed ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG,
-                }}
-              />
-            </div>
-            <button
-              className="yui-pill yui-pill--ok yui-start__voice-turn"
-              type="button"
-              disabled={checking}
-              onClick={handleTurn}
-            >
-              {t("start.voice_on")}
-            </button>
-            <p className="yui-start__voice-checking" role="status" hidden={!checking}>
-              <i className="yui-start__dot" />
-              {t("start.voice_checking")}
-            </p>
-            <div className="yui-start__err yui-start__voice-err" role="alert" hidden={!error}>
-              {WARN_GLYPH}
-              <div>
-                <span className="yui-start__err-text">{error ? t(error.textKey) : ""}</span>{" "}
-                <KeyLink
-                  url={FISH_KEY_URL}
-                  labelKey="start.reopen"
-                  className="yui-start__voice-reopen"
-                  hidden={!error?.keyLink}
-                />
-              </div>
-            </div>
-          </div>
+          <PasteKeyRow
+            id="yui-start-voice-key"
+            labelKey="start.voice_paste_label"
+            actionKey="start.voice_on"
+            checkingKey="start.voice_checking"
+            keyUrl={FISH_KEY_URL}
+            classes={{
+              row: "yui-start__voice-paste",
+              action: "yui-start__voice-turn",
+              checking: "yui-start__voice-checking",
+              error: "yui-start__err yui-start__voice-err",
+              reopen: "yui-start__voice-reopen",
+            }}
+            inputRef={paste.inputRef}
+            busy={checking}
+            error={paste.error}
+            onAction={handleTurn}
+          />
         </div>
         <button className="yui-link-btn yui-start__voice-later" type="button" onClick={handleLater}>
           {t("start.voice_later")}

@@ -1,9 +1,8 @@
 /** Quick start: the Connection page's free Gemini path, a pasted key confirmed by a model-list read and checked again once stored. */
 
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import type { EndpointsConfig } from "../../../../contract";
-import type { ModelListResult } from "../../../../io/chat/models/reader";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type {
   ApiKeySettingsStore,
@@ -17,15 +16,11 @@ import type { createProactiveSettings } from "../../../../settings/cues/proactiv
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import { t } from "../../../i18n";
-import {
-  CHATKEY_EYE_OFF_SVG,
-  CHATKEY_EYE_SVG,
-  GEMINI_KEY_URL,
-  GEMINI_PRESET,
-} from "../../constants";
+import { GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
 import { HelpSection } from "../../general/help/help-section";
 import { WARN_GLYPH } from "../../glyphs";
 import { createModelRead } from "../chat/model-read";
+import { writeGeminiKey } from "./gemini-connect";
 import { KeyLink } from "./key-link";
 import {
   INITIAL_KEY_STATE,
@@ -35,6 +30,8 @@ import {
   keyWritten,
   openKey,
 } from "./key-state";
+import { PasteKeyRow, usePasteKey } from "./paste-key-row";
+import { createStoredKeyCheck, isRefused } from "./stored-key-check";
 import { VoiceStep } from "./voice-step";
 import "./quick-start.css";
 
@@ -86,19 +83,6 @@ export interface QuickStartHandle {
   } | null;
 }
 
-// A stored-key check answer is reused on the same key for this long.
-const CHECK_REUSE_MS = 60_000;
-
-/** A refused key: a 401 or 403, or the HTTP 400 Gemini answers for a bad key. */
-function isRefused(result: ModelListResult): boolean {
-  return result.kind === "refused" || (result.kind === "http" && result.status === 400);
-}
-
-interface KeyError {
-  textKey: string;
-  keyLink: boolean;
-}
-
 function FactRow({ labelKey, subKey }: { labelKey: string; subKey: string }) {
   return (
     <div className="yui-row">
@@ -112,26 +96,18 @@ function FactRow({ labelKey, subKey }: { labelKey: string; subKey: string }) {
 
 /** Reads the stores on every render onto the two states: the setup or the connected one. */
 export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: QuickStartHandle }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const paste = usePasteKey();
   const [keyState, setKeyState] = useState<KeyState>(INITIAL_KEY_STATE);
   const [reading, setReading] = useState(false);
-  const [error, setError] = useState<KeyError | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [focusRequest, requestFocus] = useReducer((n: number) => n + 1, 0);
 
   const [quick] = useState(() => {
+    const { typedKey, showError, requestFocus } = paste;
     const endpointsUrl = (): string =>
       deps.endpointsSettings.get().chat_base_url ||
       deps.getEndpointDefaults?.()?.chat_base_url ||
       "";
     const isConnected = (): boolean =>
       endpointsUrl() === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
-    const typedKey = (): string => inputRef.current?.value.trim() ?? "";
-
-    function showError(textKey: string, keyLink = false): void {
-      setError({ textKey, keyLink });
-      requestFocus();
-    }
 
     function showVerdict(ok: boolean): void {
       setKeyState((state) => keyChecked(state, ok));
@@ -148,20 +124,8 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
           const { result } = phase;
           if (result.kind === "ok") {
             const wasConnected = isConnected();
-            if (wasConnected) {
-              deps.chatKeySettings.setApiKey(typedKey());
-            } else {
-              deps.endpointsSettings.set({
-                chat_base_url: GEMINI_PRESET.url,
-                chat_model: GEMINI_PRESET.model,
-                chat_api: "chat_completions",
-              });
-              deps.chatKeySettings.setApiKey(typedKey());
-              deps.proactiveSettings.setEnabled(false);
-              deps.scheduleSettings.setEnabled(false);
-              deps.onConnected();
-            }
-            if (inputRef.current) inputRef.current.value = "";
+            writeGeminiKey(deps, typedKey(), wasConnected);
+            if (paste.inputRef.current) paste.inputRef.current.value = "";
             setKeyState(keyWritten(wasConnected));
           } else if (isRefused(result)) {
             showError("start.refused", true);
@@ -171,30 +135,14 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
         }),
     });
 
-    // The key the stored-key check sent; its answer counts only while that key is still the stored one.
-    let checkedKey = "";
-    // The last answer on a key: a burst of window focus events sends one request.
-    let lastVerdict: { key: string; at: number; ok: boolean } | null = null;
-    const check = createModelRead({
-      getApiKey: async () => (checkedKey = deps.chatKeySettings.get().apiKey),
+    const check = createStoredKeyCheck({
+      getStoredKey: () => deps.chatKeySettings.get().apiKey,
       getFetch: deps.getFetch,
-      onPhase: (phase) => {
-        if (phase.phase !== "done" || checkedKey !== deps.chatKeySettings.get().apiKey) return;
-        // A network failure says nothing about the key, so the view stays as it is.
-        const { result } = phase;
-        if (result.kind !== "ok" && !isRefused(result)) return;
-        lastVerdict = { key: checkedKey, at: Date.now(), ok: result.kind === "ok" };
-        const { ok } = lastVerdict;
-        flushSync(() => showVerdict(ok));
-      },
+      onVerdict: (ok) => flushSync(() => showVerdict(ok)),
     });
 
     function entered(): void {
-      if (!isConnected()) return;
-      const key = deps.chatKeySettings.get().apiKey;
-      if (lastVerdict?.key === key && Date.now() - lastVerdict.at < CHECK_REUSE_MS) {
-        showVerdict(lastVerdict.ok);
-      } else check.start(GEMINI_PRESET.url);
+      if (isConnected()) check.run();
     }
 
     return {
@@ -212,7 +160,7 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
         requestFocus();
       },
       connect(): void {
-        setError(null);
+        paste.clearError();
         if (typedKey() === "") showError("start.need_key");
         else read.start(GEMINI_PRESET.url);
       },
@@ -234,15 +182,10 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
     [quick],
   );
 
-  useLayoutEffect(() => {
-    if (focusRequest > 0) inputRef.current?.focus();
-  }, [focusRequest]);
-
   const url = quick.endpointsUrl();
   const on = quick.isConnected();
   if (!on && keyState !== INITIAL_KEY_STATE) setKeyState(INITIAL_KEY_STATE);
   const view = keyView(on ? keyState : INITIAL_KEY_STATE, on);
-  const revealLabel = t(revealed ? "chatkey.hide" : "chatkey.show");
   const voiceStep =
     deps.ttsSettings && deps.ttsKeySettings && deps.speakerSelection ? (
       <VoiceStep
@@ -270,7 +213,7 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
           hidden={!view.replaceButton}
           onClick={() => {
             setKeyState(openKey);
-            requestFocus();
+            paste.requestFocus();
           }}
         >
           {t("input.action_change_key")}
@@ -283,63 +226,29 @@ export function QuickStart({ handle, ...deps }: QuickStartDeps & { handle: Quick
         </div>
         <KeyLink url={GEMINI_KEY_URL} labelKey="start.make_link" className="yui-start__key-link" />
       </div>
-      <div className="yui-row yui-chatkey yui-start__paste" hidden={!view.paste}>
-        <div className="yui-row__main">
-          <label className="yui-input-row__label" htmlFor="yui-start-key">
-            {t("start.paste_label")}
-          </label>
-        </div>
-        <div className="yui-input-wrap yui-chatkey__wrap">
-          <input
-            ref={inputRef}
-            className="yui-ep-input yui-chatkey__input"
-            id="yui-start-key"
-            type={revealed ? "text" : "password"}
-            placeholder={t("start.paste_placeholder")}
-            autoComplete="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            disabled={reading}
-          />
-          <button
-            className="yui-iconbtn yui-chatkey__toggle"
-            type="button"
-            aria-pressed={revealed}
-            aria-label={revealLabel}
-            data-tip={revealLabel}
-            onClick={() => setRevealed((shown) => !shown)}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the key rows
-            dangerouslySetInnerHTML={{ __html: revealed ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG }}
-          />
-        </div>
-        <button
-          className="yui-pill yui-pill--ok yui-start__connect"
-          type="button"
-          disabled={reading}
-          onClick={quick.connect}
-        >
-          {t("start.connect")}
-        </button>
-        <p className="yui-start__checking" role="status" hidden={!reading}>
-          <i className="yui-start__dot" />
-          {t("start.checking")}
-        </p>
+      <PasteKeyRow
+        id="yui-start-key"
+        labelKey="start.paste_label"
+        actionKey="start.connect"
+        checkingKey="start.checking"
+        keyUrl={GEMINI_KEY_URL}
+        classes={{
+          row: "yui-start__paste",
+          action: "yui-start__connect",
+          checking: "yui-start__checking",
+          error: "yui-start__err",
+          reopen: "yui-start__reopen",
+        }}
+        inputRef={paste.inputRef}
+        busy={reading}
+        error={paste.error}
+        hidden={!view.paste}
+        onAction={quick.connect}
+      >
         <p className="yui-start__key-ok" role="status" hidden={!view.keyOk}>
           {t("start.key_ok")}
         </p>
-        <div className="yui-start__err" role="alert" hidden={!error}>
-          {WARN_GLYPH}
-          <div>
-            <span className="yui-start__err-text">{error ? t(error.textKey) : ""}</span>{" "}
-            <KeyLink
-              url={GEMINI_KEY_URL}
-              labelKey="start.reopen"
-              className="yui-start__reopen"
-              hidden={!error?.keyLink}
-            />
-          </div>
-        </div>
-      </div>
+      </PasteKeyRow>
     </div>
   );
 

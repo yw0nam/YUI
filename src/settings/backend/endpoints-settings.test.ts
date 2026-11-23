@@ -530,11 +530,11 @@ describe("ENDPOINT_FIELD_SPECS", () => {
   });
 });
 
-// Pins the per-service reset behavior endpoints-section.ts's handleSvcReset derives from
+// Pins the per-service reset behavior endpoint-form.ts's reset derives from
 // `resetGroup` — grouping by resetGroup must reproduce today's hand-written reset sets exactly
 // (including the chat_api special-case), or the reset buttons silently start clearing
 // more/less than before.
-describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service reset wiring)", () => {
+describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoint-form.ts per-service reset wiring)", () => {
   const bySvc = (svc: string): string[] =>
     ENDPOINT_FIELD_SPECS.filter((s) => s.resetGroup === svc)
       .map((s) => s.key)

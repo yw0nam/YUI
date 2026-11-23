@@ -4,7 +4,7 @@ import { Select as BaseSelect } from "@base-ui/react/select";
 import { useLayoutEffect, useRef, useState } from "react";
 import "./select.css";
 
-export interface SelectItem<V extends string> {
+interface SelectItem<V extends string> {
   value: V;
   label: string;
 }

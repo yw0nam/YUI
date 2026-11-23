@@ -46,7 +46,7 @@ export function createConnectionPage(deps: {
   scope: HTMLElement | null;
   initial: ConnectionView;
   quick: QuickStartDeps;
-  detail: DetailSettingsDeps & { pushSocket?: PushSocketPanelPort };
+  detail: DetailSettingsDeps;
 }): ConnectionPage {
   const { host, scope, quick, detail } = deps;
   const el = document.createElement("div");

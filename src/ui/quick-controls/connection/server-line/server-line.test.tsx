@@ -11,7 +11,7 @@ import { ServerLine, type ServerLineRun } from "./server-line";
 const tick = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
 /** Renders one line; `run` is what the page calls on entry. */
-function createServerLine(props: Omit<Parameters<typeof ServerLine>[0], "run">) {
+function renderLine(props: Omit<Parameters<typeof ServerLine>[0], "run">) {
   const handle: ServerLineRun = { current: null };
   const { container } = render(<ServerLine {...props} run={handle} />);
   return { section: container, run: () => act(() => handle.current!()) };
@@ -24,7 +24,7 @@ describe("ServerLine", () => {
 
   it("drops a stale result — two runs, the first resolving last keeps the second's view", async () => {
     const pending: ((result: ServerCheck | null) => void)[] = [];
-    const { section, run } = createServerLine({
+    const { section, run } = renderLine({
       check: () => new Promise<ServerCheck | null>((resolve) => pending.push(resolve)),
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -49,7 +49,7 @@ describe("ServerLine", () => {
   it("does not re-check when an endpoints notify leaves the watched value unchanged", async () => {
     let notify: (() => void) | undefined;
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const { run } = createServerLine({
+    const { run } = renderLine({
       check,
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -73,7 +73,7 @@ describe("ServerLine", () => {
   it("re-checks when the key store notifies", async () => {
     let keyNotify: (() => void) | undefined;
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const { run } = createServerLine({
+    const { run } = renderLine({
       check,
       host: () => "h.test",
       watch: () => "https://h.test/v1",
@@ -97,7 +97,7 @@ describe("ServerLine", () => {
   it("hides the line and checks nothing while the service has no host", async () => {
     let hostValue = "h.test";
     const check = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
-    const { section, run } = createServerLine({
+    const { section, run } = renderLine({
       check,
       host: () => hostValue,
       watch: () => hostValue,

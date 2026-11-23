@@ -42,54 +42,6 @@
   color: var(--yui-accent-ink);
 }
 
-/* ── yui-select — the Select trigger without OS chrome (type · provider · pace); its text truncates like a native select's ── */
-.yui-select {
-  appearance: none;
-  -webkit-appearance: none;
-  box-sizing: border-box;
-  height: 2rem;
-  margin: 0;
-  padding: 0 1.75rem 0 0.625rem;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-align: start;
-  font: inherit;
-  font-size: var(--yui-fs-body);
-  color: var(--yui-text);
-  background-color: var(--yui-field);
-  border: 1px solid transparent;
-  border-radius: var(--yui-radius-control);
-  cursor: pointer;
-  background-image: var(--yui-chevron);
-  background-repeat: no-repeat;
-  background-position: right 0.625rem center;
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    box-shadow var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-select:hover {
-  border-color: var(--yui-edge);
-}
-
-.yui-select:focus-visible {
-  outline: none;
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
-}
-
-.yui-select--single {
-  cursor: default;
-  color: var(--yui-text-dim);
-  background-image: none;
-  padding-right: 0.625rem;
-}
-
-.yui-select--single:hover {
-  border-color: transparent;
-}
-
 /* Push connection line — a row in the chat group, a coloured dot before the state.
    The session section's own lost line wears the same dot, in Ember Red throughout. */
 .yui-chat-status,

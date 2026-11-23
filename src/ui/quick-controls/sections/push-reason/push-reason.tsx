@@ -17,7 +17,7 @@ export function PushReason({ reasonKey, hidden }: { reasonKey: string; hidden: b
   );
 }
 
-/** Every reason link under `root` calls `onLink`, which opens the chat protocol select. */
+/** Every reason link under `root` calls `onLink`, which shows and focuses the chat protocol select. */
 export function bindTransportLinks(root: HTMLElement, onLink: () => void): () => void {
   function handleClick(e: MouseEvent): void {
     if ((e.target as HTMLElement).closest(".yui-push-reason__link")) onLink();
