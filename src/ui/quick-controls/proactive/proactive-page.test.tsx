@@ -81,6 +81,7 @@ afterEach(() => {
   });
   document.body.innerHTML = "";
   localStorage.clear();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -332,6 +333,19 @@ describe("createProactivePage — Advanced", () => {
 
     expect(deps.pacerGapSettings.get().value).toBe(0);
     expect(input!.value).toBe("0");
+  });
+
+  it("shows the value it kept at once when Enter commits an out-of-range wait", () => {
+    const { deps, input } = buildAdvanced("#yui-pacer-gap");
+
+    expect(input?.value).toBe("10");
+    if (!input) return;
+    input.focus();
+    input.value = "500";
+    act(() => input.dispatchEvent(new Event("change")));
+
+    expect(deps.pacerGapSettings.get().value).toBe(600_000);
+    expect(input.value).toBe("10");
   });
 
   it("keeps a focused edit through an outside change, then commits it", () => {
@@ -1163,6 +1177,32 @@ describe("createProactivePage — the source groups", () => {
       });
 
       expect(page.el.querySelector(".yui-wf")).toBeNull();
+    });
+
+    it("schedules no flash timer when a fired workflow settles after dispose", async () => {
+      vi.useFakeTimers();
+      let settle: (value: unknown) => void = () => {};
+      const fetchFn = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            settle = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchFn);
+      const { page, workflowSettings } = buildSources();
+      addWorkflow(workflowSettings);
+      const fire = page.el.querySelector<HTMLButtonElement>(".yui-wf__fire");
+      expect(fire).not.toBeNull();
+      if (!fire) return;
+
+      fireEvent.click(fire);
+      disposeNow(page);
+      await act(async () => {
+        settle({});
+        await Promise.resolve();
+      });
+
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });
