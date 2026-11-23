@@ -339,6 +339,24 @@ describe("createQuickControls — presets", () => {
     );
   });
 
+  it("hides the Connection page's scope line while Quick start shows", () => {
+    qc.dispose();
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      presetRegistry: registry,
+      openOnQuickStart: true,
+    });
+    qc.open();
+    const scope = () => qc.el.querySelector<HTMLElement>("#yui-panel-conn .yui-tabpanel__scope")!;
+    expect(scope().hidden).toBe(true);
+
+    const detail = [...qc.el.querySelectorAll<HTMLElement>('#yui-panel-conn [role="radio"]')].find(
+      (radio) => radio.textContent === "Detailed settings",
+    )!;
+    act(() => detail.click());
+    expect(scope().hidden).toBe(false);
+  });
+
   // Esc hands focus back to the dots button; an outside press leaves it on the control pressed.
   it.each([
     [
