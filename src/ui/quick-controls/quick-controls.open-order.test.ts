@@ -28,7 +28,7 @@ vi.mock("./connection/connection-page", () => ({
   createConnectionPage: () => ({
     el: document.createElement("div"),
     refresh: rec("connectionPage", "refresh"),
-    entered: () => {},
+    entered: rec("connectionPage", "entered"),
     windowFocused: () => {},
     focusKey: () => {},
     focusChatType: () => {},
@@ -106,6 +106,30 @@ describe("createQuickControls — open order", () => {
       "bodyPage.refresh",
       "motionPage.refresh",
       "voicePage.refresh",
+      "shell.refreshVoiceList",
+      "perms.loadMonitorsIfEnabled",
+    ]);
+    qc.dispose();
+  });
+
+  it("opening on the Connection page enters it after every redraw and before the voice list and the monitors", () => {
+    const qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      transcript: createChatHistoryStore(),
+      refreshVoiceList: rec("shell", "refreshVoiceList"),
+      openOnQuickStart: true,
+    });
+
+    qc.open();
+
+    expect(order).toEqual([
+      "connectionPage.refresh",
+      "delegationFeed.sync",
+      "historyPage.refresh",
+      "bodyPage.refresh",
+      "motionPage.refresh",
+      "voicePage.refresh",
+      "connectionPage.entered",
       "shell.refreshVoiceList",
       "perms.loadMonitorsIfEnabled",
     ]);
