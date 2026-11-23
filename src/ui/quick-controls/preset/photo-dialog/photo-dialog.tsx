@@ -64,9 +64,14 @@ export interface PhotoDialogProps {
 
 /**
  * Measures a photo; a just-picked one saves its default framing then, whether or not a dialog still
- * shows, unless a later write for that preset came first (null).
+ * shows. Settles to the size, "failed" when it cannot be measured, or null when a later write for that
+ * preset came first.
  */
-function framePhoto(p: PhotoDialogProps, url: string, picked: boolean): Promise<PhotoSize | null> {
+function framePhoto(
+  p: PhotoDialogProps,
+  url: string,
+  picked: boolean,
+): Promise<PhotoSize | "failed" | null> {
   const mine = picked ? bumpWrite(p.entry.id) : 0;
   const superseded = (): boolean => picked && writes.get(p.entry.id) !== mine;
   return (p.measure ?? loadPhotoSize)(url).then(
@@ -78,10 +83,7 @@ function framePhoto(p: PhotoDialogProps, url: string, picked: boolean): Promise<
       }
       return size;
     },
-    (error) => {
-      if (superseded()) return null;
-      throw error;
-    },
+    () => (superseded() ? null : "failed"),
   );
 }
 
@@ -116,7 +118,12 @@ export function PhotoDialog(props: PhotoDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closed = useRef(props.onClosed);
   closed.current = props.onClosed;
-  const [source, setSource] = useState({ url: props.url, picked: props.picked });
+  // A chosen photo brings its measure, started at the pick so its framing saves even after a Cancel.
+  const [source, setSource] = useState<{
+    url: string;
+    picked: boolean;
+    framed?: Promise<PhotoSize | "failed" | null>;
+  }>({ url: props.url, picked: props.picked });
   // null while measuring; "failed" when the photo could not be measured.
   const [shown, setShown] = useState<{ size: PhotoSize; stage: Stage } | "failed" | null>(null);
   const [picking, setPicking] = useState(false);
@@ -151,20 +158,18 @@ export function PhotoDialog(props: PhotoDialogProps) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: one measure per photo; the other props are the ones the dialog opened with
   useLayoutEffect(() => {
     let current = true;
-    framePhoto(props, source.url, source.picked).then(
-      (measured) => {
-        if (!current || !measured) return;
-        setShown({
-          size: measured,
-          stage: stageOf((!source.picked && entry.crop) || defaultCrop(measured), measured),
-        });
-      },
-      () => {
-        if (!current) return;
+    void (source.framed ?? framePhoto(props, source.url, source.picked)).then((measured) => {
+      if (!current || !measured) return;
+      if (measured === "failed") {
         setShown("failed");
         setError(true);
-      },
-    );
+        return;
+      }
+      setShown({
+        size: measured,
+        stage: stageOf((!source.picked && entry.crop) || defaultCrop(measured), measured),
+      });
+    });
     return () => {
       current = false;
     };
@@ -184,7 +189,7 @@ export function PhotoDialog(props: PhotoDialogProps) {
         props.saveUrl(picked);
         setShown(null);
         setError(false);
-        setSource({ url: picked, picked: true });
+        setSource({ url: picked, picked: true, framed: framePhoto(props, picked, true) });
       })
       .catch((err) => {
         setPicking(false);

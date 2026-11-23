@@ -68,9 +68,12 @@ export interface PresetHeaderProps {
 export function PresetHeader(p: PresetHeaderProps) {
   const { edited, registry, log, petWindows, boundId = null } = p;
   const shownId = presetIdForWindow();
-  useNotify(edited.subscribe);
-  useNotify(petWindows?.subscribe);
-  useNotify(p.agentNotifySettings?.subscribe);
+  // Each source's notify, the card's cue to close as the line redraws.
+  const notified = [
+    useNotify(edited.subscribe),
+    useNotify(petWindows?.subscribe),
+    useNotify(p.agentNotifySettings?.subscribe),
+  ];
   const state = edited.get();
   const windows = petWindows?.get();
   const ingress = p.agentNotifySettings?.get();
@@ -145,7 +148,7 @@ export function PresetHeader(p: PresetHeaderProps) {
           presets={state.list}
           isOpen={isOpen}
           relationsSwitch={p.relationsSwitch}
-          closeOn={[state, windows, ingress]}
+          closeOn={notified}
         />
       )}
       <div
