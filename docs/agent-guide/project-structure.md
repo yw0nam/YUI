@@ -934,7 +934,7 @@ YUI/
           switch.tsx                 # A boolean switch the caller labels and owns the state of
           switch.css                 # Switch track, knob, focus and disabled styles
         select/                      # The Select
-          index.ts                   # Re-exports the Select, its items and props types
+          index.ts                   # Re-exports the Select and its props type
           select.tsx                 # A select on Base UI's Select the caller labels and owns the value of, with a shorter closed name where given
           select.css                 # The trigger without OS chrome, and the popup and its items over the settings content
         segment/                     # The Segment, and the keys it shares
