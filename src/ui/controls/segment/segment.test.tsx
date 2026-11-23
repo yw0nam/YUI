@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Segment } from "./segment";
+import { Segment, type SegmentProps } from "./segment";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,5 +84,24 @@ describe("Segment", () => {
 
     fireEvent.keyDown(radios[1], { key: "Enter" });
     expect(onValueChange).toHaveBeenLastCalledWith("b");
+  });
+
+  it("disables every option and reports nothing", () => {
+    const onValueChange = vi.fn();
+    const props = {
+      label: "Letter",
+      options: LETTERS,
+      value: "a",
+      onValueChange,
+      disabled: true,
+    } as SegmentProps<string>;
+    const { getAllByRole } = render(<Segment {...props} />);
+    const radios = getAllByRole("radio") as HTMLButtonElement[];
+    expect(radios.map((radio) => radio.disabled)).toEqual([true, true, true]);
+
+    fireEvent.click(radios[2]);
+    radios[0].focus();
+    fireEvent.keyDown(radios[0], { key: "ArrowRight" });
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });
