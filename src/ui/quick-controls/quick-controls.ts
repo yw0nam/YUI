@@ -92,9 +92,9 @@ import type { CardIoPorts } from "./persona/card/card-io";
 import { createPersonaPage } from "./persona/persona-page";
 import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
+import { createProactivePage } from "./proactive/proactive-page";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
-import { createBasePaceSection } from "./sections/base-pace/base-pace-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
@@ -482,13 +482,9 @@ export function createQuickControls({
   el.innerHTML = buildPanelHtml({
     switchRows: TOGGLE_SPECS,
     openOnQuickStart,
-    showBasePace: !!basePaceSettings,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showThreadTurns: !!threadTurnsSettings && !!agentNotifySettings,
     showReactionThresholds: !!threadReactionThresholdsSettings && !!threadReactionsSettings,
-    showPresence: !!presenceSettings,
-    showPacerGap: !!pacerGapSettings,
-    showRateLimits: !!rateLimitSettings,
     showHistory: !!transcript,
     showPlugins: !!plugins,
     showPreset: !!presetRegistry,
@@ -496,6 +492,29 @@ export function createQuickControls({
 
   // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
   mount.appendChild(el);
+
+  // ── Proactive page (how often she speaks up · her day · Advanced) ──
+  const proactivePage = createProactivePage({
+    basePaceSettings,
+    activeHoursSettings,
+    agentSettings,
+    getPersona,
+    scheduleSettings,
+    proactiveSettings,
+    // Runs on a click, after the tab rail exists.
+    openPersona: () => tabRail.select("persona"),
+    pacerGapSettings,
+    presenceSettings,
+    rateLimitSettings,
+    getRateLimitDefaults,
+    log,
+  });
+  const reactPanel = el.querySelector<HTMLElement>("#yui-panel-react")!;
+  reactPanel.append(proactivePage.el);
+  // The template's source sections sit between her day and Advanced until they move to React.
+  proactivePage.el
+    .querySelector('[data-slot="sources"]')!
+    .append(...reactPanel.querySelectorAll(":scope > .yui-sec"));
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
@@ -688,10 +707,6 @@ export function createQuickControls({
     threadTurnsSettings,
     threadReactionThresholdsSettings,
     threadReactionsSettings,
-    presenceSettings,
-    pacerGapSettings,
-    rateLimitSettings,
-    getRateLimitDefaults,
     reflectSwitchRows: () => switchRows.reflect(),
     isOpen: shell.isOpen,
   });
@@ -791,14 +806,6 @@ export function createQuickControls({
   });
 
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
-  const basePace = basePaceSettings
-    ? createBasePaceSection({
-        root: el,
-        basePaceSettings,
-        isOpen: shell.isOpen,
-        openPersona: () => tabRail.select("persona"),
-      })
-    : undefined;
   const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(request?: PageRequest): void {
@@ -836,7 +843,7 @@ export function createQuickControls({
     { dispose: permsPage.dispose },
     pluginsPage,
     switchRows,
-    basePace,
+    { reflect: proactivePage.refresh, dispose: proactivePage.dispose },
     reactions,
     screen,
     { close: listeningPage.close, dispose: listeningPage.dispose },

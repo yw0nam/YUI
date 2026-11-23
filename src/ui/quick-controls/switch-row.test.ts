@@ -42,9 +42,6 @@ function render(switchRows: readonly SwitchRow[], showThreadTurns = false): HTML
     switchRows,
     showScreen: true,
     showThreadTurns,
-    showPresence: false,
-    showPacerGap: false,
-    showRateLimits: false,
     showHistory: false,
   });
   return root;

@@ -1,24 +1,13 @@
 /**
- * Reactions section — owns the agent-port, presence, pacer-gap, and the Proactive rate-limit cap inputs.
+ * Reactions section — owns the agent-port input, the ingress URL, and the Thread rows.
  * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
 import type { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
 import { ingressUrl } from "../../../../settings/backend/agent-notify-settings";
-import type {
-  GuardrailsSettingsStore,
-  RateLimitDefaults,
-  RateLimitOverrides,
-} from "../../../../settings/backend/guardrails-settings";
-import type {
-  ClampedIntSettingsStore,
-  FlagSettingsStore,
-} from "../../../../settings/persisted-store";
+import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import type { ThreadReactionThresholdsSettingsStore } from "../../../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../../../settings/threads/thread-turns-settings";
-import { t } from "../../../i18n";
-import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
-import { PROACTIVE_CAP_FIELDS } from "../../constants";
 import { createThreadReactionThresholdsRow } from "./thread-reaction-thresholds-row";
 import { createThreadTurnsRow } from "./thread-turns-row";
 
@@ -26,7 +15,7 @@ type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 
 interface ReactionsSectionDeps {
   boundId?: string | null;
-  /** Panel root (el) — query the agent-port, presence, pacer-gap, and Proactive cap inputs here. */
+  /** Panel root (el) — query the agent-port input and the ingress URL here. */
   root: HTMLElement;
   /** Agent notification settings — the agent-port row's store. Absent when the section isn't rendered. */
   agentNotifySettings?: AgentNotifySettingsStore;
@@ -36,14 +25,6 @@ interface ReactionsSectionDeps {
   threadReactionThresholdsSettings?: ThreadReactionThresholdsSettingsStore;
   /** Thread reactions switch. With the thresholds store, renders the Reaction thresholds rows. */
   threadReactionsSettings?: FlagSettingsStore;
-  /** Away detection store. Absent when the presence row isn't rendered. */
-  presenceSettings?: ClampedIntSettingsStore;
-  /** Global proactive gap store. Absent when that row isn't rendered. */
-  pacerGapSettings?: ClampedIntSettingsStore;
-  /** Guardrail rate-limit overrides. Absent when the cap rows aren't rendered. */
-  rateLimitSettings?: GuardrailsSettingsStore;
-  /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
-  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
   /** Switch-row redraw — the agent-notify subscription calls both. */
   reflectSwitchRows: () => void;
   /** Panel open state — store subscriptions redraw only while the panel is open. */
@@ -51,7 +32,7 @@ interface ReactionsSectionDeps {
 }
 
 interface ReactionsSection {
-  /** Render the agent port, presence, pacer gap and rate-limit caps from their stores. */
+  /** Render the agent port and the Thread rows from their stores. */
   reflect(): void;
   /** Permanent teardown — unsubscribe stores and remove all listeners. */
   dispose(): void;
@@ -64,10 +45,6 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     threadTurnsSettings,
     threadReactionThresholdsSettings,
     threadReactionsSettings,
-    presenceSettings,
-    pacerGapSettings,
-    rateLimitSettings,
-    getRateLimitDefaults,
     reflectSwitchRows,
     isOpen,
   } = deps;
@@ -75,13 +52,6 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   const ingressUrlText = el.querySelector("#yui-ingress-url");
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const agentPortAside = agentPortInput?.closest(".yui-fold")?.querySelector(".yui-fold__aside");
-  const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
-  const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
-  const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
-  for (const field of PROACTIVE_CAP_FIELDS) {
-    const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
-    if (input) rateLimitInputs.set(field.key, input);
-  }
 
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
@@ -89,34 +59,6 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     if (agentPortAside) agentPortAside.textContent = String(agentNotifySettings.get().port);
     if (ingressUrlText)
       ingressUrlText.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
-  }
-
-  function reflectPresence(): void {
-    if (!presenceInput || !presenceSettings) return;
-    const next = String(presenceSettings.get().value / 1000);
-    reflectUnlessEditing(presenceInput, next);
-  }
-
-  function reflectPacerGap(): void {
-    if (!pacerGapInput || !pacerGapSettings) return;
-    reflectUnlessEditing(pacerGapInput, String(pacerGapSettings.get().value / 60_000));
-  }
-
-  // Each field shows its effective cap: the override when set, the bundled config default otherwise.
-  // Its sub line names the configured cooldown in minutes where it mentions the pause.
-  function reflectRateLimits(): void {
-    if (!rateLimitSettings) return;
-    const overrides = rateLimitSettings.get();
-    const defaults = getRateLimitDefaults?.();
-    for (const field of PROACTIVE_CAP_FIELDS) {
-      const input = rateLimitInputs.get(field.key);
-      if (!input) continue;
-      const effective =
-        overrides[field.key] > 0 ? overrides[field.key] : (defaults?.[field.key] ?? 0);
-      reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
-      const sub = input.closest(".yui-row")?.querySelector(".yui-input-row__sub");
-      if (sub && defaults) sub.textContent = t(field.subKey, { n: defaults.cooldown_ms / 60_000 });
-    }
   }
 
   const threadTurns =
@@ -139,79 +81,25 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
       reflectAgentNotify();
     }
   });
-  const unsubscribePresence = presenceSettings?.subscribe(() => {
-    if (isOpen()) reflectPresence();
-  });
-  const unsubscribePacerGap = pacerGapSettings?.subscribe(() => {
-    if (isOpen()) reflectPacerGap();
-  });
-  const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
-    if (isOpen()) reflectRateLimits();
-  });
 
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
     agentNotifySettings.setPort(Math.round(Number(agentPortInput.value)));
     reflectAgentNotify();
   }
-  function handlePresenceChange(): void {
-    if (!presenceSettings || !presenceInput) return;
-    const v = Math.round(Number(presenceInput.value));
-    presenceSettings.set(v * 1000);
-    reflectPresence();
-  }
-  function handlePacerGapChange(): void {
-    if (!pacerGapSettings || !pacerGapInput) return;
-    const v = Math.round(Number(pacerGapInput.value));
-    pacerGapSettings.set(v * 60_000);
-    reflectPacerGap();
-  }
-  // Commit on change (blur / Enter), the same settle point as the agent port — a mid-typing
-  // keystroke must not re-cap the live limiter. An emptied field clears the override.
-  function handleRateLimitChange(e: Event): void {
-    const input = e.target;
-    if (!rateLimitSettings || !(input instanceof HTMLInputElement)) return;
-    const key = PROACTIVE_CAP_FIELDS.find((f) => f.id === input.id)?.key;
-    if (!key) return;
-    rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
-    reflectRateLimits();
-  }
-
   agentPortInput?.addEventListener("change", handleAgentPortChange);
-  presenceInput?.addEventListener("change", handlePresenceChange);
-  presenceInput?.addEventListener("blur", reflectPresence);
-  pacerGapInput?.addEventListener("change", handlePacerGapChange);
-  pacerGapInput?.addEventListener("blur", reflectPacerGap);
-  for (const input of rateLimitInputs.values()) {
-    input.addEventListener("change", handleRateLimitChange);
-    input.addEventListener("blur", reflectRateLimits);
-  }
 
   return {
     reflect(): void {
       reflectAgentNotify();
       reactionThresholds?.reflect();
       threadTurns?.reflect();
-      reflectPresence();
-      reflectPacerGap();
-      reflectRateLimits();
     },
     dispose(): void {
       reactionThresholds?.dispose();
       threadTurns?.dispose();
       unsubscribeAgentNotify?.();
-      unsubscribePresence?.();
-      unsubscribePacerGap?.();
-      unsubscribeRateLimit?.();
       agentPortInput?.removeEventListener("change", handleAgentPortChange);
-      presenceInput?.removeEventListener("change", handlePresenceChange);
-      presenceInput?.removeEventListener("blur", reflectPresence);
-      pacerGapInput?.removeEventListener("change", handlePacerGapChange);
-      pacerGapInput?.removeEventListener("blur", reflectPacerGap);
-      for (const input of rateLimitInputs.values()) {
-        input.removeEventListener("change", handleRateLimitChange);
-        input.removeEventListener("blur", reflectRateLimits);
-      }
     },
   };
 }

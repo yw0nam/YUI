@@ -196,7 +196,7 @@ const ko: Record<string, string> = {
   "tabs.persona": "페르소나",
   "tabs.body": "몸",
   "tabs.react": "말걸기",
-  "tabs.react_hint": "유이가 먼저 말을 거는 규칙",
+  "tabs.react_hint": "먼저 말을 거는 규칙",
   "tabs.hist": "기록",
   "tabs.general": "일반",
   "tabs.together": "함께",
@@ -308,10 +308,11 @@ const ko: Record<string, string> = {
   "active_hours.pace_aria": "말 거는 빈도",
   "active_hours.remove_aria": "시간대 삭제",
   "base_pace.title": "먼저 말 거는 빈도",
-  "base_pace.foot":
-    "모든 캐릭터에 하루 내내, 대화 뒤 기다리는 시간(화면 반응 간격도 이 시간을 따라요)과 '한동안 조용할 때' 반응에 적용되고, 시간대 인사는 정한 시각 그대로예요. '많이'는 {more}배쯤 자주, '적게'는 {less}분의 1쯤으로 말을 걸어요.",
+  "base_pace.foot": "시간대 인사는 어떤 빈도에서도 정한 시각 그대로예요.",
   "base_pace.link_lead": "캐릭터별 시간대 설정:",
   "base_pace.link": "페르소나 › 활동 시간",
+  "day_strip.label": "{name}의 하루",
+  "day_strip.checkins": "조용할 때 안부 묻기",
 
   // card
   "card.label": "카드",

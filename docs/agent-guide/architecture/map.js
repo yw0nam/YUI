@@ -3903,7 +3903,7 @@ globalThis.YUI_MAP =
       "carries": "How often she speaks up's segment → basePaceSettings.setPace(pace), the device-wide yui.base-pace; the pet windows read it over the broadcast",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/quick-controls/sections/base-pace/base-pace-section.ts"
+      "wiring": "src/ui/quick-controls/proactive/pace/pace-section.tsx"
     },
     {
       "id": "active-hours-card-export",

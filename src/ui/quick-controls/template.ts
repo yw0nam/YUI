@@ -3,10 +3,8 @@
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { t } from "../i18n";
 import {
-  DISCLOSURE_CHEV_SVG,
   initialPageOf,
   PLUS_SVG,
-  PROACTIVE_CAP_FIELDS,
   SCREEN_KNOB_FIELDS,
   TAB_ICON_BODY,
   TAB_ICON_CONN,
@@ -22,10 +20,9 @@ import {
   TAB_ICON_VOICE,
 } from "./constants";
 import { foldHtml } from "./fold";
-import { capRowHtml, numRowHtml, secHeadHtml } from "./markup";
+import { numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
-import { basePaceSectionHtml } from "./sections/base-pace/base-pace-section";
 import { threadReactionThresholdsRowHtml } from "./sections/reactions/thread-reaction-thresholds-row";
 import { threadTurnsRowHtml } from "./sections/reactions/thread-turns-row";
 import type { SwitchRow } from "./switch-row";
@@ -37,18 +34,12 @@ interface PanelHtmlOptions {
   /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
   openOnQuickStart: boolean;
   switchRows: readonly SwitchRow[];
-  /** Whether How often she speaks up renders — true when the base pace store is injected. */
-  showBasePace?: boolean;
   /** Whether the Screen changes group renders — true when the screen flag store is injected. */
   showScreen: boolean;
   /** Whether the Thread turns row renders under Threads — true with its store and External signals' store. */
   showThreadTurns: boolean;
   /** Whether the Reaction thresholds rows render under Threads — true with their store and the Thread reactions switch's store. */
   showReactionThresholds?: boolean;
-  showPresence: boolean;
-  showPacerGap: boolean;
-  /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
-  showRateLimits: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
   /** Whether the Plugins page renders — true when the MCP host is injected. */
@@ -61,13 +52,9 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     openOnQuickStart,
     switchRows,
-    showBasePace,
     showScreen,
     showThreadTurns,
     showReactionThresholds = false,
-    showPresence,
-    showPacerGap,
-    showRateLimits,
     showHistory,
     showPlugins,
     showPreset,
@@ -111,28 +98,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
           `${numRowHtml({ id: "yui-agent-port", labelKey: "reactions.port_label", subKey: "reactions.port_sub", min: 1024, max: 65535, hintKey: "reactions.restart_hint" })}<div class="yui-stack yui-input-row"><span class="yui-input-row__label">${t("reactions.url_label")}</span><span class="yui-row__sub">${t("reactions.url_sub")}</span><code id="yui-ingress-url" class="yui-quick__ingress-url"></code><span class="yui-row__sub">${t("reactions.restart_hint")}</span></div>`,
         ),
       )
-    : "";
-
-  // Advanced (Proactive page, folded): the wait and presence, then the hourly caps and their note.
-  const advancedGroupsHtml = `${
-    showPacerGap || showPresence
-      ? `
-          <div class="yui-group">${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint" }) : ""}${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}</div>`
-      : ""
-  }${
-    showRateLimits
-      ? `
-          <div class="yui-group">${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}</div>
-          <p class="yui-sec__foot">${t("reactions.rate_hint")}</p>`
-      : ""
-  }`;
-  const advancedHtml = advancedGroupsHtml
-    ? `
-      <div class="yui-sec">
-        <details class="yui-more">
-          <summary>${DISCLOSURE_CHEV_SVG}${t("reactions.advanced")}</summary>${advancedGroupsHtml}
-        </details>
-      </div>`
     : "";
 
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
@@ -179,7 +144,7 @@ ${
       </div>
 `
     : ""
-}${panelOpenHtml("react")}${showBasePace ? basePaceSectionHtml() : ""}
+}${panelOpenHtml("react")}
         <div class="yui-sec">
           ${secHeadHtml(t("reactions.reacts_title"))}
           <div class="yui-group yui-loop-cue-section"></div>
@@ -207,7 +172,7 @@ ${
               <button class="yui-add-btn yui-wf-add-btn" type="button" disabled>${PLUS_SVG}${t("workflows.add")}</button>
             </div>
           </div>
-        </div>${advancedHtml}
+        </div>
       </div>
 ${panelOpenHtml("motion")}
       </div>
