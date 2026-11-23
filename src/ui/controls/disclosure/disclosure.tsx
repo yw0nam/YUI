@@ -8,6 +8,22 @@ export interface DisclosureProps {
   children: ReactNode;
 }
 
-export function Disclosure(_props: DisclosureProps): ReactNode {
-  return null;
+export function Disclosure({ label, children }: DisclosureProps) {
+  return (
+    <details className="yui-more">
+      <summary>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M9 6l6 6-6 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {label}
+      </summary>
+      {children}
+    </details>
+  );
 }

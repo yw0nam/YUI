@@ -2,8 +2,8 @@
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFlagSettings } from "../../../settings/persisted-store";
 import { createGuardrailsSettings } from "../../../settings/backend/guardrails-settings";
+import { createFlagSettings } from "../../../settings/persisted-store";
 import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { setLocale, t } from "../../i18n";
 import { createSwitchRows } from "../switch-row";
@@ -96,7 +96,9 @@ describe("createTogetherPage — switch rows", () => {
 
 describe("createTogetherPage — the chain cap", () => {
   it("shows the bundled default that loads after first render once the open hook runs", () => {
-    let defaults: { tier2_max: number; urgent_max: number; addressed_chain_max: number } | undefined;
+    let defaults:
+      | { tier2_max: number; urgent_max: number; addressed_chain_max: number }
+      | undefined;
     const page = build([], {
       rateLimitSettings: createGuardrailsSettings(),
       getRateLimitDefaults: () => defaults,

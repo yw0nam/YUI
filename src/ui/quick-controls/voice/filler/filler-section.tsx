@@ -3,10 +3,10 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { FillerLang } from "../../../../config/validators/filler";
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
+import { Disclosure } from "../../../controls/disclosure";
 import { Segment } from "../../../controls/segment";
 import { Switch } from "../../../controls/switch";
 import { t } from "../../../i18n";
-import { DISCLOSURE_CHEV_SVG } from "../../constants";
 import type { SwitchRow } from "../../switch-row";
 import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
 
@@ -139,13 +139,9 @@ export function FillerSection({
         {fields(FIELDS.slice(0, 2))}
       </div>
       <p className="yui-sec__foot">{t("filler.hint")}</p>
-      <details className="yui-more">
-        <summary
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the label
-          dangerouslySetInnerHTML={{ __html: `${DISCLOSURE_CHEV_SVG}${t("filler.more")}` }}
-        />
+      <Disclosure label={t("filler.more")}>
         <div className="yui-group">{fields(FIELDS.slice(2))}</div>
-      </details>
+      </Disclosure>
     </div>
   );
 }

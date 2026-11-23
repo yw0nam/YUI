@@ -10,10 +10,11 @@ import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-car
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
+import { Disclosure } from "../../../controls/disclosure";
 import { Switch } from "../../../controls/switch";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
-import { CARD_GUIDE_URL, DISCLOSURE_CHEV_SVG, PLUS_SVG } from "../../constants";
+import { CARD_GUIDE_URL, PLUS_SVG } from "../../constants";
 import { setValue } from "../set-value";
 import { cardBase, currentCard, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
@@ -305,11 +306,7 @@ export function CardSection({
             />
           </div>
         </div>
-        <details className="yui-more">
-          <summary
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the label
-            dangerouslySetInnerHTML={{ __html: `${DISCLOSURE_CHEV_SVG}${t("card.advanced")}` }}
-          />
+        <Disclosure label={t("card.advanced")}>
           <div className="yui-group">
             {ADVANCED.map(({ field, label, rows, sub }) => (
               <div className="yui-stack" key={field}>
@@ -332,7 +329,7 @@ export function CardSection({
               </div>
             ))}
           </div>
-        </details>
+        </Disclosure>
         <p className="yui-sec__foot">{t("card.macros")}</p>
       </div>
       <CardFileRow

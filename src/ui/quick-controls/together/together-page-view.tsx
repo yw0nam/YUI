@@ -1,5 +1,6 @@
 /** The Together page: the switch rows and the chain cap, then the characters on the desktop. */
 
+import { useMemo } from "react";
 import type { Logger } from "../../../logger";
 import type {
   GuardrailsSettingsStore,
@@ -8,7 +9,7 @@ import type {
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { SwitchRow } from "../switch-row";
 import { DescriptorRow } from "../switches/descriptor-row";
-import { type ChainCapReflect, ChainCapRow } from "./chain-cap/chain-cap-row";
+import { ChainCapRow } from "./chain-cap/chain-cap-row";
 import { CharactersSection, type WindowsPort } from "./characters/characters-section";
 
 export function TogetherPageView({
@@ -19,7 +20,7 @@ export function TogetherPageView({
   petWindows,
   boundId,
   log,
-  capReflect,
+  revision,
 }: {
   rows: readonly SwitchRow[];
   rateLimitSettings?: GuardrailsSettingsStore;
@@ -28,8 +29,14 @@ export function TogetherPageView({
   petWindows?: WindowsPort;
   boundId?: string | null;
   log: Logger;
-  capReflect: ChainCapReflect;
+  /** Bumped by the open hook, so the row re-reads the bundled defaults. */
+  revision: number;
 }) {
+  const rateLimitDefaults = useMemo(() => {
+    // The open hook bumps the revision, so the row re-reads the bundled defaults.
+    void revision;
+    return getRateLimitDefaults?.();
+  }, [getRateLimitDefaults, revision]);
   const visible = rows.filter((row) => row.isVisible);
   return (
     <>
@@ -40,11 +47,7 @@ export function TogetherPageView({
               <DescriptorRow key={row.selector} row={row} log={log} />
             ))}
             {rateLimitSettings ? (
-              <ChainCapRow
-                store={rateLimitSettings}
-                getDefaults={getRateLimitDefaults}
-                reflectRef={capReflect}
-              />
+              <ChainCapRow store={rateLimitSettings} defaults={rateLimitDefaults} />
             ) : null}
           </div>
         </div>

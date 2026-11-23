@@ -848,7 +848,7 @@ YUI/
           proactive-page-view.tsx    # The pace section, the source groups in order, then Advanced
           proactive-page.css         # The number column: every number row's field shares one width and one unit slot
           proactive-page.test.tsx    # The page's React tests through its facade
-          number-row.tsx             # A number row: label, sub and hint beside the field and its unit slot; commits on change, never overwrites a focused value
+          number-row.tsx             # A number row: label, sub and hint beside a NumberField and its unit slot
           source-group.tsx           # SourceFold and SourceGroup: a switch row over a fold that dims and reads Off while the source is off
           pace/                      # How often she speaks up: the pace segment over her day
             pace-section.tsx         # The base pace segment over her day, its foot line, and the link to Persona › Active hours
@@ -877,10 +877,10 @@ YUI/
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
         together/                    # The Together page, rendered with React
-          together-page.ts           # The page's facade: its React root, and the chain-cap reflection it runs on open
+          together-page.ts           # The page's facade: its React root, and the open hook that re-reads the bundled defaults
           together-page-view.tsx     # The switch rows, the chain cap, and the characters on the desktop
           chain-cap/                 # The cap on characters addressing each other
-            chain-cap-row.tsx        # The override input over the bundled default, committed on change and reflected while unfocused
+            chain-cap-row.tsx        # The chain cap row: a NumberField over the bundled default
           characters/                # The page's character list
             characters-section.tsx   # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
             characters-section.css   # Character row styles
@@ -898,11 +898,17 @@ YUI/
           descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
-      controls/                      # Shared React controls; the slider and the checkbox build on Base UI
+      controls/                      # Shared React controls; the slider, the checkbox and the number field build on Base UI
         slider/                      # The Slider
           index.ts                   # Re-exports the Slider and its props type
           slider.tsx                 # A range slider the caller labels and owns the value of, reporting each change and each commit
           slider.css                 # Track, fill, knob, hover and focus styles
+        number-field/                # The NumberField
+          index.ts                   # Re-exports the NumberField and its props type
+          number-field.tsx           # A controlled number field on Base UI's NumberField: the caller labels it and owns the value, committed on blur, Enter or a step
+        disclosure/                  # The Disclosure
+          index.ts                   # Re-exports the Disclosure and its props type
+          disclosure.tsx             # A native details fold with a chevron summary, the caller's label and its rows
         checkbox/                    # The Checkbox
           index.ts                   # Re-exports the Checkbox and its props type
           checkbox.tsx               # A tri-state checkbox drawn as a switch, the caller labels and owns the state of

@@ -45,8 +45,8 @@ export function SignalsGroup({
         hint={t("reactions.restart_hint")}
         min={1024}
         max={65535}
-        value={String(port)}
-        commit={(raw) => store.setPort(Math.round(Number(raw)))}
+        value={port}
+        commit={(typed) => store.setPort(Math.round(typed ?? 0))}
       />
       <div className="yui-stack yui-input-row">
         <span className="yui-input-row__label">{t("reactions.url_label")}</span>
