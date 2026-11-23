@@ -12,15 +12,10 @@
  */
 
 import "./settings-search.css";
-import { t } from "../../i18n";
 
 const ROWS = ".yui-row, .yui-stack, .yui-gain, .yui-sec__head, summary";
 const TEXTS =
   ".yui-row__label, .yui-input-row__label, .yui-gain__label, .yui-row__sub, .yui-input-row__sub, .yui-gain__sub, .yui-sec__title, .yui-sec__head .yui-link-btn";
-
-export function settingsSearchHtml(): string {
-  return `<input class="yui-search__input" type="search" placeholder="${t("search.placeholder")}" aria-label="${t("search.placeholder")}" autocomplete="off" spellcheck="false" />`;
-}
 
 /** Binds the field rendered under `root` to the rail's tabs and their panels. */
 export function bindSettingsSearch(root: HTMLElement): () => void {

@@ -53,7 +53,7 @@ describe("preset strip — relations", () => {
     strip?.dispose();
     store?.dispose();
     store = createRelationsStore({ storage: { load: () => relations, save: () => {} } });
-    root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
+    root.innerHTML = `<div class="yui-preset">${presetStripHtml()}</div><div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     strip = createPresetStrip({
       root,

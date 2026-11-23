@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, the NumberField, a number field that reports the value committed on blur, Enter or a step, and the Select, a select the caller labels and owns the value of, whose popup lists the items and whose closed trigger can show a shorter name.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled, the NumberField, a number field that reports the value committed on blur, Enter or a step, the Select, a select the caller labels and owns the value of, whose popup lists the items and whose closed trigger can show a shorter name, and the Tabs, tabs whose panels stay mounted and hide with the selection, with a handle that selects or focuses a tab from code.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4903,6 +4903,15 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
+    },
+    {
+      "id": "settings-rail-tabs",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Tabs: the rail's pages and the selected one; each selection by click, Up and Down, Home and End, or the handle's select, and the handle's focus",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/settings-panel.tsx"
     },
     {
       "id": "conn-views-segment",

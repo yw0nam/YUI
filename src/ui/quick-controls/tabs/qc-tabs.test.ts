@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import type { SettingsPage } from "../../../settings/panels/settings-pages";
@@ -8,6 +10,14 @@ import { createVadSettings } from "../../../settings/voice/vad-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs, fakePlugins } from "../test-helpers";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+async function press(el: Element, key: string) {
+  await act(async () => {
+    fireEvent.keyDown(el, { key });
+  });
+}
 
 describe("createQuickControls — tab rail", () => {
   let mount: HTMLElement;
@@ -335,42 +345,40 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("ArrowRight / ArrowLeft move the active tab (roving tabindex)", () => {
+  it("ArrowDown / ArrowUp move the active tab (roving tabindex)", async () => {
     const qc = buildQc();
     qc.open();
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
     // Arrows step from the selected tab — persona, the default, sits third.
     t[2].focus();
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    await press(t[2], "ArrowDown");
     expect(t[3].getAttribute("aria-selected")).toBe("true");
     expect(t[3].tabIndex).toBe(0);
     expect(t[2].tabIndex).toBe(-1);
     expect(panelFor(qc, t[3]).hidden).toBe(false);
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    await press(t[3], "ArrowUp");
     expect(t[2].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[2]).hidden).toBe(false);
 
     qc.dispose();
   });
 
-  it("Home / End jump to the first / last tab", () => {
+  it("Home / End jump to the first / last tab", async () => {
     const qc = buildQc();
     qc.open();
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
     t[0].focus();
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    await press(t[0], "End");
     expect(t[9].id).toBe("yui-tab-general");
     expect(t[9].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[9]).hidden).toBe(false);
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    await press(t[9], "Home");
     expect(t[0].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[0]).hidden).toBe(false);
 

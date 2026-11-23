@@ -25,15 +25,14 @@ import { createPresetRelations } from "./relations/relations-section";
 
 const DOTS_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>`;
 
+/** The strip's markup inside its `.yui-preset` element. */
 export function presetStripHtml(): string {
   return `
-    <div class="yui-preset">
       <div class="yui-preset__row">
         <button class="yui-iconbtn yui-preset__manage" type="button" aria-label="${t("preset.manage")}" data-tip="${t("preset.manage")}" aria-haspopup="dialog" aria-expanded="false">${DOTS_SVG}</button>
       </div>
       <p class="yui-preset__note"></p>
-      <div class="yui-preset-pop" role="dialog" aria-label="${t("preset.manage")}" hidden></div>
-    </div>`;
+      <div class="yui-preset-pop" role="dialog" aria-label="${t("preset.manage")}" hidden></div>`;
 }
 
 export interface PresetStrip {

@@ -33,6 +33,7 @@ function setup(initial: "quick" | "detail" = "quick") {
   panel.innerHTML = `
     <p class="yui-tabpanel__scope"></p>
     <h1 class="yui-tabpanel__title">Connection</h1>
+    <div></div>
   `;
   const endpointsSettings = createEndpointsSettings();
   const chatKeySettings = createChatKeySettings();
@@ -40,7 +41,7 @@ function setup(initial: "quick" | "detail" = "quick") {
   const detailEntered = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
   const quickEntered = vi.fn(async () => models());
   const page = createConnectionPage({
-    host: panel,
+    host: panel.lastElementChild as HTMLElement,
     scope: panel.querySelector<HTMLElement>(".yui-tabpanel__scope"),
     initial,
     quick: {

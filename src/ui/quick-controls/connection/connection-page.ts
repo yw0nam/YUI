@@ -40,7 +40,7 @@ export interface ConnectionPage {
 }
 
 export function createConnectionPage(deps: {
-  /** The Connection page's panel: the page renders after its title. */
+  /** The element the page mounts into, inside the Connection page's panel. */
   host: HTMLElement;
   /** The page's scope line, hidden while Quick start shows; absent without the preset strip. */
   scope: HTMLElement | null;
@@ -52,7 +52,7 @@ export function createConnectionPage(deps: {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   // The page sits in the panel before its first render: Base UI registers a radio group's items only while connected.
-  host.querySelector<HTMLElement>(".yui-tabpanel__title")!.after(el);
+  host.append(el);
   const root = createRoot(el);
   const quickHandle: QuickStartHandle = { current: null };
   const detailHandle: DetailSettingsHandle = { current: null };

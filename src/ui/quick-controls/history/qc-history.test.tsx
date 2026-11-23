@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // History tab session accordion over the persisted transcript.
 
+import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
@@ -114,14 +115,15 @@ describe("createQuickControls — history tab", () => {
     expect(qc.el.querySelector(".yui-hist")).toBeNull();
   });
 
-  it("End key selects the general tab, which closes the rail after history", () => {
+  it("End key selects the general tab, which closes the rail after history", async () => {
     const qc = buildQc({ transcript: seedStore() });
     act(() => qc.open());
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     tabs[0].focus();
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    await act(async () => {
+      fireEvent.keyDown(tabs[0], { key: "End" });
+    });
 
     expect(tabs.map((tab) => tab.id).at(-1)).toBe("yui-tab-general");
     expect(tabs[10].getAttribute("aria-selected")).toBe("true");

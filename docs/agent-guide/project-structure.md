@@ -678,11 +678,10 @@ YUI/
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
-        template.ts                  # Panel markup as pure string construction
-        markup.ts                    # Panel markup primitives the template and the tab rail share
+        settings-panel.tsx           # The panel's React view: the preset strip's slot, the rail (search field, group headings and tabs on the shared Tabs) and every page's panel with its scope line, title and the host its page mounts into
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
-        glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines
+        glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines, and the rail's tab icons
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
@@ -891,7 +890,7 @@ YUI/
             cue-list.test.tsx        # The cue rows, their fields, the delete confirm, and the edit state across new entries
             cue-list-group.tsx       # A cue list's source group: its master switch row over a fold of the entries
         search/                      # Settings search
-          settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
+          settings-search.ts         # Binds the field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
         together/                    # The Together page, rendered with React
           together-page.ts           # The page's facade: its React root, and the open hook that re-reads the bundled defaults
@@ -912,9 +911,10 @@ YUI/
             push-reason.css          # Reason line styles
         switches/                    # The React switch rows the Voice, Together, Motion and Proactive pages share
           descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
-        tabs/                        # The tablist
-          tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
-      controls/                      # Shared React controls; the slider, the checkbox, the number field, the segment and the select build on Base UI
+      controls/                      # Shared React controls; the slider, the checkbox, the number field, the segment, the select and the tabs build on Base UI
+        tabs/                        # The Tabs
+          index.ts                   # Re-exports the Tabs state hook, root, tab, panel and handle type
+          tabs.tsx                   # Tabs on Base UI's Tabs: `yui-tab-<id>` tabs controlling `yui-panel-<id>` panels kept mounted, hidden with the selection, and a handle that selects or focuses a tab from code
         slider/                      # The Slider
           index.ts                   # Re-exports the Slider and its props type
           slider.tsx                 # A range slider the caller labels and owns the value of, reporting each change and each commit

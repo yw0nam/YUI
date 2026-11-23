@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
@@ -187,7 +189,7 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", () => {
+  it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", async () => {
     const qc = buildQc();
 
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -198,13 +200,17 @@ describe("createQuickControls — shell", () => {
     document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     reactTab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-    reactTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    await act(async () => {
+      fireEvent.keyDown(reactTab, { key: "Home" });
+    });
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(firstTab.dataset.tip);
 
     document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     reactTab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-    reactTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    await act(async () => {
+      fireEvent.keyDown(reactTab, { key: "End" });
+    });
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(lastTab.dataset.tip);
 
     qc.dispose();
@@ -425,16 +431,20 @@ describe("createQuickControls — construction and disposal", () => {
         rateLimitSettings: createGuardrailsSettings(),
       });
       const tabBefore = qc.selectedTab();
+      // The root's unmount empties the panel; references taken before it stand in for the tree.
+      const general = qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!;
+      const connPanel = qc.el.querySelector("#yui-panel-conn")!;
+      const voice = qc.el.querySelector<HTMLButtonElement>("#yui-tab-voice")!;
 
       qc.dispose();
-      qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
+      general.click();
       // Quick start's Help buttons unmount with its root; a stand-in proves the delegated listener is gone.
       const guide = document.createElement("button");
       guide.dataset.guide = "controls";
-      qc.el.querySelector("#yui-panel-conn")!.append(guide);
+      connPanel.append(guide);
       guide.click();
       // The card's help dot unmounts with its page; a tab is the tip target left in the tree.
-      qc.el.querySelector<HTMLButtonElement>("#yui-tab-voice")!.click();
+      voice.click();
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
       expect(qc.el.isConnected).toBe(false);

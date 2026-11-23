@@ -4,6 +4,9 @@
  * proactive · motion · general) beside the page body.
  */
 
+import { createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import type { ActiveHoursSettingsStore } from "../../settings/active-hours/active-hours-settings";
 import type { BasePaceSettingsStore } from "../../settings/active-hours/base-pace-settings";
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
@@ -62,7 +65,12 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
-import type { PageRequest, SettingsPage } from "../../settings/panels/settings-pages";
+import {
+  APP_PAGES,
+  CHARACTER_PAGES,
+  type PageRequest,
+  type SettingsPage,
+} from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -73,6 +81,7 @@ import type { createFillerSettings } from "../../settings/voice/filler-settings"
 import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
+import type { TabsHandle } from "../controls/tabs";
 import { t } from "../i18n";
 import { createBodyPage } from "./body/body-page";
 import { createConnectionPage, type PushSocketPanelPort } from "./connection/connection-page";
@@ -88,14 +97,13 @@ import { createPermsPage } from "./perms/perms-page";
 import type { CardIoPorts } from "./persona/card/card-io";
 import { createPersonaPage } from "./persona/persona-page";
 import { createPluginsPage } from "./plugins/plugins-page";
-import { createPresetStrip } from "./preset/preset-strip";
+import { createPresetStrip, presetStripHtml } from "./preset/preset-strip";
 import { createProactivePage } from "./proactive/proactive-page";
 import { bindSettingsSearch } from "./search/settings-search";
 import { bindHelpSection } from "./sections/help/help-section";
 import { bindTransportLinks } from "./sections/push-reason/push-reason";
+import { type PageHosts, SettingsPanel } from "./settings-panel";
 import { createSwitchRows } from "./switch-row";
-import { createTabRail } from "./tabs/tab-rail";
-import { buildPanelHtml } from "./template";
 import { createTogetherPage } from "./together/together-page";
 import { createVoicePage } from "./voice/voice-page";
 
@@ -464,15 +472,32 @@ export function createQuickControls({
     threadReactionsSettings,
   });
 
-  el.innerHTML = buildPanelHtml({
-    openOnQuickStart,
-    showHistory: !!transcript,
-    showPlugins: !!plugins,
-    showPreset: !!presetRegistry,
-  });
-
   // Attached before any page renders: Base UI registers a slider's thumb only while it is connected.
   mount.appendChild(el);
+
+  // ── Panel view (preset strip slot · rail · each page's panel and host) ──
+  const tabs: { current: TabsHandle | null } = { current: null };
+  const hosts: PageHosts = {};
+  const root = createRoot(el);
+  flushSync(() =>
+    root.render(
+      createElement(SettingsPanel, {
+        pages: [...CHARACTER_PAGES, ...APP_PAGES].filter(
+          (id) => (id !== "hist" || !!transcript) && (id !== "plugins" || !!plugins),
+        ),
+        initial: initialPageOf(openOnQuickStart),
+        showPreset: !!presetRegistry,
+        tabs,
+        onSelect: (id) => {
+          if (id === "conn") connectionPage.entered();
+          if (id === "plugins") pluginsPage?.entered();
+        },
+        hosts,
+      }),
+    ),
+  );
+  const rail = tabs.current!;
+  if (presetRegistry) el.querySelector(".yui-preset")!.innerHTML = presetStripHtml();
 
   // ── Proactive page (how often she speaks up · her day · the sources · Advanced) ──
   const proactivePage = createProactivePage({
@@ -484,7 +509,7 @@ export function createQuickControls({
     scheduleSettings,
     proactiveSettings,
     // Runs on a click, after the tab rail exists.
-    openPersona: () => tabRail.select("persona"),
+    openPersona: () => rail.select("persona"),
     pacerGapSettings,
     presenceSettings,
     rateLimitSettings,
@@ -497,16 +522,13 @@ export function createQuickControls({
     boundId,
     workflowSettings,
     log,
-    host: el.querySelector<HTMLElement>("#yui-panel-react")!,
+    host: hosts.react!,
   });
-
-  const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
-  const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
 
   // ── Connection page — Quick start (data use · daily limit · key confirmation) or Detailed settings ──
   const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
   const connectionPage = createConnectionPage({
-    host: connPanel,
+    host: hosts.conn!,
     scope: connPanel.querySelector<HTMLElement>(".yui-tabpanel__scope"),
     initial: openOnQuickStart ? "quick" : "detail",
     quick: {
@@ -562,7 +584,7 @@ export function createQuickControls({
         log,
       })
     : null;
-  if (historyPage) el.querySelector("#yui-panel-hist")!.append(historyPage.el);
+  if (historyPage) hosts.hist!.append(historyPage.el);
   const presetStrip = presetRegistry
     ? createPresetStrip({
         root: el,
@@ -600,7 +622,7 @@ export function createQuickControls({
             presets: () => presetRegistry.get().list,
           }
         : undefined,
-    host: el.querySelector("#yui-panel-body")!,
+    host: hosts.body!,
   });
 
   // ── Motion page (mouth gain · idle and express motions · motion switch rows) ──
@@ -619,7 +641,7 @@ export function createQuickControls({
     },
     isOpen: () => shell.isOpen(),
     log,
-    host: el.querySelector("#yui-panel-motion")!,
+    host: hosts.motion!,
   });
 
   // ── Voice page (switch rows · speaker list · thinking filler) ──
@@ -638,7 +660,7 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     isOpen: () => shell.isOpen(),
-    host: el.querySelector("#yui-panel-voice")!,
+    host: hosts.voice!,
   });
 
   // ── shell (open/close lifecycle) ──
@@ -648,8 +670,8 @@ export function createQuickControls({
     onOpen: () => {
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
-      if (tabRail.selected() === "conn") connectionPage.entered();
-      if (tabRail.selected() === "plugins") pluginsPage?.entered();
+      if (rail.selected() === "conn") connectionPage.entered();
+      if (rail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
@@ -662,7 +684,7 @@ export function createQuickControls({
 
   // ── Persona page (active hours above the card · the card fields · its file actions) ──
   const persona = createPersonaPage({
-    root: el,
+    root: hosts.drop!,
     activeHoursSettings,
     agentSettings,
     endpointsSettings,
@@ -682,7 +704,7 @@ export function createQuickControls({
     subscribeFileDrop,
     log,
   });
-  el.querySelector("#yui-panel-persona")!.append(persona.el);
+  hosts.persona!.append(persona.el);
 
   // ── General page (language · appearance · text size · your name · Help · Developer Tools) ──
   const generalPage = createGeneralPage({
@@ -693,7 +715,7 @@ export function createQuickControls({
     onGuide,
     onOpenDevtools,
     log,
-    host: el.querySelector("#yui-panel-general")!,
+    host: hosts.general!,
   });
 
   // ── Listening page (voice switch · STT key · silence threshold · barge-in · bubble · readings) ──
@@ -705,7 +727,7 @@ export function createQuickControls({
     readingsSettings,
     bubblePersistSettings,
     log,
-    host: el.querySelector("#yui-panel-listening")!,
+    host: hosts.listening!,
   });
 
   // ── Together page (switch rows · chain cap · characters on the desktop) ──
@@ -718,53 +740,38 @@ export function createQuickControls({
     boundId,
     log,
   });
-  el.querySelector("#yui-panel-together")!.append(togetherPage.el);
+  hosts.together!.append(togetherPage.el);
 
   // ── Permissions page (attach switch · monitor list · screen requests) ──
   const permsPage = createPermsPage({ settings, sourceProvider, log, isOpen: shell.isOpen });
-  el.querySelector("#yui-panel-perms")!.append(permsPage.el);
+  hosts.perms!.append(permsPage.el);
 
   // ── Plugins page (installed plugins · catalog · consent) ──
   const pluginsPage = plugins ? createPluginsPage({ ...plugins, log }) : undefined;
-  if (pluginsPage) el.querySelector("#yui-panel-plugins")!.append(pluginsPage.el);
+  if (pluginsPage) hosts.plugins!.append(pluginsPage.el);
 
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
   }
 
-  // ── Tab rail (selection, ARIA, keyboard) ──
-  const tabRail = createTabRail({
-    rail: tablistEl,
-    buttons: tabButtons,
-    panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
-    initial: initialPageOf(openOnQuickStart),
-    onSelect: (id) => {
-      if (id === "conn") connectionPage.entered();
-      if (id === "plugins") pluginsPage?.entered();
-    },
-  });
-
   const unbindTransportLinks = bindTransportLinks(el, () => {
-    tabRail.select("conn");
+    rail.select("conn");
     connectionPage.focusChatType();
   });
   const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(request?: PageRequest): void {
     const tab = request?.page;
-    if (tab && tabRail.select(tab)) {
-      shell.open();
-      // open() lands focus on the first control; move it to the tab the caller asked for.
-      tabRail.select(tab, { focusVisible: false });
-    } else {
-      shell.open();
-    }
+    const known = !!tab && rail.select(tab);
+    shell.open();
+    // open() lands focus on the first control; move it to the tab the caller asked for.
+    if (known) rail.focus(tab, { focusVisible: false });
     if (request?.focus === "chat_key") connectionPage.focusKey();
   }
 
   function selectedTab(): SettingsPage {
-    return tabRail.selected() as SettingsPage;
+    return rail.selected() as SettingsPage;
   }
 
   // Quick start's Help rows are the delegated ones; the General page handles its own.
@@ -796,7 +803,7 @@ export function createQuickControls({
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },
-    tabRail,
+    { dispose: () => root.unmount() },
   ];
   const sections = parts.filter((section): section is PanelSection => !!section);
 

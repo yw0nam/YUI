@@ -208,7 +208,7 @@ describe("createQuickControls — presets", () => {
       };
     });
     const root = document.createElement("div");
-    root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
+    root.innerHTML = `<div class="yui-preset">${presetStripHtml()}</div><div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const strip = createPresetStrip({
       root,
