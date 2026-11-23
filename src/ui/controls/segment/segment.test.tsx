@@ -86,7 +86,7 @@ describe("Segment", () => {
 
     radios[0].focus();
     await press(radios[0], "ArrowRight");
-    expect(onValueChange).toHaveBeenLastCalledWith("b", expect.anything());
+    expect(onValueChange).toHaveBeenLastCalledWith("b");
     expect(document.activeElement).toBe(radios[1]);
   });
 
@@ -112,7 +112,7 @@ describe("Segment", () => {
 
     fireEvent.click(radios[1]);
     expect(onValueChange).toHaveBeenCalledTimes(1);
-    expect(onValueChange).toHaveBeenLastCalledWith("b", expect.anything());
+    expect(onValueChange).toHaveBeenLastCalledWith("b");
   });
 
   it("disables every option and reports nothing", async () => {

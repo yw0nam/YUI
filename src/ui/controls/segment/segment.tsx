@@ -51,7 +51,7 @@ export function Segment<T>({
       className={className ? `yui-seg ${className}` : "yui-seg"}
       aria-label={label}
       value={value}
-      onValueChange={onValueChange}
+      onValueChange={(next) => onValueChange(next as T)}
       disabled={disabled}
       onKeyDownCapture={(event) => {
         // Arrows move focus only; Space or a click selects.

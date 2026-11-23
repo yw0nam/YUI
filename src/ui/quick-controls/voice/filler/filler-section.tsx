@@ -115,7 +115,7 @@ export function FillerSection({
       className="yui-sec yui-filler"
       onInput={(event) => {
         // The segment's hidden radio inputs bubble input; only the pool textareas edit the pool.
-        if ((event.target as HTMLElement).tagName === "TEXTAREA") writePool();
+        if (event.target instanceof HTMLTextAreaElement) writePool();
       }}
     >
       <div className="yui-sec__head">
