@@ -192,6 +192,32 @@ describe("CueList — trigger field", () => {
   });
 });
 
+describe("CueList — editor fields", () => {
+  it.each([
+    {
+      field: "name",
+      sel: ".yui-cue__name-input",
+      typed: " 새벽 ",
+      calls: [["morning", { label: "새벽" }]],
+      shown: " 새벽 ",
+    },
+    { field: "emptied name", sel: ".yui-cue__name-input", typed: "  ", calls: [], shown: "아침" },
+    {
+      field: "context",
+      sel: ".yui-cue__ctx-textarea",
+      typed: "새 인사",
+      calls: [["morning", { context: "새 인사" }]],
+      shown: "새 인사",
+    },
+  ])("commits the $field on a native change", (c) => {
+    const { host, store } = build([morning], TIME);
+    const el = q<HTMLInputElement | HTMLTextAreaElement>(row(host, "morning"), c.sel);
+    change(el, c.typed);
+    expect(store.updateCue.mock.calls).toEqual(c.calls);
+    expect(el.value).toBe(c.shown);
+  });
+});
+
 describe("CueList — add and delete", () => {
   it("shows the add label and adds a cue on click", () => {
     const { host, store } = build<ScheduledCue>([], TIME);
