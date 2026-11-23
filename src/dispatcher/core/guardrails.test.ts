@@ -235,14 +235,17 @@ describe("guardrails — shipped hourly limits", () => {
     expect(turnAt(g, c, BASE_TS + 3_600_000)).toBe(true);
   });
 
-  it("drops the 121st urgent turn, and the next non-urgent turn still passes", () => {
+  it("passes 120 urgent turns while the speaking-up limit is full, and they take no tier2 slot", () => {
     const c = clock();
     const g = createGuardrails(shipped(), { now: c.now });
+    for (let i = 0; i < 24; i++) expect(turnAt(g, c, BASE_TS)).toBe(true);
+    expect(turnAt(g, c, BASE_TS)).toBe(false);
     expect(drive(g, c, "urgent_signal_source", "signals.urgent", 130)).toEqual({
       firstDrop: 121,
       passed: 120,
     });
-    expect(turnAt(g, c, BASE_TS + 130_000)).toBe(true);
+    // The 24 slots free at window_ms; an urgent turn that took a slot would still hold one.
+    expect(turnAt(g, c, BASE_TS + 3_600_000)).toBe(true);
   });
 });
 
