@@ -20,8 +20,7 @@
  * schedule, signals, screen) that arrives while that window holds is dropped as
  * global_gap before the guardrail sees it; gesture cues and user input pass ungated.
  *
- * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
- *   overall-cap verdict every tick to transition running↔cooldown. degraded is entered when
+ * state: booting → (start) → running → (stop) → stopped. degraded is entered when
  *   the backend call fails DEGRADED_FAILURE_THRESHOLD times in a row — during it, tier2
  *   (non-user) is dropped as degraded_drop, while user-initiated (dnd_override) turns keep
  *   going out to backend_caller without a gate (judgment belongs to the backend). A single
@@ -77,7 +76,7 @@ export interface DispatcherDeps {
   tapConfig: () => TapConfig;
   peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
-  /** Guardrails — debounce/rate-limit gate + cooldown verdict (pure). */
+  /** Guardrails — debounce/rate-limit gate (pure). */
   guardrails: Guardrails;
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy state from it. */
   turnLog: TurnLog;
@@ -133,7 +132,7 @@ export interface DispatcherDeps {
   logger?: Logger;
 }
 
-type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "stopped";
+type DispatcherState = "booting" | "running" | "degraded" | "stopped";
 
 /** recent_drops entry. */
 export interface DropRecord {
@@ -344,10 +343,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /** Backend call failure (excluding superseded_by_user): enter degraded on reaching the threshold. */
   function noteCallFailure(): void {
     consecutiveFailures += 1;
-    if (
-      consecutiveFailures >= DEGRADED_FAILURE_THRESHOLD &&
-      (state === "running" || state === "cooldown")
-    ) {
+    if (consecutiveFailures >= DEGRADED_FAILURE_THRESHOLD && state === "running") {
       setState("degraded");
     }
   }
@@ -474,12 +470,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /**
    * Whether one deferred item can now start as the next call (used to decide slot replacement right after a call completes).
    * During degraded, only user turns (dnd_override) drain — everything else is a drop target (handled in the finally above).
-   * During cooldown, only urgent signals drain — urgent_max caps them, the overall cooldown does not hold them.
    */
   function canDrain(): boolean {
     if (pending.length === 0) return false;
     if (state === "running") return true;
-    if (state === "cooldown") return pending[0]?.source === "urgent_signal_source";
     if (state === "degraded") return pending[0]?.dnd_override === true;
     return false;
   }
@@ -502,19 +496,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
-  /**
-   * The dispatcher owns the running ↔ cooldown transition. Since the guardrail only returns a verdict
-   * and takes no part in the transition, this polls cooldownActive() every tick to sync state (both entry and exit).
-   */
-  function syncCooldownState(): void {
-    const inCooldown = guardrails.cooldownActive();
-    if (inCooldown && state === "running") {
-      setState("cooldown");
-    } else if (!inCooldown && state === "cooldown") {
-      setState("running");
-    }
-  }
-
   /** Start the held pending if it can start (retried on the next tick after playback ends). */
   function drainPending(): void {
     dropDndHeldPending();
@@ -532,7 +513,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
     const classified = classify(env);
     if (classified.target === "tier1") {
-      // tier1 is never gated (independent of guardrails/cooldown).
+      // tier1 is never gated (independent of guardrails).
       tier1.render(env);
       return;
     }
@@ -579,19 +560,17 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
+   * pump: drain bus every tick. Runs in running and degraded; tier1 renders in both.
    * Otherwise (booting/stopped) hold pending events as no-op.
    */
   function pump(): void {
-    if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
+    if (state !== "running" && state !== "degraded") return;
     // Before the bus: a turn popped now asks for the lock again, behind any window already waiting.
     if (!currentPipelineBusy()) releaseGate();
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
       handle(env);
     }
-    // Backend evaluation may have entered cooldown or timer may have expired → sync state.
-    syncCooldownState();
     drainPending();
   }
 

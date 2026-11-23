@@ -35,7 +35,6 @@ describe("loadConfig — happy path", () => {
     expect("emotionTtsPrefix" in cfg).toBe(false);
     expect(Object.keys(cfg.motions)).toEqual(["idle", "drag", "sit"]);
     expect(cfg.motions.sit.interrupt_policy).toBe("queue");
-    expect(cfg.guardrails.rate_limit.overall_max).toBe(20);
   });
 });
 
@@ -54,8 +53,6 @@ describe("loadConfig — guardrails", () => {
         window_ms: 3600000,
         tier2_max: 6,
         urgent_max: 120,
-        overall_max: 20,
-        cooldown_ms: 300000,
         addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,

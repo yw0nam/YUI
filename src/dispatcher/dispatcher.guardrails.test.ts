@@ -2,7 +2,7 @@
  * dispatcher.guardrails.test.ts — §6 guardrail gating and the global proactive pacer gate.
  *
  * Scope:
- *  - §6 guardrail gating: debounce/rate-limit/cooldown drops reaching backend_caller.
+ *  - §6 guardrail gating: debounce/rate-limit drops reaching backend_caller.
  *  - The global proactive pacer gate: a hold silences proactive/loop-cue fires but never a
  *    gesture cue or a user turn, and never spends a guardrail slot on a held fire.
  */
@@ -386,48 +386,6 @@ describe("dispatcher — guardrail gating (§6)", () => {
     return { d, g };
   }
 
-  it("drops proactive.tap_bored during cooldown", async () => {
-    const cfg = realGuardrailsConfig();
-    cfg.rate_limit.tier2_max = 1000;
-    cfg.debounce_ms.user_input_source = 0;
-    const g = createGuardrails(cfg, { now: () => Date.now() });
-    const d = createDispatcher({
-      bus,
-      renderer: renderer as never,
-      peekConfig: () => PEEK_CONFIG,
-      tapConfig: () => TAP_CONFIG,
-      backendCaller,
-      guardrails: g,
-      turnLog,
-      hasOutstandingSpeech: () => false,
-      addressedChain: createDefaultAddressedChain(),
-      logger,
-    });
-    d.start();
-    for (let i = 0; i < 21; i++) {
-      g.evaluate(
-        env({
-          source: "user_input_source",
-          event_name: "user.text_submitted",
-          ts: NOW + i,
-          dnd_override: false,
-        }),
-      );
-    }
-    expect(g.cooldownActive()).toBe(true);
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "proactive.tap_bored",
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
-    expect(d.recentDrops(10).some((dr) => dr.reason === "guardrail_drop")).toBe(true);
-    d.stop();
-  });
-
   it("debounce drops a 2nd same-source tier2 within the window", async () => {
     const { d } = makeGated();
     d.start();
@@ -583,12 +541,10 @@ describe("dispatcher — global proactive pacer gate", () => {
   });
 
   // evaluate() consumes a rate-limit slot at fire time and never refunds it, so a held fire
-  // that reaches the guardrail spends a cap it never used — and exhausting the overall cap
-  // additionally trips a cooldown that silences everything after it.
+  // that reaches the guardrail spends a cap it never used.
   it("spends no guardrail slot on a held fire, so a later turn still passes the cap", async () => {
     const cfg = permissiveGuardrailsConfig();
     cfg.rate_limit.tier2_max = 3;
-    cfg.rate_limit.overall_max = 3;
     const capped = createGuardrails(cfg, { now: () => Date.now() });
     const pacer = fakePacer(true);
     const d = build(pacer, vi.fn(), { guardrails: capped });
@@ -679,91 +635,6 @@ describe("dispatcher — global proactive pacer gate", () => {
 
     expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
     expect(backendCaller.call).not.toHaveBeenCalled();
-    d.stop();
-  });
-});
-
-describe("dispatcher — urgent signals guardrails (urgent_max)", () => {
-  const urgentEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
-    env({
-      source: "urgent_signal_source",
-      event_name: "signals.urgent",
-      dnd_override: false,
-      ...over,
-    });
-
-  function makeUrgentGated(): { d: Dispatcher; g: Guardrails } {
-    const cfg = realGuardrailsConfig();
-    cfg.rate_limit.tier2_max = 1000;
-    const g = createGuardrails(cfg, { now: () => Date.now() });
-    const d = createDispatcher({
-      bus,
-      renderer: renderer as never,
-      peekConfig: () => PEEK_CONFIG,
-      tapConfig: () => TAP_CONFIG,
-      backendCaller,
-      guardrails: g,
-      turnLog,
-      hasOutstandingSpeech: () => false,
-      addressedChain: createDefaultAddressedChain(),
-      logger,
-    });
-    return { d, g };
-  }
-
-  it("fires an urgent turn while the global cooldown is active", async () => {
-    const { d, g } = makeUrgentGated();
-    d.start();
-    for (let i = 0; i < 21; i++) {
-      g.evaluate(
-        env({
-          source: "user_input_source",
-          event_name: "user.text_submitted",
-          ts: NOW + i,
-          dnd_override: false,
-        }),
-      );
-    }
-    expect(g.cooldownActive()).toBe(true);
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.state()).toBe("cooldown");
-
-    bus.push(urgentEnv());
-    await vi.advanceTimersByTimeAsync(20);
-
-    expect(backendCaller.call).toHaveBeenCalledOnce();
-    d.stop();
-  });
-
-  it("drains a pending urgent turn at the pending-drain gate during cooldown", async () => {
-    const { d, g } = makeUrgentGated();
-    d.start();
-
-    bus.push(env({ ts: NOW })); // user turn takes the in-flight slot
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.inFlight()).not.toBeNull();
-
-    for (let i = 0; i < 21; i++) {
-      g.evaluate(
-        env({
-          source: "user_input_source",
-          event_name: "user.text_submitted",
-          ts: NOW + i,
-          dnd_override: false,
-        }),
-      );
-    }
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.state()).toBe("cooldown");
-
-    bus.push(urgentEnv({ ts: NOW + 100 }));
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call).toHaveBeenCalledOnce(); // held in pending behind the user turn
-
-    callDeferred[0].resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-
-    expect(backendCaller.call).toHaveBeenCalledTimes(2);
     d.stop();
   });
 });

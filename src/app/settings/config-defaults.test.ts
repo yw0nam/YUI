@@ -4,7 +4,7 @@ import { quickControlsConfigDefaults } from "./config-defaults";
 
 const loaded = {
   get: () => ({
-    guardrails: { rate_limit: { tier2_max: 7, urgent_max: 8, overall_max: 9 } },
+    guardrails: { rate_limit: { tier2_max: 7, urgent_max: 8 } },
     screen: { settle_ms: 400 },
     endpoints: { chat_api: "push", chat_base_url: "http://x" },
     persona: { framing: { en: "f" } },
@@ -26,7 +26,7 @@ const unloaded = {
 describe("quickControlsConfigDefaults", () => {
   it("reads each default from the loaded config", () => {
     const d = quickControlsConfigDefaults(loaded);
-    expect(d.getRateLimitDefaults()).toMatchObject({ tier2_max: 7, urgent_max: 8, overall_max: 9 });
+    expect(d.getRateLimitDefaults()).toMatchObject({ tier2_max: 7, urgent_max: 8 });
     expect(d.getScreenDefaults()).toMatchObject({ settle_ms: 400 });
     expect(d.getPersona()).toEqual({ framing: { en: "f" } });
     expect(d.getEndpointDefaults()).toMatchObject({ chat_base_url: "http://x" });

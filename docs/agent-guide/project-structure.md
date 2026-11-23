@@ -31,7 +31,7 @@ YUI/
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
     filler.json                      # Backed-off filler schedule + first/repeat/long_wait/tool/timeout/unreachable/threads_open/threads_raise phrase pools
-    guardrails.json                  # Dispatcher cooldown/suppression + attachment caps (max_count, max_image_bytes)
+    guardrails.json                  # Dispatcher debounce and hourly caps + attachment caps (max_count, max_image_bytes)
     hotkeys.json                     # Global summon accelerator (empty = disabled)
     screen.json                      # Frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
     persona.json                     # Default card per UI language (en/ja/ko), the framing sentence, and the {{user}} fallback word
@@ -244,7 +244,7 @@ YUI/
       core/
         classify.ts                  # Pure tier and target classification of a bus envelope, plus the paced-source table
         event-bus.ts                 # Priority queue collecting every speech-candidate event
-        guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
+        guardrails.ts                # Debounce and rate-limit evaluation
         addressed-chain.ts           # The chain cap: how many addressed turns a window takes in a row without a user turn
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
         proactive-pacer.ts           # The proactive gap after a turn that every proactive source shares

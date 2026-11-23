@@ -205,9 +205,7 @@ describe("createProactivePage — Advanced", () => {
   const RATE_LIMIT_DEFAULTS = {
     tier2_max: 24,
     urgent_max: 120,
-    overall_max: 40,
     addressed_chain_max: 2,
-    cooldown_ms: 600_000,
   };
 
   function advancedDeps() {
@@ -406,15 +404,22 @@ describe("createProactivePage — Advanced", () => {
     expect(input!.value).toBe("24");
   });
 
-  it("names the configured cooldown in the total and urgent rows", () => {
+  it("lists two hourly limits, speaking up first, then urgent signals counted apart", () => {
     const { page } = build(advancedDeps());
-    const sub = (id: string) =>
-      page.el.querySelector(id)?.closest(".yui-row")?.querySelector(".yui-input-row__sub")
-        ?.textContent;
+    const rows = [...page.el.querySelectorAll("[id^='yui-rate-']")].map((input) => {
+      const row = input.closest(".yui-row");
+      return [
+        row?.querySelector(".yui-input-row__label")?.textContent,
+        row?.querySelector(".yui-input-row__sub")?.textContent,
+      ];
+    });
 
-    expect([sub("#yui-rate-overall"), sub("#yui-rate-urgent")]).toEqual([
-      "Crossing it pauses every source for 10 minutes",
-      "Signals marked urgent; the 10-minute pause after the total limit never holds them",
+    expect(rows).toEqual([
+      [
+        "Times she speaks up per hour",
+        "Quiet-for-a-while, greetings, signals and answers to another character, together",
+      ],
+      ["Urgent signal turns per hour", "Signals marked urgent, counted apart from the limit above"],
     ]);
   });
 

@@ -90,8 +90,6 @@ beforeEach(() => {
         window_ms: 3_600_000,
         tier2_max: 1000,
         urgent_max: 1000,
-        overall_max: 1000,
-        cooldown_ms: 300_000,
         addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,

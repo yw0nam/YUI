@@ -117,8 +117,6 @@ export function guardrailsFixture(): GuardrailsConfig {
       window_ms: 3600000,
       tier2_max: 6,
       urgent_max: 120,
-      overall_max: 20,
-      cooldown_ms: 300000,
       addressed_chain_max: 2,
     },
     attachments: { max_count: 6, max_image_bytes: 5 * 1024 * 1024 },

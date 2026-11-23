@@ -102,11 +102,11 @@ describe("createConfigStore — section diff", () => {
     {
       section: "guardrails",
       mutate: (map: Record<string, unknown>) => {
-        (map["guardrails.json"] as { rate_limit: { overall_max: number } }).rate_limit.overall_max =
+        (map["guardrails.json"] as { rate_limit: { urgent_max: number } }).rate_limit.urgent_max =
           30;
       },
-      readBack: (cfg: { guardrails: { rate_limit: { overall_max: number } } }) =>
-        cfg.guardrails.rate_limit.overall_max,
+      readBack: (cfg: { guardrails: { rate_limit: { urgent_max: number } } }) =>
+        cfg.guardrails.rate_limit.urgent_max,
       expected: 30,
       otherSection: "motions",
     },

@@ -815,11 +815,8 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_label": "1時間あたりの話しかけ回数",
   "reactions.rate_tier2_sub":
     "しばらく静かなとき、あいさつ、シグナル、他のキャラクターへの返事の合計",
-  "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
-  "reactions.rate_overall_sub": "超えるとすべての反応が{n}分間止まります",
   "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
-  "reactions.rate_urgent_sub":
-    "緊急と指定されたシグナル。合計の上限を超えたときの{n}分の停止の対象外です",
+  "reactions.rate_urgent_sub": "緊急と指定されたシグナル。上の回数とは別に数えます",
   "reactions.rate_addressed_label": "呼ばれて続けて答える回数",
   "reactions.rate_addressed_sub": "あなたが次に話すまでに、他のキャラクターに呼ばれて答える回数",
 

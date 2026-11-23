@@ -36,7 +36,7 @@ An addressed turn whose sender passed the user's message on with `address_charac
 _Avoid_: transfer, delegation, forward
 
 **Guardrails**:
-The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
+The gate a trigger passes before it becomes a turn: do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
 _Avoid_: filter, policy, throttle
 
 **Do-not-disturb**:

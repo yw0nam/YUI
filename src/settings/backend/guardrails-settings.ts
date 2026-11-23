@@ -20,7 +20,6 @@ export const RATE_LIMIT_MAX = 999;
 export interface RateLimitOverrides {
   tier2_max: number;
   urgent_max: number;
-  overall_max: number;
   addressed_chain_max: number;
 }
 
@@ -34,7 +33,6 @@ export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
 const EMPTY: RateLimitOverrides = {
   tier2_max: 0,
   urgent_max: 0,
-  overall_max: 0,
   addressed_chain_max: 0,
 };
 
@@ -55,18 +53,12 @@ export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides):
   return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov, KEYS) };
 }
 
-/** The bundled caps the UI falls back to, and the cooldown its copy names. */
-export type RateLimitDefaults = RateLimitOverrides & { cooldown_ms: number };
+/** The caps the bundled config ships, shown where a cap has no override (an override of 0 means none). */
+export type RateLimitDefaults = RateLimitOverrides;
 
-/**
- * Projects a bundled GuardrailsConfig onto the caps for the UI's fallback display, plus the
- * cooldown the rows name; window_ms is dropped. This store overrides neither.
- */
+/** Projects a bundled GuardrailsConfig onto the caps for the UI's fallback display; window_ms is dropped. */
 export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitDefaults {
-  return {
-    ...projectOverrides(EMPTY, (key) => g.rate_limit[key]),
-    cooldown_ms: g.rate_limit.cooldown_ms,
-  };
+  return projectOverrides(EMPTY, (key) => g.rate_limit[key]);
 }
 
 export function createGuardrailsSettings(opts?: { storage?: GuardrailsStorage }) {

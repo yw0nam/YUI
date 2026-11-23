@@ -808,11 +808,8 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_label": "Times she speaks up per hour",
   "reactions.rate_tier2_sub":
     "Quiet-for-a-while, greetings, signals and answers to another character, together",
-  "reactions.rate_overall_label": "Total self-started turns per hour",
-  "reactions.rate_overall_sub": "Crossing it pauses every source for {n} minutes",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",
-  "reactions.rate_urgent_sub":
-    "Signals marked urgent; the {n}-minute pause after the total limit never holds them",
+  "reactions.rate_urgent_sub": "Signals marked urgent, counted apart from the limit above",
   "reactions.rate_addressed_label": "Answers to another character, in a row",
   "reactions.rate_addressed_sub":
     "How many times she answers a character who addressed her before you speak again",
