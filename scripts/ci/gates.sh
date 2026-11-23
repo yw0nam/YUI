@@ -16,8 +16,19 @@ gates=(
   "pnpm docs:check"
   "pnpm docs:build"
   "cargo fmt --manifest-path src-tauri/Cargo.toml --check"
-  "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings"
-  "cargo test --manifest-path src-tauri/Cargo.toml --locked"
+)
+# Like CI's `rust` path filter: clippy and test build the crate only when the branch touches it.
+base="$(git merge-base origin/main HEAD)"
+if ! git diff --quiet "$base" -- src-tauri .github/workflows/ci.yml ||
+  [ -n "$(git ls-files --others --exclude-standard -- src-tauri)" ]; then
+  gates+=(
+    "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings"
+    "cargo test --manifest-path src-tauri/Cargo.toml --locked"
+  )
+else
+  echo "skip    cargo clippy, cargo test (no change under src-tauri/ since origin/main)"
+fi
+gates+=(
   "bash scripts/ci/test-guard.sh origin/main"
   "bash scripts/ci/rule-tests.sh origin/main"
   "bash scripts/ci/readme-pair.sh origin/main"
