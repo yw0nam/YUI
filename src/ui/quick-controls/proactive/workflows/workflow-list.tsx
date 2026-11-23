@@ -99,15 +99,20 @@ export function WorkflowList({
   };
 
   const fire = (entry: WorkflowEntry): void => {
-    // n8n webhooks do not return CORS headers, so dispatch with no-cors.
     globalThis
       .fetch(entry.url, {
         method: "POST",
-        mode: "no-cors",
         body: "{}",
         signal: AbortSignal.timeout(10_000),
       })
-      .then(() => flashRow(entry.id, "ok"))
+      .then((res) => {
+        if (res.ok) {
+          flashRow(entry.id, "ok");
+          return;
+        }
+        log.debug("workflow_fire_failed", { id: entry.id, status: res.status });
+        flashRow(entry.id, "err");
+      })
       .catch((err) => {
         log.debug("workflow_fire_failed", { id: entry.id, error: String(err) });
         flashRow(entry.id, "err");
