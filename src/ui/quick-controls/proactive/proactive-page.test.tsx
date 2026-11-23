@@ -366,6 +366,15 @@ describe("createProactivePage — Advanced", () => {
     expect(input.value).toBe("300");
   });
 
+  it("shows a stored presence at its raw seconds", () => {
+    const { deps, input } = buildAdvanced("#yui-presence");
+
+    expect(input?.value).toBe("180");
+    act(() => deps.presenceSettings.set(180_500));
+
+    expect(input?.value).toBe("180.5");
+  });
+
   it("shows an outside change at once in a focused field the user has not typed in", () => {
     const { deps, input } = buildAdvanced("#yui-presence");
 
@@ -812,6 +821,12 @@ describe("createProactivePage — the source groups", () => {
         over: { typed: "5000", committed: 600_000, shown: "600" },
         under: { typed: "2", committed: 5_000, shown: "5" },
       },
+      {
+        name: "a knob typed as a fraction",
+        id: "#yui-screen-settle",
+        read: (store) => store.get().settle_ms,
+        over: { typed: "0.3", committed: 0, shown: "90" },
+      },
     ];
 
     it.each(KNOB_CLAMPS)("clamps a typed $name into the range its row advertises", ({
@@ -844,6 +859,24 @@ describe("createProactivePage — the source groups", () => {
       commit(input, "");
       expect(screenKnobSettings.get().settle_ms).toBe(0);
       expect(input?.value).toBe("90");
+    });
+
+    it("keeps an ArrowUp on a knob at its max from stepping past it", () => {
+      const screenKnobSettings = createScreenKnobSettings();
+      screenKnobSettings.set({ recent_cap: 20 });
+      const { page } = buildScreens({ screenKnobSettings });
+      const setSpy = vi.spyOn(screenKnobSettings, "set");
+      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap");
+      expect(input).not.toBeNull();
+      if (!input) return;
+
+      expect(input.value).toBe("20");
+      act(() => input.focus());
+      fireEvent.keyDown(input, { key: "ArrowUp" });
+
+      expect(input.value).toBe("20");
+      expect(setSpy).not.toHaveBeenCalled();
+      expect(screenKnobSettings.get().recent_cap).toBe(20);
     });
 
     it("does not commit a numeric knob on every keystroke", () => {

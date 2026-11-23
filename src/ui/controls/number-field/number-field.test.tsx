@@ -110,6 +110,19 @@ describe("NumberField", () => {
     expect(input.value).toBe("");
   });
 
+  it("commits nothing on Home or End, leaving the native caret move", () => {
+    const { input, onCommit } = renderCaller({ initial: 30 });
+    expect(input).not.toBeNull();
+    if (!input) return;
+
+    focus(input);
+    fireEvent.keyDown(input, { key: "Home" });
+    fireEvent.keyDown(input, { key: "End" });
+
+    expect(onCommit.mock.calls).toEqual([]);
+    expect(input.value).toBe("30");
+  });
+
   it("renders 8770 without a thousands separator", () => {
     const { input } = renderCaller({ initial: 8770, min: 1024, max: 65535 });
     expect(input).not.toBeNull();
