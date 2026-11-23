@@ -599,7 +599,7 @@ const en: Record<string, string> = {
   "cue.schedule_fold": "Greeting times",
   "cue.proactive_title": "Quiet for a while",
   "cue.proactive_sub": "Checks in on a repeating schedule if you've been quiet at work",
-  "cue.proactive_add": "Add reaction",
+  "cue.proactive_add": "Add check-in",
   "cue.proactive_fold": "Check-ins",
 
   // endpoints
@@ -791,7 +791,6 @@ const en: Record<string, string> = {
   "reactions.reacts_title": "What she reacts to",
   "reactions.advanced": "Advanced",
   "fold.off": "Off",
-  "fold.off_note": "Off. These apply once you turn it on.",
   "reactions.presence_label": "Present when idle for",
   "reactions.presence_sub": "You count as at your desk while your last input is this recent",
   "reactions.seconds_suffix": "s",

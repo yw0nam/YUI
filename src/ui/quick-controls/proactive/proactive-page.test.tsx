@@ -1108,21 +1108,25 @@ describe("createProactivePage — the source groups", () => {
       const del = page.el.querySelector<HTMLButtonElement>(".yui-wf__delete");
       expect(del).not.toBeNull();
       if (!del) return;
+      // The External signals fold: the cue rows above carry their own hidden confirm rows.
+      const fold = del.closest<HTMLElement>(".yui-fold__body");
+      expect(fold).not.toBeNull();
+      if (!fold) return;
 
       fireEvent.click(del);
-      const confirm = page.el.querySelector<HTMLElement>(".yui-confirm");
+      const confirm = fold.querySelector<HTMLElement>(".yui-confirm");
       expect(confirm).not.toBeNull();
       if (!confirm) return;
       expect(del.hidden).toBe(true);
       expect(document.activeElement).toBe(within(confirm).getByRole("button", { name: "Cancel" }));
 
       fireEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
-      expect(page.el.querySelector(".yui-confirm")).toBeNull();
+      expect(fold.querySelector(".yui-confirm")).toBeNull();
       expect(del.hidden).toBe(false);
       expect(document.activeElement).toBe(del);
 
       fireEvent.click(del);
-      const reopened = page.el.querySelector<HTMLElement>(".yui-confirm");
+      const reopened = fold.querySelector<HTMLElement>(".yui-confirm");
       expect(reopened).not.toBeNull();
       if (!reopened) return;
       fireEvent.click(within(reopened).getByRole("button", { name: "Delete" }));

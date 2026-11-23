@@ -6,11 +6,15 @@ import { t } from "../../i18n";
 import { useSnapshot } from "../../use-snapshot/use-snapshot";
 import type { SwitchRow } from "../switch-row";
 import { AdvancedSection } from "./advanced/advanced-section";
+import { CueListGroup } from "./cue-list/cue-list-group";
 import { PaceSection } from "./pace/pace-section";
 import type { ProactivePageDeps } from "./proactive-page";
 import { ScreenGroup } from "./screen/screen-group";
 import { SignalsGroup } from "./signals/signals-group";
 import { ThreadsGroup } from "./threads/threads-group";
+
+const MINUTES = { kind: "minutes", field: "idle_min" } as const;
+const TIME = { kind: "time", field: "time" } as const;
 
 const rowAt = (
   rows: readonly SwitchRow[],
@@ -70,9 +74,25 @@ export function ProactivePageView({
         <div className="yui-sec__head">
           <h2 className="yui-sec__title">{t("reactions.reacts_title")}</h2>
         </div>
-        {/* The vanilla cue lists mount here until they move to React. */}
-        <div className="yui-group yui-loop-cue-section" />
-        <div className="yui-group yui-cue-sections" />
+        <CueListGroup
+          snapshot={proactive}
+          store={proactiveSettings}
+          title={t("cue.proactive_title")}
+          sub={t("cue.proactive_sub")}
+          foldTitle={t("cue.proactive_fold")}
+          trigger={MINUTES}
+          addLabel={t("cue.proactive_add")}
+        />
+        <CueListGroup
+          snapshot={schedule}
+          store={scheduleSettings}
+          title={t("cue.schedule_title")}
+          sub={t("cue.schedule_sub")}
+          note={t("cue.schedule_note")}
+          foldTitle={t("cue.schedule_fold")}
+          trigger={TIME}
+          addLabel={t("cue.schedule_add")}
+        />
         {screenRow && screenKnobSettings ? (
           <ScreenGroup
             row={screenRow}

@@ -596,7 +596,7 @@ const ko: Record<string, string> = {
   "cue.schedule_fold": "인사 시각",
   "cue.proactive_title": "한동안 조용할 때",
   "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
-  "cue.proactive_add": "반응 추가",
+  "cue.proactive_add": "안부 묻기 추가",
   "cue.proactive_fold": "안부 묻기",
 
   // endpoints
@@ -787,7 +787,6 @@ const ko: Record<string, string> = {
   "reactions.reacts_title": "무엇에 반응할지",
   "reactions.advanced": "고급",
   "fold.off": "꺼짐",
-  "fold.off_note": "꺼져 있어요. 켜면 이 설정이 적용돼요.",
   "reactions.presence_label": "자리 비움 허용 시간",
   "reactions.presence_sub": "마지막 입력이 이만큼 최근이면 자리에 있는 걸로 봐요",
   "reactions.seconds_suffix": "초",

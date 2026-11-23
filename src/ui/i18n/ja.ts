@@ -601,7 +601,7 @@ const ja: Record<string, string> = {
   "cue.schedule_fold": "あいさつの時刻",
   "cue.proactive_title": "しばらく静かなとき",
   "cue.proactive_sub": "作業中にしばらく静かにしていると、定期的に先に話しかけます",
-  "cue.proactive_add": "リアクションを追加",
+  "cue.proactive_add": "声かけを追加",
   "cue.proactive_fold": "声かけ",
 
   // endpoints
@@ -798,7 +798,6 @@ const ja: Record<string, string> = {
   "reactions.reacts_title": "何に反応するか",
   "reactions.advanced": "詳細設定",
   "fold.off": "オフ",
-  "fold.off_note": "オフです。オンにするとこの設定が使われます。",
   "reactions.presence_label": "在席とみなす無操作時間",
   "reactions.presence_sub": "最後の入力がこの時間以内なら席にいるとみなします",
   "reactions.seconds_suffix": "秒",

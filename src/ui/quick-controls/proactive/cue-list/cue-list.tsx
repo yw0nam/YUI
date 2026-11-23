@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Cue } from "../../../../settings/cues/cue-list-settings";
 import { PLUS_SVG } from "../../constants";
+import "../../../message/cue-list.css";
 import { CueRow, type CueStore, type CueTrigger } from "./cue-row";
 
 export interface CueListProps<C extends Cue> {

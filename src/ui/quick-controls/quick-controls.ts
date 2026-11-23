@@ -79,7 +79,6 @@ import { createConnectionTab, type PushSocketPanelPort } from "./connection/conn
 import { createConnectionViews } from "./connection/connection-views";
 import { createQuickStart } from "./connection/quick-start/quick-start";
 import { initialPageOf } from "./constants";
-import { mountCueLists } from "./cue-lists/cue-lists";
 import { createDelegationFeed } from "./delegations/delegation-feed";
 import { createGeneralPage } from "./general/general-page";
 import { createHintTooltip } from "./hint-tooltip";
@@ -504,7 +503,6 @@ export function createQuickControls({
   });
   el.querySelector<HTMLElement>("#yui-panel-react")!.append(proactivePage.el);
 
-  const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
 
@@ -786,16 +784,6 @@ export function createQuickControls({
     return tabRail.selected() as SettingsPage;
   }
 
-  // Cue-list components — both on the Proactive page, each filling its source group.
-  const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
-
-  const cueLists = mountCueLists({
-    scheduleMount: cueSectionsMountEl,
-    proactiveMount: loopCueMountEl,
-    scheduleSettings,
-    proactiveSettings,
-  });
-
   // Quick start's Help rows are the delegated ones; the General page handles its own.
   const connPanel = el.querySelector<HTMLElement>("#yui-panel-conn")!;
   const unbindHelp = onGuide ? bindHelpSection(connPanel, onGuide) : undefined;
@@ -826,7 +814,6 @@ export function createQuickControls({
     { reflect: voicePage.refresh, close: voicePage.close, dispose: voicePage.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
     presetStrip,
-    { dispose: cueLists.destroy },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },
