@@ -2623,7 +2623,7 @@ globalThis.YUI_MAP =
       "id": "relations-set",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): the range clamps, no daily cap; the strip, the pet window (over the broadcast) and the next turn read the new value",
+      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): the range clamps, no daily cap; the preset header, the pet window (over the broadcast) and the next turn read the new value",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/quick-controls.ts"
@@ -3329,7 +3329,7 @@ globalThis.YUI_MAP =
       "id": "settings-edit-target",
       "from": "ui/quick-controls",
       "to": "app/settings-window",
-      "carries": "the preset id picked in the strip's character header; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
+      "carries": "the preset id picked in the preset header's character row; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -4166,7 +4166,7 @@ globalThis.YUI_MAP =
       "id": "card-thumb-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail and crop \u2192 the strip's and the card section's face (avatarEl)",
+      "carries": "PresetEntry.thumbnail and crop \u2192 the preset header's and the card section's face (avatarEl)",
       "kind": "callback",
       "transport": "shared"
     },
