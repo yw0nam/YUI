@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 // The relation line and the reasons card, through the preset strip.
 
+import { act, cleanup, render } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
+import { presetIdForWindow } from "../../../settings/preset/active-preset";
 import { createPetWindows, type PetWindows } from "../../../settings/preset/pet-windows";
 import {
   createPresetRegistry,
@@ -15,7 +18,10 @@ import {
 } from "../../../settings/relations/relations-store";
 import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale } from "../../i18n";
-import { createPresetStrip, type PresetStrip, presetStripHtml } from "./preset-strip";
+import { createEditedPreset } from "./edited-preset";
+import { PresetHeader, type PresetHeaderHandle } from "./preset-header";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const HOUR = 3_600_000;
 const NOW = new Date(2026, 9, 22, 12, 0).getTime();
@@ -43,26 +49,30 @@ describe("preset strip — relations", () => {
   let root: HTMLElement;
   let registry: PresetRegistry;
   let store: RelationsStore;
-  let strip: PresetStrip;
 
   function build(
     relations: Relations = OWN,
     petWindows?: PetWindows,
     relationsSwitch: FlagSettingsStore = createRelationsSwitch({ load: () => null, save() {} }),
   ): void {
-    strip?.dispose();
+    act(() => cleanup());
     store?.dispose();
     store = createRelationsStore({ storage: { load: () => relations, save: () => {} } });
-    root.innerHTML = `<div class="yui-preset">${presetStripHtml()}</div><div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    strip = createPresetStrip({
-      root,
-      registry,
-      log,
-      petWindows,
-      relationsStore: store,
-      relationsSwitch,
-      onEditTarget: vi.fn(),
+    act(() => {
+      render(
+        <PresetHeader
+          edited={createEditedPreset(registry, presetIdForWindow(), () => {})}
+          registry={registry}
+          log={log}
+          petWindows={petWindows}
+          relationsStore={store}
+          relationsSwitch={relationsSwitch}
+          onEditTarget={vi.fn()}
+          handle={createRef<PresetHeaderHandle>()}
+        />,
+        { container: root.appendChild(document.createElement("div")) },
+      );
     });
   }
 
@@ -102,7 +112,7 @@ describe("preset strip — relations", () => {
   });
 
   afterEach(() => {
-    strip.dispose();
+    act(() => cleanup());
     store.dispose();
     registry.dispose();
     root.remove();
@@ -128,7 +138,7 @@ describe("preset strip — relations", () => {
         ?.textContent,
     ).toBe("No one rated yet");
 
-    store.rate("user", 2, "said hello", NOW);
+    act(() => store.rate("user", 2, "said hello", NOW));
     const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
 
     expect(line.querySelector(".yui-preset__rel-empty")).toBeNull();
@@ -136,7 +146,7 @@ describe("preset strip — relations", () => {
   });
 
   it("adds a relation as soon as this preset rates a new target", () => {
-    store.rate("bbbb0002", -2, "hummed off key", NOW);
+    act(() => store.rate("bbbb0002", -2, "hummed off key", NOW));
 
     expect(relations(".yui-preset__rel").map((s) => s.target)).toEqual([
       "user",
@@ -203,14 +213,13 @@ describe("preset strip — relations", () => {
       expect(more.textContent).toBe("+1");
       expect(more.getAttribute("aria-label")).toBe("Show 1 more");
 
-      more.click();
+      act(() => more.click());
       expect(line.classList.contains("is-unfolded")).toBe(true);
       expect(more.getAttribute("aria-expanded")).toBe("true");
 
       // A store write re-renders the line; it stays unfolded.
-      store.rate("user", 1, "kept a promise", NOW);
+      act(() => store.rate("user", 1, "kept a promise", NOW));
       const next = root.querySelector<HTMLElement>(".yui-preset__rel")!;
-      expect(next).not.toBe(line);
       expect(next.classList.contains("is-unfolded")).toBe(true);
       expect(
         next.querySelector<HTMLButtonElement>(".yui-relation--more")!.getAttribute("aria-expanded"),
@@ -225,7 +234,7 @@ describe("preset strip — relations", () => {
     build(OWN, undefined, relationsSwitch);
 
     expect(root.querySelector(".yui-preset__rel")!.hasAttribute("hidden")).toBe(true);
-    relationsSwitch.setEnabled(true);
+    act(() => relationsSwitch.setEnabled(true));
     expect(root.querySelector(".yui-preset__rel")!.hasAttribute("hidden")).toBe(false);
   });
 
@@ -269,8 +278,8 @@ describe("preset strip — relations", () => {
       expect(more.textContent).toBe("+1");
       expect(more.getAttribute("aria-label")).toBe("Show 1 more");
 
-      more.click();
-      store.rate("user", 1, "kept a promise", NOW);
+      act(() => more.click());
+      act(() => store.rate("user", 1, "kept a promise", NOW));
       const next = root.querySelector<HTMLElement>(".yui-preset__rel")!;
       const nextMore = next.querySelector<HTMLButtonElement>(".yui-relation--more")!;
       expect(next.classList.contains("is-unfolded")).toBe(true);
@@ -292,7 +301,7 @@ describe("preset strip — relations", () => {
     )!;
     const card = root.querySelector<HTMLElement>(".yui-reasons")!;
 
-    relation.dispatchEvent(new Event("pointerover", { bubbles: true }));
+    act(() => relation.dispatchEvent(new Event("pointerover", { bubbles: true })));
 
     expect(card.classList.contains("is-open")).toBe(true);
     expect(relation.getAttribute("aria-describedby")).toBe(card.id);
@@ -306,7 +315,9 @@ describe("preset strip — relations", () => {
       "rose: fixed my window3h",
     ]);
 
-    relation.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() =>
+      relation.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
     expect(card.classList.contains("is-open")).toBe(false);
     expect(relation.hasAttribute("aria-describedby")).toBe(false);
   });

@@ -671,14 +671,15 @@ YUI/
         glyphs.ts                    # The menu's line glyphs
         character-menu.ts            # The menu factory: pills, in-place lists, the inline confirm, her name, focus and close rules
         character-menu.css           # Pill, plate, list and confirm styles
-      use-snapshot/                  # React hook for sources that return a fresh object each read
+      use-snapshot/                  # React hooks for sources that return a fresh object each read
         use-snapshot.ts              # Binds such a source to a component
+        use-notify.ts                # Re-renders a component on each notify of a source it reads itself
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
-        settings-panel.tsx           # The panel's React view: the preset strip's slot, the rail (search field, group headings and tabs on the shared Tabs) and every page's panel with its scope line, title and the host its page mounts into
+        settings-panel.tsx           # The panel's React view: the preset strip, the rail (search field, group headings and tabs on the shared Tabs) and every page's panel with its scope line, title and the host its page mounts into
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         glyphs.tsx                   # The glyphs the pages render as JSX: the warning glyph of Quick start's and the Plugins page's error lines, and the rail's tab icons
@@ -775,21 +776,22 @@ YUI/
         delegations/                 # The delegated list's sync, which lives with the panel and not with a page
           delegation-feed.ts         # The list's subscription and minute refresh, and the version a page reads to redraw
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
-        preset/                      # Preset strip above the rail
-          preset-strip.ts            # The character header that picks the preset to edit (`?edit=`), the edited preset's note, the page scope lines and the rail's character heading it fills
-          character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
-          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
-          preset-scope.ts            # Scope line text: only the edited character, or every character
+        preset/                      # Preset strip above the rail, rendered with React
+          preset-header.tsx          # The strip: the character header that picks the preset to edit (`?edit=`), the manage button and its popover, the edited preset's note, the relation line and the photo dialog
+          edited-preset.ts           # The registry state of the preset the window edits, held once it leaves the registry, which hands the window on
+          character-header.tsx       # The settings window's header: every preset with its face, transport and window state; a click edits it
+          preset-manage.tsx          # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
+          preset-scope.tsx           # Each page's scope line, only the edited character or every character, and the rail's character heading
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
           photo-dialog/              # The photo dialog
-            photo-dialog.ts          # The modal dialog: the photo under a circular mask, zoom, the fixed framings, Choose another, and the previews at the sizes a face is drawn
+            photo-dialog.tsx         # The modal `<dialog>`: the photo under a circular mask, zoom, the fixed framings, Choose another, the previews at the sizes a face is drawn, and the per-preset guard on a picked photo's default framing
             crop-stage.ts            # The stage geometry: a photo's position and zoom under the mask, and its conversion to and from a crop
             photo-dialog.css         # The dialog's layout
           relations/                 # The relation line under the preset row, and the reasons card
-            relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
-            relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
-            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip, refolded on a width change
-            reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
+            relations-section.tsx    # Composes the two, re-renders on the store's notifications, and moves the changed relations after the commit
+            relation-glyph.ts        # The five-step glyph and its band motion, the direction mark, and the age text
+            relation-line.tsx        # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip, refolded on a width change
+            reasons-card.tsx         # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         general/                     # The General page, rendered with React
           general-page.ts            # The page's facade: its React root

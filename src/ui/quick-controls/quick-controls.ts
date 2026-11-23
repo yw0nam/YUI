@@ -97,7 +97,8 @@ import { createPermsPage } from "./perms/perms-page";
 import type { CardIoPorts } from "./persona/card/card-io";
 import { createPersonaPage } from "./persona/persona-page";
 import { createPluginsPage } from "./plugins/plugins-page";
-import { createPresetStrip, presetStripHtml } from "./preset/preset-strip";
+import { createEditedPreset } from "./preset/edited-preset";
+import type { PresetHeaderHandle } from "./preset/preset-header";
 import { createProactivePage } from "./proactive/proactive-page";
 import { bindSettingsSearch } from "./search/settings-search";
 import { bindHelpSection } from "./sections/help/help-section";
@@ -477,6 +478,7 @@ export function createQuickControls({
 
   // ── Panel view (preset strip slot · rail · each page's panel and host) ──
   const tabs: { current: TabsHandle | null } = { current: null };
+  const presetHeader: { current: PresetHeaderHandle | null } = { current: null };
   const hosts: PageHosts = {};
   const root = createRoot(el);
   flushSync(() =>
@@ -486,7 +488,24 @@ export function createQuickControls({
           (id) => (id !== "hist" || !!transcript) && (id !== "plugins" || !!plugins),
         ),
         initial: initialPageOf(openOnQuickStart),
-        showPreset: !!presetRegistry,
+        preset: presetRegistry && {
+          // The window reloads into the picked preset; until then it keeps showing this one.
+          edited: createEditedPreset(presetRegistry, presetIdForWindow(), (state) =>
+            onEditTarget(boundId ?? state.active),
+          ),
+          registry: presetRegistry,
+          log,
+          petWindows,
+          boundId,
+          onEditTarget,
+          agentNotifySettings,
+          relationsStore,
+          relationsSwitch,
+          removeCardThumbnail,
+          pickPhoto: pickPresetPhoto,
+          getDefaultChatApi,
+          handle: presetHeader,
+        },
         tabs,
         onSelect: (id) => {
           if (id === "conn") connectionPage.entered();
@@ -497,7 +516,6 @@ export function createQuickControls({
     ),
   );
   const rail = tabs.current!;
-  if (presetRegistry) el.querySelector(".yui-preset")!.innerHTML = presetStripHtml();
 
   // ── Proactive page (how often she speaks up · her day · the sources · Advanced) ──
   const proactivePage = createProactivePage({
@@ -585,22 +603,6 @@ export function createQuickControls({
       })
     : null;
   if (historyPage) hosts.hist!.append(historyPage.el);
-  const presetStrip = presetRegistry
-    ? createPresetStrip({
-        root: el,
-        registry: presetRegistry,
-        log,
-        petWindows,
-        boundId,
-        onEditTarget,
-        agentNotifySettings,
-        relationsStore,
-        relationsSwitch,
-        removeCardThumbnail,
-        pickPhoto: pickPresetPhoto,
-        getDefaultChatApi,
-      })
-    : null;
   const hintTooltip = createHintTooltip({ root: el });
 
   // ── Body page (VRM list · relations rows · view reset) ──
@@ -799,7 +801,7 @@ export function createQuickControls({
     { reflect: motionPage.refresh, close: motionPage.close, dispose: motionPage.dispose },
     { reflect: voicePage.refresh, close: voicePage.close, dispose: voicePage.dispose },
     { close: hintTooltip.hide, dispose: hintTooltip.dispose },
-    presetStrip,
+    { close: () => presetHeader.current?.close() },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },

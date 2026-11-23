@@ -1,5 +1,5 @@
 /**
- * The settings panel's view: the preset strip's slot, then the rail (the search field over the
+ * The settings panel's view: the preset strip, then the rail (the search field over the
  * character's pages and every character's pages) beside every page's panel. Each panel holds its
  * scope line, its title and the host its page mounts into.
  */
@@ -10,6 +10,8 @@ import { CHARACTER_PAGES, type SettingsPage } from "../../settings/panels/settin
 import { Tab, TabPanel, type TabsHandle, TabsRoot, useTabs } from "../controls/tabs";
 import { t } from "../i18n";
 import { TAB_ICONS } from "./glyphs";
+import { PresetHeader, type PresetHeaderProps } from "./preset/preset-header";
+import { CharacterHeadingText, ScopeLine } from "./preset/preset-scope";
 
 /** The element each page mounts into, and the panel-wide one the card's drop cover fills. */
 export type PageHosts = Partial<Record<SettingsPage | "drop", HTMLElement>>;
@@ -18,8 +20,8 @@ export interface SettingsPanelProps {
   /** The rail's pages in order: the character's pages, then every character's pages. */
   pages: readonly SettingsPage[];
   initial: SettingsPage;
-  /** The preset strip's slot and each page's scope line render with it. */
-  showPreset: boolean;
+  /** The preset strip and each page's scope line render with it. */
+  preset?: PresetHeaderProps;
   tabs: Ref<TabsHandle>;
   onSelect(id: string): void;
   /** Filled with each host as it commits. */
@@ -32,7 +34,7 @@ const isCharacterPage = (id: SettingsPage): boolean =>
 export function SettingsPanel({
   pages,
   initial,
-  showPreset,
+  preset,
   tabs: handle,
   onSelect,
   hosts,
@@ -43,17 +45,21 @@ export function SettingsPanel({
     (node: HTMLElement | null): void => {
       if (node) hosts[key] = node;
     };
-  // The character group's heading names the edited character once the preset strip fills it.
+  // The character group's heading names the edited character where the panel shows a preset strip.
   const group = (id: "character" | "app") => (
     <p key={id} className="yui-tabs__group" role="presentation" data-rail-group={id}>
-      {t(`rail.group_${id}`)}
+      {id === "character" && preset ? (
+        <CharacterHeadingText edited={preset.edited} />
+      ) : (
+        t(`rail.group_${id}`)
+      )}
     </p>
   );
   const firstApp = pages.find((id) => !isCharacterPage(id));
 
   return (
     <>
-      {showPreset && <div className="yui-preset" />}
+      {preset && <PresetHeader {...preset} />}
       <TabsRoot tabs={tabs} orientation="vertical" className="yui-quick__cols">
         <div className="yui-rail">
           <input
@@ -83,7 +89,7 @@ export function SettingsPanel({
         <div className="yui-quick__body">
           {pages.map((id) => (
             <TabPanel key={id} value={id} className="yui-tabpanel">
-              {showPreset && <p className="yui-tabpanel__scope" data-scope-tab={id} />}
+              {preset && <ScopeLine page={id} edited={preset.edited} />}
               <h1 className="yui-tabpanel__title">{t(`tabs.${id}`)}</h1>
               <div ref={host(id)} />
             </TabPanel>
