@@ -196,6 +196,25 @@ describe("createQuickControls — push mode", () => {
     act(() => qc.dispose());
   });
 
+  it("Change transport from Quick start shows Detailed settings and focuses the chat type", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    const qc = buildQc({ openOnQuickStart: true });
+    qc.open({ page: "persona" });
+
+    fireEvent.click(qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!);
+
+    const view = (name: string) =>
+      qc.el.querySelector<HTMLElement>(`.yui-conn-view[data-view="${name}"]`)!;
+    expect(qc.selectedTab()).toBe("conn");
+    expect(view("detail").hidden).toBe(false);
+    expect(view("quick").hidden).toBe(true);
+    expect(document.activeElement).toBe(qc.el.querySelector(".yui-chat-type"));
+    // Focus only: the select's popup stays shut.
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
+
+    act(() => qc.dispose());
+  });
+
   // ── Connection status line ─────────────────────────────────────────────────
 
   it("hides the status line outside push mode", () => {
