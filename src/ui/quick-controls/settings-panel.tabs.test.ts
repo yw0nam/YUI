@@ -9,7 +9,7 @@ import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs, fakePlugins } from "./test-helpers";
+import { defaultQcArgs, fakePlugins, keyboardFocus, shownTip } from "./test-helpers";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -256,17 +256,27 @@ describe("createQuickControls — tab rail", () => {
   it("the rail gives every tab a label, an aria-label and a tooltip", () => {
     const qc = buildQc();
 
+    const tips: (string | undefined)[] = [];
     for (const tab of tabs(qc)) {
       const name = tab.getAttribute("aria-label");
       expect(name).toBeTruthy();
       expect(tab.querySelector(".yui-tab__label")?.textContent).toBe(name);
-      act(() => {
-        fireEvent.keyDown(document.body, { key: "Tab" });
-        tab.focus();
-      });
-      expect(document.querySelector(".yui-hint-tip[data-open]")?.textContent).toBeTruthy();
+      keyboardFocus(tab);
+      tips.push(shownTip());
       expect(tab.getAttribute("aria-describedby")).toBe("yui-hint-tip");
     }
+    expect(tips).toEqual([
+      "연결",
+      "음성",
+      "페르소나",
+      "몸",
+      "함께",
+      "듣기와 말풍선",
+      "권한",
+      "먼저 말을 거는 규칙",
+      "동작과 데스크톱",
+      "일반",
+    ]);
 
     qc.dispose();
   });

@@ -154,10 +154,10 @@ describe("createQuickControls — shell", () => {
   it("puts no native title over a tooltip target", () => {
     const qc = buildQc();
 
-    // The tip triggers this panel renders: the rail tabs and the icon buttons.
-    for (const target of qc.el.querySelectorAll<HTMLElement>(
-      ".yui-tab, .yui-iconbtn, .yui-hint-dot",
-    )) {
+    // Every tip trigger: Base UI marks each one it composes.
+    const triggers = [...qc.el.querySelectorAll<HTMLElement>("[data-base-ui-tooltip-trigger]")];
+    expect(triggers.filter((target) => target.matches(".yui-tab"))).toHaveLength(10);
+    for (const target of triggers) {
       expect(target.parentElement?.closest("[title]")).toBeNull();
     }
 

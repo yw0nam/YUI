@@ -1,5 +1,6 @@
 // The rail, measured in WebKit with the real stylesheets and focus rules: a switch inside a panel's
 // fade shows one panel, and an arrow key after a pointer click shows the next tab's tip.
+import { act } from "react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import "../../styles.css";
@@ -18,7 +19,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  qc?.dispose();
+  act(() => qc?.dispose());
   qc = undefined;
 });
 

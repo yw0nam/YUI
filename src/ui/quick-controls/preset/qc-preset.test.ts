@@ -3,6 +3,7 @@
 
 import { act, cleanup, render } from "@testing-library/react";
 import { createElement, createRef } from "react";
+import { flushSync } from "react-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../settings/backend/agent-notify-settings";
 import { presetIdForWindow } from "../../../settings/preset/active-preset";
@@ -19,7 +20,7 @@ import { createRelationsStore } from "../../../settings/relations/relations-stor
 import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, keyboardFocus, shownTip } from "../test-helpers";
 import { createEditedPreset } from "./edited-preset";
 import { closeDialogs, stubModalDialog } from "./photo-dialog/test-helpers";
 import { PresetHeader, type PresetHeaderHandle } from "./preset-header";
@@ -64,7 +65,7 @@ describe("createQuickControls — presets", () => {
   afterEach(() => {
     act(() => closeDialogs());
     history.replaceState(null, "", "/");
-    qc.dispose();
+    act(() => qc.dispose());
     registry.dispose();
     mount.remove();
   });
@@ -392,6 +393,50 @@ describe("createQuickControls — presets", () => {
     expect(card().classList.contains("is-open")).toBe(false);
     store.dispose();
     petWindows.dispose();
+  });
+
+  it("closing the window hides an open tip and closes Manage before the window goes", () => {
+    openManage();
+    const manage = $<HTMLButtonElement>(".yui-preset__manage");
+    keyboardFocus(manage);
+    expect(shownTip()).toBe("Manage presets");
+    let atClose: unknown[] = [];
+    onCloseWindow.mockImplementation(() => {
+      flushSync(() => {});
+      atClose = [shownTip(), $<HTMLElement>(".yui-preset-pop").hidden];
+    });
+
+    act(() => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(atClose).toEqual([undefined, true]);
+  });
+
+  it("a photo pick that resolves after the panel is gone opens no dialog", async () => {
+    let resolvePick!: (url: string) => void;
+    const pickPresetPhoto = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolvePick = resolve;
+        }),
+    );
+    act(() => qc.dispose());
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      presetRegistry: registry,
+      pickPresetPhoto,
+    });
+    qc.open();
+    openManage();
+    act(() => rowOf("perlica").querySelector<HTMLButtonElement>(".yui-preset-row__photo")!.click());
+
+    act(() => qc.dispose());
+    resolvePick("asset://localhost/app-data/cards/bbbb0002.png?v=1");
+    await act(async () => {});
+
+    expect(pickPresetPhoto).toHaveBeenCalledWith("bbbb0002");
+    expect(document.querySelector("dialog.yui-photo-dialog")).toBeNull();
   });
 
   // Esc hands focus back to the dots button; an outside press leaves it on the control pressed.
