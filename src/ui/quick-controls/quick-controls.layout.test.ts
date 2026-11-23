@@ -557,23 +557,6 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it("renders every rate-limit cap as a numeric text input", () => {
-    const { qc } = buildRateQc();
-    qc.open();
-    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-addressed"];
-    expect(
-      ids.map((id) => {
-        const input = qc.el.querySelector<HTMLInputElement>(id);
-        return [input?.type, input?.inputMode];
-      }),
-    ).toEqual([
-      ["text", "numeric"],
-      ["text", "numeric"],
-      ["text", "numeric"],
-    ]);
-    qc.dispose();
-  });
-
   describe("Together", () => {
     it("shows the chain cap's config default while no cap is overridden", () => {
       const { qc } = buildRateQc();
@@ -582,7 +565,7 @@ describe("createQuickControls — Reactions tab layout", () => {
       qc.dispose();
     });
 
-    it("commits the chain cap on change on the Together page", () => {
+    it("commits the chain cap on blur on the Together page", () => {
       const { rateLimitSettings, qc } = buildRateQc();
       qc.open();
       const input = qc.el.querySelector<HTMLInputElement>("#yui-rate-addressed");

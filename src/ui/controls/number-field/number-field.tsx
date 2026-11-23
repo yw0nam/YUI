@@ -37,7 +37,7 @@ export function NumberField({ id, value, min, max, onCommit, children }: NumberF
             event.preventBaseUIHandler();
             return;
           }
-          if (event.key !== "Enter" || event.defaultPrevented) return;
+          if (event.key !== "Enter") return;
           if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
           // Base UI commits on blur; keep the field focused after the commit.
           event.preventDefault();

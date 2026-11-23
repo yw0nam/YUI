@@ -1,6 +1,5 @@
 /** The Together page: the switch rows and the chain cap, then the characters on the desktop. */
 
-import { useMemo } from "react";
 import type { Logger } from "../../../logger";
 import type {
   GuardrailsSettingsStore,
@@ -15,28 +14,21 @@ import { CharactersSection, type WindowsPort } from "./characters/characters-sec
 export function TogetherPageView({
   rows,
   rateLimitSettings,
-  getRateLimitDefaults,
+  rateLimitDefaults,
   registry,
   petWindows,
   boundId,
   log,
-  revision,
 }: {
   rows: readonly SwitchRow[];
   rateLimitSettings?: GuardrailsSettingsStore;
-  getRateLimitDefaults?: () => RateLimitDefaults | undefined;
+  /** The bundled defaults, read by the open hook. */
+  rateLimitDefaults: RateLimitDefaults | undefined;
   registry?: Pick<PresetRegistry, "get" | "subscribe">;
   petWindows?: WindowsPort;
   boundId?: string | null;
   log: Logger;
-  /** Bumped by the open hook, so the row re-reads the bundled defaults. */
-  revision: number;
 }) {
-  const rateLimitDefaults = useMemo(() => {
-    // The open hook bumps the revision, so the row re-reads the bundled defaults.
-    void revision;
-    return getRateLimitDefaults?.();
-  }, [getRateLimitDefaults, revision]);
   const visible = rows.filter((row) => row.isVisible);
   return (
     <>

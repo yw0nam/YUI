@@ -34,15 +34,20 @@ export function createTogetherPage(deps: {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   const root = createRoot(el);
-  let revision = 0;
   const render = (): void =>
-    flushSync(() => root.render(createElement(TogetherPageView, { ...deps, revision })));
+    flushSync(() =>
+      root.render(
+        createElement(TogetherPageView, {
+          ...deps,
+          rateLimitDefaults: deps.getRateLimitDefaults?.(),
+        }),
+      ),
+    );
   render();
 
   return {
     el,
     reflect(): void {
-      revision++;
       render();
     },
     dispose(): void {

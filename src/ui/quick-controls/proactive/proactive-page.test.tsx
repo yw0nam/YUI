@@ -271,7 +271,7 @@ describe("createProactivePage — Advanced", () => {
     return { deps, page, input: page.el.querySelector<HTMLInputElement>(id) };
   }
 
-  it.each(FIELDS)("commits $name on change, converted", ({ id, read, shown, typed, committed }) => {
+  it.each(FIELDS)("commits $name on blur, converted", ({ id, read, shown, typed, committed }) => {
     const { deps, input } = buildAdvanced(id);
 
     expect(input?.value).toBe(shown);
@@ -791,7 +791,7 @@ describe("createProactivePage — the source groups", () => {
       },
     ];
 
-    it.each(KNOB_COMMITS)("commits $name on change", ({ id, typed, read, committed }) => {
+    it.each(KNOB_COMMITS)("commits $name on blur", ({ id, typed, read, committed }) => {
       const { page, screenKnobSettings } = buildScreens();
       const input = page.el.querySelector<HTMLInputElement>(id);
 
@@ -829,7 +829,7 @@ describe("createProactivePage — the source groups", () => {
       },
     ];
 
-    it.each(KNOB_CLAMPS)("clamps a typed $name into the range its row advertises", ({
+    it.each(KNOB_CLAMPS)("keeps a typed $name within its row's bounds", ({
       id,
       read,
       over,

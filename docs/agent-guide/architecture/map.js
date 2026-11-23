@@ -4923,6 +4923,24 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/quick-controls/proactive/advanced/advanced-section.tsx"
     },
     {
+      "id": "filler-disclosure",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Disclosure: the fold's summary label and its folded rows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
+    },
+    {
+      "id": "card-disclosure",
+      "from": "ui/quick-controls",
+      "to": "ui/controls",
+      "carries": "Disclosure: the fold's summary label and its folded rows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/persona/card/card-section.tsx"
+    },
+    {
       "id": "express-checkbox",
       "from": "ui/quick-controls",
       "to": "ui/controls",
