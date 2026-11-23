@@ -158,16 +158,16 @@ describe("createQuickControls — settings layout", () => {
       [
         ".yui-base-pace-seg",
         ".yui-day",
-        ".yui-loop-cue-section",
-        ".yui-cue-sections",
+        ".yui-cue-list .yui-num-input",
+        ".yui-cue-list .yui-time-input",
         ".yui-screen-switch",
         ".yui-thread-reactions-switch",
         ".yui-reaction-thresholds-count-seg",
-        ".yui-threadturns-row",
         ".yui-agentnotify-switch",
+        ".yui-threadturns-seg",
         "#yui-agent-port",
         "#yui-ingress-url",
-        ".yui-wf-list",
+        ".yui-wf-add-btn",
         "#yui-pacer-gap",
         "#yui-presence",
         "#yui-rate-overall",
@@ -399,16 +399,6 @@ describe("createQuickControls — Reactions tab layout", () => {
     qc.dispose();
   });
 
-  it("mounts proactiveCueList into .yui-loop-cue-section inside #yui-panel-react", () => {
-    const qc = buildQc();
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const loopSection = reactPanel.querySelector(".yui-loop-cue-section");
-    expect(loopSection).not.toBeNull();
-    expect(loopSection!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    qc.dispose();
-  });
-
   it("agentNotify switch lives inside #yui-panel-react, not #yui-panel-general", () => {
     const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
     qc.open();
@@ -445,11 +435,13 @@ describe("createQuickControls — Reactions tab layout", () => {
   // ── Source groups and Advanced ───────────────────────────────────────────
 
   function buildProactiveQc() {
+    const agentNotifySettings = createAgentNotifySettings();
+    agentNotifySettings.setEnabled(true);
     const qc = buildQc({
       screenSettings: createFlagSettings(true),
       screenKnobSettings: createScreenKnobSettings(),
       getScreenDefaults: () => SCREEN_DEFAULTS,
-      agentNotifySettings: createAgentNotifySettings(),
+      agentNotifySettings,
       threadTurnsSettings: createThreadTurnsSettings(),
       threadReactionsSettings: createFlagSettings(true),
       threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
@@ -480,9 +472,9 @@ describe("createQuickControls — Reactions tab layout", () => {
     ).toEqual([
       ["Quiet for a while", "Check-ins", "5 · 10 · 30 min", false],
       ["Scheduled greetings", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", false],
-      ["Screen changes", "Timing", "4 settings", false],
+      ["Screen changes", "Timing", "10 min · 90 s · 45 min · 5 entries", false],
       ["Thread reactions", "When she steps in", "3 waiting · 10 min", false],
-      ["External signals", "Port and address", "8770", false],
+      ["External signals", "Thread turns, port and address", "8770", false],
     ]);
     expect(groups[0].querySelectorAll("details [data-testid='cue-row']")).toHaveLength(3);
     qc.dispose();
@@ -494,15 +486,15 @@ describe("createQuickControls — Reactions tab layout", () => {
     const fold = toggle.closest(".yui-group")?.querySelector(":scope > details");
     expect(fold?.classList.contains("yui-fold--off")).toBe(false);
 
-    toggle.click();
+    act(() => toggle.click());
     expect(fold?.classList.contains("yui-fold--off")).toBe(true);
 
-    toggle.click();
+    act(() => toggle.click());
     expect(fold?.classList.contains("yui-fold--off")).toBe(false);
     qc.dispose();
   });
 
-  it("reads a switched-off group as off: its summary says Off and its body opens with the off line", () => {
+  it("reads a switched-off group as off: its summary says Off and it carries no off line", () => {
     const { qc, panel } = buildProactiveQc();
     const toggle = panel.querySelector<HTMLButtonElement>(".yui-screen-switch")!;
     const fold = toggle.closest(".yui-group")!.querySelector(":scope > details")!;
@@ -511,15 +503,12 @@ describe("createQuickControls — Reactions tab layout", () => {
         .filter((el) => !el.closest("[hidden]"))
         .map((el) => el.textContent);
 
-    toggle.click();
+    act(() => toggle.click());
     expect(shown("summary .yui-fold__aside")).toEqual(["Off"]);
-    expect(shown(".yui-fold__body > p:first-child")).toEqual([
-      "Off. These apply once you turn it on.",
-    ]);
+    expect(fold.querySelector(".yui-fold__off")).toBeNull();
 
-    toggle.click();
-    expect(shown("summary .yui-fold__aside")).toEqual(["4 settings"]);
-    expect(shown(".yui-fold__body > p:first-child")).toEqual([]);
+    act(() => toggle.click());
+    expect(shown("summary .yui-fold__aside")).toEqual(["10 min · 90 s · 45 min · 5 entries"]);
     qc.dispose();
   });
 

@@ -103,30 +103,3 @@ export function svcResetRowHtml(svc: string): string {
 export function statusLineHtml(): string {
   return `<p class="yui-chat-status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text" role="status" aria-live="polite" aria-atomic="true"></span><button class="yui-chat-status__action" type="button" hidden></button></p>`;
 }
-
-// Numeric input row: label+sub(+hint) on the left, number input with its unit on the right.
-export function numRowHtml(opts: {
-  id: string;
-  labelKey: string;
-  subKey?: string;
-  min: number;
-  max: number;
-  suffixKey?: string;
-  hintKey?: string;
-}): string {
-  const { id, labelKey, subKey, min, max, suffixKey, hintKey } = opts;
-  const subHtml = subKey ? `<span class="yui-input-row__sub">${t(subKey)}</span>` : "";
-  const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
-  const hintHtml = hintKey ? `<span class="yui-row__sub">${t(hintKey)}</span>` : "";
-  return `
-          <div class="yui-row">
-            <div class="yui-row__main">
-              <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
-              ${subHtml}${hintHtml}
-            </div>
-            <div class="yui-num">
-              <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" data-digits="${String(max).length}" />
-              ${suffixHtml}
-            </div>
-          </div>`;
-}

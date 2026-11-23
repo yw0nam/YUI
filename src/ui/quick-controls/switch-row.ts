@@ -102,6 +102,7 @@ export function createSwitchRows({
       getEnabled: () => screenSettings!.get().enabled,
       setEnabled: (v) => screenSettings!.setEnabled(v),
       logKey: "screen_watch_toggle",
+      subscribe: screenSettings ? (cb) => screenSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-tts-switch",
@@ -213,6 +214,7 @@ export function createSwitchRows({
       getEnabled: () => agentNotifySettings!.get().enabled,
       setEnabled: (v) => agentNotifySettings!.setEnabled(v),
       logKey: "agent_notify_toggle",
+      subscribe: agentNotifySettings ? (cb) => agentNotifySettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-thread-reactions-switch",

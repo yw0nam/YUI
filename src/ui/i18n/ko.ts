@@ -596,7 +596,7 @@ const ko: Record<string, string> = {
   "cue.schedule_fold": "인사 시각",
   "cue.proactive_title": "한동안 조용할 때",
   "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
-  "cue.proactive_add": "반응 추가",
+  "cue.proactive_add": "안부 묻기 추가",
   "cue.proactive_fold": "안부 묻기",
 
   // endpoints
@@ -704,7 +704,7 @@ const ko: Record<string, string> = {
   "agentNotify.sub":
     "코딩 에이전트, 워크플로, 다른 프로그램이 이 컴퓨터에서 신호를 보내면 말을 걸어요.",
   "agentNotify.aria": "외부 신호",
-  "agentNotify.fold": "포트와 주소",
+  "agentNotify.fold": "스레드에 반응, 포트와 주소",
   "threadTurns.label": "스레드에 반응",
   "threadTurns.sub": "스레드가 오면 메인 캐릭터에게 알려요. 말할지는 캐릭터가 정해요.",
   "threadTurns.aria": "스레드에 반응",
@@ -787,7 +787,6 @@ const ko: Record<string, string> = {
   "reactions.reacts_title": "무엇에 반응할지",
   "reactions.advanced": "고급",
   "fold.off": "꺼짐",
-  "fold.off_note": "꺼져 있어요. 켜면 이 설정이 적용돼요.",
   "reactions.presence_label": "자리 비움 허용 시간",
   "reactions.presence_sub": "마지막 입력이 이만큼 최근이면 자리에 있는 걸로 봐요",
   "reactions.seconds_suffix": "초",
@@ -817,7 +816,7 @@ const ko: Record<string, string> = {
   "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
   "screen.aria": "화면 변화",
   "screen.timing": "타이밍",
-  "screen.timing_summary": "설정 {n}개",
+  "screen.timing_value": "{n}{unit}",
   "screen.minutes_suffix": "분",
   "screen.seconds_suffix": "초",
   "screen.prev_dwell_label": "앱 전환으로 치는 기준",
@@ -850,6 +849,7 @@ const ko: Record<string, string> = {
   "workflows.url_ph": "https://…",
   "workflows.url_error": "올바른 URL을 입력하세요. 예: https://example.com/hook",
   "workflows.add": "추가",
+  "workflows.add_row": "워크플로 추가",
   "workflows.empty": "아직 워크플로가 없어요. 아래에서 추가해 보세요.",
   "workflows.fire_aria": "{name} 실행",
   "workflows.delete_aria": "{name} 삭제",

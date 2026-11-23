@@ -1,4 +1,4 @@
-/** A number row: label, sub and hint beside the field and its unit slot; commits on change, never overwrites a focused value. */
+/** A number row: label, sub and hint beside the field and its unit slot; commits on change, then shows the value the store kept. */
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
@@ -42,10 +42,10 @@ export function NumberRow({
     const el = input.current;
     if (!el) return;
     const reflect = () => reflectUnlessEditing(el, latest.current.value);
-    // The store's answer renders first, so a rejected value snaps back to the value it kept.
+    // The store's answer renders first, then the field shows the value the store kept.
     const onChange = () => {
       flushSync(() => latest.current.commit(el.value));
-      reflect();
+      el.value = latest.current.value;
     };
     el.addEventListener("change", onChange);
     el.addEventListener("blur", reflect);

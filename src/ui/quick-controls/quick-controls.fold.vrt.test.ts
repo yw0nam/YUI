@@ -47,21 +47,34 @@ it("takes a click on a field in a switched-off group's fold", () => {
   qc.dispose();
 });
 
-it("dims the Threads rows but not Thread turns while only Thread reactions is off", () => {
+it.each([
+  ["Thread reactions off and External signals on", false, true, [0.5, 1]],
+  ["External signals off and Thread reactions on", true, false, [1, 0.5]],
+] as const)("sets each row's dimming by its own source's fold: %s", (_name, threadReactionsOn, agentNotifyOn, [
+  thresholdsOpacity,
+  turnsOpacity,
+]) => {
   const agentNotifySettings = createAgentNotifySettings();
-  agentNotifySettings.setEnabled(true);
+  agentNotifySettings.setEnabled(agentNotifyOn);
   const qc = build({
     agentNotifySettings,
     threadTurnsSettings: createThreadTurnsSettings(),
-    threadReactionsSettings: createFlagSettings(false),
+    threadReactionsSettings: createFlagSettings(threadReactionsOn),
     threadReactionThresholdsSettings: createThreadReactionThresholdsSettings(),
   });
-  const row = (sel: string) => qc.el.querySelector(sel)!.closest(".yui-row")!;
-  qc.el.querySelector<HTMLDetailsElement>(".yui-threadturns-row")!.closest("details")!.open = true;
+  for (const fold of qc.el.querySelectorAll<HTMLDetailsElement>(
+    "#yui-panel-react details.yui-fold",
+  ))
+    fold.open = true;
+  const count = qc.el.querySelector(".yui-reaction-thresholds-count-seg");
+  const turns = qc.el.querySelector(".yui-threadturns-seg");
+  expect(count).not.toBeNull();
+  expect(turns).not.toBeNull();
+  if (!count || !turns) return;
 
   expect([
-    shownOpacity(row(".yui-reaction-thresholds-count-seg")),
-    shownOpacity(row(".yui-threadturns-seg")),
-  ]).toEqual([0.5, 1]);
+    shownOpacity(count.closest(".yui-row")!),
+    shownOpacity(turns.closest(".yui-row")!),
+  ]).toEqual([thresholdsOpacity, turnsOpacity]);
   qc.dispose();
 });

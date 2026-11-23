@@ -28,7 +28,7 @@ it("draws a local pick from the store, tells the other windows, and follows Exte
 
   expect(turns.get().level).toBe("notable");
   expect(emitSettingsChanged).toHaveBeenCalledOnce();
-  expect(button.textContent).toBe("Thread turns: When it needs me");
+  expect(button.textContent).toBe("Thread turns: When it needs her");
   expect(radio("notable").getAttribute("aria-checked")).toBe("true");
   expect(radio("off").getAttribute("aria-checked")).toBe("false");
 

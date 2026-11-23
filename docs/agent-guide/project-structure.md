@@ -593,7 +593,7 @@ YUI/
         action-button.ts             # The composer's stop and send button
         image-resize.ts              # Downscales and re-encodes user-attached images
         format-accel.ts              # Renders an accelerator string for display
-      message/                       # The bubble, the name plate riding its box in both modes, and cue-list rendering
+      message/                       # The bubble and the name plate riding its box in both modes
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
         typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character, from elapsed time
         stable-markdown.ts           # The prefix of a streaming line whose rendering later text cannot change
@@ -605,7 +605,6 @@ YUI/
         message-plate.ts             # Name plate on the box's top-left edge in both modes: face, name, state; the message window's OS drag handle
         plate-state.ts               # The plate's turn state in both modes: responding from a line's begin to its end or hide, thinking while busy
         markdown.ts                  # Markdown for the bubble, backlog and Thread entries: marked, then DOMPurify keeping only Markdown's elements
-        cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
         message-plate.css            # Name-plate chip styles: face, name, state dot, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
@@ -680,8 +679,7 @@ YUI/
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
         settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
         template.ts                  # Panel markup as pure string construction
-        markup.ts                    # Panel markup primitives the template and the tab modules share
-        fold.ts                      # A source's fold under its switch row, and its Off summary and off line while the switch is off
+        markup.ts                    # Panel markup primitives the Connection, Help and tab modules share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs, the list rows' rename and remove glyphs among them
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
@@ -756,8 +754,6 @@ YUI/
             quick-start.ts           # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
             voice-step.ts            # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
             quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
-        cue-lists/                   # Schedule and proactive cue lists of the Proactive page
-          cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # The delegated list's sync, which lives with the panel and not with a page
           delegation-feed.ts         # The list's subscription and minute refresh, and the version a page reads to redraw
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
@@ -847,6 +843,36 @@ YUI/
           plugin-sources.ts          # The per-source record (review note, warning, removal text) and the Failure shape
           plugin-parts.tsx           # The source badge and its icons, the version, the inline error line, the keyed block and the page's fade-in flag
           plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, catalog rows and the keyed block's fade-in; a stopped server's shared status dot dims here
+        proactive/                   # The Proactive page, rendered with React
+          proactive-page.ts          # The page's facade: its React root, and the open hook that re-reads what no store announces
+          proactive-page-view.tsx    # The pace section, the source groups in order, then Advanced
+          proactive-page.css         # The number column: every number row's field shares one width and one unit slot
+          proactive-page.test.tsx    # The page's React tests through its facade
+          number-row.tsx             # A number row: label, sub and hint beside the field and its unit slot; commits on change, never overwrites a focused value
+          source-group.tsx           # SourceFold and SourceGroup: a switch row over a fold that dims and reads Off while the source is off
+          pace/                      # How often she speaks up: the pace segment over her day
+            pace-section.tsx         # The base pace segment over her day, its foot line, and the link to Persona › Active hours
+            pace-section.css         # The link's inline styles
+            day-strip.tsx            # Her day: the pace runs over 24 hours with the greetings and now, then the check-ins after quiet
+            day-strip.css            # Her day's lanes on the 8px grid, each position a fraction of its lane
+            day-geometry.ts          # Her day as geometry: the pace runs across 24 hours, and where the check-ins after quiet fall
+            day-geometry.test.ts     # The day geometry's cases
+          advanced/                  # Advanced, folded at the foot of the page
+            advanced-section.tsx     # The wait and presence, then the hourly limits and their note
+          screen/                    # Screen changes
+            screen-group.tsx         # The four screen-watch knobs, their effective values in the fold summary, and the foot
+          threads/                   # Thread reactions
+            threads-group.tsx        # The waiting count and long wait segments, in a fold that dims while the source is off
+          signals/                   # External signals
+            signals-group.tsx        # Thread turns, the listener port and address, then the workflows, in one fold
+          workflows/                 # Workflows in the External signals fold
+            workflow-list.tsx        # The saved rows, the fire flash, the add form and the inline delete confirm
+            workflow-list.css        # The saved webhook rows and the add form's styles
+          cue-list/                  # The schedule and proactive cue lists
+            cue-list.tsx             # The cue rows of one cue list, then its add row; a field commits on its native change
+            cue-row.tsx              # One cue row: the collapsed line, the delete confirm, and the editor
+            cue-list.test.tsx        # The cue rows, their fields, the delete confirm, and the edit state across new entries
+            cue-list-group.tsx       # A cue list's source group: its master switch row over a fold of the entries
         search/                      # Settings search
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
@@ -863,25 +889,13 @@ YUI/
             agent-section.ts         # The reasoning-effort segment, its redraw, and the push reason that disables it
           help/                      # Help section of Quick start
             help-section.ts          # One Ask button per bundled guide, over rows the composer binds
-          base-pace/                 # How often she speaks up: the Proactive page's base pace segment and its link to Persona
-            base-pace-section.ts     # The Less / Normal / More segment bound to the base pace store, and the link that opens the Persona page
-            base-pace-section.css    # The link's styles
           key-row/                   # One secret API key row
             key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows, and the reveal Quick start shares
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
-          screen/                    # Screen-watch threshold knobs
-            screen-section.ts        # Screen-watch threshold knobs and their redraw
-          reactions/                 # Listener port, presence, proactive gap, Reaction thresholds, and Proactive cap rows
-            reactions-section.ts     # Listener-port, presence, proactive-gap, and Proactive cap inputs and their redraw
-            thread-reaction-thresholds-row.ts # The waiting-count and wait segment rows, editable while the Thread reactions switch is off
-          workflows/                 # Saved webhook workflows of the Proactive page
-            workflows-section.ts     # Workflow entry list editing
-            workflows-section.css    # Workflows section styles
-        switches/                    # Switch rows, for the pages that have not moved to React, and the React row the Voice, Together and Motion pages share
-          switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
-          descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion and Voice rows
+        switches/                    # The React switch rows the Voice, Together, Motion and Proactive pages share
+          descriptor-row.tsx         # One switch row rendered from its descriptor, with the lock and its reason: the Together, Motion, Voice and Proactive rows
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       controls/                      # Shared React controls; the slider and the checkbox build on Base UI
