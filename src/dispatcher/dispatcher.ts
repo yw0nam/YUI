@@ -560,7 +560,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * pump: drain bus every tick. Operates in running/degraded both (tier1 always continues each).
+   * pump: drain bus every tick. Runs in running and degraded; tier1 renders in both.
    * Otherwise (booting/stopped) hold pending events as no-op.
    */
   function pump(): void {

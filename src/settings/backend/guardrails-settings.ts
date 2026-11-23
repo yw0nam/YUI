@@ -53,7 +53,7 @@ export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides):
   return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov, KEYS) };
 }
 
-/** The bundled caps the UI falls back to. */
+/** The caps the bundled config ships, shown where a cap has no override (an override of 0 means none). */
 export type RateLimitDefaults = RateLimitOverrides;
 
 /** Projects a bundled GuardrailsConfig onto the caps for the UI's fallback display; window_ms is dropped. */
