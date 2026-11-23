@@ -5,6 +5,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -69,6 +70,7 @@ export function DayStrip({
   getPersona,
   proactive,
   schedule,
+  revision,
 }: {
   pace: BasePace;
   activeHoursSettings?: Pick<ActiveHoursSettingsStore, "current" | "subscribe">;
@@ -76,6 +78,8 @@ export function DayStrip({
   getPersona?: () => PersonaConfig | undefined;
   proactive: ProactiveSettings;
   schedule: ScheduleSettings;
+  /** The page's open count; her face and name are read again on each. */
+  revision: number;
 }) {
   const nameId = useId();
   const edited = useSyncExternalStore(activeHoursSettings?.subscribe ?? NO_SUBSCRIBE, () =>
@@ -87,7 +91,8 @@ export function DayStrip({
   );
   const spans = spansInUse(edited, userCard ?? getPersona?.()?.cards[getLocale()]);
   const now = useNowMinute();
-  const entry = presetEntry();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the preset is re-read once per open, not on every render
+  const entry = useMemo(() => presetEntry(), [revision]);
 
   // An off span holds the schedule, so a greeting there never comes.
   const greetings = schedule.enabled

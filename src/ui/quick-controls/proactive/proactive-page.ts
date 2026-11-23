@@ -4,7 +4,6 @@ import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
-import type { Logger } from "../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../settings/active-hours/active-hours-settings";
 import type { BasePaceSettingsStore } from "../../../settings/active-hours/base-pace-settings";
 import type { createAgentSettings } from "../../../settings/backend/agent-settings";
@@ -32,7 +31,6 @@ export interface ProactivePageDeps {
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
   getRateLimitDefaults?: () => RateLimitDefaults | undefined;
-  log: Logger;
 }
 
 export interface ProactivePage {

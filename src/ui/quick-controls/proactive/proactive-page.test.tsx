@@ -20,7 +20,6 @@ import { createProactivePage } from "./proactive-page";
 type Deps = Parameters<typeof createProactivePage>[0];
 
 const pages: ReturnType<typeof createProactivePage>[] = [];
-const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 const memoryValueStorage = () => {
   let value: { value: number } | null = null;
@@ -38,7 +37,6 @@ function build(extra?: Partial<Deps>) {
     scheduleSettings: createScheduleSettings({ locale: "en" }),
     proactiveSettings: createProactiveSettings({ locale: "en" }),
     openPersona: vi.fn(),
-    log,
     ...extra,
   };
   const page = createProactivePage(deps);
@@ -389,7 +387,6 @@ describe("createProactivePage — Advanced", () => {
       scheduleSettings: createScheduleSettings({ locale: "en" }),
       proactiveSettings: createProactiveSettings({ locale: "en" }),
       openPersona: vi.fn(),
-      log,
       ...deps,
     });
     const input = page.el.querySelector<HTMLInputElement>("#yui-pacer-gap");

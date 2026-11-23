@@ -507,7 +507,6 @@ export function createQuickControls({
     presenceSettings,
     rateLimitSettings,
     getRateLimitDefaults,
-    log,
   });
   const reactPanel = el.querySelector<HTMLElement>("#yui-panel-react")!;
   reactPanel.append(proactivePage.el);

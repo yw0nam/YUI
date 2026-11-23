@@ -18,7 +18,8 @@ export function ProactivePageView({
   presenceSettings,
   rateLimitSettings,
   rateLimitDefaults,
-}: Omit<ProactivePageDeps, "getRateLimitDefaults" | "log"> & {
+  revision,
+}: Omit<ProactivePageDeps, "getRateLimitDefaults"> & {
   rateLimitDefaults: RateLimitDefaults | undefined;
   /** Bumped by the open hook, so the page re-reads the defaults, her face and name, and the clock. */
   revision: number;
@@ -37,6 +38,7 @@ export function ProactivePageView({
           getPersona={getPersona}
           proactive={proactive}
           schedule={schedule}
+          revision={revision}
         />
       ) : null}
       {/* The composer moves the source sections the template still renders in here. */}
