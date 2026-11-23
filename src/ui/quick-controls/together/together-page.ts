@@ -1,20 +1,18 @@
 /** The Together page: its view, and the open hook that re-reads the bundled defaults. */
 
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import type { Logger } from "../../../logger";
 import type {
   GuardrailsSettingsStore,
   RateLimitDefaults,
 } from "../../../settings/backend/guardrails-settings";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import type { SwitchRow } from "../switch-row";
 import type { WindowsPort } from "./characters/characters-section";
 import { TogetherPageView } from "./together-page-view";
 
-export interface TogetherPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface TogetherPage extends PageView {
   /** Repaints the page, re-reading the bundled defaults. */
   reflect(): void;
 }
@@ -33,15 +31,13 @@ export function createTogetherPage(deps: {
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        revision.view(() =>
+      pageStack(
+        () =>
           createElement(TogetherPageView, {
             ...deps,
             rateLimitDefaults: deps.getRateLimitDefaults?.(),
           }),
-        ),
+        { revision },
       ),
     reflect: revision.bump,
   };

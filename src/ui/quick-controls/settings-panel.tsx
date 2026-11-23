@@ -1,12 +1,12 @@
 /**
- * The settings panel's view: the preset strip, then the rail (the search field over the
+ * The settings panel's view: the preset header, then the rail (the search field over the
  * character's pages and every character's pages) beside every page's panel. Each panel holds its
  * scope line, its title and its page, and one tooltip serves every trigger in the panel.
  */
 
 import { Tabs } from "@base-ui/react/tabs";
 import type { ReactNode, Ref, RefObject } from "react";
-import { CHARACTER_PAGES, type SettingsPage } from "../../settings/panels/settings-pages";
+import { isCharacterPage, type SettingsPage } from "../../settings/panels/settings-pages";
 import { Tab, TabPanel, type TabsHandle, TabsRoot, useTabs } from "../controls/tabs";
 import { Tip, TooltipHost, type TooltipHostHandle } from "../controls/tooltip";
 import { t } from "../i18n";
@@ -14,13 +14,13 @@ import { TAB_ICONS } from "./glyphs";
 import { PresetHeader, type PresetHeaderProps } from "./preset/preset-header";
 import { CharacterHeadingText, ScopeLine } from "./preset/preset-scope";
 
-export interface SettingsPanelProps {
+interface SettingsPanelProps {
   /** The rail's pages in order: the character's pages, then every character's pages. */
   pages: readonly SettingsPage[];
   /** Each page's view, called in every render of the panel. */
   views: Partial<Record<SettingsPage, () => ReactNode>>;
   initial: SettingsPage;
-  /** The preset strip and each page's scope line render with it. */
+  /** The preset header and each page's scope line render with it. */
   preset?: PresetHeaderProps;
   /** While it reads true, the Connection page's scope line hides. */
   connQuickShown?: { get(): boolean; subscribe(cb: () => void): () => void };
@@ -30,9 +30,6 @@ export interface SettingsPanelProps {
   /** The panel-wide element the card's drop cover fills. */
   dropHost: RefObject<HTMLDivElement | null>;
 }
-
-const isCharacterPage = (id: SettingsPage): boolean =>
-  (CHARACTER_PAGES as readonly string[]).includes(id);
 
 // The selection lives here and the pages render inline, with no memo between: a rail switch
 // re-renders every page in the commit that hides the old one, so a Select there closes.
@@ -48,7 +45,7 @@ export function SettingsPanel({
   dropHost,
 }: SettingsPanelProps) {
   const tabs = useTabs({ ids: pages, initial, onSelect, handle });
-  // The character group's heading names the edited character where the panel shows a preset strip.
+  // The character group's heading names the edited character where the panel shows a preset header.
   const group = (id: "character" | "app") => (
     <p key={id} className="yui-tabs__group" role="presentation" data-rail-group={id}>
       {id === "character" && preset ? (

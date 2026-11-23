@@ -1,6 +1,6 @@
 /** The Proactive page: its view, and the open hook that re-reads what no store announces. */
 
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { Logger } from "../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../settings/active-hours/active-hours-settings";
@@ -21,7 +21,7 @@ import type { createScheduleSettings } from "../../../settings/cues/schedule-set
 import type { ClampedIntSettingsStore } from "../../../settings/persisted-store";
 import type { ThreadReactionThresholdsSettingsStore } from "../../../settings/threads/thread-reaction-thresholds-settings";
 import type { ThreadTurnsSettingsStore } from "../../../settings/threads/thread-turns-settings";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import type { SwitchRow } from "../switch-row";
 import { ProactivePageView } from "./proactive-page-view";
 import "./proactive-page.css";
@@ -54,9 +54,7 @@ export interface ProactivePageDeps {
   log: Logger;
 }
 
-export interface ProactivePage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface ProactivePage extends PageView {
   /** Re-reads the bundled defaults, the edited preset's face and name, and the clock: the open hook. */
   refresh(): void;
 }
@@ -65,17 +63,15 @@ export function createProactivePage(deps: ProactivePageDeps): ProactivePage {
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack yui-proactive" },
-        revision.view((n) =>
+      pageStack(
+        (n) =>
           createElement(ProactivePageView, {
             ...deps,
             rateLimitDefaults: deps.getRateLimitDefaults?.(),
             screenDefaults: deps.getScreenDefaults?.(),
             revision: n,
           }),
-        ),
+        { revision, className: "yui-proactive" },
       ),
     refresh: revision.bump,
   };

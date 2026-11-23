@@ -301,7 +301,7 @@ interface QuickControlsOptions {
   pickPresetPhoto?: CardIoPorts["pickPresetPhoto"];
   /** This window's file drag events; absent outside Tauri, and then no drop cover. */
   subscribeFileDrop?: SubscribeFileDrop;
-  /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
+  /** Preset list and active preset. If absent, the preset header and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
   /** This window's preset's relations, shown under the preset row. */
@@ -313,7 +313,7 @@ interface QuickControlsOptions {
   /** Whether the unified chat window shows; the message window row is locked off meanwhile. */
   unifiedShown?: UnifiedShown;
   boundId?: string | null;
-  /** The preset strip picks the preset the window edits. */
+  /** The preset header picks the preset the window edits. */
   onEditTarget: (id: string) => void;
   showVoiceInput?: boolean;
   /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
@@ -446,7 +446,6 @@ export function createQuickControls({
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
-  // The Voice, Listening, Together and Motion pages render their own switch rows, so the template gets the rest.
   const rows = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
@@ -680,7 +679,7 @@ export function createQuickControls({
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
   }
 
-  // ── The panel's one root: preset strip · rail · every page in its panel · the tooltip ──
+  // ── The panel's one root: preset header · rail · every page in its panel · the tooltip ──
   const root = createRoot(el);
   flushSync(() =>
     root.render(

@@ -1,6 +1,6 @@
 /** The Persona page: its view, the card's file actions and drop, and the redraw the open hook runs. */
 
-import { createElement, type ReactNode, type RefObject, useEffect } from "react";
+import { createElement, type RefObject } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { SubscribeFileDrop } from "../../../io/window/file-drop/file-drop";
 import type { Logger } from "../../../logger";
@@ -10,41 +10,16 @@ import type { createEndpointsSettings } from "../../../settings/backend/endpoint
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { subscribe as subscribeLocale } from "../../i18n";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { createCardDrop } from "./card/card-drop";
 import { currentCard, presetEntry } from "./card/card-entry";
 import type { CardIoPorts } from "./card/card-io";
 import { createCardIo } from "./card/card-io";
 import { PersonaPageView } from "./persona-page-view";
 
-export interface PersonaPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface PersonaPage extends PageView {
   /** Repaints the page from its stores and the edit's own card — the open hook. */
   reflect(): void;
-}
-
-/** While mounted: the drop cover, and the stores that repaint the page while the panel is open. */
-function PersonaSources({
-  subscribes,
-  drop,
-  children,
-}: {
-  subscribes: readonly ((() => () => void) | undefined)[];
-  drop?: () => { dispose(): void } | undefined;
-  children?: ReactNode;
-}) {
-  useEffect(() => {
-    const offs = subscribes.map((subscribe) => subscribe?.());
-    return () => {
-      for (const off of offs) off?.();
-    };
-  }, [subscribes]);
-  useEffect(() => {
-    const cover = drop?.();
-    return () => cover?.dispose();
-  }, [drop]);
-  return children;
 }
 
 export function createPersonaPage(deps: {
@@ -56,7 +31,7 @@ export function createPersonaPage(deps: {
   endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
   /** Filler pools the card export carries. */
   fillerSettings: Pick<ReturnType<typeof createFillerSettings>, "get">;
-  /** Renames the preset; absent where the panel shows no preset strip. */
+  /** Renames the preset; absent where the panel shows no preset header. */
   registry?: Pick<PresetRegistry, "rename" | "subscribe">;
   /** The bundled config's default cards and fallback words; undefined until the config loads. */
   getPersona?: () => PersonaConfig | undefined;
@@ -93,7 +68,7 @@ export function createPersonaPage(deps: {
     log: deps.log,
   });
   const { subscribeFileDrop } = deps;
-  const drop =
+  const openDrop =
     subscribeFileDrop &&
     (() =>
       deps.dropHost.current
@@ -111,7 +86,7 @@ export function createPersonaPage(deps: {
   const redraw = (): void => {
     if (isOpen()) refresh();
   };
-  const subscribes = [
+  const sources = [
     () => agentSettings.subscribe(redraw),
     () => endpointsSettings.subscribe(redraw),
     registry && (() => registry.subscribe(redraw)),
@@ -120,15 +95,9 @@ export function createPersonaPage(deps: {
 
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        createElement(
-          PersonaSources,
-          { subscribes, drop },
-          revision.view(() => createElement(PersonaPageView, { ...deps, io, refresh })),
-        ),
-      ),
+      pageStack(() => createElement(PersonaPageView, { ...deps, io, refresh, sources, openDrop }), {
+        revision,
+      }),
     reflect: refresh,
   };
 }

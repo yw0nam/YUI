@@ -1,8 +1,9 @@
 /** The relation line under the preset row: this window's preset, one relation per rated target. */
 
-import { type DOMAttributes, useLayoutEffect, useRef, useState } from "react";
+import { type DOMAttributes, useLayoutEffect, useRef } from "react";
 import { bandOf } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
+import { usePrepended } from "../use-prepended";
 import { glyphEl } from "./relation-glyph";
 import { type RelationsView, ratedInOrder } from "./view";
 
@@ -13,20 +14,13 @@ function RelationChip(p: {
   band: ReturnType<typeof bandOf>;
   label: string;
   name: string;
-  folded: boolean;
   describedBy?: string;
 }) {
-  const chip = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const glyph = glyphEl("none");
-    chip.current?.prepend(glyph);
-    return () => glyph.remove();
-  }, []);
+  const { host: chip, el: glyph } = usePrepended<HTMLSpanElement>(() => glyphEl("none"), []);
   // The paint after this commit may move the glyph from its old band.
   useLayoutEffect(() => {
-    const glyph = chip.current?.querySelector<HTMLElement>(".yui-glyph");
-    if (glyph) glyph.dataset.band = p.band;
-  }, [p.band]);
+    if (glyph.current) glyph.current.dataset.band = p.band;
+  }, [glyph, p.band]);
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: a focusable chip its label names for the reasons card
     <span
@@ -36,7 +30,6 @@ function RelationChip(p: {
       tabIndex={0}
       data-subject={p.subject}
       data-target={p.target}
-      data-folded={p.folded ? "" : undefined}
       aria-label={p.label}
       aria-describedby={p.describedBy}
     >
@@ -45,38 +38,43 @@ function RelationChip(p: {
   );
 }
 
-/** The `+N` chip for `n` folded chips, written during a measure. */
+/** The `+N` chip for `n` folded chips, whether a closed window or the line's width folded them. */
 function setMoreCount(more: HTMLButtonElement, n: number): void {
   more.hidden = n === 0;
   more.textContent = `+${n}`;
   more.setAttribute("aria-label", t("relation.more", { n }));
 }
 
+/** Shows every folded chip, the line wrapping, or folds them back. */
+function setUnfolded(line: HTMLElement, open: boolean): void {
+  line.classList.toggle("is-unfolded", open);
+  line.querySelector(".yui-relation--more")?.setAttribute("aria-expanded", String(open));
+}
+
 /**
- * Folds the last shown chips but `user` into the `+N` chip until the line fits one row, measured
- * folded and from no width fold; returns the targets the width folded. A line not laid out folds none.
+ * Folds the chips of closed windows, then the last shown chips but `user`, into the `+N` chip until
+ * the line fits one row, measured folded; a line not laid out folds by window only. React renders none
+ * of the fold's attributes, so this is their one writer.
  */
-function foldToWidth(line: HTMLElement, byWidth: readonly string[]): string[] {
+function fold(line: HTMLElement, folds: (id: string) => boolean, unfolded: boolean): void {
   const more = line.querySelector<HTMLButtonElement>(".yui-relation--more");
-  if (!more || line.clientWidth === 0) return [];
-  const unfolded = line.classList.contains("is-unfolded");
+  if (!more) return;
   line.classList.remove("is-unfolded");
   const chips = [...line.querySelectorAll<HTMLElement>(".yui-relation[data-target]")];
-  for (const chip of chips)
-    if (byWidth.includes(chip.dataset.target!)) chip.removeAttribute("data-folded");
+  for (const chip of chips) chip.toggleAttribute("data-folded", folds(chip.dataset.target!));
   let folded = chips.filter((chip) => chip.hasAttribute("data-folded")).length;
-  const shown = chips.filter((c) => !c.hasAttribute("data-folded") && c.dataset.target !== "user");
-  const out: string[] = [];
   setMoreCount(more, folded);
-  while (line.scrollWidth > line.clientWidth && shown.length > 0) {
-    const chip = shown.pop()!;
-    chip.setAttribute("data-folded", "");
-    out.push(chip.dataset.target!);
-    folded += 1;
-    setMoreCount(more, folded);
+  if (line.clientWidth > 0) {
+    const shown = chips.filter(
+      (c) => !c.hasAttribute("data-folded") && c.dataset.target !== "user",
+    );
+    while (line.scrollWidth > line.clientWidth && shown.length > 0) {
+      shown.pop()!.setAttribute("data-folded", "");
+      folded += 1;
+      setMoreCount(more, folded);
+    }
   }
-  line.classList.toggle("is-unfolded", unfolded);
-  return out;
+  setUnfolded(line, unfolded);
 }
 
 export function RelationLine({
@@ -98,28 +96,24 @@ export function RelationLine({
   >;
 }) {
   const line = useRef<HTMLDivElement>(null);
-  const [unfolded, setUnfolded] = useState(false);
-  const [byWidth, setByWidth] = useState<readonly string[]>([]);
+  // The fold the user opened, kept across re-renders until the chip is pressed again.
+  const unfolded = useRef(false);
   const own = view.own;
   const targets = ratedInOrder(view.targets, own);
   const folds = (id: string): boolean => id !== "user" && !isOpen(id);
   // Open chips first, then the folded ones; each group keeps the value order.
   const ordered = [...targets.filter((id) => !folds(id)), ...targets.filter(folds)];
-  const folded = (id: string): boolean => folds(id) || byWidth.includes(id);
-  const count = ordered.filter(folded).length;
 
   // Every commit refolds to the width it measures; the fold the user opened stays.
   useLayoutEffect(() => {
-    if (!line.current) return;
-    const next = foldToWidth(line.current, byWidth);
-    if (next.length !== byWidth.length || next.some((id, i) => id !== byWidth[i])) setByWidth(next);
+    if (line.current) fold(line.current, folds, unfolded.current);
   });
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the line the strip's CSS styles
+    // biome-ignore lint/a11y/useSemanticElements: the line the header's CSS styles
     <div
       ref={line}
-      className={unfolded ? "yui-preset__rel is-unfolded" : "yui-preset__rel"}
+      className="yui-preset__rel"
       role="group"
       aria-label={t("relation.group", { name: view.nameOf(view.self) })}
       hidden={hidden}
@@ -139,7 +133,6 @@ export function RelationLine({
                 band={band}
                 label={view.label(target, band)}
                 name={view.nameOf(target)}
-                folded={folded(target)}
                 describedBy={describedBy(target)}
               />
             );
@@ -147,13 +140,11 @@ export function RelationLine({
           <button
             type="button"
             className="yui-relation yui-relation--more"
-            hidden={count === 0}
-            aria-label={t("relation.more", { n: count })}
-            aria-expanded={unfolded}
-            onClick={() => setUnfolded(!unfolded)}
-          >
-            {`+${count}`}
-          </button>
+            onClick={() => {
+              unfolded.current = !unfolded.current;
+              if (line.current) setUnfolded(line.current, unfolded.current);
+            }}
+          />
         </>
       )}
     </div>

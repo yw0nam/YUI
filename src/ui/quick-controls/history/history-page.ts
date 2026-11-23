@@ -1,6 +1,6 @@
 /** The History page: its view, and what the panel's open redraws. */
 
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { resetConversation } from "../../../io/chat/conversation/reset-conversation";
@@ -11,14 +11,12 @@ import type { Logger } from "../../../logger";
 import type { createAgentSettings } from "../../../settings/backend/agent-settings";
 import type { PushSocketPanelPort } from "../connection/connection-page";
 import type { DelegationFeed } from "../delegations/delegation-feed";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { editedCharacterName } from "./character-name";
 import { HistoryPageView } from "./history-page-view";
 import { createHistoryPorts } from "./history-ports";
 
-export interface HistoryPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface HistoryPage extends PageView {
   /** Re-reads every source and disarms a pending start-fresh confirm — the open hook. */
   refresh(): void;
 }
@@ -77,11 +75,7 @@ export function createHistoryPage(deps: {
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        revision.view((n) => createElement(HistoryPageView, { ...props, revision: n })),
-      ),
+      pageStack((n) => createElement(HistoryPageView, { ...props, revision: n }), { revision }),
     refresh: revision.bump,
   };
 }

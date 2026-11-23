@@ -6,7 +6,7 @@ import { Tip } from "../../../controls/tooltip";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
 import type { AssetList } from "../../asset-list/use-asset-list";
-import { REMOVE_SVG, RENAME_SVG } from "../../constants";
+import { REMOVE_GLYPH, RENAME_GLYPH } from "../../glyphs";
 import type { RefreshState } from "./use-reference-refresh";
 
 const SPK_PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
@@ -122,9 +122,9 @@ export function SpeakerRow({
               type="button"
               aria-label={t("speaker.rename")}
               onClick={(e) => stop(e, () => list.startRename(option.id))}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-              dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
-            />
+            >
+              {RENAME_GLYPH}
+            </button>
           </Tip>
         )}
         {managed && (
@@ -141,11 +141,10 @@ export function SpeakerRow({
               }
               disabled={list.removingId === option.id}
               onClick={(e) => stop(e, () => void list.remove(option.id))}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the confirm text
-              dangerouslySetInnerHTML={{
-                __html: `${REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span>`,
-              }}
-            />
+            >
+              {REMOVE_GLYPH}
+              <span className="yui-spk__remove-confirm">{t("speaker.remove_confirm")}</span>
+            </button>
           </Tip>
         )}
         {managed && canReupload && (

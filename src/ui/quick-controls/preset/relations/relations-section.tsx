@@ -1,9 +1,9 @@
-/** The preset strip's relations: the relation line, the reasons card, and the motion of a changed relation. */
+/** The preset header's relations: the relation line, the reasons card, and the motion of a changed relation. */
 
 import { type RefObject, useEffect, useLayoutEffect, useReducer, useRef } from "react";
 import type { RelationBand } from "../../../../contract/types";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { type PresetEntry, presetIdForWindow } from "../../../../settings/preset/active-preset";
+import type { PresetEntry } from "../../../../settings/preset/active-preset";
 import {
   bandOf,
   type Relations,
@@ -17,11 +17,11 @@ import { observeWidth, RelationLine } from "./relation-line";
 import { type RelationsView, targetName } from "./view";
 
 /** Moves the relations of every pair of this preset whose value changed between two writes. */
-function paint(strip: HTMLElement, self: string, previous: Relations, next: Relations): void {
+function paint(header: HTMLElement, self: string, previous: Relations, next: Relations): void {
   for (const [target, record] of Object.entries(next)) {
     const before = previous[target];
     if (before?.value === record.value) continue;
-    const relations = strip.querySelectorAll<HTMLElement>(
+    const relations = header.querySelectorAll<HTMLElement>(
       `.yui-relation[data-subject="${self}"][data-target="${target}"]`,
     );
     for (const relation of relations) {
@@ -38,29 +38,34 @@ function paint(strip: HTMLElement, self: string, previous: Relations, next: Rela
 }
 
 export function PresetRelations({
-  strip,
+  header,
+  self,
   store,
   presets,
   isOpen,
   relationsSwitch,
   closeOn,
 }: {
-  strip: RefObject<HTMLElement | null>;
+  header: RefObject<HTMLElement | null>;
+  /** The preset the window edits, whose relations show. */
+  self: string;
   store: RelationsStore;
   presets: readonly PresetEntry[];
   /** Whether the preset's window is open in this app. */
   isOpen: (id: string) => boolean;
   /** The Relations switch; off, the line hides. */
   relationsSwitch: FlagSettingsStore;
-  /** The strip's own sources; the card closes when one changes. */
+  /** The header's own sources; the card closes when one changes. */
   closeOn: readonly unknown[];
 }) {
-  const self = presetIdForWindow();
   const own = useSnapshot(store.all, store.subscribe);
   const { enabled } = useSnapshot(relationsSwitch.get, relationsSwitch.subscribe);
   // Only a width change refolds; the height an unfolded line gains must not.
   const [width, widthChanged] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => (strip.current ? observeWidth(strip.current, widthChanged) : undefined), [strip]);
+  useEffect(
+    () => (header.current ? observeWidth(header.current, widthChanged) : undefined),
+    [header],
+  );
 
   const nameOf = (id: string): string => targetName(id, presets);
   const view: RelationsView = {
@@ -76,7 +81,7 @@ export function PresetRelations({
       }),
   };
   const card = useReasonsCard({
-    strip,
+    header,
     recordOf: (subject, target) => (subject === self ? own[target] : undefined),
     nameOf,
     closeOn: [...closeOn, own, enabled, width],
@@ -84,9 +89,9 @@ export function PresetRelations({
 
   const previous = useRef(own);
   useLayoutEffect(() => {
-    if (strip.current) paint(strip.current, self, previous.current, own);
+    if (header.current) paint(header.current, self, previous.current, own);
     previous.current = own;
-  }, [strip, self, own]);
+  }, [header, self, own]);
 
   return (
     <>

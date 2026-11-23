@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The manage popover's list, through the preset strip's manage button.
+// The manage popover's list, through the preset header's manage button.
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
@@ -26,7 +26,7 @@ afterEach(() => {
 
 const newLog = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() });
 
-/** The strip with its manage popover open; returns the popover. */
+/** The header with its manage popover open; returns the popover. */
 function openManage(registry: PresetRegistry, over: Partial<PresetHeaderProps> = {}): HTMLElement {
   act(() => {
     render(

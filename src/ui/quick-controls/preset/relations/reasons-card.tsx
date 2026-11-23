@@ -26,13 +26,13 @@ const relationOf = (target: EventTarget | null): HTMLElement | null =>
   target instanceof Element ? target.closest<HTMLElement>(".yui-relation[data-target]") : null;
 
 export function useReasonsCard(deps: {
-  strip: RefObject<HTMLElement | null>;
+  header: RefObject<HTMLElement | null>;
   recordOf(subject: string, target: string): RelationRecord | undefined;
   nameOf(id: string): string;
   /** The sources the line renders from; the card closes when one changes, as the line redraws. */
   closeOn: readonly unknown[];
 }) {
-  const { strip, closeOn } = deps;
+  const { header, closeOn } = deps;
   const card = useRef<HTMLDivElement>(null);
   const [opened, setOpened] = useState<Opened | null>(null);
   // Escape keeps the card shut for this relation until the pointer leaves it.
@@ -42,7 +42,7 @@ export function useReasonsCard(deps: {
     : null;
   const openFor = (): HTMLElement | null =>
     shown
-      ? (strip.current?.querySelector<HTMLElement>(
+      ? (header.current?.querySelector<HTMLElement>(
           `.yui-relation[data-subject="${shown.subject}"][data-target="${shown.target}"]`,
         ) ?? null)
       : null;
@@ -53,17 +53,20 @@ export function useReasonsCard(deps: {
     setOpened({ subject, target, over: closeOn });
   }
 
-  // Placed under its relation once filled, inside the strip.
+  // Placed under its relation once filled, inside the header.
   useLayoutEffect(() => {
     const relation = openFor();
     const el = card.current;
-    if (!relation || !el || !strip.current) return;
-    const stripBox = strip.current.getBoundingClientRect();
+    if (!relation || !el || !header.current) return;
+    const headerBox = header.current.getBoundingClientRect();
     const box = relation.getBoundingClientRect();
     el.style.left = "0px";
-    const left = Math.min(box.left - stripBox.left, strip.current.clientWidth - el.offsetWidth - 6);
+    const left = Math.min(
+      box.left - headerBox.left,
+      header.current.clientWidth - el.offsetWidth - 6,
+    );
     el.style.left = `${Math.max(6, left)}px`;
-    el.style.top = `${box.bottom - stripBox.top + 6}px`;
+    el.style.top = `${box.bottom - headerBox.top + 6}px`;
   });
 
   const handlers = {

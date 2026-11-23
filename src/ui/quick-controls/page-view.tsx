@@ -1,9 +1,15 @@
-/** A page's own redraw: the open hook bumps it, and only that page's view renders again. */
+/** A page as the panel renders it: its element around its view, and its own redraw. */
 
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, type Ref, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
-export interface PageRevision {
+/** A page controller as the panel sees it. */
+export interface PageView {
+  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
+  view(): ReactNode;
+}
+
+interface PageRevision {
   /** Renders the page again now, with the next revision. */
   bump(): void;
   /** Renders `render` with the current revision, again on each bump. */
@@ -23,6 +29,7 @@ function Revised({
   return render(useSyncExternalStore(subscribe, get));
 }
 
+/** A page's own redraw: the open hook bumps it, and only that page's view renders again. */
 export function createPageRevision(): PageRevision {
   let revision = 0;
   const subscribers = new Set<() => void>();
@@ -41,4 +48,16 @@ export function createPageRevision(): PageRevision {
     view: (render) => <Revised subscribe={subscribe} get={get} render={render} />,
     subscribe,
   };
+}
+
+/** The page's element, `div.yui-tab-stack` and any class the page adds, around its view; with a revision, the view renders again on each bump. */
+export function pageStack(
+  render: (revision: number) => ReactNode,
+  o: { revision?: PageRevision; className?: string; ref?: Ref<HTMLDivElement> } = {},
+): ReactNode {
+  return (
+    <div ref={o.ref} className={o.className ? `yui-tab-stack ${o.className}` : "yui-tab-stack"}>
+      {o.revision ? o.revision.view(render) : render(0)}
+    </div>
+  );
 }

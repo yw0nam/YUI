@@ -15,13 +15,14 @@ import { Switch } from "../../../controls/switch";
 import { Tip } from "../../../controls/tooltip";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
-import { CARD_GUIDE_URL, PLUS_SVG } from "../../constants";
+import { CARD_GUIDE_URL } from "../../constants";
 import { PushReason } from "../../sections/push-reason/push-reason";
 import { setValue } from "../set-value";
 import { cardBase, currentCard, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
 import type { CardIo, CardIoPorts } from "./card-io";
 import "./card-section.css";
+import { PLUS_GLYPH } from "../../glyphs";
 
 type TextField =
   | "description"
@@ -66,7 +67,7 @@ export function CardSection({
   refresh,
 }: {
   agentSettings: ReturnType<typeof createAgentSettings>;
-  /** Renames the preset; absent where the panel shows no preset strip. */
+  /** Renames the preset; absent where the panel shows no preset header. */
   registry?: Pick<PresetRegistry, "rename">;
   /** The bundled config's default cards and fallback words; undefined until the config loads. */
   getPersona?: () => PersonaConfig | undefined;
@@ -299,9 +300,10 @@ export function CardSection({
               type="button"
               disabled={push}
               onClick={addGreeting}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with other surfaces
-              dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("card.greeting_add")}` }}
-            />
+            >
+              {PLUS_GLYPH}
+              {t("card.greeting_add")}
+            </button>
           </div>
         </div>
         <Disclosure label={t("card.advanced")}>

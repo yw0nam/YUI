@@ -8,6 +8,8 @@ import type { PresetState } from "../../../settings/preset/active-preset";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 
 export interface EditedPreset {
+  /** The preset the window edits. */
+  shownId: string;
   get(): PresetState;
   subscribe(cb: () => void): () => void;
 }
@@ -33,6 +35,7 @@ export function createEditedPreset(
   };
   read();
   return {
+    shownId,
     get: () => state,
     subscribe: (cb) =>
       registry.subscribe(() => {

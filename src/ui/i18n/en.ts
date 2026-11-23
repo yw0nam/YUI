@@ -225,7 +225,7 @@ const en: Record<string, string> = {
   "head.main": "In main",
   "head.off": "Off",
 
-  // preset strip and manage popover
+  // preset header and manage popover
   "preset.manage": "Manage presets",
   "preset.in_use": "Shown in main",
   "preset.note_main": "{name} is shown in main.",

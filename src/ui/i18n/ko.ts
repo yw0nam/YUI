@@ -225,7 +225,7 @@ const ko: Record<string, string> = {
   "head.main": "메인",
   "head.off": "꺼짐",
 
-  // preset strip and manage popover
+  // preset header and manage popover
   "preset.manage": "프리셋 관리",
   "preset.in_use": "main에 표시 중",
   "preset.note_main": "{name}은(는) main 창에 떠 있어요.",

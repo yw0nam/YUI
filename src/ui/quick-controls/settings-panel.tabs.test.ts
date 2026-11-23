@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
-import type { SettingsPage } from "../../../settings/panels/settings-pages";
-import { createVadSettings } from "../../../settings/voice/vad-settings";
-import { setLocale } from "../../i18n";
-import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs, fakePlugins } from "../test-helpers";
+import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
+import { createVadSettings } from "../../settings/voice/vad-settings";
+import { setLocale } from "../i18n";
+import { createQuickControls } from "./quick-controls";
+import { defaultQcArgs, fakePlugins } from "./test-helpers";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -412,7 +412,7 @@ describe("createQuickControls — tab rail", () => {
 
 // jsdom lays nothing out; in the scrolling column rail a shrinkable heading collapses to 0px.
 it("keeps the rail group headings from shrinking when the rail overflows", () => {
-  const css = readFileSync(resolve(__dirname, "../quick-controls.css"), "utf-8");
+  const css = readFileSync(resolve(__dirname, "./quick-controls.css"), "utf-8");
   const start = css.indexOf("\n.yui-tabs__group {");
   expect(css.slice(start, css.indexOf("\n}", start + 1))).toMatch(/\n\s*flex: none;/);
 });

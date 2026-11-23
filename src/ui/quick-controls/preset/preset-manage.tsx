@@ -1,25 +1,16 @@
 /**
  * Manage popover body — the preset rows with inline rename and two-step delete, and the new-preset
- * row that turns into a name field. Writes go to the registry; its notify re-renders the strip.
+ * row that turns into a name field. Writes go to the registry; its notify re-renders the header.
  */
 
 import { type KeyboardEvent, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Logger } from "../../../logger";
-import {
-  type PresetEntry,
-  type PresetState,
-  presetIdForWindow,
-  presetNameFor,
-} from "../../../settings/preset/active-preset";
-import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
+import type { PresetEntry, PresetState } from "../../../settings/preset/active-preset";
 import type { PhotoCrop } from "../../../settings/preset/photo-crop";
 import { DEFAULT_PRESET_ID } from "../../../settings/preset/preset-keys";
 import { type PresetRegistry, RESERVED_NAMES } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
-import { PLUS_SVG, REMOVE_SVG, RENAME_SVG } from "../constants";
-
-const PHOTO_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg>`;
-const COPY_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>`;
+import { COPY_GLYPH, PHOTO_GLYPH, PLUS_GLYPH, REMOVE_GLYPH, RENAME_GLYPH } from "../glyphs";
 
 type Registry = Pick<
   PresetRegistry,
@@ -36,13 +27,16 @@ export interface PhotoRequest {
   saveUrl: (url: string) => void;
 }
 
-export interface PresetManageProps {
+interface PresetManageProps {
   /** The popover the body renders into. */
   root: RefObject<HTMLElement | null>;
   state: PresetState;
   registry: Registry;
   log: Logger;
-  petWindows?: Pick<PetWindows, "get">;
+  /** The edited preset's name, which a new preset copies. */
+  editedName: string;
+  /** Whether the preset's window is open. */
+  isOpen(id: string): boolean;
   boundId?: string | null;
   presetUrl?: (id: string) => string | null;
   /** Deletes a removed preset's thumbnail file; idempotent, so JSON-card presets are fine. */
@@ -136,22 +130,15 @@ export function PresetManage(p: PresetManageProps) {
 
   function row(entry: PresetEntry) {
     const active = state.active;
-    const desired = p.petWindows?.get().includes(entry.id) ?? false;
-    const live = isPresetWindowLive(entry.id);
+    const open = p.isOpen(entry.id);
     const removable =
-      entry.id !== DEFAULT_PRESET_ID &&
-      entry.id !== active &&
-      entry.id !== p.boundId &&
-      !desired &&
-      !live;
+      entry.id !== DEFAULT_PRESET_ID && entry.id !== active && entry.id !== p.boundId && !open;
     const url = entry.id !== active ? p.presetUrl?.(entry.id) : null;
     return (
       <div key={entry.id} className="yui-preset-row" data-preset-id={entry.id}>
         <span className="yui-preset-row__name">{entry.name}</span>
         {entry.id === active && <span className="yui-preset-row__badge">{t("preset.in_use")}</span>}
-        {(desired || live) && (
-          <span className="yui-preset-row__badge">{t("preset.window_open")}</span>
-        )}
+        {open && <span className="yui-preset-row__badge">{t("preset.window_open")}</span>}
         <span className="yui-preset-row__acts">
           {p.pickPhoto && (
             <button
@@ -159,9 +146,9 @@ export function PresetManage(p: PresetManageProps) {
               type="button"
               aria-label={t("preset.photo", { name: entry.name })}
               onClick={() => photo(entry)}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-              dangerouslySetInnerHTML={{ __html: PHOTO_SVG }}
-            />
+            >
+              {PHOTO_GLYPH}
+            </button>
           )}
           <button
             className="yui-preset-row__rename"
@@ -173,9 +160,9 @@ export function PresetManage(p: PresetManageProps) {
               setInvalid(false);
               focusSel.current = ".is-renaming input";
             }}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the asset lists
-            dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
-          />
+          >
+            {RENAME_GLYPH}
+          </button>
           {removable && (
             <button
               className="yui-preset-row__remove"
@@ -186,16 +173,16 @@ export function PresetManage(p: PresetManageProps) {
                 setRenamingId(null);
                 focusSel.current = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
               }}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the asset lists
-              dangerouslySetInnerHTML={{ __html: REMOVE_SVG }}
-            />
+            >
+              {REMOVE_GLYPH}
+            </button>
           )}
           {entry.id !== active && (
             // The registry refuses a preset whose window is open; the button shows the rule.
             <button
               type="button"
               className="yui-preset-row__window"
-              disabled={desired || live}
+              disabled={open}
               onClick={() => registry.activate(entry.id)}
             >
               {t("preset.use_in_main")}
@@ -208,9 +195,9 @@ export function PresetManage(p: PresetManageProps) {
               aria-label={t("preset.copy_url", { name: entry.name })}
               title={t("reactions.restart_hint")}
               onClick={() => copy(entry.id, url)}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph
-              dangerouslySetInnerHTML={{ __html: COPY_SVG }}
-            />
+            >
+              {COPY_GLYPH}
+            </button>
           )}
         </span>
         {url && urlText[entry.id] === url && (
@@ -330,9 +317,7 @@ export function PresetManage(p: PresetManageProps) {
         <label className="yui-input-row__label" htmlFor="yui-preset-new-name">
           {t("preset.new")}
         </label>
-        <span className="yui-row__sub">
-          {t("preset.new_sub", { name: presetNameFor(state, presetIdForWindow()) })}
-        </span>
+        <span className="yui-row__sub">{t("preset.new_sub", { name: p.editedName })}</span>
         <span className="yui-input-wrap">
           <input
             className="yui-ep-input"
@@ -376,9 +361,10 @@ export function PresetManage(p: PresetManageProps) {
                 setConfirmId(null);
                 focusSel.current = "#yui-preset-new-name";
               }}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph and a translated label
-              dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("preset.new")}` }}
-            />
+            >
+              {PLUS_GLYPH}
+              {t("preset.new")}
+            </button>
           </div>
         )}
       </div>

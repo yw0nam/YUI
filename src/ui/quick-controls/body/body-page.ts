@@ -1,14 +1,12 @@
 /** The Body page: its view, and what the panel's open redraws. */
 
-import { createElement, type ReactNode } from "react";
-import { createPageRevision } from "../page-revision";
+import { createElement } from "react";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { BodyPageView } from "./body-page-view";
 import { createRelationsPort, type RelationsDeps } from "./relations/relations-port";
 import type { VrmSectionProps } from "./vrm/vrm-section";
 
-export interface BodyPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface BodyPage extends PageView {
   /** Re-reads every source, the presets included, and drops an armed remove: the open hook. */
   refresh(): void;
 }
@@ -32,11 +30,7 @@ export function createBodyPage(
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        revision.view((n) => createElement(BodyPageView, { ...props, revision: n })),
-      ),
+      pageStack((n) => createElement(BodyPageView, { ...props, revision: n }), { revision }),
     refresh: revision.bump,
   };
 }

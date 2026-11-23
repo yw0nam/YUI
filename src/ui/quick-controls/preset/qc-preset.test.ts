@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Preset strip, manage popover, and per-tab scope line, through the panel mount.
+// Preset header, manage popover, and per-tab scope line, through the panel mount.
 
 import { act, cleanup, render } from "@testing-library/react";
 import { createElement, createRef } from "react";
@@ -203,7 +203,7 @@ describe("createQuickControls — presets", () => {
     );
   });
 
-  it("the strip owns its ingress settings subscription and releases it", () => {
+  it("the header owns its ingress settings subscription and releases it", () => {
     const agentNotifySettings = createAgentNotifySettings();
     const subscribe = agentNotifySettings.subscribe;
     const off = vi.fn();

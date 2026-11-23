@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The relation line and the reasons card, through the preset strip.
+// The relation line and the reasons card, through the preset header.
 
 import { act, cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
@@ -45,7 +45,7 @@ const OWN: Relations = {
   },
 };
 
-describe("preset strip — relations", () => {
+describe("preset header — relations", () => {
   let root: HTMLElement;
   let registry: PresetRegistry;
   let store: RelationsStore;

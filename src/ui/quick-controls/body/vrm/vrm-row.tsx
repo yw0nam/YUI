@@ -6,7 +6,7 @@ import { Tip } from "../../../controls/tooltip";
 import { t } from "../../../i18n";
 import { RenameInput } from "../../asset-list/rename-input";
 import type { AssetList } from "../../asset-list/use-asset-list";
-import { REMOVE_SVG, RENAME_SVG } from "../../constants";
+import { REMOVE_GLYPH, RENAME_GLYPH } from "../../glyphs";
 
 type VrmList = AssetList<AvatarOption>;
 
@@ -25,9 +25,9 @@ function Actions({ option, list }: { option: AvatarOption; list: VrmList }) {
           type="button"
           aria-label={t("vrm.rename")}
           onClick={(e) => stop(e, () => list.startRename(option.id))}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
-          dangerouslySetInnerHTML={{ __html: RENAME_SVG }}
-        />
+        >
+          {RENAME_GLYPH}
+        </button>
       </Tip>
       {/* Arming remounts the button, so a hint open on the old one closes; a disarm keeps the node. */}
       <Tip key={list.removeKey(option.id)} text={armed ? t("vrm.remove_confirm") : t("vrm.remove")}>
@@ -39,11 +39,10 @@ function Actions({ option, list }: { option: AvatarOption; list: VrmList }) {
           }
           disabled={list.removingId === option.id}
           onClick={(e) => stop(e, () => void list.remove(option.id))}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with the speaker list
-          dangerouslySetInnerHTML={{
-            __html: `${REMOVE_SVG}<span class="yui-vrm__remove-confirm">${t("vrm.remove_confirm")}</span>`,
-          }}
-        />
+        >
+          {REMOVE_GLYPH}
+          <span className="yui-vrm__remove-confirm">{t("vrm.remove_confirm")}</span>
+        </button>
       </Tip>
     </>
   );

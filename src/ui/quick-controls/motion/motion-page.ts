@@ -1,15 +1,13 @@
 /** The Motion page: its view, what the panel's open redraws, and the gain preview its close ends. */
 
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import type { Logger } from "../../../logger";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { createGainPreview } from "./gain/gain-preview";
 import { MotionPageView } from "./motion-page-view";
 import { createMotionPorts } from "./motion-ports";
 
-export interface MotionPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface MotionPage extends PageView {
   /** Re-reads every source, the motion catalog included: the open hook. */
   refresh(): void;
   /** Ends a running gain preview: the close hook. */
@@ -28,11 +26,7 @@ export function createMotionPage(
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        revision.view((n) => createElement(MotionPageView, { ...props, revision: n })),
-      ),
+      pageStack((n) => createElement(MotionPageView, { ...props, revision: n }), { revision }),
     refresh: revision.bump,
     close: props.preview.end,
   };

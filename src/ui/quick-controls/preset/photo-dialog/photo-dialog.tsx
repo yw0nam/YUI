@@ -18,6 +18,7 @@ import {
 } from "../../../../settings/preset/photo-crop";
 import { t } from "../../../i18n";
 import { applyCrop, avatarEl } from "../../../unified/avatar";
+import { usePrepended } from "../use-prepended";
 import {
   CIRCLE,
   clampStage,
@@ -95,16 +96,13 @@ function Preview(p: {
   where: string;
   crop: PhotoCrop;
 }) {
-  const row = useRef<HTMLDivElement>(null);
-  const img = useRef<HTMLImageElement | null>(null);
+  const { host: row, el: face } = usePrepended<HTMLDivElement>(
+    () => avatarEl({ ...p.entry, thumbnail: p.url, crop: undefined }, p.px),
+    [p.entry, p.url, p.px],
+  );
   useLayoutEffect(() => {
-    const face = avatarEl({ ...p.entry, thumbnail: p.url, crop: undefined }, p.px);
-    row.current?.prepend(face);
-    img.current = face.querySelector("img");
-    return () => face.remove();
-  }, [p.entry, p.url, p.px]);
-  useLayoutEffect(() => {
-    if (img.current) applyCrop(img.current, p.crop);
+    const img = face.current?.querySelector("img");
+    if (img) applyCrop(img, p.crop);
   });
   return (
     <div ref={row} className="yui-photo-dialog__preview">

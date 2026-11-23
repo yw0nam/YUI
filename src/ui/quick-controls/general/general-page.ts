@@ -1,16 +1,13 @@
 /** The General page: its view. */
 
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
+import { type PageView, pageStack } from "../page-view";
 import { GeneralPageView, type GeneralPageViewProps } from "./general-page-view";
 
-export interface GeneralPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
-}
+export type GeneralPage = PageView;
 
 export function createGeneralPage(deps: GeneralPageViewProps): GeneralPage {
   return {
-    view: () =>
-      createElement("div", { className: "yui-tab-stack" }, createElement(GeneralPageView, deps)),
+    view: () => pageStack(() => createElement(GeneralPageView, deps)),
   };
 }

@@ -8,9 +8,9 @@ import { spansInUse } from "../../../../settings/active-hours/card-active-hours"
 import { type Pace, type Span, TIME_RE } from "../../../../settings/active-hours/spans";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { getLocale, t } from "../../../i18n";
-import { PLUS_SVG } from "../../constants";
 import { SpanRow } from "./span-row";
 import "./active-hours-section.css";
+import { PLUS_GLYPH } from "../../glyphs";
 
 export function ActiveHoursSection({
   store,
@@ -100,9 +100,10 @@ export function ActiveHoursSection({
             onClick={() =>
               store.setSpans([...spans, { start: "09:00", end: "10:00", pace: "normal" }])
             }
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with other surfaces
-            dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("active_hours.add")}` }}
-          />
+          >
+            {PLUS_GLYPH}
+            {t("active_hours.add")}
+          </button>
         </div>
       </div>
       <p className="yui-sec__foot">{t("active_hours.foot")}</p>

@@ -2,12 +2,12 @@
 // fade shows one panel, and an arrow key after a pointer click shows the next tab's tip.
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
-import "../../../styles.css";
-import "../settings-window.css";
-import { createPresetRegistry } from "../../../settings/preset/preset-registry";
-import { setLocale } from "../../i18n";
-import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import "../../styles.css";
+import "./settings-window.css";
+import { createPresetRegistry } from "../../settings/preset/preset-registry";
+import { setLocale } from "../i18n";
+import { createQuickControls } from "./quick-controls";
+import { defaultQcArgs } from "./test-helpers";
 
 let qc: ReturnType<typeof createQuickControls> | undefined;
 
@@ -33,7 +33,7 @@ it("two rail switches within 200 ms leave exactly one panel shown", () => {
   expect(shown).toEqual(["yui-panel-voice"]);
 });
 
-// The test frame marks an arrow-moved focus :focus-visible; the settings window does not (rung 1), so the
+// The test frame marks an arrow-moved focus :focus-visible; the settings window does not, so the
 // focus the arrow lands is made the same way here.
 it("a pointer click on a rail tab, then Down, shows the next tab's tip", async () => {
   qc = createQuickControls({

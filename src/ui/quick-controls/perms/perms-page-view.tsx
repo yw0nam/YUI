@@ -1,6 +1,6 @@
 /** The Permissions page: the screenshot attach and screen request switches, and the screen source list under the first. */
 
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import type { Logger } from "../../../logger";
 import type { createScreenshotSettings } from "../../../settings/capture/screenshot-settings";
 import { Switch } from "../../controls/switch";
@@ -47,11 +47,15 @@ export function PermsPageView({
   settings,
   monitors,
   log,
+  onSettingsChange,
 }: {
   settings: ScreenshotSettingsStore;
   monitors: MonitorLoad;
   log: Logger;
+  /** A store change while the page is mounted: the list loads if the panel is open. */
+  onSettingsChange(): void;
 }): ReactNode {
+  useEffect(() => settings.subscribe(onSettingsChange), [settings, onSettingsChange]);
   const enabled = useSyncExternalStore(settings.subscribe, () => settings.current().enabled);
   const allowed = useSyncExternalStore(settings.subscribe, () => settings.current().allowRequests);
   return (

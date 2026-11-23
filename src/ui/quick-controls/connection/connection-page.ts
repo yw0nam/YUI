@@ -3,10 +3,10 @@
  * the window's focus, a focus request and the close.
  */
 
-import { createElement, type ReactNode, type RefObject, useEffect } from "react";
+import { createElement } from "react";
 import { flushSync } from "react-dom";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
-import { createPageRevision } from "../page-revision";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { ConnectionPageView, type ConnectionView } from "./connection-page-view";
 import type { DetailSettingsDeps, DetailSettingsHandle } from "./detail/detail-settings";
 import type { QuickStartDeps, QuickStartHandle } from "./quick-start/quick-start";
@@ -20,9 +20,7 @@ export interface PushSocketPanelPort {
   reconnectNow(): void;
 }
 
-export interface ConnectionPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface ConnectionPage extends PageView {
   /** Whether Quick start shows; the page's scope line hides meanwhile. */
   quickShown: { get(): boolean; subscribe(cb: () => void): () => void };
   /** Re-reads every source onto both views: the open hook. */
@@ -39,24 +37,6 @@ export interface ConnectionPage {
   commit(): void;
   /** The panel closed: drop the in-flight model list read. */
   close(): void;
-}
-
-/** The page's element; settings search asks it to bring a hidden view forward. */
-function ConnectionStack({
-  stack,
-  onReveal,
-  children,
-}: {
-  stack: RefObject<HTMLDivElement | null>;
-  onReveal(e: Event): void;
-  children?: ReactNode;
-}) {
-  useEffect(() => {
-    const el = stack.current;
-    el?.addEventListener("yui-search-reveal", onReveal);
-    return () => el?.removeEventListener("yui-search-reveal", onReveal);
-  }, [stack, onReveal]);
-  return createElement("div", { ref: stack, className: "yui-tab-stack" }, children);
 }
 
 export function createConnectionPage(deps: {
@@ -95,10 +75,8 @@ export function createConnectionPage(deps: {
 
   return {
     view: () =>
-      createElement(
-        ConnectionStack,
-        { stack, onReveal: handleReveal },
-        revision.view(() =>
+      pageStack(
+        () =>
           createElement(ConnectionPageView, {
             view,
             onView: select,
@@ -106,8 +84,10 @@ export function createConnectionPage(deps: {
             detail,
             quickHandle,
             detailHandle,
+            stack,
+            onReveal: handleReveal,
           }),
-        ),
+        { revision, ref: stack },
       ),
     quickShown: { get: () => view === "quick", subscribe: revision.subscribe },
     refresh: render,

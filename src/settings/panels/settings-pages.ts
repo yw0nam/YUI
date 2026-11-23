@@ -12,6 +12,11 @@ export const APP_PAGES = [
 ] as const;
 export type SettingsPage = (typeof CHARACTER_PAGES)[number] | (typeof APP_PAGES)[number];
 
+/** True when `page` holds the edited character's own settings. */
+export function isCharacterPage(page: string): boolean {
+  return (CHARACTER_PAGES as readonly string[]).includes(page);
+}
+
 /** True when `v` is the id of a settings page. */
 export function isSettingsPage(v: unknown): v is SettingsPage {
   return (

@@ -1,23 +1,16 @@
 /** The Plugins page: its view, and the entry that loads the catalog. */
 
-import { createElement, type ReactNode, useEffect } from "react";
+import { createElement } from "react";
 import type { McpHost, McpHostManage } from "../../../io/mcp-host/mcp-host";
 import type { Logger } from "../../../logger";
 import { PluginsPageView } from "./plugins-page-view";
-import { createPluginsState, type PluginsState } from "./plugins-state";
+import { createPluginsState } from "./plugins-state";
 import "./plugins-page.css";
+import { type PageView, pageStack } from "../page-view";
 
-export interface PluginsPage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface PluginsPage extends PageView {
   /** The page was entered: the catalog loads unless a load is in flight. */
   entered(): void;
-}
-
-/** The view; its unmount releases the page's state. */
-function PluginsPage({ state }: { state: PluginsState }) {
-  useEffect(() => () => state.dispose(), [state]);
-  return createElement(PluginsPageView, { state });
 }
 
 export function createPluginsPage(deps: {
@@ -27,8 +20,7 @@ export function createPluginsPage(deps: {
 }): PluginsPage {
   const state = createPluginsState(deps);
   return {
-    view: () =>
-      createElement("div", { className: "yui-tab-stack" }, createElement(PluginsPage, { state })),
+    view: () => pageStack(() => createElement(PluginsPageView, { state })),
     entered: () => state.load(),
   };
 }

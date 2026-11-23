@@ -1,5 +1,5 @@
 /**
- * Preset strip — the character header and the dots button that opens the manage popover, above
+ * Preset header — the character header and the dots button that opens the manage popover, above
  * the tab rail and body, with the edited preset's note and relation line under it. Picking a
  * character hands its id to `onEditTarget`.
  */
@@ -14,26 +14,19 @@ import {
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
-import { presetIdForWindow, presetNameFor } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { Tip } from "../../controls/tooltip";
 import { t } from "../../i18n";
 import { useNotify } from "../../use-snapshot/use-notify";
+import { DOTS_GLYPH } from "../glyphs";
 import { CharacterHeader } from "./character-header";
 import type { EditedPreset } from "./edited-preset";
 import { PhotoDialog } from "./photo-dialog/photo-dialog";
 import { type PhotoRequest, PresetManage } from "./preset-manage";
+import { useEditedName } from "./preset-scope";
 import { PresetRelations } from "./relations/relations-section";
-
-const DOTS = (
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <circle cx="6" cy="12" r="1.6" />
-    <circle cx="12" cy="12" r="1.6" />
-    <circle cx="18" cy="12" r="1.6" />
-  </svg>
-);
 
 export interface PresetHeaderHandle {
   /** Closes the manage popover — the panel closed. */
@@ -52,7 +45,7 @@ export interface PresetHeaderProps {
   /** Takes the picked preset as the one the window edits. */
   onEditTarget: (id: string) => void;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
-  /** This window's preset's relations; absent, the strip shows no relation line. */
+  /** This window's preset's relations; absent, the header shows no relation line. */
   relationsStore?: RelationsStore;
   /** The Relations switch; off, the relation line hides. */
   relationsSwitch: FlagSettingsStore;
@@ -67,7 +60,7 @@ export interface PresetHeaderProps {
 
 export function PresetHeader(p: PresetHeaderProps) {
   const { edited, registry, log, petWindows, boundId = null } = p;
-  const shownId = presetIdForWindow();
+  const { shownId } = edited;
   // Each source's notify, the card's cue to close as the line redraws.
   const notified = [
     useNotify(edited.subscribe),
@@ -78,13 +71,13 @@ export function PresetHeader(p: PresetHeaderProps) {
   const windows = petWindows?.get();
   const ingress = p.agentNotifySettings?.get();
   const isOpen = (id: string): boolean => !!(windows?.includes(id) || isPresetWindowLive(id));
-  const strip = useRef<HTMLDivElement>(null);
+  const header = useRef<HTMLDivElement>(null);
   const manageBtn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const [managing, setManaging] = useState(false);
   const [photo, setPhoto] = useState<PhotoRequest | null>(null);
 
-  const name = presetNameFor(state, shownId);
+  const name = useEditedName(edited);
   const key = shownId === state.active ? "main" : isOpen(shownId) ? "window" : "idle";
 
   function closeManage(restoreFocus: boolean): void {
@@ -112,7 +105,7 @@ export function PresetHeader(p: PresetHeaderProps) {
   }, [managing]);
 
   return (
-    <div ref={strip} className="yui-preset">
+    <div ref={header} className="yui-preset">
       <div className="yui-preset__row">
         <CharacterHeader
           shownId={shownId}
@@ -136,15 +129,16 @@ export function PresetHeader(p: PresetHeaderProps) {
             aria-expanded={managing}
             onClick={() => (managing ? closeManage(true) : setManaging(true))}
           >
-            {DOTS}
+            {DOTS_GLYPH}
           </button>
         </Tip>
       </div>
       <p className="yui-preset__note">{t(`preset.note_${key}`, { name })}</p>
       {p.relationsStore && (
         <PresetRelations
-          strip={strip}
+          header={header}
           store={p.relationsStore}
+          self={shownId}
           presets={state.list}
           isOpen={isOpen}
           relationsSwitch={p.relationsSwitch}
@@ -171,7 +165,8 @@ export function PresetHeader(p: PresetHeaderProps) {
             state={state}
             registry={registry}
             log={log}
-            petWindows={petWindows}
+            editedName={name}
+            isOpen={isOpen}
             boundId={boundId}
             removeCardThumbnail={p.removeCardThumbnail}
             pickPhoto={p.pickPhoto}

@@ -1,13 +1,11 @@
 /** The Voice page: its view, what the panel's open redraws, and the audition its close stops. */
 
-import { createElement, type ReactNode } from "react";
-import { createPageRevision } from "../page-revision";
+import { createElement } from "react";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { createAudition } from "./speaker/audition";
 import { VoicePageView, type VoicePageViewProps } from "./voice-page-view";
 
-export interface VoicePage {
-  /** The page's view; the panel calls it in each of its renders, so a rail switch reaches the page. */
-  view(): ReactNode;
+export interface VoicePage extends PageView {
   /** Re-reads every source and drops an armed remove: the open hook. */
   refresh(): void;
   /** Stops the audition: the close hook, and the last step of the panel's teardown. */
@@ -24,11 +22,7 @@ export function createVoicePage(
   const revision = createPageRevision();
   return {
     view: () =>
-      createElement(
-        "div",
-        { className: "yui-tab-stack" },
-        revision.view((n) => createElement(VoicePageView, { ...props, revision: n })),
-      ),
+      pageStack((n) => createElement(VoicePageView, { ...props, revision: n }), { revision }),
     refresh: revision.bump,
     close: audition.stop,
   };

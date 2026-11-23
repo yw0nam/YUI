@@ -4,7 +4,6 @@
  * stays editable.
  */
 
-import { useLayoutEffect, useRef } from "react";
 import {
   effectiveChatApi,
   readChatApiOverride,
@@ -12,6 +11,7 @@ import {
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import { t } from "../../i18n";
 import { avatarEl } from "../../unified/avatar";
+import { usePrepended } from "./use-prepended";
 
 function Item(p: {
   entry: PresetEntry;
@@ -20,13 +20,8 @@ function Item(p: {
   transport: string;
   onClick(): void;
 }) {
-  const item = useRef<HTMLButtonElement>(null);
   // The face, mounted as a vanilla element the re-renders keep in place.
-  useLayoutEffect(() => {
-    const face = avatarEl(p.entry, 28);
-    item.current?.prepend(face);
-    return () => face.remove();
-  }, [p.entry]);
+  const { host: item } = usePrepended<HTMLButtonElement>(() => avatarEl(p.entry, 28), [p.entry]);
   return (
     <button
       ref={item}
@@ -56,7 +51,7 @@ export function CharacterHeader(p: {
   onPick: (id: string) => void;
 }) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the header row the strip's CSS styles
+    // biome-ignore lint/a11y/useSemanticElements: the header row the preset header's CSS styles
     <div className="yui-chead" role="group" aria-label={t("chars.section")}>
       {p.list.map((entry) => (
         <Item
