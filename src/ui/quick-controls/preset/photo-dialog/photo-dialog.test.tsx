@@ -160,6 +160,21 @@ describe("PhotoDialog", () => {
     );
   });
 
+  it("a photo chosen just before Cancel is stored, then its default framing once measured", async () => {
+    const picked = deferred<string | null>();
+    open({ pick: () => picked.promise });
+    await ready();
+
+    click("choose");
+    click("cancel");
+    picked.resolve("asset://b.png");
+
+    await vi.waitFor(() =>
+      expect(save).toHaveBeenCalledWith("asset://b.png", { x: 0, y: 0, size: 1 }),
+    );
+    expect(saveUrl).toHaveBeenCalledWith("asset://b.png");
+  });
+
   it("a photo that cannot be measured shows the failure and saves no crop", async () => {
     open({
       measure: async (url) => {

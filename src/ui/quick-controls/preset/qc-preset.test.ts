@@ -15,6 +15,7 @@ import {
   createPresetRegistry,
   type PresetRegistry,
 } from "../../../settings/preset/preset-registry";
+import { createRelationsStore } from "../../../settings/relations/relations-store";
 import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
@@ -355,6 +356,42 @@ describe("createQuickControls — presets", () => {
     )!;
     act(() => detail.click());
     expect(scope().hidden).toBe(false);
+  });
+
+  it("keeps an open reasons card across a rail switch and closes it when a source notifies", () => {
+    const now = Date.now();
+    const store = createRelationsStore({
+      storage: {
+        load: () => ({
+          user: { value: 5, updated_at: now, log: [{ at: now, delta: 2, why: "said hello" }] },
+        }),
+        save: () => {},
+      },
+    });
+    const petWindows = createPetWindows();
+    qc.dispose();
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      presetRegistry: registry,
+      relationsStore: store,
+      petWindows,
+      agentNotifySettings: createAgentNotifySettings(),
+    });
+    qc.open();
+    const card = () => qc.el.querySelector<HTMLElement>(".yui-reasons")!;
+    const chip = qc.el.querySelector<HTMLElement>(
+      '.yui-preset__rel .yui-relation[data-target="user"]',
+    )!;
+
+    act(() => chip.dispatchEvent(new Event("pointerover", { bubbles: true })));
+    expect(card().classList.contains("is-open")).toBe(true);
+    act(() => qc.open({ page: "general" }));
+    expect(card().classList.contains("is-open")).toBe(true);
+
+    act(() => petWindows.invalidate());
+    expect(card().classList.contains("is-open")).toBe(false);
+    store.dispose();
+    petWindows.dispose();
   });
 
   // Esc hands focus back to the dots button; an outside press leaves it on the control pressed.
