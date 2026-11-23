@@ -6,7 +6,7 @@ import { t } from "../../../i18n";
 import { ENDPOINT_FIELDS } from "../../constants";
 import type { EndpointForm, EndpointKey } from "./endpoint-form";
 
-/** Enter commits the field, as a native change would; an IME's Enter confirms its text instead. */
+/** Enter commits a changed field, as a native change would; an IME's Enter confirms its text instead. */
 export function isCommitEnter(e: { key: string; nativeEvent: KeyboardEvent }): boolean {
   return e.key === "Enter" && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229;
 }
@@ -71,7 +71,7 @@ export function EndpointRow({
             aria-invalid={def.url ? invalid : undefined}
             onChange={(e) => form.type(field, e.currentTarget.value)}
             onKeyDown={(e) => {
-              if (isCommitEnter(e)) form.commitField(field, e.currentTarget.value);
+              if (isCommitEnter(e)) form.commitDraft(field);
             }}
             onBlur={() => form.commitDirty()}
           />

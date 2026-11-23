@@ -1,6 +1,7 @@
 /** A select on Base UI's Select: the caller labels it and owns the value; the popup lists the items. */
 
 import { Select as BaseSelect } from "@base-ui/react/select";
+import { useLayoutEffect, useRef, useState } from "react";
 import "./select.css";
 
 export interface SelectItem<V extends string> {
@@ -31,8 +32,18 @@ export function Select<V extends string>({
   "aria-label": ariaLabel,
   valueLabel,
 }: SelectProps<V>) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  // The popup sits outside the trigger's view, so a render that hides that view closes it.
+  useLayoutEffect(() => {
+    if (open && trigger.current?.closest("[hidden]")) setOpen(false);
+  });
+
   return (
     <BaseSelect.Root
+      open={open}
+      onOpenChange={setOpen}
       value={value}
       items={items}
       onValueChange={(next) => {
@@ -42,6 +53,7 @@ export function Select<V extends string>({
       disabled={disabled}
     >
       <BaseSelect.Trigger
+        ref={trigger}
         id={id}
         className={className ? `yui-select ${className}` : "yui-select"}
         aria-label={ariaLabel}

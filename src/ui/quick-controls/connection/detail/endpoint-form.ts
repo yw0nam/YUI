@@ -24,6 +24,8 @@ export interface EndpointForm {
   type(key: EndpointKey, value: string): void;
   /** Writes one field and drops its draft; a chat URL commit re-evaluates the model list read. */
   commitField(key: EndpointKey, value: string): void;
+  /** Writes the field's draft; a field the user has not changed writes nothing. */
+  commitDraft(key: EndpointKey): void;
   /** Writes every draft. */
   commitDirty(): void;
   /** Drops the drafts of fields another write just set. */
@@ -58,6 +60,10 @@ export function useEndpointForm(deps: {
         rerender();
       },
       commitField,
+      commitDraft(key) {
+        const draft = drafts.get(key);
+        if (draft !== undefined) commitField(key, draft);
+      },
       commitDirty() {
         for (const [key, value] of [...drafts]) commitField(key, value);
       },
