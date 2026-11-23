@@ -45,8 +45,6 @@ function validConfig(): AppConfig {
         window_ms: 60_000,
         tier2_max: 10,
         urgent_max: 120,
-        overall_max: 20,
-        cooldown_ms: 30_000,
         addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,

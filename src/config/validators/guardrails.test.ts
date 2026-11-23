@@ -15,8 +15,6 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
       window_ms: 3600000,
       tier2_max: 12,
       urgent_max: 120,
-      overall_max: 26,
-      cooldown_ms: 300000,
       addressed_chain_max: 2,
     },
     attachments: {
@@ -59,8 +57,6 @@ describe("validateGuardrails — happy path", () => {
         window_ms: 0,
         tier2_max: 0,
         urgent_max: 0,
-        overall_max: 0,
-        cooldown_ms: 0,
         addressed_chain_max: 0,
       },
     });
@@ -78,8 +74,6 @@ describe("validateGuardrails — a file that still holds tier3_max", () => {
         tier2_max: 12,
         tier3_max: 2,
         urgent_max: 120,
-        overall_max: 26,
-        cooldown_ms: 300000,
         addressed_chain_max: 2,
       },
       attachments: { max_count: 6, max_image_bytes: 5242880 },
@@ -87,8 +81,7 @@ describe("validateGuardrails — a file that still holds tier3_max", () => {
     for (const out of [validateGuardrails(FILE, raw), validateGuardrails(FILE, raw)]) {
       expect(out.rate_limit.window_ms).toBe(3600000);
       expect(out.rate_limit.tier2_max).toBe(12);
-      expect(out.rate_limit.overall_max).toBe(26);
-      expect(out.rate_limit.cooldown_ms).toBe(300000);
+      expect(out.rate_limit.urgent_max).toBe(120);
     }
   });
 });
@@ -141,8 +134,6 @@ describe("validateGuardrails — rate_limit", () => {
           window_ms: 3600000,
           tier2_max: -1,
           urgent_max: 120,
-          overall_max: 26,
-          cooldown_ms: 300000,
           addressed_chain_max: 2,
         },
       }),
@@ -182,8 +173,6 @@ describe("validateGuardrails — rate_limit", () => {
           window_ms: 3600000,
           tier2_max: 12,
           urgent_max: 120,
-          overall_max: 26,
-          cooldown_ms: 300000,
           addressed_chain_max: 1.5,
         },
       }),

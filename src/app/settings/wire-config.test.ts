@@ -16,8 +16,6 @@ const CFG = {
     rate_limit: {
       window_ms: 60000,
       tier2_max: 5,
-      overall_max: 10,
-      cooldown_ms: 1000,
       addressed_chain_max: 2,
     },
   },
@@ -52,7 +50,6 @@ const emptyEndpointOverrides = {
 const emptyGuardrailOverrides = {
   tier2_max: 0,
   urgent_max: 0,
-  overall_max: 0,
   addressed_chain_max: 0,
 };
 

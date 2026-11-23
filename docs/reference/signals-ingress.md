@@ -179,7 +179,7 @@ A turn the user's message cancels after its call started does not put its groups
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
-Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default 120), and they do not count toward the tier-2 or overall caps; the cooldown the overall cap starts does not hold them.
+Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default 120), and they do not count toward the tier-2 cap.
 
 ## Relations
 

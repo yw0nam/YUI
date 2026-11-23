@@ -64,7 +64,7 @@ function CapRows({
             key={field.key}
             id={field.id}
             label={t(field.labelKey)}
-            sub={defaults ? t(field.subKey, { n: defaults.cooldown_ms / 60_000 }) : t(field.subKey)}
+            sub={t(field.subKey)}
             min={1}
             max={RATE_LIMIT_MAX}
             value={effective > 0 ? String(effective) : ""}

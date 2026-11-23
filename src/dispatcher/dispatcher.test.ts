@@ -2,7 +2,7 @@
  * dispatcher.test.ts — state machine (§9), posture derivation, and the observable/busy dev APIs.
  *
  * Scope:
- *  - §9 state machine booting → running, restart guards from cooldown/degraded.
+ *  - §9 state machine booting → running, restart guard from degraded.
  *  - Posture derivation from tier1 body-state events (sit/peek/drag/walk/climb).
  *  - §11 observable dev APIs (queue / recent_drops / in_flight).
  *  - cancel() + subscribeBusy (chat stop button) and isPipelineBusy/subscribePipelineBusy.
@@ -25,7 +25,6 @@ import {
   makeLogger,
   NOW,
   permissiveGuardrailsConfig,
-  realGuardrailsConfig,
   userEnv,
 } from "./test-helpers";
 import { createQuotedTurn } from "./turn/quoted-turn";
@@ -141,46 +140,6 @@ describe("dispatcher — state machine (§9)", () => {
     expect(dispatcher.state()).toBe("booting");
     dispatcher.start();
     expect(dispatcher.state()).toBe("running");
-  });
-
-  it("start() called again from cooldown does not stack a second pump interval", async () => {
-    const cfg = realGuardrailsConfig();
-    cfg.rate_limit.tier2_max = 1000;
-    const g = createGuardrails(cfg, { now: () => Date.now() });
-    const d = createDispatcher({
-      bus,
-      renderer: renderer as never,
-      peekConfig: () => PEEK_CONFIG,
-      tapConfig: () => TAP_CONFIG,
-      backendCaller,
-      guardrails: g,
-      turnLog,
-      hasOutstandingSpeech: () => speaking,
-      addressedChain: createDefaultAddressedChain(),
-      logger,
-    });
-    d.start();
-    // exceed rate_limit.overall_max to force cooldown.
-    for (let i = 0; i < 21; i++) {
-      g.evaluate(
-        env({
-          source: "user_input_source",
-          event_name: "user.text_submitted",
-          ts: NOW + i,
-          dnd_override: false,
-        }),
-      );
-    }
-    // let the running pump interval observe cooldownActive() and sync state.
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.state()).toBe("cooldown");
-
-    const timerCountBeforeRestart = vi.getTimerCount();
-    d.start();
-    expect(vi.getTimerCount()).toBe(timerCountBeforeRestart);
-
-    d.stop();
-    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("start() called again from degraded does not stack a second pump interval", async () => {

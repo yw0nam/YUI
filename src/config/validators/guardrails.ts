@@ -22,12 +22,8 @@ export interface GuardrailsConfig {
     window_ms: number;
     /** tier2 cap. */
     tier2_max: number;
-    /** urgent signals cap — counts urgent-delivery turns only; the overall cooldown does not hold them. */
+    /** urgent signals cap — counts urgent-delivery turns only. */
     urgent_max: number;
-    /** overall cap on backend calls — entering cooldown when exceeded. */
-    overall_max: number;
-    /** cooldown duration (ms) after overall is exceeded. */
-    cooldown_ms: number;
     /** consecutive addressed turns a window answers without a user turn in between. */
     addressed_chain_max: number;
   };
@@ -70,8 +66,6 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     window_ms: 0,
     tier2_max: 0,
     urgent_max: 0,
-    overall_max: 0,
-    cooldown_ms: 0,
     addressed_chain_max: 0,
   };
   if (!isObject(rawRate)) {

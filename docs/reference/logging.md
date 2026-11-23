@@ -54,7 +54,7 @@ The level comes from the reason:
 
 | `reason` | Level | When |
 |---|---|---|
-| `guardrail_drop` | `info` | The debounce/cooldown/rate-limit gate refused the fire. |
+| `guardrail_drop` | `info` | The debounce/rate-limit gate refused the fire. |
 | `not_configured` | `warn` | The backend call failed: no endpoint is configured. |
 | `parse_error` | `warn` | The backend call failed: the reply could not be parsed. |
 | `network_drop` | `warn` | The backend call failed on the network. |

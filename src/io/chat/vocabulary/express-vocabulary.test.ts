@@ -166,8 +166,6 @@ describe("deriveExpressVocabulary", () => {
           window_ms: 0,
           tier2_max: 0,
           urgent_max: 0,
-          overall_max: 0,
-          cooldown_ms: 0,
           addressed_chain_max: 0,
         },
         attachments: guardrailsFixture().attachments,

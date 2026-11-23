@@ -541,9 +541,7 @@ describe("createQuickControls — Reactions tab layout", () => {
   const RATE_LIMIT_DEFAULTS = {
     tier2_max: 24,
     urgent_max: 120,
-    overall_max: 40,
     addressed_chain_max: 2,
-    cooldown_ms: 600_000,
   };
 
   function buildRateQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {

@@ -7,8 +7,7 @@
  *
  * Sections locked:
  *  - §6.2 Debounce: per-source window (os 5s / user 0).
- *  - §6.3 Rate-limit: tier2 6 rolling 60min (N pass, N+1 drop, no refund),
- *    overall 20 → cooldownActive() true then 5min hold → release.
+ *  - §6.3 Rate-limit: tier2 6 rolling 60min (N pass, N+1 drop, no refund).
  *  - §6.4 Evaluation order + dnd_override short-circuit (no counter increment).
  */
 
@@ -34,8 +33,6 @@ function config(): GuardrailsConfig {
       window_ms: 3_600_000,
       tier2_max: 6,
       urgent_max: 120,
-      overall_max: 20,
-      cooldown_ms: 300_000,
       addressed_chain_max: 2,
     },
     attachments: guardrailsFixture().attachments,
@@ -82,8 +79,10 @@ describe("guardrails — evaluate dnd_override short-circuit", () => {
       );
       expect(r.pass).toBe(true);
     }
-    // overall counter never moved → cooldown not entered.
-    expect(g.cooldownActive()).toBe(false);
+    // the tier2 budget of 6 is untouched, so a non-override turn still passes.
+    expect(
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
+    ).toBe(true);
   });
 });
 
@@ -181,46 +180,6 @@ describe("guardrails — tier2 rate-limit rolling 60min (§6.3)", () => {
   });
 });
 
-describe("guardrails — overall cap → cooldown (§6.3)", () => {
-  it("overall 20 → 21st enters cooldown; cooldownActive() true for 5min then clears", () => {
-    const c = clock();
-    const cfg = config();
-    // raise tier caps so the overall cap is the binding constraint.
-    cfg.rate_limit.tier2_max = 1000;
-    const g = createGuardrails(cfg, { now: c.now });
-    for (let i = 0; i < 20; i++) {
-      expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-      ).toBe(true);
-    }
-    expect(g.cooldownActive()).toBe(false);
-
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
-    expect(r.pass).toBe(false);
-    expect(g.cooldownActive()).toBe(true);
-
-    // still active just before 5min
-    c.advance(299_999);
-    expect(g.cooldownActive()).toBe(true);
-    // clears at 5min
-    c.advance(1);
-    expect(g.cooldownActive()).toBe(false);
-  });
-
-  it("during cooldown, further firings drop", () => {
-    const c = clock();
-    const cfg = config();
-    cfg.rate_limit.tier2_max = 1000;
-    const g = createGuardrails(cfg, { now: c.now });
-    for (let i = 0; i < 20; i++) {
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
-    }
-    g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })); // enters cooldown
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
-    expect(r.pass).toBe(false);
-  });
-});
-
 // ── Shipped config (configs/guardrails.json) ───────────────────────────────────
 
 describe("guardrails — shipped hourly limits", () => {
@@ -287,82 +246,9 @@ describe("guardrails — shipped hourly limits", () => {
   });
 });
 
-// ── Eval ordering (§6.4) ─────────────────────────────────────────────────────────
-
-describe("guardrails — eval ordering (§6.4)", () => {
-  /** Drives the overall cap with a debounce-free source. */
-  function overallDriver(g: Guardrails): () => boolean {
-    return () =>
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass;
-  }
-
-  /** Cooldown reached via the overall cap, with the tier cap raised out of the way. */
-  function inCooldown(c: ReturnType<typeof clock>): { g: Guardrails; fire: () => boolean } {
-    const cfg = config();
-    cfg.rate_limit.tier2_max = 1000;
-    const g = createGuardrails(cfg, { now: c.now });
-    const fire = overallDriver(g);
-    for (let i = 0; i < 20; i++) expect(fire()).toBe(true);
-    expect(fire()).toBe(false);
-    expect(g.cooldownActive()).toBe(true);
-    return { g, fire };
-  }
-
-  it("cooldown precedes rate-limit: a firing during cooldown does not re-arm cooldownUntil", () => {
-    const c = clock();
-    const { g, fire } = inCooldown(c);
-
-    c.advance(200_000);
-    for (let i = 0; i < 5; i++) expect(fire()).toBe(false);
-
-    // cooldown_ms is measured from the entry, so it releases on schedule.
-    c.set(BASE_TS + 300_000);
-    expect(g.cooldownActive()).toBe(false);
-  });
-
-  it("a cooldown drop consumes no tier or overall rate-limit slot", () => {
-    const c = clock();
-    const { fire } = inCooldown(c);
-
-    c.advance(200_000);
-    for (let i = 0; i < 5; i++) expect(fire()).toBe(false);
-
-    // Past window_ms measured from the 20 passes, but not from the 5 cooldown attempts:
-    // whatever the window still holds was put there by a pass.
-    c.set(BASE_TS + 3_600_500);
-    let passed = 0;
-    for (let i = 0; i < 25; i++) {
-      if (fire()) passed++;
-    }
-    expect(passed).toBe(20);
-  });
-
-  it("dnd_override precedes cooldown: a user-initiated turn passes during cooldown", () => {
-    const c = clock();
-    const { g } = inCooldown(c);
-
-    c.advance(1_000);
-    const r = g.evaluate(
-      env({
-        source: "user_input_source",
-        event_name: "user.text_submitted",
-        dnd_override: true,
-      }),
-    );
-    expect(r.pass).toBe(true);
-    expect(g.cooldownActive()).toBe(true);
-  });
-});
-
 // ── interface surface ────────────────────────────────────────────────────────────
 
 describe("guardrails — interface surface", () => {
-  it("exposes evaluate / cooldownActive", () => {
-    const g: Guardrails = createGuardrails(config());
-    expect(typeof g.evaluate).toBe("function");
-    expect(typeof g.cooldownActive).toBe("function");
-  });
-
   it("has NO refund method (consume-on-fire, §6.3)", () => {
     const g = createGuardrails(config()) as unknown as Record<string, unknown>;
     expect(g.refund).toBeUndefined();

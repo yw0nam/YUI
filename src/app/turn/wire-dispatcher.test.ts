@@ -80,7 +80,7 @@ describe("wireDispatcher", () => {
       stop: vi.fn(),
       subscribeBusy: vi.fn((_cb: (busy: boolean) => void) => busyUnsubscribe),
     };
-    const guardrails = { setConfig: vi.fn(), evaluate: vi.fn(), cooldownActive: vi.fn() };
+    const guardrails = { setConfig: vi.fn(), evaluate: vi.fn() };
     const pacer = { stop: vi.fn(), noteIntervalChanged: vi.fn() };
     mocks.createDispatcher.mockImplementation((deps: typeof dispatcherDeps) => {
       dispatcherDeps = deps;

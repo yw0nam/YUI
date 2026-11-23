@@ -803,11 +803,8 @@ const ko: Record<string, string> = {
     "시간당 상한은 YUI가 먼저 말을 거는 빈도의 안전장치예요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 먼저 말 거는 횟수",
   "reactions.rate_tier2_sub": "한동안 조용할 때, 인사, 신호, 다른 캐릭터에게 답하기를 합쳐서 세요",
-  "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
-  "reactions.rate_overall_sub": "넘어서면 모든 반응이 {n}분 동안 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
-  "reactions.rate_urgent_sub":
-    "긴급으로 표시된 신호예요. 전체 상한을 넘었을 때의 {n}분 멈춤에도 걸리지 않아요",
+  "reactions.rate_urgent_sub": "긴급으로 표시된 신호예요. 위 상한과 따로 세요",
   "reactions.rate_addressed_label": "연달아 불려서 답하기",
   "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 다른 캐릭터에게 불려 답하는 횟수",
 
