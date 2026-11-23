@@ -24,14 +24,12 @@ export function CueListGroup<C extends Cue>({
   sub: string;
   note?: string;
   foldTitle: string;
-  trigger: CueTrigger;
+  trigger: CueTrigger<C>;
   addLabel: string;
 }) {
   const { enabled, entries } = snapshot;
   // Every entry's trigger in list order, e.g. "5 · 10 · 30 min" or "09:00 · 12:00".
-  const list = entries
-    .map((cue) => (cue as unknown as Record<string, unknown>)[trigger.field])
-    .join(" · ");
+  const list = entries.map((cue) => String(cue[trigger.field])).join(" · ");
   const aside = list && trigger.kind === "minutes" ? t("cue.minutes_summary", { list }) : list;
   return (
     <div className="yui-group">

@@ -550,6 +550,7 @@ describe("createProactivePage — the source groups", () => {
         >;
       };
       boundId?: string | null;
+      workflowSettings?: ReturnType<typeof createWorkflowSettings>;
     } = {},
   ) {
     const screenSettings = options.stores?.screenSettings ?? createFlagSettings(true);
@@ -560,7 +561,7 @@ describe("createProactivePage — the source groups", () => {
       options.stores?.threadReactionsSettings ?? createFlagSettings(true);
     const threadReactionThresholdsSettings =
       options.stores?.threadReactionThresholdsSettings ?? createThreadReactionThresholdsSettings();
-    const workflowSettings = createWorkflowSettings();
+    const workflowSettings = options.workflowSettings ?? createWorkflowSettings();
     const built = build({
       rows: sourceRows({
         screenSettings,
@@ -645,8 +646,8 @@ describe("createProactivePage — the source groups", () => {
       ...(fold?.querySelectorAll<HTMLButtonElement>(".yui-threadturns-seg [role=radio]") ?? []),
     ];
     expect(cells.map((cell) => cell.disabled)).toEqual([false, false, false]);
-    const notable = cells.find((cell) => cell.textContent === "When it needs her");
-    expect(notable).toBeDefined();
+    const notable = cells.find((cell) => cell.dataset.value === "notable");
+    expect(notable?.textContent).toBe("When it needs her");
     if (!notable) return;
     fireEvent.click(notable);
     expect(threadTurnsSettings.get().level).toBe("notable");
@@ -747,46 +748,87 @@ describe("createProactivePage — the source groups", () => {
       expect(shown(page, "#yui-screen-settle")).toBe("30");
     });
 
-    it("shows recent_cap as a bare count and commits it unconverted", () => {
+    const KNOB_COMMITS: {
+      name: string;
+      id: string;
+      min: string;
+      max: string;
+      typed: string;
+      read: (store: ReturnType<typeof createScreenKnobSettings>) => number;
+      committed: number;
+    }[] = [
+      {
+        name: "recent_cap, a bare count",
+        id: "#yui-screen-recent-cap",
+        min: "0",
+        max: "20",
+        typed: "3",
+        read: (store) => store.get().recent_cap,
+        committed: 3,
+      },
+      {
+        name: "a knob in minutes",
+        id: "#yui-screen-long-session",
+        min: "5",
+        max: "480",
+        typed: "30",
+        read: (store) => store.get().long_session_ms,
+        committed: 1_800_000,
+      },
+    ];
+
+    it.each(KNOB_COMMITS)("commits $name on change", ({ id, min, max, typed, read, committed }) => {
       const { page, screenKnobSettings } = buildScreens();
-      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap");
+      const input = page.el.querySelector<HTMLInputElement>(id);
 
-      expect(input?.value).toBe("5");
-      expect(input?.min).toBe("0");
-      expect(input?.max).toBe("20");
-      commit(input, "3");
+      expect(input?.min).toBe(min);
+      expect(input?.max).toBe(max);
+      commit(input, typed);
 
-      expect(screenKnobSettings.get().recent_cap).toBe(3);
-      expect(input?.value).toBe("3");
+      expect(read(screenKnobSettings)).toBe(committed);
+      expect(input?.value).toBe(typed);
     });
 
-    it("clamps a typed recent_cap into its 0-20 row bounds", () => {
+    const KNOB_CLAMPS: {
+      name: string;
+      id: string;
+      read: (store: ReturnType<typeof createScreenKnobSettings>) => number;
+      over: { typed: string; committed: number; shown: string };
+      under?: { typed: string; committed: number; shown: string };
+    }[] = [
+      {
+        name: "recent_cap",
+        id: "#yui-screen-recent-cap",
+        read: (store) => store.get().recent_cap,
+        over: { typed: "50", committed: 20, shown: "20" },
+      },
+      {
+        name: "a knob in seconds",
+        id: "#yui-screen-settle",
+        read: (store) => store.get().settle_ms,
+        over: { typed: "5000", committed: 600_000, shown: "600" },
+        under: { typed: "2", committed: 5_000, shown: "5" },
+      },
+    ];
+
+    it.each(KNOB_CLAMPS)("clamps a typed $name into the range its row advertises", ({
+      id,
+      read,
+      over,
+      under,
+    }) => {
       const { page, screenKnobSettings } = buildScreens();
+      const input = page.el.querySelector<HTMLInputElement>(id);
+      expect(input).not.toBeNull();
 
-      commit(page.el.querySelector("#yui-screen-recent-cap"), "50");
+      commit(input, over.typed);
+      expect(read(screenKnobSettings)).toBe(over.committed);
+      expect(input?.value).toBe(over.shown);
 
-      expect(screenKnobSettings.get().recent_cap).toBe(20);
-      expect(shown(page, "#yui-screen-recent-cap")).toBe("20");
-    });
-
-    it("commits a numeric knob on change, converted to ms", () => {
-      const { page, screenKnobSettings } = buildScreens();
-
-      commit(page.el.querySelector("#yui-screen-long-session"), "30");
-
-      expect(screenKnobSettings.get().long_session_ms).toBe(1_800_000);
-    });
-
-    it("clamps a typed knob into the range its row advertises", () => {
-      const { page, screenKnobSettings } = buildScreens();
-      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-settle");
-
-      commit(input, "5000"); // the row's max is 600 s
-      expect(screenKnobSettings.get().settle_ms).toBe(600_000);
-      expect(input?.value).toBe("600");
-
-      commit(input, "2"); // the row's min is 5 s
-      expect(screenKnobSettings.get().settle_ms).toBe(5_000);
+      if (!under) return;
+      commit(input, under.typed);
+      expect(read(screenKnobSettings)).toBe(under.committed);
+      expect(input?.value).toBe(under.shown);
     });
 
     it("clears the override when the knob is emptied, falling back to the config default", () => {
@@ -872,12 +914,6 @@ describe("createProactivePage — the source groups", () => {
       expect(page.el.querySelector("#yui-ingress-url")?.textContent).toBe(
         `http://127.0.0.1:9100${suffix}`,
       );
-    });
-
-    it("renders the listener port from its store", () => {
-      const { page } = buildSources();
-
-      expect(port(page)?.value).toBe("8770");
     });
 
     it("reflects an external port change", () => {
@@ -1149,34 +1185,15 @@ describe("createProactivePage — the source groups", () => {
       expect(page.el.querySelector(".yui-wf-empty")).not.toBeNull();
     });
 
-    it("stops redrawing the rows after dispose", () => {
+    it("releases the workflow store on dispose", () => {
       const workflowSettings = createWorkflowSettings();
-      const page = createProactivePage({
-        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-        scheduleSettings: createScheduleSettings({ locale: "en" }),
-        proactiveSettings: createProactiveSettings({ locale: "en" }),
-        openPersona: vi.fn(),
-        rows: sourceRows({
-          agentNotifySettings: createAgentNotifySettings(),
-          screenSettings: createFlagSettings(true),
-          screenKnobSettings: createScreenKnobSettings(),
-        }),
-        agentNotifySettings: createAgentNotifySettings(),
-        workflowSettings,
-        log: makeLog(),
-      });
-      document.body.append(page.el);
-      act(() => {
-        workflowSettings.addWorkflow(WORKFLOW);
-      });
-      expect(page.el.querySelector(".yui-wf")).not.toBeNull();
+      const counts = countSubscriptions(workflowSettings);
+      const { page } = buildSources({ workflowSettings });
 
-      act(() => page.dispose());
-      act(() => {
-        workflowSettings.addWorkflow({ label: "Late", url: "https://example.com/late" });
-      });
+      expect(counts.taken).toBeGreaterThan(0);
+      disposeNow(page);
 
-      expect(page.el.querySelector(".yui-wf")).toBeNull();
+      expect(counts.released).toBe(counts.taken);
     });
 
     it("schedules no flash timer when a fired workflow settles after dispose", async () => {

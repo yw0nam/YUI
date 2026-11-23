@@ -9,6 +9,7 @@ import {
 } from "../../../../settings/backend/workflow-settings";
 import { t } from "../../../i18n";
 import { useSnapshot } from "../../../use-snapshot/use-snapshot";
+import { CROSS_SVG, PLUS_SVG } from "../../constants";
 import "./workflow-list.css";
 
 const PlayGlyph = () => (
@@ -27,27 +28,15 @@ const CheckGlyph = () => (
     />
   </svg>
 );
-const CrossGlyph = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const PlusGlyph = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
 
 type Flash = "ok" | "err";
 
 export function WorkflowList({
   store,
   log,
-  fetchFn,
 }: {
   store: ReturnType<typeof createWorkflowSettings>;
   log: Logger;
-  fetchFn?: typeof fetch;
 }) {
   const { entries } = useSnapshot(store.get, store.subscribe);
   const [flash, setFlash] = useState<Record<string, Flash>>({});
@@ -111,12 +100,13 @@ export function WorkflowList({
 
   const fire = (entry: WorkflowEntry): void => {
     // n8n webhooks do not return CORS headers, so dispatch with no-cors.
-    (fetchFn ?? globalThis.fetch.bind(globalThis))(entry.url, {
-      method: "POST",
-      mode: "no-cors",
-      body: "{}",
-      signal: AbortSignal.timeout(10_000),
-    })
+    globalThis
+      .fetch(entry.url, {
+        method: "POST",
+        mode: "no-cors",
+        body: "{}",
+        signal: AbortSignal.timeout(10_000),
+      })
       .then(() => flashRow(entry.id, "ok"))
       .catch((err) => {
         log.debug("workflow_fire_failed", { id: entry.id, error: String(err) });
@@ -161,7 +151,8 @@ export function WorkflowList({
                 {flash[entry.id] === "ok" ? (
                   <CheckGlyph />
                 ) : flash[entry.id] === "err" ? (
-                  <CrossGlyph />
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with other surfaces
+                  <span dangerouslySetInnerHTML={{ __html: CROSS_SVG }} />
                 ) : (
                   <PlayGlyph />
                 )}
@@ -176,9 +167,9 @@ export function WorkflowList({
                   else deleteRefs.current.delete(entry.id);
                 }}
                 onClick={() => setConfirming(entry.id)}
-              >
-                <CrossGlyph />
-              </button>
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with other surfaces
+                dangerouslySetInnerHTML={{ __html: CROSS_SVG }}
+              />
             </div>
             {confirming === entry.id ? (
               <div className="yui-confirm">
@@ -253,10 +244,9 @@ export function WorkflowList({
               className="yui-add-btn yui-wf-add-btn"
               disabled={!valid}
               onClick={add}
-            >
-              <PlusGlyph />
-              {t("workflows.add")}
-            </button>
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the translated label
+              dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("workflows.add")}` }}
+            />
             <button type="button" className="yui-link-btn" onClick={closeForm}>
               {t("cue.confirm_cancel")}
             </button>
@@ -269,10 +259,9 @@ export function WorkflowList({
             className="yui-add-btn yui-wf-add-btn"
             ref={addRef}
             onClick={() => setFormOpen(true)}
-          >
-            <PlusGlyph />
-            {t("workflows.add_row")}
-          </button>
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the translated label
+            dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("workflows.add_row")}` }}
+          />
         </div>
       )}
     </>

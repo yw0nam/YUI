@@ -10,6 +10,7 @@ import type { ProactiveCue } from "../../../../settings/cues/proactive-settings"
 import type { ScheduledCue } from "../../../../settings/cues/schedule-settings";
 import { t } from "../../../i18n";
 import { CueList } from "./cue-list";
+import type { CueTrigger } from "./cue-row";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -54,7 +55,7 @@ function makeStore() {
 }
 
 /** Renders a cue list; `rerender` passes new entries as the caller's subscription would. */
-function build<C extends Cue>(entries: C[], trigger: typeof TIME | typeof MINUTES) {
+function build<C extends Cue>(entries: C[], trigger: CueTrigger<C>) {
   const store = makeStore();
   const host = document.createElement("div");
   document.body.append(host);
@@ -150,8 +151,7 @@ describe("CueList — trigger field", () => {
   it.each([
     {
       kind: "time",
-      entries: [morning],
-      trigger: TIME,
+      render: () => build([morning], TIME),
       type: "time",
       shown: "09:00",
       typed: "10:30",
@@ -161,8 +161,7 @@ describe("CueList — trigger field", () => {
     },
     {
       kind: "minutes",
-      entries: [{ ...breather, id: "morning" }],
-      trigger: MINUTES,
+      render: () => build([{ ...breather, id: "morning" }], MINUTES),
       type: "number",
       shown: "5",
       typed: "15",
@@ -171,7 +170,7 @@ describe("CueList — trigger field", () => {
       suffix: () => t("cue.minutes_suffix"),
     },
   ])("shows and commits the $kind value on a native change", (c) => {
-    const { host, store } = build<Cue>(c.entries, c.trigger);
+    const { host, store } = c.render();
     const r = row(host, "morning");
     const input = q<HTMLInputElement>(r, "[data-testid='cue-trigger-input']");
     expect(input.type).toBe(c.type);

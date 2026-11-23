@@ -10,7 +10,7 @@ export interface CueListProps<C extends Cue> {
   /** The store's entries; the caller owns the subscription. */
   entries: C[];
   store: CueStore<C>;
-  trigger: CueTrigger;
+  trigger: CueTrigger<C>;
   addLabel: string;
 }
 

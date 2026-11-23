@@ -19,9 +19,6 @@ const countLabel = (n: ReactionCount): string =>
 const waitLabel = (n: ReactionWait): string =>
   n === 0 ? t("threadReactionThresholds.off") : t("threadReactionThresholds.wait_value", { n });
 
-const emptyRead = () => undefined;
-const subscribeNever = () => () => {};
-
 export function ThreadsGroup({
   row,
   log,
@@ -31,50 +28,59 @@ export function ThreadsGroup({
   log: Logger;
   store?: ThreadReactionThresholdsSettingsStore;
 }) {
-  const snapshot = useSnapshot(store?.get ?? emptyRead, store?.subscribe ?? subscribeNever);
-  const aside = snapshot
-    ? [
-        snapshot.count > 0
-          ? t("threadReactionThresholds.count_summary", { n: snapshot.count })
-          : "",
-        snapshot.wait_min > 0 ? waitLabel(snapshot.wait_min) : "",
-      ]
-        .filter(Boolean)
-        .join(" · ") || t("threadReactionThresholds.off")
-    : "";
+  return store ? (
+    <ThreadsSource row={row} log={log} store={store} />
+  ) : (
+    <SourceGroup row={row} log={log} title={t("threadReactions.fold")} aside="" />
+  );
+}
+
+function ThreadsSource({
+  row,
+  log,
+  store,
+}: {
+  row: SwitchRow;
+  log: Logger;
+  store: ThreadReactionThresholdsSettingsStore;
+}) {
+  const snapshot = useSnapshot(store.get, store.subscribe);
+  const aside =
+    [
+      snapshot.count > 0 ? t("threadReactionThresholds.count_summary", { n: snapshot.count }) : "",
+      snapshot.wait_min > 0 ? waitLabel(snapshot.wait_min) : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || t("threadReactionThresholds.off");
 
   return (
     <SourceGroup row={row} log={log} title={t("threadReactions.fold")} aside={aside}>
-      {store && snapshot ? (
-        <>
-          <div className="yui-row">
-            <div className="yui-row__main">
-              <span className="yui-row__label">{t("threadReactionThresholds.count_label")}</span>
-              <span className="yui-row__sub">{t("threadReactionThresholds.count_sub")}</span>
-            </div>
-            <Segment
-              className="yui-reaction-thresholds-count-seg"
-              options={REACTION_COUNTS.map((n) => ({ value: n, label: countLabel(n) }))}
-              value={snapshot.count}
-              label={t("threadReactionThresholds.count_label")}
-              onValueChange={store.setCount}
-            />
-          </div>
-          <div className="yui-row">
-            <div className="yui-row__main">
-              <span className="yui-row__label">{t("threadReactionThresholds.wait_label")}</span>
-              <span className="yui-row__sub">{t("threadReactionThresholds.wait_sub")}</span>
-            </div>
-            <Segment
-              className="yui-reaction-thresholds-wait-seg"
-              options={REACTION_WAITS.map((n) => ({ value: n, label: waitLabel(n) }))}
-              value={snapshot.wait_min}
-              label={t("threadReactionThresholds.wait_label")}
-              onValueChange={store.setWait}
-            />
-          </div>
-        </>
-      ) : undefined}
+      <div className="yui-row">
+        <div className="yui-row__main">
+          <span className="yui-row__label">{t("threadReactionThresholds.count_label")}</span>
+          <span className="yui-row__sub">{t("threadReactionThresholds.count_sub")}</span>
+        </div>
+        <Segment
+          className="yui-reaction-thresholds-count-seg"
+          options={REACTION_COUNTS.map((n) => ({ value: n, label: countLabel(n) }))}
+          value={snapshot.count}
+          label={t("threadReactionThresholds.count_label")}
+          onValueChange={store.setCount}
+        />
+      </div>
+      <div className="yui-row">
+        <div className="yui-row__main">
+          <span className="yui-row__label">{t("threadReactionThresholds.wait_label")}</span>
+          <span className="yui-row__sub">{t("threadReactionThresholds.wait_sub")}</span>
+        </div>
+        <Segment
+          className="yui-reaction-thresholds-wait-seg"
+          options={REACTION_WAITS.map((n) => ({ value: n, label: waitLabel(n) }))}
+          value={snapshot.wait_min}
+          label={t("threadReactionThresholds.wait_label")}
+          onValueChange={store.setWait}
+        />
+      </div>
     </SourceGroup>
   );
 }

@@ -18,8 +18,6 @@ import { NumberRow } from "../number-row";
 import { SourceGroup } from "../source-group";
 import { WorkflowList } from "../workflows/workflow-list";
 
-const subscribeNever = () => () => {};
-
 export function SignalsGroup({
   row,
   log,
@@ -36,27 +34,10 @@ export function SignalsGroup({
   workflowStore: ReturnType<typeof createWorkflowSettings>;
 }) {
   const port = useSyncExternalStore(store.subscribe, () => store.get().port);
-  const level = useSyncExternalStore(threadTurns?.subscribe ?? subscribeNever, () =>
-    threadTurns ? threadTurns.get().level : "off",
-  );
 
   return (
     <SourceGroup row={row} log={log} title={t("agentNotify.fold")} aside={String(port)}>
-      {threadTurns ? (
-        <div className="yui-row">
-          <div className="yui-row__main">
-            <span className="yui-row__label">{t("threadTurns.label")}</span>
-            <span className="yui-row__sub">{t("threadTurns.sub")}</span>
-          </div>
-          <Segment
-            className="yui-threadturns-seg"
-            options={THREAD_TURNS.map((turn) => ({ value: turn, label: t(`threadTurns.${turn}`) }))}
-            value={level}
-            label={t("threadTurns.aria")}
-            onValueChange={threadTurns.setLevel}
-          />
-        </div>
-      ) : null}
+      {threadTurns ? <ThreadTurnsRow store={threadTurns} /> : null}
       <NumberRow
         id="yui-agent-port"
         label={t("reactions.port_label")}
@@ -77,5 +58,24 @@ export function SignalsGroup({
       </div>
       <WorkflowList store={workflowStore} log={log} />
     </SourceGroup>
+  );
+}
+
+function ThreadTurnsRow({ store }: { store: ThreadTurnsSettingsStore }) {
+  const level = useSyncExternalStore(store.subscribe, () => store.get().level);
+  return (
+    <div className="yui-row">
+      <div className="yui-row__main">
+        <span className="yui-row__label">{t("threadTurns.label")}</span>
+        <span className="yui-row__sub">{t("threadTurns.sub")}</span>
+      </div>
+      <Segment
+        className="yui-threadturns-seg"
+        options={THREAD_TURNS.map((turn) => ({ value: turn, label: t(`threadTurns.${turn}`) }))}
+        value={level}
+        label={t("threadTurns.aria")}
+        onValueChange={store.setLevel}
+      />
+    </div>
   );
 }

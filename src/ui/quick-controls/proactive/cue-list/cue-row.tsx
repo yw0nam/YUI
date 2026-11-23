@@ -8,7 +8,10 @@ import { t } from "../../../i18n";
 import { CROSS_SVG } from "../../constants";
 import { setValue } from "../../persona/set-value";
 
-export type CueTrigger = { kind: "time"; field: "time" } | { kind: "minutes"; field: "idle_min" };
+export type CueTrigger<C extends Cue> = {
+  kind: "time" | "minutes";
+  field: Exclude<keyof C, keyof Cue>;
+};
 
 export type CueStore<C extends Cue> = Pick<
   ReturnType<typeof createCueListSettings<C>>,
@@ -22,7 +25,7 @@ export function CueRow<C extends Cue>({
 }: {
   cue: C;
   store: CueStore<C>;
-  trigger: CueTrigger;
+  trigger: CueTrigger<C>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -35,7 +38,7 @@ export function CueRow<C extends Cue>({
   useLayoutEffect(() => {
     const el = row.current;
     if (!el) return;
-    const at = String((cue as unknown as Record<string, unknown>)[trigger.field] ?? "");
+    const at = String(cue[trigger.field] ?? "");
     for (const f of el.querySelectorAll<HTMLInputElement>(".yui-time-input, .yui-num-input")) {
       setValue(f, at);
     }
