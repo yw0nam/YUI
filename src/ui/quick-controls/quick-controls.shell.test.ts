@@ -286,13 +286,14 @@ describe("createQuickControls — construction and disposal", () => {
     }) as never);
   }
 
-  function makeDelegations(initial: DelegationItem[]) {
+  function makeDelegations(initial: DelegationItem[], opts: { throws?: boolean } = {}) {
     const subs = new Set<(items: DelegationItem[]) => void>();
     return {
       get: () => initial,
       subscribe(cb: (items: DelegationItem[]) => void) {
         subs.add(cb);
         return () => {
+          if (opts.throws) throw new Error("delegations unsubscribe failed");
           subs.delete(cb);
         };
       },
@@ -442,15 +443,11 @@ describe("createQuickControls — construction and disposal", () => {
       expect(document.getElementById("yui-hint-tip")).toBeNull();
     });
 
-    it("stops at the first cleanup that throws: dispose() throws and the panel stays mounted", () => {
-      const base = defaultQcArgs(mount);
-      vi.spyOn(base.workflowSettings, "subscribe").mockImplementation((() => () => {
-        throw new Error("workflows unsubscribe failed");
-      }) as never);
-      const qc = createQuickControls({ ...base });
+    it("stops at the first cleanup that throws: the delegations release throws and the panel stays mounted", () => {
+      const qc = build({ delegations: makeDelegations([], { throws: true }) });
       expect(qc.el.isConnected).toBe(true);
 
-      expect(() => qc.dispose()).toThrow("workflows unsubscribe failed");
+      expect(() => qc.dispose()).toThrow("delegations unsubscribe failed");
       expect(qc.el.isConnected).toBe(true);
     });
   });

@@ -24,16 +24,6 @@ vi.mock("./perms/perms-page", () => ({
     dispose: () => {},
   }),
 }));
-vi.mock("./switches/switch-rows", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./switches/switch-rows")>()),
-  bindSwitchRows: () => ({ reflect: rec("switchRows", "reflect"), dispose: () => {} }),
-}));
-vi.mock("./sections/reactions/reactions-section", () => ({
-  createReactionsSection: () => ({ reflect: rec("reactions", "reflect"), dispose: () => {} }),
-}));
-vi.mock("./sections/screen/screen-section", () => ({
-  createScreenSection: () => ({ reflect: rec("screen", "reflect"), dispose: () => {} }),
-}));
 vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
   createAgentSection: () => ({
@@ -102,7 +92,7 @@ describe("createQuickControls — open order", () => {
     vi.restoreAllMocks();
   });
 
-  it("redraws every section, refetches the voice list, then loads the monitors", () => {
+  it("redraws every remaining section, refetches the voice list, then loads the monitors", () => {
     const qc = createQuickControls({
       ...defaultQcArgs(mount),
       transcript: createChatHistoryStore(),
@@ -112,9 +102,6 @@ describe("createQuickControls — open order", () => {
     qc.open();
 
     expect(order).toEqual([
-      "switchRows.reflect",
-      "reactions.reflect",
-      "screen.reflect",
       "agent.reflect",
       "connectionTab.refresh",
       "delegationFeed.sync",
