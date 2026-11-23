@@ -14,6 +14,7 @@ import {
   type Ref,
   useContext,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -34,7 +35,9 @@ const FOCUS_MOVING_KEYS = new Set([
 
 type Handle = ReturnType<typeof Tooltip.createHandle<string>>;
 
-const HandleContext = createContext<Handle | null>(null);
+const HandleContext = createContext<{ handle: Handle; keyboard: { current: boolean } } | null>(
+  null,
+);
 
 export interface TooltipHostHandle {
   close(): void;
@@ -67,7 +70,7 @@ export function TooltipHost({
   }, []);
 
   return (
-    <HandleContext.Provider value={handle}>
+    <HandleContext.Provider value={{ handle, keyboard }}>
       {children}
       <Tooltip.Root
         handle={handle}
@@ -97,11 +100,18 @@ export function TooltipHost({
 
 /** Makes `children`, a button or a link, the trigger of a tip reading `text`; it keeps its own props and ref. */
 export function Tip({ text, children }: { text: string; children: ReactElement<object> }) {
-  const handle = useContext(HandleContext);
-  if (!handle) return children;
+  const host = useContext(HandleContext);
+  const id = useId();
+  if (!host) return children;
+  const { handle, keyboard } = host;
   const own = children.props as { ref?: Ref<HTMLButtonElement> };
+  // After a focus-moving key, focus opens the tip even where the browser does not mark it :focus-visible.
+  const onFocus = (): void => {
+    if (keyboard.current) handle.open(id);
+  };
   return (
     <Tooltip.Trigger
+      id={id}
       handle={handle}
       payload={text}
       delay={OPEN_DELAY_MS}
@@ -109,7 +119,10 @@ export function Tip({ text, children }: { text: string; children: ReactElement<o
       render={(props, state) =>
         cloneElement(
           children,
-          mergeProps(own, props, { "aria-describedby": state.open ? TIP_ID : undefined }),
+          mergeProps(own, props, {
+            onFocus,
+            "aria-describedby": state.open ? TIP_ID : undefined,
+          }),
         )
       }
     />
