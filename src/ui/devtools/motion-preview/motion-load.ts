@@ -1,4 +1,7 @@
+import { createLogger } from "../../../logger";
 import type { MotionView } from "./motion-preview";
+
+const log = createLogger("motion-load");
 
 export type LoadMotionPreview = (view: MotionView) => Promise<{ dispose(): void }>;
 
@@ -53,7 +56,8 @@ export function createMotionLoad(load: LoadMotionPreview): MotionLoad {
           }
           settle();
         },
-        () => {
+        (err) => {
+          log.error("motion_preview_load_failed", { error: String(err) });
           if (!disposed) set("failed");
           settle();
         },
