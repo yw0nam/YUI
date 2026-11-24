@@ -1,6 +1,7 @@
 /** Composes the travel frame, the five locomotion loops and the window sources into one handle. */
 import { wireClimber } from "../../ambient/locomotion/climb/wire-climb";
 import { wireFaller } from "../../ambient/locomotion/fall/wire-fall";
+import { createHolds, type HoldOptions } from "../../ambient/locomotion/hold/holds";
 import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { createSitter, type Sitter } from "../../ambient/locomotion/sitter";
 import { wireTravelFrame } from "../../ambient/locomotion/travel/wire-travel-frame";
@@ -73,11 +74,26 @@ export function wireLocomotion(deps: {
   setDragging(dragging: boolean): void;
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
+  /** Settles once a travel ended and a holder a drag let go has finished letting go. */
   abortTravel(): Promise<void>;
-  /** Holds her still: cancels the loops and keeps a stroll, climb or perch walk from starting. */
-  hold(on: boolean): void;
-  /** Parks the real window over her position and the `via` origins; `onAbort` runs when an agent move ends it. */
-  widen(via: Array<{ x: number; y: number }>, onAbort: () => void): Promise<Travel>;
+  /**
+   * Holds her still while any holder holds her: cancels the loops and keeps a stroll, climb or
+   * perch walk from starting; `opts` declares what else the hold does.
+   */
+  hold(holder: string, on: boolean, opts?: HoldOptions): void;
+  /** Parks the real window over her position and the `via` origins. */
+  widen(via: Array<{ x: number; y: number }>): Promise<Travel>;
+  /** Leaves her seat on a window, as an agent move does. */
+  release(): void;
+  drop(opts: { landOnSeam: true }): Promise<void>;
+  /** Calls `cb` after each Ctrl+wheel resize of her window; returns its disposer. */
+  onResizeApplied(cb: () => void): () => void;
+  /** Settles once the real window is wired. */
+  ready: Promise<void>;
+  /** Whether a travel parks her real window right now. */
+  isTravelling(): boolean;
+  /** Calls `cb` after each holder lets go of her; returns its disposer. */
+  onHoldReleased(cb: () => void): () => void;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     frameWindow(): FrameWindow;
@@ -107,10 +123,12 @@ export function wireLocomotion(deps: {
 
   // Set once the drop source exists — the travel frame pauses its keep-on-screen guard
   // while it parks the window itself.
-  let windowSourcesRef: { setKeepOnScreenPaused(paused: boolean): void } | null = null;
+  let windowSourcesRef: {
+    setKeepOnScreenPaused(holder: "travel" | "hold", paused: boolean): void;
+  } | null = null;
   const travelFrame = wireTravelFrame({
     renderer,
-    setKeepOnScreenPaused: (paused) => windowSourcesRef?.setKeepOnScreenPaused(paused),
+    setKeepOnScreenPaused: (paused) => windowSourcesRef?.setKeepOnScreenPaused("travel", paused),
     log,
   });
   register(travelFrame.dispose);
@@ -118,8 +136,11 @@ export function wireLocomotion(deps: {
   // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
   // stroll at once; an ordinary turn walks on. A hold keeps her still the way a drag does.
   let dragging = false;
-  let held = false;
-  let onWidenAbort: (() => void) | null = null;
+  const holds = createHolds({
+    pauseKeepOnScreen: (paused) => windowSourcesRef?.setKeepOnScreenPaused("hold", paused),
+  });
+  const held = holds.held;
+  const resizeListeners = new Set<() => void>();
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -129,7 +150,7 @@ export function wireLocomotion(deps: {
     getDescendConfig: () => getConfig().avatar.descend,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || held,
+    isDragging: () => dragging || held(),
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -183,16 +204,18 @@ export function wireLocomotion(deps: {
       climberRef?.cancel();
       percherRef?.cancel();
       sitter.cancel();
-      onWidenAbort?.();
-      onWidenAbort = null;
+      const holdsLetGo = holds.abort("agent");
       // A cancelled climb or stroll may still be unparking its travel.
-      return travelFrame.abort();
+      return Promise.all([holdsLetGo, travelFrame.abort()]).then(() => {});
     },
     onDragMiss: () => faller.drop({ landOnSeam: true, byUser: true }),
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
-    onResizeApplied: (bounds) => deps.windowGeometry?.onResizeApplied(bounds),
+    onResizeApplied: (bounds) => {
+      if (!holds.keepsGeometry()) deps.windowGeometry?.onResizeApplied(bounds);
+      for (const cb of resizeListeners) cb();
+    },
     onDragReleased: async () => {
       await deps.windowGeometry?.onDragReleased();
     },
@@ -209,7 +232,7 @@ export function wireLocomotion(deps: {
     getJumpConfig: () => getConfig().avatar.jump,
     getFallConfig: () => fallConfigFor(getConfig().avatar.fall, fallSettings.get().enabled),
     getMotionKind: (id) => getConfig().motions[id]?.kind,
-    isBusy: () => held || dispatcher.isPipelineBusy(),
+    isBusy: () => held() || dispatcher.isPipelineBusy(),
     walker,
     sitter,
     dropSource: windowSources,
@@ -236,7 +259,7 @@ export function wireLocomotion(deps: {
     getWalkConfig: () => getConfig().avatar.walk,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || held,
+    isDragging: () => dragging || held(),
     isBusy: dispatcher.isPipelineBusy,
     walker,
     faller,
@@ -264,18 +287,24 @@ export function wireLocomotion(deps: {
     dropSource: windowSources,
     setDragging(next) {
       dragging = next;
+      if (next) void holds.abort("drag");
     },
     cancel,
-    abortTravel: () => travelFrame.abort(),
-    hold(on) {
-      if (on) cancel();
-      else onWidenAbort = null;
-      held = on;
+    async abortTravel() {
+      await travelFrame.abort();
+      await holds.lettingGo();
     },
-    async widen(via, onAbort) {
+    hold(holder, on, opts) {
+      if (!on) {
+        holds.release(holder);
+        return;
+      }
+      cancel();
+      holds.take(holder, opts);
+    },
+    async widen(via) {
       const win = travelFrame.getWindow();
       const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-      onWidenAbort = onAbort;
       // She ends where she starts: the travel only parks the window over the via origins.
       return travelFrame.travel.begin({ x: pos.x / scale, y: pos.y / scale }, via);
     },
@@ -283,6 +312,15 @@ export function wireLocomotion(deps: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
     },
+    release: () => windowSources.release(),
+    drop: (opts) => faller.drop(opts),
+    onResizeApplied(cb) {
+      resizeListeners.add(cb);
+      return () => resizeListeners.delete(cb);
+    },
+    ready: travelFrame.ready,
+    isTravelling: () => travelFrame.travel.current() !== null,
+    onHoldReleased: holds.onReleased,
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };

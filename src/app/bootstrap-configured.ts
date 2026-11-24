@@ -14,6 +14,7 @@ import { threadEventId } from "../dispatcher/sources/threads/thread-turns";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
 import type {
   CharacterAddressed,
+  SettingsBridge,
   UserTurnDone,
   UserTurnRouted,
 } from "../io/bridge/settings-bridge";
@@ -49,6 +50,7 @@ import { wireDndRoot } from "./dnd/wire-dnd-root";
 import { wireTrayDnd } from "./dnd/wire-tray-dnd";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
+import { wireComeAlong } from "./stage/wire-come-along";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
@@ -99,6 +101,12 @@ interface Phase1Handles extends TurnCorePhase1 {
   menuHost: CharacterMenuHost;
   /** Subscribes to the unified chat window's messages routed to a preset. */
   onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
+  /** Subscribes to every settings window's stage slot. */
+  onSettingsStage: SettingsBridge["onSettingsStage"];
+  /** Asks every settings window to send its stage slot again. */
+  emitSettingsStageAsk: SettingsBridge["emitSettingsStageAsk"];
+  /** Settles once this window's bridge listeners are in place. */
+  bridgeListening: SettingsBridge["listening"];
   isDisposed(): boolean;
 }
 
@@ -359,6 +367,20 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     core.setStrolling(locomotion.walker);
+    wireComeAlong({
+      boundId: phase1.menuHost.boundId,
+      onSettingsStage: phase1.onSettingsStage,
+      emitSettingsStageAsk: phase1.emitSettingsStageAsk,
+      bridgeListening: phase1.bridgeListening,
+      locomotion,
+      peek: {
+        active: () => peekState?.active() ?? false,
+        exit: () => peekState?.exit() ?? Promise.resolve(),
+      },
+      renderer,
+      hitTest,
+      register,
+    });
 
     await wireStageGestures({
       stage,

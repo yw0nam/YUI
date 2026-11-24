@@ -1,0 +1,30 @@
+/** The pet window's dock into its own settings window: the shell's link commands and its close event. */
+
+/** Links her window into its settings window; resolves whether a native child link is in effect. */
+export async function attachDock(): Promise<boolean> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<boolean>("window_dock_attach");
+}
+
+/** Unlinks her window from its settings window and gives back her window level. */
+export async function detachDock(): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("window_dock_detach");
+}
+
+/** Moves her window to a physical origin, the settings window's own px when it follows another scale. */
+export async function setPetPositionPhysical(x: number, y: number): Promise<void> {
+  const [{ getCurrentWindow }, { PhysicalPosition }] = await Promise.all([
+    import("@tauri-apps/api/window"),
+    import("@tauri-apps/api/dpi"),
+  ]);
+  await getCurrentWindow().setPosition(new PhysicalPosition(x, y));
+}
+
+/** Calls `cb` when the settings window labelled `label` closes or minimises, after the shell unlinked her; settles with the disposer once listening. */
+export async function onSettingsStageEnded(label: string, cb: () => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string>("yui://settings-stage-ended", (event) => {
+    if (event.payload === label) cb();
+  });
+}

@@ -22,6 +22,8 @@ export interface BridgeTransport {
   emit(name: string, payload?: unknown): void | Promise<void>;
   /** Returns a disposer that detaches this listener. */
   listen(name: string, cb: (payload: unknown) => void): () => void;
+  /** Settles once every listener asked for so far is in place; absent for a synchronous transport. */
+  listening?(): Promise<void>;
 }
 
 /** Tauri transport. listen returns Promise<UnlistenFn>, so wrap it in a synchronous disposer. */
@@ -29,6 +31,7 @@ function createTauriTransport(): BridgeTransport {
   const eventMod = import("@tauri-apps/api/event");
   // Tauri runs each emit as its own async task, so each emit waits for the previous one to keep send order.
   let sending: Promise<void> = Promise.resolve();
+  const registering = new Set<Promise<unknown>>();
   return {
     emit(name, payload) {
       sending = sending
@@ -40,7 +43,7 @@ function createTauriTransport(): BridgeTransport {
     listen(name, cb) {
       let unlisten: (() => void) | null = null;
       let disposed = false;
-      void eventMod
+      const registered = eventMod
         .then((m) => m.listen(name, (event) => cb(event.payload)))
         .then((un) => {
           if (disposed) {
@@ -49,12 +52,17 @@ function createTauriTransport(): BridgeTransport {
           }
           unlisten = un;
         })
-        .catch((err) => log.warn("tauri_listen_failed", { error: String(err) }));
+        .catch((err) => log.warn("tauri_listen_failed", { error: String(err) }))
+        .finally(() => registering.delete(registered));
+      registering.add(registered);
       return () => {
         disposed = true;
         unlisten?.();
         unlisten = null;
       };
+    },
+    async listening() {
+      await Promise.all([...registering]);
     },
   };
 }
@@ -128,6 +136,8 @@ interface BridgeCore {
     cb: (payload: T, from: WindowKind) => void,
     opts?: { scoped?: boolean },
   ): () => void;
+  /** Settles once every listener registered so far is in place. */
+  listening(): Promise<void>;
   dispose(): void;
 }
 
@@ -179,6 +189,8 @@ export function createBridgeCore(
       disposers.add(disposer);
       return disposer;
     },
+
+    listening: () => t.listening?.() ?? Promise.resolve(),
 
     dispose() {
       for (const d of [...disposers]) d();

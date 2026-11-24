@@ -41,7 +41,7 @@ export function createMenuFrame(deps: {
       { x: centre - plan.reachLeft, y },
       { x: centre + plan.reachRight - width, y },
     ];
-    travel = await locomotion.widen(via, deps.onAbort);
+    travel = await locomotion.widen(via);
     // Her UI keeps laying out in her own box inside the widened window.
     root.style.setProperty("--yui-box-left", `${x - Math.min(x, ...via.map((p) => p.x))}px`);
     root.style.setProperty("--yui-box-width", `${width}px`);
@@ -56,12 +56,12 @@ export function createMenuFrame(deps: {
     } finally {
       root.style.removeProperty("--yui-box-left");
       root.style.removeProperty("--yui-box-width");
-      locomotion.hold(false);
+      locomotion.hold("menu", false);
     }
   }
 
   async function place(widths: MenuWidths): Promise<MenuPlacement> {
-    locomotion.hold(true);
+    locomotion.hold("menu", true, { onAbort: deps.onAbort });
     let fold: Fold | null = null;
     try {
       // A cancelled stroll or climb may still be unparking its travel.

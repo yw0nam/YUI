@@ -34,7 +34,7 @@ function wired(
   const locomotion = {
     hold: vi.fn(),
     abortTravel: vi.fn(async () => {}),
-    widen: vi.fn(async (_via: unknown, _onAbort: () => void) => ({ win: {} as never, end })),
+    widen: vi.fn(async (_via: unknown) => ({ win: {} as never, end })),
     frame: {
       frameWindow: vi.fn(frameWindow) as never,
       listMonitors: vi.fn(async () => [
@@ -113,14 +113,13 @@ it("opens the menu on a right-click on her, widened around her and holding her s
 
   expect(event.defaultPrevented).toBe(true);
   await vi.waitFor(() => expect(document.activeElement).toBe(talk()));
-  expect(locomotion.hold).toHaveBeenCalledExactlyOnceWith(true);
-  expect(locomotion.widen).toHaveBeenCalledWith(
-    [
-      { x: 300, y: 517 },
-      { x: 300, y: 517 },
-    ],
-    expect.any(Function),
-  );
+  expect(locomotion.hold).toHaveBeenCalledExactlyOnceWith("menu", true, {
+    onAbort: expect.any(Function),
+  });
+  expect(locomotion.widen).toHaveBeenCalledWith([
+    { x: 300, y: 517 },
+    { x: 300, y: 517 },
+  ]);
   // Her own box inside the widened window, which the UI layer and the status pill lay out in.
   expect([box("left"), box("width")]).toEqual(["0px", "400px"]);
 });
@@ -140,7 +139,7 @@ it("restores the window, unpins the overlay and releases her before a closing pi
   overlay.querySelector<HTMLButtonElement>('[data-id="settings"]')?.click();
 
   await vi.waitFor(() => expect(order).toEqual(["end", "settings"]));
-  expect(locomotion.hold).toHaveBeenLastCalledWith(false);
+  expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false);
   expect([box("left"), box("width")]).toEqual(["", ""]);
 });
 
@@ -148,12 +147,12 @@ it("closes when an agent move ends the widened window", async () => {
   const { locomotion, rightClick, talk } = wired(tauriWindow);
   rightClick();
   await vi.waitFor(() => expect(talk()).not.toBeNull());
-  const onAbort = locomotion.widen.mock.calls[0]?.[1];
+  const onAbort = locomotion.hold.mock.calls[0]?.[2]?.onAbort;
 
   onAbort?.();
 
   await vi.waitFor(() => expect(talk()).toBeNull());
-  expect(locomotion.hold).toHaveBeenLastCalledWith(false);
+  expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false);
 });
 
 it("opens in the window as it is where there is no OS window to widen", async () => {
@@ -178,6 +177,6 @@ it("releases her and stays closed when the menu cannot be placed", async () => {
 
   rightClick();
 
-  await vi.waitFor(() => expect(locomotion.hold).toHaveBeenLastCalledWith(false));
+  await vi.waitFor(() => expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false));
   expect(talk()).toBeNull();
 });

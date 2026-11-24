@@ -81,7 +81,7 @@ fn order_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
 
 /// Runs `f` on the main thread with the window's NSWindow, blocking until it returns.
 #[cfg(target_os = "macos")]
-fn with_ns_window<R: Runtime, T: Send + 'static>(
+pub(crate) fn with_ns_window<R: Runtime, T: Send + 'static>(
     window: &WebviewWindow<R>,
     f: impl FnOnce(&objc2_app_kit::NSWindow) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {

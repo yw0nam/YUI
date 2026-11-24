@@ -10,6 +10,8 @@ import { createRoot } from "react-dom/client";
 import { StageFoot, type StageFootProps } from "./stage-foot";
 
 export function createSettingsStage(deps: StageFootProps & { mount: HTMLElement }): {
+  /** The stage column, whose top slot her window docks into. */
+  el: HTMLElement;
   dispose(): void;
 } {
   const { mount, ...foot } = deps;
@@ -20,6 +22,7 @@ export function createSettingsStage(deps: StageFootProps & { mount: HTMLElement 
   // Rendered at once, so the foot's subscriptions are in place before a change can land.
   flushSync(() => root.render(createElement(StageFoot, foot)));
   return {
+    el,
     dispose() {
       root.unmount();
       el.remove();

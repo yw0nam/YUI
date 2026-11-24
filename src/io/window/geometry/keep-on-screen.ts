@@ -69,8 +69,8 @@ export function keepOnScreen(
   return nearest;
 }
 
-/** Who pauses the guard: a travel while it parks the window, a perch follow while it carries it. */
-type KeepOnScreenHolder = "travel" | "perch_follow";
+/** Who pauses the guard: a travel parking the window, a perch follow carrying it, a locomotion hold. */
+type KeepOnScreenHolder = "travel" | "perch_follow" | "hold";
 
 /** The guard's pause: held while any holder holds it, and usable before the guard attaches. */
 export function createKeepOnScreenPause() {

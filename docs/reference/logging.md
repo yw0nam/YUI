@@ -248,6 +248,32 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `thread-reaction` | `reaction_tap.unlisted` | `cause` | The Threads window never got listed under a tap; the tap is dropped after ten tries (`debug` level). |
 | `thread-reaction` | `reaction_failed` | `cause`, `threadId?`, `error` | A reaction threw (`warn` level). |
 
+## Come-along
+
+`ambient/come-along/come-along.ts` (namespace `come-along`) and `app/stage/wire-come-along.ts` (namespace `wire-come-along`) log in each pet window. `io/window/geometry/stage-slot.ts` (namespace `stage-slot`) logs in each settings window. `src-tauri/src/window_dock.rs` logs the native link, with no namespace.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `come-along` | `come_along_docked` | `native`, `slot`, `feet`, `origin`, `size` | She docked on the stage; `native` is whether the shell linked her as a child window, `feet` her feet's y in her window, `origin` and `size` her window's logical frame (`info` level). |
+| `come-along` | `come_along_walk` | `from`, `to`, `ms`, `wallMs`, `frames` | A walk onto the stage or home ended; `ms` is the curve's time and `wallMs` the time it took, longer while the renderer was paused (`info` level). |
+| `come-along` | `come_along_placed` | `slot`, `origin`, `size`, `px?` | A new slot moved her; `px` marks a follow in the settings window's physical px (`info` level). |
+| `come-along` | `come_along_stayed` | none | A drag or an agent command ran when the settings window showed, so she stays for that session (`info` level). |
+| `come-along` | `come_along_taken` | none | A drag or an agent move took her off the stage or her walk (`info` level). |
+| `come-along` | `come_along_home` | none | She arrived home after the window minimised or closed (`info` level). |
+| `come-along` | `come_along_home_gone` | `spot` | No monitor holds her spot any more, so she walks to the nearest floor (`info` level). |
+| `come-along` | `dock_attach_failed` | `error` | `window_dock_attach` rejected; she follows the slot herself and stays above other windows (`warn` level). |
+| `come-along` | `dock_detach_failed` | `error` | `window_dock_detach` rejected (`warn` level). |
+| `come-along` | `come_along_move_failed` | `error` | A walk step's move threw (`warn` level). |
+| `come-along` | `come_along_place_failed` | `error` | Placing her on a new slot threw (`warn` level). |
+| `come-along` | `come_along_store_failed` | `error` | Session storage refused her home or opt-out, so a reload forgets it (`warn` level). |
+| `wire-come-along` | `come_along_failed` | `error` | A start or a walk home threw; she stays where she is and the next slot starts afresh (`warn` level). |
+| `stage-slot` | `stage_slot_read_failed` | `error` | Reading the window's position, scale or minimised state threw; no slot is sent (`warn` level). |
+| `stage-slot` | `stage_slot_listen_failed` | `error` | Listening to the window's moves or resizes failed (`warn` level). |
+| Rust `window_dock.rs` | `window_dock_detach_failed` | `window`, `error` | Unlinking the pet window `window` when its settings window closes or miniaturizes failed (`warn` level). |
+| Rust `window_dock.rs` | `settings_stage_ended_emit_failed` | `window`, `error` | Telling the pet windows that the settings window `window` closed or miniaturized failed (`warn` level). |
+| Rust `window_dock.rs` | `window_dock_hide_unlink_failed` | `window`, `error` | Unlinking a docked window before the tray hides it failed (`warn` level). |
+| Rust `window_dock.rs` | `window_dock_show_relink_failed` | `window`, `error` | Linking a docked window again after the tray shows it failed (`warn` level). |
+
 ## Do-not-disturb tray
 
 `app/dnd/wire-tray-dnd.ts` logs through the `bootstrap` namespace, in main's pet window. `src-tauri/src/tray.rs` logs the tray check's clicks. Rust events carry no namespace.

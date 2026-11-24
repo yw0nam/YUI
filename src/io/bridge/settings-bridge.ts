@@ -39,6 +39,17 @@ export interface SettingsPageRequest {
   focus?: SettingsFocus;
 }
 
+/** The stage's slot where her window docks, in screen logical points, and the settings window's scale. */
+export interface StageSlot extends ScreenRect {
+  scale: number;
+}
+
+/** A settings window's stage slot for the pet window of `preset` (null: main's); null while minimised. */
+export interface SettingsStage {
+  preset: string | null;
+  slot: StageSlot | null;
+}
+
 /** One character's reply named another open character; emitted once that reply's playback ended. */
 export interface CharacterAddressed {
   /** The speaker's preset id. */
@@ -236,6 +247,25 @@ export const channels = {
       else if (isSettingsPage(page)) deliver({ preset, page, ...(focus ? { focus } : {}) });
     },
   },
+  /** A settings window's stage slot; delivered to every window, pet windows filter on `preset`. */
+  SettingsStage: {
+    name: "yui://settings-stage",
+    scope: "shared",
+    read(stage, deliver: (stage: SettingsStage) => void) {
+      const { preset, slot } = (stage ?? {}) as Record<string, unknown>;
+      if (preset !== null && !isString(preset)) return;
+      if (slot === null) {
+        deliver({ preset, slot });
+        return;
+      }
+      const { x, y, width, height, scale } = (slot ?? {}) as Record<string, unknown>;
+      const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+      if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
+      deliver({ preset, slot: { x, y, width, height, scale } as StageSlot });
+    },
+  },
+  /** A pet window asking every settings window to send its stage slot again. */
+  SettingsStageAsk: { name: "yui://settings-stage-ask", scope: "shared" },
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
   OpenDevtools: { name: "yui://open-devtools", scope: "shared" },
   /** Main's Threads chip opening the Threads window. */
@@ -444,12 +474,20 @@ export const channels = {
   },
 } satisfies Record<string, Channel>;
 
-export type SettingsBridge = ChannelMethods<typeof channels> & { dispose(): void };
+export type SettingsBridge = ChannelMethods<typeof channels> & {
+  /** Settles once every listener registered so far is in place. */
+  listening(): Promise<void>;
+  dispose(): void;
+};
 
 export function createSettingsBridge(
   transport: BridgeTransport | undefined,
   opts: { windowKind: WindowKind },
 ): SettingsBridge {
   const core = createBridgeCore(transport, opts.windowKind);
-  return { ...createChannelMethods(core, channels), dispose: core.dispose };
+  return {
+    ...createChannelMethods(core, channels),
+    listening: core.listening,
+    dispose: core.dispose,
+  };
 }
