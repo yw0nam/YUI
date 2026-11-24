@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { act, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { keyboardFocus, shownTip } from "../tooltip/tip-test-helpers";
+import { TooltipHost } from "../tooltip/tooltip";
 import { Segment, type SegmentProps } from "./segment";
 
 // React's act() only flushes in a test environment that says so.
@@ -143,5 +145,33 @@ describe("Segment", () => {
     expect(radios[2].getAttribute("aria-checked")).toBe("true");
     expect(radios[2].tabIndex).toBe(0);
     expect(radios[1].tabIndex).toBe(-1);
+  });
+
+  const GLYPHS = [
+    { value: "w", label: <svg aria-hidden="true" />, ariaLabel: "2 waiting", tip: "Waiting" },
+    { value: "a", label: <svg aria-hidden="true" />, ariaLabel: "5 in all", tip: "All" },
+  ];
+
+  it("names a glyph-labelled option by its ariaLabel", () => {
+    const { queryAllByRole } = render(
+      <Segment label="Filter" options={GLYPHS} value="w" onValueChange={() => {}} />,
+    );
+
+    expect(queryAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual([
+      "2 waiting",
+      "5 in all",
+    ]);
+  });
+
+  it("opens an option's tip on keyboard focus of its radio", () => {
+    const { getAllByRole } = render(
+      <TooltipHost>
+        <Segment label="Filter" options={GLYPHS} value="w" onValueChange={() => {}} />
+      </TooltipHost>,
+    );
+
+    keyboardFocus(getAllByRole("radio")[1]);
+
+    expect(shownTip()).toBe("All");
   });
 });
