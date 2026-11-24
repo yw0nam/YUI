@@ -278,7 +278,7 @@ A tool the client runs itself: one it declares to the backend (generate_express,
 _Avoid_: in-app tool, local tool
 
 **Producer**:
-An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks).
+An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks), or a plugin's MCP server that sends the signals notification.
 _Avoid_: sender, emitter
 
 ### Configuration

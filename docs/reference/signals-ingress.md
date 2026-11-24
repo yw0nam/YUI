@@ -107,7 +107,7 @@ There is no fallback timestamp.
 
 ### The event_id field
 
-A group replaces a buffered group with the same `event_id` in the same buffer, at its position. A group with the same `event_id` in another buffer stays. A delivered group is not compared.
+A group replaces a buffered group with the same `event_id` and the same sending plugin in the same buffer, at its position; a group without a plugin matches only another without one. A group with the same `event_id` in another buffer, or from another origin, stays. A delivered group is not compared.
 
 ### The label field
 
@@ -193,7 +193,9 @@ A YUI-hosted MCP server sends a signal group as the notification `notifications/
 
 The host stamps the payload with server time and the plugin's id, then emits it to `main` the way the bare route does. It works with any ingress port and with the ingress off. The 64 KiB body limit is HTTP-only.
 
-A refused notification whose `params` decoded is one `signals refused: <reason>` line in the plugin log. A notification sent before the handshake completes, or after the plugin is turned off, is dropped without a line. External signals does not gate the group ([Disabled signals](#disabled-signals)).
+A refused notification whose `params` is absent, `null`, or an object is one `signals refused: <reason>` line in the plugin log; scalar or array `params` are refused while the frame is decoded and leave no line.
+
+A notification sent before the handshake completes, or after the plugin is turned off, is dropped without a line. External signals does not gate the group ([Disabled signals](#disabled-signals)).
 
 ## Relations
 

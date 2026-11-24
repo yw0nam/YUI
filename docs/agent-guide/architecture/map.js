@@ -1098,7 +1098,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. External signals gates every group without a plugin id: while it is off such a group is dropped on arrival, offer and restore, stays out of every catch-up, timer firing and drain, and is purged on the next OS idle tick, while a plugin's group is ungated; holds and withdraws match only groups without a plugin id. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id and the same plugin id (or none on both), and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. External signals gates every group without a plugin id: while it is off such a group is dropped on arrival, offer and restore, stays out of every catch-up, timer firing and drain, and is purged on the next OS idle tick, while a plugin's group is ungated; hold, fireHeld and withdraw match only batched groups without a plugin id. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -2615,6 +2615,14 @@ globalThis.YUI_MAP =
       "from": "plugin-mcp-server",
       "to": "shell/mcp-host",
       "carries": "notifications/io.github.yw0nam.yui/signals {signals, envelope}",
+      "kind": "stdio",
+      "transport": "shared"
+    },
+    {
+      "id": "mcp-host-plugin-server",
+      "from": "shell/mcp-host",
+      "to": "plugin-mcp-server",
+      "carries": "tools/list at start, tools/call with the io.github.yw0nam.yui/preset _meta, notifications/cancelled",
       "kind": "stdio",
       "transport": "shared"
     },

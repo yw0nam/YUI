@@ -132,7 +132,7 @@ The group goes to the main window's character and becomes a turn under the usual
 - Send after the client's `notifications/initialized`. A notification sent before the handshake completes is dropped.
 - A notification sent before the main window listens, early in app start, is lost.
 - A notification that arrives after the plugin is turned off is dropped.
-- A notification whose `params` decoded but break a rule adds a `signals refused: <reason>` line to the plugin log. One whose `params` is not an object never reaches that check and leaves no line.
+- A notification whose `params` is absent, `null`, or an object that breaks a rule adds a `signals refused: <reason>` line to the plugin log. Scalar or array `params` are refused while the frame is decoded, before that check, and leave no line.
 
 ## Test locally
 
