@@ -1229,6 +1229,19 @@ describe("signals_source — a plugin's group is ungated", () => {
     expect(s.src.drain()).toEqual([ungated]);
   });
 
+  it("withdraw removes the buffered Thread group and keeps a plugin's group with the same event id and event type", async () => {
+    const s = setup(() => true);
+    await s.src.start();
+    const thread: SignalGroup = {
+      envelope: { ...ENVELOPE, event_id: "thread:t1", event_type: "thread.ask" },
+      items: [{ thread_id: "t1" }],
+    };
+    s.emitInbox(fromPlugin(thread.envelope, [{ id: 2 }]));
+    s.src.offer(thread);
+    s.src.withdraw("thread:t1", "thread.ask");
+    expect(s.src.drain()).toEqual([{ envelope: thread.envelope, items: [{ id: 2 }], plugin: "p" }]);
+  });
+
   it("a plugin's group with a held Thread group's event id is neither held nor fired with it, and both stay buffered", async () => {
     const s = setup(() => true, fakePipelineBusy(true));
     await s.src.start();
