@@ -684,7 +684,8 @@ YUI/
         use-snapshot.ts              # Binds such a source to a component
         use-notify.ts                # Re-renders a component on each notify of a source it reads itself
       settings-stage/                # The settings window's 400px stage on its left, beside the panel
-        settings-stage.ts            # The stage's factory: mounts it first in the window's row
+        settings-stage.ts            # The stage's factory: mounts it first in the window's row and re-renders its foot for the window's own character
+        stage-foot.tsx               # Her name over her transport and window state
         settings-stage.css           # The stage column on the stage ground
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: creates every page's controller, renders the panel's one React root, and runs the open, close and teardown of its pages in order
@@ -791,6 +792,7 @@ YUI/
           preset-header.tsx          # The preset header: the character header that picks the preset to edit (`?edit=`), the manage button and its popover, the edited preset's note, the relation line and the photo dialog
           edited-preset.ts           # The preset the window edits and its registry state, held once it leaves the registry, which hands the window on
           character-header.tsx       # The settings window's header: every preset with its face, transport and window state; a click edits it
+          character-meta.ts          # A character's window state and its "{transport} · {state}" line, shared with the settings stage
           preset-manage.tsx          # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
           preset-scope.tsx           # The edited preset's name: each page's scope line, only the edited character or every character, and the rail's character heading
           use-prepended.ts           # Keeps a vanilla element, a face or a glyph, first inside a React-rendered host

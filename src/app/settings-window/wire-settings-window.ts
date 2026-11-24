@@ -179,7 +179,13 @@ export async function wireSettingsWindow(deps: {
   const openOnQuickStart = opensOnQuickStart(shared.getEndpoints());
 
   // The window is a row: the stage, then the panel's host.
-  const stage = createSettingsStage({ mount: app });
+  const stage = createSettingsStage({
+    mount: app,
+    presetRegistry,
+    boundId,
+    getDefaultChatApi: quickControlsConfigDefaults(config).getDefaultChatApi,
+    onSettingsChanged: bridge.onSettingsChanged,
+  });
   const panelHost = app.appendChild(document.createElement("div"));
   panelHost.className = "yui-settings-panel";
 

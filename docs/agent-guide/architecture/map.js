@@ -1235,7 +1235,7 @@ globalThis.YUI_MAP =
       "id": "ui/settings-stage",
       "module": "settings",
       "label": "settings stage",
-      "role": "The settings window's 400px stage on its left, beside the panel, on the stage ground.",
+      "role": "The settings window's 400px stage on its left, beside the panel, on the stage ground. Its foot names the window's own character (the bound one, else main, never the one the panel edits) over its transport and window state in the character header's words, and folds to one line in a window under 680px tall; it re-reads the registry on a change, the stored transport on a storage event, another window's settings change and focus, and its words on a new language.",
       "paths": [
         "src/ui/settings-stage"
       ]
@@ -4276,7 +4276,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-mount",
       "from": "app/settings-window",
       "to": "ui/settings-stage",
-      "carries": "createSettingsStage({ mount }) → the stage first in the window's row, the panel's host after it; dispose on close",
+      "carries": "createSettingsStage({ mount, presetRegistry, boundId, getDefaultChatApi, onSettingsChanged }) → the stage first in the window's row, the panel's host after it; dispose on close",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
