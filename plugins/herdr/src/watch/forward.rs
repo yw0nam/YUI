@@ -60,11 +60,16 @@ fn home_args(target: &str) -> Vec<String> {
 }
 
 /// Never ClearAllForwardings (it clears the -L) nor ExitOnForwardFailure (a user's RemoteForward kills ssh).
+/// Keepalives end ssh about 45 s after a silent network drop, so the watcher restarts.
 fn forward_args(target: &str, local: &Path, remote: &str) -> Vec<String> {
     vec![
         "-N".into(),
         "-o".into(),
         "BatchMode=yes".into(),
+        "-o".into(),
+        "ServerAliveInterval=15".into(),
+        "-o".into(),
+        "ServerAliveCountMax=3".into(),
         "-L".into(),
         format!("{}:{remote}", local.display()),
         target.into(),
