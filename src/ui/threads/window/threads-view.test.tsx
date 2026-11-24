@@ -294,6 +294,42 @@ it("shows a failed send's error and keeps its draft", async () => {
   expect(field().value).toBe("split it");
 });
 
+it("leaves ↑ and ↓ on a focused Waiting / All radio to the filter, not to the rows", async () => {
+  const { update, $ } = build();
+  update(
+    snapshot(1, [
+      thread("t1", "codex", 3),
+      thread("t2", "codex", 2),
+      thread("t3", "codex", 1, false),
+    ]),
+  );
+  const waiting = filter("list", /^Waiting/);
+  act(() => waiting.focus());
+
+  await act(async () => {
+    fireEvent.keyDown(waiting, { key: "ArrowDown" });
+  });
+
+  expect(filter("list", /^All/).getAttribute("aria-checked")).toBe("true");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
+});
+
+it.each([
+  ["the kind select", () => document.querySelector<HTMLElement>(".yui-threads-list__kind")!],
+  ["a Waiting / All radio", () => filter("list", /^All/)],
+])("leaves a number typed on %s to it, picking no choice", (_name, target) => {
+  const { update, $ } = build();
+  const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
+  update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }]));
+  act(() => target().focus());
+
+  act(() => {
+    fireEvent.keyDown(target(), { key: "1" });
+  });
+
+  expect($(".yui-threads-answer__choices button").getAttribute("aria-pressed")).toBe("false");
+});
+
 it("keeps the selection and the filters across a newer snapshot", async () => {
   const { update, $ } = build();
   update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
