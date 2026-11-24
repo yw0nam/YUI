@@ -4017,7 +4017,7 @@ globalThis.YUI_MAP =
       "id": "unified-transcripts",
       "from": "io/chat/conversation",
       "to": "ui/unified",
-      "carries": "every open preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
+      "carries": "every open preset's yui.<id>.chat_transcript \u2192 readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4035,7 +4035,7 @@ globalThis.YUI_MAP =
       "id": "mention-trigger",
       "from": "dispatcher/sources/routed",
       "to": "dispatcher/core",
-      "carries": "bus.push: user.text_submitted {text, send_id, mention?} → client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
+      "carries": "bus.push: user.text_submitted {text, send_id, mention?} \u2192 client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -4115,7 +4115,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import\u2026 → importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
+      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4133,7 +4133,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import\u2026 → settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
+      "carries": "Import\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4166,7 +4166,7 @@ globalThis.YUI_MAP =
       "id": "preset-photo",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the manage row's photo button → the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
+      "carries": "the manage row's photo button \u2192 the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4175,7 +4175,7 @@ globalThis.YUI_MAP =
       "id": "card-thumb-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail and crop → the preset header's and the card section's face (avatarEl)",
+      "carries": "PresetEntry.thumbnail and crop \u2192 the preset header's and the card section's face (avatarEl)",
       "kind": "callback",
       "transport": "shared"
     },
