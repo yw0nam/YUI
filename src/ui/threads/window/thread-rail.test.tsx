@@ -4,9 +4,9 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Thread } from "../../../contract";
-import { focusCurrentRow } from "./row-focus";
 import { threadListView } from "./thread-list-view";
 import { ThreadRail } from "./thread-rail";
+import { threadsTabFocus } from "./threads-tab-view";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -39,7 +39,7 @@ it("focusSelected focuses the selected row without scrolling", () => {
   );
   const focus = vi.spyOn(HTMLElement.prototype, "focus");
 
-  focusCurrentRow(container.querySelector(".yui-threads-rail__list"));
+  threadsTabFocus({ current: container }).rail();
 
   expect(focus).toHaveBeenCalledWith({ preventScroll: true });
 });

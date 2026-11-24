@@ -5,9 +5,9 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "../../../contract";
 import { setLocale } from "../../i18n";
-import { focusCurrentRow } from "./row-focus";
 import { ThreadList } from "./thread-list";
 import { threadListView } from "./thread-list-view";
+import { threadsTabFocus } from "./threads-tab-view";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -72,7 +72,8 @@ describe("a snapshot leaves the interaction alone", () => {
       act(() => rerender(list(threads, selected)));
     const row = (id: string) => container.querySelector<HTMLElement>(`[data-id="${id}"]`)!;
     const rows = container.querySelector<HTMLElement>(".yui-threads-list__rows")!;
-    const focusSelected = () => act(() => focusCurrentRow(rows));
+    // The Threads tab's own focus move, as the layout calls it.
+    const focusSelected = () => act(() => threadsTabFocus({ current: container }).list());
     return { draw, onSelect, row, rows, focusSelected };
   }
 
