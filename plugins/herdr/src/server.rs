@@ -83,6 +83,7 @@ mod tests {
     use rmcp::service::RunningService;
     use rmcp::{RoleClient, ServiceExt};
     use serde_json::{json, Value};
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
 
     fn with_fake() -> Option<PathBuf> {
@@ -403,6 +404,93 @@ mod tests {
         )
         .await;
         assert_eq!(answer(&result), (Some("error: boom"), Some(true)));
+    }
+
+    /// Records the signal frames the server writes, in wire order.
+    struct WireTap {
+        inner: tokio::io::DuplexStream,
+        buf: Vec<u8>,
+        frames: Arc<std::sync::Mutex<Vec<Value>>>,
+    }
+
+    impl tokio::io::AsyncRead for WireTap {
+        fn poll_read(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::pin::Pin::new(&mut self.inner).poll_read(cx, buf)
+        }
+    }
+
+    impl tokio::io::AsyncWrite for WireTap {
+        fn poll_write(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> std::task::Poll<std::io::Result<usize>> {
+            let n = std::task::ready!(
+                std::pin::Pin::new(&mut self.inner).poll_write(cx, buf)
+            )?;
+            self.buf.extend_from_slice(&buf[..n]);
+            while let Some(pos) = self.buf.iter().position(|&b| b == b'\n') {
+                let line: Vec<u8> = self.buf.drain(..=pos).collect();
+                if let Ok(v) = serde_json::from_slice::<Value>(&line) {
+                    if v.get("method").and_then(Value::as_str)
+                        == Some(crate::watch::SIGNALS_METHOD)
+                    {
+                        self.frames.lock().unwrap().push(v["params"].clone());
+                    }
+                }
+            }
+            std::task::Poll::Ready(Ok(n))
+        }
+
+        fn poll_flush(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::pin::Pin::new(&mut self.inner).poll_flush(cx)
+        }
+
+        fn poll_shutdown(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::pin::Pin::new(&mut self.inner).poll_shutdown(cx)
+        }
+    }
+
+    fn send_sequence(_locate: fn() -> Option<PathBuf>, notify: crate::watch::Notify) {
+        for i in 0..50 {
+            notify(json!({"seq": i}));
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn notifications_arrive_in_the_order_they_were_produced() {
+        let frames = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let (server_io, client_io) = tokio::io::duplex(1 << 16);
+        let tap = WireTap { inner: server_io, buf: Vec::new(), frames: frames.clone() };
+        tokio::spawn(async move {
+            let server = HerdrServer::new(|| None, send_sequence)
+                .serve(tap)
+                .await
+                .unwrap();
+            server.waiting().await
+        });
+        let _client = ().serve(client_io).await.unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if frames.lock().unwrap().len() >= 50 {
+                break;
+            }
+            assert!(Instant::now() < deadline, "notifications did not all arrive");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let got = frames.lock().unwrap().clone();
+        let expected: Vec<Value> = (0..50).map(|i| json!({"seq": i})).collect();
+        assert_eq!(got, expected);
     }
 
     #[tokio::test]
