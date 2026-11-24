@@ -182,6 +182,7 @@ export async function wireSettingsWindow(deps: {
   const stage = createSettingsStage({
     mount: app,
     presetRegistry,
+    petWindows,
     boundId,
     getDefaultChatApi: quickControlsConfigDefaults(config).getDefaultChatApi,
     onSettingsChanged: bridge.onSettingsChanged,

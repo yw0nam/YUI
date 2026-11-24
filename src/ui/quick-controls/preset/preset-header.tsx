@@ -14,7 +14,7 @@ import {
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
-import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
+import { isPresetOpen, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { Tip } from "../../controls/tooltip";
@@ -70,7 +70,7 @@ export function PresetHeader(p: PresetHeaderProps) {
   const state = edited.get();
   const windows = petWindows?.get();
   const ingress = p.agentNotifySettings?.get();
-  const isOpen = (id: string): boolean => !!(windows?.includes(id) || isPresetWindowLive(id));
+  const isOpen = (id: string): boolean => isPresetOpen(windows ?? [], id);
   const header = useRef<HTMLDivElement>(null);
   const manageBtn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);

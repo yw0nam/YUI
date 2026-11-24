@@ -13,7 +13,7 @@ import {
   parsePresetState,
   presetIdForWindow,
 } from "./active-preset";
-import { isPresetWindowLive, readOpenPetWindowIds } from "./pet-windows";
+import { isPresetOpen, readOpenPetWindowIds } from "./pet-windows";
 import type { PhotoCrop } from "./photo-crop";
 import {
   DEFAULT_PRESET_ID,
@@ -122,8 +122,7 @@ export function createPresetRegistry(deps?: {
         id === DEFAULT_PRESET_ID ||
         id === active ||
         !list.some((e) => e.id === id) ||
-        readOpenPetWindowIds().includes(id) ||
-        isPresetWindowLive(id)
+        isPresetOpen(readOpenPetWindowIds(), id)
       )
         return false;
       try {
@@ -138,12 +137,7 @@ export function createPresetRegistry(deps?: {
     /** Returns true after activating a listed preset; returns false for unknown, desired-open, or live ids. */
     activate(id: string): boolean {
       const { list } = latest();
-      if (
-        !list.some((e) => e.id === id) ||
-        readOpenPetWindowIds().includes(id) ||
-        isPresetWindowLive(id)
-      )
-        return false;
+      if (!list.some((e) => e.id === id) || isPresetOpen(readOpenPetWindowIds(), id)) return false;
       core.commit({ active: id, list });
       return true;
     },

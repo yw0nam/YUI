@@ -61,7 +61,7 @@ export function CharacterHeader(p: {
           <Item
             key={entry.id}
             entry={entry}
-            off={state === "head.off"}
+            off={state === "off"}
             current={entry.id === p.shownId}
             meta={line}
             onClick={() => {

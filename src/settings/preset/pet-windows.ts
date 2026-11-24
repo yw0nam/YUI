@@ -19,6 +19,10 @@ export function isPresetWindowLive(id: string): boolean {
     isWindowLive(windowLabel(kind, id)),
   );
 }
+/** A preset is open while a pet window is wanted for it or any of its windows is live. */
+export function isPresetOpen(openPetWindowIds: readonly string[], id: string): boolean {
+  return openPetWindowIds.includes(id) || isPresetWindowLive(id);
+}
 export function setWindowLive(label: string): void {
   globalThis.localStorage?.setItem(liveKey(label), "1");
 }
