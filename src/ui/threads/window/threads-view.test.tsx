@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 /**
- * threads-view.test.ts — the Threads window's view over a stream of snapshots: sends, errors,
+ * threads-view.test.tsx — the Threads window's view over a stream of snapshots: sends, errors,
  * selection, filters, the time tick, the rail, the Markdown of an entry, and the layouts the panel's width picks.
  */
 
 import { readFileSync } from "node:fs";
-import { act, fireEvent } from "@testing-library/react";
+import { act, fireEvent, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
-import type { TabBody, TabShell } from "./threads-tabs";
-import { createThreadsView } from "./threads-view";
+import type { TabBody, TabShell } from "./tab-body";
+import { createThreadsView, type ThreadsView } from "./threads-view";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 function thread(id: string, source: string, updated_at: number, waiting = true): Thread {
   return {
@@ -59,7 +61,12 @@ beforeEach(() => {
     },
   );
 });
+let views: ThreadsView[] = [];
 afterEach(() => {
+  act(() => {
+    for (const view of views) view.dispose();
+  });
+  views = [];
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -120,6 +127,7 @@ function build(
     resize: { start: vi.fn(), move: vi.fn(), end: vi.fn() },
     onTurnsLevel: vi.fn(),
   });
+  views.push(view);
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
   const field = () => $<HTMLTextAreaElement>(".yui-threads-answer textarea");
   const send = () => $<HTMLButtonElement>(".yui-threads-answer__send");
@@ -128,11 +136,15 @@ function build(
     field().dispatchEvent(new Event("input"));
   };
   const enter = () =>
-    field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    act(() => {
+      field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    });
   const panel = () => $<HTMLElement>(".yui-threads__panel");
-  const tab = (name: string) => $<HTMLButtonElement>(`[role="tab"][data-tab="${name}"]`);
+  const tab = (name: string) => document.getElementById(`yui-tab-${name}`)!;
   return {
     view,
+    update: (next: ThreadsSnapshot) => act(() => view.update(next)),
+    open: (...args: Parameters<ThreadsView["open"]>) => act(() => view.open(...args)),
     $,
     field,
     send,
@@ -149,26 +161,47 @@ function build(
 }
 
 const key = (init: KeyboardEventInit) =>
-  document.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, ...init }));
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, ...init }));
+  });
+const click = (el: Element) => fireEvent.click(el);
+/** The list's or the rail's Waiting / All radio whose name starts with `name`. */
+const filter = (nav: "list" | "rail", name: RegExp) =>
+  within(document.querySelector<HTMLElement>(`.yui-threads-${nav}`)!).getByRole("radio", { name });
+/** Opens the list's kind select and picks the item labelled `label`, as a pointer does. */
+async function pickKind(label: string) {
+  await act(async () => {
+    fireEvent.click(document.querySelector(".yui-threads-list__kind")!);
+  });
+  const item = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (o) => o.textContent === label && !o.closest("[hidden]"),
+  )!;
+  await act(async () => {
+    fireEvent.pointerDown(item);
+    fireEvent.click(item);
+  });
+}
 const CTRL_CMD_S = { key: "s", code: "KeyS", ctrlKey: true, metaKey: true };
 const ids = (selector: string) =>
   [...document.querySelectorAll<HTMLElement>(selector)].map((el) => el.dataset.id);
 
 it("closes the Thread turns menu on Escape, before the window", () => {
   const { $, onClose } = build();
-  $<HTMLButtonElement>(".yui-threads__turns-button").click();
+  click($(".yui-threads__turns-button"));
+
+  expect($(".yui-threads__turns-button").getAttribute("aria-expanded")).toBe("true");
 
   key({ key: "Escape" });
 
-  expect($<HTMLElement>(".yui-threads__turns-pop").hidden).toBe(true);
+  expect($(".yui-threads__turns-button").getAttribute("aria-expanded")).toBe("false");
   expect(onClose).not.toHaveBeenCalled();
 });
 
 it("keeps 1–9 and the arrows from the answer and the list while the Thread turns menu is open", () => {
-  const { view, $ } = build();
+  const { update, $ } = build();
   const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
-  view.update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }, thread("t2", "codex", 1)]));
-  $<HTMLButtonElement>(".yui-threads__turns-button").click();
+  update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }, thread("t2", "codex", 1)]));
+  click($(".yui-threads__turns-button"));
 
   key({ key: "1" });
   key({ key: "ArrowDown" });
@@ -179,24 +212,22 @@ it("keeps 1–9 and the arrows from the answer and the list while the Thread tur
 
 it("sends once while a send is in flight, even when a snapshot rebuilds the pane", () => {
   const onAnswer = vi.fn(() => new Promise<void>(() => {}));
-  const { view, send, type, enter } = build(onAnswer);
-  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+  const { update, send, type, enter } = build(onAnswer);
+  update(snapshot(1, [thread("t1", "codex", 1)]));
   type("split it");
   enter();
 
-  view.update(snapshot(2, [thread("t1", "codex", 2)]));
+  update(snapshot(2, [thread("t1", "codex", 2)]));
   enter();
-  send().click();
+  click(send());
 
   expect(onAnswer).toHaveBeenCalledTimes(1);
   expect(send().disabled).toBe(true);
 });
 
 const entryText = (text: string): HTMLElement => {
-  const { view, $ } = build();
-  view.update(
-    snapshot(1, [{ ...thread("t1", "codex", 1), entries: [{ role: "agent", text, at: 1 }] }]),
-  );
+  const { update, $ } = build();
+  update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: [{ role: "agent", text, at: 1 }] }]));
   return $(".yui-threads-entry__text");
 };
 
@@ -252,8 +283,8 @@ it("keeps only the https images", () => {
 });
 
 it("shows a failed send's error and keeps its draft", async () => {
-  const { view, $, field, type, enter } = build(() => Promise.reject("ask is closed"));
-  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+  const { update, $, field, type, enter } = build(() => Promise.reject("ask is closed"));
+  update(snapshot(1, [thread("t1", "codex", 1)]));
   type("split it");
   enter();
 
@@ -263,16 +294,14 @@ it("shows a failed send's error and keeps its draft", async () => {
   expect(field().value).toBe("split it");
 });
 
-it("keeps the selection and the filters across a newer snapshot", () => {
-  const { view, $ } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
-  $<HTMLButtonElement>('[data-tab="all"]').click();
-  const kind = $<HTMLSelectElement>(".yui-threads-list__kind");
-  kind.value = "slack";
-  kind.dispatchEvent(new Event("change"));
-  $<HTMLButtonElement>('[data-id="t2"]').click();
+it("keeps the selection and the filters across a newer snapshot", async () => {
+  const { update, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
+  click(filter("list", /^All/));
+  await pickKind("Slack (1)");
+  click($('.yui-threads-list [data-id="t2"]'));
 
-  view.update(
+  update(
     snapshot(2, [
       thread("t3", "slack", 3),
       thread("t1", "codex", 2),
@@ -280,22 +309,22 @@ it("keeps the selection and the filters across a newer snapshot", () => {
     ]),
   );
 
-  expect($('[data-tab="all"]').getAttribute("aria-pressed")).toBe("true");
-  expect($<HTMLSelectElement>(".yui-threads-list__kind").value).toBe("slack");
-  expect($('[data-id="t2"]').getAttribute("aria-current")).toBe("true");
+  expect(filter("list", /^All/).getAttribute("aria-checked")).toBe("true");
+  expect($(".yui-threads-list__kind").textContent).toBe("Slack (2)");
+  expect($('.yui-threads-list [data-id="t2"]').getAttribute("aria-current")).toBe("true");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
 });
 
 it("redraws only the times on the minute tick, leaving the kind select in place", () => {
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  const { view, $ } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 0)]));
-  const option = $<HTMLSelectElement>(".yui-threads-list__kind").options[0];
+  const { update, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 0)]));
+  const kind = $(".yui-threads-list__kind");
 
   now = 5 * 60_000;
-  vi.advanceTimersByTime(60_000);
+  act(() => vi.advanceTimersByTime(60_000));
 
-  expect($<HTMLSelectElement>(".yui-threads-list__kind").options[0]).toBe(option);
+  expect($(".yui-threads-list__kind")).toBe(kind);
   expect($(".yui-threads-row time").textContent).toBe("5 min. ago");
   expect($(".yui-threads-entry__head time").textContent).toBe("5 min. ago");
 });
@@ -312,22 +341,22 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
 });
 
 it("reports the open ask as seen only when the user picks a Thread, and not an ask already seen", async () => {
-  const { view, $, onSeen } = build();
+  const { update, open, $, onSeen } = build();
   const seen = { ...thread("t2", "slack", 1), seen_ask_id: "a1" };
-  view.update(snapshot(1, [thread("t1", "codex", 2), seen]));
-  await view.open(null);
+  update(snapshot(1, [thread("t1", "codex", 2), seen]));
+  await open(null);
   expect(onSeen).not.toHaveBeenCalled();
 
-  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  click($('.yui-threads-list [data-id="t2"]'));
   expect(onSeen).not.toHaveBeenCalled();
 
-  $<HTMLButtonElement>('.yui-threads-rail [data-id="t1"]').click();
+  click($('.yui-threads-rail [data-id="t1"]'));
   expect(onSeen).toHaveBeenCalledExactlyOnceWith("t1", "a1");
 });
 
 it("an automatic open selects the asked Thread on the filter that holds it, unseen, and moves no focus", async () => {
-  const { view, $, onSeen } = build();
-  view.update(
+  const { update, open, $, onSeen } = build();
+  update(
     snapshot(1, [
       thread("t1", "codex", 3),
       thread("t2", "codex", 2, false),
@@ -335,92 +364,89 @@ it("an automatic open selects the asked Thread on the filter that holds it, unse
     ]),
   );
 
-  await view.open(null, "threads", { thread: "t2", focus: false });
-  expect($('[data-tab="all"]').getAttribute("aria-pressed")).toBe("true");
+  await open(null, "threads", { thread: "t2", focus: false });
+  expect(filter("list", /^All/).getAttribute("aria-checked")).toBe("true");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
 
-  await view.open(null, "threads", { thread: "t3", focus: false });
-  expect($('[data-tab="waiting"]').getAttribute("aria-pressed")).toBe("true");
+  await open(null, "threads", { thread: "t3", focus: false });
+  expect(filter("list", /^Waiting/).getAttribute("aria-checked")).toBe("true");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t3");
   expect(onSeen).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(document.body);
 });
 
 it("selects an asked Thread on the first snapshot that holds it, until a user pick or the next open", async () => {
-  const { view, $ } = build();
-  await view.open(null, "threads", { thread: "t2", focus: false });
-  view.update(snapshot(1, [thread("t1", "codex", 3)]));
-  view.update(snapshot(2, [thread("t1", "codex", 3), thread("t2", "codex", 2, false)]));
-  expect($('[data-tab="all"]').getAttribute("aria-pressed")).toBe("true");
+  const { update, open, $ } = build();
+  await open(null, "threads", { thread: "t2", focus: false });
+  update(snapshot(1, [thread("t1", "codex", 3)]));
+  update(snapshot(2, [thread("t1", "codex", 3), thread("t2", "codex", 2, false)]));
+  expect(filter("list", /^All/).getAttribute("aria-checked")).toBe("true");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
 
-  await view.open(null, "threads", { thread: "t9", focus: false });
-  $<HTMLButtonElement>('.yui-threads-list [data-id="t1"]').click();
-  view.update(snapshot(3, [thread("t1", "codex", 3), thread("t9", "codex", 4, false)]));
+  await open(null, "threads", { thread: "t9", focus: false });
+  click($('.yui-threads-list [data-id="t1"]'));
+  update(snapshot(3, [thread("t1", "codex", 3), thread("t9", "codex", 4, false)]));
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
 
-  await view.open(null, "threads", { thread: "t8", focus: false });
-  await view.open(null);
-  view.update(snapshot(4, [thread("t1", "codex", 3), thread("t8", "codex", 5, false)]));
+  await open(null, "threads", { thread: "t8", focus: false });
+  await open(null);
+  update(snapshot(4, [thread("t1", "codex", 3), thread("t8", "codex", 5, false)]));
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
 });
 
 it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {
-  const { view, $, onRead } = build();
+  const { update, $, onRead } = build();
   const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];
-  view.update(snapshot(1, [a, b, c]));
+  update(snapshot(1, [a, b, c]));
   expect($(".yui-threads-pane__head h2").textContent).toBe("A");
 
-  $<HTMLButtonElement>(".yui-threads-pane__read").click();
+  click($(".yui-threads-pane__read"));
   expect(onRead).toHaveBeenCalledExactlyOnceWith("A");
   expect($(".yui-threads-pane__head h2").textContent).toBe("A");
 
-  view.update(snapshot(2, [{ ...a, read: true }, b, c]));
+  update(snapshot(2, [{ ...a, read: true }, b, c]));
   expect($(".yui-threads-pane__head h2").textContent).toBe("B");
   expect(ids(".yui-threads-list [data-id]")).toEqual(["B", "C"]);
   expect($(".yui-threads__count").textContent).toBe("2 waiting");
 
-  $<HTMLButtonElement>('[data-tab="all"]').click();
-  $<HTMLButtonElement>('.yui-threads-list [data-id="A"]').click();
+  click(filter("list", /^All/));
+  click($('.yui-threads-list [data-id="A"]'));
   expect($(".yui-threads-pane__head h2").textContent).toBe("A");
   expect(document.querySelector(".yui-threads-pane__read")).toBeNull();
 });
 
 it("moves to a waiting Thread even when the snapshot also shows the next one read", () => {
-  const { view, $ } = build();
+  const { update, $ } = build();
   const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];
-  view.update(snapshot(1, [a, b, c]));
+  update(snapshot(1, [a, b, c]));
 
-  view.update(snapshot(2, [{ ...a, read: true }, { ...b, read: true }, c]));
+  update(snapshot(2, [{ ...a, read: true }, { ...b, read: true }, c]));
 
   expect($(".yui-threads-pane__head h2").textContent).toBe("C");
 });
 
 it("draws the rail from the list's rows, and a rail click selects like a row", () => {
-  const { view, $ } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
+  const { update, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
 
   expect(ids(".yui-threads-rail [data-id]")).toEqual(ids(".yui-threads-list [data-id]"));
   const counts = [...document.querySelectorAll(".yui-threads-rail__count")];
   expect(counts.map((el) => el.textContent)).toEqual(["1", "2"]);
 
-  $<HTMLButtonElement>('[data-rail-tab="all"]').click();
+  click(filter("rail", /in all$/));
   expect(ids(".yui-threads-rail [data-id]")).toEqual(["t1", "t2"]);
   const dots = [...document.querySelectorAll(".yui-threads-rail [data-id]")].map(
     (el) => el.querySelector(".yui-threads-rail__dot") !== null,
   );
   expect(dots).toEqual([true, false]);
 
-  $<HTMLButtonElement>('.yui-threads-rail [data-id="t2"]').click();
+  click($('.yui-threads-rail [data-id="t2"]'));
   expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
   expect($('.yui-threads-list [data-id="t2"]').getAttribute("aria-current")).toBe("true");
 });
 
 it.each([
-  [
-    "a selection",
-    () => document.querySelector<HTMLElement>('.yui-threads-list [data-id="t2"]')!.click(),
-  ],
+  ["a selection", () => click(document.querySelector('.yui-threads-list [data-id="t2"]')!)],
   ["Escape", () => key({ key: "Escape" })],
   [
     "a pointerdown outside the list",
@@ -430,8 +456,8 @@ it.each([
         .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
   ],
 ])("closes the medium layout's list overlay on %s, before the window", (_name, act) => {
-  const { view, panel, onClose } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  const { update, panel, onClose } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
   widen(600);
 
   key(CTRL_CMD_S);
@@ -453,16 +479,16 @@ it("lays a stored list width under both tabs' lists, with an edge in each", () =
 });
 
 it("shows one pane at a time in the narrow layout: a selection opens the thread, back returns", () => {
-  const { view, $, panel } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  const { update, $, panel } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
   widen(400);
   expect(panel().dataset.screen).toBe("thread");
   expect($(".yui-threads-pane__back").parentElement!.className).toBe("yui-threads-pane__line");
 
-  $<HTMLButtonElement>(".yui-threads-pane__back").click();
+  click($(".yui-threads-pane__back"));
   expect(panel().dataset.screen).toBe("list");
 
-  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  click($('.yui-threads-list [data-id="t2"]'));
   expect(panel().dataset.screen).toBe("thread");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
 });
@@ -517,8 +543,8 @@ it.each([
 });
 
 it("switches the top-level tab by a click, by the arrow keys wrapping at either end, and by End, the count following it", async () => {
-  const { view, $, terminal } = build();
-  act(() => view.update(snapshot(1, [thread("t1", "codex", 1)])));
+  const { update, $, terminal } = build();
+  update(snapshot(1, [thread("t1", "codex", 1)]));
   terminal.head.count = "2 terminals";
   const tab = (id: string) => document.getElementById(`yui-tab-${id}`)!;
   const selected = () => document.querySelector('[role="tab"][aria-selected="true"]')?.id;
@@ -552,15 +578,15 @@ it("switches the top-level tab by a click, by the arrow keys wrapping at either 
 });
 
 it("dots only the unselected tab where something waits for the user", () => {
-  const { view, terminal, tab } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+  const { update, terminal, tab } = build();
+  update(snapshot(1, [thread("t1", "codex", 1)]));
   terminal.head.waiting = true;
-  terminal.redraw();
+  act(() => terminal.redraw());
   const dotted = () =>
     ["threads", "terminal"].filter((name) => tab(name).querySelector(".yui-threads__tab-dot"));
 
   expect(dotted()).toEqual(["terminal"]);
-  tab("terminal").click();
+  click(tab("terminal"));
   expect(dotted()).toEqual(["threads"]);
 });
 
@@ -570,7 +596,7 @@ it.each([
 ])("leaves %s typed in the terminal to the shell", (_name, init) => {
   const { onClose, onListCollapsed, terminal, tab } = build();
   widen(800);
-  tab("terminal").click();
+  click(tab("terminal"));
 
   terminal.field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
 
@@ -581,9 +607,9 @@ it.each([
 it("opens on the asked tab without the grow when the open has no origin", async () => {
   const animate = vi.fn(() => ({ finished: Promise.resolve() }));
   HTMLElement.prototype.animate = animate as never;
-  const { view, $, tab } = build();
+  const { open, $, tab } = build();
 
-  await view.open(null, "terminal");
+  await open(null, "terminal");
 
   expect($(".yui-threads").classList.contains("is-open")).toBe(true);
   expect(tab("terminal").getAttribute("aria-selected")).toBe("true");
@@ -597,8 +623,8 @@ async function opensWithScale(opts?: { focus: false }): Promise<boolean> {
     finished: Promise.resolve(),
   }));
   HTMLElement.prototype.animate = animate as never;
-  const { view } = build();
-  await view.open({ x: 700, y: 640, width: 150, height: 32 }, "threads", opts);
+  const { open } = build();
+  await open({ x: 700, y: 640, width: 150, height: 32 }, "threads", opts);
   delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
   return animate.mock.calls.some(([frames]) =>
     frames.some((frame) => String(frame.transform ?? "").includes("scale(")),
@@ -636,51 +662,51 @@ function withEntryHeights(run: () => void): void {
 }
 
 it("holds the pane's redraw while the Terminal tab shows, and keeps the reader on return", () => {
-  const { view, $, tab } = build();
-  view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
+  const { update, $, tab } = build();
+  update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
   withEntryHeights(() => {
     $(".yui-threads-pane__transcript").scrollTop = -50;
-    tab("terminal").click();
-    view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
+    click(tab("terminal"));
+    update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
 
     expect(document.querySelector(".yui-threads-pane__entries")!.childElementCount).toBe(3);
 
-    tab("threads").click();
+    click(tab("threads"));
     expect(document.querySelector(".yui-threads-pane__entries")!.childElementCount).toBe(4);
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
   });
 });
 
 it("keeps a reader above the newest entry in place, and a reader at the newest entry there", () => {
-  const { view, $ } = build();
-  view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
+  const { update, $ } = build();
+  update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
   withEntryHeights(() => {
     $(".yui-threads-pane__transcript").scrollTop = -50;
-    view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
+    update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
 
     $(".yui-threads-pane__transcript").scrollTop = 0;
-    view.update(snapshot(3, [{ ...thread("t1", "codex", 3), entries: entries(5) }]));
+    update(snapshot(3, [{ ...thread("t1", "codex", 3), entries: entries(5) }]));
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
 
-    view.update(snapshot(4, [{ ...thread("t1", "codex", 4), entries: entries(4, 1) }]));
+    update(snapshot(4, [{ ...thread("t1", "codex", 4), entries: entries(4, 1) }]));
     $(".yui-threads-pane__transcript").scrollTop = -50;
-    view.update(snapshot(5, [{ ...thread("t1", "codex", 5), entries: entries(4, 2) }]));
+    update(snapshot(5, [{ ...thread("t1", "codex", 5), entries: entries(4, 2) }]));
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
   });
 });
 
 it("starts a picked Thread and a fresh open at the newest entry", async () => {
-  const { view, $ } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  const { update, open, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
   $(".yui-threads-pane__transcript").scrollTop = -50;
 
-  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  click($('.yui-threads-list [data-id="t2"]'));
   expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
 
-  $<HTMLButtonElement>('.yui-threads-list [data-id="t1"]').click();
+  click($('.yui-threads-list [data-id="t1"]'));
   $(".yui-threads-pane__transcript").scrollTop = -50;
-  await view.open(null);
+  await open(null);
   expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
 });
 

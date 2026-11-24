@@ -6,7 +6,3 @@
   flex-direction: column;
   min-height: 0;
 }
-
-.yui-terminal[hidden] {
-  display: none;
-}

@@ -904,6 +904,7 @@ const en: Record<string, string> = {
   "threads.list_aria": "Thread list",
   "threads.tab_waiting": "Waiting",
   "threads.tab_all": "All",
+  "threads.filter": "Show",
   "threads.kind": "Kind",
   "threads.kind_all": "All kinds ({n})",
   "threads.empty_waiting": "No replies waiting. Check progress under All.",

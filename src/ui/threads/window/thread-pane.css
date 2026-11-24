@@ -12,6 +12,11 @@
   overflow: hidden;
 }
 
+/* The answer area's host lays out nothing: the area is the pane's last row. */
+.yui-threads-pane__answer {
+  display: contents;
+}
+
 .yui-threads-pane__head {
   display: grid;
   gap: 4px;

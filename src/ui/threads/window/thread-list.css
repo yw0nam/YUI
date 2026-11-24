@@ -1,4 +1,4 @@
-/* The Threads window's list pane: tabs, the kind select, and the rows. Tokens in ../../tokens.css. */
+/* The Threads window's list pane: the Waiting / All segment, the kind select, and the rows. Tokens in ../../tokens.css. */
 
 .yui-threads-list {
   display: flex;
@@ -8,19 +8,24 @@
   background: var(--yui-threads-side);
 }
 
-.yui-threads-list__tabs {
-  display: flex;
+/* The Waiting / All segment: two cells on the side fill, the checked one on the Selected fill. */
+.yui-seg.yui-threads-list__tabs {
+  flex-wrap: nowrap;
   gap: 4px;
   padding: 8px 8px 4px;
+  border-radius: 0;
+  background: none;
 }
 
-.yui-threads-list__tabs button {
+.yui-threads-list__tabs .yui-seg__btn {
   position: relative;
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 0;
+  height: auto;
   min-height: 36px;
   padding: 0 8px;
   border: 1px solid transparent;
@@ -29,26 +34,35 @@
   color: var(--yui-text-dim);
   font: inherit;
   cursor: pointer;
+  transition: none;
 }
 
-.yui-threads-list__tabs button:hover {
+.yui-threads-list__tabs .yui-seg__btn:hover {
   background: var(--yui-hover);
+  color: var(--yui-text-dim);
 }
 
-.yui-threads-list__tabs button::before {
+.yui-threads-list__tabs .yui-seg__btn::before {
   content: "";
   position: absolute;
   inset: -4px;
 }
 
-.yui-threads-list__tabs button:active {
+.yui-threads-list__tabs .yui-seg__btn:active {
   background: var(--yui-selected);
+  transform: none;
 }
 
-.yui-threads-list__tabs [aria-pressed="true"] {
+.yui-threads-list__tabs .yui-seg__btn[aria-checked="true"] {
   background: var(--yui-selected);
   color: var(--yui-text);
   font-weight: 600;
+}
+
+.yui-threads-list__tabs .yui-seg__btn:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .yui-threads-list__count {
@@ -57,11 +71,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it.
+/* One select, so a new source adds an item instead of a chip. Counts follow the filter above it.
    A 36px field drawn inside a 44px hit box: a 4px clear border, the edge an inset shadow. */
-.yui-threads-list__kind {
-  -webkit-appearance: none;
-  appearance: none;
+.yui-threads-list .yui-threads-list__kind {
   box-sizing: border-box;
   height: 44px;
   margin: 0 4px 4px;
@@ -78,20 +90,25 @@
   font: inherit;
   font-size: var(--yui-fs-body);
   cursor: pointer;
+  transition: none;
 }
 
-.yui-threads-list__kind:hover {
+.yui-threads-list .yui-threads-list__kind:hover {
+  border-color: transparent;
   box-shadow: inset 0 0 0 1px var(--yui-text-dim);
 }
 
-.yui-threads-list__kind:active {
+.yui-threads-list .yui-threads-list__kind:active {
   background-image: var(--yui-chevron), linear-gradient(var(--yui-selected), var(--yui-selected));
   background-position:
     right 12px center,
     0 0;
 }
 
-.yui-threads-list__kind:focus-visible {
+.yui-threads-list .yui-threads-list__kind:focus-visible {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--yui-text-mute);
+  outline: 2px solid var(--yui-accent-ink);
   outline-offset: -2px;
 }
 

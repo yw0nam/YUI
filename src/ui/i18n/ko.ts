@@ -896,6 +896,7 @@ const ko: Record<string, string> = {
   "threads.list_aria": "스레드 목록",
   "threads.tab_waiting": "응답 대기",
   "threads.tab_all": "전체",
+  "threads.filter": "표시",
   "threads.kind": "종류",
   "threads.kind_all": "모든 종류 ({n})",
   "threads.empty_waiting": "기다리는 답장이 없어요. 전체에서 진행 상황을 확인하세요.",

@@ -4,26 +4,28 @@
  */
 
 import "./threads-view.css";
+import { createElement, createRef } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
 import type { ThreadsOpen, ThreadsTab } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
+import type { TabsHandle } from "../../controls/tabs";
 import { subscribe as subscribeLocale, t } from "../../i18n";
-import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
 import { hop } from "./hop";
 import { createListSplitter } from "./list-splitter";
 import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
+import type { TabBody, TabShell } from "./tab-body";
+import { THREADS_LIST_ID } from "./thread-list";
 import { attachThreadsKeys } from "./threads-keys";
 import { createThreadsLayout } from "./threads-layout";
 import { createThreadsTab } from "./threads-tab";
-import { createThreadsTabs, type TabBody, type TabShell } from "./threads-tabs";
-import { createTurnsMenu, type TurnsState } from "./turns-menu";
+import { threadsTabFocus } from "./threads-tab-view";
+import { ThreadsWindow, type ThreadsWindowHandle } from "./threads-window";
+import type { TurnsHandle, TurnsState } from "./turns-menu";
 
-const SIDEBAR_SVG =
-  '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>';
-/** The list pane's id, which the head's toggle controls. */
-const LIST_ID = "yui-threads-list";
 /** The Terminal tab's list id, which its list edge controls. */
 const TERMINAL_LIST_ID = "yui-terminal-list";
 
@@ -82,124 +84,129 @@ export function createThreadsView(deps: {
   root.className = "yui-threads";
   root.innerHTML = `
     <section class="yui-threads__panel">
-      <div class="yui-threads__content">
-        <header class="yui-threads__head">
-          <button type="button" class="yui-threads__toggle" aria-controls="${LIST_ID}"
-            aria-keyshortcuts="Control+Meta+S">${SIDEBAR_SVG}</button>
-          <span class="yui-threads__count"></span>
-          <button type="button" class="yui-threads__close">${CROSS_SVG}</button>
-        </header>
-      </div>
+      <div class="yui-threads__content"></div>
     </section>
   `;
   deps.mount.append(root);
   const panel = root.querySelector<HTMLElement>(".yui-threads__panel")!;
   const content = root.querySelector<HTMLElement>(".yui-threads__content")!;
-  const headEl = root.querySelector<HTMLElement>(".yui-threads__head")!;
-  const closeEl = root.querySelector<HTMLButtonElement>(".yui-threads__close")!;
-  const toggleEl = root.querySelector<HTMLButtonElement>(".yui-threads__toggle")!;
   let from: ScreenRect | null = null;
-  const turns = createTurnsMenu({ onPick: deps.onTurnsLevel });
-  closeEl.before(turns.el);
+  const tabs = createRef<TabsHandle>();
+  const turns = createRef<TurnsHandle>();
+  const head = createRef<ThreadsWindowHandle>();
+  const headListeners = new Set<(event: PointerEvent) => void>();
 
-  const tabs = createThreadsTabs({
-    count: root.querySelector<HTMLElement>(".yui-threads__count")!,
-    onSwitch: (body) => layout.reset(body.hasSelection()),
-  });
-  toggleEl.after(tabs.el);
-  const shell = (back: HTMLButtonElement): TabShell => ({
-    back,
+  const terminalBack = backButton();
+  const shell = {
     selected: () => layout.selected(),
     focusSelected: () => layout.focusSelected(),
-    headChanged: tabs.renderHead,
-  });
-  const backs = [backButton(), backButton()];
+  };
   const threads = createThreadsTab({
-    shell: shell(backs[0]!),
+    shell,
+    focus: threadsTabFocus(() => content.querySelector("#yui-panel-threads")),
     now: deps.now,
     onAnswer: deps.onAnswer,
     onSeen: deps.onSeen,
-    onRead: deps.onRead,
   });
-  const terminal = deps.terminal(shell(backs[1]!));
-  threads.list.id = LIST_ID;
+  const terminal = deps.terminal({
+    ...shell,
+    back: terminalBack,
+    headChanged: () => head.current?.headChanged(),
+  });
   terminal.list.id = TERMINAL_LIST_ID;
+  const current = () => (tabs.current!.selected() === "terminal" ? terminal : threads);
+
+  const reactRoot = createRoot(content);
+  flushSync(() =>
+    reactRoot.render(
+      createElement(ThreadsWindow, {
+        threads,
+        terminal,
+        tabs,
+        turns,
+        handle: head,
+        onSelect: (tab) => {
+          const body = tab === "terminal" ? terminal : threads;
+          layout.reset(body.hasSelection());
+          body.shown();
+        },
+        onRead: deps.onRead,
+        onBack: () => layout.back(),
+        onClose: deps.onClose,
+        onHeadPointerDown: (event) => {
+          for (const cb of headListeners) cb(event);
+        },
+        onTurnsLevel: deps.onTurnsLevel,
+      }),
+    ),
+  );
+
+  const threadsList = content.querySelector<HTMLElement>(`#${THREADS_LIST_ID}`)!;
+  const toggle = content.querySelector<HTMLButtonElement>(".yui-threads__toggle")!;
   const splitter = createListSplitter({ panel, width: deps.listWidth, onWidth: deps.onListWidth });
-  for (const list of [threads.list, terminal.list]) splitter.attach(list);
-  content.append(threads.el, terminal.el);
-  tabs.add("threads", threads);
-  tabs.add("terminal", terminal);
+  for (const list of [threadsList, terminal.list]) splitter.attach(list);
   const layout = createThreadsLayout({
     panel,
-    lists: [threads.list, terminal.list],
-    toggle: toggleEl,
-    backs,
+    lists: [threadsList, terminal.list],
+    toggle,
+    backs: [terminalBack],
     collapsed: deps.listCollapsed,
     onCollapsed: deps.onListCollapsed,
-    focusList: () => tabs.current().focusList(),
-    focusRail: () => tabs.current().focusRail(),
+    focusList: () => current().focusList(),
+    focusRail: () => current().focusRail(),
   });
-
-  function renderChrome(): void {
-    const sidebar = t("threads.sidebar");
-    toggleEl.setAttribute("aria-label", sidebar);
-    toggleEl.title = `${sidebar} (⌃⌘S)`;
-    closeEl.setAttribute("aria-label", t("threads.close"));
-    panel.setAttribute("aria-label", t("threads.window_aria"));
-  }
 
   const offKeys = attachThreadsKeys({
     onToggleList: layout.toggle,
     onEscape: () => {
-      if (turns.isOpen()) turns.close();
+      if (turns.current!.isOpen()) turns.current!.close();
       else if (!layout.escape()) deps.onClose();
     },
     onPick: (index) => {
-      if (!turns.isOpen()) tabs.current().pick?.(index);
+      if (!turns.current!.isOpen()) current().pick?.(index);
     },
     onMove: (delta) => {
-      if (!turns.isOpen()) tabs.current().move(delta);
+      if (!turns.current!.isOpen()) current().move(delta);
     },
   });
-  closeEl.addEventListener("click", deps.onClose);
-  const headListeners = new Set<(event: PointerEvent) => void>();
-  headEl.addEventListener("pointerdown", (event) => {
-    if ((event.target as Element).closest("button")) return;
-    for (const cb of headListeners) cb(event);
-  });
   const offHandles = attachResizeHandles({ panel, listener: deps.resize });
-  const offLocale = subscribeLocale(renderChrome);
-  const refresh = setInterval(() => refreshTimes(root, deps.now()), REFRESH_MS);
-  renderChrome();
+  const label = () => panel.setAttribute("aria-label", t("threads.window_aria"));
+  const offLocale = subscribeLocale(label);
+  label();
+  const refresh = setInterval(() => {
+    refreshTimes(terminal.el, deps.now());
+    threads.tick();
+  }, REFRESH_MS);
 
   return {
     update: threads.update,
     async open(at, tab = "threads", opts = {}) {
       from = at;
       threads.reset(opts.thread);
-      tabs.select(tab);
+      tabs.current!.select(tab);
       await growOpen({ root, panel, content }, at, { jelly: opts.focus === false });
       if (opts.focus === false) return;
-      if (!tabs.current().focusField?.()) layout.focusSelected();
+      if (!current().focusField?.()) layout.focusSelected();
     },
-    select: tabs.show,
+    select(tab) {
+      if (tabs.current!.selected() !== tab) tabs.current!.select(tab);
+    },
     close: () => shrinkClose({ root, panel, content }, from),
     hop: () => hop(panel),
     onHeadPointerDown(cb) {
       headListeners.add(cb);
       return () => headListeners.delete(cb);
     },
-    setTurns: turns.set,
+    setTurns: (state) => turns.current!.set(state),
     dispose() {
       offKeys();
-      turns.dispose();
-      threads.dispose();
       terminal.dispose();
       layout.dispose();
       splitter.dispose();
       offHandles();
       offLocale();
       clearInterval(refresh);
+      reactRoot.unmount();
       root.remove();
     },
   };

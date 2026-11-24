@@ -47,11 +47,11 @@
 }
 
 /* Above the medium layout's list overlay, under the panel's edge line. */
-.yui-threads__turns-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+.yui-threads__turns-pos {
   z-index: 4;
+}
+
+.yui-threads__turns-pop {
   box-sizing: border-box;
   width: 280px;
   padding: 6px;
@@ -60,10 +60,6 @@
   background: var(--yui-threads-base);
   box-shadow: var(--yui-float);
   cursor: default;
-}
-
-.yui-threads__turns-pop[hidden] {
-  display: none;
 }
 
 .yui-threads__turns-caption,

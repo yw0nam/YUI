@@ -3,7 +3,7 @@ import { page } from "vitest/browser";
 import "../../../styles.css";
 import type { Thread } from "../../../contract";
 import { setLocale } from "../../i18n";
-import type { TabBody } from "./threads-tabs";
+import type { TabBody } from "./tab-body";
 import { createThreadsView } from "./threads-view";
 
 const NOW = 1_700_000_000_000;

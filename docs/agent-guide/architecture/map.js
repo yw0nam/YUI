@@ -1244,7 +1244,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no field.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no field.",
       "paths": [
         "src/ui/threads"
       ]
@@ -4788,22 +4788,49 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/commands/command-list.ts"
     },
     {
-      "id": "threads-list-rows",
+      "id": "threads-window-tabs",
       "from": "ui/threads",
-      "to": "ui/keyed-rows",
-      "carries": "reconcileRows: Threads list rows kept by key, reordered only when their place changed",
+      "to": "ui/controls",
+      "carries": "Tabs: the Threads and Terminal tabs, the selected one and each selection by click, key or open; TooltipHost: the one tip of the window's triggers",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-list.ts"
+      "wiring": "src/ui/threads/window/threads-window.tsx"
     },
     {
-      "id": "threads-rail-rows",
+      "id": "threads-list-controls",
       "from": "ui/threads",
-      "to": "ui/keyed-rows",
-      "carries": "reconcileRows: Threads rail rows kept by key, reordered only when their place changed",
+      "to": "ui/controls",
+      "carries": "Segment: Waiting / All with their counts and the picked filter; Select: the kinds with their counts, zero ones disabled, the picked kind, its popup inside the list",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-rail.ts"
+      "wiring": "src/ui/threads/window/thread-list.tsx"
+    },
+    {
+      "id": "threads-rail-controls",
+      "from": "ui/threads",
+      "to": "ui/controls",
+      "carries": "Segment: Waiting / All as marks over counts, named and tipped by their counts; Select: the kinds behind the funnel or source mark, with its tip; Tip: each rail item's title and state",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/thread-rail.tsx"
+    },
+    {
+      "id": "threads-pane-ref-mount",
+      "from": "ui/threads",
+      "to": "ui/ref-mount",
+      "carries": "RefMount: each entry's Markdown nodes, and the answer area, mounted again only when the ask, its error, its in-flight send or the locale changed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/thread-pane.tsx"
+    },
+    {
+      "id": "threads-terminal-tab",
+      "from": "ui/threads",
+      "to": "ui/terminal",
+      "carries": "TabShell {back, selected, focusSelected, headChanged} into the Terminal view; its TabBody back: el mounted in the Terminal panel's RefMount host, list, head, the keys' moves and shown",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/threads-view.ts"
     },
     {
       "id": "terminal-nav-rows",
