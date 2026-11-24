@@ -1,5 +1,6 @@
 //! Server starts and stops: tickets tagged with an epoch, start results, exits, and stops.
 
+use super::client::HostClient;
 use super::host::{Host, Inner};
 use super::launch;
 use super::manifest::ServerSpec;
@@ -174,6 +175,15 @@ impl Host {
             ticket.epoch,
         );
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
+        let client = HostClient {
+            plugin_id: ticket.plugin_id.clone(),
+            server: ticket.spec.name.clone(),
+            server_id: ticket.server_id.clone(),
+            epoch,
+            log: ticket.log.clone(),
+            host: host.clone(),
+            signals: self.signals.clone(),
+        };
         let spawned = server::spawn(&ticket.spec, &ticket.root, &data, ticket.log, &self.groups);
         let started = match spawned {
             Ok(spawned) => {
@@ -185,7 +195,7 @@ impl Host {
                     // Stopped while spawning.
                     None => return spawned.stop(),
                 }
-                server::connect(spawned, STARTUP_DEADLINE, move |reason| {
+                server::connect(spawned, STARTUP_DEADLINE, client, move |reason| {
                     if let Some(host) = host.upgrade() {
                         host.exited(&plugin_id, &server_id, epoch, reason);
                     }
@@ -229,6 +239,18 @@ impl Host {
         .await;
     }
 
+    /// True while the plugin is enabled and its server started under `epoch` is the live one.
+    pub(super) fn accepts_signals(&self, plugin_id: &str, server_id: &str, epoch: u64) -> bool {
+        let mut inner = self.lock();
+        let enabled = inner
+            .state
+            .as_ref()
+            .ok()
+            .and_then(|s| s.plugin(plugin_id))
+            .is_some_and(|p| p.enabled);
+        enabled && inner.server_mut(plugin_id, server_id, epoch).is_some()
+    }
+
     fn exited(&self, plugin_id: &str, server_id: &str, epoch: u64, reason: String) {
         let mut inner = self.lock();
         let Some(ls) = inner.server_mut(plugin_id, server_id, epoch) else {
@@ -246,10 +268,12 @@ impl Host {
 mod tests {
     use super::super::test_support::{
         eventually, fixture_copy, gone, host_at, hung_child, read_json, require_python, running,
-        server_logged_a_cancel, set_mode, slow_call, temp_dir,
+        server_logged_a_cancel, set_mode, slow_call, temp_dir, Signals,
     };
     use super::*;
+    use rmcp::service::{serve_directly, RoleClient};
     use serde_json::json;
+    use tokio::io::AsyncWriteExt;
 
     #[tokio::test]
     async fn disabling_a_plugin_cancels_its_calls_before_the_server_stops() {
@@ -268,6 +292,45 @@ mod tests {
             "{:?}",
             host.log_tail("yui-test")
         );
+    }
+
+    #[tokio::test]
+    async fn a_notification_for_the_server_a_disable_stopped_never_reaches_the_sink() {
+        require_python();
+        let host = running("yui-test").await;
+        let (epoch, log) = {
+            let inner = host.lock();
+            let live = &inner.live["yui-test"];
+            (live.servers[0].epoch, live.log.clone())
+        };
+        let delivered = Signals::default();
+        let sink = delivered.clone();
+        let client = HostClient {
+            plugin_id: "yui-test".into(),
+            server: "main".into(),
+            server_id: "yui-test/main".into(),
+            epoch,
+            log,
+            host: Arc::downgrade(&host),
+            signals: Arc::new(move |p| sink.lock().unwrap().push(p)),
+        };
+        // The client's end of a stdio pair; the test writes the server's lines.
+        let (ours, theirs) = tokio::io::duplex(4096);
+        let _service =
+            serve_directly::<RoleClient, _, _, _, _>(client, tokio::io::split(ours), None);
+        let (_reader, mut server) = tokio::io::split(theirs);
+        let line = format!(
+            "{}\n",
+            json!({"jsonrpc": "2.0", "method": "notifications/io.github.yw0nam.yui/signals",
+                "params": {"signals": [], "envelope": {"event_id": "n-1"}}})
+        );
+        server.write_all(line.as_bytes()).await.unwrap();
+        let reached_while_live = eventually(|| delivered.lock().unwrap().len() == 1).await;
+        host.disable("yui-test").await.unwrap();
+        server.write_all(line.as_bytes()).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(reached_while_live);
+        assert_eq!(delivered.lock().unwrap().len(), 1);
     }
 
     #[tokio::test]

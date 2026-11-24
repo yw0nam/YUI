@@ -114,6 +114,26 @@ description: Greets the user in one line.
 
 The body is read on each call. The name and description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
 
+## Send signals
+
+A server can hand the character a signal group without a tool call. It sends one notification, with no `id`, whose method is `notifications/io.github.yw0nam.yui/signals`:
+
+```json
+{"jsonrpc": "2.0", "method": "notifications/io.github.yw0nam.yui/signals",
+ "params": {"signals": [{"kind": "build_done"}],
+            "envelope": {"source": "my-plugin", "event_type": "build_done", "delivery": "urgent",
+                         "event_id": "build-42", "occurred_at": 1787449000000}}}
+```
+
+`params` is the `POST /signals` body ([Signals ingress](../reference/signals-ingress.md#from-a-plugin)): a `signals` array and an `envelope`. Each item stays within 16 KiB; the 64 KiB body limit belongs to the HTTP route only.
+
+The group goes to the main window's character and becomes a turn under the usual delivery rules. The External signals switch does not gate it: turning the plugin on is the consent.
+
+- Send after the client's `notifications/initialized`. A notification sent before the handshake completes is dropped.
+- A notification sent before the main window listens, early in app start, is lost.
+- A notification that arrives after the plugin is turned off is dropped.
+- A notification whose `params` is absent, `null`, or an object that breaks a rule adds a `signals refused: <reason>` line to the plugin log. Scalar or array `params` are refused while the frame is decoded, before that check, and leave no line.
+
 ## Test locally
 
 1. Run the app (`pnpm tauri dev`, or a release build).

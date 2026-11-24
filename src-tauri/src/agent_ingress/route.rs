@@ -3,7 +3,6 @@
 use super::payload::{parse_avatar_request, parse_signals_request, AvatarRoute, SignalsPayload};
 use super::threads::routes::{self as thread_routes, ThreadRoute};
 use super::INGRESS_WINDOW;
-use crate::os_event_watcher::epoch_ms;
 
 /// Builds the shared pet-window label for one preset id.
 fn pet_label(id: &str) -> String {
@@ -55,14 +54,7 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
             }
             RouteKind::Thread(thread_routes::parse(method, path, url, body)?)
         }
-        "/signals" => {
-            let request = parse_signals_request(method, &path, body)?;
-            RouteKind::Signals(SignalsPayload {
-                signals: request.signals,
-                envelope: request.envelope.ok_or(400u16)?,
-                ts: epoch_ms(),
-            })
-        }
+        "/signals" => RouteKind::Signals(parse_signals_request(method, &path, body)?),
         "/avatar/state" | "/avatar/perch-targets" | "/avatar/command" | "/relations" => {
             RouteKind::Avatar(parse_avatar_request(method, &path, body)?)
         }

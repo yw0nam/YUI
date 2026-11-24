@@ -86,8 +86,9 @@ the plugin follows the steps below against the plugin map; step 3's
   module. Every `.ts`, `.tsx` and `.rs` source file is inside the path of some part.
 - An exchange names what crosses between two parts as the code spells it, its
   kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
-  localStorage, cross-window bridge, user action), the transport it belongs to
-  (shared, request, push), and the wiring file that connects the two ends.
+  stdio message, localStorage, cross-window bridge, user action), the
+  transport it belongs to (shared, request, push), and the wiring file that
+  connects the two ends.
 - A link is a main path between two modules, drawn as a labelled line. The
   viewer lists every exchange of a module when the module is selected.
 - A flow is a numbered sequence of steps between modules, each step naming

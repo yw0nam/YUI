@@ -76,16 +76,16 @@ function item(id: string, ts: number): FakeItem {
 /** Minimal buffer: a plain array in arrival order, closed over by the config. */
 function fakeBuffer(): {
   bufferAdd: (p: FakeItem) => void;
-  bufferEmpty: () => boolean;
-  bufferClear: () => void;
+  nothingLeaves: () => boolean;
+  removeCarried: () => void;
   buildCatchup: () => InboxFiring;
   snapshot: () => FakeItem[];
 } {
   const buffer: FakeItem[] = [];
   return {
     bufferAdd: (p) => buffer.push(p),
-    bufferEmpty: () => buffer.length === 0,
-    bufferClear: () => {
+    nothingLeaves: () => buffer.length === 0,
+    removeCarried: () => {
       buffer.length = 0;
     },
     buildCatchup: () => ({
@@ -110,15 +110,14 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      bufferEmpty: buf.bufferEmpty,
-      bufferClear: buf.bufferClear,
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
       buildCatchup: buf.buildCatchup,
       // subscribePipelineBusy intentionally omitted — pins the edge path when no
       // busy->idle flush is wired at all (isPipelineBusy absent = never busy).
@@ -155,15 +154,14 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      bufferEmpty: buf.bufferEmpty,
-      bufferClear: buf.bufferClear,
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
       buildCatchup: buf.buildCatchup,
     });
     await src.start();
@@ -192,15 +190,14 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      bufferEmpty: buf.bufferEmpty,
-      bufferClear: buf.bufferClear,
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
       buildCatchup: buf.buildCatchup,
     });
     await src.start();
@@ -233,15 +230,14 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      bufferEmpty: buf.bufferEmpty,
-      bufferClear: buf.bufferClear,
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
       buildCatchup: buf.buildCatchup,
     });
     await src.start();
@@ -274,15 +270,14 @@ it("retains a refused catch-up and flushes on the next edge", async () => {
   const src = createBufferedInboxSource<FakeItem>({
     bus,
     present_max_idle_ms: PRESENT_MAX,
-    isEnabled: () => true,
     onInbox,
     listen,
     log: makeLog(),
     parse: (p) => p,
     buildLive,
     bufferAdd: buf.bufferAdd,
-    bufferEmpty: buf.bufferEmpty,
-    bufferClear: buf.bufferClear,
+    nothingLeaves: buf.nothingLeaves,
+    removeCarried: buf.removeCarried,
     buildCatchup: buf.buildCatchup,
   });
   await src.start();
@@ -307,15 +302,14 @@ it("retains a catch-up that evicts itself at capacity and flushes on the next ed
   const src = createBufferedInboxSource<FakeItem>({
     bus,
     present_max_idle_ms: PRESENT_MAX,
-    isEnabled: () => true,
     onInbox,
     listen,
     log: makeLog(),
     parse: (p) => p,
     buildLive,
     bufferAdd: buf.bufferAdd,
-    bufferEmpty: buf.bufferEmpty,
-    bufferClear: buf.bufferClear,
+    nothingLeaves: buf.nothingLeaves,
+    removeCarried: buf.removeCarried,
     buildCatchup: () => ({ ...buf.buildCatchup(), event_name: "signals.catchup" }),
   });
   await src.start();

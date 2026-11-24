@@ -4,6 +4,7 @@
 use super::catalog;
 use super::host::Host;
 use super::snapshot::Snapshot;
+use crate::agent_ingress::SignalsPayload;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::Write;
@@ -90,22 +91,30 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
 }
 
 pub type Emitted = Arc<Mutex<Vec<Snapshot>>>;
+pub type Signals = Arc<Mutex<Vec<SignalsPayload>>>;
 
 pub fn host_at(app_data: &Path) -> (Arc<Host>, Emitted) {
     host_with(app_data, no_catalog())
 }
 
 pub fn host_with(app_data: &Path, catalog: catalog::Config) -> (Arc<Host>, Emitted) {
-    let emitted = Emitted::default();
-    let sink = emitted.clone();
+    let (host, emitted, _) = host_sinks(app_data, catalog);
+    (host, emitted)
+}
+
+/// A host whose emitted snapshots and delivered signals payloads are recorded.
+pub fn host_sinks(app_data: &Path, catalog: catalog::Config) -> (Arc<Host>, Emitted, Signals) {
+    let (emitted, signals) = (Emitted::default(), Signals::default());
+    let (snapshots, payloads) = (emitted.clone(), signals.clone());
     let host = Host::new(
         Ok(app_data.to_path_buf()),
         &app_data.join("logs"),
         UtcOffset::UTC,
         catalog,
-        move |s| sink.lock().unwrap().push(s.clone()),
+        move |s| snapshots.lock().unwrap().push(s.clone()),
+        move |p| payloads.lock().unwrap().push(p),
     );
-    (host, emitted)
+    (host, emitted, signals)
 }
 
 /// A catalog config whose URLs point nowhere.

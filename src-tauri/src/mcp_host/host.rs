@@ -3,6 +3,7 @@
 
 use super::calls::Calls;
 use super::catalog;
+use super::client::SignalsSink;
 use super::launch;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
@@ -10,6 +11,7 @@ use super::orphans::ProcessGroups;
 use super::server::PluginLog;
 use super::snapshot::{self, PluginEntry, ServerView, Snapshot};
 use super::store::{self, Source, State, StoredPlugin};
+use crate::agent_ingress::SignalsPayload;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -28,6 +30,7 @@ pub struct Host {
     /// Held for a whole install or remove, so two never interleave.
     pub(super) installs: tokio::sync::Mutex<()>,
     emit: Emit,
+    pub(super) signals: SignalsSink,
     inner: Mutex<Inner>,
     pub(super) calls: Calls,
     /// The running servers' process groups, in `groups.json`.
@@ -57,6 +60,7 @@ impl Host {
         offset: UtcOffset,
         catalog: catalog::Config,
         emit: impl Fn(&Snapshot) + Send + Sync + 'static,
+        signals: impl Fn(SignalsPayload) + Send + Sync + 'static,
     ) -> Arc<Self> {
         // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
         let dir = app_data.as_deref().unwrap_or(Path::new("")).join("plugins");
@@ -98,6 +102,7 @@ impl Host {
             http: catalog::client(),
             installs: tokio::sync::Mutex::new(()),
             emit: Box::new(emit),
+            signals: Arc::new(signals),
             inner: Mutex::new(inner),
             calls: Calls::default(),
             groups,
@@ -492,7 +497,7 @@ mod tests {
         assert_eq!(b.servers[0].status, Status::Running);
         assert_eq!(
             tool_names(a),
-            ["echo_args", "echo_meta", "slow", "spawn_child"]
+            ["echo_args", "echo_meta", "slow", "spawn_child", "notify"]
         );
         assert_eq!(
             serde_json::to_value(&a.hidden).unwrap(),
@@ -507,6 +512,7 @@ mod tests {
                 {"kind": "tool", "name": "slow", "holder": "yui-a"},
                 {"kind": "tool", "name": "spawn_child", "holder": "yui-a"},
                 {"kind": "tool", "name": "look", "holder": "builtin"},
+                {"kind": "tool", "name": "notify", "holder": "yui-a"},
                 {"kind": "skill", "name": "hello", "holder": "yui-a"}
             ])
         );
@@ -516,7 +522,7 @@ mod tests {
         let b = plugin(&after, "yui-b");
         assert_eq!(
             tool_names(b),
-            ["echo_args", "echo_meta", "slow", "spawn_child"]
+            ["echo_args", "echo_meta", "slow", "spawn_child", "notify"]
         );
         assert_eq!(b.skills[0].name, "hello");
         assert_eq!(
@@ -620,6 +626,7 @@ mod tests {
             &temp_dir(),
             UtcOffset::UTC,
             no_catalog(),
+            |_| {},
             |_| {},
         );
         assert!(host.snapshot().plugins.is_empty());

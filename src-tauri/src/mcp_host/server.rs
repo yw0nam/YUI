@@ -1,5 +1,6 @@
 //! One running MCP server: start under a deadline, its stderr, its exit, and stop.
 
+use super::client::HostClient;
 use super::launch;
 use super::manifest::ServerSpec;
 use super::orphans::{ProcessGroup, ProcessGroups};
@@ -20,7 +21,7 @@ use time::UtcOffset;
 use tokio::io::AsyncReadExt;
 use tokio::process::ChildStderr;
 
-type Client = RunningService<RoleClient, ()>;
+type Client = RunningService<RoleClient, HostClient>;
 
 const TAIL_LINES: usize = 20;
 /// How long a server gets to exit after its stdin closes, so it can act on what it already read.
@@ -208,6 +209,7 @@ pub fn spawn(
 pub async fn connect(
     spawned: Spawned,
     deadline: Duration,
+    handler: HostClient,
     on_exit: impl FnOnce(String) + Send + 'static,
 ) -> Result<Server, Failure> {
     let Spawned {
@@ -228,7 +230,7 @@ pub async fn connect(
     let until = tokio::time::Instant::now() + deadline;
     let stdout = child.stdout().take().expect("launch pipes stdout");
     let stdin = child.stdin().take().expect("launch pipes stdin");
-    let serving = tokio::time::timeout_at(until, ().serve((stdout, stdin))).await;
+    let serving = tokio::time::timeout_at(until, handler.serve((stdout, stdin))).await;
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
@@ -388,7 +390,18 @@ mod tests {
             log.clone(),
             &ProcessGroups::open(None),
         ) {
-            Ok(spawned) => connect(spawned, deadline, on_exit).await,
+            Ok(spawned) => {
+                let handler = HostClient {
+                    plugin_id: "yui-test".into(),
+                    server: spec.name.clone(),
+                    server_id: "yui-test/main".into(),
+                    epoch: 0,
+                    log: log.clone(),
+                    host: std::sync::Weak::new(),
+                    signals: Arc::new(|_| {}),
+                };
+                connect(spawned, deadline, handler, on_exit).await
+            }
             Err(failure) => Err(failure),
         };
         Started {
@@ -418,7 +431,14 @@ mod tests {
         let names: Vec<&str> = server.tools.iter().map(|t| t.name.as_ref()).collect();
         assert_eq!(
             names,
-            ["echo_args", "echo_meta", "slow", "spawn_child", "look"]
+            [
+                "echo_args",
+                "echo_meta",
+                "slow",
+                "spawn_child",
+                "look",
+                "notify"
+            ]
         );
         assert_eq!(
             serde_json::to_value(&server.tools[2].meta).unwrap(),

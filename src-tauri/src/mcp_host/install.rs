@@ -535,6 +535,7 @@ mod tests {
 
 #[cfg(all(test, windows))]
 mod windows_tests {
+    use super::super::client::HostClient;
     use super::super::manifest::ServerSpec;
     use super::super::orphans::ProcessGroups;
     use super::super::server::{connect, spawn, PluginLog};
@@ -587,12 +588,21 @@ mod windows_tests {
             &spec,
             base,
             &base.join("data"),
-            log,
+            log.clone(),
             &ProcessGroups::open(None),
         )
         .expect("spawn");
         let stopper = spawned.stopper();
-        let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
+        let handler = HostClient {
+            plugin_id: "yui-test".into(),
+            server: spec.name.clone(),
+            server_id: "yui-test/main".into(),
+            epoch: 0,
+            log,
+            host: std::sync::Weak::new(),
+            signals: Arc::new(|_| {}),
+        };
+        let start = tokio::spawn(connect(spawned, Duration::from_secs(30), handler, |_| {}));
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         stopper.stop();
