@@ -1,9 +1,18 @@
-/** A rail row: its label beside its control, and the slider row built on it. */
+/** The rail's pieces: a section header, a row with its label beside its control, and the slider row built on it. */
 
 import type { ReactNode } from "react";
 import { Slider } from "../../controls/slider";
 
-export function PlaybackRow({ label, children }: { label: string; children: ReactNode }) {
+export function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="section-header">
+      <span className="section-label">{label}</span>
+      <div className="section-divider" />
+    </div>
+  );
+}
+
+export function RailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="playback-row">
       <span className="playback-label">{label}</span>
@@ -12,7 +21,7 @@ export function PlaybackRow({ label, children }: { label: string; children: Reac
   );
 }
 
-export function SliderRow({
+export function RailSliderRow({
   label,
   value,
   min,
@@ -31,7 +40,7 @@ export function SliderRow({
   onChange(value: number): void;
 }) {
   return (
-    <PlaybackRow label={label}>
+    <RailRow label={label}>
       <div className="slider-wrap">
         <Slider
           label={label}
@@ -44,6 +53,6 @@ export function SliderRow({
         />
         <span className="slider-value">{text}</span>
       </div>
-    </PlaybackRow>
+    </RailRow>
   );
 }

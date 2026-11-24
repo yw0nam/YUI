@@ -979,7 +979,7 @@ YUI/
           variants.ts                # Pooled-variant expansion into playable entries
           preview-row.tsx            # A motion or emotion row button
           registry-list.tsx          # Motion rows by kind and idle's variant line
-          playback-row.tsx           # A rail row and its slider row
+          rail-row.tsx               # The rail's section header, a row, and its slider row
           playback-controls.tsx      # Loop, speed, fade, crossfade, and the play, stop, and idle buttons
           emotion-panel.tsx          # Emotion rows, sliders, and the neutral and hold buttons
           live-status.ts             # Per-frame status text, fps, and elapsed time; reports each clip change

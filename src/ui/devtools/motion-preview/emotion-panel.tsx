@@ -3,8 +3,8 @@
 import { useState } from "react";
 import type { EmotionId } from "../../../contract";
 import type { MotionPreview } from "./motion-preview";
-import { SliderRow } from "./playback-row";
 import { PreviewRow } from "./preview-row";
+import { RailSliderRow } from "./rail-row";
 
 const EMOTION_ORDER: EmotionId[] = [
   "neutral",
@@ -57,7 +57,7 @@ export function EmotionPanel({
           })}
         </ul>
       )}
-      <SliderRow
+      <RailSliderRow
         label="intensity"
         min={0}
         max={1}
@@ -66,7 +66,7 @@ export function EmotionPanel({
         text={intensity.toFixed(2)}
         onChange={setIntensity}
       />
-      <SliderRow
+      <RailSliderRow
         label="transition"
         min={0}
         max={1000}

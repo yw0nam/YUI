@@ -4965,7 +4965,7 @@ globalThis.YUI_MAP =
       "carries": "Slider: speed, fade, intensity and transition, each with its range, label and readout; each change",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/ui/devtools/motion-preview/playback-row.tsx"
+      "wiring": "src/ui/devtools/motion-preview/rail-row.tsx"
     },
     {
       "id": "devtools-playback-controls",

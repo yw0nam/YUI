@@ -2,7 +2,7 @@
 
 import { Checkbox } from "../../controls/checkbox";
 import { Select } from "../../controls/select";
-import { PlaybackRow, SliderRow } from "./playback-row";
+import { RailRow, RailSliderRow } from "./rail-row";
 
 export interface Playback {
   loop: boolean;
@@ -36,14 +36,14 @@ export function PlaybackControls({
 }) {
   return (
     <>
-      <PlaybackRow label="loop">
+      <RailRow label="loop">
         <Checkbox
           label="loop"
           checked={value.loop}
           onCheckedChange={(loop) => onChange({ ...value, loop })}
         />
-      </PlaybackRow>
-      <SliderRow
+      </RailRow>
+      <RailSliderRow
         label="speed"
         min={0.25}
         max={2.5}
@@ -52,7 +52,7 @@ export function PlaybackControls({
         text={formatSpeed(value.speed)}
         onChange={(speed) => onChange({ ...value, speed })}
       />
-      <SliderRow
+      <RailSliderRow
         label="fade"
         min={0}
         max={600}
@@ -61,14 +61,14 @@ export function PlaybackControls({
         text={`${value.fade}ms`}
         onChange={(fade) => onChange({ ...value, fade })}
       />
-      <PlaybackRow label="crossfade →">
+      <RailRow label="crossfade →">
         <Select
           aria-label="crossfade"
           value={value.crossfade}
           items={ids.map((id) => ({ value: id, label: id }))}
           onValueChange={(crossfade) => onChange({ ...value, crossfade })}
         />
-      </PlaybackRow>
+      </RailRow>
       <div className="btn-row">
         <button type="button" className="yui-pill yui-pill--ok" onClick={onPlay}>
           play

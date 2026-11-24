@@ -12,16 +12,8 @@ import type { Clip } from "./live-status";
 import type { MotionLoad } from "./motion-load";
 import type { MotionPreview } from "./motion-preview";
 import { PLAYBACK_DEFAULTS, PlaybackControls } from "./playback-controls";
+import { SectionHeader } from "./rail-row";
 import { RegistryList } from "./registry-list";
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div className="section-header">
-      <span className="section-label">{label}</span>
-      <div className="section-divider" />
-    </div>
-  );
-}
 
 function Preview({ attach }: { attach: MotionLoad["attach"] }) {
   const host = useRef<HTMLDivElement>(null);
