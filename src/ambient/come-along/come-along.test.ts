@@ -26,6 +26,8 @@ function harness(
   opts: {
     at?: { x: number; y: number };
     native?: boolean;
+    /** Follows a settings window it is not linked to in physical px, as on Windows. */
+    physicalFollow?: boolean;
     storage?: Storage;
     /** Her feet's y in her window, logical, by default at its bottom; null with no VRM loaded. */
     feet?: number | null;
@@ -105,6 +107,7 @@ function harness(
     hitTest: { setMoving: vi.fn() },
     dock,
     setPositionPhysical,
+    followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
   });
   const tick = (ms: number) => {
@@ -283,13 +286,23 @@ describe("createComeAlong", () => {
     expect([h.real.x, h.real.y]).toEqual(home);
   });
 
-  it("follows each slot in physical px when the shell links nothing", async () => {
-    const h = await docked({ native: false });
+  it("follows each slot in the settings window's physical px when the shell links nothing on Windows", async () => {
+    const h = await docked({ native: false, physicalFollow: true });
 
     await h.comeAlong.onStage({ x: 300, y: 100, width: 400, height: 600, scale: 1.5 });
 
-    // The slot's bottom-centre at scale 1.5 is (750, 1050) px; her window is 800 × 1200 px.
-    expect(h.setPositionPhysical).toHaveBeenCalledExactlyOnceWith(350, -150);
+    // Her 400 × 600 pt window docks at (300, 100) pt, which is (450, 150) px at the slot's scale 1.5.
+    expect(h.setPositionPhysical).toHaveBeenCalledExactlyOnceWith(450, 150);
+  });
+
+  it("follows each slot in logical points when the shell links nothing on macOS", async () => {
+    const h = await docked({ native: false });
+    h.frameWindow.setPositionLogical.mockClear();
+
+    await h.comeAlong.onStage({ x: 300, y: 100, width: 400, height: 600, scale: 1.5 });
+
+    expect(h.frameWindow.setPositionLogical).toHaveBeenCalledExactlyOnceWith(300, 100);
+    expect(h.setPositionPhysical).not.toHaveBeenCalled();
   });
 
   it("natively docked, places her only when the slot moved away from her", async () => {
