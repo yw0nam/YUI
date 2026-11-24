@@ -74,8 +74,7 @@ pub enum SubscribeFail {
 }
 
 pub async fn subscribe(conn: &mut Conn, subscriptions: &[Value]) -> Result<(), SubscribeFail> {
-    let request =
-        json!({"id": 1, "method": "events.subscribe", "params": {"subscriptions": subscriptions}});
+    let request = json!({"id": "1", "method": "events.subscribe", "params": {"subscriptions": subscriptions}});
     write_line(conn, &request)
         .await
         .map_err(SubscribeFail::Failed)?;
@@ -97,7 +96,7 @@ pub async fn agent_list(sock: &Path) -> Result<Value, String> {
     let mut conn = connect(sock).await?;
     write_line(
         &mut conn,
-        &json!({"id": 1, "method": "agent.list", "params": {}}),
+        &json!({"id": "1", "method": "agent.list", "params": {}}),
     )
     .await?;
     read_response(&mut conn).await.map_err(|e| match e {
