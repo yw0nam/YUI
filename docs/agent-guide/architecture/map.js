@@ -566,7 +566,7 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, the Threads window's native number and no-focus order-front, and the pet window's native child link to its settings window (macOS), unlinked when that settings window closes or the tray hides main.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, the Threads window's native number and no-focus order-front, and the pet window's native child link to its settings window (macOS), unlinked when that settings window closes or miniaturizes or the tray hides main.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_dock.rs",
@@ -3851,10 +3851,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-come-along.ts"
     },
     {
-      "id": "settings-stage-closed",
+      "id": "settings-stage-ended",
       "from": "shell/window",
       "to": "app/stage",
-      "carries": "yui://settings-stage-closed {label}: a settings window's close request, after the shell unlinked its pet window; that pet window sends her home",
+      "carries": "yui://settings-stage-ended, the settings window's label: its close request or, on macOS, its miniaturize, after the shell unlinked its pet window; that pet window sends her home",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"

@@ -25,13 +25,13 @@ export async function setPetPositionPhysical(x: number, y: number): Promise<void
   await getCurrentWindow().setPosition(new PhysicalPosition(x, y));
 }
 
-/** Calls `cb` when the settings window labelled `label` is asked to close, after the shell unlinked her. */
-export function onSettingsStageClosed(label: string, cb: () => void): () => void {
+/** Calls `cb` when the settings window labelled `label` closes or minimises, after the shell unlinked her. */
+export function onSettingsStageEnded(label: string, cb: () => void): () => void {
   let off: (() => void) | null = null;
   let disposed = false;
   void import("@tauri-apps/api/event")
     .then(({ listen }) =>
-      listen<string>("yui://settings-stage-closed", (event) => {
+      listen<string>("yui://settings-stage-ended", (event) => {
         if (event.payload === label) cb();
       }),
     )
@@ -39,7 +39,7 @@ export function onSettingsStageClosed(label: string, cb: () => void): () => void
       if (disposed) unlisten();
       else off = unlisten;
     })
-    .catch((err) => log.warn("settings_stage_closed_listen_failed", { error: String(err) }));
+    .catch((err) => log.warn("settings_stage_ended_listen_failed", { error: String(err) }));
   return () => {
     disposed = true;
     off?.();

@@ -1,4 +1,4 @@
-/** Wires the come-along: her own settings window's stage slots and close drive it over the locomotion. */
+/** Wires the come-along: her own settings window's stage slots, close and minimise drive it over the locomotion. */
 import { createComeAlong } from "../../ambient/come-along/come-along";
 import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
@@ -6,7 +6,7 @@ import type { HitTestController } from "../../io/window/pet/hit-test";
 import {
   attachDock,
   detachDock,
-  onSettingsStageClosed,
+  onSettingsStageEnded,
   setPetPositionPhysical,
 } from "../../io/window/pet/window-dock";
 import { createLogger } from "../../logger";
@@ -67,7 +67,7 @@ export function wireComeAlong(deps: {
         if (preset === boundId) void comeAlong.onStage(slot).catch(failed);
       }),
     );
-    register(onSettingsStageClosed(settingsLabel, () => void comeAlong.goHome().catch(failed)));
+    register(onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)));
     register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
     // The Character menu lets go after its parked frame ends: the newest slot applies then.
     register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));

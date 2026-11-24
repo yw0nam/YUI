@@ -4,11 +4,12 @@
 //!
 //! A linked window unlinks before the tray hides it, since attaching a child window shows it and a
 //! parent orders a hidden child back in (the pattern of Electron's `NativeWindowMac::Show`/`Hide`).
+//! It also unlinks before its settings window miniaturizes, which would hide it with the parent.
 
 use tauri::{Emitter, Manager, Runtime, WebviewWindow, Window, WindowEvent};
 
-/// Heard by every pet window, with the closing settings window's label.
-const CLOSED_EVENT: &str = "yui://settings-stage-closed";
+/// Heard by every pet window, with the label of the settings window that closes or minimises.
+const ENDED_EVENT: &str = "yui://settings-stage-ended";
 
 /// The settings window a pet window docks into: `main` → `settings`, `pet-<id>` → `settings-<id>`.
 fn parent_label(child: &str) -> Option<String> {
@@ -34,10 +35,19 @@ fn child_label(parent: &str) -> Option<String> {
 
 #[cfg(target_os = "macos")]
 mod macos {
+    use std::cell::RefCell;
     use std::collections::BTreeMap;
+    use std::ptr::NonNull;
     use std::sync::Mutex;
 
-    use objc2_app_kit::{NSNormalWindowLevel, NSWindow, NSWindowLevel, NSWindowOrderingMode};
+    use block2::RcBlock;
+    use objc2::rc::Retained;
+    use objc2::runtime::{AnyObject, NSObjectProtocol, ProtocolObject};
+    use objc2_app_kit::{
+        NSNormalWindowLevel, NSWindow, NSWindowLevel, NSWindowOrderingMode,
+        NSWindowWillMiniaturizeNotification,
+    };
+    use objc2_foundation::{NSNotification, NSNotificationCenter};
     use tauri::{Runtime, WebviewWindow};
 
     use crate::threads_window::with_ns_window;
@@ -45,16 +55,64 @@ mod macos {
     /// Each docked window's level from before its first link, by label, while its session lasts.
     static LEVELS: Mutex<BTreeMap<String, NSWindowLevel>> = Mutex::new(BTreeMap::new());
 
-    /// Makes `child` a child window of `parent` at normal level; a window already linked stays as it is.
+    type Observer = Retained<ProtocolObject<dyn NSObjectProtocol>>;
+
+    thread_local! {
+        /// Each settings window's miniaturize observer, by label; touched on the main thread only.
+        static OBSERVERS: RefCell<BTreeMap<String, Observer>> = const { RefCell::new(BTreeMap::new()) };
+    }
+
+    /// Runs `on_miniaturize` each time `parent` is about to miniaturize, before AppKit hides its children.
+    fn observe_miniaturize(
+        parent_ns: &NSWindow,
+        parent_label: String,
+        on_miniaturize: impl Fn() + 'static,
+    ) {
+        OBSERVERS.with(|observers| {
+            let mut observers = observers.borrow_mut();
+            if observers.contains_key(&parent_label) {
+                return;
+            }
+            let block = RcBlock::new(move |_: NonNull<NSNotification>| on_miniaturize());
+            let object: &AnyObject = parent_ns.as_ref();
+            // SAFETY: on the main thread; with no queue the block runs on the posting (main)
+            // thread, and the observer is removed when its settings window closes.
+            let token = unsafe {
+                NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+                    Some(NSWindowWillMiniaturizeNotification),
+                    Some(object),
+                    None,
+                    &block,
+                )
+            };
+            observers.insert(parent_label, token);
+        });
+    }
+
+    /// Stops watching the settings window labelled `parent_label`; on the main thread.
+    pub fn unobserve(parent_label: &str) {
+        OBSERVERS.with(|observers| {
+            if let Some(token) = observers.borrow_mut().remove(parent_label) {
+                let observer: &AnyObject = token.as_ref();
+                // SAFETY: `token` is the observer `addObserverForName:…` returned.
+                unsafe { NSNotificationCenter::defaultCenter().removeObserver(observer) };
+            }
+        });
+    }
+
+    /// Makes `child` a child window of `parent` at normal level; a window already linked stays as
+    /// it is. `on_miniaturize` runs each time `parent` is about to miniaturize.
     pub fn link<R: Runtime>(
         child: &WebviewWindow<R>,
         parent: WebviewWindow<R>,
+        on_miniaturize: impl Fn() + Send + 'static,
     ) -> Result<(), String> {
         let label = child.label().to_string();
         with_ns_window(child, move |child_ns| {
             let parent_ptr = parent.ns_window().map_err(|e| e.to_string())?;
             // SAFETY: on the main thread, `parent_ptr` is the live NSWindow* of `parent`.
             let parent_ns = unsafe { &*(parent_ptr as *const NSWindow) };
+            observe_miniaturize(parent_ns, parent.label().to_string(), on_miniaturize);
             if child_ns
                 .parentWindow()
                 .is_some_and(|p| std::ptr::eq(&*p, parent_ns))
@@ -108,7 +166,9 @@ pub fn window_dock_attach<R: Runtime>(window: WebviewWindow<R>) -> Result<bool, 
         .ok_or_else(|| format!("no window {parent_label}"))?;
     #[cfg(target_os = "macos")]
     {
-        macos::link(&window, parent)?;
+        let child = window.clone();
+        let label = parent_label.clone();
+        macos::link(&window, parent, move || end_session(&child, &label))?;
         Ok(true)
     }
     #[cfg(not(target_os = "macos"))]
@@ -132,8 +192,22 @@ pub fn window_dock_detach<R: Runtime>(window: WebviewWindow<R>) -> Result<(), St
     }
 }
 
-/// A settings window's close request unlinks its pet window before AppKit closes the parent,
-/// then tells the pet windows which settings window closes.
+/// Ends the session of `child` on the settings window labelled `parent_label`: unlinks it and
+/// gives back its level, then tells the pet windows that settings window's stage ended.
+fn end_session<R: Runtime>(child: &WebviewWindow<R>, parent_label: &str) {
+    #[cfg(target_os = "macos")]
+    if let Err(error) = macos::unlink(child, true) {
+        log::warn!(
+            "window_dock_detach_failed window={} error={error}",
+            child.label()
+        );
+    }
+    if let Err(error) = child.app_handle().emit(ENDED_EVENT, parent_label) {
+        log::warn!("settings_stage_ended_emit_failed window={parent_label} error={error}");
+    }
+}
+
+/// A settings window's close request ends its pet window's session before AppKit closes the parent.
 pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let WindowEvent::CloseRequested { .. } = event else {
         return;
@@ -142,13 +216,9 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         return;
     };
     #[cfg(target_os = "macos")]
+    macos::unobserve(window.label());
     if let Some(child) = window.get_webview_window(&child_label) {
-        if let Err(error) = macos::unlink(&child, true) {
-            log::warn!("window_dock_detach_failed window={child_label} error={error}");
-        }
-    }
-    if let Err(error) = window.app_handle().emit(CLOSED_EVENT, window.label()) {
-        log::warn!("settings_stage_closed_emit_failed window={child_label} error={error}");
+        end_session(&child, window.label());
     }
 }
 
@@ -171,10 +241,13 @@ pub(crate) fn unlink_for_hide<R: Runtime>(window: &WebviewWindow<R>) {
 pub(crate) fn relink_after_show<R: Runtime>(window: &WebviewWindow<R>) {
     #[cfg(target_os = "macos")]
     if macos::in_session(window.label()) {
-        let parent =
-            parent_label(window.label()).and_then(|label| window.get_webview_window(&label));
-        if let Some(parent) = parent {
-            if let Err(error) = macos::link(window, parent) {
+        let label = parent_label(window.label());
+        let parent = label
+            .as_deref()
+            .and_then(|label| window.get_webview_window(label));
+        if let (Some(parent), Some(label)) = (parent, label) {
+            let child = window.clone();
+            if let Err(error) = macos::link(window, parent, move || end_session(&child, &label)) {
                 log::warn!(
                     "window_dock_show_relink_failed window={} error={error}",
                     window.label()

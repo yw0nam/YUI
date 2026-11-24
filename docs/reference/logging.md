@@ -265,11 +265,11 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `come-along` | `come_along_place_failed` | `error` | Placing her on a new slot threw (`warn` level). |
 | `come-along` | `come_along_store_failed` | `error` | Session storage refused her home or opt-out, so a reload forgets it (`warn` level). |
 | `wire-come-along` | `come_along_failed` | `error` | A start or a walk home threw; she stays where she is and the next slot starts afresh (`warn` level). |
-| `window-dock` | `settings_stage_closed_listen_failed` | `error` | Listening for the settings window's close failed (`warn` level). |
+| `window-dock` | `settings_stage_ended_listen_failed` | `error` | Listening for the settings window's close or minimise failed (`warn` level). |
 | `stage-slot` | `stage_slot_read_failed` | `error` | Reading the window's position, scale or minimised state threw; no slot is sent (`warn` level). |
 | `stage-slot` | `stage_slot_listen_failed` | `error` | Listening to the window's moves or resizes failed (`warn` level). |
-| Rust `window_dock.rs` | `window_dock_detach_failed` | `window`, `error` | Unlinking a pet window on its settings window's close failed (`warn` level). |
-| Rust `window_dock.rs` | `settings_stage_closed_emit_failed` | `window`, `error` | Sending the close to the pet windows failed (`warn` level). |
+| Rust `window_dock.rs` | `window_dock_detach_failed` | `window`, `error` | Unlinking the pet window `window` when its settings window closes or miniaturizes failed (`warn` level). |
+| Rust `window_dock.rs` | `settings_stage_ended_emit_failed` | `window`, `error` | Telling the pet windows that the settings window `window` closed or miniaturized failed (`warn` level). |
 | Rust `window_dock.rs` | `window_dock_hide_unlink_failed` | `window`, `error` | Unlinking a docked window before the tray hides it failed (`warn` level). |
 | Rust `window_dock.rs` | `window_dock_show_relink_failed` | `window`, `error` | Linking a docked window again after the tray shows it failed (`warn` level). |
 

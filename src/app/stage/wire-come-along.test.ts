@@ -19,8 +19,8 @@ vi.mock("../../io/window/pet/window-dock", () => ({
   attachDock: vi.fn(),
   detachDock: vi.fn(),
   setPetPositionPhysical: vi.fn(),
-  onSettingsStageClosed: vi.fn<
-    typeof import("../../io/window/pet/window-dock").onSettingsStageClosed
+  onSettingsStageEnded: vi.fn<
+    typeof import("../../io/window/pet/window-dock").onSettingsStageEnded
   >((label, cb) => {
     mocks.closed.set(label, cb);
     return () => mocks.closed.delete(label);
