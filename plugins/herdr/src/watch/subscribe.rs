@@ -138,13 +138,41 @@ async fn watch_once(
             SubscribeFail::Rejected => "topology subscribe rejected".to_string(),
             SubscribeFail::Failed(e) => format!("topology subscribe: {e}"),
         })?;
+    let mut health = StatusHealth::default();
     loop {
         let mut status = rebuild(&sock, watch, backoff).await?;
-        match events(&mut topology, status.as_mut(), watch).await? {
+        health.since = status.as_ref().map(|_| tokio::time::Instant::now());
+        health.event_seen = false;
+        match events(&mut topology, status.as_mut(), watch, &mut health, backoff).await? {
             Flow::Rebuild => continue,
+            Flow::StatusFailed(error) => {
+                // A status connection that delivered an event or held 60 s earns a fresh backoff.
+                if health.event_seen
+                    || health
+                        .since
+                        .is_some_and(|t| t.elapsed() >= Duration::from_secs(60))
+                {
+                    *backoff = Duration::from_secs(5);
+                }
+                eprintln!(
+                    "herdr_watch_rebuild machine={} error={}",
+                    watch.machine,
+                    one_line(&error)
+                );
+                tokio::time::sleep(*backoff).await;
+                *backoff = (*backoff * 2).min(Duration::from_secs(60));
+                continue;
+            }
             Flow::TopologyFailed(error) => return Err(error),
         }
     }
+}
+
+/// How long the current status connection has held up, and whether it delivered an event.
+#[derive(Default)]
+struct StatusHealth {
+    since: Option<tokio::time::Instant>,
+    event_seen: bool,
 }
 
 /// Step 3: list, subscribe the listed panes on a fresh connection, list again, reconcile.
@@ -166,7 +194,15 @@ async fn rebuild(
                 .collect();
             match socket::subscribe(&mut conn, &subs).await {
                 Ok(()) => status = Some(conn),
-                Err(SubscribeFail::Rejected) => continue,
+                Err(SubscribeFail::Rejected) => {
+                    eprintln!(
+                        "herdr_watch_rebuild machine={} error=subscription rejected",
+                        watch.machine
+                    );
+                    tokio::time::sleep(*backoff).await;
+                    *backoff = (*backoff * 2).min(Duration::from_secs(60));
+                    continue;
+                }
                 Err(SubscribeFail::Failed(e)) => return Err(e),
             }
         }
@@ -178,21 +214,23 @@ async fn rebuild(
             watch.machine,
             listed.len()
         );
-        *backoff = Duration::from_secs(5);
         return Ok(status);
     }
 }
 
 enum Flow {
     Rebuild,
+    StatusFailed(String),
     TopologyFailed(String),
 }
 
-/// Steps 4-5: status events update the cache; topology events and status loss rebuild.
+/// Steps 4-5: status events update the cache; topology events rebuild, status loss rebuilds with a backoff.
 async fn events(
     topology: &mut Conn,
     mut status: Option<&mut Conn>,
     watch: &mut Watch,
+    health: &mut StatusHealth,
+    backoff: &mut Duration,
 ) -> Result<Flow, String> {
     loop {
         tokio::select! {
@@ -210,17 +248,20 @@ async fn events(
                 return Ok(Flow::Rebuild);
             }
             line = read_status(status.as_deref_mut()) => {
-                let line = line.map_err(|e| e.to_string())?;
-                let Some(line) = line else {
-                    return Ok(Flow::Rebuild);
+                let line = match line {
+                    Err(e) => return Ok(Flow::StatusFailed(e.to_string())),
+                    Ok(None) => return Ok(Flow::StatusFailed("status closed".into())),
+                    Ok(Some(line)) => line,
                 };
                 let Ok(value) = serde_json::from_str::<Value>(&line) else {
                     continue;
                 };
                 if value.get("error").is_some() {
-                    return Ok(Flow::Rebuild);
+                    return Ok(Flow::StatusFailed(format!("status error: {line}")));
                 }
                 if value.get("event").and_then(Value::as_str) == Some("pane.agent_status_changed") {
+                    health.event_seen = true;
+                    *backoff = Duration::from_secs(5);
                     watch.status_event(&value["data"]);
                 }
             }
