@@ -1557,6 +1557,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/controls"
       ]
+    },
+    {
+      "id": "ui/ref-mount",
+      "module": "display",
+      "label": "ref mount",
+      "role": "The host element a React view gives a vanilla piece: it mounts the piece into the host after the commit, again when its dependencies change, and cleans it up before the next mount and on unmount.",
+      "paths": [
+        "src/ui/ref-mount"
+      ]
     }
   ],
   "edges": [
