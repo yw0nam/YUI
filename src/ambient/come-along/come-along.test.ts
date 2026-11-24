@@ -23,7 +23,13 @@ function deferred<T>() {
 }
 
 function harness(
-  opts: { at?: { x: number; y: number }; native?: boolean; storage?: Storage } = {},
+  opts: {
+    at?: { x: number; y: number };
+    native?: boolean;
+    storage?: Storage;
+    /** Her feet's y in her window, logical, by default at its bottom; null with no VRM loaded. */
+    feet?: number | null;
+  } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
   const real = { x: opts.at?.x ?? 1300, y: opts.at?.y ?? 80, width: 400, height: 600 };
@@ -91,7 +97,10 @@ function harness(
       playMotion: vi.fn(),
       getCurrentMotion: () => null,
       setBodyYaw: vi.fn(),
-      getCharacterAnchor: () => ({ x: 200, y: 560 }),
+      getCharacterAnchor: () => {
+        const feet = opts.feet === undefined ? real.height : opts.feet;
+        return feet === null ? null : { x: 200, y: feet };
+      },
     },
     hitTest: { setMoving: vi.fn() },
     dock,
@@ -205,6 +214,18 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    [560, 120],
+    [null, 80],
+  ])("stands her feet at %j in her window on the slot's bottom edge, at y %d", async (feet, y) => {
+    const h = harness({ feet });
+    h.setReduced(true);
+
+    await h.comeAlong.onStage(slot);
+
+    expect(h.frameWindow.setPositionLogical).toHaveBeenCalledExactlyOnceWith(100, y);
+  });
+
   it("holds her, leaves her seat and lets a running travel end before she leaves", async () => {
     const h = await docked();
 
@@ -235,8 +256,8 @@ describe("createComeAlong", () => {
   });
 
   it.each([
-    ["right of every monitor", { x: 2000, y: 300 }, [1520, 315]],
-    ["above and left of every monitor", { x: -900, y: -800 }, [0, 315]],
+    ["right of every monitor", { x: 2000, y: 300 }, [1520, 275]],
+    ["above and left of every monitor", { x: -900, y: -800 }, [0, 275]],
   ])("goes home to the nearest floor when her spot is %s", async (_, at, home) => {
     const h = await docked({ at });
 
