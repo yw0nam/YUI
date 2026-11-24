@@ -27,6 +27,7 @@ vi.mock("../../io/window/pet/window-dock", () => ({
   }),
 }));
 
+import { onSettingsStageEnded } from "../../io/window/pet/window-dock";
 import { wireComeAlong } from "./wire-come-along";
 
 const slot = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
@@ -111,6 +112,23 @@ it("asks for the stage slot once its listener is in place", async () => {
       listen = resolve;
     }),
   );
+  expect(emitSettingsStageAsk).not.toHaveBeenCalled();
+
+  listen();
+
+  await vi.waitFor(() => expect(emitSettingsStageAsk).toHaveBeenCalledOnce());
+});
+
+it("asks for the stage slot only once its close listener is in place too", async () => {
+  let listen!: () => void;
+  vi.mocked(onSettingsStageEnded).mockImplementationOnce(
+    (_label, _cb) =>
+      new Promise<() => void>((resolve) => {
+        listen = () => resolve(() => {});
+      }) as never,
+  );
+  await wire(null);
+  await new Promise((resolve) => setTimeout(resolve, 0));
   expect(emitSettingsStageAsk).not.toHaveBeenCalled();
 
   listen();
