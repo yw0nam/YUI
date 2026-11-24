@@ -448,7 +448,18 @@ mod tests {
             let Ok(v) = serde_json::from_str::<Value>(&line) else {
                 continue;
             };
-            let id = v.get("id").cloned().unwrap_or(json!(1));
+            // herdr 0.9.5 refuses a request whose id is not a string.
+            let Some(id) = v.get("id").filter(|id| id.is_string()).cloned() else {
+                let refused = json!({"id": "", "error": {"code": "invalid_request", "message": "invalid request: expected a string id"}});
+                if wr
+                    .write_all(format!("{refused}\n").as_bytes())
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+                continue;
+            };
             match v.get("method").and_then(Value::as_str) {
                 Some("agent.list") => {
                     let panes = {
