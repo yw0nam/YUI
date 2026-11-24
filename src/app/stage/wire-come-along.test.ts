@@ -32,12 +32,14 @@ import { wireComeAlong } from "./wire-come-along";
 const rect = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
 let onStage: (stage: SettingsStage) => void;
 let resized: () => void;
+let released: () => void;
 const emitSettingsStageAsk = vi.fn();
 const teardowns: Array<() => void> = [];
 
 beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   onStage = undefined as never;
+  released = () => {};
   mocks.comeAlong.onStage.mockResolvedValue();
   mocks.comeAlong.goHome.mockResolvedValue();
   mocks.comeAlong.place.mockResolvedValue();
@@ -61,6 +63,10 @@ async function wire(boundId: string | null, listening: Promise<void> = Promise.r
       ready: Promise.resolve(),
       onResizeApplied: (cb: () => void) => {
         resized = cb;
+        return () => {};
+      },
+      onHoldReleased: (cb: () => void) => {
+        released = cb;
         return () => {};
       },
       getAvatarExecutor: () => null,
@@ -116,6 +122,14 @@ it("places her on the slot again after a Ctrl+wheel resize", async () => {
   await wire(null);
 
   resized();
+
+  expect(mocks.comeAlong.place).toHaveBeenCalledOnce();
+});
+
+it("places her on the newest slot once another holder, such as the Character menu, lets go", async () => {
+  await wire(null);
+
+  released();
 
   expect(mocks.comeAlong.place).toHaveBeenCalledOnce();
 });

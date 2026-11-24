@@ -323,6 +323,8 @@ export function wireLocomotion(deps: {
       return () => resizeListeners.delete(cb);
     },
     ready: travelFrame.ready,
+    isTravelling: () => false,
+    onHoldReleased: (_cb: () => void) => () => {},
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };

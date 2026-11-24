@@ -422,6 +422,18 @@ describe("wireLocomotion", () => {
     expect(s.windowGeometry.onResizeApplied.mock.calls).toEqual([[bounds]]);
   });
 
+  it("reports a parked travel, and tells each listener when a holder lets go", () => {
+    const s = setup();
+    s.travelFrame.travel.current.mockReturnValue({} as never);
+    const released = vi.fn();
+    s.locomotion.onHoldReleased(released);
+
+    s.locomotion.hold("menu", true);
+    s.locomotion.hold("menu", false);
+
+    expect([s.locomotion.isTravelling(), released.mock.calls.length]).toEqual([true, 1]);
+  });
+
   it("tells each resize listener after a Ctrl+wheel resize", () => {
     const s = setup();
     const resized = vi.fn();

@@ -32,6 +32,7 @@ function harness(
   const travels: Array<{ end: ReturnType<typeof vi.fn> }> = [];
   let virtual = { x: real.x, y: real.y };
   let busy = false;
+  let travelling = false;
   const frameWindow = {
     outerPosition: async () => ({ x: real.x * scale, y: real.y * scale }),
     outerSize: async () => ({ width: real.width * scale, height: real.height * scale }),
@@ -65,6 +66,7 @@ function harness(
     }),
     release: vi.fn(),
     drop: vi.fn(async (_opts: { landOnSeam: true }) => {}),
+    isTravelling: () => travelling,
     frame: { frameWindow: () => frameWindow, listMonitors: async () => [monitor] },
   };
   const dock = {
@@ -122,6 +124,9 @@ function harness(
     },
     setReduced: (on: boolean) => {
       reduced = on;
+    },
+    setTravelling: (on: boolean) => {
+      travelling = on;
     },
   };
 }
@@ -253,6 +258,20 @@ describe("createComeAlong", () => {
     await h.comeAlong.onStage({ ...slot, y: 130 });
 
     expect(h.frameWindow.setPositionLogical.mock.calls).toEqual([[100, 130]]);
+  });
+
+  it("holds a slot back while a travel parks her frame, and places her on the newest one after", async () => {
+    const h = await docked();
+    h.frameWindow.setPositionLogical.mockClear();
+    h.setTravelling(true);
+
+    await h.comeAlong.onStage({ ...slot, y: 130 });
+    await h.comeAlong.onStage({ ...slot, y: 160 });
+    expect(h.frameWindow.setPositionLogical).not.toHaveBeenCalled();
+
+    h.setTravelling(false);
+    await h.comeAlong.place();
+    expect(h.frameWindow.setPositionLogical.mock.calls).toEqual([[100, 160]]);
   });
 
   it("keeps her bottom-centre on the slot after her window is resized while docked", async () => {
