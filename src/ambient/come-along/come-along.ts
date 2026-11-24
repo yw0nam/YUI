@@ -295,18 +295,28 @@ export function createComeAlong(deps: ComeAlongDeps): {
     const id = takeOver();
     const wasDocked = docked;
     docked = null;
+    let arrived = false;
     try {
-      if (wasDocked?.native) await deps.dock.detach();
-    } catch (err) {
-      log.warn("dock_detach_failed", { error: String(err) });
+      try {
+        if (wasDocked?.native) await deps.dock.detach();
+      } catch (err) {
+        log.warn("dock_detach_failed", { error: String(err) });
+      }
+      await locomotion.abortTravel();
+      // A start still leaving her spot has no home yet: she lets go where she is.
+      const spot = home;
+      if (id === move && spot) {
+        await walk(id, await homeOrFloor(spot));
+        arrived = id === move;
+      }
+    } finally {
+      // Whatever ended the walk home lets her go, unless a new move took her over.
+      if (id === move) {
+        home = null;
+        locomotion.hold("come-along", false);
+      }
     }
-    await locomotion.abortTravel();
-    const spot = home;
-    if (id !== move || !spot) return;
-    await walk(id, await homeOrFloor(spot));
-    if (id !== move) return;
-    home = null;
-    locomotion.hold("come-along", false);
+    if (!arrived) return;
     log.info("come_along_home");
     await locomotion.drop({ landOnSeam: true });
   }
