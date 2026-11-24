@@ -76,7 +76,8 @@ YUI/
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen
         wire-window-geometry.ts      # The per-window saved size and position: written after the OS drag ends and a Ctrl+wheel resize, applied once at boot
-        wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
+        wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle, held still per holder
+        wire-come-along.ts           # Her own settings window's stage slots and close into the come-along, and the stage ask at boot
         wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
         wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
@@ -137,6 +138,7 @@ YUI/
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` and `focus` params set to the requested page and field
         wire-settings-page.ts        # Takes the URL's page and focus, and answers an opener's page request: switches to the opener's character, then selects the page and focuses the field it names
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
+        wire-stage-rect.ts           # Sends the stage's top slot to the window's pet window at boot, on a move, resize or visibility change, and on an ask; null while minimised
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -298,6 +300,8 @@ YUI/
           routed-user-source.ts      # Submits a user-turn-routed event naming this preset as a user turn with its send id and mention
           user-turn-done.ts          # Reports user-turn-done for a closed or dropped turn's send id
     ambient/                         # Backend-independent local liveliness and movement
+      come-along/                    # Her come-along onto the settings stage
+        come-along.ts                # One settings window's session: the ease-in-out walk onto the slot, the dock, following the slot, the walk home, and a drag or agent move letting her go
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
@@ -526,6 +530,7 @@ YUI/
             window-drag.ts             # Threshold-gated OS-native drag handoff for the main window
           window-resize-source.ts      # Ctrl+wheel over the character resizes the pet window
           summon-hotkey.ts             # Registers the OS-wide summon accelerator and summons the input
+          window-dock.ts               # The dock commands into her own settings window, its close event, and a physical-px move
       bridge/
         settings-bridge.ts             # Typed cross-window settings bus: one table of its channels, each with its scope and payload check
         core/                          # The cross-window bus every bridge here is built on
@@ -1008,6 +1013,7 @@ YUI/
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       threads_window.rs              # The Threads window's native window number, and threads_order_front: an order-front that takes no focus
+      window_dock.rs                 # A pet window's native child link into its own settings window (macOS), unlinked on that window's close and the tray's hide
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs

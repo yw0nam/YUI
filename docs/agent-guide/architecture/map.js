@@ -919,7 +919,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, and summon hotkey.",
+      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, and the dock commands into her own settings window with its close event.",
       "paths": [
         "src/io/window/pet"
       ]
@@ -928,7 +928,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/core",
       "module": "bridge",
       "label": "bridge core",
-      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, the channel table helper that builds a bridge's emit and on pairs and mirrors from one entry per channel, and the owner and mirror pattern built on it.",
+      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, a promise that settles once the listeners registered so far are in place, the channel table helper that builds a bridge's emit and on pairs and mirrors from one entry per channel, and the owner and mirror pattern built on it.",
       "paths": [
         "src/io/bridge/core"
       ]
@@ -1499,7 +1499,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) as a row of the stage then the panel, opens it on the page of `?page=` and on later page requests, rebuilds only the panel on a new language, and mirrors the voice toggle in main only.",
+      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) as a row of the stage then the panel, opens it on the page of `?page=` and on later page requests, rebuilds only the panel on a new language, mirrors the voice toggle in main only, and sends the stage's top slot to its pet window.",
       "paths": [
         "src/app/settings-window"
       ]

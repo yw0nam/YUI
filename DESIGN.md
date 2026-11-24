@@ -311,11 +311,13 @@ She comes along when the settings window opens, and she returns home when it clo
 | Glum | sad, sleepy, embarrassed | a slow walk, or a yawn and then she appears |
 | Sulking | angry | with a default probability of 60% she stays on the desktop and plays `sulk`, and the Settings stage caption reads "Yui stayed on the desktop"; otherwise she comes along glumly and sulks on the Settings stage |
 
-Her travel takes 600 to 900ms by default, and the window is usable at once. When the distance is long, she vanishes and appears instead. Under reduced motion she fades. On another monitor, she leaves from her spot and enters the Settings stage with an entry family. Travel and reactions use ease-out curves, and motion never blocks input.
+Her travel takes 600 to 900ms by distance, on an ease-in-out curve: slow at the start, faster through the middle, slow again on arrival. The window is usable at once. When the distance is long, she vanishes and appears instead. Under reduced motion she fades. On another monitor, she leaves from her spot and enters the Settings stage with an entry family. Reactions use ease-out curves, and motion never blocks input.
 
-Closing the settings window returns her to her spot, with an entry picked at random from the plain family. Minimizing returns her too. Losing focus keeps her docked. If her monitor is gone, she lands on the floor line of the nearest monitor.
+Closing the settings window returns her to her spot, with an entry picked at random from the plain family. Minimizing returns her too, and restoring the window brings her back onto the stage. Losing focus keeps her docked. If her monitor is gone, she lands on the floor line of the nearest monitor.
 
-While the settings window is open, she is docked into it as a native child at normal level. On macOS she follows the window with no lag, and other apps can cover both windows. Her speech bubble and text input stay with her while she is docked, so the user can talk while changing settings. Closing settings undocks her, and focus returns as it does for any closed window.
+While the settings window is open, she is docked into it as a native child at normal level. On macOS she follows the window with no lag, and other apps can cover both windows. Her speech bubble and text input stay with her while she is docked, so the user can talk while changing settings. Closing settings undocks her, and focus returns as it does for any closed window. On Windows she follows the settings window's moves and stays above other windows.
+
+Whoever moves her owns her. If the user drags her or an agent moves her while she is on the stage, she leaves it and stays where she is dropped, and that settings window does not bring her back until it closes or minimizes. If the settings window opens while the user drags her or an agent command runs, she stays where she is that time.
 
 She reacts once when she enters a settings page, and again when a shown change (body, voice or pace) appears. Then she idles. Fast page flicks skip the reaction. The other reactions use existing clips.
 
