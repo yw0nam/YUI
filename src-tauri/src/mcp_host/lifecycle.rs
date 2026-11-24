@@ -268,10 +268,12 @@ impl Host {
 mod tests {
     use super::super::test_support::{
         eventually, fixture_copy, gone, host_at, hung_child, read_json, require_python, running,
-        server_logged_a_cancel, set_mode, slow_call, temp_dir,
+        server_logged_a_cancel, set_mode, slow_call, temp_dir, Signals,
     };
     use super::*;
+    use rmcp::service::{serve_directly, RoleClient};
     use serde_json::json;
+    use tokio::io::AsyncWriteExt;
 
     #[tokio::test]
     async fn disabling_a_plugin_cancels_its_calls_before_the_server_stops() {
@@ -293,14 +295,42 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn after_disable_the_stopped_servers_epoch_accepts_no_signals() {
+    async fn a_notification_for_the_server_a_disable_stopped_never_reaches_the_sink() {
         require_python();
         let host = running("yui-test").await;
-        let epoch = host.lock().live["yui-test"].servers[0].epoch;
-        let live = host.accepts_signals("yui-test", "yui-test/main", epoch);
+        let (epoch, log) = {
+            let inner = host.lock();
+            let live = &inner.live["yui-test"];
+            (live.servers[0].epoch, live.log.clone())
+        };
+        let delivered = Signals::default();
+        let sink = delivered.clone();
+        let client = HostClient {
+            plugin_id: "yui-test".into(),
+            server: "main".into(),
+            server_id: "yui-test/main".into(),
+            epoch,
+            log,
+            host: Arc::downgrade(&host),
+            signals: Arc::new(move |p| sink.lock().unwrap().push(p)),
+        };
+        // The client's end of a stdio pair; the test writes the server's lines.
+        let (ours, theirs) = tokio::io::duplex(4096);
+        let _service =
+            serve_directly::<RoleClient, _, _, _, _>(client, tokio::io::split(ours), None);
+        let (_reader, mut server) = tokio::io::split(theirs);
+        let line = format!(
+            "{}\n",
+            json!({"jsonrpc": "2.0", "method": "notifications/io.github.yw0nam.yui/signals",
+                "params": {"signals": [], "envelope": {"event_id": "n-1"}}})
+        );
+        server.write_all(line.as_bytes()).await.unwrap();
+        let reached_while_live = eventually(|| delivered.lock().unwrap().len() == 1).await;
         host.disable("yui-test").await.unwrap();
-        assert!(live);
-        assert!(!host.accepts_signals("yui-test", "yui-test/main", epoch));
+        server.write_all(line.as_bytes()).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(reached_while_live);
+        assert_eq!(delivered.lock().unwrap().len(), 1);
     }
 
     #[tokio::test]
