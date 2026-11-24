@@ -15,11 +15,11 @@ A herdr signal names one pane by `machine` and `pane`; pane ids repeat across ma
 
 ## Answering a blocked agent
 1. `herdr_read` the pane until the menu or question is in view.
-2. Answer with `herdr_keys`: arrow keys and `enter`, or the option's digit. herdr refuses `herdr_prompt` while the pane is `blocked`.
+2. Answer with `herdr_keys`: arrow keys and `enter`, or the option's digit.
 3. Done when `herdr_agents` shows the pane `working`, `idle` or `done`. When the UI needs typed text that keys cannot give, the pane stays `blocked`: tell the user it is waiting on them.
 
 ## Prompting
-`herdr_prompt` submits text to a pane that is `done`, `idle` or `working`; its next `done` or `blocked` arrives as a herdr signal.
+After `herdr_prompt`, the pane's next `done` or `blocked` arrives as a herdr signal.
 
 ## Reading
 The newest output sits at the bottom of the read. When the reply is not in view, read again with more `lines`.
