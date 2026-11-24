@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 
+import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { wireDevtoolsSync, createConfigStore, initLogger, createLogger, log, presetRemote } =
   vi.hoisted(() => {
@@ -42,29 +45,24 @@ vi.mock("../app/settings/wire-preset", async (importOriginal) => {
 });
 vi.mock("../config/store", () => ({ createConfigStore }));
 vi.mock("../logger", () => ({ initLogger, createLogger }));
-const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
-  const motionPreviewState = {
-    calls: 0,
-    disposes: 0,
-    blockSecondLoad: false,
-    releaseSecondLoad: () => {},
+const { mountMotionPreview } = vi.hoisted(() => {
+  const clip = { kind: "ambient", loop: true, priority: 10, interrupt_policy: "replace" } as const;
+  return {
+    mountMotionPreview: vi.fn<typeof import("../ui/devtools/motion-preview/motion-preview").mountMotionPreview>(
+      async (view) => {
+        view.ready({
+          renderer: {} as never,
+          registry: {
+            idle: { ...clip, vrma_path: "/motions/idle.vrma" },
+            wave: { ...clip, vrma_path: "/motions/wave.vrma" },
+          },
+          variantIds: new Set(),
+          emotions: {} as never,
+        });
+        return { dispose: vi.fn() };
+      },
+    ),
   };
-  const mountMotionPreview = vi.fn(async (mount: HTMLElement) => {
-    motionPreviewState.calls++;
-    if (motionPreviewState.blockSecondLoad && motionPreviewState.calls === 2) {
-      await new Promise<void>((resolve) => {
-        motionPreviewState.releaseSecondLoad = resolve;
-      });
-    }
-    mount.innerHTML =
-      '<select id="sel-crossfade"><option value="idle">idle</option><option value="wave">wave</option></select>';
-    return {
-      dispose: vi.fn(() => {
-        motionPreviewState.disposes++;
-      }),
-    };
-  });
-  return { mountMotionPreview, motionPreviewState };
 });
 
 vi.mock("../ui/devtools/motion-preview/motion-preview", () => ({ mountMotionPreview }));
@@ -72,6 +70,8 @@ vi.mock("../ui/devtools/shell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../ui/devtools/shell")>();
   return { ...actual, createDevtoolsShell: vi.fn(actual.createDevtoolsShell) };
 });
+// The shell mock outlives resetModules, so every fresh boot shares the i18n instance it reads.
+vi.mock("../ui/i18n", async (importOriginal) => importOriginal<typeof import("../ui/i18n")>());
 vi.mock("../settings/settings-stores", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
@@ -99,10 +99,6 @@ afterEach(async () => {
   const { setLocale } = await import("../ui/i18n");
   setLocale("en");
   vi.clearAllMocks();
-  motionPreviewState.calls = 0;
-  motionPreviewState.disposes = 0;
-  motionPreviewState.blockSecondLoad = false;
-  motionPreviewState.releaseSecondLoad = () => {};
   delete (globalThis as CorsFetchGlobal).CORSFetch;
 });
 
@@ -149,98 +145,66 @@ it("passes both store bags and their devtools stores through bootstrap by identi
   );
 });
 
-it("keeps the focused advanced input and its in-progress text across a locale rebuild", async () => {
+/** Switches the locale and waits for the translated header. */
+async function toJapanese(setLocale: (l: "ja") => void) {
+  await act(async () => setLocale("ja"));
+  await vi.waitFor(() =>
+    expect(document.querySelector(".devtools-header")?.textContent).toBe("開発者ツール"),
+  );
+}
+
+it("keeps the focused advanced input and its in-progress text across a locale change", async () => {
   const setLocale = await bootFresh();
   const { createSettingsStores } = await import("../settings/settings-stores");
 
-  document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!.click();
-  const input = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
-  input.focus();
-  input.value = "64000";
-  input.dispatchEvent(new Event("input"));
+  act(() => fireEvent.click(screen.getByText("Advanced Settings")));
+  const input = screen.getByLabelText<HTMLInputElement>("Context window (tokens)");
+  act(() => input.focus());
+  fireEvent.input(input, { target: { value: "64000" } });
 
-  setLocale("ja");
-  await vi.waitFor(() => {
-    // The pre-rebuild input already satisfies activeElement === querySelector(...), so the
-    // wait must also require a fresh node, otherwise it resolves before the rebuild runs.
-    const current = document.querySelector("#devtools-context-window");
-    expect(current).not.toBe(input);
-    expect(document.activeElement).toBe(current);
-  });
+  await toJapanese(setLocale);
 
-  const rebuilt = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
-  expect(rebuilt).not.toBe(input);
-  expect(document.querySelector<HTMLElement>('[data-panel="advanced"]')!.hidden).toBe(false);
-  expect(document.activeElement).toBe(rebuilt);
-  expect(rebuilt.value).toBe("64000");
-
-  // Blur resyncs from the store, so the restored text survives only if it committed.
+  expect(document.activeElement).toBe(input);
+  expect(input.value).toBe("64000");
+  act(() => input.blur());
   const stores = vi.mocked(createSettingsStores).mock.results.at(-1)!.value;
   expect(stores.endpointsSettings.get().chat_model_context_window).toBe("64000");
-  rebuilt.blur();
-  expect(rebuilt.value).toBe("64000");
 });
 
-it("keeps focus on the active nav button across a locale rebuild", async () => {
+it("keeps focus on the active nav button across a locale change", async () => {
   const setLocale = await bootFresh();
 
-  const advanced = document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!;
-  advanced.focus();
+  const advanced = screen.getByText("Advanced Settings");
+  act(() => advanced.focus());
 
-  setLocale("ja");
-  await vi.waitFor(() => {
-    // The pre-rebuild button already satisfies activeElement === querySelector(...), so the
-    // wait must also require a fresh node, otherwise it resolves before the rebuild runs.
-    const current = document.querySelector('[data-section="advanced"]');
-    expect(current).not.toBe(advanced);
-    expect(document.activeElement).toBe(current);
-  });
+  await toJapanese(setLocale);
 
-  const rebuilt = document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!;
-  expect(rebuilt).not.toBe(advanced);
-  expect(document.activeElement).toBe(rebuilt);
+  expect(document.activeElement).toBe(advanced);
 });
 
-it("keeps the focused motion clip-picker select and its selection across a locale rebuild", async () => {
+it("keeps the focused motion crossfade select, its selection and its one motion load across a locale change", async () => {
   const setLocale = await bootFresh();
 
-  document.querySelector<HTMLButtonElement>('[data-section="motion"]')!.click();
+  act(() => fireEvent.click(screen.getByText("Motion Preview")));
   await vi.waitFor(() =>
-    expect(document.querySelector<HTMLSelectElement>("#sel-crossfade")).not.toBeNull(),
+    expect(screen.queryByRole("combobox", { name: "crossfade" })).not.toBeNull(),
   );
-  const select = document.querySelector<HTMLSelectElement>("#sel-crossfade")!;
-  select.focus();
-  select.value = "wave";
+  const select = screen.getByRole("combobox", { name: "crossfade" });
+  await act(async () => fireEvent.click(select));
+  const wave = [...document.querySelectorAll('[role="option"]')].find(
+    (o) => o.textContent === "wave" && !o.closest("[hidden]"),
+  )!;
+  await act(async () => {
+    fireEvent.pointerDown(wave);
+    fireEvent.click(wave);
+  });
+  act(() => select.focus());
 
-  setLocale("ja");
-  await vi.waitFor(() => expect(mountMotionPreview).toHaveBeenCalledTimes(2));
+  await toJapanese(setLocale);
 
-  const rebuilt = document.querySelector<HTMLSelectElement>("#sel-crossfade")!;
-  expect(rebuilt).not.toBe(select);
-  expect(document.activeElement).toBe(rebuilt);
-  expect(rebuilt.value).toBe("wave");
-});
-
-it("serializes rapid locale rebuilds until the final motion preview mounts", async () => {
-  motionPreviewState.blockSecondLoad = true;
-  const setLocale = await bootFresh();
-
-  document.querySelector<HTMLButtonElement>('[data-section="motion"]')!.click();
-  await vi.waitFor(() => expect(document.querySelector("#sel-crossfade")).not.toBeNull());
-
-  setLocale("ja");
-  await vi.waitFor(() => expect(motionPreviewState.calls).toBe(2));
-  expect(document.querySelector(".devtools-loading")).not.toBeNull();
-
-  setLocale("ko");
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  expect(motionPreviewState.calls).toBe(2);
-
-  motionPreviewState.releaseSecondLoad();
-  await vi.waitFor(() => expect(motionPreviewState.calls).toBe(3));
-  await vi.waitFor(() => expect(document.querySelector("#sel-crossfade")).not.toBeNull());
-  expect(document.querySelector(".devtools-loading")).toBeNull();
-  expect(motionPreviewState.calls - motionPreviewState.disposes).toBe(1);
+  expect(document.activeElement).toBe(select);
+  expect(select.textContent).toBe("wave");
+  expect(mountMotionPreview).toHaveBeenCalledOnce();
 });
 
 it("keeps its own origin off the cors-fetch proxy", async () => {
