@@ -4,6 +4,8 @@
   flex: 0 0 400px;
   flex-direction: column;
   box-sizing: border-box;
+  /* A long name ellipsizes instead of widening the column. */
+  min-width: 0;
   height: 100%;
   /* The top 600px is where her 400 × 600 window docks. */
   padding-top: 600px;
@@ -57,9 +59,9 @@
     letter-spacing: 0;
   }
 
+  /* The state keeps its words and takes the rest of the line; the name ellipsizes. */
   .yui-settings-stage__meta {
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 0 auto;
   }
 
   .yui-settings-stage__meta::before {
