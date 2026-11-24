@@ -1,16 +1,55 @@
 //! Holds an `ssh -N -L` forward to a remote herdr socket.
 
-use crate::cli;
 use crate::watch::machines;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 use tokio::process::{Child, Command};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
 /// macOS limits a unix socket path to 104 bytes; leave room for the terminator.
 const MAX_PATH: usize = 100;
+/// The home read is a setup read, not a tool call.
+const SSH_WAIT: Duration = Duration::from_secs(10);
+
+/// One ssh call under the setup wait; its errors name ssh, never herdr.
+async fn run_ssh(bin: &Path, args: &[String]) -> Result<String, String> {
+    let child = Command::new(bin)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                "ssh not found".to_string()
+            } else {
+                format!("ssh: {e}")
+            }
+        })?;
+    let output = tokio::time::timeout(SSH_WAIT, child.wait_with_output())
+        .await
+        .map_err(|_| "ssh timed out".to_string())?
+        .map_err(|e| format!("ssh: {e}"))?;
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let trimmed = stderr.trim();
+    if trimmed.is_empty() {
+        return Err(format!(
+            "ssh exited with code {}",
+            output
+                .status
+                .code()
+                .map_or_else(|| "unknown".to_string(), |c| c.to_string())
+        ));
+    }
+    Err(format!("ssh: {trimmed}"))
+}
 
 /// `$HOME` expands on the remote side of the ssh command.
 fn home_args(target: &str) -> Vec<String> {
@@ -57,9 +96,7 @@ impl Forward {
         session: &str,
         dir: &Path,
     ) -> Result<Forward, String> {
-        let args = home_args(target);
-        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-        let home = cli::run(ssh, &refs).await?.trim().to_string();
+        let home = run_ssh(ssh, &home_args(target)).await?.trim().to_string();
         if home.is_empty() {
             return Err("remote home read returned nothing".into());
         }
