@@ -39,6 +39,17 @@ export interface SettingsPageRequest {
   focus?: SettingsFocus;
 }
 
+/** The stage's slot where her window docks, in screen logical points, and the settings window's scale. */
+export interface StageRect extends ScreenRect {
+  scale: number;
+}
+
+/** A settings window's stage slot for the pet window of `preset` (null: main's); null while minimised. */
+export interface SettingsStage {
+  preset: string | null;
+  rect: StageRect | null;
+}
+
 /** One character's reply named another open character; emitted once that reply's playback ended. */
 export interface CharacterAddressed {
   /** The speaker's preset id. */
@@ -236,8 +247,25 @@ export const channels = {
       else if (isSettingsPage(page)) deliver({ preset, page, ...(focus ? { focus } : {}) });
     },
   },
-  SettingsStage: { name: "", scope: "shared", read(_payload, _deliver: (stage: unknown) => void) {} },
-  SettingsStageAsk: { name: "", scope: "shared" },
+  /** A settings window's stage slot; delivered to every window, pet windows filter on `preset`. */
+  SettingsStage: {
+    name: "yui://settings-stage",
+    scope: "shared",
+    read(stage, deliver: (stage: SettingsStage) => void) {
+      const { preset, rect } = (stage ?? {}) as Record<string, unknown>;
+      if (preset !== null && !isString(preset)) return;
+      if (rect === null) {
+        deliver({ preset, rect });
+        return;
+      }
+      const { x, y, width, height, scale } = (rect ?? {}) as Record<string, unknown>;
+      const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+      if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
+      deliver({ preset, rect: { x, y, width, height, scale } as StageRect });
+    },
+  },
+  /** A pet window asking every settings window to send its stage slot again. */
+  SettingsStageAsk: { name: "yui://settings-stage-ask", scope: "shared" },
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
   OpenDevtools: { name: "yui://open-devtools", scope: "shared" },
   /** Main's Threads chip opening the Threads window. */
