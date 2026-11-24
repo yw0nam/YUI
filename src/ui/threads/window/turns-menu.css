@@ -98,6 +98,12 @@
   background: var(--yui-selected);
 }
 
+/* WebKit does not mark an arrow-moved focus :focus-visible after a pointer open, so the row rings on any focus. */
+.yui-threads__turns-radio:focus {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: -2px;
+}
+
 .yui-threads__turns-radio:disabled {
   opacity: 0.55;
   cursor: default;
