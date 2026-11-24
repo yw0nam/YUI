@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import "../../../styles.css";
 import type { Thread } from "../../../contract";
 import { setLocale } from "../../i18n";
@@ -69,8 +69,8 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>';
 });
 
-it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (theme) => {
-  const view = createThreadsView({
+const build = () =>
+  createThreadsView({
     terminal,
     mount: document.querySelector<HTMLElement>("#app")!,
     now: () => NOW,
@@ -85,6 +85,9 @@ it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (t
     resize: { start: () => {}, move: () => {}, end: () => {} },
     onTurnsLevel: () => {},
   });
+
+it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (theme) => {
+  const view = build();
   view.update({ revision: 1, threads });
   await view.open(null, "threads", { thread: "pr-214", focus: false });
   await page.viewport(896, 696);
@@ -93,5 +96,20 @@ it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (t
   await expect
     .element(page.elementLocator(document.querySelector("#app")!))
     .toMatchScreenshot(`threads-${theme}`);
+  view.dispose();
+});
+
+// The test frame marks an arrow-moved focus :focus-visible; the Threads window does not after a
+// pointer open, so the focus the arrow lands is made the same way here.
+it("rings the Thread turns row an arrow reaches after a pointer open", async () => {
+  const view = build();
+  view.update({ revision: 1, threads });
+  await view.open(null, "threads", { thread: "pr-214", focus: false });
+  await userEvent.click(document.querySelector<HTMLButtonElement>(".yui-threads__turns-button")!);
+  const row = document.querySelector<HTMLButtonElement>('[role="radio"][data-level="notable"]')!;
+  row.focus({ focusVisible: false });
+  expect(row.matches(":focus-visible")).toBe(false);
+
+  expect(getComputedStyle(row).outlineStyle).toBe("solid");
   view.dispose();
 });
