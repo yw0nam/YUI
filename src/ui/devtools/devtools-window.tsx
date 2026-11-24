@@ -32,7 +32,7 @@ export function DevtoolsWindow({
     ids: SECTIONS,
     initial: "context",
     onSelect: (id) => {
-      if (id === "motion") void motion.begin();
+      if (id === "motion") motion.begin();
     },
     handle,
   });
@@ -48,7 +48,7 @@ export function DevtoolsWindow({
               value={id}
               className="yui-tab devtools-nav__item"
               // A click on the selected tab reports no selection, so a failed load retries from here.
-              onClick={id === "motion" ? () => void motion.begin() : undefined}
+              onClick={id === "motion" ? motion.begin : undefined}
             >
               {t(`devtools.nav.${id}`)}
             </Tab>

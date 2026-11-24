@@ -11,8 +11,10 @@ export type MotionState = "idle" | "loading" | "loaded" | "failed";
 export interface MotionLoad {
   state(): MotionState;
   subscribe(cb: () => void): () => void;
-  /** Starts an attempt unless one is pending or loaded; resolves once the current attempt settles. */
-  begin(): Promise<void>;
+  /** Starts an attempt unless one is pending or loaded. */
+  begin(): void;
+  /** Resolves once the current attempt settles; at once when none was started. */
+  settled(): Promise<void>;
   /** The panel's host is in place for the pending attempt: loads the preview into it. */
   attach(view: MotionView): void;
   /** Disposes the loaded preview, or the pending one once it resolves. */
@@ -44,8 +46,8 @@ export function createMotionLoad(load: LoadMotionPreview): MotionLoad {
         });
         set("loading");
       }
-      return settled;
     },
+    settled: () => settled,
     attach(view) {
       load(view).then(
         (loaded) => {

@@ -44,8 +44,9 @@ export function createDevtoolsShell(options: DevtoolsShellOptions): {
       return tabs.current!.selected() as DevtoolsSection;
     },
     activate(section) {
+      // The selection starts the motion load; this only waits for it.
       flushSync(() => tabs.current!.select(section));
-      return section === "motion" ? motion.begin() : Promise.resolve();
+      return section === "motion" ? motion.settled() : Promise.resolve();
     },
     dispose() {
       motion.dispose();
