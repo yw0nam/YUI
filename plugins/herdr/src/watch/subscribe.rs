@@ -84,9 +84,12 @@ impl Watch {
 }
 
 pub async fn run(watched: Watched, ssh: Option<PathBuf>, dir: PathBuf, notify: Notify) {
+    // The cache outlives restarts, so a reconnect reports only what changed meanwhile.
+    let mut watch = Watch::new(&watched.machine, &watched.label, &notify);
     let mut backoff = Duration::from_secs(5);
     loop {
-        if let Err(error) = watch_once(&watched, ssh.as_deref(), &dir, &notify, &mut backoff).await
+        if let Err(error) =
+            watch_once(&watched, ssh.as_deref(), &dir, &mut watch, &mut backoff).await
         {
             eprintln!(
                 "herdr_watch_failed machine={} error={}",
@@ -104,7 +107,7 @@ async fn watch_once(
     watched: &Watched,
     ssh: Option<&Path>,
     dir: &Path,
-    notify: &Notify,
+    watch: &mut Watch,
     backoff: &mut Duration,
 ) -> Result<(), String> {
     let (sock, _forward) = match &watched.endpoint {
@@ -260,6 +263,7 @@ mod tests {
     struct Conn {
         subs: Vec<String>,
         tx: mpsc::Sender<String>,
+        close: Arc<tokio::sync::Notify>,
     }
 
     /// A herdr socket API fake: answers agent.list and events.subscribe, streams the events the test injects.
@@ -319,6 +323,15 @@ mod tests {
             }
         }
 
+        /// Closes the topology connection, forcing the watcher's step-6 restart.
+        async fn drop_topology(&self) {
+            for conn in self.conns.lock().await.iter() {
+                if conn.subs.iter().any(|s| s == "pane.created") {
+                    conn.close.notify_waiters();
+                }
+            }
+        }
+
         fn status_subscribes(&self) -> usize {
             self.subscribes
                 .lock()
@@ -354,23 +367,18 @@ mod tests {
         let (rd, mut wr) = stream.into_split();
         let mut lines = BufReader::new(rd).lines();
         let mut rx: Option<mpsc::Receiver<String>> = None;
+        let close = Arc::new(tokio::sync::Notify::new());
         loop {
-            let line = if let Some(rx) = &mut rx {
-                tokio::select! {
-                    l = lines.next_line() => match l { Ok(Some(l)) => Some(l), _ => break },
-                    msg = rx.recv() => match msg {
-                        Some(msg) => {
-                            if wr.write_all(format!("{msg}\n").as_bytes()).await.is_err() { break; }
-                            continue;
-                        }
-                        None => break,
-                    },
-                }
-            } else {
-                match lines.next_line().await {
-                    Ok(Some(l)) => Some(l),
-                    _ => break,
-                }
+            let line = tokio::select! {
+                l = lines.next_line() => match l { Ok(Some(l)) => Some(l), _ => break },
+                _ = close.notified() => break,
+                msg = async { match &mut rx { Some(r) => r.recv().await, None => std::future::pending().await } } => match msg {
+                    Some(msg) => {
+                        if wr.write_all(format!("{msg}\n").as_bytes()).await.is_err() { break; }
+                        continue;
+                    }
+                    None => break,
+                },
             };
             let Some(line) = line else { break };
             let Ok(v) = serde_json::from_str::<Value>(&line) else {
@@ -430,7 +438,7 @@ mod tests {
                         break;
                     }
                     let (tx, r) = mpsc::channel(64);
-                    conns.lock().await.push(Conn { subs, tx });
+                    conns.lock().await.push(Conn { subs, tx, close: close.clone() });
                     rx = Some(r);
                 }
                 _ => {}
@@ -456,8 +464,8 @@ mod tests {
     }
 
     /// Polls with a deadline instead of sleeping bare.
-    async fn wait_until(mut cond: impl FnMut() -> bool) -> bool {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    async fn wait_until(within: Duration, mut cond: impl FnMut() -> bool) -> bool {
+        let deadline = tokio::time::Instant::now() + within;
         while tokio::time::Instant::now() < deadline {
             if cond() {
                 return true;
@@ -494,13 +502,64 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_pane_already_done_at_start_sends_nothing() {
+        let fake = FakeServer::start().await;
+        fake.state.lock().await.panes = vec![pane("p1", "claude", "done", "T1", "/tmp")];
+        let (notify, mut rx) = notifier();
+        let task = watch(&fake, notify);
+        assert!(
+            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
+            "no status subscription"
+        );
+        nothing_arrives(&mut rx, "a pane already done at start signalled").await;
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn a_restart_reports_only_the_state_that_changed_during_the_disconnect() {
+        let fake = FakeServer::start().await;
+        fake.state.lock().await.panes = vec![
+            pane("p1", "claude", "done", "T1", "/tmp"),
+            pane("p2", "codex", "working", "T2", "/home"),
+        ];
+        let (notify, mut rx) = notifier();
+        let task = watch(&fake, notify);
+        assert!(
+            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
+            "no first status subscription"
+        );
+        nothing_arrives(&mut rx, "startup signalled").await;
+        fake.state.lock().await.panes = vec![
+            pane("p1", "claude", "done", "T1", "/tmp"),
+            pane("p2", "codex", "done", "T2", "/home"),
+        ];
+        fake.drop_topology().await;
+        assert!(
+            wait_until(Duration::from_secs(15), || fake.status_subscribes() >= 2).await,
+            "no restart after the topology connection closed"
+        );
+        let got = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
+        assert!(
+            matches!(got, Ok(Some(_))),
+            "no notification for the change during the disconnect"
+        );
+        let params = got.unwrap().unwrap();
+        assert_eq!(
+            params["signals"],
+            json!([{"machine": "local", "machine_label": "local", "pane": "p2", "agent": "codex", "status": "done", "title": "T2", "cwd": "/home"}])
+        );
+        nothing_arrives(&mut rx, "the pane that stayed done signalled again").await;
+        task.abort();
+    }
+
+    #[tokio::test]
     async fn status_changes_into_done_and_blocked_signal_once() {
         let fake = FakeServer::start().await;
         fake.state.lock().await.panes = vec![pane("p1", "claude", "working", "T1", "/tmp")];
         let (notify, mut rx) = notifier();
         let task = watch(&fake, notify);
         assert!(
-            wait_until(|| fake.status_subscribes() >= 1).await,
+            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
             "no status subscription"
         );
         let params = emit_until_signal(
@@ -564,7 +623,7 @@ mod tests {
         let (notify, mut rx) = notifier();
         let task = watch(&fake, notify);
         assert!(
-            wait_until(|| fake.status_subscribes() >= 1).await,
+            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
             "no first status subscription"
         );
         fake.state
@@ -575,7 +634,7 @@ mod tests {
         fake.emit("pane.created", json!({"pane": {"pane_id": "p2"}}))
             .await;
         assert!(
-            wait_until(|| fake.status_subscribes() >= 2).await,
+            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 2).await,
             "no rebuild after pane.created"
         );
         let params = emit_until_signal(
