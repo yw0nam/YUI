@@ -47,19 +47,18 @@ impl Watch {
         }
     }
 
-    /// Only a cached state that differs notifies; a move into done or blocked signals once.
+    /// The listing after subscribing is ground truth: it always overwrites the cache,
+    /// and only a cached state that differs notifies (a move into done or blocked).
     fn reconcile(&mut self, listed: &[AgentRow]) {
         for row in listed {
-            let event = match self.cache.get(&row.id) {
-                Some(cached) if cached.status != row.status => signal::event_type(&row.status),
-                _ => None,
-            };
-            if let Some(event) = event {
+            let changed = self
+                .cache
+                .get(&row.id)
+                .is_some_and(|cached| cached.status != row.status);
+            if let Some(event) = changed.then(|| signal::event_type(&row.status)).flatten() {
                 self.signal(row, event);
             }
-            if event.is_some() || !self.cache.contains_key(&row.id) {
-                self.cache.insert(row.id.clone(), row.clone());
-            }
+            self.cache.insert(row.id.clone(), row.clone());
         }
         self.cache
             .retain(|id, _| listed.iter().any(|r| &r.id == id));
