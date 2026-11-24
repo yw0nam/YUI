@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 
+import { act, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createContextHistory } from "../../io/chat/conversation/context-history";
 import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { setLocale } from "../i18n";
 import { createDevtoolsShell } from "./shell";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+async function press(el: Element, key: string) {
+  await act(async () => {
+    fireEvent.keyDown(el, { key });
+  });
+}
 
 describe("Developer Tools shell", () => {
   beforeEach(() => {
@@ -27,6 +36,32 @@ describe("Developer Tools shell", () => {
     expect(document.querySelector<HTMLElement>('[data-panel="advanced"]')!.hidden).toBe(false);
     expect(document.querySelector<HTMLElement>('[data-panel="context"]')!.hidden).toBe(true);
     shell.dispose();
+  });
+
+  it("selects a section with ArrowDown, End and Home on its yui-tab tab", async () => {
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview: vi.fn(async () => ({ dispose: vi.fn() })),
+    });
+    const tab = (id: string) => document.getElementById(`yui-tab-${id}`);
+    const context = tab("context");
+    expect(context?.getAttribute("role")).toBe("tab");
+    if (!context) return;
+
+    act(() => context.focus());
+    await press(context, "ArrowDown");
+    expect(shell.active).toBe("advanced");
+    expect(tab("advanced")?.getAttribute("aria-selected")).toBe("true");
+    expect(document.getElementById("yui-panel-advanced")?.hidden).toBe(false);
+
+    await press(tab("advanced")!, "End");
+    expect(shell.active).toBe("motion");
+    await press(tab("motion")!, "Home");
+    expect(shell.active).toBe("context");
+    expect(document.activeElement).toBe(context);
+    act(() => shell.dispose());
   });
 
   it("renders localized window chrome and navigation labels", () => {
