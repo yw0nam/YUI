@@ -23,7 +23,7 @@ vi.mock("../settings/wire-window-settings", () => ({ wireWindowSettings }));
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 const lifecycle = { current: createDisposers() };
 
-async function open(chatUrl: () => string): Promise<void> {
+async function open(chatUrl: () => string): Promise<HTMLElement> {
   const presetRegistry = createPresetRegistry();
   createQuickControls.mockImplementation(
     () =>
@@ -49,11 +49,9 @@ async function open(chatUrl: () => string): Promise<void> {
     getEndpoints: () => ({ chat_base_url: chatUrl() }),
   } as never);
   lifecycle.current = createDisposers();
-  await wireSettingsWindow({
-    app: document.createElement("div"),
-    lifecycle: lifecycle.current,
-    presetRegistry,
-  });
+  const app = document.createElement("div");
+  await wireSettingsWindow({ app, lifecycle: lifecycle.current, presetRegistry });
+  return app;
 }
 
 describe("wireSettingsWindow", () => {
@@ -76,6 +74,26 @@ describe("wireSettingsWindow", () => {
       true,
       true,
     ]);
+  });
+
+  it("mounts the panel beside the stage, rebuilds only the panel on a new language, and disposes both on close", async () => {
+    setLocale("en");
+    const app = await open(() => "http://localhost:8643/v1");
+    const [stage, panelHost] = app.children;
+
+    setLocale("ko");
+    await settle();
+
+    expect(stage?.className).toBe("yui-settings-stage");
+    expect([...app.children]).toEqual([stage, panelHost]);
+    expect(createQuickControls.mock.calls.map(([deps]) => deps.mount)).toEqual([
+      panelHost,
+      panelHost,
+    ]);
+    const panel = createQuickControls.mock.results.at(-1)!.value;
+    lifecycle.current.dispose();
+    expect(panel.dispose).toHaveBeenCalledOnce();
+    expect(app.querySelector(".yui-settings-stage")).toBeNull();
   });
 
   it("opens the panel on the page and key focus the window's URL asks for", async () => {
