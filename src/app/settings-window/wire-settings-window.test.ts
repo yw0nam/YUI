@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
@@ -23,7 +23,7 @@ vi.mock("../settings/wire-window-settings", () => ({ wireWindowSettings }));
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 const lifecycle = { current: createDisposers() };
 
-async function open(chatUrl: () => string): Promise<HTMLElement> {
+async function open(chatUrl: () => string) {
   const presetRegistry = createPresetRegistry();
   createQuickControls.mockImplementation(
     () =>
@@ -51,7 +51,7 @@ async function open(chatUrl: () => string): Promise<HTMLElement> {
   lifecycle.current = createDisposers();
   const app = document.createElement("div");
   await wireSettingsWindow({ app, lifecycle: lifecycle.current, presetRegistry });
-  return app;
+  return { app, presetRegistry };
 }
 
 describe("wireSettingsWindow", () => {
@@ -78,7 +78,7 @@ describe("wireSettingsWindow", () => {
 
   it("mounts the panel beside the stage, rebuilds only the panel on a new language, and disposes both on close", async () => {
     setLocale("en");
-    const app = await open(() => "http://localhost:8643/v1");
+    const { app } = await open(() => "http://localhost:8643/v1");
     const [stage, panelHost] = app.children;
 
     setLocale("ko");
@@ -94,6 +94,70 @@ describe("wireSettingsWindow", () => {
     lifecycle.current.dispose();
     expect(panel.dispose).toHaveBeenCalledOnce();
     expect(app.querySelector(".yui-settings-stage")).toBeNull();
+  });
+
+  describe("the stage", () => {
+    const shown = (app: HTMLElement) =>
+      [".yui-settings-stage__name", ".yui-settings-stage__meta"].map(
+        (s) => app.querySelector(s)?.textContent,
+      );
+
+    beforeEach(() => {
+      localStorage.setItem(
+        "yui.presets",
+        JSON.stringify({
+          active: "default",
+          list: [
+            { id: "default", name: "Yui" },
+            { id: "b", name: "Mio" },
+          ],
+        }),
+      );
+      localStorage.setItem("yui.live-window.settings-b", "1");
+    });
+    afterEach(() => localStorage.clear());
+
+    it.each([
+      ["main's", "/settings.html", ["Yui", "Responses · In main"]],
+      ["a bound window's", "/settings.html?preset=b", ["Mio", "Responses · Window open"]],
+    ])("names %s own character over its transport and state", async (_, url, text) => {
+      history.replaceState(null, "", url);
+      const { app } = await open(() => "http://localhost:8643/v1");
+
+      await vi.waitFor(() => expect(shown(app)).toEqual(text));
+    });
+
+    it("follows a rename of its character and a new language", async () => {
+      history.replaceState(null, "", "/settings.html");
+      const { app, presetRegistry } = await open(() => "http://localhost:8643/v1");
+
+      presetRegistry.rename("default", "Yuna");
+      await vi.waitFor(() => expect(shown(app)).toEqual(["Yuna", "Responses · In main"]));
+      setLocale("ko");
+
+      await vi.waitFor(() => expect(shown(app)).toEqual(["Yuna", "Responses · 메인"]));
+    });
+
+    it.each([
+      [
+        "a storage event",
+        () => window.dispatchEvent(new StorageEvent("storage", { key: "yui.endpoints" })),
+      ],
+      [
+        "another window's settings change",
+        () => void createSettingsBridge(undefined, { windowKind: "pet" }).emitSettingsChanged(),
+      ],
+      ["the window's focus", () => window.dispatchEvent(new Event("focus"))],
+    ])("re-reads its own character's transport on %s while the panel edits another", async (_, signal) => {
+      history.replaceState(null, "", "/settings.html?edit=b");
+      const { app } = await open(() => "http://localhost:8643/v1");
+      await vi.waitFor(() => expect(shown(app)).toEqual(["Yui", "Responses · In main"]));
+
+      localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
+      signal();
+
+      await vi.waitFor(() => expect(shown(app)).toEqual(["Yui", "Push · In main"]));
+    });
   });
 
   it("opens the panel on the page and key focus the window's URL asks for", async () => {
