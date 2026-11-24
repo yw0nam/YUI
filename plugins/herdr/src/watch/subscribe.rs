@@ -38,17 +38,8 @@ impl Watch {
         ));
     }
 
-    /// A listing inserts only panes missing from the cache, silently; the first listing seeds it.
-    fn merge(&mut self, listed: &[AgentRow]) {
-        for row in listed {
-            self.cache
-                .entry(row.id.clone())
-                .or_insert_with(|| row.clone());
-        }
-    }
-
-    /// The listing after subscribing is ground truth: it always overwrites the cache,
-    /// and only a cached state that differs notifies (a move into done or blocked).
+    /// Every listing is ground truth: it overwrites the cache, inserts a new pane silently,
+    /// and notifies only a cached state that moves into done or blocked. The first seeds it.
     fn reconcile(&mut self, listed: &[AgentRow]) {
         for row in listed {
             let changed = self
@@ -183,7 +174,7 @@ async fn rebuild(
     loop {
         let listed = parse::agent_rows(&socket::agent_list(sock).await?)
             .ok_or_else(|| "agent list missing".to_string())?;
-        watch.merge(&listed);
+        watch.reconcile(&listed);
         let mut status = None;
         if !listed.is_empty() {
             let mut conn = socket::connect(sock).await?;
