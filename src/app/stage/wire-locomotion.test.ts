@@ -96,6 +96,7 @@ describe("wireLocomotion", () => {
       abandonSit: vi.fn(),
       release: vi.fn(),
       setKeepOnScreenPaused: vi.fn(),
+      holdKeepOnScreen: vi.fn(),
       dispose: () => teardowns.push("windowSources.dispose"),
     };
     const percher = {
@@ -114,7 +115,11 @@ describe("wireLocomotion", () => {
     let walkerDeps: { onDescend(edge: DescentEdge): void; isDragging(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
     let windowSourcesDeps:
-      | { onRelocated(): Promise<void>; noteAgentMove(): Promise<void> }
+      | {
+          onRelocated(): Promise<void>;
+          noteAgentMove(): Promise<void>;
+          onResizeApplied(bounds: { x: number; y: number; width: number; height: number }): void;
+        }
       | undefined;
     let climberDeps: { isDragging(): boolean } | undefined;
     let percherDeps: { isBusy(): boolean } | undefined;
@@ -336,6 +341,80 @@ describe("wireLocomotion", () => {
     await s.windowSourcesDeps.noteAgentMove();
 
     expect([menuAbort.mock.calls.length, comeAlongAbort.mock.calls.length]).toEqual([1, 1]);
+  });
+
+  it("lets only the come-along go on a drag start, and its abort travel waits for that release", async () => {
+    const s = setup();
+    let release!: () => void;
+    const comeAlongAbort = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const menuAbort = vi.fn();
+    s.locomotion.hold("menu", true, menuAbort);
+    s.locomotion.hold("come-along", true, comeAlongAbort);
+
+    s.locomotion.setDragging(true);
+    let settled = false;
+    void s.locomotion.abortTravel().then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect([comeAlongAbort.mock.calls.length, menuAbort.mock.calls.length, settled]).toEqual([
+      1,
+      0,
+      false,
+    ]);
+    release();
+    await vi.waitFor(() => expect(settled).toBe(true));
+  });
+
+  it("lets an agent move wait for a holder's release", async () => {
+    const s = setup();
+    let release!: () => void;
+    s.locomotion.hold(
+      "come-along",
+      true,
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    let settled = false;
+
+    void s.windowSourcesDeps.noteAgentMove().then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+    release();
+
+    await vi.waitFor(() => expect(settled).toBe(true));
+  });
+
+  it("pauses the keep-on-screen guard while any holder holds her", () => {
+    const s = setup();
+
+    s.locomotion.hold("come-along", true);
+    s.locomotion.hold("menu", true);
+    s.locomotion.hold("menu", false);
+    expect(s.windowSources.holdKeepOnScreen).toHaveBeenLastCalledWith(true);
+
+    s.locomotion.hold("come-along", false);
+    expect(s.windowSources.holdKeepOnScreen).toHaveBeenLastCalledWith(false);
+  });
+
+  it("tells each resize listener after a Ctrl+wheel resize", () => {
+    const s = setup();
+    const resized = vi.fn();
+    s.locomotion.onResizeApplied(resized);
+
+    s.windowSourcesDeps.onResizeApplied({ x: 0, y: 0, width: 424, height: 636 });
+
+    expect(resized).toHaveBeenCalledOnce();
   });
 
   it("follows the climb toggle: the stored value at start and each later store change", () => {

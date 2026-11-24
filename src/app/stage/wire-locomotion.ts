@@ -294,6 +294,7 @@ export function wireLocomotion(deps: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
     },
+    onResizeApplied: (_cb: () => void) => () => {},
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };
