@@ -54,8 +54,8 @@ it("picks a level: calls onPick, closes, and returns focus to the button", async
   expect(document.activeElement).toBe(button);
 });
 
-it("moves between the radios with ArrowUp and ArrowDown, wrapping at the ends", async () => {
-  const { pop, radio, open } = build("notable");
+it("moves focus between the radios with ArrowUp and ArrowDown, leaving the level as it is", async () => {
+  const { onPick, pop, radio, open } = build("notable");
   await open();
   const arrow = async (key: string) => {
     await act(async () => {
@@ -65,11 +65,12 @@ it("moves between the radios with ArrowUp and ArrowDown, wrapping at the ends", 
 
   await arrow("ArrowDown");
   expect(document.activeElement).toBe(radio("every"));
-  await arrow("ArrowDown");
+  await arrow("ArrowUp");
+  await arrow("ArrowUp");
   expect(document.activeElement).toBe(radio("off"));
-  await arrow("ArrowUp");
-  await arrow("ArrowUp");
-  expect(document.activeElement).toBe(radio("notable"));
+
+  expect(onPick).not.toHaveBeenCalled();
+  expect(radio("notable").getAttribute("aria-checked")).toBe("true");
   expect(pop()).not.toBeNull();
 });
 

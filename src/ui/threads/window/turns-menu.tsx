@@ -82,10 +82,6 @@ export function TurnsMenu({
                 aria-labelledby={CAPTION_ID}
                 value={state.level}
                 disabled={state.disabled}
-                onKeyDownCapture={(event) => {
-                  // Arrows move focus only; Space or a click picks.
-                  if (event.key.startsWith("Arrow")) event.preventBaseUIHandler();
-                }}
               >
                 {THREAD_TURNS.map((level) => (
                   <Radio.Root
