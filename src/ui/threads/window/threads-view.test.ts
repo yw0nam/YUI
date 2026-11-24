@@ -5,6 +5,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { act, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
@@ -515,25 +516,39 @@ it.each([
   expect(onListCollapsed.mock.calls.map(([value]) => value)).toEqual(writes);
 });
 
-it("switches the top-level tab by a click and by the arrow keys, the count following it", () => {
-  const { view, $, terminal, tab } = build();
-  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+it("switches the top-level tab by a click, by the arrow keys wrapping at either end, and by End, the count following it", async () => {
+  const { view, $, terminal } = build();
+  act(() => view.update(snapshot(1, [thread("t1", "codex", 1)])));
   terminal.head.count = "2 terminals";
+  const tab = (id: string) => document.getElementById(`yui-tab-${id}`)!;
+  const selected = () => document.querySelector('[role="tab"][aria-selected="true"]')?.id;
+  const press = async (key: string) => {
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement!, { key });
+    });
+  };
 
-  expect(tab("threads").getAttribute("aria-selected")).toBe("true");
+  expect(selected()).toBe("yui-tab-threads");
   expect($(".yui-threads__count").textContent).toBe("1 waiting");
 
-  tab("terminal").click();
-  expect(tab("terminal").getAttribute("aria-selected")).toBe("true");
-  expect(tab("threads").getAttribute("aria-selected")).toBe("false");
+  fireEvent.click(tab("terminal"));
+  expect(selected()).toBe("yui-tab-terminal");
   expect($(".yui-threads__count").textContent).toBe("2 terminals");
-  expect($<HTMLElement>(".yui-threads__panes").hidden).toBe(true);
+  expect(document.getElementById("yui-panel-threads")!.hidden).toBe(true);
   expect(terminal.shown).toHaveBeenCalledOnce();
 
-  tab("terminal").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-  expect(tab("threads").getAttribute("aria-selected")).toBe("true");
+  act(() => tab("terminal").focus());
+  await press("ArrowRight");
+  expect(selected()).toBe("yui-tab-threads");
   expect(document.activeElement).toBe(tab("threads"));
-  expect($<HTMLElement>(".yui-threads__panes").hidden).toBe(false);
+  expect(document.getElementById("yui-panel-threads")!.hidden).toBe(false);
+
+  await press("End");
+  expect(selected()).toBe("yui-tab-terminal");
+  await press("ArrowLeft");
+  expect(selected()).toBe("yui-tab-threads");
+  await press("ArrowLeft");
+  expect(selected()).toBe("yui-tab-terminal");
 });
 
 it("dots only the unselected tab where something waits for the user", () => {
