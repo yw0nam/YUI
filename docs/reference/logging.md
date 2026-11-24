@@ -254,7 +254,9 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `come-along` | `come_along_docked` | `native` | She docked on the stage; `native` is whether the shell linked her as a child window (`info` level). |
+| `come-along` | `come_along_docked` | `native`, `slot`, `feet`, `origin`, `size` | She docked on the stage; `native` is whether the shell linked her as a child window, `feet` her feet's y in her window, `origin` and `size` her window's logical frame (`info` level). |
+| `come-along` | `come_along_walk` | `from`, `to`, `ms`, `wallMs`, `frames` | A walk onto the stage or home ended; `ms` is the curve's time and `wallMs` the time it took, longer while the renderer was paused (`info` level). |
+| `come-along` | `come_along_placed` | `slot`, `origin`, `size`, `px?` | A new slot moved her; `px` marks a follow in the settings window's physical px (`info` level). |
 | `come-along` | `come_along_stayed` | none | A drag or an agent command ran when the settings window showed, so she stays for that session (`info` level). |
 | `come-along` | `come_along_taken` | none | A drag or an agent move took her off the stage or her walk (`info` level). |
 | `come-along` | `come_along_home` | none | She arrived home after the window minimised or closed (`info` level). |

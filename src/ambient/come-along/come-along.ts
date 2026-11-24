@@ -151,6 +151,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
     renderer.playMotion({ id: WALK_MOTION_ID });
     renderer.setBodyYaw(Math.sign(to.x - from.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.hitTest.setMoving(true);
+    const startedMs = performance.now();
+    let frames = 0;
     await new Promise<void>((resolve) => {
       let elapsedMs = 0;
       let off = (): void => {};
@@ -161,6 +163,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       };
       off = renderer.onTick(({ dt }) => {
         elapsedMs += dt * 1000;
+        frames += 1;
         const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
         void travel.win
           .setPositionLogical(
@@ -170,6 +173,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
           .catch((err) => log.warn("come_along_move_failed", { error: String(err) }));
         if (elapsedMs >= durationMs) stopTick?.();
       });
+    });
+    // Wall time against the curve's time shows a walk the renderer paused (a hidden document).
+    log.info("come_along_walk", {
+      from,
+      to,
+      ms: Math.round(durationMs),
+      wallMs: Math.round(performance.now() - startedMs),
+      frames,
     });
     if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
@@ -244,7 +255,13 @@ export function createComeAlong(deps: ComeAlongDeps): {
       return;
     }
     docked = { native };
-    log.info("come_along_docked", { native });
+    log.info("come_along_docked", {
+      native,
+      slot: rect,
+      feet: renderer.getCharacterAnchor()?.y ?? null,
+      origin: target,
+      size,
+    });
     await place();
   }
 
@@ -256,8 +273,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (docked.native || !deps.followsInPhysicalPx) {
       const { at, size } = await read();
       const target = dockOrigin(rect, size);
-      if (docked && Math.max(Math.abs(target.x - at.x), Math.abs(target.y - at.y)) >= 1)
+      if (docked && Math.max(Math.abs(target.x - at.x), Math.abs(target.y - at.y)) >= 1) {
+        log.info("come_along_placed", { slot: rect, origin: target, size });
         await win.setPositionLogical(target.x, target.y);
+      }
       return;
     }
     // Windows: the whole target in the settings window's scale, her size included.
@@ -265,8 +284,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
     const target = dockOrigin(rect, size);
     const x = Math.round(target.x * rect.scale);
     const y = Math.round(target.y * rect.scale);
-    if (docked && Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) >= 1)
+    if (docked && Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) >= 1) {
+      log.info("come_along_placed", { slot: rect, origin: { x, y }, size, px: true });
       await deps.setPositionPhysical(x, y);
+    }
   }
 
   const placeLatest = latestOnly(placeOnce);
