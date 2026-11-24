@@ -39,6 +39,7 @@ Each event logs one stderr line `<event> key=value`, with newlines in a value re
 - `herdr_watch_rebuild machine=<id> error=<text>`: a status rebuild after the backoff.
 - `herdr_watch_ready machine=<id> panes=<n>`: a finished rebuild.
 - `herdr_signal_failed error=<text>`: a signal group the client did not take.
+- `herdr_forward_ended machine=<id> error=<text>`: the last stderr line of an ssh forward that ended.
 
 ## Windows
 

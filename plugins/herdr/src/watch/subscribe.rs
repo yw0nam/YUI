@@ -138,7 +138,7 @@ async fn watch_once(
         Endpoint::Local(p) => (p.clone(), None),
         Endpoint::Remote { target, session } => {
             let ssh = ssh.ok_or("ssh not found")?;
-            let forward = Forward::open(ssh, target, session, dir).await?;
+            let forward = Forward::open(&watched.machine, ssh, target, session, dir).await?;
             (forward.socket().to_path_buf(), Some(forward))
         }
     };

@@ -1,10 +1,11 @@
 //! Holds an `ssh -N -L` forward to a remote herdr socket.
 
-use crate::watch::machines;
+use crate::watch::{machines, one_line};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -96,6 +97,7 @@ pub struct Forward {
 
 impl Forward {
     pub async fn open(
+        machine: &str,
         ssh: &Path,
         target: &str,
         session: &str,
@@ -108,14 +110,17 @@ impl Forward {
         let remote = machines::remote_socket(&home, session);
         let local = dir.join(format!("{}.sock", NEXT.fetch_add(1, Ordering::Relaxed)));
         check_path(&local)?;
-        let child = Command::new(ssh)
+        let mut child = Command::new(ssh)
             .args(forward_args(target, &local, &remote))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .kill_on_drop(true)
             .spawn()
             .map_err(|e| format!("ssh failed to start: {e}"))?;
+        if let Some(stderr) = child.stderr.take() {
+            tokio::spawn(log_end(machine.to_string(), stderr));
+        }
         Ok(Forward {
             local,
             _child: child,
@@ -124,6 +129,24 @@ impl Forward {
 
     pub fn socket(&self) -> &Path {
         &self.local
+    }
+}
+
+/// Reads ssh's stderr to its end and logs the last line, which says why the forward ended.
+async fn log_end(machine: String, stderr: tokio::process::ChildStderr) {
+    let mut lines = BufReader::new(stderr).lines();
+    let mut last = String::new();
+    while let Ok(Some(line)) = lines.next_line().await {
+        if !line.trim().is_empty() {
+            last = line;
+        }
+    }
+    if !last.is_empty() {
+        eprintln!(
+            "herdr_forward_ended machine={} error={}",
+            one_line(&machine),
+            one_line(&last)
+        );
     }
 }
 
@@ -175,14 +198,14 @@ exec sleep 30
         let ssh = fake_ssh(&dir);
         let socks = dir.path().join("socks");
         std::fs::create_dir_all(&socks).unwrap();
-        let default = Forward::open(&ssh, "user@host", "default", &socks)
+        let default = Forward::open("m1", &ssh, "user@host", "default", &socks)
             .await
             .unwrap();
         assert!(
             wait_until(|| dir.argv_calls().len() >= 2).await,
             "first forward argv not recorded"
         );
-        let named = Forward::open(&ssh, "user@host", "work", &socks)
+        let named = Forward::open("m1", &ssh, "user@host", "work", &socks)
             .await
             .unwrap();
         assert!(
@@ -241,12 +264,12 @@ exec sleep 30
         let dir = TempDir::new("err");
         let ssh = fake_ssh(&dir);
         std::fs::write(dir.path().join("fail"), "boom").unwrap();
-        let err = Forward::open(&ssh, "user@host", "default", dir.path())
+        let err = Forward::open("m1", &ssh, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert_eq!(err, "ssh: boom");
         let missing = dir.path().join("no-such-ssh");
-        let err = Forward::open(&missing, "user@host", "default", dir.path())
+        let err = Forward::open("m1", &missing, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert_eq!(err, "ssh not found");
@@ -256,7 +279,7 @@ exec sleep 30
     async fn forward_refuses_a_socket_path_over_100_bytes() {
         let dir = TempDir::new(&"x".repeat(80));
         let ssh = fake_ssh(&dir);
-        let err = Forward::open(&ssh, "user@host", "default", dir.path())
+        let err = Forward::open("m1", &ssh, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert!(
