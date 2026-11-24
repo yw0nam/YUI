@@ -3,3 +3,15 @@ html[data-theme],
 html[data-theme] body {
   background: var(--yui-panel-bg) !important;
 }
+
+/* The window is a row: the stage, then the panel. */
+#app {
+  display: flex;
+}
+
+.yui-settings-panel {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border-left: 1px solid var(--yui-edge);
+}

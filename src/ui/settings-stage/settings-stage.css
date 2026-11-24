@@ -1,0 +1,6 @@
+/* The settings window's stage: a 400px column the full window height, beside the panel. */
+.yui-settings-stage {
+  flex: 0 0 400px;
+  height: 100%;
+  background: var(--yui-stage-bg);
+}
