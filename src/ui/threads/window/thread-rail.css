@@ -80,12 +80,6 @@
   font-weight: inherit;
 }
 
-.yui-threads-rail .yui-threads-rail__tabs .yui-seg__btn:focus-visible {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-  box-shadow: none;
-}
-
 .yui-threads-rail__count {
   font-size: var(--yui-fs-caption);
   font-weight: 600;
@@ -131,12 +125,6 @@
 .yui-threads-rail .yui-threads-rail__kind.is-active {
   background: var(--yui-selected);
   color: var(--yui-text);
-}
-
-.yui-threads-rail .yui-threads-rail__kind:focus-visible {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-  box-shadow: none;
 }
 
 .yui-threads-rail__kind-mark {

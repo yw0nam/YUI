@@ -175,6 +175,14 @@
   outline-offset: 2px;
 }
 
+/* The shared segment and the rail's select trigger draw their own focus; here they take the window's ring. */
+.yui-threads .yui-seg__btn:focus-visible,
+.yui-threads .yui-threads-rail__kind:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .yui-threads__close svg {
   width: 14px;
   height: 14px;

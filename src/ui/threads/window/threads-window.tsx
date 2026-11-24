@@ -3,7 +3,7 @@
  * count, Thread turns, ×) over both tabs' panels, and the tooltip every trigger in it shares.
  */
 
-import "./window-tabs.css";
+import "./threads-window.css";
 import { Tabs } from "@base-ui/react/tabs";
 import { type PointerEvent, type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type { ThreadsTab as TabId } from "../../../io/bridge/settings-bridge";
