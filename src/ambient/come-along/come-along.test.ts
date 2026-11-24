@@ -421,6 +421,19 @@ describe("createComeAlong", () => {
     expect([reloaded.real.x, reloaded.real.y]).toEqual([1300, 80]);
   });
 
+  it("after a reload, still stays when a drag or agent command kept her at the open", async () => {
+    const storage = fakeStorage();
+    const h = harness({ storage });
+    h.setBusy(true);
+    await h.comeAlong.onStage(slot);
+    const reloaded = harness({ storage });
+    reloaded.setReduced(true);
+
+    await reloaded.comeAlong.onStage(slot);
+
+    expect(reloaded.locomotion.hold).not.toHaveBeenCalled();
+  });
+
   it("after a reload, stays where she was dropped when a drag had taken her", async () => {
     const storage = fakeStorage();
     const h = await docked({ storage });
