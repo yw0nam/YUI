@@ -41,7 +41,6 @@ export function SliderRow({
           step={step}
           valueText={text}
           onValueChange={onChange}
-          onValueCommitted={() => {}}
         />
         <span className="slider-value">{text}</span>
       </div>

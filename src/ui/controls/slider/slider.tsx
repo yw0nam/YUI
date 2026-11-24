@@ -15,7 +15,7 @@ export interface SliderProps {
   /** Each live change: a drag, a keyboard step, a track press. */
   onValueChange(value: number): void;
   /** The end of a change: a release, a keyboard step, a native change. */
-  onValueCommitted(value: number, reason: SliderRoot.CommitEventReason): void;
+  onValueCommitted?(value: number, reason: SliderRoot.CommitEventReason): void;
   onBlur?(): void;
   /** Extra classes beside `yui-slider`. */
   className?: string;
@@ -44,7 +44,7 @@ export function Slider({
       max={max}
       step={step}
       onValueChange={(next) => onValueChange(next)}
-      onValueCommitted={(next, details) => onValueCommitted(next, details.reason)}
+      onValueCommitted={(next, details) => onValueCommitted?.(next, details.reason)}
     >
       <BaseSlider.Control className="yui-slider__control">
         <BaseSlider.Track className="yui-slider__track">
