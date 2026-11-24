@@ -711,6 +711,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_listing_before_subscribing_catches_a_completion_during_the_rebuild_backoff() {
+        let fake = FakeServer::start().await;
+        {
+            let mut s = fake.state.lock().await;
+            s.queued = VecDeque::from([
+                vec![pane("p1", "claude", "done", "T1", "/tmp")],
+                vec![pane("p1", "claude", "done", "T1", "/tmp")],
+                // The next rebuild lists working, then its subscription is rejected.
+                vec![pane("p1", "claude", "working", "T1", "/tmp")],
+            ]);
+            s.panes = vec![pane("p1", "claude", "done", "T1", "/tmp")];
+        }
+        let (notify, mut rx) = notifier();
+        let task = watch(&fake, notify);
+        assert!(
+            wait_until(Duration::from_secs(5), || fake.listings() >= 2).await,
+            "no first rebuild"
+        );
+        fake.state.lock().await.reject_next = true;
+        fake.emit("pane.created", json!({"pane": {"pane_id": "p2"}}))
+            .await;
+        // The retry waits out the 5 s backoff, then lists done before it subscribes.
+        let got = tokio::time::timeout(Duration::from_secs(10), rx.recv()).await;
+        assert!(
+            matches!(got, Ok(Some(_))),
+            "no notification for working to done during the backoff"
+        );
+        let params = got.unwrap().unwrap();
+        assert_eq!(params["envelope"]["event_type"], json!("agent_done"));
+        assert_eq!(params["signals"][0]["pane"], json!("p1"));
+        nothing_arrives(&mut rx, "working to done signalled twice").await;
+        task.abort();
+    }
+
+    #[tokio::test]
     async fn status_changes_into_done_and_blocked_signal_once() {
         let fake = FakeServer::start().await;
         fake.state.lock().await.panes = vec![pane("p1", "claude", "working", "T1", "/tmp")];
