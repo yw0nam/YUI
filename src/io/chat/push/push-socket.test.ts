@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import { createAvatarTools } from "../tools/avatar";
+import type { ClientToolDefinition } from "../tools/client-tools";
 import type { PushTurnFrame, ReasoningFrame, RenderFrame } from "./push-frames";
 import {
   createPushSocket,
@@ -1406,6 +1407,51 @@ describe("createPushSocket — tool calls", () => {
       type: "hello",
       tools: [LOOK_SCHEMA],
     });
+  });
+
+  it("sends a tools frame when the declared tools changed, and nothing for the same tools", async () => {
+    let declared: ClientToolDefinition[] = [LOOK_SCHEMA];
+    await connected({ tools: () => declared });
+    const changed = { ...LOOK_SCHEMA, function: { ...LOOK_SCHEMA.function, description: "more" } };
+    declared = [changed];
+
+    socket.sendTools();
+    socket.sendTools();
+
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello", "tools"]);
+    expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "tools", tools: [changed] });
+  });
+
+  it("holds tools that changed before ready and sends them before a state subscriber sees ready", async () => {
+    let declared: ClientToolDefinition[] = [];
+    socket = build({ tools: () => declared });
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    declared = [LOOK_SCHEMA];
+
+    socket.sendTools();
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+
+    let framesAtReady: string[] = [];
+    socket.onState((state) => {
+      if (state.kind === "ready")
+        framesAtReady = FakeSocket.last()
+          .frames()
+          .map((f) => f.type);
+    });
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    expect(framesAtReady).toEqual(["hello", "tools"]);
+    expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "tools", tools: [LOOK_SCHEMA] });
   });
 
   it("dispatches a readable tool_call to onToolCall subscribers", async () => {

@@ -419,7 +419,7 @@ YUI/
           pet-window-tools.ts          # Splits a window's declared tools from its Terminal and Threads On-demand tools
           bridge/                      # Bridge tools for built-in On-demand tools and enabled plugins
             bridge-tools.ts            # yui_tool_describe, yui_tool_call and plugin_skill
-            on-demand-lines.ts         # Builds the on-demand line entries: built-in summaries first, then enabled plugin tools; plugin skills unchanged
+            on-demand-lines.ts         # Builds the lists the Bridge tool descriptions carry: built-in summaries first, then enabled plugin tools, then plugin skills
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
           screen/                      # The screen tool
@@ -1072,7 +1072,7 @@ YUI/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
-        yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
+        yui/src/tools/               # The client-declared tools: registration from hello.tools and tools frames, the blocking handler, and the per-chat pending calls
     openclaw/
       README.md                      # OpenClaw integration: protocol, what works, security and cost
       skills/yui-openclaw-setup/     # Step-by-step gateway and YUI connection setup with a check per step, and a symptom table

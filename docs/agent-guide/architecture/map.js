@@ -712,7 +712,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds their per-turn summaries. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds the tool and skill lists the yui_tool_call and plugin_skill descriptions carry. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -730,7 +730,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tool summaries and plugin skills.",
+      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the plugin tool summaries and plugin skills the Bridge tool descriptions list.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -1984,7 +1984,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
+      "carries": "frames out: hello, turn, vocabulary, tools, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
       "kind": "websocket",
       "transport": "push"
     },
@@ -2352,7 +2352,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
+      "carries": "declared tool schemas of the turn; the On-demand tool and plugin skill lists ride the descriptions of yui_tool_call and plugin_skill, read per turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2379,7 +2379,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2488,12 +2488,12 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "on-demand-backend",
-      "from": "io/chat/tools",
-      "to": "dispatcher/backend",
-      "carries": "on_demand_tools and plugin_skills per turn: built-in On-demand tool summaries first, then each enabled plugin's tools and skills",
+      "id": "mcp-host-push",
+      "from": "io/mcp-host",
+      "to": "io/chat/push",
+      "carries": "snapshot subscribe → sendTools(), wired in bootstrap-configured.ts",
       "kind": "callback",
-      "transport": "shared",
+      "transport": "push",
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
@@ -5540,7 +5540,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "hello.tools and hello.vocabulary; expression arrives as cues on reply segments",
+          "label": "hello.tools and hello.vocabulary, tools frame on a change; expression arrives as cues on reply segments",
           "edges": [
             "tools-push",
             "vocabulary-push"

@@ -2,11 +2,28 @@
 
 import { findPluginTool } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";
+import { oneLine } from "../../one-line";
 import { type ClientTool, TURN_STOPPED } from "../client-tools";
 import { executeClientTool } from "../execute";
 import { terminalFailed } from "../terminal/terminal-tools";
 import { firstViolation } from "./first-violation";
+import { onDemandLines } from "./on-demand-lines";
 import { isFailureText, pluginToolResult } from "./plugin-result";
+
+/** One On-demand tool or plugin skill as a `name — text` entry; the name alone when the text is empty. */
+function listEntry(name: string, text: string): string {
+  const label = oneLine(name);
+  const detail = oneLine(text);
+  return detail === "" ? label : `${label} — ${detail}`;
+}
+
+/** A description's lead followed by its entries, or by the sentence that none are available. */
+function withList(lead: string, label: string, entries: string[]): string {
+  const heading = label.charAt(0).toUpperCase() + label.slice(1);
+  return entries.length > 0
+    ? `${lead} ${heading}: ${entries.join(" · ")}`
+    : `${lead} No ${label} are available.`;
+}
 
 export function createBridgeTools(deps: {
   host: McpHost;
@@ -15,6 +32,7 @@ export function createBridgeTools(deps: {
   presetId: () => string;
 }): ClientTool[] {
   const host = deps.host;
+  const lines = onDemandLines(host, deps.onDemand);
   const resolve = (name: string) => {
     const builtin = deps.onDemand.find((tool) => tool.name === name);
     if (builtin)
@@ -39,11 +57,11 @@ export function createBridgeTools(deps: {
       function: {
         name: "yui_tool_describe",
         description:
-          "Describe an on-demand tool listed in the client context: returns its full description and JSON input schema.",
+          "Describe an On-demand tool listed in yui_tool_call's description: returns its full description and JSON input schema.",
         parameters: {
           type: "object" as const,
           properties: {
-            name: { type: "string", description: "The on-demand tool's name." },
+            name: { type: "string", description: "The On-demand tool's name." },
           },
           additionalProperties: false as const,
           required: ["name"],
@@ -61,22 +79,29 @@ export function createBridgeTools(deps: {
 
   const call: ClientTool = {
     name: "yui_tool_call",
-    definition: {
-      type: "function" as const,
-      function: {
-        name: "yui_tool_call",
-        description:
-          "Call an on-demand tool listed in the client context by name with its arguments.",
-        parameters: {
-          type: "object" as const,
-          properties: {
-            name: { type: "string", description: "The on-demand tool's name." },
-            arguments: { type: "object", description: "The tool's arguments." },
+    // A getter: each read lists the On-demand tools enabled at that moment.
+    get definition() {
+      const entries = lines().tools.map((tool) => listEntry(tool.name, tool.summary));
+      return {
+        type: "function" as const,
+        function: {
+          name: "yui_tool_call",
+          description: withList(
+            "Call an On-demand tool by name with its arguments.",
+            "On-demand tools",
+            entries,
+          ),
+          parameters: {
+            type: "object" as const,
+            properties: {
+              name: { type: "string", description: "The On-demand tool's name." },
+              arguments: { type: "object", description: "The tool's arguments." },
+            },
+            additionalProperties: false as const,
+            required: ["name", "arguments"],
           },
-          additionalProperties: false as const,
-          required: ["name", "arguments"],
         },
-      },
+      };
     },
     execute: async (args, signal) => {
       if (signal?.aborted) return TURN_STOPPED;
@@ -109,20 +134,28 @@ export function createBridgeTools(deps: {
 
   const skill: ClientTool = {
     name: "plugin_skill",
-    definition: {
-      type: "function" as const,
-      function: {
-        name: "plugin_skill",
-        description: "Read a plugin skill: returns its full instructions.",
-        parameters: {
-          type: "object" as const,
-          properties: {
-            name: { type: "string", description: "The plugin skill's name." },
+    // A getter: each read lists the skills of the plugins enabled at that moment.
+    get definition() {
+      const entries = lines().skills.map((entry) => listEntry(entry.name, entry.description));
+      return {
+        type: "function" as const,
+        function: {
+          name: "plugin_skill",
+          description: withList(
+            "Read a plugin skill: returns its full instructions.",
+            "plugin skills",
+            entries,
+          ),
+          parameters: {
+            type: "object" as const,
+            properties: {
+              name: { type: "string", description: "The plugin skill's name." },
+            },
+            additionalProperties: false as const,
+            required: ["name"],
           },
-          additionalProperties: false as const,
-          required: ["name"],
         },
-      },
+      };
     },
     execute: (args) => host.skill(String(args.name ?? "")),
     waitMs: 2000,

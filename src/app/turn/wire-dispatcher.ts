@@ -97,7 +97,7 @@ export function wireDispatcher(deps: {
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   contextProviders: Required<Pick<ContextProviders, "getFrontmost">> &
-    Pick<ContextProviders, "getOnDemandLines" | "getThreadsWaiting">;
+    Pick<ContextProviders, "getThreadsWaiting">;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;

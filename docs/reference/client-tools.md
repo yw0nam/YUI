@@ -44,7 +44,7 @@ The `threads_list` details:
 |---|---|---|
 | Chat Completions | The client declares the window subset in `tools[]` of every request | `delta.tool_calls` fragments |
 | Responses | The client declares the window subset in `tools[]` of every request | `function_call` output items |
-| Push | The client, in `hello.tools` of the connection | `tool_call` frames ([push-transport.md](push-transport.md)). `generate_express` is not declared there: its cues arrive in `render` and `speech` segments |
+| Push | The client, in `hello.tools` of the connection and in a `tools` frame whenever the declared tools change | `tool_call` frames ([push-transport.md](push-transport.md)). `generate_express` is not declared there: its cues arrive in `render` and `speech` segments |
 
 ::: tip
 `generate_express` is the one tool a push connection never declares. Its cues reach the client inside `render` and `speech` segments instead of a `tool_call` frame.
@@ -341,7 +341,7 @@ A screen request succeeds with `{ text: "screenshot of display <n>", images: [da
 
 An On-demand tool runs in the client without a declaration in `tools[]` or `hello.tools`. Under Tauri, every pet window offers `terminal_open`, `terminal_list`, `terminal_read`, `terminal_write` and `terminal_close`; main also offers `threads_list` and `threads_search`. Enabled Plugin tools are On-demand tools too.
 
-Each turn carries an `on-demand tools (call through yui_tool_call):` line with names and summaries, built-ins first and plugin tools after them. Read a named tool's schema with `yui_tool_describe`, then run it with `yui_tool_call` and an `arguments` object. The built-in name resolves first.
+`yui_tool_call`'s description lists the tools with their names and summaries, built-ins first and plugin tools after them ([Bridge tools](#bridge-tools)). Read a named tool's schema with `yui_tool_describe`, then run it with `yui_tool_call` and an `arguments` object. The built-in name resolves first.
 
 Unknown names answer `error: unknown tool: <name>`. Invalid arguments answer `error: invalid arguments (<violation>)` followed by `input schema: <JSON>`.
 
@@ -351,11 +351,42 @@ Built-ins keep their own waits: Terminal reads and writes wait 70 s, other Termi
 
 `yui_tool_describe` and `yui_tool_call` reach built-in On-demand tools and enabled Plugin tools; `plugin_skill` reads enabled plugins' skills through the MCP host. Every pet window declares them under Tauri; the browser build declares none of them.
 
+### The lists in the descriptions
+
+The window's On-demand tools and enabled plugin skills reach the backend in the descriptions of the Bridge tools:
+
+| Tool | Description |
+|---|---|
+| `yui_tool_call` | `Call an On-demand tool by name with its arguments. On-demand tools: <entries>`, or `... No On-demand tools are available.` with no entry |
+| `plugin_skill` | `Read a plugin skill: returns its full instructions. Plugin skills: <entries>`, or `... No plugin skills are available.` with no entry |
+| `yui_tool_describe` | `Describe an On-demand tool listed in yui_tool_call's description: returns its full description and JSON input schema.` |
+
+An entry reads `<name> — <text>`, or the name alone when the text is empty. Entries are joined with ` · `. A name or text goes through the same sanitization as the other sampled fields, so it stays on one line.
+
+#### Tool entries
+
+- The built-ins come first, then every enabled Plugin tool in snapshot order: plugin by plugin, each plugin's servers in manifest order.
+- A built-in summary is the first sentence of its description.
+- A Plugin tool's summary is its non-empty `io.github.yw0nam.yui/summary` meta. Without one, it is the first sentence of its description's first paragraph, which is the text up to the first blank line with every whitespace run collapsed to one space.
+- Every summary is cut at 100 characters.
+
+#### Skill entries
+
+- One entry per skill of every enabled plugin, in snapshot order, with the description its `SKILL.md` frontmatter declares.
+- A description is cut at 1024 characters, the Agent Skills specification's limit.
+- A skill whose frontmatter has no description is not published, so it never reaches the list.
+
+#### When the lists change
+
+The lists follow the snapshot. Chat Completions and Responses read the descriptions once per turn, when the turn builds its declared tools, so a plugin turned on or off shows on the next turn.
+
+Push sends the lists in `hello.tools` and again in a `tools` frame on every change ([push-transport.md](push-transport.md#tools-client-→-backend)).
+
 ### Which snapshot answers
 
 A Plugin tool name resolves against the newest snapshot the window holds. The host publishes one snapshot per change, and the client keeps the highest revision it has seen.
 
-The turn's `on-demand tools (call through yui_tool_call)` and `plugin skills` lines and every `yui_tool_describe` and `yui_tool_call` read that one, so a plugin enabled after the request went out answers a later call in the same turn. A call's name is looked up again when it runs.
+The descriptions of `yui_tool_call` and `plugin_skill` and every `yui_tool_describe` and `yui_tool_call` read that one, so a plugin enabled after the request went out answers a later call in the same turn. A call's name is looked up again when it runs.
 
 `plugin_skill` is not looked up in the window's snapshot: the host resolves the skill in the snapshot it publishes itself.
 
@@ -381,7 +412,7 @@ An unknown tool name is rejected by the client: `yui_tool_describe` and `yui_too
 
 ### Arguments
 
-`yui_tool_call` checks `arguments` against the tool's input schema before anything is sent. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which the turn's `on-demand tools (call through yui_tool_call)` line does not:
+`yui_tool_call` checks `arguments` against the tool's input schema before anything is sent. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which `yui_tool_call`'s description does not:
 
 ```text
 error: invalid arguments (#/app: Instance type "number" is invalid. Expected "string".)

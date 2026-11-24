@@ -1,4 +1,4 @@
-/** Built-in summaries precede the enabled plugins in each turn's context. */
+/** Built-in summaries precede the enabled plugins in the Bridge tool descriptions. */
 
 import { pluginLines, sentenceSummary } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";

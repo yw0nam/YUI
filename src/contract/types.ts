@@ -444,10 +444,6 @@ export interface ClientContext {
   open_characters?: string[];
   /** Threads waiting for the user's answer, read this turn; main's window only, on user-started turns. */
   threads_waiting?: { total: number; by_source: Array<{ source: string; count: number }> };
-  /** Built-in On-demand tools followed by enabled Plugin tools, with summaries; absent when none. */
-  on_demand_tools?: { name: string; summary: string }[];
-  /** Each enabled plugin's skill with its description, read this turn; absent when none. */
-  plugin_skills?: { name: string; description: string }[];
   trigger: TriggerMeta;
 }
 

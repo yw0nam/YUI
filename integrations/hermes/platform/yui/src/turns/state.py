@@ -32,7 +32,7 @@ def vocabulary(chat_id: str) -> Vocabulary | None:
 
 
 def set_client_tools(chat_id: str, tools: object) -> None:
-    """The function tools this chat's client declared in its hello frame."""
+    """The function tools this chat's client declared in its hello or latest tools frame."""
     with _lock:
         _client_tools[chat_id] = list(tools) if isinstance(tools, list) else []
 

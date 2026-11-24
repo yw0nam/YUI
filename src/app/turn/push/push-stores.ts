@@ -50,7 +50,7 @@ export function createPushStores(deps: {
   }): void;
 } {
   let publishedVocabulary: (() => ExpressVocabulary) | null = null;
-  // The window tools land with bind(); the socket declares them in `hello.tools`.
+  // The window tools land with bind(); the socket declares them in `hello.tools` and in each `tools` frame.
   let windowTools: readonly ClientTool[] = [];
   // The panel's session reset stops the running turn the way the stop button does; the shared
   // closure exists once the configured bootstrap has wired it.

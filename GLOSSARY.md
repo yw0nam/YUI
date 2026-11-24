@@ -271,7 +271,7 @@ A Client tool that reaches On-demand tools and plugin skills: `yui_tool_describe
 _Avoid_: host tool, relay tool
 
 **On-demand tool**:
-A tool the client does not declare; the backend learns its name and summary from the turn's client context and reaches it through `yui_tool_describe` and `yui_tool_call`: a Plugin tool, or a Terminal or Threads tool the client runs itself.
+A tool the client does not declare; the backend learns its name and summary from `yui_tool_call`'s description and reaches it through `yui_tool_describe` and `yui_tool_call`: a Plugin tool, or a Terminal or Threads tool the client runs itself.
 
 **Client tool**:
 A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill) or a Terminal or Threads On-demand tool.

@@ -59,7 +59,7 @@ export interface ToolStatusFrame {
   tool_id: string;
 }
 
-/** A call against a tool the client declared in `hello.tools`; the client answers with `tool_result`. */
+/** A call against a tool the client declared in `hello.tools` or a `tools` frame; the client answers with `tool_result`. */
 export interface ToolCallFrame {
   type: "tool_call";
   id: string;

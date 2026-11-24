@@ -21,7 +21,7 @@ sequenceDiagram
   B-->>C: command_reply
   C->>B: stop, while the turn has not ended
   B-->>C: turn_end
-  C->>B: vocabulary, reset or playback
+  C->>B: vocabulary, tools, reset or playback
   Note over C,B: A closed socket reconnects on a growing delay, except code 4401
 ```
 
@@ -51,7 +51,7 @@ Each row is one thing a transport carries, and each column is one chat transport
 |---|---|---|---|
 | Screenshot of the turn | `screenshot source:` line and an `image_url` part | `screenshot source:` line and an `input_image` part | `screenshot source:` line, plus the pixels in `turn.images` when the backend states `max_turn_bytes` |
 | Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
-| Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request | `tool_call` for a tool the client declared in `hello.tools`, answered with `tool_result`; cues arrive in `render` and `speech` segments |
+| Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request | `tool_call` for a tool the client declared in `hello.tools` or a later `tools` frame, answered with `tool_result`; cues arrive in `render` and `speech` segments |
 | Model, `reasoning_effort` and instructions sent with the turn | All three; `reasoning_effort` only when the setting is not Default | All three; `reasoning.effort` only when the setting is not Default | None |
 | Card (persona text) | First system message | `instructions` | None; a push backend carries its own persona |
 | Turn identity | `user`: a random id per turn, the same on every request of the turn | None; `previous_response_id` chains turns | `turn_id` on the `turn` frame |
@@ -199,7 +199,8 @@ A turn that has not rendered when the socket leaves `ready` also ends as a netwo
 
 For `tools`:
 
-- Absent when the client declares none, and fixed for the connection.
+- Absent when the client declares none. A `tools` frame replaces the list while connected.
+- The descriptions of `yui_tool_call` and `plugin_skill` carry the window's On-demand tool and plugin skill lists ([client-tools.md](client-tools.md#the-lists-in-the-descriptions)), so they change with the enabled plugins.
 - Every pet window declares `rate_relation` and `address_character`.
 - A pet window under Tauri also declares `yui_tool_describe`, `yui_tool_call` and `plugin_skill`.
 - `main` also declares `body_action` and `look`.
@@ -240,6 +241,14 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 ```json
 { "type": "vocabulary", "vocabulary": { "emotion_ids": ["neutral"], "motion_ids": [], "emotion_text_mode": "free", "emotion_text_map": {} } }
+```
+
+### `tools` (client → backend)
+
+The declared function schemas, in the shape of `hello.tools`, sent whenever the declared tools change while connected, and on `ready` when they changed during the handshake. A plugin turned on or off changes the descriptions of `yui_tool_call` and `plugin_skill`. The frame carries the full list, `[]` when the client declares none, and applies to turns the backend starts after it.
+
+```json
+{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "plugin_skill", "description": "Read a plugin skill: returns its full instructions. No plugin skills are available.", "parameters": { "type": "object", "properties": { "name": { "type": "string", "description": "The plugin skill's name." } }, "additionalProperties": false, "required": ["name"] } } }] }
 ```
 
 ## Turns
@@ -513,7 +522,7 @@ A `tool_status` naming a tool the client declared and runs itself, `yui_tool_cal
 
 ### `tool_call` (backend → client) and `tool_result` (client → backend)
 
-A call against a tool the client declared in `hello.tools`.
+A call against a tool the client declared in `hello.tools` or a `tools` frame.
 
 ```json
 {
@@ -529,7 +538,7 @@ A call against a tool the client declared in `hello.tools`.
 |---|---|
 | `id` | The call id, minted by the backend. The `tool_result` echoes it |
 | `turn_id` | The turn the call belongs to: a client turn id, or one the backend minted |
-| `name` | The tool name, one of the functions the client declared in `hello.tools` |
+| `name` | The tool name, one of the functions the client declared in `hello.tools` or a `tools` frame |
 | `arguments` | The call's arguments, a JSON object shaped by the tool's schema |
 
 ```json

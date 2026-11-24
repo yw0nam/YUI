@@ -104,6 +104,8 @@ export interface PushSocket {
   sendPlayback(frame: PlaybackFrame): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
+  /** Sends the declared tools when they differ from the ones the backend last received. */
+  sendTools(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
@@ -177,6 +179,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The vocabulary the backend last received, serialized, so only a real change resends it. */
   let sentVocabulary: string | null = null;
+  /** The declared tools the backend last received, serialized, so only a real change resends them. */
+  let sentTools: string | null = null;
   /** An attempt between its key lookup and its socket, where `ws` is not yet the one being opened. */
   let opening = false;
   /** Bumped by every connect(); an attempt whose key resolved under an older one reads it again. */
@@ -227,6 +231,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     if (sendFrame({ type: "vocabulary", vocabulary })) sentVocabulary = serialized;
   }
 
+  /** Sends the declared tools when they differ from the ones the backend last received. */
+  function syncTools(): void {
+    if (!ready) return;
+    const tools = deps.tools();
+    const serialized = JSON.stringify(tools);
+    if (serialized === sentTools) return;
+    if (sendFrame({ type: "tools", tools })) sentTools = serialized;
+  }
+
   /** One broken subscriber is logged, not allowed to cost the rest of the frame's listeners. */
   function dispatch<T>(subs: Set<(value: T) => void>, value: T): void {
     for (const cb of subs) {
@@ -268,9 +281,10 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         delayMs = RECONNECT_MIN_MS;
         const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
-        setState({ kind: "ready", chat_id: chatId });
-        // The vocabulary may have moved while the handshake was in flight; hello carried the old one.
+        // The vocabulary and tools may have moved while the handshake was in flight; hello carried the old ones.
         syncVocabulary();
+        syncTools();
+        setState({ kind: "ready", chat_id: chatId });
         return;
       }
       case "command_reply": {
@@ -467,6 +481,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         vocabulary,
       };
       const tools = deps.tools();
+      sentTools = JSON.stringify(tools);
       if (tools.length > 0) hello.tools = tools;
       sendFrame(hello);
       readyTimer = setTimeout(() => {
@@ -492,6 +507,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       ready = false;
       maxTurnBytes = undefined;
       sentVocabulary = null;
+      sentTools = null;
       log.info("ws_close", { code: ev.code });
       if (disposed || !active) {
         setState({ kind: "disconnected" });
@@ -539,6 +555,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       ready = false;
       maxTurnBytes = undefined;
       sentVocabulary = null;
+      sentTools = null;
       const socket = ws;
       ws = null;
       socket?.close(NORMAL_CLOSE_CODE);
@@ -640,6 +657,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     },
 
     sendVocabulary: syncVocabulary,
+    sendTools: syncTools,
 
     onRender: (cb) => subscribe(renderSubs, cb),
     onSpeech: (cb) => subscribe(speechSubs, cb),
