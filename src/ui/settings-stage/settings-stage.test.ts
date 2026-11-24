@@ -2,6 +2,10 @@
 // The stage's foot re-reads its own character on each source a change can arrive through.
 import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  createEndpointsSettings,
+  localStorageEndpointsStorage,
+} from "../../settings/backend/endpoints-settings";
 import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { setLocale } from "../i18n";
@@ -15,12 +19,14 @@ let stage: { dispose(): void } | undefined;
 function mount() {
   const app = document.body.appendChild(document.createElement("div"));
   const presetRegistry = createPresetRegistry();
+  const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
   stage = createSettingsStage({
     mount: app,
     presetRegistry,
     petWindows: createPetWindows(),
     boundId: null,
     getDefaultChatApi: () => undefined,
+    endpointsSettings,
     onSettingsChanged: (cb) => {
       settingsChanged.add(cb);
       return () => settingsChanged.delete(cb);
@@ -30,7 +36,7 @@ function mount() {
     [".yui-settings-stage__name", ".yui-settings-stage__meta"].map(
       (s) => app.querySelector(s)?.textContent,
     );
-  return { presetRegistry, shown };
+  return { presetRegistry, endpointsSettings, shown };
 }
 
 describe("createSettingsStage", () => {
@@ -66,6 +72,14 @@ describe("createSettingsStage", () => {
     act(() => setLocale("ko"));
 
     expect(shown()).toEqual(["Yuna", "Responses · 메인"]);
+  });
+
+  it("re-reads its character's transport when this window switches the chat type", () => {
+    const { endpointsSettings, shown } = mount();
+
+    act(() => endpointsSettings.set({ chat_api: "push" }));
+
+    expect(shown()).toEqual(["Yui", "Push · In main"]);
   });
 
   it.each([

@@ -6,6 +6,10 @@ import { createElement, createRef } from "react";
 import { flushSync } from "react-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../settings/backend/agent-notify-settings";
+import {
+  createEndpointsSettings,
+  localStorageEndpointsStorage,
+} from "../../../settings/backend/endpoints-settings";
 import { presetIdForWindow } from "../../../settings/preset/active-preset";
 import {
   clearWindowLive,
@@ -123,6 +127,22 @@ describe("createQuickControls — presets", () => {
       ["natsume", "Responses · In main"],
       ["perlica", "Chat Completions · Window open"],
     ]);
+  });
+
+  it("the header re-reads the edited character's transport when this window switches the chat type", () => {
+    history.replaceState(null, "", "/?edit=aaaa0001");
+    qc.dispose();
+    const endpointsSettings = createEndpointsSettings({ storage: localStorageEndpointsStorage() });
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      presetRegistry: registry,
+      endpointsSettings,
+    });
+    qc.open();
+
+    act(() => endpointsSettings.set({ chat_api: "push" }));
+
+    expect(head("natsume").querySelector(".yui-chead__meta")!.textContent).toBe("Push · In main");
   });
 
   it("clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
