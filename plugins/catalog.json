@@ -15,6 +15,21 @@
           "sha256": "a25a7dc3a3b7b4ce20ff31eb3998c30ffd0e0f92d62382f6426e647613ddb098"
         }
       }
+    },
+    {
+      "id": "herdr",
+      "version": "0.1.0",
+      "summary": "Lets a character watch and answer your coding agents in herdr panes, here and on saved SSH machines.",
+      "assets": {
+        "darwin-arm64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-herdr-v0.1.0/herdr-0.1.0-darwin-arm64.zip",
+          "sha256": "af3531238484ed958db66948035c15c3292e7427ccfd498fa2a4b6614061cd50"
+        },
+        "windows-x64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-herdr-v0.1.0/herdr-0.1.0-windows-x64.zip",
+          "sha256": "954c38450e46cdec8e341f0a03d2aae74efbf09675659888f33d1bca43e9a79a"
+        }
+      }
     }
   ],
   "community": []
