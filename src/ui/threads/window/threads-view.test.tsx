@@ -330,6 +330,49 @@ it.each([
   expect($(".yui-threads-answer__choices button").getAttribute("aria-pressed")).toBe("false");
 });
 
+it("keeps the medium layout's list overlay open through a pointer pick in the kind popup, and applies the kind", async () => {
+  const { update, $, panel } = build();
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  widen(600);
+  key(CTRL_CMD_S);
+
+  await pickKind("Slack (1)");
+
+  expect(panel().dataset.overlay).toBe("true");
+  expect($(".yui-threads-list__kind").textContent).toBe("Slack (1)");
+  expect(ids(".yui-threads-list [data-id]")).toEqual(["t2"]);
+});
+
+it("keeps the answer field, its draft and its caret through a newer snapshot of the shown Thread", () => {
+  const { update, field, type } = build();
+  update(snapshot(1, [thread("t1", "codex", 1)]));
+  const shown = field();
+  type("split it");
+  act(() => {
+    shown.focus();
+    shown.setSelectionRange(2, 2);
+  });
+
+  update(
+    snapshot(2, [
+      {
+        ...thread("t1", "codex", 2),
+        entries: [
+          { role: "agent", text: "Done.", at: 1 },
+          { role: "agent", text: "More.", at: 2 },
+        ],
+      },
+    ]),
+  );
+
+  expect(field()).toBe(shown);
+  expect([shown.value, shown.selectionStart, document.activeElement]).toEqual([
+    "split it",
+    2,
+    shown,
+  ]);
+});
+
 it("keeps the selection and the filters across a newer snapshot", async () => {
   const { update, $ } = build();
   update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
@@ -512,6 +555,16 @@ it("lays a stored list width under both tabs' lists, with an edge in each", () =
     (panes) => panes.querySelectorAll('[role="separator"]').length,
   );
   expect(edges).toEqual([1, 1]);
+});
+
+it("keeps each list's edge right after the list through a newer snapshot", () => {
+  const { update } = build();
+  update(snapshot(1, [thread("t1", "codex", 2)]));
+
+  update(snapshot(2, [thread("t2", "slack", 3), thread("t1", "codex", 2, false)]));
+
+  const list = document.getElementById("yui-threads-list")!;
+  expect(list.nextElementSibling?.getAttribute("role")).toBe("separator");
 });
 
 it("shows one pane at a time in the narrow layout: a selection opens the thread, back returns", () => {
