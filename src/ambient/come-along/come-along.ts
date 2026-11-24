@@ -50,6 +50,8 @@ export interface ComeAlongDeps {
     widen(via: Point[]): Promise<Travel>;
     release(): void;
     drop(opts: { landOnSeam: true }): Promise<void>;
+    /** Whether a travel parks her real window, as the open Character menu does. */
+    isTravelling(): boolean;
     frame: { frameWindow(): FrameWindow; listMonitors(): Promise<ScreenMonitor[]> };
   };
   renderer: Pick<
@@ -68,7 +70,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
   onStage(rect: StageRect | null): Promise<void>;
   /** The settings window closes or minimises: she walks home. */
   goHome(): Promise<void>;
-  /** Places her on the latest slot again, after her own window was resized. */
+  /** Places her on the latest slot again, after her own window was resized or a travel ended. */
   place(): Promise<void>;
 } {
   const { locomotion, renderer } = deps;
@@ -235,7 +237,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
 
   async function placeOnce(): Promise<void> {
     const rect = slot;
-    if (!rect || !docked) return;
+    // A parked frame is not her window's own rect; the newest slot waits for the next place.
+    if (!rect || !docked || locomotion.isTravelling()) return;
     const win = locomotion.frame.frameWindow();
     if (docked.native) {
       const { at, size } = await read();

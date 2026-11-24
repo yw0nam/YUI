@@ -3827,7 +3827,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, onAbort) holds her still and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her",
+      "carries": "hold(\"come-along\", on, onAbort) holds her still and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"

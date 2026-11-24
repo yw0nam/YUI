@@ -34,6 +34,8 @@ export function wireComeAlong(deps: {
     | "frame"
     | "getAvatarExecutor"
     | "onResizeApplied"
+    | "onHoldReleased"
+    | "isTravelling"
     | "ready"
   >;
   peek: { active(): boolean; exit(): Promise<void> };
@@ -67,6 +69,8 @@ export function wireComeAlong(deps: {
     );
     register(onSettingsStageClosed(settingsLabel, () => void comeAlong.goHome().catch(failed)));
     register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
+    // The Character menu lets go after its parked frame ends: the newest slot applies then.
+    register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));
     await deps.bridgeListening();
     deps.emitSettingsStageAsk();
   })().catch(failed);

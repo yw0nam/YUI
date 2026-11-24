@@ -93,6 +93,10 @@ export function wireLocomotion(deps: {
   onResizeApplied(cb: () => void): () => void;
   /** Settles once the real window is wired. */
   ready: Promise<void>;
+  /** Whether a travel parks her real window right now. */
+  isTravelling(): boolean;
+  /** Calls `cb` after each holder lets go of her; returns its disposer. */
+  onHoldReleased(cb: () => void): () => void;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     frameWindow(): FrameWindow;
@@ -144,6 +148,7 @@ export function wireLocomotion(deps: {
     return letGo;
   };
   const resizeListeners = new Set<() => void>();
+  const releaseListeners = new Set<() => void>();
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -305,6 +310,7 @@ export function wireLocomotion(deps: {
         holders.set(holder, onAbort);
       } else holders.delete(holder);
       windowSources.holdKeepOnScreen(held());
+      if (!on) for (const cb of releaseListeners) cb();
     },
     async widen(via) {
       const win = travelFrame.getWindow();
@@ -323,8 +329,11 @@ export function wireLocomotion(deps: {
       return () => resizeListeners.delete(cb);
     },
     ready: travelFrame.ready,
-    isTravelling: () => false,
-    onHoldReleased: (_cb: () => void) => () => {},
+    isTravelling: () => travelFrame.travel.current() !== null,
+    onHoldReleased(cb) {
+      releaseListeners.add(cb);
+      return () => releaseListeners.delete(cb);
+    },
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };
