@@ -1,4 +1,4 @@
-"""The client-declared tools: registration with Hermes from the hello frame's ``tools``.
+"""The client-declared tools: registration with Hermes from ``hello.tools`` and later ``tools`` frames.
 
 Hermes keeps one schema per tool name, so a tool whose schema differs per client is registered
 again with the chat's own schema when that chat's turn starts, the way ``generate_express`` is.

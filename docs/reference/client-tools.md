@@ -353,7 +353,7 @@ Built-ins keep their own waits: Terminal reads and writes wait 70 s, other Termi
 
 ### The lists in the descriptions
 
-The window's On-demand tools and enabled plugin skills reach the backend in the descriptions of the Bridge tools, not in the client context:
+The window's On-demand tools and enabled plugin skills reach the backend in the descriptions of the Bridge tools:
 
 | Tool | Description |
 |---|---|
@@ -380,7 +380,7 @@ An entry reads `<name> — <text>`, or the name alone when the text is empty. En
 
 The lists follow the snapshot. Chat Completions and Responses read the descriptions once per turn, when the turn builds its declared tools, so a plugin turned on or off shows on the next turn.
 
-Push sends the lists in `hello.tools` and again in a `tools` frame on every change ([push-transport.md](push-transport.md#tools-client-backend)).
+Push sends the lists in `hello.tools` and again in a `tools` frame on every change ([push-transport.md](push-transport.md#tools-client-→-backend)).
 
 ### Which snapshot answers
 

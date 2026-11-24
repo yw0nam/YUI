@@ -248,7 +248,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 The declared function schemas, in the shape of `hello.tools`, sent whenever the declared tools change while connected, and on `ready` when they changed during the handshake. A plugin turned on or off changes the descriptions of `yui_tool_call` and `plugin_skill`. The frame carries the full list, `[]` when the client declares none, and applies to turns the backend starts after it.
 
 ```json
-{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "plugin_skill", "description": "Read a plugin skill: returns its full instructions. No plugin skills are available.", "parameters": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] } } }] }
+{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "plugin_skill", "description": "Read a plugin skill: returns its full instructions. No plugin skills are available.", "parameters": { "type": "object", "properties": { "name": { "type": "string", "description": "The plugin skill's name." } }, "additionalProperties": false, "required": ["name"] } } }] }
 ```
 
 ## Turns

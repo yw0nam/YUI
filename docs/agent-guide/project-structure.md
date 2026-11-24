@@ -1070,7 +1070,7 @@ YUI/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
-        yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
+        yui/src/tools/               # The client-declared tools: registration from hello.tools and tools frames, the blocking handler, and the per-chat pending calls
     openclaw/
       README.md                      # OpenClaw integration: protocol, what works, security and cost
       skills/yui-openclaw-setup/     # Step-by-step gateway and YUI connection setup with a check per step, and a symptom table
