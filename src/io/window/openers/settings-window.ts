@@ -75,10 +75,10 @@ async function openTauriSettingsWindow(
     const win = new WebviewWindow(label, {
       url,
       title: SETTINGS_TITLE,
-      width: 760,
+      width: 1160,
       height: 680,
-      minWidth: 480,
-      minHeight: 480,
+      minWidth: 880,
+      minHeight: 640,
       resizable: true,
       decorations: true,
       transparent: false,
@@ -99,7 +99,7 @@ function openBrowserSettingsWindow(boundId?: string | null, request?: PageReques
     window.open(
       `/${settingsUrl(boundId, request)}`,
       boundId == null ? "yui-settings" : `yui-${windowLabel("settings", boundId)}`,
-      "width=760,height=680",
+      "width=1160,height=680",
     );
   } catch (err) {
     log.warn("settings_window_browser_open_failed", { error: String(err) });
