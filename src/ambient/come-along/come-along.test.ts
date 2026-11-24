@@ -255,6 +255,21 @@ describe("createComeAlong", () => {
     expect(h.locomotion.drop).toHaveBeenCalledExactlyOnceWith({ landOnSeam: true });
   });
 
+  it("lets go when the window minimises before she has left her spot", async () => {
+    const h = harness();
+    const ended = deferred<void>();
+    h.locomotion.abortTravel.mockReturnValueOnce(ended.promise);
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.locomotion.abortTravel).toHaveBeenCalledOnce());
+
+    await h.comeAlong.onStage(null);
+    ended.resolve();
+    await done;
+
+    expect(h.locomotion.hold).toHaveBeenLastCalledWith("come-along", false);
+    expect(h.locomotion.widen).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["right of every monitor", { x: 2000, y: 300 }, [1520, 275]],
     ["above and left of every monitor", { x: -900, y: -800 }, [0, 275]],
