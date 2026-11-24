@@ -152,7 +152,7 @@ describe("createSettingsWindowOpener page request", () => {
     await vi.waitFor(() =>
       expect(WebviewWindow).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({ url, width: 1160, height: 680, minWidth: 880, minHeight: 640 }),
+        expect.objectContaining({ url, width: 1160, height: 712, minWidth: 880, minHeight: 672 }),
       ),
     );
     expect(emit).not.toHaveBeenCalled();
