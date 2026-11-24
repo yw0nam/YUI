@@ -12,3 +12,6 @@ tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-
 
 [dev-dependencies]
 rmcp = { version = "3.8", default-features = false, features = ["client"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

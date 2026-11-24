@@ -15,8 +15,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(unix))]
     let server = server::HerdrServer::new(locate::find_herdr);
     let service = server.serve(rmcp::transport::stdio()).await?;
-    service.waiting().await?;
+    let waited = service.waiting().await;
     #[cfg(unix)]
     watch::cleanup();
+    waited?;
     Ok(())
 }

@@ -39,6 +39,7 @@ pub fn socket_dir() -> PathBuf {
 /// One watch task per server: local and every enabled saved machine.
 pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
     tokio::spawn(async move {
+        sweep_stale();
         let servers = machines::watched(locate).await;
         let dir = socket_dir();
         let ssh = crate::locate::find_ssh();
@@ -67,10 +68,14 @@ pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
     });
 }
 
+/// Replaces a leftover directory of this pid and creates the new one private.
 fn prepare_dir(dir: &Path) -> Result<(), std::io::Error> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::create_dir_all(dir)?;
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+    use std::os::unix::fs::DirBuilderExt;
+    match std::fs::remove_dir_all(dir) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    std::fs::DirBuilder::new().mode(0o700).create(dir)
 }
 
 /// Removes this process's socket directory at server exit.
@@ -78,7 +83,32 @@ pub fn cleanup() {
     let _ = std::fs::remove_dir_all(socket_dir());
 }
 
-pub fn sweep_stale() {}
+/// Removes the `yui-herdr-<pid>` directories whose process is gone.
+pub fn sweep_stale() {
+    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(pid) = name
+            .to_str()
+            .and_then(|n| n.strip_prefix("yui-herdr-"))
+            .and_then(|p| p.parse::<libc::pid_t>().ok())
+        else {
+            continue;
+        };
+        if pid > 0 && !alive(pid) {
+            let _ = std::fs::remove_dir_all(entry.path());
+        }
+    }
+}
+
+/// Only ESRCH means gone; EPERM is a live process of another user.
+fn alive(pid: libc::pid_t) -> bool {
+    // SAFETY: signal 0 sends nothing; it only checks that the process exists.
+    let sent = unsafe { libc::kill(pid, 0) };
+    sent == 0 || std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+}
 
 /// One stderr line per event, so an error's newlines never split it.
 pub(crate) fn one_line(text: &str) -> String {
