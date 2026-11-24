@@ -30,6 +30,7 @@ import { wirePresetSwitch } from "../settings/wire-preset";
 import { wireWindowSettings } from "../settings/wire-window-settings";
 import { editTargetUrl } from "./edit-target-url";
 import { opensOnQuickStart, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
+import { wireStageRect } from "./wire-stage-rect";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -337,6 +338,7 @@ export async function wireSettingsWindow(deps: {
   register(() => delegations.dispose());
   register(unsubscribeLocale);
   register(stage.dispose);
+  register(wireStageRect({ bridge, boundId, stage: stage.el }));
   register(unsubscribeCueSync);
   // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
   // reach the broadcast path and a live bridge.
