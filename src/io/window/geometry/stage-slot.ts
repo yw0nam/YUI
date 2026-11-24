@@ -30,16 +30,19 @@ export function sendStageSlot(deps: {
 
   async function read(): Promise<StageSlot | null> {
     const win = await current;
-    const [inner, scale, minimized] = await Promise.all([
+    const [inner, innerSize, scale, minimized] = await Promise.all([
       win.innerPosition(),
+      win.innerSize(),
       win.scaleFactor(),
       win.isMinimized(),
     ]);
     if (minimized) return null;
     const box = stage.getBoundingClientRect();
+    // macOS counts the title bar inside the inner position and size; the page starts below it.
+    const titleBar = innerSize.height / scale - window.innerHeight;
     return {
       x: inner.x / scale + box.left,
-      y: inner.y / scale + box.top,
+      y: inner.y / scale + titleBar + box.top,
       width: box.width,
       height: Number.parseFloat(getComputedStyle(stage).paddingTop),
       scale,
