@@ -225,6 +225,22 @@ sleep 30
     }
 
     #[tokio::test]
+    async fn forward_errors_name_ssh() {
+        let dir = TempDir::new("err");
+        let ssh = dir.fake_ssh();
+        std::fs::write(dir.0.join("fail"), "boom").unwrap();
+        let err = Forward::open(&ssh, "user@host", "default", &dir.0)
+            .await
+            .unwrap_err();
+        assert_eq!(err, "ssh: boom");
+        let missing = dir.0.join("no-such-ssh");
+        let err = Forward::open(&missing, "user@host", "default", &dir.0)
+            .await
+            .unwrap_err();
+        assert_eq!(err, "ssh not found");
+    }
+
+    #[tokio::test]
     async fn forward_refuses_a_socket_path_over_100_bytes() {
         let dir = TempDir::new(&"x".repeat(80));
         let ssh = dir.fake_ssh();
