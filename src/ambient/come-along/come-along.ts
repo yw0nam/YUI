@@ -64,6 +64,8 @@ export interface ComeAlongDeps {
   /** Links her window into the settings window; resolves whether a native link is in effect. */
   dock: { attach(): Promise<boolean>; detach(): Promise<void> };
   setPositionPhysical(x: number, y: number): Promise<void>;
+  /** Follows a settings window she is not linked to in its physical px (Windows), else in logical points. */
+  followsInPhysicalPx: boolean;
   reducedMotion(): boolean;
 }
 
@@ -248,17 +250,18 @@ export function createComeAlong(deps: ComeAlongDeps): {
     // A parked frame is not her window's own rect; the newest slot waits for the next place.
     if (!rect || !docked || locomotion.isTravelling()) return;
     const win = locomotion.frame.frameWindow();
-    if (docked.native) {
+    if (docked.native || !deps.followsInPhysicalPx) {
       const { at, size } = await read();
       const target = dockOrigin(rect, size);
       if (docked && Math.max(Math.abs(target.x - at.x), Math.abs(target.y - at.y)) >= 1)
         await win.setPositionLogical(target.x, target.y);
       return;
     }
-    // Followed, not linked: placed in the settings window's own physical px, whatever her scale.
-    const [pos, size] = await Promise.all([win.outerPosition(), win.outerSize()]);
-    const x = Math.round((rect.x + rect.width / 2) * rect.scale - size.width / 2);
-    const y = Math.round((rect.y + rect.height) * rect.scale - size.height);
+    // Windows: the whole target in the settings window's scale, her size included.
+    const [pos, { size }] = await Promise.all([win.outerPosition(), read()]);
+    const target = dockOrigin(rect, size);
+    const x = Math.round(target.x * rect.scale);
+    const y = Math.round(target.y * rect.scale);
     if (docked && Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) >= 1)
       await deps.setPositionPhysical(x, y);
   }

@@ -12,7 +12,7 @@ import {
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { windowLabel } from "../../settings/preset/pet-windows";
-import { isTauri } from "../../tauri-env";
+import { isTauri, isWindows } from "../../tauri-env";
 import type { wireLocomotion } from "./wire-locomotion";
 
 const log = createLogger("wire-come-along");
@@ -56,6 +56,7 @@ export function wireComeAlong(deps: {
     hitTest: deps.hitTest,
     dock: { attach: attachDock, detach: detachDock },
     setPositionPhysical: setPetPositionPhysical,
+    followsInPhysicalPx: isWindows(),
     reducedMotion: prefersReducedMotion,
   });
   const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });
