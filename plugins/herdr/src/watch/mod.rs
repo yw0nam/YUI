@@ -14,6 +14,24 @@ pub const SIGNALS_METHOD: &str = "notifications/io.github.yw0nam.yui/signals";
 /// Delivers one signal group's params to the MCP peer.
 pub type Notify = Arc<dyn Fn(serde_json::Value) + Send + Sync>;
 
+/// One sender task fed by a channel, so notifications go out in the order they were produced.
+pub fn notifier(peer: rmcp::Peer<rmcp::RoleServer>) -> Notify {
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
+    tokio::spawn(async move {
+        while let Some(params) = rx.recv().await {
+            let notification = rmcp::model::ServerNotification::CustomNotification(
+                rmcp::model::CustomNotification::new(SIGNALS_METHOD, Some(params)),
+            );
+            if let Err(e) = peer.send_notification(notification).await {
+                eprintln!("herdr_signal_failed error={e}");
+            }
+        }
+    });
+    Arc::new(move |params| {
+        let _ = tx.send(params);
+    })
+}
+
 pub fn socket_dir() -> PathBuf {
     std::env::temp_dir().join(format!("yui-herdr-{}", std::process::id()))
 }
