@@ -195,6 +195,10 @@ exec sleep 30
                 "-N".to_string(),
                 "-o".to_string(),
                 "BatchMode=yes".to_string(),
+                "-o".to_string(),
+                "ServerAliveInterval=15".to_string(),
+                "-o".to_string(),
+                "ServerAliveCountMax=3".to_string(),
                 "-L".to_string(),
                 format!(
                     "{}:/home/u/.config/herdr/herdr.sock",
@@ -213,6 +217,10 @@ exec sleep 30
                 "-N".to_string(),
                 "-o".to_string(),
                 "BatchMode=yes".to_string(),
+                "-o".to_string(),
+                "ServerAliveInterval=15".to_string(),
+                "-o".to_string(),
+                "ServerAliveCountMax=3".to_string(),
                 "-L".to_string(),
                 format!(
                     "{}:/home/u/.config/herdr/sessions/work/herdr.sock",
