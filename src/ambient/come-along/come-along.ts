@@ -198,6 +198,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
     if (deps.isBusy()) {
       session = "staying";
+      store({ stays: true });
       log.info("come_along_stayed");
       return;
     }
