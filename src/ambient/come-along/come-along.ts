@@ -188,18 +188,23 @@ export function createComeAlong(deps: ComeAlongDeps): {
     await travel.end();
   }
 
-  /** A drag or an agent move took her: she stays, and this window's session lets her go. */
-  function yieldToMover(): Promise<void> {
+  /** Stops her move and lets her go: no dock, no home, no hold. */
+  function letGo(): void {
     takeOver();
-    const wasDocked = docked;
     docked = null;
     home = null;
+    locomotion.hold("come-along", false);
+    deps.hitTest.setMoving(false);
+  }
+
+  /** A drag or an agent move took her: she stays, and this window's session lets her go. */
+  function yieldToMover(): Promise<void> {
+    const wasDocked = docked;
     if (session === "on-stage") {
       session = "staying";
       store({ stays: true });
     }
-    locomotion.hold("come-along", false);
-    deps.hitTest.setMoving(false);
+    letGo();
     log.info("come_along_taken");
     return wasDocked?.native
       ? deps.dock.detach().catch((err) => log.warn("dock_detach_failed", { error: String(err) }))
@@ -270,24 +275,16 @@ export function createComeAlong(deps: ComeAlongDeps): {
     // A parked frame is not her window's own rect; the newest slot waits for the next place.
     if (!rect || !docked || locomotion.isTravelling()) return;
     const win = locomotion.frame.frameWindow();
-    if (docked.native || !deps.followsInPhysicalPx) {
-      const { at, size } = await read();
-      const target = dockOrigin(rect, size);
-      if (docked && Math.max(Math.abs(target.x - at.x), Math.abs(target.y - at.y)) >= 1) {
-        log.info("come_along_placed", { slot: rect, origin: target, size });
-        await win.setPositionLogical(target.x, target.y);
-      }
-      return;
-    }
     // Windows: the whole target in the settings window's scale, her size included.
-    const [pos, { size }] = await Promise.all([win.outerPosition(), read()]);
+    const px = !docked.native && deps.followsInPhysicalPx;
+    const { at, size } = await read();
+    const now = px ? await win.outerPosition() : at;
     const target = dockOrigin(rect, size);
-    const x = Math.round(target.x * rect.scale);
-    const y = Math.round(target.y * rect.scale);
-    if (docked && Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) >= 1) {
-      log.info("come_along_placed", { slot: rect, origin: { x, y }, size, px: true });
-      await deps.setPositionPhysical(x, y);
-    }
+    const k = px ? rect.scale : 1;
+    const to = { x: Math.round(target.x * k), y: Math.round(target.y * k) };
+    if (!docked || Math.max(Math.abs(to.x - now.x), Math.abs(to.y - now.y)) < 1) return;
+    log.info("come_along_placed", { slot: rect, origin: to, size, ...(px && { px: true }) });
+    await (px ? deps.setPositionPhysical(to.x, to.y) : win.setPositionLogical(to.x, to.y));
   }
 
   const placeLatest = latestOnly(placeOnce);
@@ -356,13 +353,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
     try {
       await step;
     } catch (err) {
-      takeOver();
       session = "none";
-      docked = null;
-      home = null;
       store(null);
-      locomotion.hold("come-along", false);
-      deps.hitTest.setMoving(false);
+      letGo();
       throw err;
     }
   }
