@@ -31,6 +31,8 @@ const COMMANDS: &[&str] = &[
     "append_turn_record",
     "set_frame_logical",
     "threads_order_front",
+    "window_dock_attach",
+    "window_dock_detach",
     "plugin_host_snapshot",
     "plugin_host_add_local",
     "plugin_host_enable",

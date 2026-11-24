@@ -39,6 +39,8 @@
     "allow-avatar-rpc-response",
     "allow-append-turn-record",
     "allow-set-frame-logical",
+    "allow-window-dock-attach",
+    "allow-window-dock-detach",
     "allow-threads-snapshot",
     "allow-thread-answer",
     "allow-thread-seen",

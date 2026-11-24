@@ -41,6 +41,7 @@ fn toggle_visibility(app: &AppHandle) {
 
     match window.is_visible() {
         Ok(true) => {
+            crate::window_dock::unlink_for_hide(&window);
             if let Err(error) = window.hide() {
                 log::warn!("tray_hide_main_window_failed error={error}");
             } else if let Err(error) = window.emit("tray_toggle", false) {
@@ -50,8 +51,11 @@ fn toggle_visibility(app: &AppHandle) {
         Ok(false) => {
             if let Err(error) = window.show() {
                 log::warn!("tray_show_main_window_failed error={error}");
-            } else if let Err(error) = window.emit("tray_toggle", true) {
-                log::warn!("tray_toggle_emit_failed visible=true error={error}");
+            } else {
+                crate::window_dock::relink_after_show(&window);
+                if let Err(error) = window.emit("tray_toggle", true) {
+                    log::warn!("tray_toggle_emit_failed visible=true error={error}");
+                }
             }
         }
         Err(error) => log::warn!("tray_read_main_window_visibility_failed error={error}"),

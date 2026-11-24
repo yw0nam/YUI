@@ -64,6 +64,10 @@ mod window_frame;
 #[cfg(desktop)]
 mod threads_window;
 
+// A pet window's native child link to its settings window (macOS).
+#[cfg(desktop)]
+mod window_dock;
+
 // App log sink, timezone and line format.
 mod app_log;
 
@@ -85,6 +89,8 @@ pub fn run() {
             mcp_host::on_window_event(_window, _event);
             #[cfg(desktop)]
             dropped_files::on_window_event(_window, _event);
+            #[cfg(desktop)]
+            window_dock::on_window_event(_window, _event);
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
