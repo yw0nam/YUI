@@ -37,7 +37,10 @@ const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * 
 type Point = { x: number; y: number };
 
 /** What a reload of her window keeps: where she goes home to, or that she stays this session. */
-type SessionRecord = { home: Point } | { stays: true };
+type SessionRecord = { home: Home } | { stays: true };
+
+/** Her window's frame where she left her spot, in logical points. */
+type Home = Point & { width: number; height: number };
 
 export interface ComeAlongDeps {
   /** The settings window's label, which keys what `storage` keeps. */
@@ -81,7 +84,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
   const key = `yui.come-along.${deps.settingsLabel}`;
   let session: "none" | "staying" | "on-stage" = "none";
   let slot: StageSlot | null = null;
-  let home: Point | null = null;
+  let home: Home | null = null;
   let docked: { native: boolean } | null = null;
   // Each move gets a new id; a move owns her while `move` is still its id.
   let move = 0;
@@ -225,7 +228,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await locomotion.frame.frameWindow().setPositionLogical(target.x, target.y);
     } else {
       // A walk home that this window interrupted keeps the spot she left from.
-      home ??= at;
+      home ??= { ...at, ...size };
       store({ home });
       await walk(id, target);
     }
@@ -271,10 +274,12 @@ export function createComeAlong(deps: ComeAlongDeps): {
     placeLatest().catch((err) => log.warn("come_along_place_failed", { error: String(err) }));
 
   /** Her spot, or the nearest monitor's floor when no monitor holds its centre any more. */
-  async function homeOrFloor(spot: Point): Promise<Point> {
+  async function homeOrFloor(spot: Home): Promise<Point> {
     const [monitors, { size }] = await Promise.all([locomotion.frame.listMonitors(), read()]);
-    const centre = { x: spot.x + size.width / 2, y: spot.y + size.height / 2 };
-    if (monitors.length === 0 || monitorAtLogical(monitors, centre.x, centre.y)) return spot;
+    // Judged by the frame she left, so a size she took on the stage cannot move her spot off-screen.
+    const centre = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+    if (monitors.length === 0 || monitorAtLogical(monitors, centre.x, centre.y))
+      return { x: spot.x, y: spot.y };
     const gap = (m: ScreenMonitor): number => {
       const work = logicalWorkArea(m);
       const dx = Math.max(work.x - centre.x, 0, centre.x - (work.x + work.width));
