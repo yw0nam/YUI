@@ -122,10 +122,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
     };
   }
 
-  /** Her window's origin that puts its bottom-centre on the slot's bottom-centre. */
+  /** Her window's origin that stands her feet, else its bottom, centred on the slot's bottom edge. */
   const dockOrigin = (rect: StageSlot, size: { width: number; height: number }): Point => ({
     x: Math.round(rect.x + (rect.width - size.width) / 2),
-    y: Math.round(rect.y + rect.height - size.height),
+    y: Math.round(rect.y + rect.height - (renderer.getCharacterAnchor()?.y ?? size.height)),
   });
 
   /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
