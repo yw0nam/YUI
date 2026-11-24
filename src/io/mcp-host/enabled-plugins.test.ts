@@ -38,6 +38,14 @@ const SNAPSHOT = (over: Partial<PluginHostSnapshot> = {}): PluginHostSnapshot =>
 });
 
 describe("pluginLines", () => {
+  it("cuts a skill description at 1024 characters", () => {
+    const snapshot = SNAPSHOT({
+      plugins: [PLUGIN({ skills: [{ name: "long", description: "x".repeat(1500) }] })],
+    });
+
+    expect(pluginLines(snapshot).skills[0]?.description).toBe("x".repeat(1024));
+  });
+
   it("prefers the tool's meta summary over its description", () => {
     const snapshot = SNAPSHOT({
       plugins: [

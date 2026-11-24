@@ -29,6 +29,7 @@ from gateway_stub import (
 from yui.src.activity import delegations, reasoning, reports, tool_status, usage
 from yui.src.express import tools
 from yui.src.speech import speech
+from yui.src.tools import registry
 from yui.src.transport.adapter import NOTICE_MARKER, YuiAdapter, is_loopback
 from yui.src.transport.frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, fit_frame
 from yui.src.turns import state
@@ -413,6 +414,31 @@ async def test_a_vocabulary_frame_replaces_what_the_cues_are_checked_against(cli
     ws = await ready(client)
     await ws.send_json({"type": "vocabulary", "vocabulary": {"emotion_ids": ["smug"], "motion_ids": []}})
     await wait_for(lambda: state.vocabulary(CHAT).emotion_ids == ["smug"])
+
+
+async def test_a_tools_frame_replaces_the_declared_tools_the_next_turn_start_registers(
+    client, adapter, monkeypatch
+):
+    registered = []
+
+    class Ctx:
+        def register_tool(self, **kwargs):
+            registered.append(kwargs["schema"]["description"])
+
+    def tool(description):
+        return {
+            "type": "function",
+            "function": {"name": "yui_tool_call", "description": description, "parameters": {}},
+        }
+
+    monkeypatch.setattr(registry, "_ctx", Ctx())
+    monkeypatch.setattr(registry, "_declared", {})
+    ws = await ready(client)
+    await ws.send_json({"type": "tools", "tools": [tool("second")]})
+    await wait_for(lambda: state.client_tools(CHAT) == [tool("second")])
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
+
+    assert registered == ["second"]
 
 
 async def test_the_final_reply_renders_as_cued_sentences(client, adapter):

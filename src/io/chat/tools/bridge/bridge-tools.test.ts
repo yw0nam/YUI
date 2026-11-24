@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { McpHost, PluginHostSnapshot } from "../../../mcp-host/mcp-host";
-import { type ClientTool, toolFailed } from "../client-tools";
+import { type ClientTool, createClientToolRegistry, toolFailed } from "../client-tools";
 import { executeClientTool } from "../execute";
 import { createTerminalTools, type TerminalInvoke } from "../terminal/terminal-tools";
 import { createBridgeTools } from "./bridge-tools";
@@ -251,5 +251,76 @@ describe("on-demand built-ins", () => {
       onDemand: [],
     });
     expect(toolFailed(call, "denied: no answer in 60 s")).toBe(true);
+  });
+});
+
+describe("the descriptions of yui_tool_call and plugin_skill", () => {
+  const builtin = (name: string, description: string): ClientTool => ({
+    name,
+    definition: {
+      type: "function",
+      function: {
+        name,
+        description,
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
+    },
+    execute: async () => "",
+    waitMs: 2000,
+  });
+
+  /** One registry per simulated turn, the way the HTTP transports build it. */
+  const turn = (tools: ClientTool[]) => {
+    const registry = createClientToolRegistry(tools);
+    const text = (name: string) => registry.get(name)?.definition.function.description;
+    return { call: text("yui_tool_call"), skill: text("plugin_skill") };
+  };
+
+  it("list the enabled plugin's tool and skill on the turn after it is enabled, and drop them once it is disabled", () => {
+    let snapshot: PluginHostSnapshot = {
+      ...SNAPSHOT,
+      plugins: SNAPSHOT.plugins.map((plugin) => ({ ...plugin, enabled: false })),
+    };
+    const host = fakeHost({ snapshot: () => snapshot });
+    const tools = createBridgeTools({
+      host,
+      presetId: () => "p1",
+      onDemand: [builtin("look", "Reads the body. More.")],
+    });
+
+    expect(turn(tools)).toEqual({
+      call: "Call an On-demand tool by name with its arguments. On-demand tools: look — Reads the body.",
+      skill: "Read a plugin skill: returns its full instructions. No plugin skills are available.",
+    });
+
+    snapshot = { ...SNAPSHOT, revision: 2 };
+    expect(turn(tools)).toEqual({
+      call: "Call an On-demand tool by name with its arguments. On-demand tools: look — Reads the body. · echo_args — Echo argv.",
+      skill:
+        "Read a plugin skill: returns its full instructions. Plugin skills: hello — Says hello.",
+    });
+
+    snapshot = {
+      ...SNAPSHOT,
+      revision: 3,
+      plugins: SNAPSHOT.plugins.map((plugin) => ({ ...plugin, enabled: false })),
+    };
+    expect(turn(tools)).toEqual({
+      call: "Call an On-demand tool by name with its arguments. On-demand tools: look — Reads the body.",
+      skill: "Read a plugin skill: returns its full instructions. No plugin skills are available.",
+    });
+  });
+
+  it("end with the no-entries sentence when there is no On-demand tool and no skill", () => {
+    const tools = createBridgeTools({
+      host: fakeHost({ snapshot: () => null }),
+      presetId: () => "p1",
+      onDemand: [],
+    });
+
+    expect(turn(tools)).toEqual({
+      call: "Call an On-demand tool by name with its arguments. No On-demand tools are available.",
+      skill: "Read a plugin skill: returns its full instructions. No plugin skills are available.",
+    });
   });
 });

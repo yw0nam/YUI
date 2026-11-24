@@ -104,6 +104,8 @@ export interface PushSocket {
   sendPlayback(frame: PlaybackFrame): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
+  /** Sends the declared tools when they differ from the ones the backend last received. */
+  sendTools(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
@@ -640,6 +642,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     },
 
     sendVocabulary: syncVocabulary,
+    sendTools: () => {},
 
     onRender: (cb) => subscribe(renderSubs, cb),
     onSpeech: (cb) => subscribe(speechSubs, cb),
