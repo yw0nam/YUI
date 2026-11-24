@@ -273,6 +273,18 @@ describe("createComeAlong", () => {
     expect(h.locomotion.widen).not.toHaveBeenCalled();
   });
 
+  it("judges her spot gone by the size she left it at, not a size she took on the stage", async () => {
+    const h = await docked();
+    // On the stage her window grew; with this size her spot's centre would sit below the monitor.
+    Object.assign(h.real, { width: 800, height: 1800 });
+
+    const done = h.comeAlong.goHome();
+    await h.walkOut();
+    await done;
+
+    expect([h.real.x, h.real.y]).toEqual([1300, 80]);
+  });
+
   it.each([
     ["right of every monitor", { x: 2000, y: 300 }, [1520, 275]],
     ["above and left of every monitor", { x: -900, y: -800 }, [0, 275]],
