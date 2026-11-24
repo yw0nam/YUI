@@ -134,8 +134,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 9. `previous turn`
 10. `overheard`
 11. One or more `trigger:`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
-12. The `on-demand tools (call through yui_tool_call)` and `plugin skills` lines, when they have entries.
-13. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
+12. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
 
@@ -597,44 +596,6 @@ signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":
 The day key is latched in `yui.milestone-fired`. So a same-day restart fires nothing. An app left running overnight fires again on the first present tick after midnight.
 
 Buffered `/signals` groups drain into the same turn. They render as `signal` lines under the headline.
-
-## On-demand tools and plugin skills
-
-The two lines report the window's On-demand tools and enabled plugin skills. Plugin entries come from the MCP host's newest snapshot, read once per turn. The lines sit after the trigger lines and before the `guide:` block. Each line is omitted when it has no entries.
-
-### `on-demand tools`
-
-The line starts with `on-demand tools (call through yui_tool_call):`. Then it names the window's built-in On-demand tools, followed by every enabled Plugin tool, each with a summary:
-
-```text
-on-demand tools (call through yui_tool_call): threads_list — List the user's Threads or read one Thread by id. · threads_search — Search the user's Threads by title, label or entry text. · terminal_open — Open a new terminal and return its id. · terminal_list — List all terminals with their owners, titles, states and access. · terminal_read — Read a terminal's rendered screen. · terminal_write — Write text to a terminal. · terminal_close — Close a terminal you opened.
-```
-
-The `ClientContext` field is `on_demand_tools?: { name, summary }[]`. Built-in entries come first. Plugin entries follow in snapshot order: plugin by plugin, and each plugin's servers in manifest order.
-
-An entry reads `<name> — <summary>`, or the name alone when the summary is empty. Entries are joined with ` · `.
-
-A built-in summary is the first sentence of its description, cut at 100 characters.
-
-When a Plugin tool sets a non-empty `io.github.yw0nam.yui/summary` meta, that meta is its summary. Otherwise its summary is the first sentence of its description's first paragraph. That paragraph is the text up to the first blank line, with every whitespace run collapsed to one space.
-
-Either one is cut at 100 characters. A name or summary goes through the same sanitization as the other sampled fields, so it stays on one line.
-
-The line names the tools only. `yui_tool_describe` returns a tool's full description and input schema. `yui_tool_call` runs the tool ([client-tools.md](client-tools.md#bridge-tools)).
-
-### `plugin skills`
-
-One line names every skill of every enabled plugin. Each skill comes with the description its `SKILL.md` frontmatter declares:
-
-```text
-plugin skills: hello — Say hello to the user.
-```
-
-The `ClientContext` field is `plugin_skills?: { name, description }[]`. It has one entry per skill, in snapshot order. Each entry renders as `<name> — <description>`. Entries join with ` · `, as the tools do.
-
-A skill whose frontmatter has no description is not published at all, so it never reaches this line.
-
-`plugin_skill` returns a named skill's instructions ([client-tools.md](client-tools.md#bridge-tools)).
 
 ## Background markers
 

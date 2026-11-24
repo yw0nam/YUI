@@ -359,6 +359,9 @@ class YuiAdapter(BasePlatformAdapter):
             await self._playback.handle(frame, self._source(chat_id), self.handle_message)
         elif kind == "vocabulary":
             self._publish_vocabulary(chat_id, frame.get("vocabulary"))
+        elif kind == "tools":
+            # The next turn start declares them; registering here would let one chat overwrite another's.
+            state.set_client_tools(chat_id, frame.get("tools"))
         elif kind == "reset":
             await self._on_reset(chat_id)
         elif kind == "stop":

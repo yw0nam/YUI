@@ -12,11 +12,6 @@ import { isGuideKey } from "../../io/guide/guide-docs";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
-export interface OnDemandLines {
-  tools: Array<{ name: string; summary: string }>;
-  skills: Array<{ name: string; description: string }>;
-}
-
 export interface ContextProviders {
   /** The screenshot block; undefined when the switch is off or the capture failed. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
@@ -35,8 +30,6 @@ export interface ContextProviders {
   getOpenCharacters?: () => string[];
   /** The Threads waiting for the user's answer, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
-  /** The window's On-demand tools and plugin skills, read once per turn. */
-  getOnDemandLines?: () => OnDemandLines;
 }
 
 interface BuiltContext {
@@ -269,7 +262,6 @@ export async function buildContext(
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
-  const lines = providers.getOnDemandLines?.();
   const threadsWaiting = providers.getThreadsWaiting?.();
   const userTurn = triggerKind(env.event_name) === "user";
   const clientContext = {
@@ -289,8 +281,6 @@ export async function buildContext(
     ...(userTurn && threadsWaiting && threadsWaiting.total > 0
       ? { threads_waiting: threadsWaiting }
       : {}),
-    ...(lines?.tools.length ? { on_demand_tools: lines.tools } : {}),
-    ...(lines?.skills.length ? { plugin_skills: lines.skills } : {}),
   };
 
   return { ctx, clientContext, overheard };

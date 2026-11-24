@@ -712,7 +712,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds their per-turn summaries. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds the tool and skill lists the yui_tool_call and plugin_skill descriptions carry. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -730,7 +730,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tool summaries and plugin skills.",
+      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the plugin tool summaries and plugin skills the Bridge tool descriptions list.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -1984,7 +1984,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
+      "carries": "frames out: hello, turn, vocabulary, tools, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
       "kind": "websocket",
       "transport": "push"
     },
@@ -2352,7 +2352,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
+      "carries": "declared tool schemas of the turn; the On-demand tool and plugin skill lists ride the descriptions of yui_tool_call and plugin_skill, read per turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2379,7 +2379,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2488,12 +2488,12 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "on-demand-backend",
-      "from": "io/chat/tools",
-      "to": "dispatcher/backend",
-      "carries": "on_demand_tools and plugin_skills per turn: built-in On-demand tool summaries first, then each enabled plugin's tools and skills",
+      "id": "mcp-host-push",
+      "from": "io/mcp-host",
+      "to": "io/chat/push",
+      "carries": "snapshot subscribe → sendTools(), wired in bootstrap-configured.ts",
       "kind": "callback",
-      "transport": "shared",
+      "transport": "push",
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
@@ -4017,7 +4017,7 @@ globalThis.YUI_MAP =
       "id": "unified-transcripts",
       "from": "io/chat/conversation",
       "to": "ui/unified",
-      "carries": "every open preset's yui.<id>.chat_transcript \u2192 readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
+      "carries": "every open preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4035,7 +4035,7 @@ globalThis.YUI_MAP =
       "id": "mention-trigger",
       "from": "dispatcher/sources/routed",
       "to": "dispatcher/core",
-      "carries": "bus.push: user.text_submitted {text, send_id, mention?} \u2192 client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
+      "carries": "bus.push: user.text_submitted {text, send_id, mention?} → client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -4115,7 +4115,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
+      "carries": "Import\u2026 → importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4133,7 +4133,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
+      "carries": "Import\u2026 → settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4166,7 +4166,7 @@ globalThis.YUI_MAP =
       "id": "preset-photo",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the manage row's photo button \u2192 the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
+      "carries": "the manage row's photo button → the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4175,7 +4175,7 @@ globalThis.YUI_MAP =
       "id": "card-thumb-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail and crop \u2192 the preset header's and the card section's face (avatarEl)",
+      "carries": "PresetEntry.thumbnail and crop → the preset header's and the card section's face (avatarEl)",
       "kind": "callback",
       "transport": "shared"
     },
@@ -5495,7 +5495,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "hello.tools and hello.vocabulary; expression arrives as cues on reply segments",
+          "label": "hello.tools and hello.vocabulary, tools frame on a change; expression arrives as cues on reply segments",
           "edges": [
             "tools-push",
             "vocabulary-push"

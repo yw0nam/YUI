@@ -1,10 +1,12 @@
-/** The enabled plugins' tools with their summaries and skills with their descriptions, for the per-turn lines. */
+/** The enabled plugins' tools with their summaries and skills with their descriptions, for the Bridge tool descriptions. */
 
 import type { PluginHostSnapshot, PluginHostTool } from "./mcp-host";
 
 /** The meta key a plugin tool carries its own one-line summary under. */
 const SUMMARY_META = "io.github.yw0nam.yui/summary";
 const SUMMARY_MAX = 100;
+/** The Agent Skills specification's limit for a skill `description`. */
+const SKILL_DESCRIPTION_MAX = 1024;
 
 export interface PluginLines {
   tools: Array<{ name: string; summary: string }>;
@@ -33,7 +35,10 @@ export function pluginLines(snapshot: PluginHostSnapshot | null): PluginLines {
       plugin.tools.map((tool) => ({ name: tool.name, summary: summaryOf(tool) })),
     ),
     skills: plugins.flatMap((plugin) =>
-      plugin.skills.map((skill) => ({ name: skill.name, description: skill.description })),
+      plugin.skills.map((skill) => ({
+        name: skill.name,
+        description: skill.description.slice(0, SKILL_DESCRIPTION_MAX),
+      })),
     ),
   };
 }

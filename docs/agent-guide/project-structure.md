@@ -419,7 +419,7 @@ YUI/
           pet-window-tools.ts          # Splits a window's declared tools from its Terminal and Threads On-demand tools
           bridge/                      # Bridge tools for built-in On-demand tools and enabled plugins
             bridge-tools.ts            # yui_tool_describe, yui_tool_call and plugin_skill
-            on-demand-lines.ts         # Builds the on-demand line entries: built-in summaries first, then enabled plugin tools; plugin skills unchanged
+            on-demand-lines.ts         # Builds the lists the Bridge tool descriptions carry: built-in summaries first, then enabled plugin tools, then plugin skills
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
           screen/                      # The screen tool

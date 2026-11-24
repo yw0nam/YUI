@@ -112,7 +112,7 @@ globalThis.YUI_MAP =
     {
       "from": "client",
       "to": "adapter",
-      "label": "hello, turn, stop, reset, tool_result, answer, command"
+      "label": "hello, turn, stop, reset, tools, tool_result, answer, command"
     },
     {
       "from": "adapter",
@@ -330,7 +330,7 @@ globalThis.YUI_MAP =
       "paths": [
         "integrations/hermes/platform/yui/src/tools/registry.py"
       ],
-      "role": "Registers each function the hello frame's tools declare, once per schema fingerprint."
+      "role": "Registers each function the chat's declared tools name, from the hello frame's tools or a later tools frame, once per schema fingerprint; a turn start declares again."
     },
     {
       "id": "tools/handler",
@@ -410,6 +410,14 @@ globalThis.YUI_MAP =
       "from": "client",
       "to": "transport/adapter",
       "carries": "vocabulary {vocabulary}",
+      "kind": "websocket",
+      "transport": "push"
+    },
+    {
+      "id": "frame-tools",
+      "from": "client",
+      "to": "transport/adapter",
+      "carries": "tools {tools}: replaces the chat's stored client tools; the next turn start registers them",
       "kind": "websocket",
       "transport": "push"
     },
@@ -842,7 +850,7 @@ globalThis.YUI_MAP =
       "id": "adapter-state",
       "from": "transport/adapter",
       "to": "turns/state",
-      "carries": "set_connected, set_vocabulary, open_turn, mark_joined, turn_id, open_turns, close_turns, pop_cues, delivered, muted and closing marks",
+      "carries": "set_connected, set_vocabulary, set_client_tools, open_turn, mark_joined, turn_id, open_turns, close_turns, pop_cues, delivered, muted and closing marks",
       "kind": "call",
       "transport": "push"
     },
@@ -914,7 +922,7 @@ globalThis.YUI_MAP =
       "id": "adapter-registry",
       "from": "transport/adapter",
       "to": "tools/registry",
-      "carries": "declare(hello.tools, chat_id)",
+      "carries": "declare(client_tools(chat), chat_id) at hello and as a turn opens",
       "kind": "call",
       "transport": "push"
     },
@@ -1249,7 +1257,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "adapter",
-          "label": "registry.declare(hello.tools)",
+          "label": "registry.declare(hello.tools); a tools frame later replaces the stored tools and each turn start declares them again",
           "edges": [
             "adapter-registry"
           ],

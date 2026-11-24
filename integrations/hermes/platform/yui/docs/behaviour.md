@@ -132,7 +132,9 @@
   `yui_tool_describe`, `yui_tool_call` and `plugin_skill` from a Tauri pet window, and `body_action`
   and `look` from `main` alone. Registration is once per schema
   fingerprint, and a name whose schema differs per chat is registered again at turn start with
-  that chat's schema, because Hermes keeps one schema per tool name. So the model calls
+  that chat's schema, because Hermes keeps one schema per tool name. A `tools` frame replaces the
+  tools stored for the chat and the next turn start registers them, so a description that changed
+  while connected reaches the model from the next turn; a name the new list omits stays registered. So the model calls
   `body_action` to move the character and `look` to read her state. Each call sends one
   `tool_call` frame and blocks the handler's worker thread on
   the `tool_result`: 20 s for `body_action`, 7 s for `look`, `rate_relation`,

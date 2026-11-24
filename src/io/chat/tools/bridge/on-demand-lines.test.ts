@@ -1,6 +1,8 @@
 import { expect, it, vi } from "vitest";
 import type { McpHost, PluginHostPlugin } from "../../../mcp-host/mcp-host";
 import type { ClientTool } from "../client-tools";
+import { createTerminalTools } from "../terminal/terminal-tools";
+import { createThreadsTools } from "../threads/threads-tools";
 import { onDemandLines } from "./on-demand-lines";
 
 it("lists built-in On-demand tools before enabled plugin tools and preserves skills", () => {
@@ -77,4 +79,25 @@ it("lists built-in On-demand tools before enabled plugin tools and preserves ski
       { name: "read", description: "Read a page." },
     ],
   });
+});
+
+it("summarises every real built-in as the complete first sentence of its description", () => {
+  const tools = [
+    ...createThreadsTools({ threads: () => [] }),
+    ...createTerminalTools({ presetId: () => "p1", invoke: vi.fn() }),
+  ];
+  const host: McpHost = {
+    snapshot: () => null,
+    call: vi.fn(),
+    cancel: vi.fn(),
+    skill: vi.fn(),
+    subscribe: vi.fn(),
+  };
+
+  expect(onDemandLines(host, tools)().tools).toEqual(
+    tools.map((tool) => ({
+      name: tool.name,
+      summary: tool.definition.function.description.match(/^.*?[.!?](?=\s|$)/)?.[0],
+    })),
+  );
 });

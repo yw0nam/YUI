@@ -90,7 +90,7 @@ These names belong to built-in client tools: `address_character`, `body_action`,
 
 | `_meta` key | Where | What it does |
 |---|---|---|
-| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary a turn shows for the tool ([Client Context § on-demand tools](../reference/client-context.md#on-demand-tools)). |
+| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary `yui_tool_call`'s description shows for the tool ([Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions)). |
 | `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the host waits for one call ([Client Tools](../reference/client-tools.md#waits-and-cancel)). |
 | `io.github.yw0nam.yui/preset` | the request `_meta` of every `tools/call` | The preset id of the calling character, so a tool keeps one state per character. |
 
@@ -108,7 +108,7 @@ description: Greets the user in one line.
 | Field | Rule |
 |---|---|
 | `description` | Required. A skill without one is skipped, with a warning in the app log. |
-| `name` | Optional; the folder name when absent. `plugin_skill` and the per-turn line use it. |
+| `name` | Optional; the folder name when absent. `plugin_skill` and its description use it. |
 
 `plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction. YUI serves no other file of the skill folder.
 
@@ -138,6 +138,6 @@ While a server is running, neither button appears.
 ## Go deeper
 
 - [Client Tools](../reference/client-tools.md): bridge tools, arguments, waits and consent.
-- [Client Context § On-demand tools and plugin skills](../reference/client-context.md#on-demand-tools-and-plugin-skills): what a turn carries of a plugin's tools and skills.
+- [Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions): what the Bridge tool descriptions carry of a plugin's tools and skills.
 
 To share it with other users, see [Contribute a plugin](./contribute-a-plugin.md).
