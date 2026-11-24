@@ -71,7 +71,9 @@ printf '%s\n' "$line" >> "$dir/argv.log"
 machine=local
 if [ "$1" = "--machine" ]; then machine=$2; shift 2; fi
 case "$1" in
-  machine) cat "$dir/machines.json" ;;
+  machine)
+    if [ -f "$dir/machines.err" ]; then cat "$dir/machines.err" >&2; exit 1; fi
+    cat "$dir/machines.json" ;;
   agent)
     if [ -f "$dir/$machine.sleep" ]; then sleep "$(cat "$dir/$machine.sleep")"; fi
     if [ -f "$dir/$machine.err" ]; then cat "$dir/$machine.err" >&2; exit 1; fi

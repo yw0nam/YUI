@@ -294,6 +294,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn herdr_agents_returns_local_rows_when_the_machine_list_fails() {
+        let _guard = fake_lock().await;
+        reset();
+        write_config(
+            "agents-local.json",
+            &json!({"result": {"agents": [
+                {"agent": "claude", "agent_status": "working", "pane_id": "p1", "workspace_id": "w1", "cwd": "/tmp", "terminal_title_stripped": "T1"}
+            ]}})
+            .to_string(),
+        );
+        let client = connect(with_fake).await;
+        let local_row = json!({"machine": "local", "machine_label": "local", "pane": "p1", "agent": "claude", "status": "working", "title": "T1", "cwd": "/tmp"});
+        write_config("machines.json", "not json");
+        let result = call(&client, "herdr_agents", json!({})).await;
+        let (text, is_error) = answer(&result);
+        assert_eq!(is_error, Some(false));
+        assert_eq!(
+            serde_json::from_str::<Value>(text.unwrap()).unwrap(),
+            json!([local_row, {"machine": "machines", "error": "error: could not parse machine list"}])
+        );
+        write_config("machines.err", r#"{"error":{"message":"boom"}}"#);
+        let result = call(&client, "herdr_agents", json!({})).await;
+        let (text, is_error) = answer(&result);
+        assert_eq!(is_error, Some(false));
+        assert_eq!(
+            serde_json::from_str::<Value>(text.unwrap()).unwrap(),
+            json!([local_row, {"machine": "machines", "error": "error: boom"}])
+        );
+    }
+
+    #[tokio::test]
     async fn herdr_read_defaults_to_80_lines_and_marks_untrusted() {
         let _guard = fake_lock().await;
         reset();
