@@ -216,7 +216,8 @@ export function wireLocomotion(deps: {
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
     onResizeApplied: (bounds) => {
-      deps.windowGeometry?.onResizeApplied(bounds);
+      // On the settings stage her bounds are the slot's, not her own spot's.
+      if (!holders.has("come-along")) deps.windowGeometry?.onResizeApplied(bounds);
       for (const cb of resizeListeners) cb();
     },
     onDragReleased: async () => {
