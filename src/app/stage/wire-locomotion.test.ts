@@ -168,6 +168,7 @@ describe("wireLocomotion", () => {
       dispose: vi.fn(),
     };
 
+    const windowGeometry = { onResizeApplied: vi.fn(), onDragReleased: vi.fn(async () => {}) };
     const locomotion = wireLocomotion({
       bus: { push: vi.fn() } as never,
       renderer: {} as never,
@@ -181,6 +182,7 @@ describe("wireLocomotion", () => {
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
       vrmSelection: { getActive: () => ({ id: "test", url: "/vrms/test.vrm" }) } as never,
       onStrollEnd: vi.fn(),
+      windowGeometry,
       register: (teardown: () => void) => {
         registered.push(teardown);
       },
@@ -199,6 +201,7 @@ describe("wireLocomotion", () => {
       teardowns,
       registered,
       climbSettings,
+      windowGeometry,
       walker,
       sitter,
       faller,
@@ -405,6 +408,18 @@ describe("wireLocomotion", () => {
 
     s.locomotion.hold("come-along", false);
     expect(s.windowSources.holdKeepOnScreen).toHaveBeenLastCalledWith(false);
+  });
+
+  it("saves a resize as her window geometry only while no come-along holds her", () => {
+    const s = setup();
+    const bounds = { x: 0, y: 0, width: 424, height: 636 };
+    s.locomotion.hold("come-along", true);
+
+    s.windowSourcesDeps.onResizeApplied(bounds);
+    s.locomotion.hold("come-along", false);
+    s.windowSourcesDeps.onResizeApplied(bounds);
+
+    expect(s.windowGeometry.onResizeApplied.mock.calls).toEqual([[bounds]]);
   });
 
   it("tells each resize listener after a Ctrl+wheel resize", () => {
