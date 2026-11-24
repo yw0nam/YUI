@@ -38,19 +38,35 @@ export function threadListView(threads: Thread[], filter: ThreadFilter): ThreadL
   };
 }
 
-/** The kind select's items for `view`: all kinds as "", then each source with its count in the tab. */
-export function kindItems(
-  view: ThreadListView,
-): { value: string; label: string; disabled?: boolean }[] {
+/** What the list and the rail draw from and report to. */
+export interface ThreadNavProps {
+  view: ThreadListView;
+  filter: ThreadFilter;
+  selected: string | null;
+  onSelect(id: string): void;
+  onFilter(filter: ThreadFilter): void;
+}
+
+/** The kind select of the list or the rail: all kinds as "", then each source with its count in the tab. */
+export function kindSelect({
+  view,
+  filter,
+  onFilter,
+}: Pick<ThreadNavProps, "view" | "filter" | "onFilter">) {
   const inTab = view.kinds.reduce((n, k) => n + k.count, 0);
-  return [
-    { value: "", label: t("threads.kind_all", { n: inTab }) },
-    ...view.kinds.map((k) => ({
-      value: k.source,
-      label: `${threadSource(k.source).name} (${k.count})`,
-      disabled: k.disabled,
-    })),
-  ];
+  return {
+    "aria-label": t("threads.kind"),
+    value: view.kind ?? "",
+    items: [
+      { value: "", label: t("threads.kind_all", { n: inTab }) },
+      ...view.kinds.map((k) => ({
+        value: k.source,
+        label: `${threadSource(k.source).name} (${k.count})`,
+        disabled: k.disabled,
+      })),
+    ],
+    onValueChange: (kind: string) => onFilter({ ...filter, kind: kind === "" ? null : kind }),
+  };
 }
 
 /** The waiting Thread after `id` in `rows`, else the nearest one before it, else `id`. */

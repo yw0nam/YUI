@@ -9,19 +9,16 @@ import { t } from "../../i18n";
 import { threadSource } from "../thread-source";
 import { relativeTime } from "./relative-time";
 import { useKeepRowFocus } from "./row-focus";
-import { kindItems, type ThreadFilter, type ThreadListView } from "./thread-list-view";
+import {
+  kindSelect,
+  type ThreadFilter,
+  type ThreadListView,
+  type ThreadNavProps,
+} from "./thread-list-view";
 import { SourceLine, StateWord } from "./thread-meta";
 
 /** The list pane's id, which the head's toggle controls. */
 export const THREADS_LIST_ID = "yui-threads-list";
-
-export interface ThreadNavProps {
-  view: ThreadListView;
-  filter: ThreadFilter;
-  selected: string | null;
-  onSelect(id: string): void;
-  onFilter(filter: ThreadFilter): void;
-}
 
 function Row({
   thread,
@@ -115,10 +112,7 @@ export function ThreadList({
       {/* The popup renders inside the list, so a press on it keeps the medium overlay. */}
       <Select
         className="yui-threads-list__kind"
-        aria-label={t("threads.kind")}
-        value={view.kind ?? ""}
-        items={kindItems(view)}
-        onValueChange={(kind) => onFilter({ ...filter, kind: kind === "" ? null : kind })}
+        {...kindSelect({ view, filter, onFilter })}
         container={nav}
       />
       <div ref={rows} className="yui-threads-list__rows" {...keepFocus}>

@@ -16,8 +16,7 @@ import { THREADS_PATHS } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { Glyph } from "./glyph";
 import { useKeepRowFocus } from "./row-focus";
-import type { ThreadNavProps } from "./thread-list";
-import { kindItems } from "./thread-list-view";
+import { kindSelect, type ThreadNavProps } from "./thread-list-view";
 import { stateText } from "./thread-meta";
 
 const WAITING_PATHS =
@@ -85,16 +84,13 @@ export function ThreadRail({ view, filter, selected, onSelect, onFilter }: Threa
         />
         <Select
           className={`yui-threads-rail__kind${view.kind === null ? "" : " is-active"}`}
-          aria-label={t("threads.kind")}
+          {...kindSelect({ view, filter, onFilter })}
           tip={t("threads.kind")}
-          value={view.kind ?? ""}
-          items={kindItems(view)}
           valueLabel={(kind) => (
             <span className="yui-threads-rail__kind-mark" aria-hidden="true">
               {kind === "" ? <Glyph paths={FUNNEL_PATHS} /> : threadSource(kind).mark}
             </span>
           )}
-          onValueChange={(kind) => onFilter({ ...filter, kind: kind === "" ? null : kind })}
         />
       </div>
       <div ref={list} className="yui-threads-rail__list" {...keepFocus}>
