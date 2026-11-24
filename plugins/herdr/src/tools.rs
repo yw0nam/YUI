@@ -293,10 +293,19 @@ fn machine_args(machine: Option<&str>) -> Vec<&str> {
 /// One JSON array: a row per agent, an error row per machine that failed or timed out.
 async fn agents(bin: &Path) -> Result<String, String> {
     let deadline = tokio::time::Instant::now() + AGENTS_DEADLINE;
-    let text = tokio::time::timeout_at(deadline, cli::run(bin, &["machine", "list", "--json"]))
-        .await
-        .map_err(|_| "timed out".to_string())??;
-    let machines = parse::machine_rows(&text)?;
+    let (machines, machines_error) = match tokio::time::timeout_at(
+        deadline,
+        cli::run(bin, &["machine", "list", "--json"]),
+    )
+    .await
+    {
+        Ok(Ok(text)) => match parse::machine_rows(&text) {
+            Ok(machines) => (machines, None),
+            Err(e) => (Vec::new(), Some(e)),
+        },
+        Ok(Err(e)) => (Vec::new(), Some(e)),
+        Err(_) => (Vec::new(), Some("timed out".to_string())),
+    };
     let mut targets: Vec<(String, String, Vec<String>)> =
         vec![("local".into(), "local".into(), Vec::new())];
     for m in machines.into_iter().filter(|m| m.enabled) {
@@ -330,6 +339,9 @@ async fn agents(bin: &Path) -> Result<String, String> {
                 rows.push(error_row(&id, &label, "timed out"));
             }
         }
+    }
+    if let Some(e) = machines_error {
+        rows.push(json!({"machine": "machines", "error": prefixed(&e)}));
     }
     Ok(serde_json::to_string(&rows).expect("the rows are JSON"))
 }
