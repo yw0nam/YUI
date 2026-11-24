@@ -5,6 +5,7 @@ A plugin gives YUI's characters something new to do: a tool her brain can call, 
 | Plugin | What it does | How you get it |
 | --- | --- | --- |
 | [browser](browser/README.md) | She searches the web and opens pages in ego lite, then tells you what she found. | Installed from the Catalog on YUI's **Plugins** page |
+| [herdr](herdr/README.md) | She watches your coding agents in herdr panes and answers their questions, here and on saved SSH machines. | Installed from the Catalog on YUI's **Plugins** page |
 
 ## She looks things up in your browser
 

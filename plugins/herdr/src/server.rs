@@ -2,8 +2,8 @@
 
 use crate::tools;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, Implementation, ListToolsResult, PaginatedRequestParams,
-    ServerCapabilities, ServerConfig,
+    CallToolRequestParams, CallToolResponse, Implementation, ListToolsResult,
+    PaginatedRequestParams, ServerCapabilities, ServerConfig,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
@@ -72,7 +72,10 @@ impl ServerHandler for HerdrServer {
             let peer = peer.clone();
             tokio::spawn(async move {
                 let notification = rmcp::model::ServerNotification::CustomNotification(
-                    rmcp::model::CustomNotification::new(crate::watch::SIGNALS_METHOD, Some(params)),
+                    rmcp::model::CustomNotification::new(
+                        crate::watch::SIGNALS_METHOD,
+                        Some(params),
+                    ),
                 );
                 if let Err(e) = peer.send_notification(notification).await {
                     eprintln!("herdr_signal_failed error={e}");
@@ -101,7 +104,10 @@ mod tests {
     async fn connect(locate: fn() -> Option<PathBuf>) -> RunningService<RoleClient, ()> {
         let (server_io, client_io) = tokio::io::duplex(1 << 16);
         tokio::spawn(async move {
-            let server = HerdrServer::new_tools_only(locate).serve(server_io).await.unwrap();
+            let server = HerdrServer::new_tools_only(locate)
+                .serve(server_io)
+                .await
+                .unwrap();
             server.waiting().await
         });
         ().serve(client_io).await.unwrap()
@@ -112,9 +118,8 @@ mod tests {
         name: &str,
         args: Value,
     ) -> CallToolResult {
-        let params =
-            CallToolRequestParams::new(name.to_string())
-                .with_arguments(args.as_object().unwrap().clone());
+        let params = CallToolRequestParams::new(name.to_string())
+            .with_arguments(args.as_object().unwrap().clone());
         client.call_tool(params).await.unwrap()
     }
 
@@ -285,7 +290,9 @@ mod tests {
         assert!(elapsed <= Duration::from_secs(16), "elapsed: {elapsed:?}");
         let calls = argv_calls();
         assert!(
-            !calls.iter().any(|c| c.windows(2).any(|w| w == ["--machine", "m-b"])),
+            !calls
+                .iter()
+                .any(|c| c.windows(2).any(|w| w == ["--machine", "m-b"])),
             "the disabled machine was called: {calls:?}"
         );
     }
@@ -307,7 +314,15 @@ mod tests {
         let calls = argv_calls();
         assert!(
             calls.iter().any(|c| strs(c)
-                == vec!["agent", "read", "p1", "--source", "recent-unwrapped", "--lines", "80"]),
+                == vec![
+                    "agent",
+                    "read",
+                    "p1",
+                    "--source",
+                    "recent-unwrapped",
+                    "--lines",
+                    "80"
+                ]),
             "calls: {calls:?}"
         );
     }
@@ -324,18 +339,45 @@ mod tests {
         write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
         let client = connect(with_fake).await;
         let cases: Vec<(&str, Value, Vec<&str>)> = vec![
-            ("herdr_prompt", json!({"pane": "p1", "text": "hello"}), vec!["agent", "prompt", "p1", "hello"]),
-            ("herdr_prompt", json!({"machine": "m-a", "pane": "p1", "text": "hello"}), vec!["--machine", "m-a", "agent", "prompt", "p1", "hello"]),
-            ("herdr_prompt", json!({"machine": "local", "pane": "p1", "text": "hello"}), vec!["agent", "prompt", "p1", "hello"]),
-            ("herdr_prompt", json!({"machine": "m-x", "pane": "p1", "text": "hello"}), vec!["--machine", "m-x", "agent", "prompt", "p1", "hello"]),
-            ("herdr_keys", json!({"pane": "p1", "keys": ["down", "enter"]}), vec!["agent", "send-keys", "p1", "down", "enter"]),
-            ("herdr_keys", json!({"machine": "m-a", "pane": "p1", "keys": ["1"]}), vec!["--machine", "m-a", "agent", "send-keys", "p1", "1"]),
+            (
+                "herdr_prompt",
+                json!({"pane": "p1", "text": "hello"}),
+                vec!["agent", "prompt", "p1", "hello"],
+            ),
+            (
+                "herdr_prompt",
+                json!({"machine": "m-a", "pane": "p1", "text": "hello"}),
+                vec!["--machine", "m-a", "agent", "prompt", "p1", "hello"],
+            ),
+            (
+                "herdr_prompt",
+                json!({"machine": "local", "pane": "p1", "text": "hello"}),
+                vec!["agent", "prompt", "p1", "hello"],
+            ),
+            (
+                "herdr_prompt",
+                json!({"machine": "m-x", "pane": "p1", "text": "hello"}),
+                vec!["--machine", "m-x", "agent", "prompt", "p1", "hello"],
+            ),
+            (
+                "herdr_keys",
+                json!({"pane": "p1", "keys": ["down", "enter"]}),
+                vec!["agent", "send-keys", "p1", "down", "enter"],
+            ),
+            (
+                "herdr_keys",
+                json!({"machine": "m-a", "pane": "p1", "keys": ["1"]}),
+                vec!["--machine", "m-a", "agent", "send-keys", "p1", "1"],
+            ),
         ];
         for (name, args, argv) in cases {
             let result = call(&client, name, args.clone()).await;
             assert_eq!(answer(&result), (Some("sent"), Some(false)), "args: {args}");
             let calls = argv_calls();
-            assert!(calls.iter().any(|c| strs(c) == argv), "args: {args}, calls: {calls:?}");
+            assert!(
+                calls.iter().any(|c| strs(c) == argv),
+                "args: {args}, calls: {calls:?}"
+            );
         }
         let result = call(
             &client,
@@ -359,7 +401,10 @@ mod tests {
             let result = call(&client, name, args).await;
             assert_eq!(
                 answer(&result),
-                (Some("error: herdr not found: install herdr and start it once"), Some(true)),
+                (
+                    Some("error: herdr not found: install herdr and start it once"),
+                    Some(true)
+                ),
                 "tool: {name}"
             );
         }

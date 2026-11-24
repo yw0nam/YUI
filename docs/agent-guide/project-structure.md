@@ -1063,6 +1063,19 @@ YUI/
         shots.rs                     # Per-call screenshot folder: collect the last screenshots, remove, sweep stale folders
         locate.rs                    # Finds the installed `ego-browser` CLI
         image_encode.rs              # Screenshot resize and base64 JPEG encode
+    herdr/                           # herdr MCP server: four pane tools and a watcher that signals agent done/blocked (unix)
+      src/
+        main.rs                      # Serves the MCP server on stdio, removes the socket directory at exit
+        server.rs                    # MCP server: tool dispatch and the watcher start with the peer's notifier
+        tools.rs                     # The four tools' definitions, argument checks, and CLI calls
+        cli.rs                       # One herdr CLI call under a 15 s timeout
+        locate.rs                    # Finds the installed `herdr` CLI and `ssh`
+        watch/
+          mod.rs                     # One watch task per server; the private socket directory
+          machines.rs                # Which herdr servers to watch: local and enabled saved machines
+          forward.rs                 # ssh -N -L forwards to remote herdr sockets
+          subscribe.rs               # Per-server event loop: topology, status rebuild, reconcile
+          signal.rs                  # A state change's signal group params
   coding-agents/                     # Coding-agent plugins Claude Code and Codex install from the `yui` marketplace
     README.md                        # The coding-agent plugins for readers, their install commands, and the coding-agent Threads
     yui-dev/                         # Skills for a coding agent that extends YUI: `skills/yui-plugin` (BUILD.md, CONTRIBUTE.md) and `skills/yui-wake-character`

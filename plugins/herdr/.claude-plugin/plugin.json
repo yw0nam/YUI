@@ -1,0 +1,9 @@
+{
+  "name": "herdr",
+  "version": "0.1.0",
+  "description": "Lets a character watch and answer your coding agents in herdr panes, here and on saved SSH machines.",
+  "author": {
+    "name": "yw0nam"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

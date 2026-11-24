@@ -5,7 +5,7 @@ pub mod machines;
 pub mod signal;
 pub mod subscribe;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub const SIGNALS_METHOD: &str = "notifications/io.github.yw0nam.yui/signals";
@@ -17,9 +17,44 @@ pub fn socket_dir() -> PathBuf {
     std::env::temp_dir().join(format!("yui-herdr-{}", std::process::id()))
 }
 
-pub fn spawn(_locate: fn() -> Option<PathBuf>, _notify: Notify) {}
+/// One watch task per server: local and every enabled saved machine.
+pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
+    tokio::spawn(async move {
+        let servers = machines::watched(locate).await;
+        let dir = socket_dir();
+        let ssh = crate::locate::find_ssh();
+        let mut remote_ok = true;
+        if servers
+            .iter()
+            .any(|s| matches!(s.endpoint, machines::Endpoint::Remote { .. }))
+        {
+            if let Err(e) = prepare_dir(&dir) {
+                eprintln!("herdr_watch_failed machine=local reason=socket dir: {e}");
+                remote_ok = false;
+            }
+        }
+        for server in servers {
+            if !remote_ok && matches!(server.endpoint, machines::Endpoint::Remote { .. }) {
+                continue;
+            }
+            let notify = Arc::clone(&notify);
+            let dir = dir.clone();
+            let ssh = ssh.clone();
+            tokio::spawn(subscribe::run(server, ssh, dir, notify));
+        }
+    });
+}
 
-pub fn cleanup() {}
+fn prepare_dir(dir: &Path) -> Result<(), std::io::Error> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::create_dir_all(dir)?;
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+}
+
+/// Removes this process's socket directory at server exit.
+pub fn cleanup() {
+    let _ = std::fs::remove_dir_all(socket_dir());
+}
 
 /// One stderr line per event, so an error's newlines never split it.
 pub(crate) fn one_line(text: &str) -> String {

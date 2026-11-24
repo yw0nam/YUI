@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "herdr": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/herdr"
+    }
+  }
+}

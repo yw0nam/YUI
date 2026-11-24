@@ -1,6 +1,6 @@
 //! Builds one signal group's params for a pane state change.
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[derive(Clone)]
 pub struct Pane {
@@ -11,16 +11,44 @@ pub struct Pane {
     pub cwd: String,
 }
 
-pub fn event_type(_status: &str) -> Option<&'static str> {
-    None
+/// The event type for a state worth a signal, else None.
+pub fn event_type(status: &str) -> Option<&'static str> {
+    match status {
+        "done" => Some("agent_done"),
+        "blocked" => Some("agent_blocked"),
+        _ => None,
+    }
 }
 
 pub fn params(
-    _machine: &str,
-    _machine_label: &str,
-    _pane: &Pane,
-    _event: &str,
-    _occurred_at: u64,
+    machine: &str,
+    machine_label: &str,
+    pane: &Pane,
+    event: &str,
+    occurred_at: u64,
 ) -> Value {
-    serde_json::json!({})
+    let label = [machine_label, pane.agent.as_str(), pane.title.as_str()]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    json!({
+        "signals": [{
+            "machine": machine,
+            "machine_label": machine_label,
+            "pane": pane.pane,
+            "agent": pane.agent,
+            "status": pane.status,
+            "title": pane.title,
+            "cwd": pane.cwd
+        }],
+        "envelope": {
+            "source": "herdr",
+            "event_type": event,
+            "delivery": "urgent",
+            "event_id": format!("{machine}:{}:{occurred_at}", pane.pane),
+            "occurred_at": occurred_at,
+            "label": label
+        }
+    })
 }

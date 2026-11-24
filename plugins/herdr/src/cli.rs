@@ -1,11 +1,60 @@
 //! Runs one herdr CLI call under a 15 s timeout.
 
 use std::path::Path;
+use std::process::Stdio;
+use std::time::Duration;
+use tokio::process::Command;
 
 pub const NOT_FOUND: &str = "herdr not found: install herdr and start it once";
+const TIMEOUT: Duration = Duration::from_secs(15);
 
-pub async fn run(_bin: &Path, _args: &[&str]) -> Result<String, String> {
-    Ok(String::new())
+/// The CLI's stdout on exit 0, else the error message from its stderr.
+pub async fn run(bin: &Path, args: &[&str]) -> Result<String, String> {
+    let child = Command::new(bin)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(spawn_error)?;
+    let output = tokio::time::timeout(TIMEOUT, child.wait_with_output())
+        .await
+        .map_err(|_| "herdr timed out".to_string())?
+        .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if let Some(message) = serde_json::from_str::<serde_json::Value>(&stderr)
+        .ok()
+        .and_then(|v| {
+            v.pointer("/error/message")
+                .and_then(|m| m.as_str())
+                .map(String::from)
+        })
+    {
+        return Err(message);
+    }
+    let trimmed = stderr.trim();
+    if !trimmed.is_empty() {
+        return Err(trimmed.to_string());
+    }
+    Err(format!(
+        "exited with code {}",
+        output
+            .status
+            .code()
+            .map_or_else(|| "unknown".to_string(), |c| c.to_string())
+    ))
+}
+
+fn spawn_error(e: std::io::Error) -> String {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        NOT_FOUND.to_string()
+    } else {
+        format!("herdr failed to start: {e}")
+    }
 }
 
 #[cfg(all(test, unix))]
