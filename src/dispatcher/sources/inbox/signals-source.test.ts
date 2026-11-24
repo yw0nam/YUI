@@ -1094,6 +1094,29 @@ describe("signals_source — a reacting Thread's group", () => {
     ]);
   });
 
+  it("a group buffered while fireHeld pushes stays buffered after the push", async () => {
+    const late = group("run-late");
+    let src: ReturnType<typeof createSignalsSource> | undefined;
+    const bus: Pick<EventBus, "push"> = {
+      push: vi.fn(() => {
+        src?.offer(late);
+        return true;
+      }),
+    };
+    src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox: fakeInbox().onInbox,
+      listen: fakeListen().listen,
+    });
+    await src.start();
+    src.hold("thread:t1");
+    src.offer(group("thread:t1"));
+    expect(src.fireHeld(["thread:t1"])).toBe(true);
+    expect(src.drain()).toEqual([late]);
+  });
+
   it("release returns a held group to the next catch-up", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
