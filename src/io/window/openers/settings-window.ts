@@ -15,6 +15,8 @@ const log = createLogger("settings-window");
 const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
 const SETTINGS_TITLE = "YUI Settings";
+/** The macOS title bar inside the native window's inner size, measured at 32px in the verify bundle. */
+const TITLE_BAR = 32;
 
 /** `--yui-panel-bg` (src/ui/tokens.css) in sRGB: the window's native background until its page paints. */
 function panelBackground(theme: string | undefined): [number, number, number] {
@@ -76,9 +78,9 @@ async function openTauriSettingsWindow(
       url,
       title: SETTINGS_TITLE,
       width: 1160,
-      height: 680,
+      height: 680 + TITLE_BAR,
       minWidth: 880,
-      minHeight: 640,
+      minHeight: 640 + TITLE_BAR,
       resizable: true,
       decorations: true,
       transparent: false,

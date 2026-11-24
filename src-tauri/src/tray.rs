@@ -106,6 +106,9 @@ fn settings_background(theme: Option<tauri::Theme>) -> tauri::window::Color {
     }
 }
 
+/// The macOS title bar inside the native window's inner size, measured at 32px in the verify bundle.
+const TITLE_BAR: f64 = 32.0;
+
 fn open_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
         if let Err(error) = window.show() {
@@ -133,8 +136,8 @@ fn open_settings(app: &AppHandle) {
                 WebviewUrl::App("settings.html".into()),
             )
             .title("YUI Settings")
-            .inner_size(1160.0, 680.0)
-            .min_inner_size(880.0, 640.0)
+            .inner_size(1160.0, 680.0 + TITLE_BAR)
+            .min_inner_size(880.0, 640.0 + TITLE_BAR)
             .resizable(true)
             .decorations(true)
             .transparent(false)
