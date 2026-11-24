@@ -315,7 +315,7 @@ Her travel takes 600 to 900ms by distance, on an ease-in-out curve: slow at the 
 
 Closing the settings window returns her to her spot, with an entry picked at random from the plain family. Minimizing returns her too, and restoring the window brings her back onto the stage. Losing focus keeps her docked. If her monitor is gone, she lands on the floor line of the nearest monitor.
 
-While the settings window is open, she is docked into it as a native child at normal level. On macOS she follows the window with no lag, and other apps can cover both windows. Her speech bubble and text input stay with her while she is docked, so the user can talk while changing settings. Closing settings undocks her, and focus returns as it does for any closed window. On Windows she follows the settings window's moves and stays above other windows.
+While the settings window is open, she is docked into it as a native child at normal level, her feet on the stage foot's top line. On macOS she follows the window with no lag, and other apps can cover both windows. Her speech bubble and text input stay with her while she is docked, so the user can talk while changing settings. Closing settings undocks her, and focus returns as it does for any closed window. On Windows she follows the settings window's moves and stays above other windows.
 
 Whoever moves her owns her. If the user drags her or an agent moves her while she is on the stage, she leaves it and stays where she is dropped, and that settings window does not bring her back until it closes or minimizes. If the settings window opens while the user drags her or an agent command runs, she stays where she is that time.
 

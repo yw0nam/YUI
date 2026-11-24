@@ -1144,7 +1144,7 @@ globalThis.YUI_MAP =
       "id": "ambient/come-along",
       "module": "ambient",
       "label": "come-along",
-      "role": "One settings window's session on its pet window: on a stage rect she leaves her spot, walks onto the slot on an ease-in-out curve over 600 to 900 ms and docks, as a native child where the shell links one, else following each rect; a null rect or the close sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. Her home and that opt-out survive a reload.",
+      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot, walks onto it on an ease-in-out curve over 600 to 900 ms and docks with her feet on its bottom edge, as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. Her home and a stay survive a reload.",
       "paths": [
         "src/ambient/come-along"
       ]
@@ -3791,7 +3791,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-emit",
       "from": "app/settings-window",
       "to": "io/bridge/settings",
-      "carries": "yui://settings-stage {preset: id or null, rect: {x, y, width, height, scale} or null}: the stage's top slot in screen logical points and the window's scale, at boot, on a move, resize or visibility change when it changed, and on every ask; null while minimised",
+      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: the stage slot in screen logical points below the title bar, and the window's scale, at boot, on a move, resize or visibility change when it changed, and on every ask; null while minimised",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -3800,7 +3800,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage",
       "from": "io/bridge/settings",
       "to": "app/stage",
-      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a rect starts or moves the come-along, null sends her home",
+      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a slot starts or moves the come-along, null sends her home",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3809,7 +3809,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-ask-emit",
       "from": "app/stage",
       "to": "io/bridge/settings",
-      "carries": "yui://settings-stage-ask, no payload: sent once at boot, after the settings-stage listener is in place",
+      "carries": "yui://settings-stage-ask, no payload: sent once at boot, after the settings-stage and settings-stage-ended listeners are in place",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3818,7 +3818,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-ask",
       "from": "io/bridge/settings",
       "to": "app/settings-window",
-      "carries": "yui://settings-stage-ask, unscoped: every settings window sends its stage rect again",
+      "carries": "yui://settings-stage-ask, unscoped: every settings window sends its stage slot again",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -3827,7 +3827,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, onAbort) holds her still and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3842,8 +3842,17 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-come-along.ts"
     },
     {
-      "id": "come-along-dock",
+      "id": "come-along-dock-call",
       "from": "ambient/come-along",
+      "to": "io/window/pet",
+      "carries": "dock.attach, dock.detach, setPositionPhysical for the Windows follow",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "come-along-dock",
+      "from": "io/window/pet",
       "to": "shell/window",
       "carries": "window_dock_attach → whether a native child link to her own settings window is in effect, at normal level; window_dock_detach removes it and restores her level",
       "kind": "tauri-command",
@@ -3853,7 +3862,7 @@ globalThis.YUI_MAP =
     {
       "id": "settings-stage-ended",
       "from": "shell/window",
-      "to": "app/stage",
+      "to": "io/window/pet",
       "carries": "yui://settings-stage-ended, the settings window's label: its close request or, on macOS, its miniaturize, after the shell unlinked its pet window; that pet window sends her home",
       "kind": "tauri-event",
       "transport": "shared",
