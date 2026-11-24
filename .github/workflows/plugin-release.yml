@@ -187,6 +187,9 @@ jobs:
             mkdir -p "$stage/.claude-plugin" "$stage/bin"
             cp "plugins/${ID}/.claude-plugin/plugin.json" "$stage/.claude-plugin/"
             cp "plugins/${ID}/.mcp.json" "$stage/"
+            if [ -d "plugins/${ID}/skills" ]; then
+              cp -R "plugins/${ID}/skills" "$stage/"
+            fi
             cp "$RUNNER_TEMP/bins/bin-${platform}/${binary}" "$stage/bin/"
             # Artifacts drop the executable bit.
             if [ "$platform" = darwin-arm64 ]; then
