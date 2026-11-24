@@ -57,9 +57,8 @@ describe("Developer Tools shell", () => {
 
   it("selects a section with ArrowDown, End and Home on its yui-tab tab", async () => {
     const shell = mountShell();
-    const context = tab("context");
-    expect(context?.getAttribute("role")).toBe("tab");
-    if (!context) return;
+    const context = tab("context")!;
+    expect(context.getAttribute("role")).toBe("tab");
 
     act(() => context.focus());
     await press(context, "ArrowDown");
