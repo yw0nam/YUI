@@ -1,0 +1,25 @@
+mod cli;
+mod locate;
+mod parse;
+mod server;
+#[cfg(all(test, unix))]
+mod test_dir;
+mod tools;
+#[cfg(unix)]
+mod watch;
+
+use rmcp::ServiceExt;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(unix)]
+    let server = server::HerdrServer::new(locate::find_herdr, watch::spawn);
+    #[cfg(not(unix))]
+    let server = server::HerdrServer::new(locate::find_herdr);
+    let service = server.serve(rmcp::transport::stdio()).await?;
+    let waited = service.waiting().await;
+    #[cfg(unix)]
+    watch::cleanup();
+    waited?;
+    Ok(())
+}
