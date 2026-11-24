@@ -10,8 +10,11 @@ import {
   type ThreadTurnsLevel,
 } from "../../../settings/threads/thread-turns-settings";
 import { t } from "../../i18n";
+import { Glyph } from "./glyph";
 
 const CAPTION_ID = "yui-threads-turns-caption";
+const BELL_PATHS =
+  '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>';
 
 export interface TurnsState {
   level: ThreadTurnsLevel;
@@ -54,10 +57,7 @@ export function TurnsMenu({
             state.level === "off" ? "yui-threads__turns-button" : "yui-threads__turns-button is-on"
           }
         >
-          <svg className="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
-            <path d="M10 20.5a2 2 0 0 0 4 0" />
-          </svg>
+          <Glyph paths={BELL_PATHS} />
           <span className="yui-threads__turns-label">
             {t("threads.turns_button", { level: t(`threadTurns.${state.level}`) })}
           </span>

@@ -13,6 +13,7 @@ import { TooltipHost } from "../../controls/tooltip";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { RefMount } from "../../ref-mount";
+import { Glyph } from "./glyph";
 import type { TabView } from "./tab-body";
 import { THREADS_LIST_ID } from "./thread-list";
 import type { ThreadsTab } from "./threads-tab";
@@ -20,6 +21,7 @@ import { ThreadsTabView } from "./threads-tab-view";
 import { type TurnsHandle, TurnsMenu } from "./turns-menu";
 
 const TABS: readonly TabId[] = ["threads", "terminal"];
+const SIDEBAR_PATHS = '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>';
 
 type Heads = Record<TabId, ReturnType<TabView["head"]>>;
 
@@ -93,10 +95,7 @@ export function ThreadsWindow({
             aria-label={sidebar}
             title={`${sidebar} (⌃⌘S)`}
           >
-            <svg className="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="16" rx="3" />
-              <path d="M9 4v16" />
-            </svg>
+            <Glyph paths={SIDEBAR_PATHS} />
           </button>
           <Tabs.List
             className="yui-threads__tabs"

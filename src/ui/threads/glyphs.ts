@@ -1,8 +1,30 @@
 /** The Threads and Terminal glyphs, drawn in the Threads window and in the Character menu that opens it. */
 
-/** A 24px line glyph that draws without a stylesheet. */
+/** A 24px line glyph's attributes, as React names them; they draw it without a stylesheet. */
+export const GLYPH_ATTRS = {
+  className: "yui-threads-glyph",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "1.5",
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": "true",
+} as const;
+
+/** An attribute's markup name: `class`, `viewBox` as it is, the rest in kebab case. */
+const markupName = (name: string): string =>
+  name === "className"
+    ? "class"
+    : name === "viewBox"
+      ? name
+      : name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+/** A 24px line glyph's markup around `paths`. */
 export const glyph = (paths: string): string =>
-  `<svg class="yui-threads-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  `<svg ${Object.entries(GLYPH_ATTRS)
+    .map(([name, value]) => `${markupName(name)}="${value}"`)
+    .join(" ")}>${paths}</svg>`;
 
 /** A tray: the Threads list. */
 export const THREADS_PATHS =
