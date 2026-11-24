@@ -59,8 +59,9 @@ fn spawn_error(e: std::io::Error) -> String {
 
 #[cfg(all(test, unix))]
 pub(crate) mod tests {
+    use crate::test_dir::TempDir;
     use std::path::PathBuf;
-    use std::sync::OnceLock;
+    use std::sync::Mutex;
 
     const FAKE_BIN: &str = r#"#!/bin/sh
 dir=$(dirname "$0")
@@ -86,57 +87,41 @@ case "$1" in
 esac
 "#;
 
-    /// One temp folder shared by test runs; config files beside the script steer each call.
-    pub(crate) fn fake_dir() -> PathBuf {
-        static DIR: OnceLock<PathBuf> = OnceLock::new();
-        DIR.get_or_init(|| {
-            use std::os::unix::fs::PermissionsExt;
-            let dir = std::env::temp_dir().join("yui-fake-herdr");
-            std::fs::create_dir_all(&dir).unwrap();
-            // Write then rename, so a concurrent test run never executes a half-written file.
-            let staged = dir.join(format!("herdr.{}", std::process::id()));
-            std::fs::write(&staged, FAKE_BIN).unwrap();
-            std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755)).unwrap();
-            std::fs::rename(&staged, dir.join("herdr")).unwrap();
-            dir
-        })
-        .clone()
+    /// The fake CLI the server's `locate` finds; set while a test holds a `FakeHerdr`.
+    static CURRENT: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+    /// One test's fake CLI: its own folder, where config files beside the script steer each call.
+    pub(crate) struct FakeHerdr {
+        dir: TempDir,
+        _lock: tokio::sync::MutexGuard<'static, ()>,
     }
 
-    pub(crate) fn fake_herdr() -> PathBuf {
-        fake_dir().join("herdr")
-    }
-
-    /// The fake CLI's config is shared, so one test steers it at a time.
-    pub(crate) async fn fake_lock() -> tokio::sync::MutexGuard<'static, ()> {
+    /// `locate` is a fn pointer, so one test at a time owns the fake.
+    pub(crate) async fn fake_herdr() -> FakeHerdr {
         static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-        LOCK.lock().await
+        let lock = LOCK.lock().await;
+        let dir = TempDir::new("cli");
+        *CURRENT.lock().unwrap() = Some(dir.script("herdr", FAKE_BIN));
+        FakeHerdr { dir, _lock: lock }
     }
 
-    /// Drops every config file and the argv log, keeping the script.
-    pub(crate) fn reset() {
-        for entry in std::fs::read_dir(fake_dir()).unwrap() {
-            let path = entry.unwrap().path();
-            if path.file_name().is_some_and(|n| n != "herdr") {
-                let _ = std::fs::remove_file(path);
-            }
+    pub(crate) fn locate_fake() -> Option<PathBuf> {
+        CURRENT.lock().unwrap().clone()
+    }
+
+    impl FakeHerdr {
+        pub(crate) fn write_config(&self, name: &str, content: &str) {
+            std::fs::write(self.dir.path().join(name), content).unwrap();
+        }
+
+        pub(crate) fn argv_calls(&self) -> Vec<Vec<String>> {
+            self.dir.argv_calls()
         }
     }
 
-    pub(crate) fn write_config(name: &str, content: &str) {
-        std::fs::write(fake_dir().join(name), content).unwrap();
-    }
-
-    /// One argv per recorded call.
-    pub(crate) fn argv_calls() -> Vec<Vec<String>> {
-        let text = std::fs::read_to_string(fake_dir().join("argv.log")).unwrap_or_default();
-        text.lines()
-            .map(|l| {
-                l.split('\u{1f}')
-                    .filter(|s| !s.is_empty())
-                    .map(String::from)
-                    .collect()
-            })
-            .collect()
+    impl Drop for FakeHerdr {
+        fn drop(&mut self) {
+            *CURRENT.lock().unwrap() = None;
+        }
     }
 }

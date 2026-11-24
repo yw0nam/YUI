@@ -32,16 +32,18 @@ pub fn notifier(peer: rmcp::Peer<rmcp::RoleServer>) -> Notify {
     })
 }
 
-pub fn socket_dir() -> PathBuf {
-    std::env::temp_dir().join(format!("yui-herdr-{}", std::process::id()))
+/// This process's private socket directory under `root`.
+pub fn socket_dir(root: &Path) -> PathBuf {
+    root.join(format!("yui-herdr-{}", std::process::id()))
 }
 
 /// One watch task per server: local and every enabled saved machine.
 pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
     tokio::spawn(async move {
-        sweep_stale();
+        let root = std::env::temp_dir();
+        sweep_stale(&root);
         let watched = machines::watched(locate).await;
-        let dir = socket_dir();
+        let dir = socket_dir(&root);
         let ssh = crate::locate::find_ssh();
         let mut remote_ok = true;
         if watched
@@ -80,12 +82,12 @@ fn prepare_dir(dir: &Path) -> Result<(), std::io::Error> {
 
 /// Removes this process's socket directory at server exit.
 pub fn cleanup() {
-    let _ = std::fs::remove_dir_all(socket_dir());
+    let _ = std::fs::remove_dir_all(socket_dir(&std::env::temp_dir()));
 }
 
-/// Removes the `yui-herdr-<pid>` directories whose process is gone.
-pub fn sweep_stale() {
-    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else {
+/// Removes the `yui-herdr-<pid>` directories under `root` whose process is gone.
+pub fn sweep_stale(root: &Path) {
+    let Ok(entries) = std::fs::read_dir(root) else {
         return;
     };
     for entry in entries.flatten() {
@@ -118,11 +120,13 @@ pub(crate) fn one_line(text: &str) -> String {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    use crate::test_dir::TempDir;
     use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn prepare_dir_replaces_a_leftover_and_is_private() {
-        let dir = std::env::temp_dir().join(format!("yui-herdr-prepare-{}", std::process::id()));
+        let root = TempDir::new("prep");
+        let dir = socket_dir(root.path());
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("leftover.sock"), "x").unwrap();
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -132,33 +136,27 @@ mod tests {
             std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777,
             0o700
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn sweep_removes_only_directories_of_dead_processes() {
+        let root = TempDir::new("sweep");
         let mut child = std::process::Command::new("true").spawn().unwrap();
         let dead_pid = child.id();
         child.wait().unwrap();
-        let dead = std::env::temp_dir().join(format!("yui-herdr-{dead_pid}"));
-        let live = socket_dir();
+        let dead = root.path().join(format!("yui-herdr-{dead_pid}"));
+        let live = socket_dir(root.path());
         // pid 1 is alive; kill(1, 0) fails with EPERM for a user process.
-        let other_user = std::env::temp_dir().join("yui-herdr-1");
-        let other_user_existed = other_user.exists();
+        let other_user = root.path().join("yui-herdr-1");
         for dir in [&dead, &live, &other_user] {
             std::fs::create_dir_all(dir).unwrap();
         }
-        sweep_stale();
+        sweep_stale(root.path());
         assert!(!dead.exists(), "dead process directory kept");
         assert!(live.exists(), "live process directory removed");
         assert!(
             other_user.exists(),
             "another user's live process directory removed"
         );
-        let _ = std::fs::remove_dir_all(&dead);
-        let _ = std::fs::remove_dir_all(&live);
-        if !other_user_existed {
-            let _ = std::fs::remove_dir_all(&other_user);
-        }
     }
 }

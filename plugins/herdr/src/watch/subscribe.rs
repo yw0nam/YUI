@@ -284,12 +284,13 @@ fn now_ms() -> u64 {
 #[cfg(all(test, unix))]
 mod tests {
     use super::run;
+    use crate::test_dir::TempDir;
     use crate::watch::machines::{Endpoint, Watched};
     use crate::watch::Notify;
     use serde_json::{json, Value};
     use std::collections::VecDeque;
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Duration;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -319,24 +320,19 @@ mod tests {
     /// A herdr socket API fake: answers agent.list and events.subscribe, streams the events the test injects.
     struct FakeServer {
         sock: PathBuf,
-        dir: PathBuf,
+        dir: TempDir,
         state: Arc<Mutex<FakeState>>,
         conns: Arc<Mutex<Vec<Conn>>>,
         subscribes: Arc<StdMutex<Vec<Vec<String>>>>,
         attempts: Arc<AtomicUsize>,
+        lists: Arc<AtomicUsize>,
         accept: tokio::task::JoinHandle<()>,
     }
 
     impl FakeServer {
         async fn start() -> FakeServer {
-            static NEXT: AtomicU64 = AtomicU64::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "yui-herdr-fake-{}-{}",
-                std::process::id(),
-                NEXT.fetch_add(1, Ordering::Relaxed)
-            ));
-            std::fs::create_dir_all(&dir).unwrap();
-            let sock = dir.join("herdr.sock");
+            let dir = TempDir::new("fake");
+            let sock = dir.path().join("herdr.sock");
             let listener = UnixListener::bind(&sock).unwrap();
             let state = Arc::new(Mutex::new(FakeState {
                 panes: Vec::new(),
@@ -347,19 +343,22 @@ mod tests {
             let conns: Arc<Mutex<Vec<Conn>>> = Arc::new(Mutex::new(Vec::new()));
             let subscribes = Arc::new(StdMutex::new(Vec::new()));
             let attempts = Arc::new(AtomicUsize::new(0));
-            let (s, c, subs, att) = (
+            let lists = Arc::new(AtomicUsize::new(0));
+            let (s, c, subs, att, ls) = (
                 state.clone(),
                 conns.clone(),
                 subscribes.clone(),
                 attempts.clone(),
+                lists.clone(),
             );
             let accept = tokio::spawn(async move {
                 loop {
                     let Ok((stream, _)) = listener.accept().await else {
                         break;
                     };
-                    let (s, c, subs, att) = (s.clone(), c.clone(), subs.clone(), att.clone());
-                    tokio::spawn(async move { handle(stream, s, c, subs, att).await });
+                    let (s, c, subs, att, ls) =
+                        (s.clone(), c.clone(), subs.clone(), att.clone(), ls.clone());
+                    tokio::spawn(async move { handle(stream, s, c, subs, att, ls).await });
                 }
             });
             FakeServer {
@@ -369,6 +368,7 @@ mod tests {
                 conns,
                 subscribes,
                 attempts,
+                lists,
                 accept,
             }
         }
@@ -412,12 +412,16 @@ mod tests {
         fn status_attempts(&self) -> usize {
             self.attempts.load(Ordering::Relaxed)
         }
+
+        /// `agent.list` calls answered; a rebuild's reconcile listing is its second.
+        fn listings(&self) -> usize {
+            self.lists.load(Ordering::Relaxed)
+        }
     }
 
     impl Drop for FakeServer {
         fn drop(&mut self) {
             self.accept.abort();
-            let _ = std::fs::remove_dir_all(&self.dir);
         }
     }
 
@@ -427,6 +431,7 @@ mod tests {
         conns: Arc<Mutex<Vec<Conn>>>,
         subscribes: Arc<StdMutex<Vec<Vec<String>>>>,
         attempts: Arc<AtomicUsize>,
+        lists: Arc<AtomicUsize>,
     ) {
         let (rd, mut wr) = stream.into_split();
         let mut lines = BufReader::new(rd).lines();
@@ -462,6 +467,7 @@ mod tests {
             };
             match v.get("method").and_then(Value::as_str) {
                 Some("agent.list") => {
+                    lists.fetch_add(1, Ordering::Relaxed);
                     let panes = {
                         let mut s = state.lock().await;
                         s.queued.pop_front().unwrap_or_else(|| s.panes.clone())
@@ -544,7 +550,7 @@ mod tests {
             label: "local".into(),
             endpoint: Endpoint::Local(fake.sock.clone()),
         };
-        tokio::spawn(run(watched, None, fake.dir.clone(), notify))
+        tokio::spawn(run(watched, None, fake.dir.path().to_path_buf(), notify))
     }
 
     /// Polls with a deadline instead of sleeping bare.
@@ -618,8 +624,8 @@ mod tests {
         let (notify, mut rx) = notifier();
         let task = watch(&fake, notify);
         assert!(
-            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
-            "no status subscription"
+            wait_until(Duration::from_secs(5), || fake.listings() >= 2).await,
+            "no reconcile listing"
         );
         nothing_arrives(&mut rx, "a pane already done at start signalled").await;
         task.abort();
@@ -635,8 +641,8 @@ mod tests {
         let (notify, mut rx) = notifier();
         let task = watch(&fake, notify);
         assert!(
-            wait_until(Duration::from_secs(5), || fake.status_subscribes() >= 1).await,
-            "no first status subscription"
+            wait_until(Duration::from_secs(5), || fake.listings() >= 2).await,
+            "no first reconcile listing"
         );
         nothing_arrives(&mut rx, "startup signalled").await;
         fake.state.lock().await.panes = vec![

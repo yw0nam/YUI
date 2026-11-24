@@ -131,7 +131,7 @@ impl Drop for Forward {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use crate::test_dir::TempDir;
 
     const FAKE_SSH: &str = r#"#!/bin/sh
 dir=$(dirname "$0")
@@ -143,51 +143,13 @@ if [ -f "$dir/fail" ]; then cat "$dir/fail" >&2; exit 1; fi
 for a in "$@"; do
   if [ "$a" = "printf" ]; then cat "$dir/home.txt"; exit 0; fi
 done
-sleep 30
+exec sleep 30
 "#;
 
-    struct TempDir(PathBuf);
-
-    impl TempDir {
-        fn new(tag: &str) -> Self {
-            static NEXT: AtomicU64 = AtomicU64::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "yui-herdr-ssh-{}-{}-{}",
-                std::process::id(),
-                tag,
-                NEXT.fetch_add(1, Ordering::Relaxed)
-            ));
-            std::fs::create_dir_all(&dir).unwrap();
-            Self(dir)
-        }
-
-        /// A fake ssh that records its argv, prints the home for the home read, and holds the forward.
-        fn fake_ssh(&self) -> PathBuf {
-            use std::os::unix::fs::PermissionsExt;
-            let bin = self.0.join("ssh");
-            std::fs::write(&bin, FAKE_SSH).unwrap();
-            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-            std::fs::write(self.0.join("home.txt"), "/home/u").unwrap();
-            bin
-        }
-
-        fn argv_calls(&self) -> Vec<Vec<String>> {
-            let text = std::fs::read_to_string(self.0.join("argv.log")).unwrap_or_default();
-            text.lines()
-                .map(|l| {
-                    l.split('\u{1f}')
-                        .filter(|s| !s.is_empty())
-                        .map(String::from)
-                        .collect()
-                })
-                .collect()
-        }
-    }
-
-    impl Drop for TempDir {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+    /// A fake ssh that records its argv, prints the home for the home read, and holds the forward.
+    fn fake_ssh(dir: &TempDir) -> PathBuf {
+        std::fs::write(dir.path().join("home.txt"), "/home/u").unwrap();
+        dir.script("ssh", FAKE_SSH)
     }
 
     /// Polls with a deadline: the forward's child records its argv after the spawn returns.
@@ -205,8 +167,8 @@ sleep 30
     #[tokio::test]
     async fn forward_opens_with_the_stated_ssh_arguments() {
         let dir = TempDir::new("args");
-        let ssh = dir.fake_ssh();
-        let socks = dir.0.join("socks");
+        let ssh = fake_ssh(&dir);
+        let socks = dir.path().join("socks");
         std::fs::create_dir_all(&socks).unwrap();
         let default = Forward::open(&ssh, "user@host", "default", &socks)
             .await
@@ -264,14 +226,14 @@ sleep 30
     #[tokio::test]
     async fn forward_errors_name_ssh() {
         let dir = TempDir::new("err");
-        let ssh = dir.fake_ssh();
-        std::fs::write(dir.0.join("fail"), "boom").unwrap();
-        let err = Forward::open(&ssh, "user@host", "default", &dir.0)
+        let ssh = fake_ssh(&dir);
+        std::fs::write(dir.path().join("fail"), "boom").unwrap();
+        let err = Forward::open(&ssh, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert_eq!(err, "ssh: boom");
-        let missing = dir.0.join("no-such-ssh");
-        let err = Forward::open(&missing, "user@host", "default", &dir.0)
+        let missing = dir.path().join("no-such-ssh");
+        let err = Forward::open(&missing, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert_eq!(err, "ssh not found");
@@ -280,8 +242,8 @@ sleep 30
     #[tokio::test]
     async fn forward_refuses_a_socket_path_over_100_bytes() {
         let dir = TempDir::new(&"x".repeat(80));
-        let ssh = dir.fake_ssh();
-        let err = Forward::open(&ssh, "user@host", "default", &dir.0)
+        let ssh = fake_ssh(&dir);
+        let err = Forward::open(&ssh, "user@host", "default", dir.path())
             .await
             .unwrap_err();
         assert!(

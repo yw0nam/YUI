@@ -63,17 +63,13 @@ impl ServerHandler for HerdrServer {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use crate::cli::tests::{argv_calls, fake_herdr, fake_lock, reset, write_config};
+    use crate::cli::tests::{fake_herdr, locate_fake};
     use rmcp::model::CallToolResult;
     use rmcp::service::RunningService;
     use rmcp::{RoleClient, ServiceExt};
     use serde_json::{json, Value};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
-
-    fn with_fake() -> Option<PathBuf> {
-        Some(fake_herdr())
-    }
 
     /// A client connected in-process to a server that finds the herdr CLI with `locate`.
     async fn connect(locate: fn() -> Option<PathBuf>) -> RunningService<RoleClient, ()> {
@@ -117,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn tools_list_returns_the_four_tools() {
-        let client = connect(with_fake).await;
+        let client = connect(locate_fake).await;
         let tools = client.list_all_tools().await.unwrap();
         assert_eq!(
             serde_json::to_value(&tools).unwrap(),
@@ -226,9 +222,8 @@ mod tests {
 
     #[tokio::test]
     async fn herdr_agents_merges_local_and_enabled_machines() {
-        let _guard = fake_lock().await;
-        reset();
-        write_config(
+        let fake = fake_herdr().await;
+        fake.write_config(
             "machines.json",
             &json!([
                 {"id": "m-a", "label": "Alpha", "target": "a@host", "session": "default", "enabled": true, "selected": false},
@@ -238,23 +233,23 @@ mod tests {
             ])
             .to_string(),
         );
-        write_config(
+        fake.write_config(
             "agents-local.json",
             &json!({"result": {"agents": [
                 {"agent": "claude", "agent_status": "working", "pane_id": "p1", "workspace_id": "w1", "cwd": "/tmp", "terminal_title_stripped": "T1"}
             ]}})
             .to_string(),
         );
-        write_config(
+        fake.write_config(
             "agents-m-a.json",
             &json!({"result": {"agents": [
                 {"agent": "codex", "agent_status": "done", "pane_id": "p2", "workspace_id": "w2", "cwd": "/home", "terminal_title_stripped": "T2"}
             ]}})
             .to_string(),
         );
-        write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
-        write_config("m-d.sleep", "20");
-        let client = connect(with_fake).await;
+        fake.write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
+        fake.write_config("m-d.sleep", "20");
+        let client = connect(locate_fake).await;
         let started = Instant::now();
         let result = call(&client, "herdr_agents", json!({})).await;
         let elapsed = started.elapsed();
@@ -270,7 +265,7 @@ mod tests {
             ])
         );
         assert!(elapsed <= Duration::from_secs(16), "elapsed: {elapsed:?}");
-        let calls = argv_calls();
+        let calls = fake.argv_calls();
         assert!(
             !calls
                 .iter()
@@ -281,18 +276,17 @@ mod tests {
 
     #[tokio::test]
     async fn herdr_agents_returns_local_rows_when_the_machine_list_fails() {
-        let _guard = fake_lock().await;
-        reset();
-        write_config(
+        let fake = fake_herdr().await;
+        fake.write_config(
             "agents-local.json",
             &json!({"result": {"agents": [
                 {"agent": "claude", "agent_status": "working", "pane_id": "p1", "workspace_id": "w1", "cwd": "/tmp", "terminal_title_stripped": "T1"}
             ]}})
             .to_string(),
         );
-        let client = connect(with_fake).await;
+        let client = connect(locate_fake).await;
         let local_row = json!({"machine": "local", "machine_label": "local", "pane": "p1", "agent": "claude", "status": "working", "title": "T1", "cwd": "/tmp"});
-        write_config("machines.json", "not json");
+        fake.write_config("machines.json", "not json");
         let result = call(&client, "herdr_agents", json!({})).await;
         let (text, is_error) = answer(&result);
         assert_eq!(is_error, Some(false));
@@ -300,7 +294,7 @@ mod tests {
             serde_json::from_str::<Value>(text.unwrap()).unwrap(),
             json!([local_row, {"machine": "machines", "error": "error: could not parse machine list"}])
         );
-        write_config("machines.err", r#"{"error":{"message":"boom"}}"#);
+        fake.write_config("machines.err", r#"{"error":{"message":"boom"}}"#);
         let result = call(&client, "herdr_agents", json!({})).await;
         let (text, is_error) = answer(&result);
         assert_eq!(is_error, Some(false));
@@ -312,10 +306,9 @@ mod tests {
 
     #[tokio::test]
     async fn herdr_read_defaults_to_80_lines_and_marks_untrusted() {
-        let _guard = fake_lock().await;
-        reset();
-        write_config("read.txt", "line one\n\nline two\n   \nline three\n");
-        let client = connect(with_fake).await;
+        let fake = fake_herdr().await;
+        fake.write_config("read.txt", "line one\n\nline two\n   \nline three\n");
+        let client = connect(locate_fake).await;
         let result = call(&client, "herdr_read", json!({"pane": "p1"})).await;
         assert_eq!(
             answer(&result),
@@ -324,7 +317,7 @@ mod tests {
                 Some(false)
             )
         );
-        let calls = argv_calls();
+        let calls = fake.argv_calls();
         assert!(
             calls.iter().any(|c| strs(c)
                 == vec![
@@ -342,10 +335,9 @@ mod tests {
 
     #[tokio::test]
     async fn herdr_prompt_and_keys_pass_machine_and_arguments_in_order() {
-        let _guard = fake_lock().await;
-        reset();
-        write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
-        let client = connect(with_fake).await;
+        let fake = fake_herdr().await;
+        fake.write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
+        let client = connect(locate_fake).await;
         let cases: Vec<(&str, Value, Vec<&str>)> = vec![
             (
                 "herdr_prompt",
@@ -376,7 +368,7 @@ mod tests {
         for (name, args, argv) in cases {
             let result = call(&client, name, args.clone()).await;
             assert_eq!(answer(&result), (Some("sent"), Some(false)), "args: {args}");
-            let calls = argv_calls();
+            let calls = fake.argv_calls();
             assert!(
                 calls.iter().any(|c| strs(c) == argv),
                 "args: {args}, calls: {calls:?}"

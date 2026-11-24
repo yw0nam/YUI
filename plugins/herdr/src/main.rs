@@ -2,6 +2,8 @@ mod cli;
 mod locate;
 mod parse;
 mod server;
+#[cfg(all(test, unix))]
+mod test_dir;
 mod tools;
 #[cfg(unix)]
 mod watch;
