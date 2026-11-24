@@ -152,7 +152,7 @@ describe("createSettingsWindowOpener page request", () => {
     await vi.waitFor(() =>
       expect(WebviewWindow).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({ url }),
+        expect.objectContaining({ url, width: 1160, height: 712, minWidth: 880, minHeight: 672 }),
       ),
     );
     expect(emit).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe("createSettingsWindowOpener page request", () => {
 
     createSettingsWindowOpener(boundId, vi.fn())(page);
 
-    expect(open).toHaveBeenCalledWith(url, expect.any(String), "width=760,height=680");
+    expect(open).toHaveBeenCalledWith(url, expect.any(String), "width=1160,height=680");
   });
 
   it.each([
@@ -209,7 +209,7 @@ describe("createSettingsWindowOpener page request", () => {
     expect(open).toHaveBeenCalledWith(
       "/settings.html?page=conn&focus=chat_key",
       expect.any(String),
-      "width=760,height=680",
+      "width=1160,height=680",
     );
   });
 

@@ -1,0 +1,72 @@
+/* The settings window's stage: a 400px column the full window height, beside the panel. */
+.yui-settings-stage {
+  display: flex;
+  flex: 0 0 400px;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* A long name or state ellipsizes instead of widening the column or spilling into the panel. */
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  /* The top 600px is where her 400 × 600 window docks. */
+  padding-top: 600px;
+  background: var(--yui-stage-bg);
+  color: var(--yui-text);
+}
+
+.yui-settings-stage__foot {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 1.5rem;
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-settings-stage__name,
+.yui-settings-stage__meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.yui-settings-stage__name {
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.yui-settings-stage__meta {
+  font-size: var(--yui-fs-sub);
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+/* A window under 680px tall leaves the foot one line: the name, then the state after a dot. */
+@media (height < 680px) {
+  .yui-settings-stage__foot {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding: 0 1rem;
+  }
+
+  .yui-settings-stage__name {
+    flex: 0 1 auto;
+    font-size: var(--yui-fs-head);
+    letter-spacing: 0;
+  }
+
+  /* The state takes the rest of the line; both ellipsize when the line runs out. */
+  .yui-settings-stage__meta {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .yui-settings-stage__meta::before {
+    content: "· ";
+  }
+}

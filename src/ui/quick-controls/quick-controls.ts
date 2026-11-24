@@ -718,6 +718,7 @@ export function createQuickControls({
           removeCardThumbnail,
           pickPhoto: pickPresetPhoto,
           getDefaultChatApi,
+          endpointsSettings,
           handle: presetHeader,
         },
         connQuickShown: connectionPage.quickShown,

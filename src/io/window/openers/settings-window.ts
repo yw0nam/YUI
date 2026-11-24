@@ -15,6 +15,8 @@ const log = createLogger("settings-window");
 const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
 const SETTINGS_TITLE = "YUI Settings";
+/** The macOS title bar inside the native window's inner size, measured at 32px in the verify bundle. */
+const TITLE_BAR = 32;
 
 /** `--yui-panel-bg` (src/ui/tokens.css) in sRGB: the window's native background until its page paints. */
 function panelBackground(theme: string | undefined): [number, number, number] {
@@ -75,10 +77,10 @@ async function openTauriSettingsWindow(
     const win = new WebviewWindow(label, {
       url,
       title: SETTINGS_TITLE,
-      width: 760,
-      height: 680,
-      minWidth: 480,
-      minHeight: 480,
+      width: 1160,
+      height: 680 + TITLE_BAR,
+      minWidth: 880,
+      minHeight: 640 + TITLE_BAR,
       resizable: true,
       decorations: true,
       transparent: false,
@@ -99,7 +101,7 @@ function openBrowserSettingsWindow(boundId?: string | null, request?: PageReques
     window.open(
       `/${settingsUrl(boundId, request)}`,
       boundId == null ? "yui-settings" : `yui-${windowLabel("settings", boundId)}`,
-      "width=760,height=680",
+      "width=1160,height=680",
     );
   } catch (err) {
     log.warn("settings_window_browser_open_failed", { error: String(err) });

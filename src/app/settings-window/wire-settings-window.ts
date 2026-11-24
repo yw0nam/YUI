@@ -19,6 +19,7 @@ import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { createSettingsStage } from "../../ui/settings-stage/settings-stage";
 import { createImportGate } from "../card-io/import-gate";
 import { wireCardIo } from "../card-io/wire-card-io";
 import type { Disposers } from "../disposers";
@@ -177,10 +178,23 @@ export async function wireSettingsWindow(deps: {
   // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
   const openOnQuickStart = opensOnQuickStart(shared.getEndpoints());
 
+  // The window is a row: the stage, then the panel's host.
+  const stage = createSettingsStage({
+    mount: app,
+    presetRegistry,
+    petWindows,
+    boundId,
+    getDefaultChatApi: quickControlsConfigDefaults(config).getDefaultChatApi,
+    endpointsSettings,
+    onSettingsChanged: bridge.onSettingsChanged,
+  });
+  const panelHost = app.appendChild(document.createElement("div"));
+  panelHost.className = "yui-settings-panel";
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
-      mount: app,
+      mount: panelHost,
       pushSocket,
       announceSessionReset: sessionReset.announce,
       delegations: {
@@ -322,6 +336,7 @@ export async function wireSettingsWindow(deps: {
   register(unsubscribeDelegationHistory);
   register(() => delegations.dispose());
   register(unsubscribeLocale);
+  register(stage.dispose);
   register(unsubscribeCueSync);
   // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
   // reach the broadcast path and a live bridge.

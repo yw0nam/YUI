@@ -1240,6 +1240,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/settings-stage",
+      "module": "settings",
+      "label": "settings stage",
+      "role": "The settings window's 400px stage on its left, beside the panel, on the stage ground. Its foot names the window's own character (the bound one, else main, never the one the panel edits) over its transport and window state in the character header's words, and folds to one line in a window under 680px tall; it re-reads the registry and the pet windows on a change, the stored transport on this window's chat type switch, a storage event, another window's settings change and focus, and its words on a new language.",
+      "paths": [
+        "src/ui/settings-stage"
+      ]
+    },
+    {
       "id": "ui/character-menu",
       "module": "display",
       "label": "character menu",
@@ -1480,7 +1489,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own), opens it on the page of `?page=` and on later page requests, and mirrors the voice toggle in main only.",
+      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) as a row of the stage then the panel, opens it on the page of `?page=` and on later page requests, rebuilds only the panel on a new language, and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -4294,6 +4303,33 @@ globalThis.YUI_MAP =
       "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
       "kind": "call",
       "transport": "request"
+    },
+    {
+      "id": "settings-stage-mount",
+      "from": "app/settings-window",
+      "to": "ui/settings-stage",
+      "carries": "createSettingsStage({ mount, presetRegistry, petWindows, boundId, getDefaultChatApi, endpointsSettings, onSettingsChanged }) → the stage first in the window's row, the panel's host after it; dispose on close",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "settings-stage-state",
+      "from": "settings",
+      "to": "ui/settings-stage",
+      "carries": "presetRegistry.get() and subscribe → presetEntryFor(state, boundId); readChatApiOverride(own id), re-read on the panel's endpointsSettings.subscribe; isPresetOpen(petWindows.get(), id) and petWindows.subscribe",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "settings-stage-meta",
+      "from": "ui/settings-stage",
+      "to": "ui/quick-controls",
+      "carries": "characterMeta({ id, main, isOpen, chatApiOverride, defaultChatApi }) → { state, line }: the stage foot's \"{transport} · {state}\" in the character header's words",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/settings-stage/stage-foot.tsx"
     },
     {
       "id": "stt-models-check",

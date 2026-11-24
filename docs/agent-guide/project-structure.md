@@ -683,11 +683,15 @@ YUI/
       use-snapshot/                  # React hooks for sources that return a fresh object each read
         use-snapshot.ts              # Binds such a source to a component
         use-notify.ts                # Re-renders a component on each notify of a source it reads itself
+      settings-stage/                # The settings window's 400px stage on its left, beside the panel
+        settings-stage.ts            # The stage's factory: mounts it first in the window's row and re-renders its foot for the window's own character
+        stage-foot.tsx               # Her name over her transport and window state
+        settings-stage.css           # The stage column on the stage ground
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: creates every page's controller, renders the panel's one React root, and runs the open, close and teardown of its pages in order
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles, and the imports of the Switch's and Segment's CSS from `src/ui/controls/`
-        settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set
+        settings-window.css          # The settings window's opaque body filled with the panel surface once the theme is set, and its row of the stage then the panel
         settings-panel.tsx           # The panel's React view: the preset header, the rail (search field, group headings and tabs on the shared Tabs, each with its tip) and every page's panel with its scope line, title and page, under one shared tooltip
         page-view.tsx                # A page as the panel renders it: the page controller's view type, the one `div.yui-tab-stack` around each view, and the page's own redraw, which the open hook bumps so only that page renders again
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
@@ -788,6 +792,7 @@ YUI/
           preset-header.tsx          # The preset header: the character header that picks the preset to edit (`?edit=`), the manage button and its popover, the edited preset's note, the relation line and the photo dialog
           edited-preset.ts           # The preset the window edits and its registry state, held once it leaves the registry, which hands the window on
           character-header.tsx       # The settings window's header: every preset with its face, transport and window state; a click edits it
+          character-meta.ts          # A character's window state and its "{transport} · {state}" line, shared with the settings stage
           preset-manage.tsx          # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
           preset-scope.tsx           # The edited preset's name: each page's scope line, only the edited character or every character, and the rail's character heading
           use-prepended.ts           # Keeps a vanilla element, a face or a glyph, first inside a React-rendered host

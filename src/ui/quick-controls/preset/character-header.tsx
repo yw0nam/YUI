@@ -4,20 +4,18 @@
  * stays editable.
  */
 
-import {
-  effectiveChatApi,
-  readChatApiOverride,
-} from "../../../settings/backend/endpoints-settings";
+import { readChatApiOverride } from "../../../settings/backend/endpoints-settings";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import { t } from "../../i18n";
 import { avatarEl } from "../../unified/avatar";
+import { characterMeta } from "./character-meta";
 import { usePrepended } from "./use-prepended";
 
 function Item(p: {
   entry: PresetEntry;
-  state: string;
+  off: boolean;
   current: boolean;
-  transport: string;
+  meta: string;
   onClick(): void;
 }) {
   // The face, mounted as a vanilla element the re-renders keep in place.
@@ -26,16 +24,14 @@ function Item(p: {
     <button
       ref={item}
       type="button"
-      className={p.state === "head.off" ? "yui-chead__item is-off" : "yui-chead__item"}
+      className={p.off ? "yui-chead__item is-off" : "yui-chead__item"}
       data-preset-id={p.entry.id}
       aria-current={p.current}
       onClick={p.onClick}
     >
       <span className="yui-chead__text">
         <span className="yui-chead__name">{p.entry.name}</span>
-        <span className="yui-chead__meta">
-          {t("head.meta", { transport: p.transport, state: t(p.state) })}
-        </span>
+        <span className="yui-chead__meta">{p.meta}</span>
       </span>
     </button>
   );
@@ -53,26 +49,27 @@ export function CharacterHeader(p: {
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header row the preset header's CSS styles
     <div className="yui-chead" role="group" aria-label={t("chars.section")}>
-      {p.list.map((entry) => (
-        <Item
-          key={entry.id}
-          entry={entry}
-          state={
-            entry.id === p.main
-              ? "head.main"
-              : p.isOpen(entry.id)
-                ? "preset.window_open"
-                : "head.off"
-          }
-          current={entry.id === p.shownId}
-          transport={t(
-            `svc.chat_name_${effectiveChatApi(readChatApiOverride(entry.id), p.getDefaultChatApi?.())}`,
-          )}
-          onClick={() => {
-            if (entry.id !== p.shownId) p.onPick(entry.id);
-          }}
-        />
-      ))}
+      {p.list.map((entry) => {
+        const { state, line } = characterMeta({
+          id: entry.id,
+          main: p.main,
+          isOpen: p.isOpen,
+          chatApiOverride: readChatApiOverride(entry.id),
+          defaultChatApi: p.getDefaultChatApi?.(),
+        });
+        return (
+          <Item
+            key={entry.id}
+            entry={entry}
+            off={state === "off"}
+            current={entry.id === p.shownId}
+            meta={line}
+            onClick={() => {
+              if (entry.id !== p.shownId) p.onPick(entry.id);
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

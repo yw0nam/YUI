@@ -18,6 +18,8 @@
   --yui-edge: oklch(0.35 0.03 60 / 0.14);
   --yui-edge-strong: oklch(0.35 0.03 60 / 0.24);
   --yui-panel-bg: oklch(0.975 0.006 85);
+  /* The settings window's stage beside the panel. */
+  --yui-stage-bg: oklch(0.952 0.009 80);
   /* The Threads panel body, the thread pane and the terminal ground. */
   --yui-threads-base: oklch(0.99 0.006 85);
   /* The Threads head and tabs, the answer area, the access line, code blocks and the size readout. */
@@ -107,6 +109,7 @@
   --yui-edge: oklch(0.97 0.01 80 / 0.1);
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
   --yui-panel-bg: oklch(0.16 0.014 70);
+  --yui-stage-bg: oklch(0.13 0.012 70);
   --yui-threads-base: oklch(0.235 0.014 70);
   --yui-threads-head: oklch(0.2 0.014 70);
   --yui-threads-side: oklch(0.165 0.014 70);
