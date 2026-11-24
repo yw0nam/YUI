@@ -13,7 +13,6 @@ import { getLocale, t } from "../../i18n";
 import { RefMount } from "../../ref-mount";
 import { CHECK_PATHS } from "../glyphs";
 import { threadSource } from "../thread-source";
-import { createAnswerArea } from "./answer-area";
 import { entryMarkdown } from "./entry-markdown";
 import { Glyph } from "./glyph";
 import { relativeTime } from "./relative-time";
@@ -156,20 +155,7 @@ export function ThreadPane({
             <RefMount
               className="yui-threads-pane__answer"
               deps={[thread.id, JSON.stringify(ask), sent.error, sent.sending, getLocale()]}
-              mount={(host) => {
-                const active = document.activeElement;
-                const hadField = active?.tagName === "TEXTAREA" && host.contains(active);
-                const area = createAnswerArea({
-                  ask,
-                  ...answers.of(thread.id, ask.ask_id),
-                  onDraft: (draft) => answers.setDraft(thread.id, ask.ask_id, draft),
-                  onSend: (answer) => answers.send(thread.id, ask.ask_id, answer),
-                });
-                host.replaceChildren(area.el);
-                const detach = answers.attach(area);
-                if (hadField) answers.focusField();
-                return detach;
-              }}
+              mount={(host) => answers.mount(host, thread.id, ask, sent)}
             />
           )}
         </>
