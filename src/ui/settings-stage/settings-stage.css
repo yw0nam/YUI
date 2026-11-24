@@ -4,9 +4,10 @@
   flex: 0 0 400px;
   flex-direction: column;
   box-sizing: border-box;
-  /* A long name ellipsizes instead of widening the column. */
+  /* A long name or state ellipsizes instead of widening the column or spilling into the panel. */
   min-width: 0;
   height: 100%;
+  overflow: hidden;
   /* The top 600px is where her 400 × 600 window docks. */
   padding-top: 600px;
   background: var(--yui-stage-bg);
@@ -59,9 +60,10 @@
     letter-spacing: 0;
   }
 
-  /* The state keeps its words and takes the rest of the line; the name ellipsizes. */
+  /* The state takes the rest of the line; both ellipsize when the line runs out. */
   .yui-settings-stage__meta {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .yui-settings-stage__meta::before {
