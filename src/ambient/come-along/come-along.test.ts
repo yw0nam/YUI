@@ -355,6 +355,21 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledTimes(2);
   });
 
+  it("stops her walk at once when a drag takes her mid-way: no frame is written after it", async () => {
+    const h = harness();
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+    h.tick(90);
+
+    const letGo = h.abort();
+    expect(h.ticks.size).toBe(0);
+    h.tick(360);
+    await letGo;
+    await done;
+
+    expect(h.walked).toEqual([[1295, 80]]);
+  });
+
   it("moves no real frame after an abort while the travel parks", async () => {
     const h = harness();
     const parked = deferred<Awaited<ReturnType<typeof h.locomotion.widen>>>();
