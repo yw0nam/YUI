@@ -11,10 +11,18 @@ import { onDemandLines } from "./on-demand-lines";
 import { isFailureText, pluginToolResult } from "./plugin-result";
 
 /** One On-demand tool or plugin skill as a `name — text` entry; the name alone when the text is empty. */
-function contextEntry(name: string, text: string): string {
+function listEntry(name: string, text: string): string {
   const label = oneLine(name);
   const detail = oneLine(text);
   return detail === "" ? label : `${label} — ${detail}`;
+}
+
+/** A description's lead followed by its entries, or by the sentence that none are available. */
+function withList(lead: string, label: string, entries: string[]): string {
+  const heading = label.charAt(0).toUpperCase() + label.slice(1);
+  return entries.length > 0
+    ? `${lead} ${heading}: ${entries.join(" · ")}`
+    : `${lead} No ${label} are available.`;
 }
 
 export function createBridgeTools(deps: {
@@ -73,16 +81,16 @@ export function createBridgeTools(deps: {
     name: "yui_tool_call",
     // A getter: each read lists the On-demand tools enabled at that moment.
     get definition() {
-      const entries = lines().tools.map((tool) => contextEntry(tool.name, tool.summary));
-      const lead = "Call an On-demand tool by name with its arguments.";
+      const entries = lines().tools.map((tool) => listEntry(tool.name, tool.summary));
       return {
         type: "function" as const,
         function: {
           name: "yui_tool_call",
-          description:
-            entries.length > 0
-              ? `${lead} On-demand tools: ${entries.join(" · ")}`
-              : `${lead} No On-demand tools are available.`,
+          description: withList(
+            "Call an On-demand tool by name with its arguments.",
+            "On-demand tools",
+            entries,
+          ),
           parameters: {
             type: "object" as const,
             properties: {
@@ -128,16 +136,16 @@ export function createBridgeTools(deps: {
     name: "plugin_skill",
     // A getter: each read lists the skills of the plugins enabled at that moment.
     get definition() {
-      const entries = lines().skills.map((entry) => contextEntry(entry.name, entry.description));
-      const lead = "Read a plugin skill: returns its full instructions.";
+      const entries = lines().skills.map((entry) => listEntry(entry.name, entry.description));
       return {
         type: "function" as const,
         function: {
           name: "plugin_skill",
-          description:
-            entries.length > 0
-              ? `${lead} Plugin skills: ${entries.join(" · ")}`
-              : `${lead} No plugin skills are available.`,
+          description: withList(
+            "Read a plugin skill: returns its full instructions.",
+            "plugin skills",
+            entries,
+          ),
           parameters: {
             type: "object" as const,
             properties: {
