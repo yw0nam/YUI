@@ -38,19 +38,28 @@ impl Watch {
         ));
     }
 
-    /// A listed state that differs from the cache updates it; a move into done or blocked signals once.
+    /// A listing inserts only panes missing from the cache, silently; the first listing seeds it.
+    fn merge(&mut self, listed: &[AgentRow]) {
+        for row in listed {
+            self.cache
+                .entry(row.id.clone())
+                .or_insert_with(|| row.clone());
+        }
+    }
+
+    /// Only a cached state that differs notifies; a move into done or blocked signals once.
     fn reconcile(&mut self, listed: &[AgentRow]) {
         for row in listed {
-            let changed = self
-                .cache
-                .get(&row.id)
-                .is_none_or(|old| old.status != row.status);
-            if changed {
-                if let Some(event) = signal::event_type(&row.status) {
-                    self.signal(row, event);
-                }
+            let event = match self.cache.get(&row.id) {
+                Some(cached) if cached.status != row.status => signal::event_type(&row.status),
+                _ => None,
+            };
+            if let Some(event) = event {
+                self.signal(row, event);
             }
-            self.cache.insert(row.id.clone(), row.clone());
+            if event.is_some() || !self.cache.contains_key(&row.id) {
+                self.cache.insert(row.id.clone(), row.clone());
+            }
         }
         self.cache
             .retain(|id, _| listed.iter().any(|r| &r.id == id));
@@ -129,10 +138,9 @@ async fn watch_once(
             SubscribeFail::Rejected => "topology subscribe rejected".to_string(),
             SubscribeFail::Failed(e) => format!("topology subscribe: {e}"),
         })?;
-    let mut watch = Watch::new(&watched.machine, &watched.label, notify);
     loop {
-        let mut status = rebuild(&sock, &mut watch, backoff).await?;
-        match events(&mut topology, status.as_mut(), &mut watch).await? {
+        let mut status = rebuild(&sock, watch, backoff).await?;
+        match events(&mut topology, status.as_mut(), watch).await? {
             Flow::Rebuild => continue,
             Flow::TopologyFailed(error) => return Err(error),
         }
@@ -148,6 +156,7 @@ async fn rebuild(
     loop {
         let listed = parse::agent_rows(&socket::agent_list(sock).await?)
             .ok_or_else(|| "agent list missing".to_string())?;
+        watch.merge(&listed);
         let mut status = None;
         if !listed.is_empty() {
             let mut conn = socket::connect(sock).await?;
@@ -438,7 +447,11 @@ mod tests {
                         break;
                     }
                     let (tx, r) = mpsc::channel(64);
-                    conns.lock().await.push(Conn { subs, tx, close: close.clone() });
+                    conns.lock().await.push(Conn {
+                        subs,
+                        tx,
+                        close: close.clone(),
+                    });
                     rx = Some(r);
                 }
                 _ => {}
