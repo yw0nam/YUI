@@ -37,7 +37,6 @@ export interface SpeakerSectionProps {
   /** On shows the paste-a-voice-id field. */
   canPasteVoiceId: () => boolean;
   log: Logger;
-  refreshTooltip?: () => void;
   isOpen: () => boolean;
   /** Moves on each open; the list is read again and an armed remove drops. */
   revision: number;
@@ -55,7 +54,6 @@ export function SpeakerSection({
   canReuploadVoices,
   canPasteVoiceId,
   log,
-  refreshTooltip,
   isOpen,
   revision,
   audition,
@@ -69,7 +67,6 @@ export function SpeakerSection({
     revision,
     log,
     logPrefix: "voice",
-    refreshTooltip,
     classPrefix: "yui-spk",
     datasetKey: "spkId",
   });

@@ -1,7 +1,10 @@
-/* ── `?` hint tooltip — floating explanation shown by hint-tooltip.ts ── */
+/* ── The shared tooltip: a floating explanation over its trigger ── */
+/* Above the panel's popovers. */
+.yui-hint-tip-pos {
+  z-index: 101;
+}
+
 .yui-hint-tip {
-  position: fixed;
-  z-index: 101; /* above the panel's popovers */
   max-width: 16rem;
   padding: 0.4rem 0.6rem;
   border-radius: var(--yui-radius-control);
@@ -12,12 +15,13 @@
   font-size: var(--yui-fs-sub);
   line-height: 1.35;
   pointer-events: none;
-  opacity: 0;
+  opacity: 1;
   transition: opacity var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-hint-tip.is-open {
-  opacity: 1;
+.yui-hint-tip[data-starting-style],
+.yui-hint-tip[data-ending-style] {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

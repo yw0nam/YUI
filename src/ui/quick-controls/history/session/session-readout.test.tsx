@@ -13,7 +13,7 @@ import { createAgentSettings } from "../../../../settings/backend/agent-settings
 import { setLocale } from "../../../i18n";
 import type { PushSocketPanelPort } from "../../connection/connection-page";
 import { createDelegationFeed } from "../../delegations/delegation-feed";
-import { countSubscriptions, inMemoryAgentStorage } from "../../test-helpers";
+import { countSubscriptions, inMemoryAgentStorage, renderPage } from "../../test-helpers";
 import { createHistoryPage } from "../history-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -21,7 +21,7 @@ import { createHistoryPage } from "../history-page";
 
 const RUNNING: DelegationItem = { id: "d-1", title: "work d-1", started_at: 0, state: "running" };
 
-const pages: ReturnType<typeof createHistoryPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: boolean } = {}) {
   const sessionDiagnostics = createSessionDiagnosticsStore();
@@ -41,17 +41,19 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
     reconnectNow: () => {},
   } satisfies PushSocketPanelPort;
 
-  const page = createHistoryPage({
-    transcript: createChatHistoryStore(),
-    sessionDiagnostics,
-    sessionStore: createSessionStore(),
-    pushSocket,
-    isPushMode: () => pushMode,
-    delegations: createDelegationFeed({ get: () => [RUNNING], subscribe: () => () => {} }),
-    agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-    isOpen: () => open,
-    log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
-  });
+  const page = renderPage(
+    createHistoryPage({
+      transcript: createChatHistoryStore(),
+      sessionDiagnostics,
+      sessionStore: createSessionStore(),
+      pushSocket,
+      isPushMode: () => pushMode,
+      delegations: createDelegationFeed({ get: () => [RUNNING], subscribe: () => () => {} }),
+      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+      isOpen: () => open,
+      log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger,
+    }),
+  );
   pages.push(page);
 
   return {
@@ -75,7 +77,7 @@ describe("the Session section", () => {
 
   afterEach(() => {
     act(() => {
-      for (const page of pages.splice(0)) page.dispose();
+      for (const page of pages.splice(0)) page.unmount();
     });
     document.body.innerHTML = "";
   });
@@ -105,7 +107,7 @@ describe("the Session section", () => {
   it("dispose() releases the push and diagnostics sources", () => {
     const { page, sessionCounts, pushListeners } = build();
 
-    act(() => page.dispose());
+    act(() => page.unmount());
 
     expect(pushListeners.size).toBe(0);
     expect(sessionCounts.taken).toBeGreaterThan(0);
@@ -117,7 +119,7 @@ describe("the Session section", () => {
     const lost = lostLine();
     const value = readout();
 
-    act(() => page.dispose());
+    act(() => page.unmount());
     setPushState({ kind: "connecting" });
     act(() => sessionDiagnostics.setUsage(18200, 200000));
 

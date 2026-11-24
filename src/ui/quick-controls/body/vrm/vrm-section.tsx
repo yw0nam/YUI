@@ -21,8 +21,6 @@ export interface VrmSectionProps {
   /** The store's repaints reach the list only while the tab is open. */
   isOpen: () => boolean;
   log: Logger;
-  /** Re-measure hover hints after a row's label changes. */
-  refreshTooltip?: () => void;
   /** Moves on each open; the list is read again and an armed remove drops. */
   revision: number;
 }
@@ -34,7 +32,6 @@ export function VrmSection({
   removeUserVrm,
   isOpen,
   log,
-  refreshTooltip,
   revision,
 }: VrmSectionProps) {
   const list = useAssetList<AvatarOption>({
@@ -46,7 +43,6 @@ export function VrmSection({
     revision,
     log,
     logPrefix: "vrm",
-    refreshTooltip,
     classPrefix: "yui-vrm",
     datasetKey: "vrmId",
   });

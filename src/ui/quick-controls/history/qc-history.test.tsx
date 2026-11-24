@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // History tab session accordion over the persisted transcript.
 
+import { fireEvent } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
@@ -13,7 +14,7 @@ import {
 } from "../../../io/chat/conversation/signal-history-store";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, keyboardFocus, shownTip } from "../test-helpers";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -80,7 +81,6 @@ describe("createQuickControls — history tab", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
@@ -100,7 +100,8 @@ describe("createQuickControls — history tab", () => {
     expect(histTab.id).toBe("yui-tab-hist");
     expect(histTab.getAttribute("aria-label")).toBe("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
-    expect(histTab.dataset.tip).toBeTruthy();
+    keyboardFocus(histTab);
+    expect(shownTip()).toBeTruthy();
     expect(histTab.hasAttribute("title")).toBe(false);
     const panel = qc.el.querySelector<HTMLElement>(`#${histTab.getAttribute("aria-controls")}`)!;
     expect(panel.getAttribute("aria-labelledby")).toBe(histTab.id);
@@ -114,14 +115,15 @@ describe("createQuickControls — history tab", () => {
     expect(qc.el.querySelector(".yui-hist")).toBeNull();
   });
 
-  it("End key selects the general tab, which closes the rail after history", () => {
+  it("End key selects the general tab, which closes the rail after history", async () => {
     const qc = buildQc({ transcript: seedStore() });
     act(() => qc.open());
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     tabs[0].focus();
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    await act(async () => {
+      fireEvent.keyDown(tabs[0], { key: "End" });
+    });
 
     expect(tabs.map((tab) => tab.id).at(-1)).toBe("yui-tab-general");
     expect(tabs[10].getAttribute("aria-selected")).toBe("true");
@@ -379,7 +381,6 @@ describe("createQuickControls — start fresh action in the History tab", () => 
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
@@ -528,7 +529,6 @@ describe("createQuickControls — start fresh keeps the transcript", () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 

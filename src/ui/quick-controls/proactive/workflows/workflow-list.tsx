@@ -9,8 +9,9 @@ import {
 } from "../../../../settings/backend/workflow-settings";
 import { t } from "../../../i18n";
 import { useSnapshot } from "../../../use-snapshot/use-snapshot";
-import { CROSS_SVG, PLUS_SVG } from "../../constants";
+import { CROSS_SVG } from "../../constants";
 import "./workflow-list.css";
+import { PLUS_GLYPH } from "../../glyphs";
 
 const PlayGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -249,9 +250,10 @@ export function WorkflowList({
               className="yui-add-btn yui-wf-add-btn"
               disabled={!valid}
               onClick={add}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the translated label
-              dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("workflows.add")}` }}
-            />
+            >
+              {PLUS_GLYPH}
+              {t("workflows.add")}
+            </button>
             <button type="button" className="yui-link-btn" onClick={closeForm}>
               {t("cue.confirm_cancel")}
             </button>
@@ -264,9 +266,10 @@ export function WorkflowList({
             className="yui-add-btn yui-wf-add-btn"
             ref={addRef}
             onClick={() => setFormOpen(true)}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the translated label
-            dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("workflows.add_row")}` }}
-          />
+          >
+            {PLUS_GLYPH}
+            {t("workflows.add_row")}
+          </button>
         </div>
       )}
     </>

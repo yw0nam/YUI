@@ -1,25 +1,22 @@
-/** The Listening page: its React root, and the STT draft it commits on close and dispose. */
+/** The Listening page: its view, and the STT draft it commits on close and teardown. */
 
 import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
 import type { Logger } from "../../../logger";
 import type { ApiKeySettingsStore } from "../../../settings/backend/api-key-settings";
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { createReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../../chips/voice-input-status";
+import { type PageView, pageStack } from "../page-view";
 import type { KeyRowCommit } from "../sections/key-row/key-row";
 import { ListeningPageView } from "./listening-page-view";
 
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type ReadingsSettingsStore = ReturnType<typeof createReadingsSettings>;
 
-export interface ListeningPage {
-  el: HTMLElement;
+export interface ListeningPage extends PageView {
   /** Commits a dirty STT key draft. */
   close(): void;
-  dispose(): void;
 }
 
 export function createListeningPage(deps: {
@@ -30,25 +27,12 @@ export function createListeningPage(deps: {
   readingsSettings: ReadingsSettingsStore;
   bubblePersistSettings?: FlagSettingsStore;
   log: Logger;
-  /** The page appends itself here before its first render: Base UI registers a slider's thumb only while it is connected. */
-  host: HTMLElement;
 }): ListeningPage {
-  const { host, ...view } = deps;
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  host.append(el);
   const sttKeyCommit: KeyRowCommit = { current: null };
-  const root = createRoot(el);
-  flushSync(() => root.render(createElement(ListeningPageView, { ...view, sttKeyCommit })));
-
   return {
-    el,
+    view: () => pageStack(() => createElement(ListeningPageView, { ...deps, sttKeyCommit })),
     close(): void {
       sttKeyCommit.current?.();
-    },
-    dispose(): void {
-      sttKeyCommit.current?.();
-      root.unmount();
     },
   };
 }

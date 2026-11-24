@@ -3,6 +3,7 @@
  * which one shows; both stay mounted, so settings search reads the hidden one too.
  */
 
+import { type RefObject, useEffect } from "react";
 import { Segment } from "../../controls/segment";
 import { t } from "../../i18n";
 import {
@@ -22,6 +23,9 @@ interface ConnectionPageViewProps {
   detail: DetailSettingsDeps;
   quickHandle: QuickStartHandle;
   detailHandle: DetailSettingsHandle;
+  /** The page's element, where settings search asks a hidden view to come forward. */
+  stack: RefObject<HTMLElement | null>;
+  onReveal(e: Event): void;
 }
 
 export function ConnectionPageView({
@@ -31,7 +35,14 @@ export function ConnectionPageView({
   detail,
   quickHandle,
   detailHandle,
+  stack,
+  onReveal,
 }: ConnectionPageViewProps) {
+  useEffect(() => {
+    const el = stack.current;
+    el?.addEventListener("yui-search-reveal", onReveal);
+    return () => el?.removeEventListener("yui-search-reveal", onReveal);
+  }, [stack, onReveal]);
   return (
     <>
       <Segment<ConnectionView>

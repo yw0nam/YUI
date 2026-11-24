@@ -18,7 +18,7 @@ import { createProactiveSettings } from "../../../settings/cues/proactive-settin
 import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
 import { setLocale } from "../../i18n";
 import { GEMINI_PRESET } from "../constants";
-import { inMemoryAgentStorage, inMemoryApiKeyStorage } from "../test-helpers";
+import { inMemoryAgentStorage, inMemoryApiKeyStorage, renderPage } from "../test-helpers";
 import { createConnectionPage } from "./connection-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -28,20 +28,12 @@ const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
 const models = () => new Response(JSON.stringify({ data: [{ id: "m" }] }), { status: 200 });
 
 function setup(initial: "quick" | "detail" = "quick") {
-  const panel = document.body.appendChild(document.createElement("div"));
-  panel.className = "yui-tabpanel";
-  panel.innerHTML = `
-    <p class="yui-tabpanel__scope"></p>
-    <h1 class="yui-tabpanel__title">Connection</h1>
-  `;
   const endpointsSettings = createEndpointsSettings();
   const chatKeySettings = createChatKeySettings();
   // Detailed settings is entered when its STT line checks; Quick start when its stored-key check reads.
   const detailEntered = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
   const quickEntered = vi.fn(async () => models());
   const page = createConnectionPage({
-    host: panel,
-    scope: panel.querySelector<HTMLElement>(".yui-tabpanel__scope"),
     initial,
     quick: {
       endpointsSettings,
@@ -68,6 +60,8 @@ function setup(initial: "quick" | "detail" = "quick") {
       log: { debug() {}, info() {}, warn() {}, error() {} },
     },
   });
+  const panelPage = renderPage(page);
+  const panel = panelPage.el;
   const connect = () => {
     endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
     chatKeySettings.setApiKey("AIza-good");
@@ -78,13 +72,14 @@ function setup(initial: "quick" | "detail" = "quick") {
     within(panel).getByRole("radio", {
       name: view === "quick" ? "Quick start" : "Detailed settings",
     });
-  const scope = () => panel.querySelector<HTMLElement>(".yui-tabpanel__scope")!;
-  pages.push(page);
-  return { page, connect, detailEntered, quickEntered, wrapper, cell, scope };
+  // The panel hides the page's scope line while this reads true.
+  const scopeHidden = () => page.quickShown.get();
+  pages.push(panelPage);
+  return { page, connect, detailEntered, quickEntered, wrapper, cell, scopeHidden };
 }
 
-// Each page a case built, disposed after it.
-const pages: { dispose(): void }[] = [];
+// Each page a case built, unmounted after it.
+const pages: { unmount(): void }[] = [];
 
 describe("createConnectionPage — the views", () => {
   beforeEach(() => {
@@ -92,7 +87,7 @@ describe("createConnectionPage — the views", () => {
     setLocale("en");
   });
   afterEach(() => {
-    for (const page of pages.splice(0)) act(() => page.dispose());
+    for (const page of pages.splice(0)) page.unmount();
     document.body.innerHTML = "";
   });
 
@@ -101,7 +96,7 @@ describe("createConnectionPage — the views", () => {
 
     expect(s.wrapper("quick").hidden).toBe(false);
     expect(s.wrapper("detail").hidden).toBe(true);
-    expect(s.scope().hidden).toBe(true);
+    expect(s.scopeHidden()).toBe(true);
     expect(s.cell("quick").getAttribute("aria-checked")).toBe("true");
     expect(s.cell("quick").tabIndex).toBe(0);
     expect(s.cell("detail").getAttribute("aria-checked")).toBe("false");
@@ -122,7 +117,7 @@ describe("createConnectionPage — the views", () => {
 
     expect(s.wrapper("detail").hidden).toBe(false);
     expect(s.wrapper("quick").hidden).toBe(true);
-    expect(s.scope().hidden).toBe(false);
+    expect(s.scopeHidden()).toBe(false);
     expect(s.detailEntered).toHaveBeenCalledTimes(1);
     expect(s.quickEntered).not.toHaveBeenCalled();
   });
@@ -157,7 +152,7 @@ describe("createConnectionPage — the views", () => {
 
     expect(s.wrapper("quick").hidden).toBe(false);
     expect(s.wrapper("detail").hidden).toBe(true);
-    expect(s.scope().hidden).toBe(true);
+    expect(s.scopeHidden()).toBe(true);
     expect(s.wrapper("quick").querySelector<HTMLElement>(".yui-start__connected")!.hidden).toBe(
       false,
     );

@@ -1,13 +1,23 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
-import type { SettingsPage } from "../../../settings/panels/settings-pages";
-import { createVadSettings } from "../../../settings/voice/vad-settings";
-import { setLocale } from "../../i18n";
-import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs, fakePlugins } from "../test-helpers";
+import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
+import { createVadSettings } from "../../settings/voice/vad-settings";
+import { setLocale } from "../i18n";
+import { createQuickControls } from "./quick-controls";
+import { defaultQcArgs, fakePlugins, keyboardFocus, shownTip } from "./test-helpers";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+async function press(el: Element, key: string) {
+  await act(async () => {
+    fireEvent.keyDown(el, { key });
+  });
+}
 
 describe("createQuickControls — tab rail", () => {
   let mount: HTMLElement;
@@ -246,12 +256,27 @@ describe("createQuickControls — tab rail", () => {
   it("the rail gives every tab a label, an aria-label and a tooltip", () => {
     const qc = buildQc();
 
+    const tips: (string | undefined)[] = [];
     for (const tab of tabs(qc)) {
       const name = tab.getAttribute("aria-label");
       expect(name).toBeTruthy();
       expect(tab.querySelector(".yui-tab__label")?.textContent).toBe(name);
-      expect(tab.dataset.tip).toBeTruthy();
+      keyboardFocus(tab);
+      tips.push(shownTip());
+      expect(tab.getAttribute("aria-describedby")).toBe("yui-hint-tip");
     }
+    expect(tips).toEqual([
+      "연결",
+      "음성",
+      "페르소나",
+      "몸",
+      "함께",
+      "듣기와 말풍선",
+      "권한",
+      "먼저 말을 거는 규칙",
+      "동작과 데스크톱",
+      "일반",
+    ]);
 
     qc.dispose();
   });
@@ -335,42 +360,40 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("ArrowRight / ArrowLeft move the active tab (roving tabindex)", () => {
+  it("ArrowDown / ArrowUp move the active tab (roving tabindex)", async () => {
     const qc = buildQc();
     qc.open();
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
     // Arrows step from the selected tab — persona, the default, sits third.
     t[2].focus();
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    await press(t[2], "ArrowDown");
     expect(t[3].getAttribute("aria-selected")).toBe("true");
     expect(t[3].tabIndex).toBe(0);
     expect(t[2].tabIndex).toBe(-1);
     expect(panelFor(qc, t[3]).hidden).toBe(false);
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    await press(t[3], "ArrowUp");
     expect(t[2].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[2]).hidden).toBe(false);
 
     qc.dispose();
   });
 
-  it("Home / End jump to the first / last tab", () => {
+  it("Home / End jump to the first / last tab", async () => {
     const qc = buildQc();
     qc.open();
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
     t[0].focus();
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    await press(t[0], "End");
     expect(t[9].id).toBe("yui-tab-general");
     expect(t[9].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[9]).hidden).toBe(false);
 
-    tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    await press(t[9], "Home");
     expect(t[0].getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, t[0]).hidden).toBe(false);
 
@@ -399,7 +422,7 @@ describe("createQuickControls — tab rail", () => {
 
 // jsdom lays nothing out; in the scrolling column rail a shrinkable heading collapses to 0px.
 it("keeps the rail group headings from shrinking when the rail overflows", () => {
-  const css = readFileSync(resolve(__dirname, "../quick-controls.css"), "utf-8");
+  const css = readFileSync(resolve(__dirname, "./quick-controls.css"), "utf-8");
   const start = css.indexOf("\n.yui-tabs__group {");
   expect(css.slice(start, css.indexOf("\n}", start + 1))).toMatch(/\n\s*flex: none;/);
 });

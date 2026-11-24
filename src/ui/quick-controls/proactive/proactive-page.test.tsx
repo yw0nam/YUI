@@ -23,15 +23,17 @@ import { createThreadTurnsSettings } from "../../../settings/threads/thread-turn
 import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { setLocale } from "../../i18n";
 import { createSwitchRows } from "../switch-row";
-import { countSubscriptions, inMemoryAgentStorage } from "../test-helpers";
+import { countSubscriptions, inMemoryAgentStorage, renderPage } from "../test-helpers";
 import { createProactivePage } from "./proactive-page";
+
+type RenderedPage = ReturnType<typeof renderPage<ReturnType<typeof createProactivePage>>>;
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Deps = Parameters<typeof createProactivePage>[0];
 
-const pages: ReturnType<typeof createProactivePage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 const memoryValueStorage = () => {
   let value: { value: number } | null = null;
@@ -58,16 +60,16 @@ function build(extra?: Partial<Deps>) {
     log: makeLog(),
     ...extra,
   };
-  const page = createProactivePage({ ...deps, host: document.body });
+  const page = renderPage(createProactivePage(deps));
   pages.push(page);
   return { page, ...deps };
 }
 
 /** Disposes a page the afterEach must not dispose again. */
-function disposeNow(page: ReturnType<typeof createProactivePage>) {
+function disposeNow(page: RenderedPage) {
   const index = pages.indexOf(page);
   if (index >= 0) pages.splice(index, 1);
-  act(() => page.dispose());
+  act(() => page.unmount());
 }
 
 /** Types into a number field and blurs it, the commit path its rows share. */
@@ -84,7 +86,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   localStorage.clear();
@@ -441,20 +443,21 @@ describe("createProactivePage — Advanced", () => {
     const counts = [deps.pacerGapSettings, deps.presenceSettings, deps.rateLimitSettings].map(
       countSubscriptions,
     );
-    const page = createProactivePage({
-      agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-      scheduleSettings: createScheduleSettings({ locale: "en" }),
-      proactiveSettings: createProactiveSettings({ locale: "en" }),
-      openPersona: vi.fn(),
-      rows: [],
-      workflowSettings: createWorkflowSettings(),
-      log: makeLog(),
-      host: document.body,
-      ...deps,
-    });
+    const page = renderPage(
+      createProactivePage({
+        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+        scheduleSettings: createScheduleSettings({ locale: "en" }),
+        proactiveSettings: createProactiveSettings({ locale: "en" }),
+        openPersona: vi.fn(),
+        rows: [],
+        workflowSettings: createWorkflowSettings(),
+        log: makeLog(),
+        ...deps,
+      }),
+    );
     const input = page.el.querySelector<HTMLInputElement>("#yui-pacer-gap");
 
-    act(() => page.dispose());
+    act(() => page.unmount());
     if (!input) return;
     fireEvent.change(input, { target: { value: "25" } });
     act(() => input.blur());
@@ -470,7 +473,7 @@ describe("createProactivePage — Advanced", () => {
 
 describe("createProactivePage — the cue lists", () => {
   /** A cue list's master switch, found by its title, and the fold of its group. */
-  function cueGroup(page: ReturnType<typeof createProactivePage>, title: string) {
+  function cueGroup(page: RenderedPage, title: string) {
     const toggle = within(page.el).queryByRole("switch", { name: title });
     const fold = toggle
       ?.closest(".yui-group")
@@ -609,7 +612,7 @@ describe("createProactivePage — the source groups", () => {
     };
   }
 
-  function foldOf(page: ReturnType<typeof createProactivePage>, selector: string) {
+  function foldOf(page: RenderedPage, selector: string) {
     return page.el
       .querySelector(selector)
       ?.closest(".yui-group")
@@ -717,7 +720,7 @@ describe("createProactivePage — the source groups", () => {
       };
     }
 
-    const shown = (page: ReturnType<typeof createProactivePage>, id: string) =>
+    const shown = (page: RenderedPage, id: string) =>
       page.el.querySelector<HTMLInputElement>(id)?.value;
 
     function commit(input: HTMLInputElement | null, value: string) {
@@ -932,8 +935,7 @@ describe("createProactivePage — the source groups", () => {
   });
 
   describe("the signals", () => {
-    const port = (page: ReturnType<typeof createProactivePage>) =>
-      page.el.querySelector<HTMLInputElement>("#yui-agent-port");
+    const port = (page: RenderedPage) => page.el.querySelector<HTMLInputElement>("#yui-agent-port");
 
     it.each([
       null,

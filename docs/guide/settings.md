@@ -1,6 +1,6 @@
 # Settings
 
-The settings window opens from **Settings…** in the tray menu or from **Settings** in her Character menu. The strip picks the character it edits, and the rail splits into two groups: that character's pages and every character's. The search box highlights the rows that match and dims a page with no match.
+The settings window opens from **Settings…** in the tray menu or from **Settings** in her Character menu. The preset header picks the character it edits, and the rail splits into two groups: that character's pages and every character's. The search box highlights the rows that match and dims a page with no match.
 
 ![Settings window, Connection page, Chat section with a provider and a model filled in](/shots/settings-connection.png)
 
@@ -25,7 +25,7 @@ The settings window opens from **Settings…** in the tray menu or from **Settin
 - On **Connection**, **Reset** clears a section's fields. Reset Chat and Reset TTS also clear their keys. Reset STT keeps the shared STT key.
 - The **Voice** page's message window is off outside the desktop app and while unified chat shows.
 - **Plugins** appears only in the desktop app, where the plugin host runs.
-- The note line under the strip says where a change shows: in main, in that character's own window, or when it opens.
+- The note line under the preset header says where a change shows: in main, in that character's own window, or when it opens.
 - A language change reloads the panel.
 
 ## Next

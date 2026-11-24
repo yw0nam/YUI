@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="../../src/ui/quick-controls/quick-controls.css">
 <link rel="stylesheet" href="../../src/ui/quick-controls/controls.css">
 <link rel="stylesheet" href="../../src/ui/quick-controls/search/settings-search.css">
-<link rel="stylesheet" href="../../src/ui/quick-controls/hint-tooltip.css">
+<link rel="stylesheet" href="../../src/ui/controls/tooltip/tooltip.css">
 <link rel="stylesheet" href="../../src/ui/quick-controls/preset/preset.css">
 <link rel="stylesheet" href="../../src/ui/quick-controls/proactive/pace/pace-section.css">
 <link rel="stylesheet" href="../../src/ui/quick-controls/proactive/workflows/workflow-list.css">
@@ -389,14 +389,14 @@ h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: bal
     const key = win.dataset.item;
     const after = key === "all" || win.dataset.state !== "before";
     const top = TOP[key] ? `<p class="yui-tabpanel__scope">${T.scope}</p><h1 class="yui-tabpanel__title">Proactive</h1>` : "";
-    const tip = key === "4" ? `<div class="yui-hint-tip is-open" role="tooltip">${after ? prop("Rules for when she speaks up first") : T.tip}</div>` : "";
+    const tip = key === "4" ? `<div class="yui-hint-tip" data-open role="tooltip">${after ? prop("Rules for when she speaks up first") : T.tip}</div>` : "";
     const line = key === "all" ? `<div class="fold-line" aria-hidden="true"><span>680px · window bottom</span></div>` : "";
     win.innerHTML = `<div class="yui-quick"><div class="yui-quick__cols">${rail()}<div class="yui-quick__body"><div class="yui-tabpanel" role="tabpanel">${top}${VIEWS[key](after)}</div></div></div></div>${tip}${line}`;
     placeTip(win);
     measure(win);
   }
 
-  // The rail tooltip sits under the Proactive tab, as hint-tooltip.ts places it.
+  // The rail tooltip sits under the Proactive tab, as the shared Tooltip places it.
   function placeTip(win) {
     const tip = win.querySelector(".yui-hint-tip");
     if (!tip) return;

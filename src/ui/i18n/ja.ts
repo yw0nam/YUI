@@ -226,7 +226,7 @@ const ja: Record<string, string> = {
   "head.main": "メイン",
   "head.off": "オフ",
 
-  // preset strip and manage popover
+  // preset header and manage popover
   "preset.manage": "プリセットを管理",
   "preset.in_use": "mainに表示中",
   "preset.note_main": "{name}はmainに表示中です。",

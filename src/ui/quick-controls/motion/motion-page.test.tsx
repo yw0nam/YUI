@@ -7,16 +7,17 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
 import { setLocale } from "../../i18n";
+import { renderPage } from "../test-helpers";
 import { createMotionPage } from "./motion-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pages: ReturnType<typeof createMotionPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
 });
@@ -25,15 +26,16 @@ function build() {
   setLocale("en");
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
   const onPreviewEnd = vi.fn();
-  const page = createMotionPage({
-    rows: [],
-    lipsync: createLipsyncSettings({ storage: { load: () => null, save: () => {} } }),
-    onPreview: vi.fn(),
-    onPreviewEnd,
-    isOpen: () => true,
-    log,
-    host: document.body,
-  });
+  const page = renderPage(
+    createMotionPage({
+      rows: [],
+      lipsync: createLipsyncSettings({ storage: { load: () => null, save: () => {} } }),
+      onPreview: vi.fn(),
+      onPreviewEnd,
+      isOpen: () => true,
+      log,
+    }),
+  );
   pages.push(page);
   const slider = within(page.el).getByRole("slider");
   act(() => slider.focus());

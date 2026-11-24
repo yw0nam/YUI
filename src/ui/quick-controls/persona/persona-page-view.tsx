@@ -1,5 +1,6 @@
 /** The Persona page: the Active hours editor above the card. */
 
+import { useEffect } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { Logger } from "../../../logger";
 import type { ActiveHoursSettingsStore } from "../../../settings/active-hours/active-hours-settings";
@@ -22,6 +23,8 @@ export function PersonaPageView({
   inspectPresetVrm,
   log,
   refresh,
+  sources,
+  openDrop,
 }: {
   activeHoursSettings?: ActiveHoursSettingsStore;
   agentSettings: ReturnType<typeof createAgentSettings>;
@@ -35,7 +38,21 @@ export function PersonaPageView({
   inspectPresetVrm: CardIoPorts["inspectPresetVrm"];
   log: Logger;
   refresh(): void;
+  /** Subscriptions held while the page is mounted; each returns its release. */
+  sources: readonly ((() => () => void) | undefined)[];
+  /** Opens the card's drop cover while the page is mounted. */
+  openDrop?: () => { dispose(): void } | undefined;
 }) {
+  useEffect(() => {
+    const offs = sources.map((subscribe) => subscribe?.());
+    return () => {
+      for (const off of offs) off?.();
+    };
+  }, [sources]);
+  useEffect(() => {
+    const cover = openDrop?.();
+    return () => cover?.dispose();
+  }, [openDrop]);
   return (
     <>
       {activeHoursSettings && (

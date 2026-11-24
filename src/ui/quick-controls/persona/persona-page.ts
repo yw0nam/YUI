@@ -1,8 +1,6 @@
-/** The Persona page: its React root, the card's file actions and drop, and the redraw the open hook runs. */
+/** The Persona page: its view, the card's file actions and drop, and the redraw the open hook runs. */
 
-import { createElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { createElement, type RefObject } from "react";
 import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { SubscribeFileDrop } from "../../../io/window/file-drop/file-drop";
 import type { Logger } from "../../../logger";
@@ -12,29 +10,28 @@ import type { createEndpointsSettings } from "../../../settings/backend/endpoint
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { subscribe as subscribeLocale } from "../../i18n";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { createCardDrop } from "./card/card-drop";
 import { currentCard, presetEntry } from "./card/card-entry";
 import type { CardIoPorts } from "./card/card-io";
 import { createCardIo } from "./card/card-io";
 import { PersonaPageView } from "./persona-page-view";
 
-export interface PersonaPage {
-  el: HTMLElement;
+export interface PersonaPage extends PageView {
   /** Repaints the page from its stores and the edit's own card — the open hook. */
   reflect(): void;
-  dispose(): void;
 }
 
 export function createPersonaPage(deps: {
-  /** The panel root the drop cover fills. */
-  root: HTMLElement;
+  /** The panel-wide host the drop cover fills, set once the panel renders. */
+  dropHost: RefObject<HTMLElement | null>;
   /** Per-character active hours; absent where the window edits no character. */
   activeHoursSettings?: ActiveHoursSettingsStore;
   agentSettings: ReturnType<typeof createAgentSettings>;
   endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
   /** Filler pools the card export carries. */
   fillerSettings: Pick<ReturnType<typeof createFillerSettings>, "get">;
-  /** Renames the preset; absent where the panel shows no preset strip. */
+  /** Renames the preset; absent where the panel shows no preset header. */
   registry?: Pick<PresetRegistry, "rename" | "subscribe">;
   /** The bundled config's default cards and fallback words; undefined until the config loads. */
   getPersona?: () => PersonaConfig | undefined;
@@ -70,41 +67,37 @@ export function createPersonaPage(deps: {
     activeHoursSpans: () => deps.activeHoursSettings?.get().spans ?? null,
     log: deps.log,
   });
-  const drop =
-    deps.subscribeFileDrop &&
-    createCardDrop({
-      root: deps.root,
-      subscribe: deps.subscribeFileDrop,
-      isImporting: io.isImporting,
-      importDropped: io.importDropped,
-      log: deps.log,
-    });
+  const { subscribeFileDrop } = deps;
+  const openDrop =
+    subscribeFileDrop &&
+    (() =>
+      deps.dropHost.current
+        ? createCardDrop({
+            root: deps.dropHost.current,
+            subscribe: subscribeFileDrop,
+            isImporting: io.isImporting,
+            importDropped: io.importDropped,
+            log: deps.log,
+          })
+        : undefined);
 
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  const root = createRoot(el);
-  const refresh = (): void => {
-    flushSync(() => root.render(createElement(PersonaPageView, { ...deps, io, refresh })));
-  };
-  refresh();
-
+  const revision = createPageRevision();
+  const refresh = revision.bump;
   const redraw = (): void => {
     if (isOpen()) refresh();
   };
-  const unsubscribes = [
-    agentSettings.subscribe(redraw),
-    endpointsSettings.subscribe(redraw),
-    registry?.subscribe(redraw),
-    subscribeLocale(redraw),
+  const sources = [
+    () => agentSettings.subscribe(redraw),
+    () => endpointsSettings.subscribe(redraw),
+    registry && (() => registry.subscribe(redraw)),
+    () => subscribeLocale(redraw),
   ];
 
   return {
-    el,
+    view: () =>
+      pageStack(() => createElement(PersonaPageView, { ...deps, io, refresh, sources, openDrop }), {
+        revision,
+      }),
     reflect: refresh,
-    dispose(): void {
-      for (const off of unsubscribes) off?.();
-      drop?.dispose();
-      root.unmount();
-    },
   };
 }

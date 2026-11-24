@@ -5,7 +5,7 @@
  * line follows the selection.
  */
 import { readFileSync } from "node:fs";
-import { act, fireEvent } from "@testing-library/react";
+import { fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import {
@@ -23,6 +23,7 @@ import {
   inMemoryApiKeyStorage,
   optionNames,
   pickOption,
+  renderPage,
 } from "../../test-helpers";
 import { createConnectionPage } from "../connection-page";
 
@@ -52,40 +53,38 @@ describe("chat type row", () => {
     endpointsSettings = createEndpointsSettings();
   });
   // Each page the case built, disposed after it.
-  const open: { dispose(): void }[] = [];
+  const open: { unmount(): void }[] = [];
   afterEach(() => {
-    for (const tab of open.splice(0)) act(() => tab.dispose());
+    for (const tab of open.splice(0)) tab.unmount();
     document.body.innerHTML = "";
   });
 
   function build(locale: Locale) {
     setLocale(locale);
     const chatKeySettings = createChatKeySettings();
-    const host = document.body.appendChild(document.createElement("div"));
-    host.innerHTML = '<h1 class="yui-tabpanel__title">Connection</h1>';
-    const tab = createConnectionPage({
-      host,
-      scope: null,
-      initial: "detail",
-      quick: {
-        endpointsSettings,
-        chatKeySettings,
-        proactiveSettings: createProactiveSettings({ locale }),
-        scheduleSettings: createScheduleSettings({ locale }),
-        getFetch: async () => undefined,
-        onConnected: () => {},
-        showHelp: false,
-      },
-      detail: {
-        endpointsSettings,
-        chatKeySettings,
-        ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-        sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
-        agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
-        isOpen: () => true,
-        log: { debug() {}, info() {}, warn() {}, error() {} },
-      },
-    });
+    const tab = renderPage(
+      createConnectionPage({
+        initial: "detail",
+        quick: {
+          endpointsSettings,
+          chatKeySettings,
+          proactiveSettings: createProactiveSettings({ locale }),
+          scheduleSettings: createScheduleSettings({ locale }),
+          getFetch: async () => undefined,
+          onConnected: () => {},
+          showHelp: false,
+        },
+        detail: {
+          endpointsSettings,
+          chatKeySettings,
+          ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+          sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+          agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+          isOpen: () => true,
+          log: { debug() {}, info() {}, warn() {}, error() {} },
+        },
+      }),
+    );
     tab.refresh();
     open.push(tab);
     return tab;

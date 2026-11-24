@@ -12,15 +12,17 @@ import type { createAgentSettings } from "../../../../settings/backend/agent-set
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
 import { Disclosure } from "../../../controls/disclosure";
 import { Switch } from "../../../controls/switch";
+import { Tip } from "../../../controls/tooltip";
 import { getLocale, LOCALE_DISPLAY_NAMES, t } from "../../../i18n";
 import { avatarEl } from "../../../unified/avatar";
-import { CARD_GUIDE_URL, PLUS_SVG } from "../../constants";
+import { CARD_GUIDE_URL } from "../../constants";
 import { PushReason } from "../../sections/push-reason/push-reason";
 import { setValue } from "../set-value";
 import { cardBase, currentCard, presetEntry } from "./card-entry";
 import { CardFileRow } from "./card-file-row";
 import type { CardIo, CardIoPorts } from "./card-io";
 import "./card-section.css";
+import { PLUS_GLYPH } from "../../glyphs";
 
 type TextField =
   | "description"
@@ -65,7 +67,7 @@ export function CardSection({
   refresh,
 }: {
   agentSettings: ReturnType<typeof createAgentSettings>;
-  /** Renames the preset; absent where the panel shows no preset strip. */
+  /** Renames the preset; absent where the panel shows no preset header. */
   registry?: Pick<PresetRegistry, "rename">;
   /** The bundled config's default cards and fallback words; undefined until the config loads. */
   getPersona?: () => PersonaConfig | undefined;
@@ -182,16 +184,17 @@ export function CardSection({
       <div className="yui-sec__head">
         <h2 className="yui-sec__title">
           {t("card.label")}
-          <a
-            className="yui-hint-dot yui-card__help"
-            href={CARD_GUIDE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={help}
-            data-tip={help}
-          >
-            ?
-          </a>
+          <Tip text={help}>
+            <a
+              className="yui-hint-dot yui-card__help"
+              href={CARD_GUIDE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={help}
+            >
+              ?
+            </a>
+          </Tip>
         </h2>
         <span className="yui-sec__state" hidden={!open || own}>
           {t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] })}
@@ -297,9 +300,10 @@ export function CardSection({
               type="button"
               disabled={push}
               onClick={addGreeting}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph shared with other surfaces
-              dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${t("card.greeting_add")}` }}
-            />
+            >
+              {PLUS_GLYPH}
+              {t("card.greeting_add")}
+            </button>
           </div>
         </div>
         <Disclosure label={t("card.advanced")}>

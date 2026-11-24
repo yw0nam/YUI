@@ -1,12 +1,12 @@
 /**
- * The Connection page: its React root, the view it shows, and what the panel calls on it — the
- * open, the entry, the window's focus, a focus request, the close and the teardown.
+ * The Connection page: the view it shows, and what the panel calls on it — the open, the entry,
+ * the window's focus, a focus request and the close.
  */
 
 import { createElement } from "react";
 import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
+import { createPageRevision, type PageView, pageStack } from "../page-view";
 import { ConnectionPageView, type ConnectionView } from "./connection-page-view";
 import type { DetailSettingsDeps, DetailSettingsHandle } from "./detail/detail-settings";
 import type { QuickStartDeps, QuickStartHandle } from "./quick-start/quick-start";
@@ -20,8 +20,9 @@ export interface PushSocketPanelPort {
   reconnectNow(): void;
 }
 
-export interface ConnectionPage {
-  el: HTMLElement;
+export interface ConnectionPage extends PageView {
+  /** Whether Quick start shows; the page's scope line hides meanwhile. */
+  quickShown: { get(): boolean; subscribe(cb: () => void): () => void };
   /** Re-reads every source onto both views: the open hook. */
   refresh(): void;
   /** The page was entered (the panel opened on it, or its rail item was selected). */
@@ -36,43 +37,20 @@ export interface ConnectionPage {
   commit(): void;
   /** The panel closed: drop the in-flight model list read. */
   close(): void;
-  dispose(): void;
 }
 
 export function createConnectionPage(deps: {
-  /** The Connection page's panel: the page renders after its title. */
-  host: HTMLElement;
-  /** The page's scope line, hidden while Quick start shows; absent without the preset strip. */
-  scope: HTMLElement | null;
   initial: ConnectionView;
   quick: QuickStartDeps;
   detail: DetailSettingsDeps;
 }): ConnectionPage {
-  const { host, scope, quick, detail } = deps;
-  const el = document.createElement("div");
-  el.className = "yui-tab-stack";
-  // The page sits in the panel before its first render: Base UI registers a radio group's items only while connected.
-  host.querySelector<HTMLElement>(".yui-tabpanel__title")!.after(el);
-  const root = createRoot(el);
+  const { quick, detail } = deps;
+  const stack: { current: HTMLDivElement | null } = { current: null };
   const quickHandle: QuickStartHandle = { current: null };
   const detailHandle: DetailSettingsHandle = { current: null };
   let view = deps.initial;
-
-  const render = (): void => {
-    flushSync(() =>
-      root.render(
-        createElement(ConnectionPageView, {
-          view,
-          onView: select,
-          quick,
-          detail,
-          quickHandle,
-          detailHandle,
-        }),
-      ),
-    );
-    if (scope) scope.hidden = view === "quick";
-  };
+  const revision = createPageRevision();
+  const render = revision.bump;
 
   function enter(): void {
     if (view === "detail") detailHandle.current?.entered();
@@ -93,17 +71,29 @@ export function createConnectionPage(deps: {
     if (target === "quick" || target === "detail") select(target);
   }
 
-  host.addEventListener("yui-search-reveal", handleReveal);
-  render();
-
   const commit = (): void => detailHandle.current?.commit();
 
   return {
-    el,
+    view: () =>
+      pageStack(
+        () =>
+          createElement(ConnectionPageView, {
+            view,
+            onView: select,
+            quick,
+            detail,
+            quickHandle,
+            detailHandle,
+            stack,
+            onReveal: handleReveal,
+          }),
+        { revision, ref: stack },
+      ),
+    quickShown: { get: () => view === "quick", subscribe: revision.subscribe },
     refresh: render,
     entered: enter,
     windowFocused(): void {
-      const quickView = el.querySelector('.yui-conn-view[data-view="quick"]');
+      const quickView = stack.current?.querySelector('.yui-conn-view[data-view="quick"]');
       if (quickView && !quickView.closest("[hidden]"))
         flushSync(() => quickHandle.current?.entered());
     },
@@ -114,22 +104,15 @@ export function createConnectionPage(deps: {
         flushSync(() => quickHandle.current?.focusKey());
         return;
       }
-      const input = el.querySelector<HTMLInputElement>("#yui-chatkey-input");
+      const input = stack.current?.querySelector<HTMLInputElement>("#yui-chatkey-input");
       input?.scrollIntoView?.({ block: "center" });
       input?.focus({ preventScroll: true });
     },
     focusChatType(): void {
       select("detail");
-      el.querySelector<HTMLElement>(".yui-chat-type")?.focus();
+      stack.current?.querySelector<HTMLElement>(".yui-chat-type")?.focus();
     },
     commit,
     close: () => detailHandle.current?.close(),
-    dispose(): void {
-      // Commit first: the locale remount and the window's teardown rely on dispose landing typed keys and endpoints.
-      commit();
-      host.removeEventListener("yui-search-reveal", handleReveal);
-      root.unmount();
-      el.remove();
-    },
   };
 }

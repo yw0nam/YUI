@@ -4,6 +4,7 @@
  * section the open handler calls is replaced by a recorder, so the case reads the call order only.
  */
 
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { createQuickControls } from "./quick-controls";
@@ -17,57 +18,60 @@ const { order, rec } = vi.hoisted(() => {
   return { order, rec };
 });
 
+// Each mock is typed against its real controller, so a change to the controller's shape fails here.
 vi.mock("./perms/perms-page", () => ({
-  createPermsPage: () => ({
-    el: document.createElement("div"),
+  createPermsPage: (): import("./perms/perms-page").PermsPage => ({
+    view: () => null,
     loadMonitorsIfEnabled: rec("perms", "loadMonitorsIfEnabled"),
-    dispose: () => {},
   }),
 }));
 vi.mock("./connection/connection-page", () => ({
-  createConnectionPage: () => ({
-    el: document.createElement("div"),
+  createConnectionPage: (): import("./connection/connection-page").ConnectionPage => ({
+    view: () => null,
+    quickShown: { get: () => false, subscribe: () => () => {} },
     refresh: rec("connectionPage", "refresh"),
-    entered: () => {},
+    entered: rec("connectionPage", "entered"),
     windowFocused: () => {},
     focusKey: () => {},
     focusChatType: () => {},
     commit: () => {},
     close: () => {},
-    dispose: () => {},
   }),
 }));
 vi.mock("./delegations/delegation-feed", () => ({
-  createDelegationFeed: () => ({ sync: rec("delegationFeed", "sync"), dispose: () => {} }),
+  createDelegationFeed: (): import("./delegations/delegation-feed").DelegationFeed => ({
+    present: false,
+    get: () => [],
+    version: () => 0,
+    subscribe: () => () => {},
+    sync: rec("delegationFeed", "sync"),
+    dispose: () => {},
+  }),
 }));
 vi.mock("./history/history-page", () => ({
-  createHistoryPage: () => ({
-    el: document.createElement("div"),
+  createHistoryPage: (): import("./history/history-page").HistoryPage => ({
+    view: () => null,
     refresh: rec("historyPage", "refresh"),
-    dispose: () => {},
   }),
 }));
 vi.mock("./body/body-page", () => ({
-  createBodyPage: () => ({
-    el: document.createElement("div"),
+  createBodyPage: (): import("./body/body-page").BodyPage => ({
+    view: () => null,
     refresh: rec("bodyPage", "refresh"),
-    dispose: () => {},
   }),
 }));
 vi.mock("./motion/motion-page", () => ({
-  createMotionPage: () => ({
-    el: document.createElement("div"),
+  createMotionPage: (): import("./motion/motion-page").MotionPage => ({
+    view: () => null,
     refresh: rec("motionPage", "refresh"),
     close: () => {},
-    dispose: () => {},
   }),
 }));
 vi.mock("./voice/voice-page", () => ({
-  createVoicePage: () => ({
-    el: document.createElement("div"),
+  createVoicePage: (): import("./voice/voice-page").VoicePage => ({
+    view: () => null,
     refresh: rec("voicePage", "refresh"),
     close: () => {},
-    dispose: () => {},
   }),
 }));
 
@@ -85,13 +89,17 @@ describe("createQuickControls — open order", () => {
     order.length = 0;
   });
 
+  let qc: ReturnType<typeof createQuickControls> | undefined;
+
   afterEach(() => {
+    act(() => qc?.dispose());
+    qc = undefined;
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
 
   it("redraws every remaining section, refetches the voice list, then loads the monitors", () => {
-    const qc = createQuickControls({
+    qc = createQuickControls({
       ...defaultQcArgs(mount),
       transcript: createChatHistoryStore(),
       refreshVoiceList: rec("shell", "refreshVoiceList"),
@@ -109,6 +117,28 @@ describe("createQuickControls — open order", () => {
       "shell.refreshVoiceList",
       "perms.loadMonitorsIfEnabled",
     ]);
-    qc.dispose();
+  });
+
+  it("opening on the Connection page enters it after every redraw and before the voice list and the monitors", () => {
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      transcript: createChatHistoryStore(),
+      refreshVoiceList: rec("shell", "refreshVoiceList"),
+      openOnQuickStart: true,
+    });
+
+    qc.open();
+
+    expect(order).toEqual([
+      "connectionPage.refresh",
+      "delegationFeed.sync",
+      "historyPage.refresh",
+      "bodyPage.refresh",
+      "motionPage.refresh",
+      "voicePage.refresh",
+      "connectionPage.entered",
+      "shell.refreshVoiceList",
+      "perms.loadMonitorsIfEnabled",
+    ]);
   });
 });

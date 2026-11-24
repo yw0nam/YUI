@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { Logger } from "../../../../logger";
 import type { PhotoCrop, PhotoSize } from "../../../../settings/preset/photo-crop";
-import { openPhotoDialog } from "./photo-dialog";
+import { PhotoDialog, type PhotoDialogProps } from "./photo-dialog";
 import { closeDialogs, stubModalDialog } from "./test-helpers";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const SIZE: PhotoSize = { width: 900, height: 1000 };
 const entry = { id: "aaaa0001", name: "Natsume", thumbnail: "asset://a.png" };
 
 beforeAll(stubModalDialog);
 
-const deferred = <T>() => {
+const deferred = <T,>() => {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -33,31 +37,45 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  closeDialogs();
+  act(() => closeDialogs());
+  act(() => cleanup());
 });
 
-function open(over: Partial<Parameters<typeof openPhotoDialog>[0]> = {}) {
-  openPhotoDialog({
-    entry,
-    url: "asset://a.png",
-    picked: false,
-    pick: async () => null,
-    save,
-    saveUrl,
-    log: { warn, info } as unknown as Logger,
-    measure: async () => SIZE,
-    ...over,
+// The caller unmounts the dialog once it closes.
+function Shown(p: Omit<PhotoDialogProps, "onClosed">) {
+  const [shown, setShown] = useState(true);
+  return shown ? <PhotoDialog {...p} onClosed={() => setShown(false)} /> : null;
+}
+
+function open(over: Partial<Omit<PhotoDialogProps, "onClosed">> = {}) {
+  act(() => {
+    render(
+      <Shown
+        entry={entry}
+        url="asset://a.png"
+        picked={false}
+        pick={async () => null}
+        save={save}
+        saveUrl={saveUrl}
+        log={{ warn, info } as unknown as Logger}
+        measure={async () => SIZE}
+        {...over}
+      />,
+      { container: document.body.appendChild(document.createElement("div")) },
+    );
   });
 }
-const act = (name: string) => document.querySelector<HTMLButtonElement>(`[data-act=${name}]`)!;
-const ready = () => vi.waitFor(() => expect(act("use").disabled).toBe(false));
+const button = (name: string) =>
+  document.querySelector<HTMLButtonElement>(`dialog[open] [data-act=${name}]`)!;
+const click = (name: string) => act(() => button(name).click());
+const ready = () => vi.waitFor(() => expect(button("use").disabled).toBe(false));
 
-describe("openPhotoDialog", () => {
+describe("PhotoDialog", () => {
   it("opens on the stored crop and Use photo saves it unchanged", async () => {
     open({ entry: { ...entry, crop: { x: 0.1, y: 0.2, size: 0.5 } } });
     await ready();
 
-    act("use").click();
+    click("use");
 
     expect(save).toHaveBeenCalledTimes(1);
     const [url, crop] = save.mock.calls[0]!;
@@ -94,10 +112,11 @@ describe("openPhotoDialog", () => {
     const fill = () => slider.style.getPropertyValue("--fill");
 
     expect(fill()).toBe("0");
-    slider.value = "700";
-    slider.dispatchEvent(new Event("input"));
+    act(() => {
+      fireEvent.change(slider, { target: { value: "700" } });
+    });
     expect(fill()).toBe("1");
-    act("face").click();
+    click("face");
     expect(Number(fill())).toBeCloseTo((900 / 495 - 1) / 6, 6);
   });
 
@@ -108,7 +127,7 @@ describe("openPhotoDialog", () => {
     );
     await ready();
 
-    act("use").click();
+    click("use");
 
     expect(info).toHaveBeenCalledWith("photo_crop_saved", { preset: "aaaa0001" });
   });
@@ -119,7 +138,7 @@ describe("openPhotoDialog", () => {
       expect(save).toHaveBeenCalledWith("asset://a.png", { x: 0, y: 0, size: 1 }),
     );
 
-    act("cancel").click();
+    click("cancel");
 
     expect(save).toHaveBeenCalledTimes(1);
   });
@@ -130,15 +149,30 @@ describe("openPhotoDialog", () => {
     open({ measure, pick: async () => "asset://b.png" });
     await ready();
 
-    act("choose").click();
+    click("choose");
     await vi.waitFor(() => expect(saveUrl).toHaveBeenCalledWith("asset://b.png"));
     expect(save).not.toHaveBeenCalled();
-    expect(act("choose").disabled).toBe(true);
+    expect(button("choose").disabled).toBe(true);
 
     size.resolve({ width: 1000, height: 500 });
     await vi.waitFor(() =>
       expect(save).toHaveBeenCalledWith("asset://b.png", { x: 0.25, y: 0, size: 0.5 }),
     );
+  });
+
+  it("a photo chosen just before Cancel is stored, then its default framing once measured", async () => {
+    const picked = deferred<string | null>();
+    open({ pick: () => picked.promise });
+    await ready();
+
+    click("choose");
+    click("cancel");
+    picked.resolve("asset://b.png");
+
+    await vi.waitFor(() =>
+      expect(save).toHaveBeenCalledWith("asset://b.png", { x: 0, y: 0, size: 1 }),
+    );
+    expect(saveUrl).toHaveBeenCalledWith("asset://b.png");
   });
 
   it("a photo that cannot be measured shows the failure and saves no crop", async () => {
@@ -151,9 +185,9 @@ describe("openPhotoDialog", () => {
     });
     await ready();
 
-    act("choose").click();
+    click("choose");
 
-    await vi.waitFor(() => expect(act("use").disabled).toBe(true));
+    await vi.waitFor(() => expect(button("use").disabled).toBe(true));
     expect(saveUrl).toHaveBeenCalledWith("asset://b.png");
     expect(save).not.toHaveBeenCalled();
     expect(document.querySelector<HTMLImageElement>(".yui-photo-dialog__stage > img")?.hidden).toBe(
@@ -173,7 +207,7 @@ describe("openPhotoDialog", () => {
     });
     await ready();
 
-    act("choose").click();
+    click("choose");
 
     await vi.waitFor(() =>
       expect(warn).toHaveBeenCalledWith("photo_pick_failed", {
@@ -187,8 +221,8 @@ describe("openPhotoDialog", () => {
   it("a measure resolving after Cancel still saves the default, unless a later pick of that preset came first", async () => {
     const first = deferred<PhotoSize>();
     open({ picked: true, url: "asset://a.png", measure: () => first.promise });
-    expect(act("choose").disabled).toBe(true);
-    act("cancel").click();
+    expect(button("choose").disabled).toBe(true);
+    click("cancel");
     first.resolve(SIZE);
     await vi.waitFor(() =>
       expect(save).toHaveBeenCalledWith("asset://a.png", { x: 0, y: 0, size: 1 }),
@@ -197,7 +231,7 @@ describe("openPhotoDialog", () => {
     save.mockClear();
     const stale = deferred<PhotoSize>();
     open({ picked: true, url: "asset://c.png", measure: () => stale.promise });
-    act("cancel").click();
+    click("cancel");
     open({ picked: true, url: "asset://d.png" });
     await vi.waitFor(() =>
       expect(save).toHaveBeenCalledWith("asset://d.png", { x: 0, y: 0, size: 1 }),
@@ -214,9 +248,11 @@ describe("openPhotoDialog", () => {
     const onDoc = vi.fn();
     document.addEventListener("keydown", onDoc);
 
-    document.body.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
-    );
+    act(() => {
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
 
     document.removeEventListener("keydown", onDoc);
     expect(onDoc).not.toHaveBeenCalled();
@@ -226,10 +262,10 @@ describe("openPhotoDialog", () => {
   it("any save for a preset supersedes an older pick's pending default", async () => {
     const first = deferred<PhotoSize>();
     open({ picked: true, url: "asset://a.png", measure: () => first.promise });
-    act("cancel").click();
+    click("cancel");
     open({ entry: { ...entry, crop: { x: 0.1, y: 0.2, size: 0.5 } } });
     await ready();
-    act("use").click();
+    click("use");
     save.mockClear();
 
     first.resolve(SIZE);
@@ -248,11 +284,11 @@ describe("openPhotoDialog", () => {
       stage.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: 100, bubbles: true }));
     const left0 = parseFloat(img.style.left);
 
-    at("pointerdown", 100);
-    at("pointermove", 110);
+    act(() => at("pointerdown", 100));
+    act(() => at("pointermove", 110));
     expect(parseFloat(img.style.left)).toBeCloseTo(left0 + 10, 6);
-    stage.dispatchEvent(new Event("pointercancel"));
-    at("pointermove", 150);
+    act(() => stage.dispatchEvent(new Event("pointercancel", { bubbles: true })));
+    act(() => at("pointermove", 150));
 
     expect(parseFloat(img.style.left)).toBeCloseTo(left0 + 10, 6);
   });

@@ -14,7 +14,7 @@ const LIT: Record<RelationBand, readonly string[]> = {
 
 const SVG = (d: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-export const CHEVRON_SVG = SVG('<path d="M6 9l6 6 6-6"/>');
+const CHEVRON_SVG = SVG('<path d="M6 9l6 6 6-6"/>');
 const UP_SVG = SVG('<path d="M6 15l6-6 6 6"/>');
 
 /** The glyph; `none` lights nothing and leaves the notch Muted Ash, for a target not rated yet. */
@@ -28,30 +28,6 @@ export function glyphEl(band: RelationBand | "none"): HTMLElement {
     '<span class="yui-glyph__mid"></span>' +
     '<span class="yui-glyph__seg" data-s="1"></span><span class="yui-glyph__seg" data-s="2"></span>';
   return glyph;
-}
-
-/** One relation: the glyph, and the target's name when `name` is given. */
-export function relationEl(p: {
-  subject: string;
-  target: string;
-  band: RelationBand;
-  label: string;
-  name?: string;
-}): HTMLElement {
-  const el = document.createElement("span");
-  el.className = "yui-relation";
-  el.tabIndex = 0;
-  el.dataset.subject = p.subject;
-  el.dataset.target = p.target;
-  el.setAttribute("aria-label", p.label);
-  el.append(glyphEl(p.band));
-  if (p.name !== undefined) {
-    const to = document.createElement("span");
-    to.className = "yui-relation__to";
-    to.textContent = p.name;
-    el.append(to);
-  }
-  return el;
 }
 
 /** The up or down chevron of a change, with its direction for a screen reader. */

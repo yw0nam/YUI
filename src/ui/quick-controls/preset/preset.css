@@ -1,5 +1,5 @@
-/* ── Preset strip — spanning rail and body; the one place the edited preset is picked ── */
-/* The strip, not the columns, sits below the native macOS titlebar (28px). */
+/* ── Preset header — spanning rail and body; the one place the edited preset is picked ── */
+/* The header, not the columns, sits below the native macOS titlebar (28px). */
 .yui-preset {
   position: relative;
   flex: 0 0 auto;

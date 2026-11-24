@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // The line-icon look rides on two strokes only, chosen by rendered size:
 // 1.5 at 0.9rem or larger, 2 below it where a 24-viewBox glyph needs the heavier line.
 const SRC = fileURLToPath(new URL("..", import.meta.url));
-const STROKE_ATTR = /stroke-width\s*=\s*"([^"]+)"/g;
+const STROKE_ATTR = /(?:stroke-width|strokeWidth)\s*=\s*"([^"]+)"/g;
 
 describe("icon stroke widths", () => {
   it("uses only 1.5 or 2 across src/ui", () => {

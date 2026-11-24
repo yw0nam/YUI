@@ -6,7 +6,8 @@
  */
 
 import { fireEvent } from "@testing-library/react";
-import { act } from "react";
+import { act, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
 import { vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import { createVrmSelection } from "../../io/assets/vrm-selection";
@@ -311,4 +312,22 @@ export async function optionNames(trigger: Element): Promise<(string | null)[]> 
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
   });
   return names;
+}
+
+export { hoverTip, keyboardFocus, shownTip } from "../controls/tooltip/tip-test-helpers";
+
+/** Renders a page controller's view into the document, as the panel does; `el` is the page's element. */
+export function renderPage<P extends { view(): ReactNode }>(
+  page: P,
+): P & { el: HTMLElement; unmount(): void } {
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  act(() => root.render(page.view()));
+  return Object.assign(page, {
+    el: host.firstElementChild as HTMLElement,
+    unmount(): void {
+      act(() => root.unmount());
+      host.remove();
+    },
+  });
 }

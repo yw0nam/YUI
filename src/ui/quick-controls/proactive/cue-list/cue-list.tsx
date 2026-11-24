@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import type { Cue } from "../../../../settings/cues/cue-list-settings";
-import { PLUS_SVG } from "../../constants";
 import "../../../message/cue-list.css";
+import { PLUS_GLYPH } from "../../glyphs";
 import { CueRow, type CueStore, type CueTrigger } from "./cue-row";
 
 export interface CueListProps<C extends Cue> {
@@ -58,9 +58,10 @@ export function CueList<C extends Cue>({ entries, store, trigger, addLabel }: Cu
           className="yui-add-btn"
           data-testid="cue-add"
           onClick={() => store.addCue()}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant glyph beside the caller's translated label
-          dangerouslySetInnerHTML={{ __html: `${PLUS_SVG}${addLabel}` }}
-        />
+        >
+          {PLUS_GLYPH}
+          {addLabel}
+        </button>
       </div>
     </>
   );

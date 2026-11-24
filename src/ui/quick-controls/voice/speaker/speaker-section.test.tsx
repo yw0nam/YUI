@@ -14,18 +14,19 @@ import { createFillerSettings } from "../../../../settings/voice/filler-settings
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
 import "../../test-helpers";
-import { createVoicePage, type VoicePage } from "../voice-page";
+import { renderPage } from "../../test-helpers";
+import { createVoicePage } from "../voice-page";
 
 // React's act() only flushes in a test environment that says so.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
-const pages: VoicePage[] = [];
+const pages: { unmount(): void }[] = [];
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
 });
@@ -39,27 +40,27 @@ function buildPage(
     defaultValue: "natsume",
     available: [{ id: "natsume", label: "Natsume", ref_url: "" }],
   });
-  const page = createVoicePage({
-    rows: createSwitchRows({
-      idleThrottleSettings: createFlagSettings(true),
+  const page = renderPage(
+    createVoicePage({
+      rows: createSwitchRows({
+        idleThrottleSettings: createFlagSettings(true),
+        fillerSettings,
+      }).filter((row) => row.tab === "voice"),
       fillerSettings,
-    }).filter((row) => row.tab === "voice"),
-    fillerSettings,
-    speakerSelection,
-    swapSpeaker: vi.fn(async () => {}),
-    refreshSpeaker: vi.fn(async () => {}),
-    pickVoiceImport: vi.fn(async () => null),
-    commitVoiceImport: vi.fn(async () => {}),
-    removeVoice: vi.fn(async () => {}),
-    canManageVoices: () => true,
-    canReuploadVoices: () => true,
-    canPasteVoiceId,
-    log: noopLog,
-    refreshTooltip: () => {},
-    isOpen: () => true,
-    host: document.body,
-    ...overrides,
-  });
+      speakerSelection,
+      swapSpeaker: vi.fn(async () => {}),
+      refreshSpeaker: vi.fn(async () => {}),
+      pickVoiceImport: vi.fn(async () => null),
+      commitVoiceImport: vi.fn(async () => {}),
+      removeVoice: vi.fn(async () => {}),
+      canManageVoices: () => true,
+      canReuploadVoices: () => true,
+      canPasteVoiceId,
+      log: noopLog,
+      isOpen: () => true,
+      ...overrides,
+    }),
+  );
   pages.push(page);
   return { el: page.el, speakerSelection, page };
 }

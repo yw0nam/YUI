@@ -13,7 +13,7 @@ import type { Logger } from "../../../logger";
 import { createScreenshotSettings } from "../../../settings/capture/screenshot-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, renderPage } from "../test-helpers";
 import { createPermsPage } from "./perms-page";
 
 // React's act() only flushes in a test environment that says so.
@@ -24,7 +24,7 @@ const newSettings = () =>
 // listMonitors is async; let its promise settle inside act before asserting.
 const settle = () => act(async () => {});
 
-const pages: ReturnType<typeof createPermsPage>[] = [];
+const pages: { unmount(): void }[] = [];
 
 function build({
   enabled = false,
@@ -38,14 +38,15 @@ function build({
   const settings = newSettings();
   if (enabled) settings.setEnabled(true);
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } satisfies Logger;
-  const page = createPermsPage({
-    settings,
-    sourceProvider: { listMonitors },
-    log,
-    isOpen: () => open,
-  });
+  const page = renderPage(
+    createPermsPage({
+      settings,
+      sourceProvider: { listMonitors },
+      log,
+      isOpen: () => open,
+    }),
+  );
   pages.push(page);
-  document.body.append(page.el);
   const view = within(page.el);
   return {
     page,
@@ -61,7 +62,7 @@ function build({
 
 afterEach(() => {
   act(() => {
-    for (const page of pages.splice(0)) page.dispose();
+    for (const page of pages.splice(0)) page.unmount();
   });
   document.body.innerHTML = "";
   setLocale("en");
@@ -115,14 +116,14 @@ describe("createPermsPage", () => {
     expect(on.listMonitors).toHaveBeenCalledTimes(1);
   });
 
-  it("after dispose() a store change does not load and the page's switch is gone", async () => {
+  it("after the page unmounts a store change does not load and the page's switch is gone", async () => {
     const { page, settings, listMonitors } = build();
 
-    act(() => page.dispose());
+    page.unmount();
     await act(async () => settings.setEnabled(true));
 
     expect(listMonitors).not.toHaveBeenCalled();
-    expect(page.el.querySelector(".yui-screenshot-switch")).toBeNull();
+    expect(document.querySelector(".yui-screenshot-switch")).toBeNull();
   });
 });
 
