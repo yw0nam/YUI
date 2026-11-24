@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { StageRect } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
+import type { HoldOptions } from "../locomotion/hold/holds";
 import { createComeAlong } from "./come-along";
 
 // One 1920 × 900 pt monitor at scale 2, its work area ending at 875 pt.
@@ -44,7 +45,7 @@ function harness(
     setFrameLogical: vi.fn(async () => {}),
   };
   const locomotion = {
-    hold: vi.fn<(holder: "come-along", on: boolean, onAbort?: () => void) => void>(),
+    hold: vi.fn<(holder: "come-along", on: boolean, opts?: HoldOptions) => void>(),
     abortTravel: vi.fn(async () => {}),
     widen: vi.fn(async (_via: Array<{ x: number; y: number }>) => {
       virtual = { x: real.x, y: real.y };
@@ -105,7 +106,7 @@ function harness(
     await vi.waitFor(() => expect(ticks.size).toBe(1));
     while (ticks.size > 0) tick(10);
   };
-  const abort = () => locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.();
+  const abort = () => locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.onAbort?.();
   return {
     comeAlong,
     real,
@@ -207,7 +208,12 @@ describe("createComeAlong", () => {
   it("holds her, leaves her seat and lets a running travel end before she leaves", async () => {
     const h = await docked();
 
-    expect(h.locomotion.hold).toHaveBeenCalledWith("come-along", true, expect.any(Function));
+    expect(h.locomotion.hold).toHaveBeenCalledWith("come-along", true, {
+      onAbort: expect.any(Function),
+      endsOnDrag: true,
+      keepsGeometry: true,
+      pausesKeepOnScreen: true,
+    });
     expect(h.locomotion.release).toHaveBeenCalledOnce();
     expect(h.locomotion.abortTravel.mock.invocationCallOrder[0]).toBeLessThan(
       h.locomotion.widen.mock.invocationCallOrder[0]!,

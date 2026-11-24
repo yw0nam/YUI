@@ -61,7 +61,7 @@ export function createMenuFrame(deps: {
   }
 
   async function place(widths: MenuWidths): Promise<MenuPlacement> {
-    locomotion.hold("menu", true, deps.onAbort);
+    locomotion.hold("menu", true, { onAbort: deps.onAbort });
     let fold: Fold | null = null;
     try {
       // A cancelled stroll or climb may still be unparking its travel.

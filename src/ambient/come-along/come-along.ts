@@ -20,6 +20,7 @@ import {
 import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import type { HoldOptions } from "../locomotion/hold/holds";
 import { WALK_MOTION_ID, WALK_YAW_EASE_MS, WALK_YAW_RAD } from "../locomotion/walk/walker";
 
 const log = createLogger("come-along");
@@ -45,7 +46,7 @@ export interface ComeAlongDeps {
   isBusy(): boolean;
   peek: { active(): boolean; exit(): Promise<void> };
   locomotion: {
-    hold(holder: "come-along", on: boolean, onAbort?: () => Promise<void>): void;
+    hold(holder: "come-along", on: boolean, opts?: HoldOptions): void;
     abortTravel(): Promise<void>;
     widen(via: Point[]): Promise<Travel>;
     release(): void;
@@ -202,7 +203,13 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
     session = "on";
     const id = begin();
-    locomotion.hold("come-along", true, taken);
+    // Whoever moves her owns her; on the stage her bounds are the slot's, not her own spot's.
+    locomotion.hold("come-along", true, {
+      onAbort: taken,
+      endsOnDrag: true,
+      keepsGeometry: true,
+      pausesKeepOnScreen: true,
+    });
     if (deps.peek.active()) await deps.peek.exit();
     await locomotion.abortTravel();
     locomotion.release();

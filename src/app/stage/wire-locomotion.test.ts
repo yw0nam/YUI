@@ -96,7 +96,6 @@ describe("wireLocomotion", () => {
       abandonSit: vi.fn(),
       release: vi.fn(),
       setKeepOnScreenPaused: vi.fn(),
-      holdKeepOnScreen: vi.fn(),
       dispose: () => teardowns.push("windowSources.dispose"),
     };
     const percher = {
@@ -244,10 +243,10 @@ describe("wireLocomotion", () => {
     const s = setup();
 
     s.travelFrameDeps.setKeepOnScreenPaused(true);
-    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenCalledWith(true);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenCalledWith("travel", true);
 
     s.travelFrameDeps.setKeepOnScreenPaused(false);
-    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith("travel", false);
   });
 
   it("hands out the real frame window", () => {
@@ -301,8 +300,10 @@ describe("wireLocomotion", () => {
     );
   });
 
-  it("keeps her held while another holder still holds her", () => {
+  it("keeps her held while another holder still holds her, and tells listeners at each release", () => {
     const s = setup();
+    const released = vi.fn();
+    s.locomotion.onHoldReleased(released);
     s.locomotion.hold("come-along", true);
     s.locomotion.hold("menu", true);
 
@@ -315,6 +316,7 @@ describe("wireLocomotion", () => {
     expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
       [false, false, false],
     );
+    expect(released).toHaveBeenCalledTimes(2);
   });
 
   it("widens by parking the travel frame from her position over both via points", async () => {
@@ -337,8 +339,8 @@ describe("wireLocomotion", () => {
     const s = setup();
     const menuAbort = vi.fn();
     const comeAlongAbort = vi.fn();
-    s.locomotion.hold("menu", true, menuAbort);
-    s.locomotion.hold("come-along", true, comeAlongAbort);
+    s.locomotion.hold("menu", true, { onAbort: menuAbort });
+    s.locomotion.hold("come-along", true, { onAbort: comeAlongAbort });
 
     await s.windowSourcesDeps.noteAgentMove();
     await s.windowSourcesDeps.noteAgentMove();
@@ -346,7 +348,7 @@ describe("wireLocomotion", () => {
     expect([menuAbort.mock.calls.length, comeAlongAbort.mock.calls.length]).toEqual([1, 1]);
   });
 
-  it("lets only the come-along go on a drag start, and its abort travel waits for that release", async () => {
+  it("ends only the holds that end on a drag at a drag start, and its abort travel waits for them", async () => {
     const s = setup();
     let release!: () => void;
     const comeAlongAbort = vi.fn(
@@ -356,8 +358,8 @@ describe("wireLocomotion", () => {
         }),
     );
     const menuAbort = vi.fn();
-    s.locomotion.hold("menu", true, menuAbort);
-    s.locomotion.hold("come-along", true, comeAlongAbort);
+    s.locomotion.hold("menu", true, { onAbort: menuAbort });
+    s.locomotion.hold("come-along", true, { onAbort: comeAlongAbort, endsOnDrag: true });
 
     s.locomotion.setDragging(true);
     let settled = false;
@@ -378,14 +380,12 @@ describe("wireLocomotion", () => {
   it("lets an agent move wait for a holder's release", async () => {
     const s = setup();
     let release!: () => void;
-    s.locomotion.hold(
-      "come-along",
-      true,
-      () =>
+    s.locomotion.hold("come-along", true, {
+      onAbort: () =>
         new Promise<void>((resolve) => {
           release = resolve;
         }),
-    );
+    });
     let settled = false;
 
     void s.windowSourcesDeps.noteAgentMove().then(() => {
@@ -398,50 +398,32 @@ describe("wireLocomotion", () => {
     await vi.waitFor(() => expect(settled).toBe(true));
   });
 
-  it("pauses the keep-on-screen guard while any holder holds her", () => {
+  it("pauses the keep-on-screen guard while a hold that asks it lasts", () => {
     const s = setup();
 
-    s.locomotion.hold("come-along", true);
     s.locomotion.hold("menu", true);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith("hold", false);
+    s.locomotion.hold("come-along", true, { pausesKeepOnScreen: true });
     s.locomotion.hold("menu", false);
-    expect(s.windowSources.holdKeepOnScreen).toHaveBeenLastCalledWith(true);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith("hold", true);
 
     s.locomotion.hold("come-along", false);
-    expect(s.windowSources.holdKeepOnScreen).toHaveBeenLastCalledWith(false);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith("hold", false);
   });
 
-  it("saves a resize as her window geometry only while no come-along holds her", () => {
+  it("saves a resize as her window geometry only while no hold keeps it, and tells each resize listener", () => {
     const s = setup();
     const bounds = { x: 0, y: 0, width: 424, height: 636 };
-    s.locomotion.hold("come-along", true);
+    const resized = vi.fn();
+    s.locomotion.onResizeApplied(resized);
+    s.locomotion.hold("come-along", true, { keepsGeometry: true });
 
     s.windowSourcesDeps.onResizeApplied(bounds);
     s.locomotion.hold("come-along", false);
     s.windowSourcesDeps.onResizeApplied(bounds);
 
     expect(s.windowGeometry.onResizeApplied.mock.calls).toEqual([[bounds]]);
-  });
-
-  it("reports a parked travel, and tells each listener when a holder lets go", () => {
-    const s = setup();
-    s.travelFrame.travel.current.mockReturnValue({} as never);
-    const released = vi.fn();
-    s.locomotion.onHoldReleased(released);
-
-    s.locomotion.hold("menu", true);
-    s.locomotion.hold("menu", false);
-
-    expect([s.locomotion.isTravelling(), released.mock.calls.length]).toEqual([true, 1]);
-  });
-
-  it("tells each resize listener after a Ctrl+wheel resize", () => {
-    const s = setup();
-    const resized = vi.fn();
-    s.locomotion.onResizeApplied(resized);
-
-    s.windowSourcesDeps.onResizeApplied({ x: 0, y: 0, width: 424, height: 636 });
-
-    expect(resized).toHaveBeenCalledOnce();
+    expect(resized).toHaveBeenCalledTimes(2);
   });
 
   it("follows the climb toggle: the stored value at start and each later store change", () => {

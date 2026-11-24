@@ -1,6 +1,7 @@
 /** Composes the travel frame, the five locomotion loops and the window sources into one handle. */
 import { wireClimber } from "../../ambient/locomotion/climb/wire-climb";
 import { wireFaller } from "../../ambient/locomotion/fall/wire-fall";
+import { createHolds, type HoldOptions } from "../../ambient/locomotion/hold/holds";
 import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { createSitter, type Sitter } from "../../ambient/locomotion/sitter";
 import { wireTravelFrame } from "../../ambient/locomotion/travel/wire-travel-frame";
@@ -45,9 +46,6 @@ export function createSitLossFall(deps: {
   };
 }
 
-/** Who holds her still: the open Character menu, or her come-along onto the settings stage. */
-export type LocomotionHolder = "menu" | "come-along";
-
 export function wireLocomotion(deps: {
   bound?: boolean;
   bus: EventBus;
@@ -79,11 +77,10 @@ export function wireLocomotion(deps: {
   /** Settles once a travel ended and a holder a drag let go has finished letting go. */
   abortTravel(): Promise<void>;
   /**
-   * Holds her still while any holder holds her: cancels the loops, keeps a stroll, climb or perch
-   * walk from starting, and pauses the keep-on-screen guard. `onAbort` runs once when an agent
-   * move takes her, and for the come-along also when a drag does; the move waits for it.
+   * Holds her still while any holder holds her: cancels the loops and keeps a stroll, climb or
+   * perch walk from starting; `opts` declares what else the hold does.
    */
-  hold(holder: LocomotionHolder, on: boolean, onAbort?: () => void | Promise<void>): void;
+  hold(holder: string, on: boolean, opts?: HoldOptions): void;
   /** Parks the real window over her position and the `via` origins. */
   widen(via: Array<{ x: number; y: number }>): Promise<Travel>;
   /** Leaves her seat on a window, as an agent move does. */
@@ -126,10 +123,12 @@ export function wireLocomotion(deps: {
 
   // Set once the drop source exists — the travel frame pauses its keep-on-screen guard
   // while it parks the window itself.
-  let windowSourcesRef: { setKeepOnScreenPaused(paused: boolean): void } | null = null;
+  let windowSourcesRef: {
+    setKeepOnScreenPaused(holder: "travel" | "hold", paused: boolean): void;
+  } | null = null;
   const travelFrame = wireTravelFrame({
     renderer,
-    setKeepOnScreenPaused: (paused) => windowSourcesRef?.setKeepOnScreenPaused(paused),
+    setKeepOnScreenPaused: (paused) => windowSourcesRef?.setKeepOnScreenPaused("travel", paused),
     log,
   });
   register(travelFrame.dispose);
@@ -137,18 +136,11 @@ export function wireLocomotion(deps: {
   // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
   // stroll at once; an ordinary turn walks on. A hold keeps her still the way a drag does.
   let dragging = false;
-  // Each holder, with the abort an agent move runs once.
-  const holders = new Map<LocomotionHolder, (() => void | Promise<void>) | undefined>();
-  const held = (): boolean => holders.size > 0;
-  let letGo: Promise<unknown> = Promise.resolve();
-  const abortHolders = (only?: LocomotionHolder): Promise<unknown> => {
-    const aborts = [...holders].filter(([holder]) => !only || holder === only);
-    for (const [holder] of aborts) holders.set(holder, undefined);
-    letGo = Promise.all(aborts.map(([, onAbort]) => onAbort?.()));
-    return letGo;
-  };
+  const holds = createHolds({
+    pauseKeepOnScreen: (paused) => windowSourcesRef?.setKeepOnScreenPaused("hold", paused),
+  });
+  const held = holds.held;
   const resizeListeners = new Set<() => void>();
-  const releaseListeners = new Set<() => void>();
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -212,17 +204,16 @@ export function wireLocomotion(deps: {
       climberRef?.cancel();
       percherRef?.cancel();
       sitter.cancel();
-      const holdersLetGo = abortHolders();
+      const holdsLetGo = holds.abort("agent");
       // A cancelled climb or stroll may still be unparking its travel.
-      return Promise.all([holdersLetGo, travelFrame.abort()]).then(() => {});
+      return Promise.all([holdsLetGo, travelFrame.abort()]).then(() => {});
     },
     onDragMiss: () => faller.drop({ landOnSeam: true, byUser: true }),
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
     onResizeApplied: (bounds) => {
-      // On the settings stage her bounds are the slot's, not her own spot's.
-      if (!holders.has("come-along")) deps.windowGeometry?.onResizeApplied(bounds);
+      if (!holds.keepsGeometry()) deps.windowGeometry?.onResizeApplied(bounds);
       for (const cb of resizeListeners) cb();
     },
     onDragReleased: async () => {
@@ -296,21 +287,20 @@ export function wireLocomotion(deps: {
     dropSource: windowSources,
     setDragging(next) {
       dragging = next;
-      // Whoever moves her owns her: the drag ends her come-along.
-      if (next) void abortHolders("come-along");
+      if (next) void holds.abort("drag");
     },
     cancel,
     async abortTravel() {
       await travelFrame.abort();
-      await letGo;
+      await holds.lettingGo();
     },
-    hold(holder, on, onAbort) {
-      if (on) {
-        cancel();
-        holders.set(holder, onAbort);
-      } else holders.delete(holder);
-      windowSources.holdKeepOnScreen(held());
-      if (!on) for (const cb of releaseListeners) cb();
+    hold(holder, on, opts) {
+      if (!on) {
+        holds.release(holder);
+        return;
+      }
+      cancel();
+      holds.take(holder, opts);
     },
     async widen(via) {
       const win = travelFrame.getWindow();
@@ -330,10 +320,7 @@ export function wireLocomotion(deps: {
     },
     ready: travelFrame.ready,
     isTravelling: () => travelFrame.travel.current() !== null,
-    onHoldReleased(cb) {
-      releaseListeners.add(cb);
-      return () => releaseListeners.delete(cb);
-    },
+    onHoldReleased: holds.onReleased,
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };

@@ -67,10 +67,8 @@ export function wireWindowSources(deps: {
   noteUserDragEnd(): void;
   /** The avatar RPC executor once the asynchronous Tauri init created it, null until then. */
   getAvatarExecutor(): AvatarExecutor | null;
-  /** Pause the keep-on-screen guard while a travel parks the window itself. */
-  setKeepOnScreenPaused(paused: boolean): void;
-  /** Pause the keep-on-screen guard while locomotion holds her still. */
-  holdKeepOnScreen(held: boolean): void;
+  /** Pause the keep-on-screen guard while a travel parks the window itself, or a hold asks it. */
+  setKeepOnScreenPaused(holder: "travel" | "hold", paused: boolean): void;
   dispose(): void;
 } {
   const {
@@ -112,8 +110,8 @@ export function wireWindowSources(deps: {
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
     abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
-    setKeepOnScreenPaused: (paused: boolean) => keepOnScreenPause.setPaused("travel", paused),
-    holdKeepOnScreen: (held: boolean) => keepOnScreenPause.setPaused("hold", held),
+    setKeepOnScreenPaused: (holder: "travel" | "hold", paused: boolean) =>
+      keepOnScreenPause.setPaused(holder, paused),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();

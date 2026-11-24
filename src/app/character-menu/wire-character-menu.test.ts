@@ -113,7 +113,9 @@ it("opens the menu on a right-click on her, widened around her and holding her s
 
   expect(event.defaultPrevented).toBe(true);
   await vi.waitFor(() => expect(document.activeElement).toBe(talk()));
-  expect(locomotion.hold).toHaveBeenCalledExactlyOnceWith("menu", true, expect.any(Function));
+  expect(locomotion.hold).toHaveBeenCalledExactlyOnceWith("menu", true, {
+    onAbort: expect.any(Function),
+  });
   expect(locomotion.widen).toHaveBeenCalledWith([
     { x: 300, y: 517 },
     { x: 300, y: 517 },
@@ -145,7 +147,7 @@ it("closes when an agent move ends the widened window", async () => {
   const { locomotion, rightClick, talk } = wired(tauriWindow);
   rightClick();
   await vi.waitFor(() => expect(talk()).not.toBeNull());
-  const onAbort = locomotion.hold.mock.calls[0]?.[2];
+  const onAbort = locomotion.hold.mock.calls[0]?.[2]?.onAbort;
 
   onAbort?.();
 
