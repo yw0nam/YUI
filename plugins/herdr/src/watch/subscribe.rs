@@ -85,8 +85,12 @@ impl Watch {
 pub async fn run(watched: Watched, ssh: Option<PathBuf>, dir: PathBuf, notify: Notify) {
     // The cache outlives restarts, so a reconnect reports only what changed meanwhile.
     let mut watch = Watch::new(&watched.machine, &watched.label, &notify);
-    let mut backoff = Duration::from_secs(5);
+    let mut backoff = Backoff {
+        next: BACKOFF_MIN,
+        session: None,
+    };
     loop {
+        backoff.session = None;
         if let Err(error) =
             watch_once(&watched, ssh.as_deref(), &dir, &mut watch, &mut backoff).await
         {
@@ -95,9 +99,30 @@ pub async fn run(watched: Watched, ssh: Option<PathBuf>, dir: PathBuf, notify: N
                 one_line(&watched.machine),
                 one_line(&error)
             );
-            tokio::time::sleep(backoff).await;
-            backoff = (backoff * 2).min(Duration::from_secs(60));
+            backoff.wait().await;
         }
+    }
+}
+
+const BACKOFF_MIN: Duration = Duration::from_secs(5);
+const BACKOFF_MAX: Duration = Duration::from_secs(60);
+const HEALTHY_SESSION: Duration = Duration::from_secs(60);
+
+/// One wait shared by restarts and status rebuilds, so a failing server never loops hot.
+struct Backoff {
+    next: Duration,
+    /// When the current session's topology subscription started.
+    session: Option<tokio::time::Instant>,
+}
+
+impl Backoff {
+    /// A session that held 60 s starts again from 5 s; a shorter one keeps doubling.
+    async fn wait(&mut self) {
+        if self.session.is_some_and(|t| t.elapsed() >= HEALTHY_SESSION) {
+            self.next = BACKOFF_MIN;
+        }
+        tokio::time::sleep(self.next).await;
+        self.next = (self.next * 2).min(BACKOFF_MAX);
     }
 }
 
@@ -107,7 +132,7 @@ async fn watch_once(
     ssh: Option<&Path>,
     dir: &Path,
     watch: &mut Watch,
-    backoff: &mut Duration,
+    backoff: &mut Backoff,
 ) -> Result<(), String> {
     let (sock, _forward) = match &watched.endpoint {
         Endpoint::Local(p) => (p.clone(), None),
@@ -128,29 +153,18 @@ async fn watch_once(
             SubscribeFail::Rejected => "topology subscribe rejected".to_string(),
             SubscribeFail::Failed(e) => format!("topology subscribe: {e}"),
         })?;
-    let mut health = StatusHealth::default();
+    backoff.session = Some(tokio::time::Instant::now());
     loop {
         let mut status = rebuild(&sock, watch, backoff).await?;
-        health.since = status.as_ref().map(|_| tokio::time::Instant::now());
-        health.event_seen = false;
-        match events(&mut topology, status.as_mut(), watch, &mut health, backoff).await? {
+        match events(&mut topology, status.as_mut(), watch).await? {
             Flow::Rebuild => continue,
             Flow::StatusFailed(error) => {
-                // A status connection that delivered an event or held 60 s earns a fresh backoff.
-                if health.event_seen
-                    || health
-                        .since
-                        .is_some_and(|t| t.elapsed() >= Duration::from_secs(60))
-                {
-                    *backoff = Duration::from_secs(5);
-                }
                 eprintln!(
                     "herdr_watch_rebuild machine={} error={}",
                     one_line(&watch.machine),
                     one_line(&error)
                 );
-                tokio::time::sleep(*backoff).await;
-                *backoff = (*backoff * 2).min(Duration::from_secs(60));
+                backoff.wait().await;
                 continue;
             }
             Flow::TopologyFailed(error) => return Err(error),
@@ -158,18 +172,11 @@ async fn watch_once(
     }
 }
 
-/// How long the current status connection has held up, and whether it delivered an event.
-#[derive(Default)]
-struct StatusHealth {
-    since: Option<tokio::time::Instant>,
-    event_seen: bool,
-}
-
 /// Step 3: list, subscribe the listed panes on a fresh connection, list again, reconcile.
 async fn rebuild(
     sock: &Path,
     watch: &mut Watch,
-    backoff: &mut Duration,
+    backoff: &mut Backoff,
 ) -> Result<Option<Conn>, String> {
     loop {
         let listed = parse::agent_rows(&socket::agent_list(sock).await?)
@@ -189,8 +196,7 @@ async fn rebuild(
                         "herdr_watch_rebuild machine={} error=subscription rejected",
                         one_line(&watch.machine)
                     );
-                    tokio::time::sleep(*backoff).await;
-                    *backoff = (*backoff * 2).min(Duration::from_secs(60));
+                    backoff.wait().await;
                     continue;
                 }
                 Err(SubscribeFail::Failed(e)) => return Err(e),
@@ -219,8 +225,6 @@ async fn events(
     topology: &mut Conn,
     mut status: Option<&mut Conn>,
     watch: &mut Watch,
-    health: &mut StatusHealth,
-    backoff: &mut Duration,
 ) -> Result<Flow, String> {
     loop {
         tokio::select! {
@@ -250,8 +254,6 @@ async fn events(
                     return Ok(Flow::StatusFailed(format!("status error: {line}")));
                 }
                 if value.get("event").and_then(Value::as_str) == Some("pane.agent_status_changed") {
-                    health.event_seen = true;
-                    *backoff = Duration::from_secs(5);
                     watch.status_event(&value["data"]);
                 }
             }

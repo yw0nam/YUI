@@ -31,7 +31,7 @@ Each server keeps a topology connection (`pane.created`, `pane.closed`, `pane.ag
 
 Each server keeps a pane cache for the life of the process. The first listing seeds it without a signal, so a pane already `done` or `blocked` at start sends nothing. Both listings of a rebuild overwrite the panes they list and add new panes silently. A status event or a listing that sees a cached state change **into** `done` or `blocked` sends one signal group; repeating a state sends nothing. Signal groups go out in the order they were produced.
 
-A connection or ssh failure drops the connections for that server and retries, keeping the cache. Retries and status rebuilds share one backoff of 5 s doubling to 60 s, reset when a status connection delivers an event or holds 60 s. States a pane passed through while disconnected are not reported; the reconcile reports only where it ended.
+A connection or ssh failure drops the connections for that server and retries, keeping the cache. Retries and status rebuilds share one backoff of 5 s doubling to 60 s. A session starts at a successful topology subscription; a failure after one that held 60 s waits 5 s again. States a pane passed through while disconnected are not reported; the reconcile reports only where it ended.
 
 Each event logs one stderr line `<event> key=value`, with newlines in a value replaced by spaces:
 
