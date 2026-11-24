@@ -17,7 +17,7 @@ import { hop } from "./hop";
 import { createListSplitter } from "./list-splitter";
 import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
-import type { TabBody, TabShell } from "./tab-body";
+import type { TabBody, TabShell, TabView } from "./tab-body";
 import { THREADS_LIST_ID } from "./thread-list";
 import { attachThreadsKeys } from "./threads-keys";
 import { createThreadsLayout } from "./threads-layout";
@@ -96,39 +96,39 @@ export function createThreadsView(deps: {
   const head = createRef<ThreadsWindowHandle>();
   const headListeners = new Set<(event: PointerEvent) => void>();
 
+  const threadsPanel = createRef<HTMLDivElement>();
   const terminalBack = backButton();
   const shell = {
     selected: () => layout.selected(),
     focusSelected: () => layout.focusSelected(),
+    headChanged: () => head.current?.headChanged(),
   };
   const threads = createThreadsTab({
     shell,
-    focus: threadsTabFocus(() => content.querySelector("#yui-panel-threads")),
+    focus: threadsTabFocus(threadsPanel),
     now: deps.now,
     onAnswer: deps.onAnswer,
     onSeen: deps.onSeen,
   });
-  const terminal = deps.terminal({
-    ...shell,
-    back: terminalBack,
-    headChanged: () => head.current?.headChanged(),
-  });
+  const terminal = deps.terminal({ ...shell, back: terminalBack });
   terminal.list.id = TERMINAL_LIST_ID;
-  const current = () => (tabs.current!.selected() === "terminal" ? terminal : threads);
+  const bodies: Record<ThreadsTab, TabView> = { threads, terminal };
+  const current = () => bodies[tabs.current!.selected() as ThreadsTab];
 
   const reactRoot = createRoot(content);
   flushSync(() =>
     reactRoot.render(
       createElement(ThreadsWindow, {
+        bodies,
         threads,
-        terminal,
+        threadsPanel,
+        terminal: terminal.el,
         tabs,
         turns,
         handle: head,
         onSelect: (tab) => {
-          const body = tab === "terminal" ? terminal : threads;
-          layout.reset(body.hasSelection());
-          body.shown();
+          layout.reset(bodies[tab].hasSelection());
+          bodies[tab].shown();
         },
         onRead: deps.onRead,
         onBack: () => layout.back(),

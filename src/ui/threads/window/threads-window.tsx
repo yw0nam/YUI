@@ -5,21 +5,15 @@
 
 import "./window-tabs.css";
 import { Tabs } from "@base-ui/react/tabs";
-import {
-  type PointerEvent,
-  type Ref,
-  useImperativeHandle,
-  useReducer,
-  useSyncExternalStore,
-} from "react";
+import { type PointerEvent, type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type { ThreadsTab as TabId } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import { Tab, TabPanel, type TabsHandle, TabsRoot, useTabs } from "../../controls/tabs";
 import { TooltipHost } from "../../controls/tooltip";
-import { getLocale, subscribe as subscribeLocale, t } from "../../i18n";
+import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { RefMount } from "../../ref-mount";
-import type { TabBody } from "./tab-body";
+import type { TabView } from "./tab-body";
 import { THREADS_LIST_ID } from "./thread-list";
 import type { ThreadsTab } from "./threads-tab";
 import { ThreadsTabView } from "./threads-tab-view";
@@ -27,13 +21,20 @@ import { type TurnsHandle, TurnsMenu } from "./turns-menu";
 
 const TABS: readonly TabId[] = ["threads", "terminal"];
 
+type Heads = Record<TabId, ReturnType<TabView["head"]>>;
+
+const headsOf = (bodies: Record<TabId, TabView>): Heads =>
+  Object.fromEntries(TABS.map((id) => [id, bodies[id].head()])) as Heads;
+
 export interface ThreadsWindowHandle {
   /** A tab's head count or waiting changed. */
   headChanged(): void;
 }
 
 export function ThreadsWindow({
+  bodies,
   threads,
+  threadsPanel,
   terminal,
   tabs: tabsHandle,
   turns,
@@ -45,8 +46,13 @@ export function ThreadsWindow({
   onHeadPointerDown,
   onTurnsLevel,
 }: {
+  /** Each tab's head, layout and keys. */
+  bodies: Record<TabId, TabView>;
   threads: ThreadsTab;
-  terminal: TabBody;
+  /** The Threads panel, where the Threads tab's focus moves look. */
+  threadsPanel: Ref<HTMLDivElement>;
+  /** The Terminal tab's vanilla body. */
+  terminal: HTMLElement;
   tabs: Ref<TabsHandle>;
   turns: Ref<TurnsHandle>;
   handle: Ref<ThreadsWindowHandle>;
@@ -58,17 +64,16 @@ export function ThreadsWindow({
   onHeadPointerDown(event: globalThis.PointerEvent): void;
   onTurnsLevel(level: ThreadTurnsLevel): void;
 }) {
-  useSyncExternalStore(subscribeLocale, getLocale);
-  useSyncExternalStore(threads.subscribe, threads.current);
-  const [, headChanged] = useReducer((n: number) => n + 1, 0);
-  useImperativeHandle(handle, () => ({ headChanged }));
+  const [heads, setHeads] = useState(() => headsOf(bodies));
+  useImperativeHandle(handle, () => ({ headChanged: () => setHeads(headsOf(bodies)) }), [bodies]);
+  // A new language redraws the heads and, with them, the whole window.
+  useEffect(() => subscribeLocale(() => setHeads(headsOf(bodies))), [bodies]);
   const tabs = useTabs({
     ids: TABS,
     initial: "threads",
     onSelect: (id) => onSelect(id as TabId),
     handle: tabsHandle,
   });
-  const body = (id: TabId) => (id === "threads" ? threads : terminal);
   const sidebar = t("threads.sidebar");
 
   return (
@@ -101,13 +106,13 @@ export function ThreadsWindow({
             {TABS.map((id) => (
               <Tab key={id} value={id} className="yui-threads__tab">
                 {t(id === "threads" ? "threads.title" : "terminal.title")}
-                {id !== tabs.value && body(id).head().waiting && (
+                {id !== tabs.value && heads[id].waiting && (
                   <span className="yui-threads__tab-dot" aria-hidden="true" />
                 )}
               </Tab>
             ))}
           </Tabs.List>
-          <span className="yui-threads__count">{body(tabs.value as TabId).head().count}</span>
+          <span className="yui-threads__count">{heads[tabs.value as TabId].count}</span>
           <TurnsMenu onPick={onTurnsLevel} handle={turns} />
           <button
             type="button"
@@ -118,7 +123,7 @@ export function ThreadsWindow({
             dangerouslySetInnerHTML={{ __html: CROSS_SVG }}
           />
         </header>
-        <TabPanel value="threads" className="yui-threads__panes">
+        <TabPanel value="threads" className="yui-threads__panes" ref={threadsPanel}>
           <ThreadsTabView
             tab={threads}
             shown={tabs.value === "threads"}
@@ -131,7 +136,7 @@ export function ThreadsWindow({
             className="yui-threads__terminal-host"
             deps={[terminal]}
             mount={(host) => {
-              host.append(terminal.el);
+              host.append(terminal);
             }}
           />
         </TabPanel>

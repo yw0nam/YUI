@@ -1,20 +1,20 @@
 /** The Threads tab's view: the list pane, its rail and the thread pane, drawn from the tab's state. */
 
-import { useRef, useSyncExternalStore } from "react";
+import { type RefObject, useRef, useSyncExternalStore } from "react";
 import { focusCurrentRow } from "./row-focus";
 import { ThreadList } from "./thread-list";
 import { ThreadPane } from "./thread-pane";
 import { ThreadRail } from "./thread-rail";
 import type { ThreadsTab, ThreadsTabFocus } from "./threads-tab";
 
-/** The focus moves of the tab drawn under `panel`. */
-export function threadsTabFocus(panel: () => Element | null): ThreadsTabFocus {
+/** The focus moves of the tab drawn in `panel`. */
+export function threadsTabFocus(panel: RefObject<Element | null>): ThreadsTabFocus {
+  const find = (selector: string) => panel.current?.querySelector<HTMLElement>(selector) ?? null;
   return {
-    heading: () => panel()?.querySelector<HTMLElement>(".yui-threads-pane h2")?.focus(),
-    inPane: () =>
-      panel()?.querySelector(".yui-threads-pane")?.contains(document.activeElement) ?? false,
-    list: () => focusCurrentRow(panel()?.querySelector(".yui-threads-list__rows") ?? null),
-    rail: () => focusCurrentRow(panel()?.querySelector(".yui-threads-rail__list") ?? null),
+    heading: () => find(".yui-threads-pane h2")?.focus(),
+    inPane: () => find(".yui-threads-pane")?.contains(document.activeElement) ?? false,
+    list: () => focusCurrentRow(find(".yui-threads-list__rows")),
+    rail: () => focusCurrentRow(find(".yui-threads-rail__list")),
   };
 }
 

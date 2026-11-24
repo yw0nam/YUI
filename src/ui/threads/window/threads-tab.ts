@@ -8,7 +8,7 @@ import { flushSync } from "react-dom";
 import type { AskAnswer, Thread, ThreadsSnapshot } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
-import type { TabBody, TabShell } from "./tab-body";
+import type { TabShell, TabView } from "./tab-body";
 import { createThreadAnswers, type ThreadAnswers } from "./thread-answers";
 import {
   nextWaiting,
@@ -39,7 +39,7 @@ export interface ThreadsTabFocus {
   rail(): void;
 }
 
-export interface ThreadsTab extends Omit<TabBody, "el" | "list" | "dispose"> {
+export interface ThreadsTab extends TabView {
   current(): ThreadsTabState;
   subscribe(cb: () => void): () => void;
   answers: ThreadAnswers;
@@ -53,7 +53,7 @@ export interface ThreadsTab extends Omit<TabBody, "el" | "list" | "dispose"> {
 }
 
 export function createThreadsTab(deps: {
-  shell: Pick<TabShell, "selected" | "focusSelected">;
+  shell: Pick<TabShell, "selected" | "focusSelected" | "headChanged">;
   focus: ThreadsTabFocus;
   now(): number;
   /** Rejects with the store's error string. */
@@ -93,6 +93,7 @@ export function createThreadsTab(deps: {
     compute();
     flushSync(() => {
       for (const cb of subscribers) cb();
+      shell.headChanged();
     });
   }
 

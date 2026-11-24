@@ -12,11 +12,8 @@ export interface TabShell {
   headChanged(): void;
 }
 
-/** A tab's body, laid out and keyed by the view's one layout. */
-export interface TabBody {
-  el: HTMLElement;
-  /** Its list pane; a pointerdown inside keeps the overlay. */
-  list: HTMLElement;
+/** What the window's head, layout and keys read of a tab. */
+export interface TabView {
   /** The head's count while the tab shows ("" hides it), and whether something waits for the user. */
   head(): { count: string; waiting: boolean };
   hasSelection(): boolean;
@@ -29,5 +26,12 @@ export interface TabBody {
   focusField?(): boolean;
   /** Its tab became the shown one. */
   shown(): void;
+}
+
+/** A vanilla tab's body, laid out and keyed by the view's one layout. */
+export interface TabBody extends TabView {
+  el: HTMLElement;
+  /** Its list pane; a pointerdown inside keeps the overlay. */
+  list: HTMLElement;
   dispose(): void;
 }
