@@ -64,7 +64,10 @@ pub(crate) mod tests {
 
     const FAKE_BIN: &str = r#"#!/bin/sh
 dir=$(dirname "$0")
-{ printf '%s\037' "$@"; printf '\n'; } >> "$dir/argv.log"
+sep=$(printf '\037')
+line=
+for a in "$@"; do line="${line}${a}${sep}"; done
+printf '%s\n' "$line" >> "$dir/argv.log"
 machine=local
 if [ "$1" = "--machine" ]; then machine=$2; shift 2; fi
 case "$1" in

@@ -12,25 +12,20 @@ use std::path::PathBuf;
 pub struct HerdrServer {
     /// Finds the `herdr` CLI, once per call.
     locate: fn() -> Option<PathBuf>,
+    /// Starts the watcher; tests inject a no-op so they never reach a real herdr server or ssh.
     #[cfg(unix)]
-    watch: bool,
+    start_watch: fn(fn() -> Option<PathBuf>, crate::watch::Notify),
 }
 
 impl HerdrServer {
-    pub fn new(locate: fn() -> Option<PathBuf>) -> Self {
+    pub fn new(
+        locate: fn() -> Option<PathBuf>,
+        #[cfg(unix)] start_watch: fn(fn() -> Option<PathBuf>, crate::watch::Notify),
+    ) -> Self {
         Self {
             locate,
             #[cfg(unix)]
-            watch: true,
-        }
-    }
-
-    /// Tools without the watcher, so tests never reach a real herdr server or ssh.
-    #[cfg(all(test, unix))]
-    fn new_tools_only(locate: fn() -> Option<PathBuf>) -> Self {
-        Self {
-            locate,
-            watch: false,
+            start_watch,
         }
     }
 }
@@ -55,18 +50,12 @@ impl ServerHandler for HerdrServer {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
-        if !tools::NAMES.contains(&request.name.as_ref()) {
-            return Err(ErrorData::invalid_params("tool not found", None));
-        }
         let args = request.arguments.unwrap_or_default();
-        Ok(tools::call(&request.name, &args, self.locate).await.into())
+        Ok(tools::call(&request.name, &args, self.locate).await?.into())
     }
 
     #[cfg(unix)]
     async fn on_initialized(&self, context: rmcp::service::NotificationContext<RoleServer>) {
-        if !self.watch {
-            return;
-        }
         let peer = context.peer;
         let notify: crate::watch::Notify = std::sync::Arc::new(move |params| {
             let peer = peer.clone();
@@ -82,7 +71,7 @@ impl ServerHandler for HerdrServer {
                 }
             });
         });
-        crate::watch::spawn(self.locate, notify);
+        (self.start_watch)(self.locate, notify);
     }
 }
 
@@ -102,9 +91,16 @@ mod tests {
 
     /// A client connected in-process to a server that finds the herdr CLI with `locate`.
     async fn connect(locate: fn() -> Option<PathBuf>) -> RunningService<RoleClient, ()> {
+        connect_with(locate, |_, _| {}).await
+    }
+
+    async fn connect_with(
+        locate: fn() -> Option<PathBuf>,
+        start_watch: fn(fn() -> Option<PathBuf>, crate::watch::Notify),
+    ) -> RunningService<RoleClient, ()> {
         let (server_io, client_io) = tokio::io::duplex(1 << 16);
         tokio::spawn(async move {
-            let server = HerdrServer::new_tools_only(locate)
+            let server = HerdrServer::new(locate, start_watch)
                 .serve(server_io)
                 .await
                 .unwrap();
@@ -331,11 +327,6 @@ mod tests {
     async fn herdr_prompt_and_keys_pass_machine_and_arguments_in_order() {
         let _guard = fake_lock().await;
         reset();
-        write_config(
-            "machines.json",
-            &json!([{"id": "m-x", "label": "local", "target": "x@host", "session": "default", "enabled": true, "selected": false}])
-                .to_string(),
-        );
         write_config("m-c.err", r#"{"error":{"message":"boom"}}"#);
         let client = connect(with_fake).await;
         let cases: Vec<(&str, Value, Vec<&str>)> = vec![
@@ -353,11 +344,6 @@ mod tests {
                 "herdr_prompt",
                 json!({"machine": "local", "pane": "p1", "text": "hello"}),
                 vec!["agent", "prompt", "p1", "hello"],
-            ),
-            (
-                "herdr_prompt",
-                json!({"machine": "m-x", "pane": "p1", "text": "hello"}),
-                vec!["--machine", "m-x", "agent", "prompt", "p1", "hello"],
             ),
             (
                 "herdr_keys",

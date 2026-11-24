@@ -3,6 +3,7 @@
 pub mod forward;
 pub mod machines;
 pub mod signal;
+pub mod socket;
 pub mod subscribe;
 
 use std::path::{Path, PathBuf};
@@ -29,7 +30,10 @@ pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
             .any(|s| matches!(s.endpoint, machines::Endpoint::Remote { .. }))
         {
             if let Err(e) = prepare_dir(&dir) {
-                eprintln!("herdr_watch_failed machine=local reason=socket dir: {e}");
+                eprintln!(
+                    "herdr_watch_failed machine=local error=socket dir: {}",
+                    one_line(&e.to_string())
+                );
                 remote_ok = false;
             }
         }
