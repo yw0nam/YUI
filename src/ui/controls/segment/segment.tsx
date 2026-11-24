@@ -2,12 +2,17 @@
 
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
+import { Tip } from "../tooltip";
 import "./segment.css";
 
 export interface SegmentOption<T> {
   value: T;
-  label: string;
+  label: ReactNode;
+  /** The radio's accessible name, where its label is a glyph. */
+  ariaLabel?: string;
+  /** A tip on the radio itself. */
+  tip?: string;
 }
 
 export interface SegmentProps<T> {
@@ -65,7 +70,16 @@ export function Segment<T>({
           key={String(option.value)}
           value={option.value}
           nativeButton
-          render={<button type="button" className="yui-seg__btn" />}
+          render={(props) =>
+            option.tip ? (
+              <Tip text={option.tip}>
+                <button type="button" className="yui-seg__btn" {...props} />
+              </Tip>
+            ) : (
+              <button type="button" className="yui-seg__btn" {...props} />
+            )
+          }
+          aria-label={option.ariaLabel}
           tabIndex={index === tabStop ? 0 : -1}
           onFocus={() => setFocusIndex(index)}
           onClick={(event) => event.currentTarget.focus()}

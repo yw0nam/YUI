@@ -18,8 +18,9 @@ export function attachThreadsKeys(deps: {
       deps.onEscape();
       return;
     }
-    // Typing in the field or the select keeps its keys, and a shortcut is not a choice.
-    if (target?.closest?.("textarea, select, input") || e.metaKey || e.ctrlKey || e.altKey) return;
+    // A field, a select or a radio group keeps its keys, and a shortcut is not a choice.
+    const own = "textarea, select, input, [role=combobox], [role=radiogroup]";
+    if (target?.closest?.(own) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[1-9]$/.test(e.key)) {
       e.preventDefault();
       deps.onPick(Number(e.key) - 1);

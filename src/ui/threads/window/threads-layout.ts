@@ -21,6 +21,8 @@ export interface ThreadsLayoutControl {
   toggle(): void;
   /** Closes the medium overlay; false when none was open. */
   escape(): boolean;
+  /** The narrow layout's way back from the pane to the list. */
+  back(): void;
   /** A row was picked: the overlay closes and narrow shows its pane; true when the list hid. */
   selected(): boolean;
   /** An open or a tab switch starts without the overlay, on the pane, or on the list when nothing is selected. */
@@ -36,7 +38,7 @@ export function createThreadsLayout(deps: {
   /** Each tab's list pane; a pointerdown inside one keeps the overlay. */
   lists: HTMLElement[];
   toggle: HTMLButtonElement;
-  /** Each tab's narrow way back to its list. */
+  /** Narrow ways back to the list that are not wired to `back`. */
   backs: HTMLButtonElement[];
   /** The stored list choice. */
   collapsed: boolean;
@@ -106,6 +108,7 @@ export function createThreadsLayout(deps: {
 
   return {
     toggle,
+    back: onBack,
     escape() {
       if (!overlay) return false;
       setOverlay(false);

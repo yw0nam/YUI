@@ -908,6 +908,7 @@ const ja: Record<string, string> = {
   "threads.list_aria": "スレッド一覧",
   "threads.tab_waiting": "返信待ち",
   "threads.tab_all": "すべて",
+  "threads.filter": "表示",
   "threads.kind": "種類",
   "threads.kind_all": "すべての種類 ({n})",
   "threads.empty_waiting": "返信待ちはありません。進み具合は「すべて」で確認できます。",

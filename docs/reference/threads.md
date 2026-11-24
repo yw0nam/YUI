@@ -170,7 +170,7 @@ The Threads window also calls `thread_seen` when the user picks a Thread with an
 
 A Thread waits while its state is `input-required` and it is not read. Main's Threads chip counts a waiting Thread unless its open ask is the seen one. Inside the Threads window, a seen Thread still shows as waiting.
 
-The thread pane's Mark read button appears on a waiting Thread. It calls `thread_read` and moves the selection to the next waiting Thread in the list. A read Thread leaves the Waiting tab and keeps its open ask for an answer from All.
+The thread pane's Mark read button appears on a waiting Thread. It calls `thread_read` and moves the selection to the next waiting Thread in the list. A read Thread leaves the Waiting filter and keeps its open ask for an answer from All.
 
 Main's Threads chip hides while the Threads window is open.
 

@@ -653,9 +653,20 @@ YUI/
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
         chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect while hidden
-        window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
-        window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
-        window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
+        window/threads-view.ts       # The window's facade: the panel, the one React root, and the layout, splitter, resize handles, keys, motion and minute tick on the committed DOM
+        window/threads-window.tsx    # The window's content: the head (sidebar toggle, Threads and Terminal tabs, count, Thread turns, ×) over both tabs' panels
+        window/tab-body.ts           # What the window hands the Terminal tab's vanilla body, and what that body gives back
+        window/threads-tab.ts        # The Threads tab's state: snapshot, filter, selection, the asked Thread, and the moves and focus handoffs
+        window/threads-tab-view.tsx  # The Threads tab's view: the list, the rail and the thread pane from the tab's state
+        window/thread-list-view.ts   # What the list and the rail show: waiting-first rows, counts, the kind items, and the Thread an open shows
+        window/thread-list.tsx       # The list pane: the Waiting / All segment, the kind select, waiting-first rows
+        window/thread-rail.tsx       # The rail: the Waiting / All segment as marks over counts, the kind select behind a mark, one source mark per row
+        window/row-focus.ts          # Focuses a list's current row, and gives the focus of a row that left to its neighbour
+        window/thread-meta.tsx       # The source line and the state word a row and the pane lead with
+        window/thread-pane.tsx       # The thread pane: head, scrolling transcript, and the answer area through a RefMount
+        window/thread-answers.ts     # Each ask's draft, send error and in-flight send, and the answer area that shows
+        window/turns-menu.tsx        # The head's Thread turns button and its popover of the three levels
+        window/glyph.tsx             # A Threads line glyph as JSX
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/entry-markdown.ts     # An entry's text as Markdown nodes: https images only, no list formatting whitespace
@@ -663,7 +674,6 @@ YUI/
         window/hop.ts                # The panel's hop inside its margin when a Thread reaction raises the window
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
-        window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
       character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches
@@ -943,11 +953,13 @@ YUI/
           index.ts                   # Re-exports the Select and its props type
           select.tsx                 # A select on Base UI's Select the caller labels and owns the value of, with a shorter closed name where given
           select.css                 # The trigger without OS chrome, and the popup and its items over the settings content
-        segment/                     # The Segment, and the keys it shares
-          index.ts                   # Re-exports the Segment, its options and props, and the key handler
+        segment/                     # The Segment
+          index.ts                   # Re-exports the Segment, its options and props
           segment.tsx                # A radio segment the caller labels and owns the value of
           segment.css                # Segment cell, checked, focus and disabled styles
-          seg-keyboard.ts            # Arrow, Home, End and Space/Enter for a segmented control, from the caller's current index
+      ref-mount/                     # The host a React view gives a vanilla piece
+        index.ts                     # Re-exports RefMount and its props type
+        ref-mount.tsx                # Mounts the piece after the commit, again on new deps, and cleans it up
       keyed-rows/                    # Keyed list rows
         keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
       theme/                         # The window theme

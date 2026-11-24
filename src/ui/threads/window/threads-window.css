@@ -1,4 +1,4 @@
-/* The top-level tabs take the title's place at its size, so the head keeps its height. */
+/* The window head's Threads and Terminal tabs (threads-window.tsx): they take the title's place at its size, so the head keeps its height. */
 .yui-threads__tabs {
   display: flex;
   align-items: center;

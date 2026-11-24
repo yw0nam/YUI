@@ -1,12 +1,14 @@
 /** A select on Base UI's Select: the caller labels it and owns the value; the popup lists the items. */
 
 import { Select as BaseSelect } from "@base-ui/react/select";
-import { useLayoutEffect, useRef, useState } from "react";
+import { type ComponentProps, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { Tip } from "../tooltip";
 import "./select.css";
 
 interface SelectItem<V extends string> {
   value: V;
   label: string;
+  disabled?: boolean;
 }
 
 export interface SelectProps<V extends string> {
@@ -19,7 +21,11 @@ export interface SelectProps<V extends string> {
   className?: string;
   "aria-label": string;
   /** The closed trigger's text, where it differs from the item's label in the popup. */
-  valueLabel?: (value: V) => string;
+  valueLabel?: (value: V) => ReactNode;
+  /** Where the popup renders (an element or a ref to one); document.body by default. */
+  container?: ComponentProps<typeof BaseSelect.Portal>["container"];
+  /** A tip on the trigger itself. */
+  tip?: string;
 }
 
 export function Select<V extends string>({
@@ -31,6 +37,8 @@ export function Select<V extends string>({
   className,
   "aria-label": ariaLabel,
   valueLabel,
+  container,
+  tip,
 }: SelectProps<V>) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -57,6 +65,15 @@ export function Select<V extends string>({
         id={id}
         className={className ? `yui-select ${className}` : "yui-select"}
         aria-label={ariaLabel}
+        render={
+          tip
+            ? (props) => (
+                <Tip text={tip}>
+                  <button type="button" {...props} />
+                </Tip>
+              )
+            : undefined
+        }
       >
         <BaseSelect.Value>
           {(current: V | null) =>
@@ -66,12 +83,17 @@ export function Select<V extends string>({
           }
         </BaseSelect.Value>
       </BaseSelect.Trigger>
-      <BaseSelect.Portal>
+      <BaseSelect.Portal container={container}>
         <BaseSelect.Positioner className="yui-select-pos">
           <BaseSelect.Popup className="yui-select-pop">
             <BaseSelect.List className="yui-select-list">
               {items.map((item) => (
-                <BaseSelect.Item key={item.value} value={item.value} className="yui-select-item">
+                <BaseSelect.Item
+                  key={item.value}
+                  value={item.value}
+                  disabled={item.disabled}
+                  className="yui-select-item"
+                >
                   <BaseSelect.ItemText>{item.label}</BaseSelect.ItemText>
                 </BaseSelect.Item>
               ))}

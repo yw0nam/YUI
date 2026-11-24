@@ -1,5 +1,5 @@
-/* The rail: the list pane folded to 56px, its tabs as a mark over each count, the kind select under
-   a mark, and one source mark per Thread. Tokens in ../../tokens.css. */
+/* The rail: the list pane folded to 56px, its Waiting / All segment as a mark over each count, the
+   kind select behind a mark, and one source mark per Thread. Tokens in ../../tokens.css. */
 
 .yui-threads-rail {
   display: none;
@@ -34,28 +34,50 @@
   background: var(--yui-selected);
 }
 
-/* The 40px items and the tabs reach 2px further: a 44px hit area. */
+/* The 40px items and the segment's cells reach 2px further: a 44px hit area. */
 .yui-threads-rail__item::before,
-.yui-threads-rail__tab::before {
+.yui-threads-rail__tabs .yui-seg__btn::before {
   content: "";
   position: absolute;
   inset: -2px;
 }
 
-/* The tabs, folded: a mark and its count, the pressed one on the Selected fill. */
-.yui-threads-rail__tab {
+.yui-seg.yui-threads-rail__tabs {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* The segment, folded: a mark and its count, the checked one on the Selected fill. */
+.yui-threads-rail .yui-threads-rail__tabs .yui-seg__btn {
   position: relative;
   display: grid;
+  flex: none;
   justify-items: center;
   gap: 2px;
   width: 44px;
+  min-width: 0;
+  height: auto;
   padding: 6px 0 4px;
   border-radius: var(--yui-radius-control);
+  transition: none;
 }
 
-.yui-threads-rail .yui-threads-rail__tab[aria-pressed="true"] {
+.yui-threads-rail .yui-threads-rail__tabs .yui-seg__btn:hover {
+  color: var(--yui-text-dim);
+}
+
+.yui-threads-rail .yui-threads-rail__tabs .yui-seg__btn:active {
+  transform: none;
+}
+
+.yui-threads-rail .yui-threads-rail__tabs .yui-seg__btn[aria-checked="true"] {
   background: var(--yui-selected);
   color: var(--yui-text);
+  font-weight: inherit;
 }
 
 .yui-threads-rail__count {
@@ -69,42 +91,45 @@
   color: var(--yui-accent-ink);
 }
 
-/* The kind select sits invisible over its mark, so the native list opens from it. */
-.yui-threads-rail__kind {
+/* The kind select's trigger is its mark: the funnel, or the picked source's mark. */
+.yui-threads-rail .yui-threads-rail__kind {
   position: relative;
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
+  padding: 0;
+  border: 0;
   border-radius: var(--yui-radius-control);
+  background: none;
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-head);
+  transition: none;
 }
 
-.yui-threads-rail__kind:hover {
+/* The trigger reaches 4px past the mark, a 44px hit area. */
+.yui-threads-rail__kind::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads-rail .yui-threads-rail__kind:hover {
   background: var(--yui-hover);
 }
 
-.yui-threads-rail__kind:active {
+.yui-threads-rail .yui-threads-rail__kind:active {
   background: var(--yui-selected);
 }
 
-.yui-threads-rail__kind[data-active="true"] {
+.yui-threads-rail .yui-threads-rail__kind.is-active {
   background: var(--yui-selected);
   color: var(--yui-text);
 }
 
-.yui-threads-rail__kind:has(select:focus-visible) {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-}
-
-/* The select reaches 4px past the mark, a 44px hit area. */
-.yui-threads-rail__kind select {
-  position: absolute;
-  inset: -4px;
-  opacity: 0;
-  cursor: pointer;
+.yui-threads-rail__kind-mark {
+  display: grid;
+  place-items: center;
 }
 
 .yui-threads-rail__list {

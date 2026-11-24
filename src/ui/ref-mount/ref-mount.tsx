@@ -1,0 +1,18 @@
+/** One host element a vanilla piece mounts into; React never renders inside it. */
+
+import { useLayoutEffect, useRef } from "react";
+
+export interface RefMountProps {
+  className?: string;
+  /** Fills `host`; the cleanup it returns runs before the next mount and on unmount. */
+  mount(host: HTMLElement): (() => void) | undefined;
+  /** A change in any of these mounts again. */
+  deps: readonly unknown[];
+}
+
+export function RefMount({ className, mount, deps }: RefMountProps) {
+  const host = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the caller's deps say when `mount` draws something new.
+  useLayoutEffect(() => mount(host.current!), deps);
+  return <div ref={host} className={className} />;
+}

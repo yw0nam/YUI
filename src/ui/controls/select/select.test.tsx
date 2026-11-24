@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPanelShell } from "../../quick-controls/panel-shell";
+import { keyboardFocus, shownTip } from "../tooltip/tip-test-helpers";
+import { TooltipHost } from "../tooltip/tooltip";
 import { Select, type SelectProps } from "./select";
 
 // React's act() only flushes in a test environment that says so.
@@ -15,13 +17,18 @@ const FRUITS = [
 ] as const;
 
 /** Holds the value like a store-backed caller does. */
-function Host(props: Omit<SelectProps<Fruit>, "value" | "items" | "aria-label">) {
+function Host({
+  items = FRUITS,
+  ...props
+}: Omit<SelectProps<Fruit>, "value" | "items" | "aria-label"> & {
+  items?: SelectProps<Fruit>["items"];
+}) {
   const [value, setValue] = useState<Fruit>("apple");
   return (
     <Select
       {...props}
       value={value}
-      items={FRUITS}
+      items={items}
       aria-label="Fruit"
       onValueChange={(next) => {
         props.onValueChange(next);
@@ -138,5 +145,37 @@ describe("Select", () => {
 
     expect(closeWindow).toHaveBeenCalledTimes(1);
     shell.dispose();
+  });
+
+  it("a disabled item reports nothing when picked", async () => {
+    const onValueChange = vi.fn();
+    render(
+      <Host onValueChange={onValueChange} items={[FRUITS[0], { ...FRUITS[1], disabled: true }]} />,
+    );
+
+    await open(trigger());
+    await pick("Banana, the long name");
+
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it("the trigger's tip opens on keyboard focus, and the select still opens", async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <TooltipHost>
+          <Host onValueChange={() => {}} tip="Pick a fruit" />
+        </TooltipHost>,
+      );
+      const select = trigger();
+
+      keyboardFocus(select);
+      expect(shownTip()).toBe("Pick a fruit");
+
+      await open(select);
+      expect(shownOptions()).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

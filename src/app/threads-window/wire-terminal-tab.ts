@@ -5,7 +5,7 @@ import { terminalClipboard } from "../../io/terminal/terminal-clipboard";
 import { readPresetEntry } from "../../settings/preset/active-preset";
 import type { ThreadsWindowSettingsStore } from "../../settings/threads/threads-window-settings";
 import { createTerminalView } from "../../ui/terminal/terminal-view";
-import type { TabBody, TabShell } from "../../ui/threads/window/threads-tabs";
+import type { TabBody, TabShell } from "../../ui/threads/window/tab-body";
 import type { Disposers } from "../disposers";
 
 /** The Terminal tab's body for the view to lay out; its client and subscription end with `register`'s bag. */

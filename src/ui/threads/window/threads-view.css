@@ -63,6 +63,27 @@
   min-width: 0;
 }
 
+/* The tabs' root lays out nothing: the head and the panels are the content's own rows. */
+.yui-threads__tabs-root {
+  display: contents;
+}
+
+/* The Terminal tab's panel holds its vanilla body, which fills it. */
+.yui-threads__terminal {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.yui-threads__terminal[hidden] {
+  display: none;
+}
+
+.yui-threads__terminal-host {
+  display: contents;
+}
+
 /* The head is the window's drag handle. */
 .yui-threads__head {
   display: flex;
@@ -152,6 +173,14 @@
 .yui-threads :focus-visible {
   outline: 2px solid var(--yui-accent-ink);
   outline-offset: 2px;
+}
+
+/* The shared segment and the rail's select trigger draw their own focus; here they take the window's ring. */
+.yui-threads .yui-seg__btn:focus-visible,
+.yui-threads .yui-threads-rail__kind:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .yui-threads__close svg {
