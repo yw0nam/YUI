@@ -1,15 +1,21 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../../config/load-test-helpers";
 import type { AvatarConfig } from "../../../config/validators/avatar/types";
 import type { EmotionRegistry, MotionRegistry } from "../../../contract";
+import { createContextHistory } from "../../../io/chat/conversation/context-history";
+import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
+import { createDevtoolsShell } from "../shell";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { load, resolveAssetUrl, createRenderer, rendererStub } = vi.hoisted(() => {
   const rendererStub = {
     playMotion: vi.fn(),
     setEmotion: vi.fn(),
-    getCurrentMotion: vi.fn(() => null),
+    getCurrentMotion: vi.fn<() => { id: string; vrma_path: string } | null>(() => null),
     setPerchTarget: vi.fn(),
     getPerchProbe: vi.fn(),
     loadVRM: vi.fn(),
@@ -57,13 +63,56 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function type(input: HTMLInputElement, value: string): void {
-  input.value = value;
-  input.dispatchEvent(new Event("input"));
+/** Frames the stubbed requestAnimationFrame holds; Base UI's scheduler requests some too. */
+let frames: Map<number, () => void>;
+
+/** Runs every pending frame once; a frame that re-arms lands in the next run. */
+function runFrames(): void {
+  const pending = [...frames.values()];
+  frames.clear();
+  for (const cb of pending) cb();
+}
+
+let shell: ReturnType<typeof createDevtoolsShell> | null = null;
+
+/** The devtools window with the real preview core behind its Motion panel. */
+function mountShell() {
+  document.body.innerHTML = '<div id="app"></div>';
+  const created = createDevtoolsShell({
+    mount: document.querySelector("#app")!,
+    history: createContextHistory(),
+    endpointsSettings: createEndpointsSettings(),
+    loadMotionPreview: mountMotionPreview,
+  });
+  shell = created;
+  return created;
+}
+
+/** The row button named `name`, asserted to be the only button of its list item in a list. */
+function onlyButtonIn(name: RegExp): HTMLElement {
+  const button = screen.queryByRole("button", { name });
+  expect(button).not.toBeNull();
+  const item = button?.closest("li");
+  expect(item?.parentElement?.tagName).toBe("UL");
+  expect(item ? within(item).queryAllByRole("button") : []).toEqual([button]);
+  return button!;
 }
 
 describe("mountMotionPreview", () => {
+  beforeEach(() => {
+    frames = new Map();
+    let nextFrameId = 1;
+    vi.stubGlobal("requestAnimationFrame", (cb: () => void) => {
+      const id = nextFrameId++;
+      frames.set(id, cb);
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+  });
   afterEach(() => {
+    act(() => shell?.dispose());
+    shell = null;
+    document.body.innerHTML = "";
     vi.unstubAllGlobals();
     for (const key of ["__perch", "__perchProbe", "__yuiRenderer"]) {
       Reflect.deleteProperty(globalThis, key);
@@ -72,19 +121,13 @@ describe("mountMotionPreview", () => {
   });
 
   it("shows the controls before the config resolves, wires them after, and cancels the frame loop before disposing the renderer", async () => {
-    const frames = new Map<number, () => void>();
-    let nextFrameId = 1;
-    const order: string[] = [];
-    vi.stubGlobal("requestAnimationFrame", (cb: () => void) => {
-      const id = nextFrameId++;
-      frames.set(id, cb);
-      return id;
+    const reads = () => rendererStub.getCurrentMotion.mock.calls.length;
+    let readsAfterDispose = -1;
+    rendererStub.dispose.mockImplementation(() => {
+      const before = reads();
+      runFrames();
+      readsAfterDispose = reads() - before;
     });
-    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
-      order.push("cancel");
-      frames.delete(id);
-    });
-    rendererStub.dispose.mockImplementation(() => order.push("dispose"));
     const config = deferred<unknown>();
     const url = deferred<string>();
     const vrm = deferred<void>();
@@ -92,36 +135,36 @@ describe("mountMotionPreview", () => {
     resolveAssetUrl.mockReturnValue(url.promise);
     rendererStub.loadVRM.mockReturnValue(vrm.promise);
 
-    const mount = document.createElement("div");
-    const mounted = mountMotionPreview(mount);
-    const input = (id: string) => mount.querySelector<HTMLInputElement>(`#${id}`)!;
-    const text = (id: string) => mount.querySelector(`#${id}`)?.textContent;
+    const shell = mountShell();
+    let settled = false;
+    act(() => {
+      void shell.activate("motion").then(() => {
+        settled = true;
+      });
+    });
+    const slide = (name: string, value: string) =>
+      fireEvent.change(screen.getByRole("slider", { name }), { target: { value } });
 
-    // Before the config resolves: markup exists, the four readouts follow their sliders, nothing runs.
-    type(input("sl-speed"), "1.5");
-    type(input("sl-fade"), "340");
-    type(input("sl-intensity"), "0.5");
-    type(input("sl-transition"), "400");
-    expect([
-      text("val-speed"),
-      text("val-fade"),
-      text("val-intensity"),
-      text("val-transition"),
-    ]).toEqual(["1.5x", "340ms", "0.50", "400ms"]);
+    // Before the config resolves: the four readouts follow their sliders, nothing runs.
+    slide("speed", "1.5");
+    slide("fade", "340");
+    slide("intensity", "0.5");
+    slide("transition", "400");
+    expect([...document.querySelectorAll(".slider-value")].map((v) => v.textContent)).toEqual([
+      "1.5x",
+      "340ms",
+      "0.50",
+      "400ms",
+    ]);
     expect(createRenderer).not.toHaveBeenCalled();
-    expect(frames.size).toBe(0);
 
     // After the config and the URL resolve, with loadVRM still pending.
-    config.resolve({ motions, emotionRegistry, avatar: avatarFixture() });
-    url.resolve("/vrms/test.vrm");
-    await vi.waitFor(() => expect(rendererStub.loadVRM).toHaveBeenCalledWith("/vrms/test.vrm"));
-    expect(frames.size).toBe(1);
-    expect((globalThis as Record<string, unknown>).__perch).toBeTypeOf("function");
-    let settled = false;
-    void mounted.then(() => {
-      settled = true;
+    await act(async () => {
+      config.resolve({ motions, emotionRegistry, avatar: avatarFixture() });
+      url.resolve("/vrms/test.vrm");
     });
-    await Promise.resolve();
+    await vi.waitFor(() => expect(rendererStub.loadVRM).toHaveBeenCalledWith("/vrms/test.vrm"));
+    expect((globalThis as Record<string, unknown>).__perch).toBeTypeOf("function");
     expect(settled).toBe(false);
 
     // Renderer methods are looked up at call time, and the live slider values are read per click.
@@ -129,21 +172,64 @@ describe("mountMotionPreview", () => {
     const setEmotion = vi.fn();
     rendererStub.playMotion = playMotion;
     rendererStub.setEmotion = setEmotion;
-    mount.querySelector<HTMLElement>('.motion-row[data-motion-id="wave"]')!.click();
+    fireEvent.click(onlyButtonIn(/^wave/));
     expect(playMotion).toHaveBeenCalledWith({ id: "wave", loop: true, speed: 1.5, fade_ms: 340 });
-    mount.querySelector<HTMLElement>('.motion-row[data-emotion-id="happy"]')!.click();
+    fireEvent.click(onlyButtonIn(/^happy/));
     expect(setEmotion).toHaveBeenCalledWith({ id: "happy", intensity: 0.5, transition_ms: 400 });
 
-    // Run one frame so the loop re-arms, then dispose.
-    const [firstId, firstFrame] = [...frames][0];
-    frames.delete(firstId);
-    firstFrame();
-    expect(frames.size).toBe(1);
-    vrm.resolve();
-    const handle = await mounted;
-    handle.dispose();
-    expect(order).toEqual(["cancel", "dispose"]);
-    expect(frames.size).toBe(0);
+    // The frame loop reads the renderer once per frame and re-arms; it stops before the renderer is disposed.
+    act(() => runFrames());
+    act(() => runFrames());
+    expect(reads()).toBe(2);
+    await act(async () => vrm.resolve());
+    expect(settled).toBe(true);
+    act(() => shell.dispose());
+    expect(rendererStub.dispose).toHaveBeenCalledOnce();
+    expect(readsAfterDispose).toBe(0);
+  });
+
+  it("plays a motion and sets an emotion from a row that is the only button in its list item", async () => {
+    load.mockResolvedValue({ motions, emotionRegistry, avatar: avatarFixture() });
+    resolveAssetUrl.mockResolvedValue("/vrms/test.vrm");
+    rendererStub.loadVRM.mockResolvedValue(undefined);
+    const shell = mountShell();
+    await act(() => shell.activate("motion"));
+
+    fireEvent.click(onlyButtonIn(/^wave/));
+    expect(rendererStub.playMotion).toHaveBeenCalledWith({
+      id: "wave",
+      loop: true,
+      speed: 1,
+      fade_ms: 200,
+    });
+    fireEvent.click(onlyButtonIn(/^happy/));
+    expect(rendererStub.setEmotion).toHaveBeenCalledWith({
+      id: "happy",
+      intensity: 1,
+      transition_ms: 250,
+    });
+  });
+
+  it("renders a markup-bearing variant filename in the idle sub-line as text", async () => {
+    const markupPath = "/motions/<img src=x onerror=alert(1)>.vrma";
+    const idle = {
+      ...motions.idle,
+      variants: ["/motions/idle_01.vrma", markupPath],
+    } satisfies MotionRegistry[string];
+    load.mockResolvedValue({ motions: { idle }, emotionRegistry, avatar: avatarFixture() });
+    resolveAssetUrl.mockResolvedValue("/vrms/test.vrm");
+    rendererStub.loadVRM.mockResolvedValue(undefined);
+    rendererStub.getCurrentMotion.mockReturnValue({ id: "idle", vrma_path: markupPath });
+    const shell = mountShell();
+    await act(() => shell.activate("motion"));
+
+    act(() => runFrames());
+
+    const subLine = document.querySelector(".sub-line")!;
+    expect(subLine.querySelector("img")).toBeNull();
+    expect(subLine.textContent).toBe("variant 2/2 · <img src=x onerror=alert(1)>");
+    expect(subLine.querySelector("span")?.textContent).toBe("2/2");
+    expect(onlyButtonIn(/^idle(?!_)/).classList.contains("state-playing")).toBe(true);
   });
 
   describe("with a stored VRM selection", () => {
@@ -162,10 +248,9 @@ describe("mountMotionPreview", () => {
       resolveAssetUrl.mockImplementation(async (url: string) => `resolved:${url}`);
       rendererStub.loadVRM.mockResolvedValue(undefined);
 
-      const handle = await mountMotionPreview(document.createElement("div"));
+      await act(() => mountShell().activate("motion"));
 
       expect(rendererStub.loadVRM).toHaveBeenCalledWith("resolved:/vrms/shino.vrm");
-      handle.dispose();
     });
   });
 });

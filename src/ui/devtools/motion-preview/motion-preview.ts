@@ -1,50 +1,49 @@
 /**
- * Motion and emotion preview, lazy-loaded by the Developer Tools window.
- *
- * Architecture:
- *   - Loads validated runtime config through createConfigStore.
- *   - Resolves the selected VRM (stored selection, else the configured default) through resolveAssetUrl.
- *   - Registry list is grouped by MotionKind.
- *   - Playback controls compose RenderMotionSignal overrides passed to renderer.playMotion().
- *
- * Status bar polls renderer.getCurrentMotion() per frame, so it reflects the committed
- * motion including variant resolution and oneshot auto-return-to-idle.
+ * The motion preview's core, lazy-loaded by the Developer Tools window: loads the registries and the
+ * selected VRM (stored selection, else the configured default), creates the renderer in the panel's
+ * host, and runs the live status. The panel's controls drive the renderer it hands over.
  */
 
-import "./motion-preview.css";
 import { resolveAssetUrl } from "../../../config/asset-url";
 import { createConfigStore } from "../../../config/store";
 import type { AvatarConfig } from "../../../config/validators/avatar/types";
-import type { EmotionRegistry, MotionRegistry } from "../../../contract";
+import type { EmotionId, EmotionRegistry, MotionRegistry } from "../../../contract";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "../../../io/assets/vrm-selection";
 import { createLogger } from "../../../logger";
-import { createRenderer } from "../../../renderer";
-import { type ActiveEmotion, mountEmotionPanel } from "./emotion-panel";
-import { createLiveStatus } from "./live-status";
-import { wireMotionControls } from "./motion-controls";
+import { createRenderer, type Renderer } from "../../../renderer";
+import { type Clip, createLiveStatus, type StatusRefs } from "./live-status";
 import { installPerchHook } from "./perch-hook";
-import { buildCrossfadeOptions, buildRegistryList } from "./registry-list";
 import { expandVariantEntries } from "./variants";
-import { createMotionPreviewView } from "./view";
 
 const log = createLogger("motion-preview");
 
-/**
- * Mounts the motion/emotion preview into `mount`, replacing its contents.
- * Loads the motion + emotion registries and the configured VRM, then wires
- * playback controls to a fresh renderer instance.
- *
- * Throws if the registry/config load fails — the caller (devtools shell)
- * renders an error state and lets the user retry by re-activating the tab.
- */
-export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(): void }> {
-  const view = createMotionPreviewView(mount);
-  const activeEmotion: ActiveEmotion = { id: null };
-  const live = createLiveStatus(view, activeEmotion);
+export interface MotionPreview {
+  renderer: Renderer;
+  /** The motion registry with each pooled variant as its own entry. */
+  registry: MotionRegistry;
+  variantIds: Set<string>;
+  emotions: EmotionRegistry;
+}
+
+/** What the panel gives the core: the renderer's host, the status elements, and where to report. */
+export interface MotionView {
+  host: HTMLElement;
+  status: StatusRefs;
+  /** The emotion last applied, for the viewport status. */
+  emotion(): EmotionId | null;
+  /** The registries and the renderer, before the VRM loads. */
+  ready(preview: MotionPreview): void;
+  /** The committed clip changed. */
+  clip(clip: Clip | null): void;
+}
+
+/** Resolves once the VRM load settles; rejects when the registry or config load fails, before any renderer exists. */
+export async function mountMotionPreview(view: MotionView): Promise<{ dispose(): void }> {
+  const live = createLiveStatus(view.status, view.emotion, view.clip);
 
   let motionsRegistry: MotionRegistry;
   let emotionsRegistry: EmotionRegistry;
@@ -67,30 +66,22 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
     throw err;
   }
 
-  // Expand pooled variants into directly selectable entries (preview-only).
-  const { registry: expandedRegistry, variantIds } = expandVariantEntries(motionsRegistry);
-
-  // Create renderer with both registries injected.
+  const { registry, variantIds } = expandVariantEntries(motionsRegistry);
   const renderer = createRenderer({
-    mount: view.vrmMount,
-    motionRegistry: expandedRegistry,
+    mount: view.host,
+    motionRegistry: registry,
     emotionRegistry: emotionsRegistry,
     framing: avatar.framing,
     gaze: avatar.gaze,
     hitTestThreshold: avatar.hit_test.alpha_threshold,
   });
-
-  const playById = wireMotionControls(view, renderer);
-  buildRegistryList(view.registryList, expandedRegistry, playById, variantIds);
-  buildCrossfadeOptions(view.selCrossfade, expandedRegistry);
-  mountEmotionPanel(view, renderer, emotionsRegistry, activeEmotion);
-  live.start(() => renderer.getCurrentMotion(), expandedRegistry);
+  view.ready({ renderer, registry, variantIds, emotions: emotionsRegistry });
+  live.start(() => renderer.getCurrentMotion(), registry);
   installPerchHook(renderer);
 
-  // Load VRM — renderer auto-plays idle baseline on load.
+  // The renderer plays the idle baseline once the VRM loads.
   try {
     await renderer.loadVRM(vrmUrl);
-    // Idle baseline auto-plays on load; syncLiveMotion picks it up next frame.
   } catch (err) {
     log.error("vrm_load_failed", { error: String(err) });
   }

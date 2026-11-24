@@ -584,7 +584,6 @@ YUI/
         apply-speech-op.ts           # Draws one bubble op on the unified box through the surface op table
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
-        reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it
         interactive-overlay.ts       # Selectors of overlay elements that take OS pointer events while shown
         mock.ts                      # Mock driver that replays every surface state from seed data
         surfaces.css                 # Speech bubble and text input styles
@@ -968,19 +967,22 @@ YUI/
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings
         ko.ts                        # Korean strings
-      devtools/                      # Developer Tools window views
-        shell.ts                     # Developer Tools window shell and section navigation
-        shell-rebuild.ts             # Locale-driven shell rebuild that keeps focus
-        context-inspector.ts         # Client-context inspector view
-        advanced-settings.ts         # Advanced settings view
-        motion-preview/              # Motion and emotion preview, lazy-loaded
-          motion-preview.ts          # Mounts the preview and routes its parts
-          view.ts                    # Preview markup, element references, and slider readouts
+      devtools/                      # Developer Tools window, one React root
+        shell.ts                     # Facade: mounts the root, selects a section, disposes
+        devtools-window.tsx          # Header, section tabs and their panels, redrawn in a new language
+        context-inspector.tsx        # Client-context inspector view
+        advanced-settings.tsx        # Advanced settings view
+        motion-preview/              # Motion and emotion preview; its core is lazy-loaded
+          motion-load.ts             # The Motion panel's load attempts: pending, loaded, failed, and dispose
+          motion-panel.tsx           # The Motion panel: the viewport host, the rail, and the status bar
+          motion-preview.ts          # Lazy core: loads the registries and the VRM into a renderer in the panel's host
           variants.ts                # Pooled-variant expansion into playable entries
-          registry-list.ts           # Motion registry list and crossfade options
-          motion-controls.ts         # Playback overrides and the play, stop, and idle buttons
-          emotion-panel.ts           # Emotion rows, sliders, and the neutral and hold buttons
-          live-status.ts             # Per-frame current-motion sync, fps, and elapsed time
+          preview-row.tsx            # A motion or emotion row button
+          registry-list.tsx          # Motion rows by kind and idle's variant line
+          rail-row.tsx               # The rail's section header, a row, and its slider row
+          playback-controls.tsx      # Loop, speed, fade, crossfade, and the play, stop, and idle buttons
+          emotion-panel.tsx          # Emotion rows, sliders, and the neutral and hold buttons
+          live-status.ts             # Per-frame status text, fps, and elapsed time; reports each clip change
           perch-hook.ts              # Dev-only perch globals for the console
           motion-preview.css         # Motion-preview styles
         devtools.css                 # Developer Tools shell styles

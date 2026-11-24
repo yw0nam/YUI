@@ -1271,7 +1271,7 @@ globalThis.YUI_MAP =
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
-      "role": "Developer Tools views: context inspector, advanced settings, motion preview.",
+      "role": "The Developer Tools window as one React root: the Context, Advanced and Motion tabs over their panels, redrawn in place on a new language; the context inspector; the Advanced context-window field, saved when committed; and the motion preview, whose core loads lazily on the Motion panel's first activation, retries after a failed load, and draws into a host React leaves empty, the live status writing the status text each frame and reporting each clip change for the lit row.",
       "paths": [
         "src/ui/devtools"
       ]
@@ -1553,7 +1553,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled and whose options can carry a glyph with an accessible name and a tip, the NumberField, a number field that reports the value committed on blur, Enter or a step, the Select, a select the caller labels and owns the value of, whose popup lists the items, some of them disabled, in a container the caller can name, and whose closed trigger can show a shorter name or a mark and carry a tip, the Tabs, tabs whose panels stay mounted and hide with the selection, with a handle that selects or focuses a tab from code, and the Tooltip, one tip shared by every trigger under its host, which a focus the code moves does not open.",
+      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled and whose options can carry a glyph with an accessible name and a tip, the NumberField, a number field with an optional upper bound and placeholder that reports the value committed on blur, Enter or a step, the Select, a select the caller labels and owns the value of, whose popup lists the items, some of them disabled, in a container the caller can name, and whose closed trigger can show a shorter name or a mark and carry a tip, the Tabs, tabs whose panels stay mounted and hide with the selection, with a handle that selects or focuses a tab from code, and the Tooltip, one tip shared by every trigger under its host, which a focus the code moves does not open.",
       "paths": [
         "src/ui/controls"
       ]
@@ -4939,6 +4939,51 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
+    },
+    {
+      "id": "devtools-window-tabs",
+      "from": "ui/devtools",
+      "to": "ui/controls",
+      "carries": "Tabs: the Context, Advanced and Motion tabs and the selected one; each selection by click, Up and Down, Home and End, or the facade's activate",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/devtools/devtools-window.tsx"
+    },
+    {
+      "id": "devtools-context-window-field",
+      "from": "ui/devtools",
+      "to": "ui/controls",
+      "carries": "NumberField: the stored context window, its minimum and the configured default as placeholder; the committed value on blur, Enter or a step",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/devtools/advanced-settings.tsx"
+    },
+    {
+      "id": "devtools-motion-sliders",
+      "from": "ui/devtools",
+      "to": "ui/controls",
+      "carries": "Slider: speed, fade, intensity and transition, each with its range, label and readout; each change",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/devtools/motion-preview/rail-row.tsx"
+    },
+    {
+      "id": "devtools-playback-controls",
+      "from": "ui/devtools",
+      "to": "ui/controls",
+      "carries": "Checkbox: loop on or off; Select: the crossfade clip among the registry's ids",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/devtools/motion-preview/playback-controls.tsx"
+    },
+    {
+      "id": "devtools-inspector-snapshot",
+      "from": "ui/devtools",
+      "to": "ui/quick-controls",
+      "carries": "useSnapshot: the context history's entries, read again on each notify",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/devtools/context-inspector.tsx"
     },
     {
       "id": "settings-rail-tabs",

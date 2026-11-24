@@ -1,26 +1,10 @@
 /*
  * Motion Preview dev tool — styles.
  * Palette: OKLCH warm-neutral only. No hex. No side-stripe borders.
- * Scoped to the lazy-loaded Developer Tools section.
+ * Scoped to the Developer Tools window's Motion panel.
  */
 
 .motion-preview {
-  --surface-ground: var(--yui-panel-bg);
-  --surface-panel: var(--yui-group-bg);
-  --surface-raised: var(--yui-selected);
-  --surface-hover: var(--yui-hover);
-  --surface-active-bg: var(--yui-selected);
-
-  --text-primary: var(--yui-text);
-  --text-secondary: var(--yui-text-dim);
-  --text-tertiary: var(--yui-text-mute);
-
-  --accent: var(--yui-accent);
-  --accent-dim: var(--yui-accent-ink);
-
-  --border: var(--yui-edge-strong);
-  --border-subtle: var(--yui-edge);
-
   --rail-width: 38%;
   --viewport-width: 62%;
 
@@ -32,11 +16,12 @@
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   display: grid;
   grid-template-columns: var(--viewport-width) var(--rail-width);
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--surface-ground);
-  color: var(--text-primary);
+  background: var(--yui-panel-bg);
+  color: var(--yui-text);
   font-size: var(--body-size);
   line-height: 1.4;
 }
@@ -49,7 +34,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background-color: var(--surface-ground);
+    background-color: var(--yui-panel-bg);
     background-image:
       linear-gradient(45deg, var(--yui-hover) 25%, transparent 25%),
       linear-gradient(-45deg, var(--yui-hover) 25%, transparent 25%),
@@ -81,7 +66,7 @@
     top: 14px;
     left: 16px;
     font-size: var(--detail-size);
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
     z-index: 2;
@@ -93,7 +78,7 @@
     bottom: 12px;
     right: 14px;
     font-size: 10px;
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
     font-variant-numeric: tabular-nums;
     opacity: 0.6;
     z-index: 2;
@@ -107,8 +92,8 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--surface-panel);
-    border-left: 1px solid var(--border);
+    background: var(--yui-group-bg);
+    border-left: 1px solid var(--yui-edge-strong);
     overflow: hidden;
   }
 
@@ -117,7 +102,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: var(--yui-edge-strong) transparent;
   }
 
   .rail-scroll::-webkit-scrollbar {
@@ -127,7 +112,7 @@
     background: transparent;
   }
   .rail-scroll::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--yui-edge-strong);
     border-radius: 2px;
   }
 
@@ -144,7 +129,7 @@
     padding: 14px 16px 8px;
     position: sticky;
     top: 0;
-    background: var(--surface-panel);
+    background: var(--yui-group-bg);
     z-index: 1;
   }
 
@@ -153,13 +138,13 @@
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
   }
 
   .section-divider {
     flex: 1;
     height: 1px;
-    background: var(--border-subtle);
+    background: var(--yui-edge);
   }
 
   /* Motion groups */
@@ -174,18 +159,30 @@
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
     opacity: 0.7;
   }
 
   /* Motion rows */
 
+  .motion-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
   .motion-row {
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
     padding: 0 16px;
     height: var(--row-height);
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     position: relative;
     user-select: none;
@@ -198,7 +195,7 @@
   }
 
   .motion-row:hover {
-    background: var(--surface-hover);
+    background: var(--yui-hover);
   }
 
   /* Variant sub-rows — preview-only expanded pool entries (idle_01, sit_02, …) */
@@ -209,7 +206,7 @@
 
   /* Active / playing row: amber tint background + filled dot — no side stripe */
   .motion-row.state-playing {
-    background: var(--surface-active-bg);
+    background: var(--yui-selected);
   }
   .motion-row.state-playing:hover {
     background: var(--yui-selected);
@@ -234,13 +231,13 @@
 
   .dot-hollow {
     background: transparent;
-    border: 1.5px solid var(--text-tertiary);
+    border: 1.5px solid var(--yui-text-mute);
     opacity: 0.7;
   }
 
   .dot-filled {
-    background: var(--accent);
-    border: 1.5px solid var(--accent);
+    background: var(--yui-accent);
+    border: 1.5px solid var(--yui-accent);
     opacity: 1;
   }
 
@@ -248,7 +245,7 @@
   .row-name {
     flex: 1;
     font-size: var(--body-size);
-    color: var(--text-primary);
+    color: var(--yui-text);
     font-weight: 450;
     white-space: nowrap;
     overflow: hidden;
@@ -270,7 +267,7 @@
   .tag {
     font-size: 10px;
     font-weight: 500;
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
   }
@@ -279,48 +276,15 @@
     padding: 1px 5px;
     border-radius: 3px;
     background: var(--yui-selected);
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
   }
 
   .motion-row.state-playing .tag {
-    color: var(--accent-dim);
+    color: var(--yui-accent-ink);
   }
 
   .motion-row.state-playing .tag-loop {
     background: var(--yui-selected);
-    color: var(--accent-dim);
-  }
-
-  /* Play button */
-  .btn-play {
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 10px;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .btn-play {
-      transition:
-        background 150ms var(--ease-out),
-        color 150ms var(--ease-out);
-    }
-  }
-
-  .btn-play:hover {
-    background: var(--yui-hover);
-    color: var(--text-primary);
-  }
-
-  .motion-row.state-playing .btn-play {
     color: var(--yui-accent-ink);
   }
 
@@ -328,13 +292,13 @@
   .sub-line {
     padding: 0 16px 8px 33px;
     font-size: var(--detail-size);
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
     letter-spacing: 0.01em;
     margin-top: -4px;
   }
 
   .sub-line span {
-    color: var(--text-secondary);
+    color: var(--yui-text-dim);
     font-variant-numeric: tabular-nums;
   }
 
@@ -343,7 +307,7 @@
   .section-sep {
     height: 1px;
     margin: 8px 16px;
-    background: var(--border-subtle);
+    background: var(--yui-edge);
   }
 
   /* PLAYBACK section */
@@ -362,7 +326,7 @@
 
   .playback-label {
     font-size: var(--detail-size);
-    color: var(--text-secondary);
+    color: var(--yui-text-dim);
     width: 72px;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -375,27 +339,7 @@
     gap: 8px;
   }
 
-  /* Checkbox */
-  .cb-wrap {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    cursor: pointer;
-  }
-
-  .cb-wrap input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    accent-color: var(--yui-accent);
-    cursor: pointer;
-  }
-
-  .cb-label {
-    font-size: var(--body-size);
-    color: var(--text-primary);
-  }
-
-  /* Sliders */
+  /* Sliders and the crossfade select fill their row beside the value. */
   .slider-wrap {
     flex: 1;
     display: flex;
@@ -403,72 +347,17 @@
     gap: 8px;
   }
 
-  input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
+  .playback-control > .yui-select {
     flex: 1;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--border);
-    outline: none;
-    cursor: pointer;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--text-secondary);
-    cursor: pointer;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    input[type="range"]::-webkit-slider-thumb {
-      transition: background 150ms var(--ease-out);
-    }
-  }
-
-  input[type="range"]::-webkit-slider-thumb:hover,
-  input[type="range"]:focus::-webkit-slider-thumb {
-    background: var(--accent);
-  }
-
-  input[type="range"]::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--text-secondary);
-    cursor: pointer;
-    border: none;
   }
 
   .slider-value {
     font-size: var(--detail-size);
-    color: var(--text-secondary);
+    color: var(--yui-text-dim);
     min-width: 38px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
-  }
-
-  /* Select / dropdown */
-  select {
-    background: var(--surface-raised);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-family: inherit;
-    font-size: var(--detail-size);
-    cursor: pointer;
-    outline: none;
-    flex: 1;
-    height: 26px;
-  }
-
-  select:focus {
-    border-color: var(--yui-accent);
   }
 
   /* Action buttons */
@@ -479,58 +368,9 @@
     padding: 4px 16px 6px;
   }
 
-  .btn {
-    padding: 5px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--border);
-    background: var(--surface-raised);
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: var(--detail-size);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .btn {
-      transition:
-        background 150ms var(--ease-out),
-        border-color 150ms var(--ease-out),
-        color 150ms var(--ease-out);
-    }
-  }
-
-  .btn:hover {
-    background: var(--surface-hover);
-    border-color: var(--text-tertiary);
-  }
-
-  .btn-primary {
-    background: var(--yui-selected);
-    border-color: var(--yui-accent-soft);
-    color: var(--yui-accent-ink);
-    font-weight: 500;
-  }
-
-  .btn-primary:hover {
-    background: var(--yui-selected);
-    border-color: var(--yui-accent);
-  }
-
-  .btn-stop {
-    color: var(--text-secondary);
-  }
-
   .btn-idle {
     margin-left: auto;
   }
-
-  /* EMOTION section — no additional rules needed.
- * Rows use .motion-row / .dot / .row-name / .state-playing / .tag / .btn-play.
- * Sliders use .playback-row / .playback-label / .playback-control / .slider-wrap / .slider-value.
- * Buttons use .btn-row / .btn / .btn-primary / .btn-stop.
- * Active emotion highlight reuses the same amber .state-playing treatment as motion rows.
- */
 
   /* Status bar */
 
@@ -538,7 +378,7 @@
     flex-shrink: 0;
     height: 30px;
     background: var(--yui-field);
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--yui-edge-strong);
     display: flex;
     align-items: center;
     padding: 0 16px;
@@ -546,17 +386,17 @@
 
   .status-text {
     font-size: 11px;
-    color: var(--text-secondary);
+    color: var(--yui-text-dim);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
   }
 
   .status-text .status-key {
-    color: var(--text-tertiary);
+    color: var(--yui-text-mute);
   }
 
   .status-text .status-val {
-    color: var(--text-primary);
+    color: var(--yui-text);
     font-weight: 500;
   }
 
