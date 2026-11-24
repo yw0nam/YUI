@@ -653,6 +653,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_reconcile_listing_overwrites_the_cache_so_a_later_done_signals() {
+        let fake = FakeServer::start().await;
+        {
+            let mut s = fake.state.lock().await;
+            // Each rebuild lists twice: before subscribing and in the reconcile.
+            s.queued = VecDeque::from([
+                vec![pane("p1", "claude", "done", "T1", "/tmp")],
+                vec![pane("p1", "claude", "done", "T1", "/tmp")],
+                vec![pane("p1", "claude", "idle", "T1", "/tmp")],
+                vec![pane("p1", "claude", "idle", "T1", "/tmp")],
+            ]);
+            s.panes = vec![pane("p1", "claude", "done", "T1", "/tmp")];
+        }
+        let queued_left = |n: usize| fake.state.try_lock().is_ok_and(|s| s.queued.len() == n);
+        let (notify, mut rx) = notifier();
+        let task = watch(&fake, notify);
+        assert!(
+            wait_until(Duration::from_secs(5), || queued_left(2)).await,
+            "no first rebuild"
+        );
+        fake.emit("pane.created", json!({"pane": {"pane_id": "p2"}}))
+            .await;
+        assert!(
+            wait_until(Duration::from_secs(5), || queued_left(0)).await,
+            "no rebuild listing idle"
+        );
+        nothing_arrives(&mut rx, "done to idle signalled").await;
+        fake.emit("pane.created", json!({"pane": {"pane_id": "p3"}}))
+            .await;
+        let got = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
+        assert!(
+            matches!(got, Ok(Some(_))),
+            "no notification for idle to done between reconciles"
+        );
+        let params = got.unwrap().unwrap();
+        assert_eq!(params["envelope"]["event_type"], json!("agent_done"));
+        assert_eq!(params["signals"][0]["pane"], json!("p1"));
+        nothing_arrives(&mut rx, "idle to done signalled twice").await;
+        task.abort();
+    }
+
+    #[tokio::test]
     async fn status_changes_into_done_and_blocked_signal_once() {
         let fake = FakeServer::start().await;
         fake.state.lock().await.panes = vec![pane("p1", "claude", "working", "T1", "/tmp")];
