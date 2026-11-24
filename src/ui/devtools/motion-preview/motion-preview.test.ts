@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../../config/load-test-helpers";
 import type { AvatarConfig } from "../../../config/validators/avatar/types";
 import type { EmotionRegistry, MotionRegistry } from "../../../contract";
+import { createContextHistory } from "../../../io/chat/conversation/context-history";
+import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
+import { createDevtoolsShell } from "../shell";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { load, resolveAssetUrl, createRenderer, rendererStub } = vi.hoisted(() => {
   const rendererStub = {
@@ -144,6 +150,44 @@ describe("mountMotionPreview", () => {
     handle.dispose();
     expect(order).toEqual(["cancel", "dispose"]);
     expect(frames.size).toBe(0);
+  });
+
+  it("plays a motion and sets an emotion from a row that is the only button in its list item", async () => {
+    load.mockResolvedValue({ motions, emotionRegistry, avatar: avatarFixture() });
+    resolveAssetUrl.mockResolvedValue("/vrms/test.vrm");
+    rendererStub.loadVRM.mockResolvedValue(undefined);
+    document.body.innerHTML = '<div id="app"></div>';
+    const shell = createDevtoolsShell({
+      mount: document.querySelector("#app")!,
+      history: createContextHistory(),
+      endpointsSettings: createEndpointsSettings(),
+      loadMotionPreview: mountMotionPreview,
+    });
+    await act(() => shell.activate("motion"));
+
+    const onlyButtonIn = (name: RegExp) => {
+      const button = screen.queryByRole("button", { name });
+      expect(button).not.toBeNull();
+      const item = button?.closest("li");
+      expect(item?.parentElement?.tagName).toBe("UL");
+      expect(item ? within(item).queryAllByRole("button") : []).toEqual([button]);
+      return button!;
+    };
+    fireEvent.click(onlyButtonIn(/^wave/));
+    expect(rendererStub.playMotion).toHaveBeenCalledWith({
+      id: "wave",
+      loop: true,
+      speed: 1,
+      fade_ms: 200,
+    });
+    fireEvent.click(onlyButtonIn(/^happy/));
+    expect(rendererStub.setEmotion).toHaveBeenCalledWith({
+      id: "happy",
+      intensity: 1,
+      transition_ms: 250,
+    });
+    act(() => shell.dispose());
+    document.body.innerHTML = "";
   });
 
   describe("with a stored VRM selection", () => {
