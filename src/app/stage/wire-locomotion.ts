@@ -45,6 +45,9 @@ export function createSitLossFall(deps: {
   };
 }
 
+/** Who holds her still: the open Character menu, or her come-along onto the settings stage. */
+export type LocomotionHolder = "menu" | "come-along";
+
 export function wireLocomotion(deps: {
   bound?: boolean;
   bus: EventBus;
@@ -74,10 +77,13 @@ export function wireLocomotion(deps: {
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
   abortTravel(): Promise<void>;
-  /** Holds her still: cancels the loops and keeps a stroll, climb or perch walk from starting. */
-  hold(on: boolean): void;
-  /** Parks the real window over her position and the `via` origins; `onAbort` runs when an agent move ends it. */
-  widen(via: Array<{ x: number; y: number }>, onAbort: () => void): Promise<Travel>;
+  /**
+   * Holds her still while any holder holds her: cancels the loops and keeps a stroll, climb or
+   * perch walk from starting. `onAbort` runs once when an agent move takes her.
+   */
+  hold(holder: LocomotionHolder, on: boolean, onAbort?: () => void): void;
+  /** Parks the real window over her position and the `via` origins. */
+  widen(via: Array<{ x: number; y: number }>): Promise<Travel>;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     frameWindow(): FrameWindow;
@@ -118,8 +124,9 @@ export function wireLocomotion(deps: {
   // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
   // stroll at once; an ordinary turn walks on. A hold keeps her still the way a drag does.
   let dragging = false;
-  let held = false;
-  let onWidenAbort: (() => void) | null = null;
+  // Each holder, with the abort an agent move runs once.
+  const holders = new Map<LocomotionHolder, (() => void) | undefined>();
+  const held = (): boolean => holders.size > 0;
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -129,7 +136,7 @@ export function wireLocomotion(deps: {
     getDescendConfig: () => getConfig().avatar.descend,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || held,
+    isDragging: () => dragging || held(),
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -183,8 +190,10 @@ export function wireLocomotion(deps: {
       climberRef?.cancel();
       percherRef?.cancel();
       sitter.cancel();
-      onWidenAbort?.();
-      onWidenAbort = null;
+      for (const [holder, onAbort] of [...holders]) {
+        holders.set(holder, undefined);
+        onAbort?.();
+      }
       // A cancelled climb or stroll may still be unparking its travel.
       return travelFrame.abort();
     },
@@ -209,7 +218,7 @@ export function wireLocomotion(deps: {
     getJumpConfig: () => getConfig().avatar.jump,
     getFallConfig: () => fallConfigFor(getConfig().avatar.fall, fallSettings.get().enabled),
     getMotionKind: (id) => getConfig().motions[id]?.kind,
-    isBusy: () => held || dispatcher.isPipelineBusy(),
+    isBusy: () => held() || dispatcher.isPipelineBusy(),
     walker,
     sitter,
     dropSource: windowSources,
@@ -236,7 +245,7 @@ export function wireLocomotion(deps: {
     getWalkConfig: () => getConfig().avatar.walk,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || held,
+    isDragging: () => dragging || held(),
     isBusy: dispatcher.isPipelineBusy,
     walker,
     faller,
@@ -267,15 +276,17 @@ export function wireLocomotion(deps: {
     },
     cancel,
     abortTravel: () => travelFrame.abort(),
-    hold(on) {
-      if (on) cancel();
-      else onWidenAbort = null;
-      held = on;
+    hold(holder, on, onAbort) {
+      if (!on) {
+        holders.delete(holder);
+        return;
+      }
+      cancel();
+      holders.set(holder, onAbort);
     },
-    async widen(via, onAbort) {
+    async widen(via) {
       const win = travelFrame.getWindow();
       const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-      onWidenAbort = onAbort;
       // She ends where she starts: the travel only parks the window over the via origins.
       return travelFrame.travel.begin({ x: pos.x / scale, y: pos.y / scale }, via);
     },
