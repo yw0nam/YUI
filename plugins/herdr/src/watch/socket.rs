@@ -69,6 +69,7 @@ pub async fn read_response(conn: &mut Conn) -> Result<Value, ReadFail> {
 pub enum SubscribeFail {
     /// herdr rejected the set (a listed pane closed meanwhile) and closed the connection.
     Rejected,
+    /// A connect, write, or timeout failure: the connection itself is broken.
     Failed(String),
 }
 
@@ -77,7 +78,7 @@ pub async fn subscribe(conn: &mut Conn, subscriptions: &[Value]) -> Result<(), S
         json!({"id": 1, "method": "events.subscribe", "params": {"subscriptions": subscriptions}});
     write_line(conn, &request)
         .await
-        .map_err(|_| SubscribeFail::Rejected)?;
+        .map_err(SubscribeFail::Failed)?;
     let response = match read_response(conn).await {
         Ok(response) => response,
         Err(ReadFail::Timeout) => {

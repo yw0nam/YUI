@@ -249,7 +249,7 @@ mod tests {
     use serde_json::{json, Value};
     use std::collections::VecDeque;
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Duration;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -267,6 +267,7 @@ mod tests {
         panes: Vec<Value>,
         queued: VecDeque<Vec<Value>>,
         reject_next: bool,
+        reject_all: bool,
     }
 
     struct Conn {
@@ -282,6 +283,7 @@ mod tests {
         state: Arc<Mutex<FakeState>>,
         conns: Arc<Mutex<Vec<Conn>>>,
         subscribes: Arc<StdMutex<Vec<Vec<String>>>>,
+        attempts: Arc<AtomicUsize>,
         accept: tokio::task::JoinHandle<()>,
     }
 
@@ -300,17 +302,24 @@ mod tests {
                 panes: Vec::new(),
                 queued: VecDeque::new(),
                 reject_next: false,
+                reject_all: false,
             }));
             let conns: Arc<Mutex<Vec<Conn>>> = Arc::new(Mutex::new(Vec::new()));
             let subscribes = Arc::new(StdMutex::new(Vec::new()));
-            let (s, c, subs) = (state.clone(), conns.clone(), subscribes.clone());
+            let attempts = Arc::new(AtomicUsize::new(0));
+            let (s, c, subs, att) = (
+                state.clone(),
+                conns.clone(),
+                subscribes.clone(),
+                attempts.clone(),
+            );
             let accept = tokio::spawn(async move {
                 loop {
                     let Ok((stream, _)) = listener.accept().await else {
                         break;
                     };
-                    let (s, c, subs) = (s.clone(), c.clone(), subs.clone());
-                    tokio::spawn(async move { handle(stream, s, c, subs).await });
+                    let (s, c, subs, att) = (s.clone(), c.clone(), subs.clone(), att.clone());
+                    tokio::spawn(async move { handle(stream, s, c, subs, att).await });
                 }
             });
             FakeServer {
@@ -319,6 +328,7 @@ mod tests {
                 state,
                 conns,
                 subscribes,
+                attempts,
                 accept,
             }
         }
@@ -358,6 +368,10 @@ mod tests {
                 .filter(|s| s.iter().any(|t| t == "pane.created"))
                 .count()
         }
+
+        fn status_attempts(&self) -> usize {
+            self.attempts.load(Ordering::Relaxed)
+        }
     }
 
     impl Drop for FakeServer {
@@ -372,6 +386,7 @@ mod tests {
         state: Arc<Mutex<FakeState>>,
         conns: Arc<Mutex<Vec<Conn>>>,
         subscribes: Arc<StdMutex<Vec<Vec<String>>>>,
+        attempts: Arc<AtomicUsize>,
     ) {
         let (rd, mut wr) = stream.into_split();
         let mut lines = BufReader::new(rd).lines();
@@ -427,7 +442,12 @@ mod tests {
                         .is_some_and(|a| a.iter().any(|s| s.get("pane_id").is_some()));
                     let reject = {
                         let mut s = state.lock().await;
-                        if has_pane && s.reject_next {
+                        if has_pane {
+                            attempts.fetch_add(1, Ordering::Relaxed);
+                        }
+                        if has_pane && s.reject_all {
+                            true
+                        } else if has_pane && s.reject_next {
                             s.reject_next = false;
                             true
                         } else {
@@ -495,7 +515,7 @@ mod tests {
         kind: &str,
         data: Value,
     ) -> Value {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
         loop {
             fake.emit(kind, data.clone()).await;
             if let Ok(Some(v)) = tokio::time::timeout(Duration::from_millis(100), rx.recv()).await {
@@ -512,6 +532,32 @@ mod tests {
     async fn nothing_arrives(rx: &mut mpsc::UnboundedReceiver<Value>, message: &str) {
         let got = tokio::time::timeout(Duration::from_millis(300), rx.recv()).await;
         assert!(got.is_err(), "{message}");
+    }
+
+    #[tokio::test]
+    async fn a_rejected_subscription_rebuilds_with_a_backoff() {
+        let fake = FakeServer::start().await;
+        fake.state.lock().await.panes = vec![pane("p1", "claude", "working", "T1", "/tmp")];
+        fake.state.lock().await.reject_all = true;
+        let (notify, mut rx) = notifier();
+        let task = watch(&fake, notify);
+        assert!(
+            wait_until(Duration::from_secs(5), || fake.status_attempts() >= 1).await,
+            "no subscribe attempt"
+        );
+        // The next attempt waits 5 s, so a 3 s window holds at most 2.
+        let start = tokio::time::Instant::now();
+        while start.elapsed() < Duration::from_secs(3) {
+            assert!(
+                fake.status_attempts() <= 2,
+                "hot loop: {} subscribe attempts in {:?}",
+                fake.status_attempts(),
+                start.elapsed()
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        nothing_arrives(&mut rx, "a rejected subscription signalled").await;
+        task.abort();
     }
 
     #[tokio::test]
