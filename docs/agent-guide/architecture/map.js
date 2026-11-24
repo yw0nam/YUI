@@ -566,9 +566,10 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, and the Threads window's native number and no-focus order-front.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, the Threads window's native number and no-focus order-front, and the pet window's native child link to its settings window (macOS), unlinked when that settings window closes or the tray hides main.",
       "paths": [
         "src-tauri/src/drag.rs",
+        "src-tauri/src/window_dock.rs",
         "src-tauri/src/window_frame.rs",
         "src-tauri/src/passthrough.rs",
         "src-tauri/src/threads_window.rs"
@@ -936,7 +937,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed, threads-presented and threads-open-request.",
+      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, settings-stage, settings-stage-ask, open-devtools, threads-open, threads-ready, threads-closed, threads-presented and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1137,6 +1138,15 @@ globalThis.YUI_MAP =
       "role": "Diffs each Threads snapshot against the last one seen and returns the batched signal groups the Thread turns level asks for: a new ask or a Thread becoming failed (notable), or a new agent or system entry (every); the first snapshot is the baseline.",
       "paths": [
         "src/dispatcher/sources/threads"
+      ]
+    },
+    {
+      "id": "ambient/come-along",
+      "module": "ambient",
+      "label": "come-along",
+      "role": "One settings window's session on its pet window: on a stage rect she leaves her spot, walks onto the slot on an ease-in-out curve over 600 to 900 ms and docks, as a native child where the shell links one, else following each rect; a null rect or the close sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. Her home and that opt-out survive a reload.",
+      "paths": [
+        "src/ambient/come-along"
       ]
     },
     {
@@ -1390,7 +1400,7 @@ globalThis.YUI_MAP =
       "id": "app/stage",
       "module": "wiring",
       "label": "stage wiring",
-      "role": "Binds the renderer, gestures, locomotion, and the window sources to the pet stage.",
+      "role": "Binds the renderer, gestures, locomotion, the window sources and the come-along to the pet stage.",
       "paths": [
         "src/app/stage"
       ]
@@ -3486,7 +3496,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-widen",
       "from": "app/character-menu",
       "to": "app/stage",
-      "carries": "hold(true) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via, onAbort) parks the travel frame over her position and the via origins; travel.end() then hold(false) on close; onAbort when an agent move ends the widen",
+      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via) parks the travel frame over her position and the via origins; travel.end() then hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort when an agent move ends the widen",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3776,6 +3786,78 @@ globalThis.YUI_MAP =
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-page.ts"
+    },
+    {
+      "id": "settings-stage-emit",
+      "from": "app/settings-window",
+      "to": "io/bridge/settings",
+      "carries": "yui://settings-stage {preset: id or null, rect: {x, y, width, height, scale} or null}: the stage's top slot in screen logical points and the window's scale, at boot, on a move, resize or visibility change when it changed, and on every ask; null while minimised",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-stage-rect.ts"
+    },
+    {
+      "id": "settings-stage",
+      "from": "io/bridge/settings",
+      "to": "app/stage",
+      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a rect starts or moves the come-along, null sends her home",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "settings-stage-ask-emit",
+      "from": "app/stage",
+      "to": "io/bridge/settings",
+      "carries": "yui://settings-stage-ask, no payload: sent once at boot, after the settings-stage listener is in place",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "settings-stage-ask",
+      "from": "io/bridge/settings",
+      "to": "app/settings-window",
+      "carries": "yui://settings-stage-ask, unscoped: every settings window sends its stage rect again",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-stage-rect.ts"
+    },
+    {
+      "id": "come-along-locomotion",
+      "from": "ambient/come-along",
+      "to": "app/stage",
+      "carries": "hold(\"come-along\", on, onAbort) holds her still and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "come-along-renderer",
+      "from": "ambient/come-along",
+      "to": "renderer/motion",
+      "carries": "onTick drives the walk; playMotion walk, setBodyYaw toward the slot",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "come-along-dock",
+      "from": "ambient/come-along",
+      "to": "shell/window",
+      "carries": "window_dock_attach → whether a native child link to her own settings window is in effect, at normal level; window_dock_detach removes it and restores her level",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "settings-stage-closed",
+      "from": "shell/window",
+      "to": "app/stage",
+      "carries": "yui://settings-stage-closed {label}: a settings window's close request, after the shell unlinked its pet window; that pet window sends her home",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
     },
     {
       "id": "settings-devtools-request",
@@ -6539,6 +6621,34 @@ globalThis.YUI_MAP =
         "from": "settings-<id>",
         "to": "pet",
         "carries": "yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-stage-window",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://settings-stage: {preset: null, rect}; unscoped, main's pet window comes along onto the stage or goes home on null",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-stage-ask-window",
+        "from": "pet",
+        "to": "settings",
+        "carries": "yui://settings-stage-ask: no payload; the settings window sends its rect again",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-stage-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://settings-stage: {preset: id, rect}; unscoped, the pet window of that preset comes along onto the stage or goes home on null",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-stage-ask-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://settings-stage-ask: no payload; the settings window sends its rect again",
         "kind": "bridge"
       },
       {
