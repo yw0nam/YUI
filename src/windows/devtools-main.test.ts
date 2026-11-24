@@ -48,20 +48,20 @@ vi.mock("../logger", () => ({ initLogger, createLogger }));
 const { mountMotionPreview } = vi.hoisted(() => {
   const clip = { kind: "ambient", loop: true, priority: 10, interrupt_policy: "replace" } as const;
   return {
-    mountMotionPreview: vi.fn<typeof import("../ui/devtools/motion-preview/motion-preview").mountMotionPreview>(
-      async (view) => {
-        view.ready({
-          renderer: {} as never,
-          registry: {
-            idle: { ...clip, vrma_path: "/motions/idle.vrma" },
-            wave: { ...clip, vrma_path: "/motions/wave.vrma" },
-          },
-          variantIds: new Set(),
-          emotions: {} as never,
-        });
-        return { dispose: vi.fn() };
-      },
-    ),
+    mountMotionPreview: vi.fn<
+      typeof import("../ui/devtools/motion-preview/motion-preview").mountMotionPreview
+    >(async (view) => {
+      view.ready({
+        renderer: {} as never,
+        registry: {
+          idle: { ...clip, vrma_path: "/motions/idle.vrma" },
+          wave: { ...clip, vrma_path: "/motions/wave.vrma" },
+        },
+        variantIds: new Set(),
+        emotions: {} as never,
+      });
+      return { dispose: vi.fn() };
+    }),
   };
 });
 
@@ -83,19 +83,8 @@ vi.mock("../app/settings/conversation-stores", async (importOriginal) => {
 
 type CorsFetchGlobal = { CORSFetch?: { config: (c: { exclude: RegExp[] }) => void } };
 
-// jsdom lacks CSS.escape, which the nav focus restore needs.
-if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {
-  (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
-    escape: (value: string) =>
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: mirror the real escape's control-char handling.
-      String(value).replace(/[\x00-\x7f]/g, (ch) => (/[a-zA-Z0-9_-]/.test(ch) ? ch : `\\${ch}`)),
-  };
-}
-
 afterEach(async () => {
   window.dispatchEvent(new Event("beforeunload"));
-  // The shell disposes a mounted preview asynchronously; let it land before the counters reset.
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
   const { setLocale } = await import("../ui/i18n");
   setLocale("en");
   vi.clearAllMocks();

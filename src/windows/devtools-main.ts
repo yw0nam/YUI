@@ -1,6 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
+import "../ui/quick-controls/controls.css";
 import "../ui/devtools/devtools.css";
 import { wireDevtoolsSync } from "../app/cross-window/wire-cross-window";
 import { createConversationStores } from "../app/settings/conversation-stores";
@@ -12,7 +13,6 @@ import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createSettingsStores } from "../settings/settings-stores";
 import { isTauri } from "../tauri-env";
 import { createDevtoolsShell } from "../ui/devtools/shell";
-import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
 import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
@@ -46,22 +46,22 @@ async function bootstrap(): Promise<void> {
     log.warn("config_load_failed", { error: String(error) });
   }
 
-  document.documentElement.lang = getLocale();
-  const buildShell = (): ReturnType<typeof createDevtoolsShell> => {
+  const labelWindow = () => {
+    document.documentElement.lang = getLocale();
     document.title = t("devtools.label");
-    return createDevtoolsShell({
-      mount,
-      history: contextHistory,
-      endpointsSettings,
-      defaultContextWindow,
-      loadMotionPreview: async (section) => {
-        const { mountMotionPreview } = await import("../ui/devtools/motion-preview/motion-preview");
-        return mountMotionPreview(section);
-      },
-    });
   };
-  const rebuilder = createLocaleRebuilder({ mount, build: buildShell, log });
-  const unsubscribeLocale = subscribeLocale(rebuilder.rebuild);
+  labelWindow();
+  const unsubscribeLocale = subscribeLocale(labelWindow);
+  const shell = createDevtoolsShell({
+    mount,
+    history: contextHistory,
+    endpointsSettings,
+    defaultContextWindow,
+    loadMotionPreview: async (view) => {
+      const { mountMotionPreview } = await import("../ui/devtools/motion-preview/motion-preview");
+      return mountMotionPreview(view);
+    },
+  });
   const {
     bridge,
     reload,
@@ -81,7 +81,7 @@ async function bootstrap(): Promise<void> {
     disposePresetSwitch();
     presetRegistry.dispose();
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.
-    rebuilder.dispose();
+    shell.dispose();
     disposeSync();
     window.removeEventListener("focus", reload);
     unsubscribeLocale();

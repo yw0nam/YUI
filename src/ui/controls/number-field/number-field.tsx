@@ -10,14 +10,25 @@ export interface NumberFieldProps {
   /** null shows an empty field. */
   value: number | null;
   min: number;
-  max: number;
+  /** No upper bound when left out. */
+  max?: number;
+  /** Shown while the field is empty. */
+  placeholder?: string;
   /** The committed value: a blur after typing, Enter, or a step. */
   onCommit(value: number | null): void;
   /** What sits after the input in the field box, such as a unit. */
   children?: ReactNode;
 }
 
-export function NumberField({ id, value, min, max, onCommit, children }: NumberFieldProps) {
+export function NumberField({
+  id,
+  value,
+  min,
+  max,
+  placeholder,
+  onCommit,
+  children,
+}: NumberFieldProps) {
   return (
     <BaseNumberField.Root
       id={id}
@@ -31,6 +42,7 @@ export function NumberField({ id, value, min, max, onCommit, children }: NumberF
     >
       <BaseNumberField.Input
         className="yui-num-input"
+        placeholder={placeholder}
         onKeyDown={(event) => {
           if (event.key === "Home" || event.key === "End") {
             // Base UI jumps to the bound and commits it; leave the caret move to the browser.

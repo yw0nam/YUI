@@ -53,7 +53,7 @@ body,
   text-align: left;
 }
 
-.devtools-nav .yui-tab.is-active {
+.devtools-nav .yui-tab[aria-selected="true"] {
   color: var(--yui-text);
   background: var(--yui-selected);
 }
@@ -215,7 +215,7 @@ body,
   min-height: 3.4rem;
 }
 
-.devtools-number {
+.devtools-advanced .yui-num-input {
   width: 8rem;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--yui-edge-strong);
@@ -228,7 +228,7 @@ body,
   text-align: right;
 }
 
-.devtools-number:focus-visible {
+.devtools-advanced .yui-num-input:focus-visible {
   border-color: var(--yui-accent);
   box-shadow: 0 0 0 2px var(--yui-accent-faint);
 }
