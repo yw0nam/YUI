@@ -63,8 +63,8 @@ export function wireComeAlong(deps: {
     // Her real window must be wired before a slot moves it.
     await locomotion.ready;
     register(
-      deps.onSettingsStage(({ preset, rect }) => {
-        if (preset === boundId) void comeAlong.onStage(rect).catch(failed);
+      deps.onSettingsStage(({ preset, slot }) => {
+        if (preset === boundId) void comeAlong.onStage(slot).catch(failed);
       }),
     );
     register(onSettingsStageClosed(settingsLabel, () => void comeAlong.goHome().catch(failed)));

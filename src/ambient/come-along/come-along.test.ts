@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { StageRect } from "../../io/bridge/settings-bridge";
+import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { HoldOptions } from "../locomotion/hold/holds";
 import { createComeAlong } from "./come-along";
@@ -12,7 +12,7 @@ const monitor: ScreenMonitor = {
   scaleFactor: 2,
 };
 // The slot is 400 × 600 pt, so her 400 × 600 window docks at the slot's own origin, (100, 80).
-const slot: StageRect = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
+const slot: StageSlot = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

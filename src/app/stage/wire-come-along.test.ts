@@ -4,7 +4,7 @@ import type { SettingsStage } from "../../io/bridge/settings-bridge";
 
 const mocks = vi.hoisted(() => ({
   comeAlong: {
-    onStage: vi.fn<(rect: unknown) => Promise<void>>(),
+    onStage: vi.fn<(slot: unknown) => Promise<void>>(),
     goHome: vi.fn<() => Promise<void>>(),
     place: vi.fn<() => Promise<void>>(),
   },
@@ -29,7 +29,7 @@ vi.mock("../../io/window/pet/window-dock", () => ({
 
 import { wireComeAlong } from "./wire-come-along";
 
-const rect = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
+const slot = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
 let onStage: (stage: SettingsStage) => void;
 let resized: () => void;
 let released: () => void;
@@ -87,7 +87,7 @@ it.each([
 ])("a pet window bound to %j takes the stage slot sent for %j %d times", async (boundId, preset, times) => {
   await wire(boundId);
 
-  onStage({ preset, rect });
+  onStage({ preset, slot });
 
   expect(mocks.comeAlong.onStage).toHaveBeenCalledTimes(times);
 });

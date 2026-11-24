@@ -8,6 +8,7 @@ import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
 import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { subscribeFileDrop } from "../../io/window/file-drop/file-drop";
+import { sendStageSlot } from "../../io/window/geometry/stage-slot";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
 import type { PageRequest } from "../../settings/panels/settings-pages";
@@ -30,7 +31,6 @@ import { wirePresetSwitch } from "../settings/wire-preset";
 import { wireWindowSettings } from "../settings/wire-window-settings";
 import { editTargetUrl } from "./edit-target-url";
 import { opensOnQuickStart, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
-import { wireStageRect } from "./wire-stage-rect";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -338,7 +338,14 @@ export async function wireSettingsWindow(deps: {
   register(() => delegations.dispose());
   register(unsubscribeLocale);
   register(stage.dispose);
-  register(wireStageRect({ bridge, boundId, stage: stage.el }));
+  register(
+    sendStageSlot({
+      emit: bridge.emitSettingsStage,
+      onAsk: bridge.onSettingsStageAsk,
+      preset: boundId,
+      stage: stage.el,
+    }),
+  );
   register(unsubscribeCueSync);
   // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
   // reach the broadcast path and a live bridge.

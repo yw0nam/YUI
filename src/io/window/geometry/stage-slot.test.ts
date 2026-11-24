@@ -10,7 +10,7 @@ const win = vi.hoisted(() => ({
 }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => win }));
 
-import { wireStageRect } from "./wire-stage-rect";
+import { sendStageSlot } from "./stage-slot";
 
 let stage: HTMLElement;
 let moved: () => void;
@@ -42,15 +42,13 @@ afterEach(() => {
 
 function wire(boundId: string | null = null) {
   teardowns.push(
-    wireStageRect({
-      bridge: {
-        emitSettingsStage,
-        onSettingsStageAsk: (cb) => {
-          ask = cb;
-          return () => {};
-        },
+    sendStageSlot({
+      emit: emitSettingsStage,
+      onAsk: (cb) => {
+        ask = cb;
+        return () => {};
       },
-      boundId,
+      preset: boundId,
       stage,
     }),
   );
@@ -62,7 +60,7 @@ it("sends the stage's top slot in screen points at boot, with the window's scale
   wire();
 
   await vi.waitFor(() =>
-    expect(emitSettingsStage).toHaveBeenCalledExactlyOnceWith({ preset: null, rect: slot }),
+    expect(emitSettingsStage).toHaveBeenCalledExactlyOnceWith({ preset: null, slot: slot }),
   );
 });
 
@@ -72,7 +70,7 @@ it("sends no slot while the window is minimised", async () => {
   wire("mio");
 
   await vi.waitFor(() =>
-    expect(emitSettingsStage).toHaveBeenCalledExactlyOnceWith({ preset: "mio", rect: null }),
+    expect(emitSettingsStage).toHaveBeenCalledExactlyOnceWith({ preset: "mio", slot: null }),
   );
 });
 
@@ -89,8 +87,8 @@ it("sends a moved slot, skips an unchanged one, and answers every ask", async ()
 
   await vi.waitFor(() => expect(emitSettingsStage).toHaveBeenCalledTimes(3));
   expect(emitSettingsStage.mock.calls.slice(1)).toEqual([
-    [{ preset: null, rect: { ...slot, x: 308 } }],
-    [{ preset: null, rect: { ...slot, x: 308 } }],
+    [{ preset: null, slot: { ...slot, x: 308 } }],
+    [{ preset: null, slot: { ...slot, x: 308 } }],
   ]);
 });
 
@@ -110,5 +108,5 @@ it("drops a slot read that a minimise overtook", async () => {
 
   await vi.waitFor(() => expect(emitSettingsStage).toHaveBeenCalled());
   await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(emitSettingsStage.mock.calls).toEqual([[{ preset: null, rect: null }]]);
+  expect(emitSettingsStage.mock.calls).toEqual([[{ preset: null, slot: null }]]);
 });

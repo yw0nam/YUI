@@ -40,14 +40,14 @@ export interface SettingsPageRequest {
 }
 
 /** The stage's slot where her window docks, in screen logical points, and the settings window's scale. */
-export interface StageRect extends ScreenRect {
+export interface StageSlot extends ScreenRect {
   scale: number;
 }
 
 /** A settings window's stage slot for the pet window of `preset` (null: main's); null while minimised. */
 export interface SettingsStage {
   preset: string | null;
-  rect: StageRect | null;
+  slot: StageSlot | null;
 }
 
 /** One character's reply named another open character; emitted once that reply's playback ended. */
@@ -252,16 +252,16 @@ export const channels = {
     name: "yui://settings-stage",
     scope: "shared",
     read(stage, deliver: (stage: SettingsStage) => void) {
-      const { preset, rect } = (stage ?? {}) as Record<string, unknown>;
+      const { preset, slot } = (stage ?? {}) as Record<string, unknown>;
       if (preset !== null && !isString(preset)) return;
-      if (rect === null) {
-        deliver({ preset, rect });
+      if (slot === null) {
+        deliver({ preset, slot });
         return;
       }
-      const { x, y, width, height, scale } = (rect ?? {}) as Record<string, unknown>;
+      const { x, y, width, height, scale } = (slot ?? {}) as Record<string, unknown>;
       const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
       if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
-      deliver({ preset, rect: { x, y, width, height, scale } as StageRect });
+      deliver({ preset, slot: { x, y, width, height, scale } as StageSlot });
     },
   },
   /** A pet window asking every settings window to send its stage slot again. */

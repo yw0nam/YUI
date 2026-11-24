@@ -138,7 +138,6 @@ YUI/
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` and `focus` params set to the requested page and field
         wire-settings-page.ts        # Takes the URL's page and focus, and answers an opener's page request: switches to the opener's character, then selects the page and focuses the field it names
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
-        wire-stage-rect.ts           # Sends the stage's top slot to the window's pet window at boot, on a move, resize or visibility change, and on an ask; null while minimised
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -322,6 +321,8 @@ YUI/
           wire-fall.ts               # Faller start, the fall switch, and landing events
         travel/                      # Travel frame shared by the stroll, fall, and climb
           wire-travel-frame.ts       # Real-window travel frame wiring
+        hold/                        # Who holds her still
+          holds.ts                   # The holders and what each hold declares: an abort, ending on a drag, keeping her geometry, pausing keep-on-screen
         sitter.ts                    # Seat transitions: crossfade and eased window move
         clip-leg.ts                  # A window leg paced by an in-place clip
       threads-reaction/              # Thread reactions: the count-edge and long-wait thresholds, and the reaction when she is free
@@ -495,6 +496,7 @@ YUI/
         own-origin-fetch.ts             # Keeps each webview's own origin on native fetch instead of the CORS proxy
         current-window.ts              # Closes or destroys the current window and listens for its close request
         serial-queue.ts                # Runs window open and close steps one after another; a failed step is logged and the next one still runs
+        latest-only.ts                 # Runs a step one at a time, once more after a run that another call came in during
         capture/                       # Screen enumeration and screenshot capture
           tauri-screen.ts              # Tauri-backed screen enumeration and capture
           screen-source-provider.ts    # Monitor enumeration seam
@@ -509,6 +511,7 @@ YUI/
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
+          stage-slot.ts                # Sends a settings window's stage slot to its pet window at boot, on a move, resize or visibility change, and on an ask; null while minimised
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
         openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset
           settings-window.ts           # Settings window opener, settings-<id> for a bound id, landing on a page or asking the open window for it, and cross-window settings sync

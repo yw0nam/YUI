@@ -3794,7 +3794,7 @@ globalThis.YUI_MAP =
       "carries": "yui://settings-stage {preset: id or null, rect: {x, y, width, height, scale} or null}: the stage's top slot in screen logical points and the window's scale, at boot, on a move, resize or visibility change when it changed, and on every ask; null while minimised",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/settings-window/wire-stage-rect.ts"
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
     {
       "id": "settings-stage",
@@ -3821,7 +3821,7 @@ globalThis.YUI_MAP =
       "carries": "yui://settings-stage-ask, unscoped: every settings window sends its stage rect again",
       "kind": "bridge",
       "transport": "shared",
-      "wiring": "src/app/settings-window/wire-stage-rect.ts"
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
     {
       "id": "come-along-locomotion",

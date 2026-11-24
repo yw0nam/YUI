@@ -74,7 +74,7 @@ const rows: Record<keyof typeof channels, Row> = {
   SettingsStage: {
     name: "yui://settings-stage",
     scope: "shared",
-    ...same({ preset: null, rect: { x: 100, y: 80, width: 400, height: 600, scale: 2 } }),
+    ...same({ preset: null, slot: { x: 100, y: 80, width: 400, height: 600, scale: 2 } }),
   },
   SettingsStageAsk: { name: "yui://settings-stage-ask", scope: "shared", ...none },
   OpenDevtools: { name: "yui://open-devtools", scope: "shared", ...none },
@@ -582,14 +582,14 @@ describe("createSettingsBridge", () => {
   });
 
   it.each([
-    [{ preset: "a", rect: null }, [[{ preset: "a", rect: null }]]],
-    [{ preset: null, rect: { x: 1, y: 2, width: 400, height: 600, scale: Number.NaN } }, []],
-    [{ preset: null, rect: { x: "1", y: 2, width: 400, height: 600, scale: 1 } }, []],
-    [{ preset: null, rect: { x: 1, y: 2, width: 400, height: 600 } }, []],
-    [{ preset: null, rect: { x: 1, y: 2, width: 400, height: 600, scale: 0 } }, []],
-    [{ preset: 3, rect: null }, []],
-    [{ rect: null }, []],
-  ])("delivers a settings stage %j only with a finite rect or null", (payload, calls) => {
+    [{ preset: "a", slot: null }, [[{ preset: "a", slot: null }]]],
+    [{ preset: null, slot: { x: 1, y: 2, width: 400, height: 600, scale: Number.NaN } }, []],
+    [{ preset: null, slot: { x: "1", y: 2, width: 400, height: 600, scale: 1 } }, []],
+    [{ preset: null, slot: { x: 1, y: 2, width: 400, height: 600 } }, []],
+    [{ preset: null, slot: { x: 1, y: 2, width: 400, height: 600, scale: 0 } }, []],
+    [{ preset: 3, slot: null }, []],
+    [{ slot: null }, []],
+  ])("delivers a settings stage %j only with a finite slot or null", (payload, calls) => {
     const t = createFakeTransport();
     const settings = createSettingsBridge(t, { windowKind: "settings" });
     const pet = createSettingsBridge(t, { windowKind: "pet" });

@@ -9,7 +9,7 @@
  * session storage, so a reload of her window finds the open session again.
  */
 
-import type { StageRect } from "../../io/bridge/settings-bridge";
+import type { StageSlot } from "../../io/bridge/settings-bridge";
 import {
   clampToWorkArea,
   floorPx,
@@ -18,6 +18,7 @@ import {
   type ScreenMonitor,
 } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame";
+import { latestOnly } from "../../io/window/latest-only";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { HoldOptions } from "../locomotion/hold/holds";
@@ -35,8 +36,8 @@ const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * 
 
 type Point = { x: number; y: number };
 
-/** What a reload keeps: where she goes home to, or that a drag or agent move took her. */
-type Stored = { home: Point } | { out: true };
+/** What a reload of her window keeps: where she goes home to, or that she stays this session. */
+type SessionRecord = { home: Point } | { stays: true };
 
 export interface ComeAlongDeps {
   /** The settings window's label, which keys what `storage` keeps. */
@@ -68,7 +69,7 @@ export interface ComeAlongDeps {
 
 export function createComeAlong(deps: ComeAlongDeps): {
   /** A settings window's stage slot: starts her session or moves her with it; null ends it. */
-  onStage(rect: StageRect | null): Promise<void>;
+  onStage(slot: StageSlot | null): Promise<void>;
   /** The settings window closes or minimises: she walks home. */
   goHome(): Promise<void>;
   /** Places her on the latest slot again, after her own window was resized or a travel ended. */
@@ -76,30 +77,29 @@ export function createComeAlong(deps: ComeAlongDeps): {
 } {
   const { locomotion, renderer } = deps;
   const key = `yui.come-along.${deps.settingsLabel}`;
-  let session: "none" | "out" | "on" = "none";
-  let slot: StageRect | null = null;
+  let session: "none" | "staying" | "on-stage" = "none";
+  let slot: StageSlot | null = null;
   let home: Point | null = null;
   let docked: { native: boolean } | null = null;
-  // Each move takes a new run; a move owns her while the run is still its own.
-  let run = 0;
+  // Each move gets a new id; a move owns her while `move` is still its id.
+  let move = 0;
   let stopTick: (() => void) | null = null;
-  let placing = false;
-  let placeAgain = false;
 
-  const begin = (): number => {
+  /** Stops whatever move runs and returns the id of the one that takes over. */
+  const takeOver = (): number => {
     stopTick?.();
-    run += 1;
-    return run;
+    move += 1;
+    return move;
   };
 
-  function load(): Stored | null {
+  function load(): SessionRecord | null {
     try {
-      return JSON.parse(deps.storage.getItem(key) ?? "null") as Stored | null;
+      return JSON.parse(deps.storage.getItem(key) ?? "null") as SessionRecord | null;
     } catch {
       return null;
     }
   }
-  function store(value: Stored | null): void {
+  function store(value: SessionRecord | null): void {
     try {
       if (value) deps.storage.setItem(key, JSON.stringify(value));
       else deps.storage.removeItem(key);
@@ -123,7 +123,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   /** Her window's origin that puts its bottom-centre on the slot's bottom-centre. */
-  const dockOrigin = (rect: StageRect, size: { width: number; height: number }): Point => ({
+  const dockOrigin = (rect: StageSlot, size: { width: number; height: number }): Point => ({
     x: Math.round(rect.x + (rect.width - size.width) / 2),
     y: Math.round(rect.y + rect.height - size.height),
   });
@@ -131,14 +131,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
   /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
   async function walk(id: number, to: Point): Promise<void> {
     const { at: from } = await read();
-    if (id !== run) return;
+    if (id !== move) return;
     const distance = Math.hypot(to.x - from.x, to.y - from.y);
     if (deps.reducedMotion() || distance < 1) {
       await locomotion.frame.frameWindow().setPositionLogical(to.x, to.y);
       return;
     }
     const travel = await locomotion.widen([to]);
-    if (id !== run) {
+    if (id !== move) {
       await travel.end();
       return;
     }
@@ -173,14 +173,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   /** A drag or an agent move took her: she stays, and this window's session lets her go. */
-  function taken(): Promise<void> {
-    begin();
+  function yieldToMover(): Promise<void> {
+    takeOver();
     const wasDocked = docked;
     docked = null;
     home = null;
-    if (session === "on") {
-      session = "out";
-      store({ out: true });
+    if (session === "on-stage") {
+      session = "staying";
+      store({ stays: true });
     }
     locomotion.hold("come-along", false);
     deps.hitTest.setMoving(false);
@@ -190,22 +190,22 @@ export function createComeAlong(deps: ComeAlongDeps): {
       : Promise.resolve();
   }
 
-  async function start(rect: StageRect): Promise<void> {
+  async function start(rect: StageSlot): Promise<void> {
     const stored = load();
-    if (stored && "out" in stored) {
-      session = "out";
+    if (stored && "stays" in stored) {
+      session = "staying";
       return;
     }
     if (deps.isBusy()) {
-      session = "out";
+      session = "staying";
       log.info("come_along_stayed");
       return;
     }
-    session = "on";
-    const id = begin();
+    session = "on-stage";
+    const id = takeOver();
     // Whoever moves her owns her; on the stage her bounds are the slot's, not her own spot's.
     locomotion.hold("come-along", true, {
-      onAbort: taken,
+      onAbort: yieldToMover,
       endsOnDrag: true,
       keepsGeometry: true,
       pausesKeepOnScreen: true,
@@ -213,9 +213,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (deps.peek.active()) await deps.peek.exit();
     await locomotion.abortTravel();
     locomotion.release();
-    if (id !== run) return;
+    if (id !== move) return;
     const { at, size } = await read();
-    if (id !== run) return;
+    if (id !== move) return;
     const target = dockOrigin(rect, size);
     if (stored && "home" in stored) {
       home = stored.home;
@@ -226,14 +226,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
       store({ home });
       await walk(id, target);
     }
-    if (id !== run) return;
+    if (id !== move) return;
     let native = false;
     try {
       native = await deps.dock.attach();
     } catch (err) {
       log.warn("dock_attach_failed", { error: String(err) });
     }
-    if (id !== run) {
+    if (id !== move) {
       if (native) await deps.dock.detach();
       return;
     }
@@ -262,23 +262,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await deps.setPositionPhysical(x, y);
   }
 
-  async function place(): Promise<void> {
-    if (placing) {
-      placeAgain = true;
-      return;
-    }
-    placing = true;
-    try {
-      do {
-        placeAgain = false;
-        await placeOnce();
-      } while (placeAgain);
-    } catch (err) {
-      log.warn("come_along_place_failed", { error: String(err) });
-    } finally {
-      placing = false;
-    }
-  }
+  const placeLatest = latestOnly(placeOnce);
+  const place = (): Promise<void> =>
+    placeLatest().catch((err) => log.warn("come_along_place_failed", { error: String(err) }));
 
   /** Her spot, or the nearest monitor's floor when no monitor holds its centre any more. */
   async function homeOrFloor(spot: Point): Promise<Point> {
@@ -305,8 +291,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
     const was = session;
     session = "none";
     store(null);
-    if (was !== "on") return;
-    const id = begin();
+    if (was !== "on-stage") return;
+    const id = takeOver();
     const wasDocked = docked;
     docked = null;
     try {
@@ -316,9 +302,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
     await locomotion.abortTravel();
     const spot = home;
-    if (id !== run || !spot) return;
+    if (id !== move || !spot) return;
     await walk(id, await homeOrFloor(spot));
-    if (id !== run) return;
+    if (id !== move) return;
     home = null;
     locomotion.hold("come-along", false);
     log.info("come_along_home");
@@ -326,11 +312,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   /** A failed start or walk home lets her go where she is, and the next slot starts afresh. */
-  async function settle(step: Promise<void>): Promise<void> {
+  async function releaseOnFailure(step: Promise<void>): Promise<void> {
     try {
       await step;
     } catch (err) {
-      begin();
+      takeOver();
       session = "none";
       docked = null;
       home = null;
@@ -342,13 +328,13 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   return {
-    async onStage(rect) {
-      if (rect === null) return settle(goHome());
-      slot = rect;
-      if (session === "none") return settle(start(rect));
-      if (session === "on") return place();
+    async onStage(next) {
+      if (next === null) return releaseOnFailure(goHome());
+      slot = next;
+      if (session === "none") return releaseOnFailure(start(next));
+      if (session === "on-stage") return place();
     },
-    goHome: () => settle(goHome()),
+    goHome: () => releaseOnFailure(goHome()),
     place,
   };
 }

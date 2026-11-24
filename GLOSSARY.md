@@ -205,6 +205,10 @@ _Avoid_: context menu, radial menu, pie menu, ring menu
 The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing.
 _Avoid_: stage window, stage panel, dock
 
+**Stage slot**:
+The area at the top of the Settings stage where her window sits while she is on the stage; its bottom edge is the stage foot's top line, where her feet stand.
+_Avoid_: stage rect, dock rect
+
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.
 _Avoid_: client line, system line
