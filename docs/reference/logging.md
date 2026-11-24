@@ -250,7 +250,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 
 ## Come-along
 
-`ambient/come-along/come-along.ts` (namespace `come-along`) and `app/stage/wire-come-along.ts` (namespace `wire-come-along`) log in each pet window. `io/window/pet/window-dock.ts` (namespace `window-dock`) listens for the close. `io/window/geometry/stage-slot.ts` (namespace `stage-slot`) logs in each settings window. `src-tauri/src/window_dock.rs` logs the native link, with no namespace.
+`ambient/come-along/come-along.ts` (namespace `come-along`) and `app/stage/wire-come-along.ts` (namespace `wire-come-along`) log in each pet window. `io/window/geometry/stage-slot.ts` (namespace `stage-slot`) logs in each settings window. `src-tauri/src/window_dock.rs` logs the native link, with no namespace.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -265,7 +265,6 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `come-along` | `come_along_place_failed` | `error` | Placing her on a new slot threw (`warn` level). |
 | `come-along` | `come_along_store_failed` | `error` | Session storage refused her home or opt-out, so a reload forgets it (`warn` level). |
 | `wire-come-along` | `come_along_failed` | `error` | A start or a walk home threw; she stays where she is and the next slot starts afresh (`warn` level). |
-| `window-dock` | `settings_stage_ended_listen_failed` | `error` | Listening for the settings window's close or minimise failed (`warn` level). |
 | `stage-slot` | `stage_slot_read_failed` | `error` | Reading the window's position, scale or minimised state threw; no slot is sent (`warn` level). |
 | `stage-slot` | `stage_slot_listen_failed` | `error` | Listening to the window's moves or resizes failed (`warn` level). |
 | Rust `window_dock.rs` | `window_dock_detach_failed` | `window`, `error` | Unlinking the pet window `window` when its settings window closes or miniaturizes failed (`warn` level). |

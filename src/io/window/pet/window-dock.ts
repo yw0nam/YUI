@@ -1,9 +1,5 @@
 /** The pet window's dock into its own settings window: the shell's link commands and its close event. */
 
-import { createLogger } from "../../../logger";
-
-const log = createLogger("window-dock");
-
 /** Links her window into its settings window; resolves whether a native child link is in effect. */
 export async function attachDock(): Promise<boolean> {
   const { invoke } = await import("@tauri-apps/api/core");
@@ -25,23 +21,10 @@ export async function setPetPositionPhysical(x: number, y: number): Promise<void
   await getCurrentWindow().setPosition(new PhysicalPosition(x, y));
 }
 
-/** Calls `cb` when the settings window labelled `label` closes or minimises, after the shell unlinked her. */
-export function onSettingsStageEnded(label: string, cb: () => void): () => void {
-  let off: (() => void) | null = null;
-  let disposed = false;
-  void import("@tauri-apps/api/event")
-    .then(({ listen }) =>
-      listen<string>("yui://settings-stage-ended", (event) => {
-        if (event.payload === label) cb();
-      }),
-    )
-    .then((unlisten) => {
-      if (disposed) unlisten();
-      else off = unlisten;
-    })
-    .catch((err) => log.warn("settings_stage_ended_listen_failed", { error: String(err) }));
-  return () => {
-    disposed = true;
-    off?.();
-  };
+/** Calls `cb` when the settings window labelled `label` closes or minimises, after the shell unlinked her; settles with the disposer once listening. */
+export async function onSettingsStageEnded(label: string, cb: () => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string>("yui://settings-stage-ended", (event) => {
+    if (event.payload === label) cb();
+  });
 }

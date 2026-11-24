@@ -67,10 +67,13 @@ export function wireComeAlong(deps: {
         if (preset === boundId) void comeAlong.onStage(slot).catch(failed);
       }),
     );
-    register(onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)));
+    register(
+      await onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)),
+    );
     register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
     // The Character menu lets go after its parked frame ends: the newest slot applies then.
     register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));
+    // Both listeners are in place before the answer can arrive.
     await deps.bridgeListening();
     deps.emitSettingsStageAsk();
   })().catch(failed);

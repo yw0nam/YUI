@@ -21,7 +21,7 @@ vi.mock("../../io/window/pet/window-dock", () => ({
   setPetPositionPhysical: vi.fn(),
   onSettingsStageEnded: vi.fn<
     typeof import("../../io/window/pet/window-dock").onSettingsStageEnded
-  >((label, cb) => {
+  >(async (label, cb) => {
     mocks.closed.set(label, cb);
     return () => mocks.closed.delete(label);
   }),
@@ -125,7 +125,7 @@ it("asks for the stage slot only once its close listener is in place too", async
     (_label, _cb) =>
       new Promise<() => void>((resolve) => {
         listen = () => resolve(() => {});
-      }) as never,
+      }),
   );
   await wire(null);
   await new Promise((resolve) => setTimeout(resolve, 0));
