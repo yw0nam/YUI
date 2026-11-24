@@ -433,12 +433,17 @@ async def test_a_tools_frame_replaces_the_declared_tools_the_next_turn_start_reg
 
     monkeypatch.setattr(registry, "_ctx", Ctx())
     monkeypatch.setattr(registry, "_declared", {})
-    ws = await ready(client)
+    ws = await client.ws_connect("/ws")
+    await ws.send_json({"type": "hello", "key": KEY, "chat_id": CHAT, "tools": [tool("first")]})
+    assert (await recv(ws))["type"] == "ready"
+    assert (await recv(ws))["type"] == "delegations"
+    assert registered == ["first"]
     await ws.send_json({"type": "tools", "tools": [tool("second")]})
     await wait_for(lambda: state.client_tools(CHAT) == [tool("second")])
+    assert registered == ["first"]
     await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
 
-    assert registered == ["second"]
+    assert registered == ["first", "second"]
 
 
 async def test_the_final_reply_renders_as_cued_sentences(client, adapter):
