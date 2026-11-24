@@ -244,7 +244,12 @@ export type SignalEnvelope = {
   label?: string;
 };
 
-export type SignalGroup = { envelope: SignalEnvelope; items: SignalItem[] };
+export type SignalGroup = {
+  envelope: SignalEnvelope;
+  items: SignalItem[];
+  /** Id of the plugin whose MCP server sent the group; absent for HTTP and Thread groups. */
+  plugin?: string;
+};
 
 // ── Threads (docs/reference/threads.md): the store's snapshot as threads_snapshot and threads-snapshot carry it ──
 

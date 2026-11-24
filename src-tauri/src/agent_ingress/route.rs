@@ -61,6 +61,7 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
                 signals: request.signals,
                 envelope: request.envelope.ok_or(400u16)?,
                 ts: epoch_ms(),
+                plugin: None,
             })
         }
         "/avatar/state" | "/avatar/perch-targets" | "/avatar/command" | "/relations" => {

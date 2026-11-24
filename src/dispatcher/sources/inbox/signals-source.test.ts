@@ -1117,3 +1117,134 @@ describe("signals_source — a reacting Thread's group", () => {
     expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t2"]]]);
   });
 });
+
+describe("signals_source — a plugin's group is ungated", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const URGENT = { ...ENVELOPE, delivery: "urgent" as const };
+  const fromPlugin = (envelope: unknown, items = [{ id: 1 }]): SignalsBatch => ({
+    ...batch(items, 1, envelope),
+    plugin: "p",
+  });
+
+  function setup(isEnabled: () => boolean, busy?: ReturnType<typeof fakePipelineBusy>) {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled,
+      onInbox,
+      listen,
+      isPipelineBusy: busy?.isPipelineBusy,
+      subscribePipelineBusy: busy?.subscribePipelineBusy,
+    });
+    return { src, pushed, emitIdle, emitInbox };
+  }
+
+  const fired = (pushed: BusEnvelope[]) => pushed.map((e) => [e.event_name, e.payload?.signals]);
+
+  it("while off, a plugin's urgent group fires live when present and catches up on return when away, and a group without a plugin is dropped", async () => {
+    const s = setup(() => false);
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(fromPlugin({ ...URGENT, event_id: "p-1" }));
+    s.emitInbox(batch([{ id: 2 }], 1, { ...URGENT, event_id: "http-1" }));
+    s.emitIdle(idleTick(HIGH_IDLE));
+    s.emitInbox(fromPlugin({ ...URGENT, event_id: "p-2" }));
+    s.emitInbox(batch([{ id: 3 }], 1, { ...URGENT, event_id: "http-2" }));
+    s.emitIdle(idleTick(LOW_IDLE));
+    expect(fired(s.pushed)).toEqual([
+      [
+        "signals.urgent",
+        [
+          {
+            envelope: { ...URGENT, event_id: "p-1" },
+            items: [{ id: 1 }],
+            plugin: "p",
+          },
+        ],
+      ],
+      [
+        "signals.urgent_catchup",
+        [
+          {
+            envelope: { ...URGENT, event_id: "p-2" },
+            items: [{ id: 1 }],
+            plugin: "p",
+          },
+        ],
+      ],
+    ]);
+  });
+
+  it("turning off while away purges the gated group on the next tick and the return catch-up carries only the plugin's group", async () => {
+    let enabled = true;
+    const s = setup(() => enabled);
+    await s.src.start();
+    s.emitIdle(idleTick(HIGH_IDLE));
+    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
+    s.emitInbox(fromPlugin(envelopeOf(2), [{ id: 2 }]));
+    enabled = false;
+    s.emitIdle(idleTick(HIGH_IDLE));
+    enabled = true;
+    s.emitIdle(idleTick(LOW_IDLE));
+    expect(fired(s.pushed)).toEqual([
+      ["signals.catchup", [{ envelope: envelopeOf(2), items: [{ id: 2 }], plugin: "p" }]],
+    ]);
+  });
+
+  it("while off, drain takes only the plugin's group and the gated group stays buffered until a tick", async () => {
+    let enabled = true;
+    const s = setup(() => enabled);
+    await s.src.start();
+    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
+    s.emitInbox(fromPlugin(envelopeOf(2), [{ id: 2 }]));
+    enabled = false;
+    expect(s.src.drain()).toEqual([{ envelope: envelopeOf(2), items: [{ id: 2 }], plugin: "p" }]);
+    enabled = true;
+    expect(s.src.drain()).toEqual([{ envelope: envelopeOf(1), items: [{ id: 1 }] }]);
+  });
+
+  it("while off, restore of a dropped turn restores only the plugin's group", async () => {
+    let enabled = false;
+    const s = setup(() => enabled);
+    await s.src.start();
+    const gated = { envelope: envelopeOf(1), items: [{ id: 1 }] };
+    const ungated = {
+      envelope: envelopeOf(2),
+      items: [{ id: 2 }],
+      plugin: "p",
+    };
+    s.src.restore({
+      source: "timer_scheduler",
+      event_name: "signals.catchup",
+      ts: 1,
+      payload: { signals: [gated, ungated] },
+    });
+    enabled = true;
+    expect(s.src.drain()).toEqual([ungated]);
+  });
+
+  it("a plugin's group with a held Thread group's event id is neither held nor fired with it, and both stay buffered", async () => {
+    const s = setup(() => true, fakePipelineBusy(true));
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    const thread: SignalGroup = {
+      envelope: {
+        ...ENVELOPE,
+        event_id: "thread:t1",
+        event_type: "thread.ask",
+      },
+      items: [{ thread_id: "t1" }],
+    };
+    s.src.hold("thread:t1");
+    s.src.offer(thread);
+    s.emitInbox(fromPlugin(thread.envelope, [{ id: 2 }]));
+    expect(s.src.fireHeld(["thread:t1"])).toBe(true);
+    expect(fired(s.pushed)).toEqual([["signals.batch", [thread]]]);
+    expect(s.src.drain()).toEqual([{ envelope: thread.envelope, items: [{ id: 2 }], plugin: "p" }]);
+  });
+});

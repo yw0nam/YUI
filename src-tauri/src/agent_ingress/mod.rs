@@ -17,7 +17,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod avatar_rpc;
 mod guard;
-mod payload;
+pub(crate) mod payload;
 mod response;
 mod route;
 mod server;

@@ -48,6 +48,7 @@
 
 mod calls;
 mod catalog;
+mod client;
 pub mod commands;
 mod host;
 mod install;
@@ -78,11 +79,18 @@ pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
     }
     let handle = app.handle().clone();
     let catalog = catalog::Config::production();
-    let host = Host::new(app_data, log_dir, offset, catalog, move |snapshot| {
-        if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
-            log::warn!("mcp_host_emit_failed error={e}");
-        }
-    });
+    let host = Host::new(
+        app_data,
+        log_dir,
+        offset,
+        catalog,
+        move |snapshot| {
+            if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
+                log::warn!("mcp_host_emit_failed error={e}");
+            }
+        },
+        |_| {},
+    );
     app.manage(host.clone());
     tauri::async_runtime::spawn(async move { host.start_enabled().await });
 }

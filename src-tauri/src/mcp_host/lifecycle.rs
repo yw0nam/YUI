@@ -1,5 +1,6 @@
 //! Server starts and stops: tickets tagged with an epoch, start results, exits, and stops.
 
+use super::client::HostClient;
 use super::host::{Host, Inner};
 use super::launch;
 use super::manifest::ServerSpec;
@@ -174,6 +175,15 @@ impl Host {
             ticket.epoch,
         );
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
+        let client = HostClient {
+            plugin_id: ticket.plugin_id.clone(),
+            server: ticket.spec.name.clone(),
+            server_id: ticket.server_id.clone(),
+            epoch,
+            log: ticket.log.clone(),
+            host: host.clone(),
+            signals: self.signals.clone(),
+        };
         let spawned = server::spawn(&ticket.spec, &ticket.root, &data, ticket.log, &self.groups);
         let started = match spawned {
             Ok(spawned) => {
@@ -185,7 +195,7 @@ impl Host {
                     // Stopped while spawning.
                     None => return spawned.stop(),
                 }
-                server::connect(spawned, STARTUP_DEADLINE, move |reason| {
+                server::connect(spawned, STARTUP_DEADLINE, client, move |reason| {
                     if let Some(host) = host.upgrade() {
                         host.exited(&plugin_id, &server_id, epoch, reason);
                     }
@@ -229,6 +239,11 @@ impl Host {
         .await;
     }
 
+    /// True while the plugin is enabled and its server started under `epoch` is the live one.
+    pub(super) fn accepts_signals(&self, _plugin_id: &str, _server_id: &str, _epoch: u64) -> bool {
+        true
+    }
+
     fn exited(&self, plugin_id: &str, server_id: &str, epoch: u64, reason: String) {
         let mut inner = self.lock();
         let Some(ls) = inner.server_mut(plugin_id, server_id, epoch) else {
@@ -268,6 +283,17 @@ mod tests {
             "{:?}",
             host.log_tail("yui-test")
         );
+    }
+
+    #[tokio::test]
+    async fn after_disable_the_stopped_servers_epoch_accepts_no_signals() {
+        require_python();
+        let host = running("yui-test").await;
+        let epoch = host.lock().live["yui-test"].servers[0].epoch;
+        let live = host.accepts_signals("yui-test", "yui-test/main", epoch);
+        host.disable("yui-test").await.unwrap();
+        assert!(live);
+        assert!(!host.accepts_signals("yui-test", "yui-test/main", epoch));
     }
 
     #[tokio::test]

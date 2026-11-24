@@ -31,6 +31,9 @@ pub struct SignalsPayload {
     pub signals: Vec<serde_json::Value>,
     pub envelope: serde_json::Value,
     pub ts: i64, // server epoch ms — n8n does not send a timestamp
+    /// Id of the plugin whose MCP server sent the payload; `None` on the HTTP path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugin: Option<String>,
 }
 
 /// Wire shape of a `/signals` POST body, before the server stamps `ts`.
@@ -371,6 +374,7 @@ mod tests {
             signals: request.signals,
             envelope: request.envelope.unwrap(),
             ts: epoch_ms(),
+            plugin: None,
         };
         assert_eq!(payload.signals.len(), 2);
         assert!(payload.ts > 0);

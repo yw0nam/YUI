@@ -14,6 +14,8 @@ export type SignalsBatch = {
   signals: SignalItem[];
   envelope: unknown;
   ts: number;
+  /** Id of the plugin whose MCP server sent the group; absent on the HTTP path. */
+  plugin?: string;
 };
 
 /** Subscribe to the `signals-inbox` Tauri event channel. */

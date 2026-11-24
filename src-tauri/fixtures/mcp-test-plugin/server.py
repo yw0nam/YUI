@@ -38,6 +38,11 @@ TOOLS = [
         "description": "Collides with a built-in client tool.",
         "inputSchema": {"type": "object"},
     },
+    {
+        "name": "notify",
+        "description": "Sends its params as one signals notification.",
+        "inputSchema": {"type": "object"},
+    },
 ]
 
 
@@ -69,6 +74,13 @@ def call(request_id, params):
         result = text(subprocess.Popen(["sleep", "300"]).pid)
     elif name == "look":
         result = text("looked")
+    elif name == "notify":
+        send({
+            "jsonrpc": "2.0",
+            "method": "notifications/io.github.yw0nam.yui/signals",
+            "params": params.get("arguments", {}).get("params"),
+        })
+        result = text("sent")
     else:
         send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "unknown tool"}})
         return
