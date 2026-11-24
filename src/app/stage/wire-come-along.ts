@@ -1,1 +1,73 @@
-export function wireComeAlong(_deps: Record<string, unknown>): void {}
+/** Wires the come-along: her own settings window's stage slots and close drive it over the locomotion. */
+import { createComeAlong } from "../../ambient/come-along/come-along";
+import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { HitTestController } from "../../io/window/pet/hit-test";
+import {
+  attachDock,
+  detachDock,
+  onSettingsStageClosed,
+  setPetPositionPhysical,
+} from "../../io/window/pet/window-dock";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import { windowLabel } from "../../settings/preset/pet-windows";
+import { isTauri } from "../../tauri-env";
+import type { wireLocomotion } from "./wire-locomotion";
+
+const log = createLogger("wire-come-along");
+
+export function wireComeAlong(deps: {
+  /** This pet window's bound preset; null for main, whose settings window sends preset null. */
+  boundId: string | null;
+  onSettingsStage: SettingsBridge["onSettingsStage"];
+  emitSettingsStageAsk: SettingsBridge["emitSettingsStageAsk"];
+  /** Settles once this window's bridge listeners are in place. */
+  bridgeListening: () => Promise<void>;
+  locomotion: Pick<
+    ReturnType<typeof wireLocomotion>,
+    | "hold"
+    | "abortTravel"
+    | "widen"
+    | "release"
+    | "drop"
+    | "frame"
+    | "getAvatarExecutor"
+    | "onResizeApplied"
+    | "ready"
+  >;
+  peek: { active(): boolean; exit(): Promise<void> };
+  renderer: Renderer;
+  hitTest: Pick<HitTestController, "setMoving">;
+  register: (teardown: () => void) => void;
+}): void {
+  if (!isTauri()) return;
+  const { boundId, locomotion, register } = deps;
+  const settingsLabel = boundId === null ? "settings" : windowLabel("settings", boundId);
+  const comeAlong = createComeAlong({
+    settingsLabel,
+    storage: sessionStorage,
+    isBusy: () => locomotion.getAvatarExecutor()?.isBusy() ?? false,
+    peek: deps.peek,
+    locomotion,
+    renderer: deps.renderer,
+    hitTest: deps.hitTest,
+    dock: { attach: attachDock, detach: detachDock },
+    setPositionPhysical: setPetPositionPhysical,
+    reducedMotion: prefersReducedMotion,
+  });
+  const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });
+  void (async () => {
+    // Her real window must be wired before a slot moves it.
+    await locomotion.ready;
+    register(
+      deps.onSettingsStage(({ preset, rect }) => {
+        if (preset === boundId) void comeAlong.onStage(rect).catch(failed);
+      }),
+    );
+    register(onSettingsStageClosed(settingsLabel, () => void comeAlong.goHome().catch(failed)));
+    register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
+    await deps.bridgeListening();
+    deps.emitSettingsStageAsk();
+  })().catch(failed);
+}

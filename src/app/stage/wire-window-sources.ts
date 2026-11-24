@@ -69,6 +69,8 @@ export function wireWindowSources(deps: {
   getAvatarExecutor(): AvatarExecutor | null;
   /** Pause the keep-on-screen guard while a travel parks the window itself. */
   setKeepOnScreenPaused(paused: boolean): void;
+  /** Pause the keep-on-screen guard while locomotion holds her still. */
+  holdKeepOnScreen(held: boolean): void;
   dispose(): void;
 } {
   const {
@@ -111,6 +113,7 @@ export function wireWindowSources(deps: {
     abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
     setKeepOnScreenPaused: (paused: boolean) => keepOnScreenPause.setPaused("travel", paused),
+    holdKeepOnScreen: (held: boolean) => keepOnScreenPause.setPaused("hold", held),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();

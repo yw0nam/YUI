@@ -330,6 +330,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
       unifiedShown,
       emitUserTurnDone: windowBridge.emitUserTurnDone,
       onUserTurnRouted: windowBridge.onUserTurnRouted,
+      onSettingsStage: windowBridge.onSettingsStage,
+      emitSettingsStageAsk: windowBridge.emitSettingsStageAsk,
+      bridgeListening: windowBridge.listening,
       menuHost: {
         boundId,
         name: characterName.get,

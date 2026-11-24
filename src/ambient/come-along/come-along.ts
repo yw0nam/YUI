@@ -315,14 +315,30 @@ export function createComeAlong(deps: ComeAlongDeps): {
     await locomotion.drop({ landOnSeam: true });
   }
 
+  /** A failed start or walk home lets her go where she is, and the next slot starts afresh. */
+  async function settle(step: Promise<void>): Promise<void> {
+    try {
+      await step;
+    } catch (err) {
+      begin();
+      session = "none";
+      docked = null;
+      home = null;
+      store(null);
+      locomotion.hold("come-along", false);
+      deps.hitTest.setMoving(false);
+      throw err;
+    }
+  }
+
   return {
     async onStage(rect) {
-      if (rect === null) return goHome();
+      if (rect === null) return settle(goHome());
       slot = rect;
-      if (session === "none") return start(rect);
+      if (session === "none") return settle(start(rect));
       if (session === "on") return place();
     },
-    goHome,
+    goHome: () => settle(goHome()),
     place,
   };
 }

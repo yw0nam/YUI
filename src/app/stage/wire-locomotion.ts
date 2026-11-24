@@ -76,14 +76,23 @@ export function wireLocomotion(deps: {
   setDragging(dragging: boolean): void;
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
+  /** Settles once a travel ended and a holder a drag let go has finished letting go. */
   abortTravel(): Promise<void>;
   /**
-   * Holds her still while any holder holds her: cancels the loops and keeps a stroll, climb or
-   * perch walk from starting. `onAbort` runs once when an agent move takes her.
+   * Holds her still while any holder holds her: cancels the loops, keeps a stroll, climb or perch
+   * walk from starting, and pauses the keep-on-screen guard. `onAbort` runs once when an agent
+   * move takes her, and for the come-along also when a drag does; the move waits for it.
    */
-  hold(holder: LocomotionHolder, on: boolean, onAbort?: () => void): void;
+  hold(holder: LocomotionHolder, on: boolean, onAbort?: () => void | Promise<void>): void;
   /** Parks the real window over her position and the `via` origins. */
   widen(via: Array<{ x: number; y: number }>): Promise<Travel>;
+  /** Leaves her seat on a window, as an agent move does. */
+  release(): void;
+  drop(opts: { landOnSeam: true }): Promise<void>;
+  /** Calls `cb` after each Ctrl+wheel resize of her window; returns its disposer. */
+  onResizeApplied(cb: () => void): () => void;
+  /** Settles once the real window is wired. */
+  ready: Promise<void>;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     frameWindow(): FrameWindow;
@@ -125,8 +134,16 @@ export function wireLocomotion(deps: {
   // stroll at once; an ordinary turn walks on. A hold keeps her still the way a drag does.
   let dragging = false;
   // Each holder, with the abort an agent move runs once.
-  const holders = new Map<LocomotionHolder, (() => void) | undefined>();
+  const holders = new Map<LocomotionHolder, (() => void | Promise<void>) | undefined>();
   const held = (): boolean => holders.size > 0;
+  let letGo: Promise<unknown> = Promise.resolve();
+  const abortHolders = (only?: LocomotionHolder): Promise<unknown> => {
+    const aborts = [...holders].filter(([holder]) => !only || holder === only);
+    for (const [holder] of aborts) holders.set(holder, undefined);
+    letGo = Promise.all(aborts.map(([, onAbort]) => onAbort?.()));
+    return letGo;
+  };
+  const resizeListeners = new Set<() => void>();
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
     bus,
@@ -190,18 +207,18 @@ export function wireLocomotion(deps: {
       climberRef?.cancel();
       percherRef?.cancel();
       sitter.cancel();
-      for (const [holder, onAbort] of [...holders]) {
-        holders.set(holder, undefined);
-        onAbort?.();
-      }
+      const holdersLetGo = abortHolders();
       // A cancelled climb or stroll may still be unparking its travel.
-      return travelFrame.abort();
+      return Promise.all([holdersLetGo, travelFrame.abort()]).then(() => {});
     },
     onDragMiss: () => faller.drop({ landOnSeam: true, byUser: true }),
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
-    onResizeApplied: (bounds) => deps.windowGeometry?.onResizeApplied(bounds),
+    onResizeApplied: (bounds) => {
+      deps.windowGeometry?.onResizeApplied(bounds);
+      for (const cb of resizeListeners) cb();
+    },
     onDragReleased: async () => {
       await deps.windowGeometry?.onDragReleased();
     },
@@ -273,16 +290,20 @@ export function wireLocomotion(deps: {
     dropSource: windowSources,
     setDragging(next) {
       dragging = next;
+      // Whoever moves her owns her: the drag ends her come-along.
+      if (next) void abortHolders("come-along");
     },
     cancel,
-    abortTravel: () => travelFrame.abort(),
+    async abortTravel() {
+      await travelFrame.abort();
+      await letGo;
+    },
     hold(holder, on, onAbort) {
-      if (!on) {
-        holders.delete(holder);
-        return;
-      }
-      cancel();
-      holders.set(holder, onAbort);
+      if (on) {
+        cancel();
+        holders.set(holder, onAbort);
+      } else holders.delete(holder);
+      windowSources.holdKeepOnScreen(held());
     },
     async widen(via) {
       const win = travelFrame.getWindow();
@@ -294,7 +315,13 @@ export function wireLocomotion(deps: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
     },
-    onResizeApplied: (_cb: () => void) => () => {},
+    release: () => windowSources.release(),
+    drop: (opts) => faller.drop(opts),
+    onResizeApplied(cb) {
+      resizeListeners.add(cb);
+      return () => resizeListeners.delete(cb);
+    },
+    ready: travelFrame.ready,
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };

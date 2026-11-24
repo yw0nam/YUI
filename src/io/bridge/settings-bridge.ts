@@ -474,12 +474,20 @@ export const channels = {
   },
 } satisfies Record<string, Channel>;
 
-export type SettingsBridge = ChannelMethods<typeof channels> & { dispose(): void };
+export type SettingsBridge = ChannelMethods<typeof channels> & {
+  /** Settles once every listener registered so far is in place. */
+  listening(): Promise<void>;
+  dispose(): void;
+};
 
 export function createSettingsBridge(
   transport: BridgeTransport | undefined,
   opts: { windowKind: WindowKind },
 ): SettingsBridge {
   const core = createBridgeCore(transport, opts.windowKind);
-  return { ...createChannelMethods(core, channels), dispose: core.dispose };
+  return {
+    ...createChannelMethods(core, channels),
+    listening: core.listening,
+    dispose: core.dispose,
+  };
 }
