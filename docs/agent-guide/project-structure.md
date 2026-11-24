@@ -958,6 +958,7 @@ YUI/
           segment.tsx                # A radio segment the caller labels and owns the value of
           segment.css                # Segment cell, checked, focus and disabled styles
       ref-mount/                     # The host a React view gives a vanilla piece
+        index.ts                     # Re-exports RefMount and its props type
         ref-mount.tsx                # Mounts the piece after the commit, again on new deps, and cleans it up
       keyed-rows/                    # Keyed list rows
         keyed-rows.ts                # Keeps a list's row elements by key across snapshots, hands a removed row's focus to its neighbour, and syncs a row in place
