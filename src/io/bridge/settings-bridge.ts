@@ -236,6 +236,8 @@ export const channels = {
       else if (isSettingsPage(page)) deliver({ preset, page, ...(focus ? { focus } : {}) });
     },
   },
+  SettingsStage: { name: "", scope: "shared", read(_payload, _deliver: (stage: unknown) => void) {} },
+  SettingsStageAsk: { name: "", scope: "shared" },
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
   OpenDevtools: { name: "yui://open-devtools", scope: "shared" },
   /** Main's Threads chip opening the Threads window. */
