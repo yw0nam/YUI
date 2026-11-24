@@ -1,3 +1,4 @@
+use crate::os_event_watcher::epoch_ms;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -23,9 +24,9 @@ const LOG_LENGTH: usize = 20;
 const WHY_CHARS: usize = 80;
 const NOTE_CHARS: usize = 200;
 
-/// `signals-inbox` event payload — fired when the remote n8n workflow posts to
-/// `/signals`. `signals` is treated as opaque JSON; the client does not
-/// interpret its contents. An `envelope` is required.
+/// `signals-inbox` event payload — fired when a producer posts to `/signals` or a
+/// plugin's MCP server sends a signals notification. `signals` is treated as opaque
+/// JSON; the client does not interpret its contents. An `envelope` is required.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SignalsPayload {
     pub signals: Vec<serde_json::Value>,
@@ -36,11 +37,47 @@ pub struct SignalsPayload {
     pub plugin: Option<String>,
 }
 
-/// Wire shape of a `/signals` POST body, before the server stamps `ts`.
+/// Wire shape of a `/signals` POST body and of a plugin's signals notification params.
 #[derive(Deserialize, Debug)]
-pub(super) struct SignalsRequest {
-    pub(super) signals: Vec<serde_json::Value>,
-    pub(super) envelope: Option<serde_json::Value>,
+pub(crate) struct SignalsRequest {
+    pub(crate) signals: Vec<serde_json::Value>,
+    pub(crate) envelope: Option<serde_json::Value>,
+}
+
+/// The rule a signals request broke.
+#[derive(Debug)]
+pub(crate) enum SignalsRefusal {
+    MissingEnvelope,
+    ItemTooLarge,
+}
+
+impl std::fmt::Display for SignalsRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingEnvelope => f.write_str("the envelope is missing or null"),
+            Self::ItemTooLarge => write!(f, "a signal item is over {ITEM_CEILING_BYTES} bytes"),
+        }
+    }
+}
+
+/// Checks the envelope and every item's size, then stamps `ts`; both ways in share it.
+pub(crate) fn validate_signals(
+    request: SignalsRequest,
+    plugin: Option<String>,
+) -> Result<SignalsPayload, SignalsRefusal> {
+    let envelope = request.envelope.ok_or(SignalsRefusal::MissingEnvelope)?;
+    let fits = |item: &serde_json::Value| {
+        serde_json::to_vec(item).is_ok_and(|bytes| bytes.len() <= ITEM_CEILING_BYTES)
+    };
+    if !request.signals.iter().all(fits) {
+        return Err(SignalsRefusal::ItemTooLarge);
+    }
+    Ok(SignalsPayload {
+        signals: request.signals,
+        envelope,
+        ts: epoch_ms(),
+        plugin,
+    })
 }
 
 /// Side of a window the avatar peeks from.
@@ -166,19 +203,17 @@ pub struct AvatarRpcRequest {
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-/// Validates and parses a raw HTTP request into a `signals` array and its
-/// `envelope`.
+/// Validates and parses a raw HTTP request into a stamped `SignalsPayload`.
 ///
 /// Returns `Err(405)` when the method is not POST, and `Err(400)` when the path
 /// (before any query string) is not `/signals`, the body is not valid JSON
-/// shaped `{"signals": [...]}`, the `envelope` is missing or null, or an item
-/// exceeds `ITEM_CEILING_BYTES`. Each element of `signals` is passed through as
-/// opaque JSON.
+/// shaped `{"signals": [...]}`, or `validate_signals` refuses it. Each element
+/// of `signals` is passed through as opaque JSON.
 pub(super) fn parse_signals_request(
     method: &str,
     path: &str,
     body: &str,
-) -> Result<SignalsRequest, u16> {
+) -> Result<SignalsPayload, u16> {
     if method != "POST" {
         return Err(405);
     }
@@ -187,14 +222,7 @@ pub(super) fn parse_signals_request(
         return Err(400);
     }
     let request = serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)?;
-    request.envelope.as_ref().ok_or(400u16)?;
-    for item in &request.signals {
-        let bytes = serde_json::to_vec(item).map_err(|_| 400u16)?;
-        if bytes.len() > ITEM_CEILING_BYTES {
-            return Err(400);
-        }
-    }
-    Ok(request)
+    validate_signals(request, None).map_err(|_| 400u16)
 }
 
 /// Validates and parses a raw HTTP request into an `AvatarRoute`.
@@ -245,7 +273,6 @@ pub(super) fn rejected_level(code: u16) -> log::Level {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::os_event_watcher::epoch_ms;
 
     // ── parse_signals_request ─────────────────────────────────────────────────
 
@@ -259,7 +286,7 @@ mod tests {
         assert_eq!(request.signals.len(), 2);
         assert_eq!(request.signals[0]["kind"], "reminder");
         assert_eq!(request.signals[1]["kind"], "alert");
-        assert_eq!(request.envelope.unwrap()["source"], "n8n");
+        assert_eq!(request.envelope["source"], "n8n");
     }
 
     #[test]
@@ -321,7 +348,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            request.envelope.unwrap(),
+            request.envelope,
             serde_json::json!({
                 "source": "n8n",
                 "event_type": "workflow_done",
@@ -341,7 +368,7 @@ mod tests {
             r#"{"signals":[{"id":1}],"envelope":"bad"}"#,
         )
         .unwrap();
-        assert_eq!(request.envelope.unwrap(), serde_json::json!("bad"));
+        assert_eq!(request.envelope, serde_json::json!("bad"));
     }
 
     #[test]
@@ -369,15 +396,10 @@ mod tests {
 
     #[test]
     fn handle_request_routes_signals_and_stamps_ts() {
-        let request = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
-        let payload = SignalsPayload {
-            signals: request.signals,
-            envelope: request.envelope.unwrap(),
-            ts: epoch_ms(),
-            plugin: None,
-        };
+        let payload = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
         assert_eq!(payload.signals.len(), 2);
         assert!(payload.ts > 0);
+        assert_eq!(payload.plugin, None);
     }
 
     #[test]

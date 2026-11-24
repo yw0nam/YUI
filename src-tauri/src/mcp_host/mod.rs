@@ -35,6 +35,10 @@
 //!   (30 s by default, 120 s at most), when its window cancels it or is destroyed, or when its
 //!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
 //!   call still in flight.
+//! - **Signals.** A running server's `notifications/io.github.yw0nam.yui/signals` passes the
+//!   ingress's signals checks and goes to `main` on `signals-inbox`, stamped with the plugin's id.
+//!   A refused one is a `signals refused:` line in the plugin log; one that arrives after the
+//!   plugin is turned off, or from a server no longer live, is dropped.
 //! - **Stop.** Disable, retry and app exit cancel the server's calls, close its connection,
 //!   give it 1 s to exit, then kill its process tree. A server still starting has its tree
 //!   killed at once. On Windows the tree is a job object the host owns, which also ends when the
@@ -63,6 +67,7 @@ mod store;
 mod test_support;
 mod tree;
 
+use crate::agent_ingress::payload::{SignalsPayload, SIGNALS_INBOX_CHANNEL};
 use host::Host;
 use std::path::Path;
 use std::sync::Arc;
@@ -78,6 +83,7 @@ pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
         log::error!("mcp_host_app_data_dir_unavailable error={e}");
     }
     let handle = app.handle().clone();
+    let signals_handle = handle.clone();
     let catalog = catalog::Config::production();
     let host = Host::new(
         app_data,
@@ -89,7 +95,16 @@ pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
                 log::warn!("mcp_host_emit_failed error={e}");
             }
         },
-        |_| {},
+        move |payload: SignalsPayload| {
+            log::debug!(
+                "plugin_signals_accepted plugin={} event_id={:?}",
+                payload.plugin.as_deref().unwrap_or_default(),
+                payload.envelope["event_id"].as_str().unwrap_or_default()
+            );
+            if let Err(e) = signals_handle.emit_to("main", SIGNALS_INBOX_CHANNEL, payload) {
+                log::warn!("plugin_signals_emit_failed error={e}");
+            }
+        },
     );
     app.manage(host.clone());
     tauri::async_runtime::spawn(async move { host.start_enabled().await });

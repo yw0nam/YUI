@@ -240,8 +240,15 @@ impl Host {
     }
 
     /// True while the plugin is enabled and its server started under `epoch` is the live one.
-    pub(super) fn accepts_signals(&self, _plugin_id: &str, _server_id: &str, _epoch: u64) -> bool {
-        true
+    pub(super) fn accepts_signals(&self, plugin_id: &str, server_id: &str, epoch: u64) -> bool {
+        let mut inner = self.lock();
+        let enabled = inner
+            .state
+            .as_ref()
+            .ok()
+            .and_then(|s| s.plugin(plugin_id))
+            .is_some_and(|p| p.enabled);
+        enabled && inner.server_mut(plugin_id, server_id, epoch).is_some()
     }
 
     fn exited(&self, plugin_id: &str, server_id: &str, epoch: u64, reason: String) {

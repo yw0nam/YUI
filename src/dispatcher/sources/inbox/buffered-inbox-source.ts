@@ -8,10 +8,12 @@
  * When present AND the pipeline is idle: an inbox arrival fires immediately via
  * `buildLive`; a source with no `buildLive` buffers every arrival. When
  * present-but-busy (backend call in flight or speech playing) OR away: arrivals buffer,
- * shape and cap-drop policy owned entirely by the caller
+ * shape, cap-drop and eligibility policy owned entirely by the caller
  * (`bufferAdd`/`bufferEmpty`/`bufferClear`).
- * On the idle→present edge OR the busy→idle edge: if the buffer has content, fires
- * ONE catchup built by `buildCatchup`, then clears the buffer.
+ * On the idle→present edge OR the busy→idle edge: if the buffer holds an eligible item,
+ * fires ONE catchup built by `buildCatchup`, then hands it to `bufferClear` to remove
+ * what it carried. Whether an item may leave at all (an enable switch) is the caller's
+ * gate; `onTick` lets the caller purge on every OS idle tick.
  *
  * firing ≠ judgment: this only fires candidate events — the backend decides whether/what
  * to speak. No speak/don't-speak gate and no persona state live here.
@@ -37,8 +39,6 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   bus: Pick<EventBus, "push">;
   /** Present iff cached OS idle ≤ this. */
   present_max_idle_ms: number;
-  /** Read on every inbox arrival — gates firing without stopping the listener. */
-  isEnabled: () => boolean;
   /** Inbox subscriber (default already resolved by the caller). */
   onInbox: (cb: (p: TRaw) => void, deps?: { listen?: OsEventListen }) => () => void;
   /** Injectable channel listen; defaults to the resolved Tauri listen. */
@@ -58,10 +58,12 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   buildLive?: (item: TItem) => InboxFiring;
   /** Add one arrived item to the buffer — dedup/cap policy owned by the caller. */
   bufferAdd: (item: TItem) => void;
-  /** True iff the buffer currently holds anything. */
+  /** True iff the buffer holds no item that may leave now. */
   bufferEmpty: () => boolean;
-  /** Drop everything buffered. */
-  bufferClear: () => void;
+  /** Remove what a pushed catchup carried. */
+  bufferClear: (fired: InboxFiring) => void;
+  /** Called on every OS idle tick before the edge check. */
+  onTick?: () => void;
   /** Build the catchup firing from the buffer's current contents — flatten/sort policy owned by the caller. */
   buildCatchup: () => InboxFiring;
 }
@@ -73,7 +75,7 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
   stop(): void;
   fireIfEligible(firing: InboxFiring): boolean;
 } {
-  const { bus, present_max_idle_ms, isEnabled, log } = config;
+  const { bus, present_max_idle_ms, log } = config;
   const now = config.now ?? Date.now;
 
   let lastIdleMs: number | null = null;
@@ -102,18 +104,19 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
   }
 
   function fireIfEligible(firing: InboxFiring): boolean {
-    if (!isEnabled() || !isPresent() || isBusy()) return false;
+    if (!isPresent() || isBusy()) return false;
     return fire(firing);
   }
 
   function flushCatchup(): void {
     if (config.bufferEmpty()) return;
-    if (fire(config.buildCatchup())) config.bufferClear();
+    const firing = config.buildCatchup();
+    if (fire(firing)) config.bufferClear(firing);
   }
 
-  /** Flush iff enabled, buffer non-empty, present, and the pipeline is idle. */
+  /** Flush iff the buffer holds an eligible item, present, and the pipeline is idle. */
   function maybeFlush(): void {
-    if (!isEnabled() || config.bufferEmpty() || !isPresent() || isBusy()) return;
+    if (config.bufferEmpty() || !isPresent() || isBusy()) return;
     flushCatchup();
   }
 
@@ -121,14 +124,8 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
     if (payload.event_name !== "os_idle_tick") return;
     lastIdleMs = payload.data.os_idle_ms ?? null;
     const present = isPresent();
-    // A mid-away disable must not let previously-buffered items survive to a
-    // later re-enable — drop the stale buffer now so it can't leak into a future flush.
-    if (!isEnabled() && !config.bufferEmpty()) {
-      config.bufferClear();
-    }
+    config.onTick?.();
     // Flush on the idle→present edge only (not on every present tick).
-    // isEnabled() guard mirrors handleInbox — a mid-run toggle must not dispatch
-    // a catchup the user has since disabled.
     if (!wasPresent && present) {
       maybeFlush();
     }
@@ -136,7 +133,6 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
   }
 
   function handleInbox(raw: TRaw): void {
-    if (!isEnabled()) return;
     // Guard against malformed IPC payloads that slipped through the type cast.
     try {
       const item = config.parse(raw);

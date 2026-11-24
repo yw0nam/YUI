@@ -2,11 +2,16 @@
 
 use super::host::Host;
 use super::server::PluginLog;
-use crate::agent_ingress::payload::SignalsPayload;
+use crate::agent_ingress::payload::{validate_signals, SignalsPayload, SignalsRequest};
 use rmcp::handler::client::ClientHandler;
+use rmcp::model::CustomNotification;
+use rmcp::service::{NotificationContext, RoleClient};
+use std::future::Future;
 use std::sync::{Arc, Weak};
 
 pub type SignalsSink = Arc<dyn Fn(SignalsPayload) + Send + Sync>;
+
+const SIGNALS_METHOD: &str = "notifications/io.github.yw0nam.yui/signals";
 
 pub struct HostClient {
     pub(super) plugin_id: String,
@@ -19,7 +24,41 @@ pub struct HostClient {
     pub(super) signals: SignalsSink,
 }
 
-impl ClientHandler for HostClient {}
+impl HostClient {
+    fn signals(&self, params: Option<serde_json::Value>) {
+        let live = self
+            .host
+            .upgrade()
+            .is_some_and(|host| host.accepts_signals(&self.plugin_id, &self.server_id, self.epoch));
+        if !live {
+            return;
+        }
+        let checked = serde_json::from_value::<SignalsRequest>(params.unwrap_or_default())
+            .map_err(|e| e.to_string())
+            .and_then(|request| {
+                validate_signals(request, Some(self.plugin_id.clone())).map_err(|e| e.to_string())
+            });
+        match checked {
+            Ok(payload) => (self.signals)(payload),
+            Err(reason) => self
+                .log
+                .line(&self.server, &format!("signals refused: {reason}")),
+        }
+    }
+}
+
+impl ClientHandler for HostClient {
+    fn on_custom_notification(
+        &self,
+        notification: CustomNotification,
+        _: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + Send + '_ {
+        if notification.method == SIGNALS_METHOD {
+            self.signals(notification.params);
+        }
+        std::future::ready(())
+    }
+}
 
 #[cfg(all(test, unix))]
 mod tests {

@@ -436,7 +436,7 @@ Exactly one headline `trigger: …` line describes what fired the turn. The clie
 | `user` | User spoke or typed | The user's message text; from the unified chat window the text keeps the visible `@name` |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
 | `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired | Background marker |
-| `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
+| `signals` | An external producer POSTed a burst to the `/signals` ingress, or a YUI-hosted MCP server sent one | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
 | `addressed` | Another open character's reply called `address_character` naming this character, and its playback ended | Background marker |
 

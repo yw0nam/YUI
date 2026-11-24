@@ -27,6 +27,7 @@ const KINDS = [
   "tauri-command",
   "http",
   "websocket",
+  "stdio",
   "storage",
   "bridge",
   "user",

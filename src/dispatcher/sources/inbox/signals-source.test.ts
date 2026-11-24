@@ -1046,6 +1046,7 @@ describe("signals_source — a reacting Thread's group", () => {
         payload: { signals: [group("thread:t1"), group("thread:t2")] },
       },
     ]);
+    enabled = true;
     expect(s.src.drain()).toEqual([group("run-1")]);
   });
 

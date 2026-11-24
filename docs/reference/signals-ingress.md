@@ -1,6 +1,6 @@
 # Signals ingress
 
-External producers send signal groups to the loopback HTTP ingress with `POST /signals`, and this page is the contract for that wire: the routes, the envelope fields, the two delivery classes, and the validation that accepts or refuses a request.
+External producers send signal groups to the loopback HTTP ingress with `POST /signals`, and a YUI-hosted MCP server sends them as an MCP notification. This page is the contract for both: the routes, the envelope fields, the two delivery classes, and the validation that accepts or refuses a request.
 
 A backend author or agent reads it to build a producer the client accepts, and to know when the client turns a group into a turn.
 
@@ -137,7 +137,7 @@ Urgent groups never share a catch-up turn with `batched` groups. The drains belo
 
 A `batched` group always waits in the batch buffer, where the first group starts a five-minute delivery interval.
 
-At the interval boundary, all pending batched groups fire together when signals are enabled, the user is present, and the pipeline is idle.
+At the interval boundary, all pending batched groups that may leave fire together when the user is present and the pipeline is idle.
 
 If those conditions are not met, the groups remain buffered without another timer, and a batched group that misses its deadline leaves on the next edge.
 
@@ -147,13 +147,19 @@ A batched group that misses its deadline starts no second timer. It leaves on th
 
 ### Disabled signals
 
-While signals are disabled, the client drops every group that arrives, and the next OS idle tick clears the groups already buffered. A group a Thread reaction holds survives that clear, and leaves when its reaction fires or releases it.
+The External signals switch gates the groups of the HTTP routes and of Thread updates. A group a plugin's server sent is ungated: it arrives, buffers and leaves the same way whether the switch is on or off.
+
+While signals are disabled, the client drops every gated group that arrives, and every gated group stays out of catch-ups, timer firings, drains and restored turns. The next OS idle tick removes the gated groups already buffered.
+
+A group a Thread reaction holds survives that removal, and leaves when its reaction fires or releases it while signals are enabled.
 
 ### Catch-up and drains
 
 Returning to present or transitioning from busy to idle emits one catch-up containing the batched groups in their original arrival order. Returning before a batched group's deadline therefore includes it in that catch-up.
 
 Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds, in arrival order, and removes those groups from the batch buffer.
+
+A catch-up, a timer firing and a drain carry only the groups that may leave: none that a Thread reaction holds, and no gated group while signals are disabled. Each removes only the groups it carried.
 
 With the Thread reactions switch on, a Thread reaction holds every Thread turn group. The held groups stay out of every catch-up, timer firing and drain.
 
@@ -180,6 +186,14 @@ A turn the user's message cancels after its call started does not put its groups
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
 Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default 120), and they do not count toward the tier-2 cap.
+
+## From a plugin
+
+A YUI-hosted MCP server sends a signal group as the notification `notifications/io.github.yw0nam.yui/signals`. Its `params` is the `POST /signals` body, a `signals` array and an `envelope`, and the MCP host applies the same checks: `signals` is an array, the envelope is present and not null, and each item is at most 16 KiB.
+
+The host stamps the payload with server time and the plugin's id, then emits it to `main` the way the bare route does. It works with any ingress port and with the ingress off. The 64 KiB body limit is HTTP-only.
+
+A refused notification whose `params` decoded is one `signals refused: <reason>` line in the plugin log. A notification sent before the handshake completes, or after the plugin is turned off, is dropped without a line. External signals does not gate the group ([Disabled signals](#disabled-signals)).
 
 ## Relations
 
@@ -248,12 +262,12 @@ HTTP 200 means the ingress accepted the wire shape and attempted to emit the bat
 The envelope is forwarded unchanged and stamped with server time.
 
 ::: warning
-A 200 answers the wire shape only. The batch can still lose a group after it: while signals are enabled, an invalid envelope is dropped as a whole, and one warning records the item count.
+A 200 answers the wire shape only. The batch can still lose a group after it: an invalid envelope is dropped as a whole, and one warning records the item count.
 :::
 
 ### Dropped envelopes
 
-While signals are enabled, a group whose envelope is not an object or fails the field rules is dropped as a whole and one warning is logged with the item count. While signals are disabled, the source drops incoming batches before envelope validation and logs no envelope warning.
+A group whose envelope is not an object or fails the field rules is dropped as a whole and one warning is logged with the item count. While signals are disabled, the source drops incoming gated batches before envelope validation and logs no envelope warning; a plugin's batch is validated as usual.
 
 ### Size limits
 

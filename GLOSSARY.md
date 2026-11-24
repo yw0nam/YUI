@@ -210,7 +210,7 @@ A line the client speaks in the character's voice outside a turn's utterance: fi
 _Avoid_: client line, system line
 
 **Signals**:
-A burst of events from an external producer POSTed to the `/signals` ingress, or derived from a Thread update, flushed as one turn.
+A burst of events from an external producer POSTed to the `/signals` ingress, sent by a YUI-hosted MCP server, or derived from a Thread update, flushed as one turn.
 
 **Delivery class**:
 How urgent a signal group is, chosen by the producer: `urgent` (handle now) or `batched` (can wait and go out together). The client routes by it and shows it as the dot and class of a source line; it never changes the wire value.

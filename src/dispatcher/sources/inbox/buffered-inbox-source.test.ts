@@ -110,7 +110,6 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
@@ -155,7 +154,6 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
@@ -192,7 +190,6 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
@@ -233,7 +230,6 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
     const src = createBufferedInboxSource<FakeItem>({
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
       onInbox,
       listen,
       log: makeLog(),
@@ -274,7 +270,6 @@ it("retains a refused catch-up and flushes on the next edge", async () => {
   const src = createBufferedInboxSource<FakeItem>({
     bus,
     present_max_idle_ms: PRESENT_MAX,
-    isEnabled: () => true,
     onInbox,
     listen,
     log: makeLog(),
@@ -307,7 +302,6 @@ it("retains a catch-up that evicts itself at capacity and flushes on the next ed
   const src = createBufferedInboxSource<FakeItem>({
     bus,
     present_max_idle_ms: PRESENT_MAX,
-    isEnabled: () => true,
     onInbox,
     listen,
     log: makeLog(),

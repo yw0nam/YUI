@@ -38,7 +38,7 @@ globalThis.YUI_MAP =
       "kind": "external",
       "col": 5,
       "row": 0,
-      "desc": "coding-agent hooks, signal producers, the verification driver"
+      "desc": "coding-agent hooks, signal producers, plugin MCP servers, the verification driver"
     },
     {
       "id": "shell",
@@ -489,6 +489,14 @@ globalThis.YUI_MAP =
       "external": true
     },
     {
+      "id": "plugin-mcp-server",
+      "module": "senders",
+      "label": "plugin MCP server",
+      "role": "A YUI-hosted MCP server of an enabled plugin; it sends signal groups to the MCP host as a notification.",
+      "paths": [],
+      "external": true
+    },
+    {
       "id": "verifier",
       "module": "senders",
       "label": "verification driver",
@@ -549,7 +557,7 @@ globalThis.YUI_MAP =
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
-      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, opens its plugin log folder, and at start kills the process groups a killed app left behind.",
+      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, opens its plugin log folder, turns a running server's signals notification into a signals-inbox payload for main after the ingress's wire checks, and at start kills the process groups a killed app left behind.",
       "paths": [
         "src-tauri/src/mcp_host"
       ]
@@ -1090,7 +1098,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. External signals gates every group without a plugin id: while it is off such a group is dropped on arrival, offer and restore, stays out of every catch-up, timer firing and drain, and is purged on the next OS idle tick, while a plugin's group is ungated; holds and withdraws match only groups without a plugin id. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -2599,6 +2607,22 @@ globalThis.YUI_MAP =
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
       "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
+      "kind": "tauri-event",
+      "transport": "shared"
+    },
+    {
+      "id": "plugin-signals-notification",
+      "from": "plugin-mcp-server",
+      "to": "shell/mcp-host",
+      "carries": "notifications/io.github.yw0nam.yui/signals {signals, envelope}",
+      "kind": "stdio",
+      "transport": "shared"
+    },
+    {
+      "id": "mcp-host-signals-inbox",
+      "from": "shell/mcp-host",
+      "to": "io/bridge/inbox",
+      "carries": "signals-inbox to main (plugin set): the payload agent_ingress emits, stamped with the sending plugin's id",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -6150,6 +6174,11 @@ globalThis.YUI_MAP =
         "id": "ingress",
         "label": "agent ingress",
         "role": "The loopback HTTP listener in the main process, one port for every window: it chooses the recipient by path."
+      },
+      {
+        "id": "mcp-host",
+        "label": "MCP host",
+        "role": "The plugin MCP host in the main process: it emits a plugin server's signal groups to main."
       }
     ],
     "edges": [
@@ -6641,6 +6670,13 @@ globalThis.YUI_MAP =
         "from": "ingress",
         "to": "pet",
         "carries": "bare /signals and /avatar/* → signals-inbox, avatar-rpc, ingress-dead",
+        "kind": "tauri-event"
+      },
+      {
+        "id": "mcp-host-inbox-pet",
+        "from": "mcp-host",
+        "to": "pet",
+        "carries": "a plugin server's signals notification → signals-inbox (plugin set)",
         "kind": "tauri-event"
       },
       {
