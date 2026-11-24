@@ -7,13 +7,12 @@
  *
  * When present AND the pipeline is idle: an inbox arrival fires immediately via
  * `buildLive`; a source with no `buildLive` buffers every arrival. When
- * present-but-busy (backend call in flight or speech playing) OR away: arrivals buffer,
- * shape, cap-drop and eligibility policy owned entirely by the caller
- * (`bufferAdd`/`bufferEmpty`/`bufferClear`).
- * On the idle→present edge OR the busy→idle edge: if the buffer holds an eligible item,
- * fires ONE catchup built by `buildCatchup`, then hands it to `bufferClear` to remove
- * what it carried. Whether an item may leave at all (an enable switch) is the caller's
- * gate; `onTick` lets the caller purge on every OS idle tick.
+ * present-but-busy (backend call in flight or speech playing) OR away: arrivals go to
+ * the caller's buffer (`bufferAdd`). The caller owns the buffer's shape, its cap, and
+ * which items may leave it (`nothingLeaves`).
+ * On the idle→present edge OR the busy→idle edge: unless `nothingLeaves`, fires ONE
+ * catchup built by `buildCatchup`, then hands it to `removeCarried`. `onTick` lets the
+ * caller purge on every OS idle tick.
  *
  * firing ≠ judgment: this only fires candidate events — the backend decides whether/what
  * to speak. No speak/don't-speak gate and no persona state live here.
@@ -58,10 +57,10 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   buildLive?: (item: TItem) => InboxFiring;
   /** Add one arrived item to the buffer — dedup/cap policy owned by the caller. */
   bufferAdd: (item: TItem) => void;
-  /** True iff the buffer holds no item that may leave now. */
-  bufferEmpty: () => boolean;
-  /** Remove what a pushed catchup carried. */
-  bufferClear: (fired: InboxFiring) => void;
+  /** True iff no buffered item may leave now. */
+  nothingLeaves: () => boolean;
+  /** Remove from the buffer what a pushed catchup carried. */
+  removeCarried: (fired: InboxFiring) => void;
   /** Called on every OS idle tick before the edge check. */
   onTick?: () => void;
   /** Build the catchup firing from the buffer's current contents — flatten/sort policy owned by the caller. */
@@ -109,14 +108,14 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
   }
 
   function flushCatchup(): void {
-    if (config.bufferEmpty()) return;
+    if (config.nothingLeaves()) return;
     const firing = config.buildCatchup();
-    if (fire(firing)) config.bufferClear(firing);
+    if (fire(firing)) config.removeCarried(firing);
   }
 
   /** Flush iff the buffer holds an eligible item, present, and the pipeline is idle. */
   function maybeFlush(): void {
-    if (config.bufferEmpty() || !isPresent() || isBusy()) return;
+    if (config.nothingLeaves() || !isPresent() || isBusy()) return;
     flushCatchup();
   }
 

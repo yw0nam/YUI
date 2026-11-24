@@ -1204,12 +1204,13 @@ describe("signals_source — a plugin's group is ungated", () => {
     ]);
   });
 
-  it("turning off while away purges the gated group on the next tick and the return catch-up carries only the plugin's group", async () => {
+  it("turning off while away purges the gated groups of both buffers on the next tick and the return catch-up carries only the plugin's group", async () => {
     let enabled = true;
     const s = setup(() => enabled);
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
     s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
+    s.emitInbox(batch([{ id: 3 }], 1, { ...URGENT, event_id: "http-3" }));
     s.emitInbox(fromPlugin(envelopeOf(2), [{ id: 2 }]));
     enabled = false;
     s.emitIdle(idleTick(HIGH_IDLE));

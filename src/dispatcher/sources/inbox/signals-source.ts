@@ -108,15 +108,19 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   const heldIds = new Set<string>();
   const now = deps.now ?? Date.now;
 
-  // Thread and HTTP groups carry no plugin; holds and withdraws come from Thread reactions.
+  // Thread and HTTP groups carry no plugin; External signals gates them.
   const gated = (group: SignalGroup): boolean => group.plugin === undefined;
-  const admitted = (group: SignalGroup): boolean => !gated(group) || deps.isEnabled();
-  const isHeld = (group: SignalGroup): boolean =>
-    gated(group) && heldIds.has(group.envelope.event_id);
-  const eligible = ({ group }: BufferedGroup): boolean => !isHeld(group) && admitted(group);
+  const passesGate = (group: SignalGroup): boolean => !gated(group) || deps.isEnabled();
+  // Thread reactions name groups by event id and never reach a plugin's group.
+  const threadMatch = (group: SignalGroup, eventIds: ReadonlySet<string>): boolean =>
+    gated(group) && eventIds.has(group.envelope.event_id);
+  const isHeld = (group: SignalGroup): boolean => threadMatch(group, heldIds);
+  const batchMayLeave = ({ group }: BufferedGroup): boolean => !isHeld(group) && passesGate(group);
+  const urgentMayLeave = ({ group }: BufferedGroup): boolean => passesGate(group);
   const sameGroup = (a: SignalGroup, b: SignalGroup): boolean =>
     a.envelope.event_id === b.envelope.event_id && a.plugin === b.plugin;
-  const deliverable = (): SignalGroup[] => batchBuffer.filter(eligible).map(({ group }) => group);
+  const deliverable = (): SignalGroup[] =>
+    batchBuffer.filter(batchMayLeave).map(({ group }) => group);
   const carriedBy = (firing: InboxFiring): SignalGroup[] => firing.payload.signals as SignalGroup[];
 
   function clearBatchTimer(): void {
@@ -129,14 +133,16 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (deliverable().length === 0) clearBatchTimer();
   }
 
-  function removeCarried(buffer: BufferedGroup[], carried: readonly SignalGroup[]): void {
+  function removeGroups(buffer: BufferedGroup[], carried: readonly SignalGroup[]): void {
     const gone = new Set(carried);
     keep(buffer, ({ group }) => !gone.has(group));
   }
 
-  /** While off, drops the gated groups that are not held. */
-  function purge(buffer: BufferedGroup[]): void {
-    if (!deps.isEnabled()) keep(buffer, ({ group }) => !gated(group) || isHeld(group));
+  /** While off, drops the gated groups of both buffers; a held batched group stays. */
+  function purge(): void {
+    if (deps.isEnabled()) return;
+    keep(urgentBuffer, ({ group }) => !gated(group));
+    keep(batchBuffer, ({ group }) => !gated(group) || isHeld(group));
   }
 
   function appendCapped(buffer: BufferedGroup[], group: SignalGroup): void {
@@ -189,7 +195,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   function offer(group: SignalGroup): void {
-    if (!admitted(group)) return;
+    if (!passesGate(group)) return;
     route({
       group: { ...group, envelope: cutLabel(group.envelope) },
       delivery: group.envelope.delivery,
@@ -225,7 +231,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       const signals = deliverable();
       if (signals.length === 0) return;
       const firing: InboxFiring = { event_name: "signals.batch", payload: { signals } };
-      if (core.fireIfEligible(firing)) removeCarried(batchBuffer, signals);
+      if (core.fireIfEligible(firing)) removeGroups(batchBuffer, signals);
     }, BATCH_INTERVAL_MS);
   }
 
@@ -248,16 +254,14 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
 
   function drain(): SignalGroup[] {
     const groups = deliverable();
-    removeCarried(batchBuffer, groups);
+    removeGroups(batchBuffer, groups);
     return groups;
   }
 
   function withdraw(eventId: string, eventType: string): void {
     const at = batchBuffer.findIndex(
       ({ group }) =>
-        gated(group) &&
-        group.envelope.event_id === eventId &&
-        group.envelope.event_type === eventType,
+        threadMatch(group, new Set([eventId])) && group.envelope.event_type === eventType,
     );
     if (at < 0) return;
     batchBuffer.splice(at, 1);
@@ -272,12 +276,9 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   // Ungated: the reaction that fires it already waited for an idle pipeline.
   function fireHeld(eventIds: readonly string[], byUser = false): boolean {
     const ids = new Set(eventIds);
-    const fired: SignalGroup[] = [];
-    const kept: BufferedGroup[] = [];
-    for (const entry of batchBuffer) {
-      if (gated(entry.group) && ids.has(entry.group.envelope.event_id)) fired.push(entry.group);
-      else kept.push(entry);
-    }
+    const fired = batchBuffer
+      .filter(({ group }) => threadMatch(group, ids))
+      .map(({ group }) => group);
     if (!deps.isEnabled() || fired.length === 0) return false;
     // os_event_watcher is unpaced, so the proactive gap does not hold it; a drop (its guardrail debounce too) returns the groups through restoreSignals.
     const pushed = deps.bus.push({
@@ -288,15 +289,14 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       ...(byUser ? { dnd_override: true } : {}),
     });
     if (!pushed) return false;
-    batchBuffer.splice(0, batchBuffer.length, ...kept);
-    if (batchBuffer.length === 0) clearBatchTimer();
+    removeGroups(batchBuffer, fired);
     log.info("fire_held", { event_ids: [...ids] });
     return true;
   }
 
   // Restored groups go ahead of buffered ones; a group already buffered keeps the buffered copy.
   function restore(env: BusEnvelope): void {
-    const groups = signalsOf(env)?.filter(admitted);
+    const groups = signalsOf(env)?.filter(passesGate);
     if (!groups?.length) return;
     const batchWasEmpty = batchBuffer.length === 0;
     frontSequence -= groups.length;
@@ -325,13 +325,12 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     buildLive: buildUrgentDelivery,
     busSource: "urgent_signal_source",
     bufferAdd: (item) => appendCapped(urgentBuffer, item.group),
-    bufferEmpty: () => !urgentBuffer.some(eligible),
-    bufferClear: (fired) => removeCarried(urgentBuffer, carriedBy(fired)),
-    onTick: () => purge(urgentBuffer),
+    nothingLeaves: () => !urgentBuffer.some(urgentMayLeave),
+    removeCarried: (fired) => removeGroups(urgentBuffer, carriedBy(fired)),
     // appendCapped appends in arrival order — the buffer needs no sort.
     buildCatchup: () => ({
       event_name: "signals.urgent_catchup",
-      payload: { signals: urgentBuffer.filter(eligible).map(({ group }) => group) },
+      payload: { signals: urgentBuffer.filter(urgentMayLeave).map(({ group }) => group) },
     }),
   });
 
@@ -346,9 +345,10 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     log,
     parse: (item) => item,
     bufferAdd,
-    bufferEmpty: () => deliverable().length === 0,
-    bufferClear: (fired) => removeCarried(batchBuffer, carriedBy(fired)),
-    onTick: () => purge(batchBuffer),
+    nothingLeaves: () => deliverable().length === 0,
+    removeCarried: (fired) => removeGroups(batchBuffer, carriedBy(fired)),
+    // One purge covers both buffers; passesGate keeps a gated group in until it runs.
+    onTick: purge,
     buildCatchup,
   });
 
