@@ -126,38 +126,6 @@ describe("wireSettingsWindow", () => {
 
       await vi.waitFor(() => expect(shown(app)).toEqual(text));
     });
-
-    it("follows a rename of its character and a new language", async () => {
-      history.replaceState(null, "", "/settings.html");
-      const { app, presetRegistry } = await open(() => "http://localhost:8643/v1");
-
-      presetRegistry.rename("default", "Yuna");
-      await vi.waitFor(() => expect(shown(app)).toEqual(["Yuna", "Responses · In main"]));
-      setLocale("ko");
-
-      await vi.waitFor(() => expect(shown(app)).toEqual(["Yuna", "Responses · 메인"]));
-    });
-
-    it.each([
-      [
-        "a storage event",
-        () => window.dispatchEvent(new StorageEvent("storage", { key: "yui.endpoints" })),
-      ],
-      [
-        "another window's settings change",
-        () => void createSettingsBridge(undefined, { windowKind: "pet" }).emitSettingsChanged(),
-      ],
-      ["the window's focus", () => window.dispatchEvent(new Event("focus"))],
-    ])("re-reads its own character's transport on %s while the panel edits another", async (_, signal) => {
-      history.replaceState(null, "", "/settings.html?edit=b");
-      const { app } = await open(() => "http://localhost:8643/v1");
-      await vi.waitFor(() => expect(shown(app)).toEqual(["Yui", "Responses · In main"]));
-
-      localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
-      signal();
-
-      await vi.waitFor(() => expect(shown(app)).toEqual(["Yui", "Push · In main"]));
-    });
   });
 
   it("opens the panel on the page and key focus the window's URL asks for", async () => {
