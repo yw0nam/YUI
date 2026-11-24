@@ -274,7 +274,7 @@ describe("wireLocomotion", () => {
   it("holds her still: the loops cancel, and no stroll, climb or perch walk starts until released", () => {
     const s = setup();
 
-    s.locomotion.hold(true);
+    s.locomotion.hold("menu", true);
 
     expect(s.cancelOrder).toEqual([
       "walker.cancel",
@@ -287,7 +287,23 @@ describe("wireLocomotion", () => {
       [true, true, true],
     );
 
-    s.locomotion.hold(false);
+    s.locomotion.hold("menu", false);
+    expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
+      [false, false, false],
+    );
+  });
+
+  it("keeps her held while another holder still holds her", () => {
+    const s = setup();
+    s.locomotion.hold("come-along", true);
+    s.locomotion.hold("menu", true);
+
+    s.locomotion.hold("menu", false);
+    expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
+      [true, true, true],
+    );
+
+    s.locomotion.hold("come-along", false);
     expect([s.walkerDeps.isDragging(), s.climberDeps.isDragging(), s.percherDeps.isBusy()]).toEqual(
       [false, false, false],
     );
@@ -304,23 +320,22 @@ describe("wireLocomotion", () => {
       { x: 344, y: 517 },
     ];
 
-    await s.locomotion.widen(via, vi.fn());
+    await s.locomotion.widen(via);
 
     expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 300, y: 517 }, via);
   });
 
-  it("tells the widen's holder when an agent move ends it", async () => {
+  it("tells every holder once when an agent move takes her", async () => {
     const s = setup();
-    s.travelFrame.getWindow.mockReturnValue({
-      outerPosition: async () => ({ x: 300, y: 517 }),
-      scaleFactor: async () => 1,
-    });
-    const onAbort = vi.fn();
-    await s.locomotion.widen([], onAbort);
+    const menuAbort = vi.fn();
+    const comeAlongAbort = vi.fn();
+    s.locomotion.hold("menu", true, menuAbort);
+    s.locomotion.hold("come-along", true, comeAlongAbort);
 
     await s.windowSourcesDeps.noteAgentMove();
+    await s.windowSourcesDeps.noteAgentMove();
 
-    expect(onAbort).toHaveBeenCalledOnce();
+    expect([menuAbort.mock.calls.length, comeAlongAbort.mock.calls.length]).toEqual([1, 1]);
   });
 
   it("follows the climb toggle: the stored value at start and each later store change", () => {
