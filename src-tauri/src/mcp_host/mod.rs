@@ -67,7 +67,7 @@ mod store;
 mod test_support;
 mod tree;
 
-use crate::agent_ingress::payload::{SignalsPayload, SIGNALS_INBOX_CHANNEL};
+use crate::agent_ingress::{SignalsPayload, SIGNALS_INBOX_CHANNEL};
 use host::Host;
 use std::path::Path;
 use std::sync::Arc;
@@ -97,12 +97,12 @@ pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
         },
         move |payload: SignalsPayload| {
             log::debug!(
-                "plugin_signals_accepted plugin={} event_id={:?}",
+                "mcp_host_signals_accepted plugin={} event_id={}",
                 payload.plugin.as_deref().unwrap_or_default(),
                 payload.envelope["event_id"].as_str().unwrap_or_default()
             );
             if let Err(e) = signals_handle.emit_to("main", SIGNALS_INBOX_CHANNEL, payload) {
-                log::warn!("plugin_signals_emit_failed error={e}");
+                log::warn!("mcp_host_signals_emit_failed error={e}");
             }
         },
     );

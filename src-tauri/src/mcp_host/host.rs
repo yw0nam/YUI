@@ -11,7 +11,7 @@ use super::orphans::ProcessGroups;
 use super::server::PluginLog;
 use super::snapshot::{self, PluginEntry, ServerView, Snapshot};
 use super::store::{self, Source, State, StoredPlugin};
-use crate::agent_ingress::payload::SignalsPayload;
+use crate::agent_ingress::SignalsPayload;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};

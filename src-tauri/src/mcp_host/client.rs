@@ -2,7 +2,7 @@
 
 use super::host::Host;
 use super::server::PluginLog;
-use crate::agent_ingress::payload::{validate_signals, SignalsPayload, SignalsRequest};
+use crate::agent_ingress::{validate_signals, SignalsPayload, SignalsRequest};
 use rmcp::handler::client::ClientHandler;
 use rmcp::model::CustomNotification;
 use rmcp::service::{NotificationContext, RoleClient};

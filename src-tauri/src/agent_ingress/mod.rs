@@ -8,7 +8,7 @@
 //!
 //! Binds loopback only; no auth (single-user desktop).
 
-use payload::{SignalsPayload, SIGNALS_INBOX_CHANNEL};
+pub(crate) use payload::{validate_signals, SignalsPayload, SignalsRequest, SIGNALS_INBOX_CHANNEL};
 use response::{status, HttpResponse};
 use route::{Dispatch, RouteKind};
 use std::collections::HashSet;
@@ -17,7 +17,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod avatar_rpc;
 mod guard;
-pub(crate) mod payload;
+mod payload;
 mod response;
 mod route;
 mod server;

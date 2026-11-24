@@ -4,7 +4,7 @@
 use super::catalog;
 use super::host::Host;
 use super::snapshot::Snapshot;
-use crate::agent_ingress::payload::SignalsPayload;
+use crate::agent_ingress::SignalsPayload;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::Write;

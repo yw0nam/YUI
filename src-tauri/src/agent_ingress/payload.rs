@@ -40,8 +40,8 @@ pub struct SignalsPayload {
 /// Wire shape of a `/signals` POST body and of a plugin's signals notification params.
 #[derive(Deserialize, Debug)]
 pub(crate) struct SignalsRequest {
-    pub(crate) signals: Vec<serde_json::Value>,
-    pub(crate) envelope: Option<serde_json::Value>,
+    signals: Vec<serde_json::Value>,
+    envelope: Option<serde_json::Value>,
 }
 
 /// The rule a signals request broke.
