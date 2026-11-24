@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings Stage Mock</title>
+<!-- Real tokens; the theme toggle sets data-theme on the root as the app does. The drawn window, her placeholder and the demo controls are mock-only staging in the style block. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<style>
+/* Layout: a regular toolbar band, then the settings window drawn at true pixel size and scaled to fit, then a two-column "What changes" comparison. */
+:root {
+  /* page chrome (light = Dawn values) */
+  --pg-bg: oklch(0.955 0.008 82);
+  --pg-surface: oklch(0.985 0.005 85);
+  --pg-fg: oklch(0.27 0.02 60);
+  --pg-dim: oklch(0.4 0.02 60);
+  --pg-mute: oklch(0.46 0.02 60);
+  --pg-edge: oklch(0.35 0.03 60 / 0.14);
+  --pg-edge-strong: oklch(0.35 0.03 60 / 0.24);
+  --pg-sel: oklch(0.3 0.03 60 / 0.08);
+  --pg-hover: oklch(0.3 0.03 60 / 0.05);
+  --pg-accent: oklch(0.68 0.15 62);
+  --pg-accent-soft: oklch(0.68 0.15 62 / 0.45);
+  --pg-track: oklch(0.5 0.01 70 / 0.3);
+  --pg-knob: oklch(0.99 0.004 85);
+  --frame-shadow: 0 18px 48px oklch(0.2 0.03 60 / 0.18);
+  --tl-1: oklch(0.68 0.17 28);
+  --tl-2: oklch(0.82 0.14 85);
+  --tl-3: oklch(0.72 0.16 145);
+  --font: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* the placeholder figure */
+  --sil: oklch(0.82 0.012 70);
+  --sil-2: oklch(0.77 0.013 70);
+  --sil-hair: oklch(0.7 0.016 66);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pg-bg: oklch(0.135 0.012 70);
+    --pg-surface: oklch(0.18 0.014 70);
+    --pg-fg: oklch(0.95 0.012 80);
+    --pg-dim: oklch(0.78 0.016 75);
+    --pg-mute: oklch(0.66 0.014 72);
+    --pg-edge: oklch(0.97 0.01 80 / 0.1);
+    --pg-edge-strong: oklch(0.97 0.01 80 / 0.16);
+    --pg-sel: oklch(0.97 0.01 80 / 0.11);
+    --pg-hover: oklch(0.97 0.01 80 / 0.06);
+    --pg-accent: oklch(0.8 0.13 75);
+    --pg-accent-soft: oklch(0.8 0.13 75 / 0.45);
+    --pg-track: oklch(0.5 0.01 70 / 0.35);
+    --pg-knob: oklch(0.96 0.01 80);
+    --frame-shadow: 0 18px 48px oklch(0.05 0.01 70 / 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --pg-bg: oklch(0.135 0.012 70);
+  --pg-surface: oklch(0.18 0.014 70);
+  --pg-fg: oklch(0.95 0.012 80);
+  --pg-dim: oklch(0.78 0.016 75);
+  --pg-mute: oklch(0.66 0.014 72);
+  --pg-edge: oklch(0.97 0.01 80 / 0.1);
+  --pg-edge-strong: oklch(0.97 0.01 80 / 0.16);
+  --pg-sel: oklch(0.97 0.01 80 / 0.11);
+  --pg-hover: oklch(0.97 0.01 80 / 0.06);
+  --pg-accent: oklch(0.8 0.13 75);
+  --pg-accent-soft: oklch(0.8 0.13 75 / 0.45);
+  --pg-track: oklch(0.5 0.01 70 / 0.35);
+  --pg-knob: oklch(0.96 0.01 80);
+  --frame-shadow: 0 18px 48px oklch(0.05 0.01 70 / 0.6);
+  color-scheme: dark;
+}
+/* Hearth: the placeholder figure; the window's tokens come from tokens.css */
+:root[data-theme="hearth"] {
+  --sil: oklch(0.36 0.014 70);
+  --sil-2: oklch(0.32 0.014 70);
+  --sil-hair: oklch(0.28 0.014 66);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--pg-bg);
+  color: var(--pg-fg);
+  font: 14px/1.45 var(--font);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; margin: 0; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--pg-mute); font-size: 13px; max-width: 70ch; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--pg-accent-soft); outline-offset: 2px; }
+
+/* ── toolbar ── */
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 16px 32px;
+  padding: 16px;
+  background: var(--pg-surface);
+  border: 1px solid var(--pg-edge);
+  border-radius: 12px;
+}
+.tg { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.tg > .lbl { font-size: 11px; font-weight: 600; color: var(--pg-mute); letter-spacing: 0.02em; text-transform: uppercase; }
+.tg .line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tseg { display: inline-flex; flex-wrap: wrap; padding: 2px; gap: 2px; border: 1px solid var(--pg-edge); border-radius: 8px; background: var(--pg-bg); }
+.tseg button { border: 0; background: transparent; padding: 4px 12px; height: 28px; border-radius: 6px; font-size: 13px; color: var(--pg-dim); cursor: pointer; white-space: nowrap; }
+.tseg button:hover { background: var(--pg-hover); }
+.tseg button[aria-pressed="true"] { background: var(--pg-sel); color: var(--pg-fg); font-weight: 600; }
+.tbtn { border: 1px solid var(--pg-edge); background: var(--pg-bg); border-radius: 8px; height: 32px; padding: 0 12px; font-size: 13px; color: var(--pg-dim); cursor: pointer; }
+.tbtn:hover { background: var(--pg-hover); color: var(--pg-fg); }
+.tbtn:disabled { opacity: 0.45; cursor: default; }
+.tsw { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 0; cursor: pointer; font-size: 13px; color: var(--pg-dim); }
+.tsw i { width: 36px; height: 20px; border-radius: 999px; background: var(--pg-track); position: relative; transition: background 140ms; flex: none; }
+.tsw i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--pg-knob); transition: transform 200ms var(--ease); }
+.tsw[aria-checked="true"] i { background: var(--pg-accent); }
+.tsw[aria-checked="true"] i::after { transform: translateX(16px); }
+@media (max-width: 820px) { .toolbar { grid-template-columns: 1fr; } }
+
+.readout { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--pg-mute); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--pg-fg); font-weight: 600; }
+
+/* ── canvas: the window at true size, scaled to fit ── */
+.canvas { width: 100%; overflow: hidden; }
+.scaler { transform-origin: 0 0; width: max-content; }
+
+.win {
+  --fs-cap: 11px; --fs-sub: 12px; --fs-body: 13px; --fs-head: 14px; --fs-title: 20px; --fs-speech: 15.2px;
+  font-family: var(--font);
+  color: var(--yui-text);
+  background: var(--yui-panel-bg);
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: 12px;
+  box-shadow: var(--frame-shadow);
+  overflow: hidden;
+  line-height: 1.4;
+}
+.tbar { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--yui-edge); background: var(--yui-panel-bg); }
+.tbar .tl { width: 12px; height: 12px; border-radius: 50%; }
+.tbar .tl:nth-child(1) { background: var(--tl-1); } .tbar .tl:nth-child(2) { background: var(--tl-2); } .tbar .tl:nth-child(3) { background: var(--tl-3); }
+.tbar .wt { margin-left: 8px; font-size: 13px; font-weight: 600; color: var(--yui-text-dim); }
+.tbar .ws { margin-left: auto; font-size: 11px; color: var(--yui-text-mute); font-variant-numeric: tabular-nums; }
+.content { display: flex; }
+
+/* ── stage ── */
+.stage { position: relative; flex: none; width: 400px; display: flex; flex-direction: column; background: var(--yui-stage-bg); overflow: hidden; }
+.floor { position: relative; flex: none; width: 400px; height: 600px; }
+.region { position: absolute; inset: 0; width: 400px; height: 600px; }
+.region { border: 1px dashed var(--yui-edge-strong); border-radius: 4px; }
+.region .rl { position: absolute; top: 8px; left: 8px; font-size: var(--fs-cap); color: var(--yui-text-mute); }
+.region svg { position: absolute; inset: 0; }
+.bubble { position: absolute; left: 29.5px; width: 341px; bottom: 96px; min-height: 138px; padding: 28px 22px; display: flex; align-items: center; background: var(--yui-scrim); border: 1px solid var(--yui-edge); border-radius: 14px; box-shadow: var(--yui-float); font-size: var(--fs-speech); line-height: 1.75; color: var(--yui-text); }
+.input { position: absolute; left: 29.5px; width: 341px; bottom: 16px; height: 40px; padding: 0 14px; display: flex; align-items: center; background: var(--yui-scrim-strong); border: 1px solid var(--yui-edge); border-radius: 12px; font-size: var(--fs-speech); color: var(--yui-text-mute); }
+.input .w { margin-left: auto; font-size: var(--fs-cap); }
+
+.foot { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 24px; border-top: 1px solid var(--yui-edge); min-width: 0; }
+.foot .nm { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.015em; line-height: 24px; }
+.foot .st { font-size: var(--fs-sub); color: var(--yui-text-mute); line-height: 16px; }
+.foot .cap { font-size: var(--fs-body); color: var(--yui-text-dim); line-height: 18px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.foot.compact { flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; padding: 0 16px; }
+.foot.compact .nm { font-size: var(--fs-head); line-height: 20px; letter-spacing: 0; }
+.foot.compact .cap { margin: 0; }
+.foot.stayed .cap { color: var(--yui-text); }
+
+/* character buttons: the panel's header row */
+.chars { display: flex; align-items: center; gap: 8px; }
+.cbtn { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px; border-radius: 10px; border: 0; background: transparent; text-align: left; min-width: 0; flex: 1 1 0; cursor: pointer; }
+.cbtn:hover { background: var(--yui-hover); }
+.cbtn.on { background: var(--yui-selected); }
+.cbtn.idle { opacity: 0.55; }
+.cbtn .tx { display: grid; min-width: 0; }
+.cbtn .n { font-size: var(--fs-body); font-weight: 600; line-height: 16px; }
+.cbtn .m { font-size: var(--fs-cap); color: var(--yui-text-mute); line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.face { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.face.yui { background: oklch(var(--yui-avatar-l) var(--yui-avatar-c) 20); }
+.face.mio { background: oklch(var(--yui-avatar-l) var(--yui-avatar-c) 250); }
+.manage { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 0; background: transparent; border-radius: 8px; color: var(--yui-text-mute); cursor: pointer; }
+.manage:hover { background: var(--yui-hover); }
+
+/* ── panel ── */
+.panel { flex: 1; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--yui-edge); }
+.phead { flex: none; padding: 12px 16px 8px; border-bottom: 1px solid var(--yui-edge); display: grid; gap: 4px; }
+.phead .chars .cbtn { flex: 0 1 200px; }
+.phead .manage { margin-left: auto; }
+.phead .note { font-size: var(--fs-sub); color: var(--yui-text-mute); padding-left: 8px; line-height: 16px; }
+.pbody { flex: 1; min-height: 0; display: flex; }
+.rail { flex: none; width: 160px; display: flex; flex-direction: column; gap: 2px; padding: 8px 8px 16px; border-right: 1px solid var(--yui-edge); }
+.search { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; margin-bottom: 6px; border-radius: 8px; background: var(--yui-field); border: 1px solid var(--yui-edge); font-size: var(--fs-body); color: var(--yui-text-mute); }
+.search svg { width: 14px; height: 14px; flex: none; }
+.rh { font-size: var(--fs-cap); font-weight: 600; color: var(--yui-text-mute); padding: 8px 10px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ri { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 8px 10px; border: 0; background: transparent; border-radius: 8px; font-size: var(--fs-body); line-height: 16px; color: var(--yui-text-dim); text-align: left; cursor: pointer; }
+.ri:hover { background: var(--yui-hover); }
+.ri.on { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.ri svg { width: 16px; height: 16px; flex: none; }
+.ri.pin { margin-top: auto; }
+.narrow .rail { width: 48px; padding: 8px 6px 16px; align-items: stretch; }
+.narrow .search { display: none; }
+.narrow .rh { display: none; }
+.narrow .rdiv { display: block; height: 1px; background: var(--yui-edge); margin: 6px 4px; }
+.rdiv { display: none; }
+.narrow .ri { justify-content: center; padding: 0; }
+.narrow .ri span { display: none; }
+
+.page { flex: 1; min-width: 0; overflow: hidden; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 20px; }
+.narrow .page { padding: 16px 16px 24px; }
+.scope { font-size: var(--fs-body); color: var(--yui-text-mute); }
+.ptitle { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.015em; margin: 2px 0 0; }
+.sec { display: grid; gap: 8px; }
+.sh { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px; }
+.sh h3 { margin: 0; font-size: var(--fs-head); font-weight: 600; }
+.aside { font-size: var(--fs-sub); color: var(--yui-text-mute); white-space: nowrap; }
+.pnote { margin: 0; padding: 0 4px; font-size: var(--fs-sub); color: var(--yui-text-mute); }
+.grp { background: var(--yui-group-bg); border-radius: 12px; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 14px; }
+.row + .row { border-top: 1px solid var(--yui-edge); }
+.row .rlb { flex: 1; min-width: 0; }
+.row .lb { font-size: var(--fs-body); font-weight: 500; }
+.row .sb { font-size: var(--fs-sub); color: var(--yui-text-mute); }
+.row .rc { flex: none; display: flex; align-items: center; gap: 8px; }
+.narrow .row.wide { flex-wrap: wrap; }
+.narrow .row.wide .rc { flex: 1 1 100%; }
+.narrow .row.wide .rc > * { flex: 1; }
+.row.add { color: var(--yui-text-dim); font-size: var(--fs-body); font-weight: 500; gap: 8px; }
+.sw { width: 36px; height: 20px; border-radius: 999px; background: var(--yui-track); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--yui-knob); box-shadow: 0 1px 2px var(--yui-knob-shadow); }
+.sw.on { background: var(--yui-accent); }
+.sw.on::after { transform: translateX(16px); }
+.sw.lock { opacity: 0.55; }
+.sel, .fld { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--yui-field); border: 1px solid var(--yui-edge); font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sel { gap: 8px; justify-content: space-between; min-width: 9rem; }
+.sel svg { width: 12px; height: 12px; flex: none; color: var(--yui-text-mute); }
+.fld.tab { font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; flex-wrap: wrap; padding: 2px; gap: 2px; border-radius: 8px; background: var(--yui-field); border: 1px solid var(--yui-edge); }
+.seg button { border: 0; background: transparent; height: 26px; padding: 0 12px; border-radius: 6px; font-size: var(--fs-body); color: var(--yui-text-dim); cursor: pointer; white-space: nowrap; }
+.seg button:hover { background: var(--yui-hover); }
+.seg button.on { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.lnk { font-size: var(--fs-sub); color: var(--yui-text-dim); text-decoration: underline; text-decoration-color: var(--yui-edge-strong); text-underline-offset: 3px; }
+.pill { height: 28px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--yui-edge-strong); font-size: var(--fs-sub); font-weight: 500; }
+.status { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--yui-text-mute); padding: 0 4px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--yui-ok); box-shadow: 0 0 0 3px var(--yui-ok-soft); }
+.unit { width: 3rem; font-size: var(--fs-cap); color: var(--yui-text-mute); }
+.fold { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: var(--fs-body); font-weight: 500; color: var(--yui-text-dim); }
+.fold svg, .chev { width: 14px; height: 14px; color: var(--yui-text-mute); flex: none; }
+.daystrip { width: 100%; height: auto; display: block; }
+.daystrip text { font-family: var(--font); }
+
+/* ── her motion ── */
+.sil { fill: var(--sil); } .sil2 { fill: var(--sil-2); } .hair { fill: var(--sil-hair); }
+.limb { stroke: var(--sil); stroke-linecap: round; fill: none; }
+.shadow { fill: var(--yui-edge); }
+.head { transform-box: view-box; transform-origin: 200px 190px; transition: transform 600ms var(--ease); }
+.her { transform-box: view-box; transform-origin: 200px 520px; }
+.pose-sleepy .head { transform: rotate(9deg); }
+
+.win:not(.rm) .pose-lively .her { animation: bob 1.2s var(--ease) infinite alternate; }
+.win:not(.rm) .pose-sleepy .her { animation: breathe 4s ease-in-out infinite alternate; }
+.win:not(.rm) .spinonce .her { animation: modelspin 900ms var(--ease) 1; }
+.region.walk { animation: walkin 800ms var(--ease) both; }
+.region.fadein { animation: fade 800ms var(--ease) both; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+@keyframes breathe { from { transform: scaleY(1); } to { transform: scaleY(0.99); } }
+@keyframes modelspin { 0% { transform: scaleX(1); } 50% { transform: scaleX(-1); } 100% { transform: scaleX(1); } }
+@keyframes walkin { from { transform: translateX(-200px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.annot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; font-size: 12px; color: var(--pg-mute); }
+.annot div { display: grid; gap: 2px; min-width: 0; }
+.annot b { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.annot span { color: var(--pg-fg); font-size: 13px; }
+@media (max-width: 640px) { .annot { grid-template-columns: 1fr; } }
+
+/* ── what changes ── */
+.changes { display: grid; gap: 12px; }
+.changes h2 { font-size: 14px; font-weight: 600; margin: 8px 0 0; }
+.cmp { display: grid; gap: 16px; max-width: 640px; }
+.card { border: 1px solid var(--pg-edge); border-radius: 12px; background: var(--pg-surface); padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card h3 { margin: 0; font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.card h3 small { font-size: 11px; font-weight: 600; color: var(--pg-mute); text-transform: uppercase; letter-spacing: 0.02em; }
+.sizes { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 13px; font-variant-numeric: tabular-nums; margin: 0; }
+.sizes dt { color: var(--pg-mute); }
+.sizes dd { margin: 0; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; color: var(--pg-dim); }
+.today { font-size: 12px; color: var(--pg-mute); margin: 0; }
+@media (prefers-reduced-motion: reduce) { .tsw i::after, .head { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Settings stage</h1>
+    <p class="lede">Mock for issues #2047 and #2046, layout A: the stage beside the panel. The window is drawn at its real pixel size and scaled to fit. Her 400 × 600 pet window docks over the stage as a native child window; the dashed box is that window.</p>
+  </header>
+
+  <div class="toolbar" id="toolbar">
+    <div class="tg"><span class="lbl" id="l-size">Window size</span>
+      <div class="tseg" role="group" aria-labelledby="l-size">
+        <button id="t-size-default" data-k="size" data-v="default">Default</button>
+        <button id="t-size-min" data-k="size" data-v="min">Minimum</button>
+      </div></div>
+    <div class="tg"><span class="lbl" id="l-stage">Stage</span>
+      <div class="line">
+        <div class="tseg" role="group" aria-labelledby="l-stage">
+          <button id="t-stage-docked" data-k="stage" data-v="docked">Docked</button>
+          <button id="t-stage-arriving" data-k="stage" data-v="arriving">Arriving</button>
+          <button id="t-stage-stayed" data-k="stage" data-v="stayed">Stayed</button>
+        </div>
+        <button class="tbtn" id="t-replay">Replay entry</button>
+      </div></div>
+    <div class="tg"><span class="lbl" id="l-page">Page</span>
+      <div class="tseg" role="group" aria-labelledby="l-page">
+        <button id="t-page-conn" data-k="page" data-v="conn">Connection</button>
+        <button id="t-page-voice" data-k="page" data-v="voice">Voice</button>
+        <button id="t-page-persona" data-k="page" data-v="persona">Persona</button>
+        <button id="t-page-react" data-k="page" data-v="react">Proactive</button>
+        <button id="t-page-other" data-k="page" data-v="general">Other</button>
+      </div></div>
+    <div class="tg"><span class="lbl" id="l-theme">Theme</span>
+      <div class="tseg" role="group" aria-labelledby="l-theme">
+        <button id="t-theme-dawn" data-k="theme" data-v="dawn">Dawn</button>
+        <button id="t-theme-hearth" data-k="theme" data-v="hearth">Hearth</button>
+      </div></div>
+    <div class="tg"><span class="lbl">Motion and overlay</span>
+      <div class="line">
+        <button class="tsw" id="t-reduced" role="switch" aria-checked="false"><i></i>Reduced motion</button>
+        <button class="tsw" id="t-bubble" role="switch" aria-checked="true"><i></i>Speech bubble</button>
+      </div></div>
+  </div>
+
+  <div class="readout" id="readout" aria-live="polite"></div>
+  <div class="canvas" id="canvas"><div class="scaler" id="scaler"></div></div>
+  <div class="annot" id="annot"></div>
+
+  <section class="changes" aria-labelledby="h-changes">
+    <h2 id="h-changes">What changes</h2>
+    <p class="today">Today: 760 × 680 by default, 480 × 480 minimum, no stage. Sizes are the window's inner size; the title bar sits outside it.</p>
+    <div class="cmp">
+      <article class="card">
+        <h3>Stage beside</h3>
+        <dl class="sizes"><dt>Default</dt><dd>1160 × 680 (stage 400 + panel 760)</dd><dt>Minimum</dt><dd>880 × 640 (stage 400 + panel 480)</dd></dl>
+        <ul>
+          <li>The window grows by exactly the stage: the panel keeps today's 760 × 680 at default.</li>
+          <li>Nothing in the panel moves. The character header row stays on top of the panel; the stage is added on the left.</li>
+          <li>Nothing is removed. Her name and state show twice: on her header button and at the stage's foot, in the same words.</li>
+          <li>Narrow: the panel drops to its 480px layout (3rem icon rail, no search). The stage foot folds to one 40px line (name · caption), so 600 + 40 = 640 tall.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const mq = (q) => { try { return matchMedia(q).matches; } catch (e) { return false; } };
+  const S = {
+    size: "default", stage: "docked", page: "conn", pace: "Normal",
+    theme: mq("(prefers-color-scheme: dark)") ? "hearth" : "dawn",
+    reduced: mq("(prefers-reduced-motion: reduce)"), bubble: true,
+    entering: false, reactIn: false, prevPage: "conn",
+  };
+
+  // Geometry, all on the 8px grid. The stage is always 400 wide; her window is 400 x 600.
+  const GEO = { default: { w: 1160, h: 680, foot: 80 }, min: { w: 880, h: 640, foot: 40 } };
+
+  const ICON = {
+    conn: "M6 2v3M10 2v3M4.5 5h7v2.5a3.5 3.5 0 0 1-7 0zM8 11v3",
+    voice: "M2.5 6h2.5l3.5-3v10l-3.5-3H2.5zM11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4",
+    persona: "M2.5 3.5h11v7.5h-6.5l-3 2.5v-2.5h-1.5z",
+    body: "M8 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3 14c.6-2.8 2.6-4.5 5-4.5s4.4 1.7 5 4.5",
+    hist: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM8 5v3l2 1.5",
+    together: "M6 7a2.2 2.2 0 1 0 0-4.4A2.2 2.2 0 0 0 6 7zM1.8 13.5c.5-2.4 2.1-3.8 4.2-3.8s3.7 1.4 4.2 3.8M10.5 2.8a2.2 2.2 0 0 1 0 4.2M12 9.9c1.2.5 2 1.7 2.3 3.6",
+    listening: "M8 2a2 2 0 0 0-2 2v4a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2zM4 7.5a4 4 0 0 0 8 0M8 11.5V14",
+    perms: "M8 1.8 13 3.8v4c0 3-2.2 5.2-5 6.4-2.8-1.2-5-3.4-5-6.4v-4z",
+    plugins: "M3 5h3a2 2 0 1 1 4 0h3v3a2 2 0 1 1 0 4v2H3z",
+    react: "M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z",
+    motion: "M9.5 3.2a1.2 1.2 0 1 0 0-.1M6 14l2-4 2 2v2.5M4 8.5l2.5-2.5h3l1.5 2 2 .5M8 10l1.5-4",
+    general: "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4",
+    search: "M7 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM14 14l-3.5-3.5",
+  };
+  const svgI = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  const CHEV = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg>`;
+  const CHEV_R = `<svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9"/></svg>`;
+
+  const PAGES = [
+    ["conn", "Connection", "char"], ["voice", "Voice", "char"], ["persona", "Persona", "char"],
+    ["body", "Body", "char"], ["hist", "History", "char"],
+    ["together", "Together", "app"], ["listening", "Listening and bubble", "app"], ["perms", "Permissions", "app"],
+    ["plugins", "Plugins", "app"], ["react", "Proactive", "app"], ["motion", "Motion and desktop", "app"],
+    ["general", "General", "app"],
+  ];
+
+  // Page reactions (DESIGN.md § Settings stage). Captions are mock copy.
+  const PACE = { Less: ["sleepy", "Sleepy at Less pace"], Normal: ["idle", "Idle at Normal pace"], More: ["idle_lively", "Lively at More pace"] };
+  const REACT = {
+    conn: ["thinking", "Looking over your connection"],
+    voice: ["happy", "Trying out her voice"],
+    persona: ["calm", "Reading her card"],
+    body: ["model spin, in code", "Turning around for you"],
+    hist: ["thinking", "Thinking back over your talks"],
+    together: ["laugh", "Laughing with the others"],
+    listening: ["curious emotion", "Listening closely"],
+    perms: ["cover_eyes (new clip)", "Covering her eyes while screen watch is off"],
+    plugins: ["none, idles", "Waiting beside you"],
+    motion: ["previews the motion she plays", "Showing the motion she plays"],
+    general: ["wave (new clip)", "Waving hello"],
+  };
+
+  // ── panel controls ──
+  const sw = (on, lock) => `<span class="sw${on ? " on" : ""}${lock ? " lock" : ""}" role="switch" aria-checked="${on}"></span>`;
+  const sel = (v) => `<span class="sel">${v}${CHEV}</span>`;
+  const fld = (v, w, cls = "") => `<span class="fld ${cls}" style="width:${w}">${v}</span>`;
+  const seg = (cells, on, act) => `<span class="seg" role="radiogroup">${cells.map((c) => `<button class="${c === on ? "on" : ""}" ${act ? `data-act="${act}" data-v="${c}"` : ""} role="radio" aria-checked="${c === on}">${c}</button>`).join("")}</span>`;
+  const row = (lb, sb, ctl, wide) => `<div class="row${wide ? " wide" : ""}"><div class="rlb"><div class="lb">${lb}</div>${sb ? `<div class="sb">${sb}</div>` : ""}</div><div class="rc">${ctl}</div></div>`;
+  const add = (t) => `<div class="row add"><span aria-hidden="true">+</span>${t}</div>`;
+  const grp = (rows) => `<div class="grp">${rows.join("")}</div>`;
+  const aside = (t) => `<span class="aside">${t}</span>`;
+  const sec = (title, body, right, note) => `<section class="sec">${title ? `<div class="sh"><h3>${title}</h3>${right || ""}</div>` : ""}${note ? `<p class="pnote">${note}</p>` : ""}${body}</section>`;
+  const head = (every, title) => `<div><div class="scope">${every ? "Applies to every character" : "Applies to Yui only"}</div><h2 class="ptitle">${title}</h2></div>`;
+  const span = (a, b, pace, next) => row(`<span style="display:inline-flex;gap:8px;align-items:center">${fld(a, "5.5rem", "tab")}<span aria-hidden="true">–</span>${fld(b, "5.5rem", "tab")}${next ? aside("next day") : ""}</span>`, "", sel(pace));
+
+  function dayStrip(pace) {
+    const x = (h) => 8 + (h / 24) * 464;
+    const runs = [[0, 3, "More"], [3, 8, pace], [8, 12, "Less"], [12, 22, "Normal"], [22, 24, "More"]];
+    const fill = { Less: "var(--yui-track)", Normal: "var(--yui-edge-strong)", More: "var(--yui-text-mute)" };
+    const op = { Less: 0.5, Normal: 1, More: 0.55 };
+    let s = `<svg class="daystrip" viewBox="0 0 480 64" role="img" aria-label="Yui's day">`;
+    runs.forEach(([a, b, p]) => {
+      s += `<rect x="${x(a) + 1}" y="22" width="${x(b) - x(a) - 2}" height="8" rx="4" style="fill:${fill[p]};opacity:${op[p]}"/>`;
+      if (b - a >= 3) s += `<text x="${(x(a) + x(b)) / 2}" y="14" text-anchor="middle" style="fill:var(--yui-text-dim);font-size:11px">${p}</text>`;
+    });
+    [8.5, 21].forEach((h) => { s += `<path d="M${x(h)} 34 l4 6 h-8z" style="fill:var(--yui-text-dim)"/>`; });
+    [0, 6, 12, 18, 24].forEach((h) => { s += `<text x="${x(h)}" y="58" text-anchor="${h === 0 ? "start" : h === 24 ? "end" : "middle"}" style="fill:var(--yui-text-mute);font-size:11px;font-variant-numeric:tabular-nums">${String(h).padStart(2, "0")}:00</text>`; });
+    const now = x(14 + 20 / 60);
+    s += `<circle cx="${now}" cy="26" r="12" style="fill:oklch(var(--yui-avatar-l) var(--yui-avatar-c) 20);stroke:var(--yui-panel-bg);stroke-width:2"/>`;
+    return s + `</svg>`;
+  }
+  function checkins(pace) {
+    const mins = { Less: [90, 180], Normal: [30, 60], More: [15, 30] }[pace];
+    const x = (m) => 8 + (m / 180) * 464;
+    let s = `<svg class="daystrip" viewBox="0 0 480 40" role="img" aria-label="Check-ins after quiet"><rect x="8" y="12" width="464" height="2" rx="1" style="fill:var(--yui-edge-strong)"/>`;
+    mins.forEach((m) => { s += `<circle cx="${x(m)}" cy="13" r="4" style="fill:var(--yui-text-dim)"/><text x="${x(m)}" y="34" text-anchor="${m === 180 ? "end" : "middle"}" style="fill:var(--yui-text-mute);font-size:11px;font-variant-numeric:tabular-nums">${m} min</text>`; });
+    s += `<text x="8" y="34" style="fill:var(--yui-text-mute);font-size:11px">0</text>`;
+    return s + `</svg>`;
+  }
+
+  const PAGE_HTML = {
+    conn: () => head(false, "Connection") +
+      `<div>${seg(["Quick start", "Detailed settings"], "Detailed settings")}</div>` +
+      `<p class="pnote" style="margin-top:-12px">Choose the server, model, and voice servers yourself.</p>` +
+      sec("Chat", grp([
+        row("Type", "The server keeps earlier responses and YUI sends only the new message.", sel("Responses"), true),
+        row("Provider", "", sel("Custom"), true),
+        row("Chat server URL", "Leave empty to use the default", fld("http://localhost:8642/v1", "15rem"), true),
+        row("Chat model", "", fld("hermes-agent", "15rem"), true),
+      ]) + `<div class="status"><i class="dot ok"></i>Connected · localhost:8642</div>`) +
+      sec("STT", grp([
+        row("Speech recognition (STT) server URL", "Leave empty to use the default", fld("http://localhost:9000/v1", "15rem"), true),
+        row("STT language", "Leave empty to auto-detect", sel("Auto"), true),
+      ]), aside("OpenAI-compatible")),
+    voice: () => head(false, "Voice") +
+      sec("", grp([
+        row("Voice output", "Read replies aloud with TTS; off shows text only", sw(true)),
+        row("One voice at a time", "Another character waits until this one finishes its turn", sw(false)),
+      ])) +
+      sec("Speaker", grp([row("Hiyori", "Fish Audio", aside("In use")), row("Kaede", "Fish Audio", `<span class="lnk">Preview</span>`), add("Add from file…")])) +
+      sec("Thinking interjections", grp([
+        row("Use interjections", "Say short lines while waiting for a reply", sw(true)),
+        row("Language", "Language to speak interjections in", sel("English"), true),
+      ])),
+    persona: () => head(false, "Persona") +
+      sec("Active hours", grp([span("08:00", "12:00", "Less"), span("12:00", "22:00", "Normal"), span("22:00", "03:00", "More", true), add("Add time span")]), "", "How often she speaks up first at each time of day.") +
+      sec("Card", grp([row("Send card", "Her persona goes to the backend as the system prompt", sw(true))]) + grp([row("Name", "", fld("Yui", "12rem"), true)]), aside("Default card (English)")),
+    body: () => head(false, "Body") +
+      sec("VRM", grp([row("Yui", "Yui.vrm", aside("In use")), row("Yui (summer)", "Yui_summer.vrm", `<span class="lnk">Rename</span>`), add("Add from file…")])) +
+      `<p class="pnote"><span class="lnk">Find models on VRoid Hub</span></p>`,
+    hist: () => head(false, "History") +
+      sec("Current conversation", grp([row("You", "Can you check the build after lunch?", ""), row("Yui", "Example reply as the backend sent it", ""), row("You", "Thanks.", "")]), aside("24 messages")) +
+      `<p class="pnote">Last 200 messages · stored on this device only</p>`,
+    together: () => head(true, "Together") +
+      sec("", grp([row("Unified chat", "Main opens one chat window while two or more characters are open", sw(false))])) +
+      sec("Characters", grp([
+        row(`<span style="display:inline-flex;gap:8px;align-items:center"><i class="face yui"></i>Yui</span>`, "In main · always on", sw(true, true)),
+        row(`<span style="display:inline-flex;gap:8px;align-items:center"><i class="face mio"></i>Mio</span>`, "Off · settings kept", sw(false)),
+      ]), aside("1 of 4 on the desktop")),
+    listening: () => head(true, "Listening and bubble") +
+      sec("", grp([
+        row("Voice input", "When you stop speaking, STT runs and sends it as user input", sw(true)),
+        row("Silence threshold", "Waits this long after speech ends before sending", fld("800", "5.5rem", "tab") + `<span class="unit">ms</span>`),
+        row("Barge-in", "", sw(true)),
+      ])) + sec("", grp([row("Keep bubble until dismissed", "The speech bubble stays on screen until you close it", sw(false))])),
+    perms: () => head(true, "Permissions") +
+      sec("Screen", grp([row("Watching your screen", "Screen changes needs this to notice app switches", sw(false))])),
+    plugins: () => head(true, "Plugins") +
+      sec("Installed plugins", grp([row("weather", "Official · v0.3.1 · Running", sw(true))]), `<span class="lnk">Check for updates</span>`) +
+      sec("Available plugins", grp([row("calendar", "Official · v1.2.0", `<span class="pill">Install</span>`), add("Add from folder…")])),
+    react: () => head(true, "Proactive") +
+      `<section class="sec"><div class="sh"><h3>How often she speaks up</h3></div><div style="padding:0 4px">${seg(["Less", "Normal", "More"], S.pace, "pace")}</div>
+        <div class="grp" style="padding:12px 14px;display:grid;gap:8px">${dayStrip(S.pace)}
+          <div class="sb" style="font-size:var(--fs-sub);color:var(--yui-text-mute)">Check-ins after quiet</div>${checkins(S.pace)}</div>
+        <p class="pnote">Scheduled greetings keep their times at every pace. Per character and time of day: <span class="lnk">Persona › Active hours</span></p></section>` +
+      sec("What she reacts to", grp([
+        row("Quiet for a while", "Checks in on a repeating schedule if you've been quiet at work", aside("30 · 60 min") + sw(true) + CHEV_R),
+        row("Scheduled greetings", "Greets you first if you're at your desk at the set time", aside("08:30 · 21:00") + sw(true) + CHEV_R),
+        row("Screen changes", "Notices app switches and long stretches, then speaks up first", aside("Off") + sw(false) + CHEV_R),
+        row("Thread reactions", "", sw(true) + CHEV_R),
+        row("External signals", "", sw(true) + CHEV_R),
+      ]) + `<div class="fold">${CHEV_R}Advanced</div>`),
+    motion: () => head(true, "Motion and desktop") +
+      sec("Idle motion", grp([
+        row("Standing calmly", "Baseline pose, hands folded in front", aside("always on")),
+        row("Playful gesture", "Hands framed at the chest with a slight turn", sw(true)),
+        row("Touching her hair", "A coy three-quarter turn, one hand to her hair", sw(true)),
+        row("Leaning on one hip", "Weight shifted to one side with a subtle head tilt", sw(false)),
+      ])),
+    general: () => head(true, "General") +
+      sec("Help", grp([row("First conversation", "", `<span class="lnk">Replay</span>`)])) +
+      sec("", grp([
+        row("Language", "Display language for this app", seg(["English", "한국어", "日本語"], "English"), true),
+        row("Appearance", "", seg(["Dawn", "Hearth", "Follow system"], S.theme === "dawn" ? "Dawn" : "Hearth", "theme"), true),
+        row("Text size", "", seg(["90%", "100%", "112.5%", "125%", "140%"], "100%"), true),
+      ])),
+  };
+
+  // ── stage pieces ──
+  function charButtons() {
+    const cs = [["yui", "Yui", "Responses · In main", true], ["mio", "Mio", "Chat Completions · Off", false]];
+    return `<div class="chars">${cs.map(([id, n, m, on]) => `<button class="cbtn${on ? " on" : " idle"}"><i class="face ${id}"></i><span class="tx"><span class="n">${n}</span><span class="m">${m}</span></span></button>`).join("")}
+      <button class="manage" aria-label="Manage presets"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="12.5" cy="8" r="1.2" fill="currentColor"/></svg></button></div>`;
+  }
+
+  const FIGURE = `<svg viewBox="0 0 400 600" width="400" height="600" aria-hidden="true">
+    <ellipse class="shadow" cx="200" cy="526" rx="64" ry="7"/>
+    <g class="her">
+      <rect class="hair" x="152" y="106" width="96" height="140" rx="48"/>
+      <path class="limb" d="M188 372 186 514M212 372 214 514" stroke-width="15"/>
+      <path class="sil2" d="M178 298h44l30 78q-52 14-104 0z"/>
+      <path class="limb" d="M171 218 157 318M229 218 243 318" stroke-width="13"/>
+      <path class="sil" d="M168 210q32-12 64 0l-8 94h-48z"/>
+      <rect class="sil" x="193" y="182" width="14" height="30"/>
+      <g class="head"><circle class="sil" cx="200" cy="150" r="36"/><path class="hair" d="M163 150q4-44 37-44t37 44q-16-20-37-18t-37 18z"/></g>
+    </g></svg>`;
+
+  function stageHTML(g) {
+    const isMin = S.size === "min";
+    const r = REACT[S.page];
+    let caption = S.page === "react" ? PACE[S.pace][1] : r[1];
+    if (S.entering) caption = "Coming along";
+    if (S.stage === "stayed") caption = "Yui stayed on the desktop";
+    const pose = S.page === "react" && S.stage !== "stayed" ? (S.pace === "Less" ? "pose-sleepy" : S.pace === "More" ? "pose-lively" : "") : "";
+    const spin = S.page === "body" && S.reactIn && !S.entering ? "spinonce" : "";
+    const enter = S.entering ? (S.reduced ? "fadein" : "walk") : "";
+    const region = S.stage === "stayed" ? "" : `<div class="region ${enter} ${pose} ${spin}" id="region">
+        <span class="rl">her pet window · 400×600</span>${FIGURE}
+        ${S.bubble ? `<div class="bubble">Want to look now, or sort it out together tonight?</div>` : ""}
+        <div class="input">Say something…<span class="w">341px</span></div></div>`;
+    const foot = isMin
+      ? `<div class="foot compact${S.stage === "stayed" ? " stayed" : ""}" style="height:${g.foot}px"><span class="nm">Yui</span><span class="cap" aria-live="polite">· ${caption}</span></div>`
+      : `<div class="foot${S.stage === "stayed" ? " stayed" : ""}" style="height:${g.foot}px"><div class="nm">Yui</div><div class="st">Responses · In main</div><div class="cap" aria-live="polite">${caption}</div></div>`;
+    return `<section class="stage" style="height:${g.h}px" aria-label="Settings stage">
+      <div class="floor">${region}</div>${foot}</section>`;
+  }
+
+  function panelHTML(g) {
+    const narrow = g.w - 400 <= 480;
+    let rail = `<nav class="rail" aria-label="Settings pages"><div class="search">${svgI(ICON.search)}Search settings</div><div class="rh">Yui</div>`;
+    PAGES.forEach(([id, label, group], i) => {
+      if (group === "app" && PAGES[i - 1][2] === "char") rail += `<div class="rh">Every character</div><div class="rdiv"></div>`;
+      rail += `<button class="ri${S.page === id ? " on" : ""}${id === "general" ? " pin" : ""}" data-act="page" data-v="${id}" aria-label="${label}" title="${narrow ? label : ""}">${svgI(ICON[id])}<span>${label}</span></button>`;
+    });
+    rail += `</nav>`;
+    const header = `<div class="phead">${charButtons()}<div class="note">Yui is shown in main.</div></div>`;
+    return `<section class="panel${narrow ? " narrow" : ""}">${header}<div class="pbody">${rail}<main class="page">${PAGE_HTML[S.page]()}</main></div></section>`;
+  }
+
+  // ── render ──
+  const $ = (id) => document.getElementById(id);
+  let scale = 1;
+  function fit() {
+    const avail = $("canvas").clientWidth;
+    scale = Math.min(1, avail / 1162);
+    const g = GEO[S.size];
+    $("scaler").style.transform = `scale(${scale})`;
+    $("canvas").style.height = Math.ceil((g.h + 30) * scale) + "px";
+    renderReadout();
+  }
+  function renderReadout() {
+    const g = GEO[S.size];
+    const panelW = g.w - 400;
+    $("readout").innerHTML = `<span>Window <b>${g.w} × ${g.h}</b></span><span>Stage <b>400</b> (her 600, foot ${g.foot})</span><span>Panel <b>${panelW}</b>${panelW <= 480 ? " · narrow layout, 3rem icon rail" : " · 10rem rail"}</span><span>Shown at ${Math.round(scale * 100)}%</span>`;
+  }
+  function render() {
+    const g = GEO[S.size];
+    $("scaler").innerHTML = `<div class="win${S.reduced ? " rm" : ""}" style="width:${g.w + 2}px">
+      <div class="tbar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="wt">YUI Settings</span><span class="ws">${g.w} × ${g.h}</span></div>
+      <div class="content" style="height:${g.h}px">${stageHTML(g)}${panelHTML(g)}</div></div>`;
+    document.documentElement.dataset.theme = S.theme;
+    // toolbar state
+    document.querySelectorAll("#toolbar [data-k]").forEach((b) => {
+      const k = b.dataset.k, v = b.dataset.v;
+      let on = S[k] === v;
+      if (k === "page" && v === "general") on = !["conn", "voice", "persona", "react"].includes(S.page);
+      b.setAttribute("aria-pressed", String(on));
+    });
+    $("t-reduced").setAttribute("aria-checked", String(S.reduced));
+    $("t-bubble").setAttribute("aria-checked", String(S.bubble));
+    $("t-replay").disabled = S.stage === "stayed";
+    // annotations
+    const r = REACT[S.page];
+    const clip = S.page === "react" ? PACE[S.pace][0] : r[0];
+    const entry = S.stage === "stayed" ? "Sulking family (angry): 60% chance she stays on the desktop and plays sulk"
+      : S.stage === "arriving" ? (S.reduced ? "Reduced motion: she fades in over 800ms" : "Plain family: walks in from the stage's left edge over 800ms, ease-out")
+      : "Docked as a native child window, idle";
+    $("annot").innerHTML = `<div><b>Entry</b><span>${entry}</span></div><div><b>Page reaction</b><span>${S.stage === "stayed" ? "None: she is not here" : clip}</span></div>`;
+    fit();
+    S.reactIn = false;
+  }
+
+  let enterTimer = 0;
+  function startEntry() {
+    clearTimeout(enterTimer);
+    S.stage = "arriving"; S.entering = true;
+    render();
+    enterTimer = setTimeout(() => { S.entering = false; S.reactIn = true; render(); }, 820);
+  }
+  function setPage(p) {
+    if (p === S.page) return;
+    S.page = p; S.reactIn = true; render();
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.k) {
+      const k = t.dataset.k, v = t.dataset.v;
+      if (k === "page") return setPage(v);
+      if (k === "stage") { if (v === "arriving") return startEntry(); clearTimeout(enterTimer); S.entering = false; }
+      S[k] = v; render(); return;
+    }
+    if (t.id === "t-replay") return startEntry();
+    if (t.id === "t-reduced") { S.reduced = !S.reduced; render(); return; }
+    if (t.id === "t-bubble") { S.bubble = !S.bubble; render(); return; }
+    const act = t.dataset.act;
+    if (act === "page") return setPage(t.dataset.v);
+    if (act === "pace") { S.pace = t.dataset.v; S.reactIn = false; render(); return; }
+    if (act === "theme") { S.theme = t.dataset.v === "Dawn" ? "dawn" : t.dataset.v === "Hearth" ? "hearth" : (mq("(prefers-color-scheme: dark)") ? "hearth" : "dawn"); render(); }
+  });
+
+  try { new ResizeObserver(fit).observe($("canvas")); } catch (e) { addEventListener("resize", fit); }
+  render();
+})();
+</script>
+</body>
+</html>
