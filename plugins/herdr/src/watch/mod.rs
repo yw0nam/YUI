@@ -78,7 +78,57 @@ pub fn cleanup() {
     let _ = std::fs::remove_dir_all(socket_dir());
 }
 
+pub fn sweep_stale() {}
+
 /// One stderr line per event, so an error's newlines never split it.
 pub(crate) fn one_line(text: &str) -> String {
     text.replace(['\n', '\r'], " ")
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn prepare_dir_replaces_a_leftover_and_is_private() {
+        let dir = std::env::temp_dir().join(format!("yui-herdr-prepare-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("leftover.sock"), "x").unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        prepare_dir(&dir).unwrap();
+        assert!(!dir.join("leftover.sock").exists(), "leftover kept");
+        assert_eq!(
+            std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sweep_removes_only_directories_of_dead_processes() {
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let dead_pid = child.id();
+        child.wait().unwrap();
+        let dead = std::env::temp_dir().join(format!("yui-herdr-{dead_pid}"));
+        let live = socket_dir();
+        // pid 1 is alive; kill(1, 0) fails with EPERM for a user process.
+        let other_user = std::env::temp_dir().join("yui-herdr-1");
+        let other_user_existed = other_user.exists();
+        for dir in [&dead, &live, &other_user] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        sweep_stale();
+        assert!(!dead.exists(), "dead process directory kept");
+        assert!(live.exists(), "live process directory removed");
+        assert!(
+            other_user.exists(),
+            "another user's live process directory removed"
+        );
+        let _ = std::fs::remove_dir_all(&dead);
+        let _ = std::fs::remove_dir_all(&live);
+        if !other_user_existed {
+            let _ = std::fs::remove_dir_all(&other_user);
+        }
+    }
 }
