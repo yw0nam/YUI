@@ -1,3 +1,328 @@
-export function createComeAlong(_deps: Record<string, unknown>) {
-  return { onStage: async (_rect: unknown) => {}, goHome: async () => {}, place: async () => {} };
+/**
+ * come-along — one settings window's session on its pet window. On the window's first stage slot
+ * she leaves her spot, walks onto the slot and docks: as a native child where the shell links one,
+ * else by following each later slot herself. A null slot or the close sends her home.
+ *
+ * Whoever moves her owns her: a drag or an agent move ends the session where she is dropped, and
+ * the window's later slots are ignored until it minimises or closes; a drag or agent command
+ * running at the open keeps her where she is the same way. Her home and that opt-out sit in
+ * session storage, so a reload of her window finds the open session again.
+ */
+
+import type { StageRect } from "../../io/bridge/settings-bridge";
+import {
+  clampToWorkArea,
+  floorPx,
+  logicalWorkArea,
+  monitorAtLogical,
+  type ScreenMonitor,
+} from "../../io/window/geometry/screen-geometry";
+import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import { WALK_MOTION_ID, WALK_YAW_EASE_MS, WALK_YAW_RAD } from "../locomotion/walk/walker";
+
+const log = createLogger("come-along");
+
+/** A walk takes 600 ms, and up to 300 ms more by distance, all of it at 1200 pt. */
+const WALK_MS = 600;
+const WALK_EXTRA_MS = 300;
+const WALK_FULL_PT = 1200;
+
+/** Slow at the start, faster through the middle, slow again on arrival. */
+const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+
+type Point = { x: number; y: number };
+
+/** What a reload keeps: where she goes home to, or that a drag or agent move took her. */
+type Stored = { home: Point } | { out: true };
+
+export interface ComeAlongDeps {
+  /** The settings window's label, which keys what `storage` keeps. */
+  settingsLabel: string;
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem">;
+  /** A user drag or an agent command holds her. */
+  isBusy(): boolean;
+  peek: { active(): boolean; exit(): Promise<void> };
+  locomotion: {
+    hold(holder: "come-along", on: boolean, onAbort?: () => Promise<void>): void;
+    abortTravel(): Promise<void>;
+    widen(via: Point[]): Promise<Travel>;
+    release(): void;
+    drop(opts: { landOnSeam: true }): Promise<void>;
+    frame: { frameWindow(): FrameWindow; listMonitors(): Promise<ScreenMonitor[]> };
+  };
+  renderer: Pick<
+    Renderer,
+    "onTick" | "playMotion" | "getCurrentMotion" | "setBodyYaw" | "getCharacterAnchor"
+  >;
+  hitTest: { setMoving(moving: boolean): void };
+  /** Links her window into the settings window; resolves whether a native link is in effect. */
+  dock: { attach(): Promise<boolean>; detach(): Promise<void> };
+  setPositionPhysical(x: number, y: number): Promise<void>;
+  reducedMotion(): boolean;
+}
+
+export function createComeAlong(deps: ComeAlongDeps): {
+  /** A settings window's stage slot: starts her session or moves her with it; null ends it. */
+  onStage(rect: StageRect | null): Promise<void>;
+  /** The settings window closes or minimises: she walks home. */
+  goHome(): Promise<void>;
+  /** Places her on the latest slot again, after her own window was resized. */
+  place(): Promise<void>;
+} {
+  const { locomotion, renderer } = deps;
+  const key = `yui.come-along.${deps.settingsLabel}`;
+  let session: "none" | "out" | "on" = "none";
+  let slot: StageRect | null = null;
+  let home: Point | null = null;
+  let docked: { native: boolean } | null = null;
+  // Each move takes a new run; a move owns her while the run is still its own.
+  let run = 0;
+  let stopTick: (() => void) | null = null;
+  let placing = false;
+  let placeAgain = false;
+
+  const begin = (): number => {
+    stopTick?.();
+    run += 1;
+    return run;
+  };
+
+  function load(): Stored | null {
+    try {
+      return JSON.parse(deps.storage.getItem(key) ?? "null") as Stored | null;
+    } catch {
+      return null;
+    }
+  }
+  function store(value: Stored | null): void {
+    try {
+      if (value) deps.storage.setItem(key, JSON.stringify(value));
+      else deps.storage.removeItem(key);
+    } catch (err) {
+      log.warn("come_along_store_failed", { error: String(err) });
+    }
+  }
+
+  async function read(): Promise<{ at: Point; size: { width: number; height: number } }> {
+    const win = locomotion.frame.frameWindow();
+    const [pos, size, sf] = await Promise.all([
+      win.outerPosition(),
+      win.outerSize(),
+      win.scaleFactor(),
+    ]);
+    const scale = sf > 0 ? sf : 1;
+    return {
+      at: { x: pos.x / scale, y: pos.y / scale },
+      size: { width: size.width / scale, height: size.height / scale },
+    };
+  }
+
+  /** Her window's origin that puts its bottom-centre on the slot's bottom-centre. */
+  const dockOrigin = (rect: StageRect, size: { width: number; height: number }): Point => ({
+    x: Math.round(rect.x + (rect.width - size.width) / 2),
+    y: Math.round(rect.y + rect.height - size.height),
+  });
+
+  /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
+  async function walk(id: number, to: Point): Promise<void> {
+    const { at: from } = await read();
+    if (id !== run) return;
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    if (deps.reducedMotion() || distance < 1) {
+      await locomotion.frame.frameWindow().setPositionLogical(to.x, to.y);
+      return;
+    }
+    const travel = await locomotion.widen([to]);
+    if (id !== run) {
+      await travel.end();
+      return;
+    }
+    const durationMs = WALK_MS + WALK_EXTRA_MS * Math.min(1, distance / WALK_FULL_PT);
+    renderer.playMotion({ id: WALK_MOTION_ID });
+    renderer.setBodyYaw(Math.sign(to.x - from.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    deps.hitTest.setMoving(true);
+    await new Promise<void>((resolve) => {
+      let elapsedMs = 0;
+      let off = (): void => {};
+      stopTick = () => {
+        off();
+        stopTick = null;
+        resolve();
+      };
+      off = renderer.onTick(({ dt }) => {
+        elapsedMs += dt * 1000;
+        const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
+        void travel.win
+          .setPositionLogical(
+            Math.round(from.x + (to.x - from.x) * p),
+            Math.round(from.y + (to.y - from.y) * p),
+          )
+          .catch((err) => log.warn("come_along_move_failed", { error: String(err) }));
+        if (elapsedMs >= durationMs) stopTick?.();
+      });
+    });
+    if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+    renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+    deps.hitTest.setMoving(false);
+    await travel.end();
+  }
+
+  /** A drag or an agent move took her: she stays, and this window's session lets her go. */
+  function taken(): Promise<void> {
+    begin();
+    const wasDocked = docked;
+    docked = null;
+    home = null;
+    if (session === "on") {
+      session = "out";
+      store({ out: true });
+    }
+    locomotion.hold("come-along", false);
+    deps.hitTest.setMoving(false);
+    log.info("come_along_taken");
+    return wasDocked?.native
+      ? deps.dock.detach().catch((err) => log.warn("dock_detach_failed", { error: String(err) }))
+      : Promise.resolve();
+  }
+
+  async function start(rect: StageRect): Promise<void> {
+    const stored = load();
+    if (stored && "out" in stored) {
+      session = "out";
+      return;
+    }
+    if (deps.isBusy()) {
+      session = "out";
+      log.info("come_along_stayed");
+      return;
+    }
+    session = "on";
+    const id = begin();
+    locomotion.hold("come-along", true, taken);
+    if (deps.peek.active()) await deps.peek.exit();
+    await locomotion.abortTravel();
+    locomotion.release();
+    if (id !== run) return;
+    const { at, size } = await read();
+    if (id !== run) return;
+    const target = dockOrigin(rect, size);
+    if (stored && "home" in stored) {
+      home = stored.home;
+      await locomotion.frame.frameWindow().setPositionLogical(target.x, target.y);
+    } else {
+      // A walk home that this window interrupted keeps the spot she left from.
+      home ??= at;
+      store({ home });
+      await walk(id, target);
+    }
+    if (id !== run) return;
+    let native = false;
+    try {
+      native = await deps.dock.attach();
+    } catch (err) {
+      log.warn("dock_attach_failed", { error: String(err) });
+    }
+    if (id !== run) {
+      if (native) await deps.dock.detach();
+      return;
+    }
+    docked = { native };
+    log.info("come_along_docked", { native });
+    await place();
+  }
+
+  async function placeOnce(): Promise<void> {
+    const rect = slot;
+    if (!rect || !docked) return;
+    const win = locomotion.frame.frameWindow();
+    if (docked.native) {
+      const { at, size } = await read();
+      const target = dockOrigin(rect, size);
+      if (docked && Math.max(Math.abs(target.x - at.x), Math.abs(target.y - at.y)) >= 1)
+        await win.setPositionLogical(target.x, target.y);
+      return;
+    }
+    // Followed, not linked: placed in the settings window's own physical px, whatever her scale.
+    const [pos, size] = await Promise.all([win.outerPosition(), win.outerSize()]);
+    const x = Math.round((rect.x + rect.width / 2) * rect.scale - size.width / 2);
+    const y = Math.round((rect.y + rect.height) * rect.scale - size.height);
+    if (docked && Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y)) >= 1)
+      await deps.setPositionPhysical(x, y);
+  }
+
+  async function place(): Promise<void> {
+    if (placing) {
+      placeAgain = true;
+      return;
+    }
+    placing = true;
+    try {
+      do {
+        placeAgain = false;
+        await placeOnce();
+      } while (placeAgain);
+    } catch (err) {
+      log.warn("come_along_place_failed", { error: String(err) });
+    } finally {
+      placing = false;
+    }
+  }
+
+  /** Her spot, or the nearest monitor's floor when no monitor holds its centre any more. */
+  async function homeOrFloor(spot: Point): Promise<Point> {
+    const [monitors, { size }] = await Promise.all([locomotion.frame.listMonitors(), read()]);
+    const centre = { x: spot.x + size.width / 2, y: spot.y + size.height / 2 };
+    if (monitors.length === 0 || monitorAtLogical(monitors, centre.x, centre.y)) return spot;
+    const gap = (m: ScreenMonitor): number => {
+      const work = logicalWorkArea(m);
+      const dx = Math.max(work.x - centre.x, 0, centre.x - (work.x + work.width));
+      const dy = Math.max(work.y - centre.y, 0, centre.y - (work.y + work.height));
+      return dx * dx + dy * dy;
+    };
+    const nearest = monitors.reduce((a, b) => (gap(b) < gap(a) ? b : a));
+    const work = logicalWorkArea(nearest);
+    const feet = renderer.getCharacterAnchor()?.y ?? size.height;
+    log.info("come_along_home_gone", { spot });
+    return {
+      x: Math.round(clampToWorkArea(spot.x, 0, size.width, 0, work.x, 0, work.width, 0).x),
+      y: Math.round(floorPx(nearest) - feet),
+    };
+  }
+
+  async function goHome(): Promise<void> {
+    const was = session;
+    session = "none";
+    store(null);
+    if (was !== "on") return;
+    const id = begin();
+    const wasDocked = docked;
+    docked = null;
+    try {
+      if (wasDocked?.native) await deps.dock.detach();
+    } catch (err) {
+      log.warn("dock_detach_failed", { error: String(err) });
+    }
+    await locomotion.abortTravel();
+    const spot = home;
+    if (id !== run || !spot) return;
+    await walk(id, await homeOrFloor(spot));
+    if (id !== run) return;
+    home = null;
+    locomotion.hold("come-along", false);
+    log.info("come_along_home");
+    await locomotion.drop({ landOnSeam: true });
+  }
+
+  return {
+    async onStage(rect) {
+      if (rect === null) return goHome();
+      slot = rect;
+      if (session === "none") return start(rect);
+      if (session === "on") return place();
+    },
+    goHome,
+    place,
+  };
 }
