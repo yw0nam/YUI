@@ -102,7 +102,7 @@ pub async fn run(watched: Watched, ssh: Option<PathBuf>, dir: PathBuf, notify: N
         {
             eprintln!(
                 "herdr_watch_failed machine={} error={}",
-                watched.machine,
+                one_line(&watched.machine),
                 one_line(&error)
             );
             tokio::time::sleep(backoff).await;
@@ -156,7 +156,7 @@ async fn watch_once(
                 }
                 eprintln!(
                     "herdr_watch_rebuild machine={} error={}",
-                    watch.machine,
+                    one_line(&watch.machine),
                     one_line(&error)
                 );
                 tokio::time::sleep(*backoff).await;
@@ -197,7 +197,7 @@ async fn rebuild(
                 Err(SubscribeFail::Rejected) => {
                     eprintln!(
                         "herdr_watch_rebuild machine={} error=subscription rejected",
-                        watch.machine
+                        one_line(&watch.machine)
                     );
                     tokio::time::sleep(*backoff).await;
                     *backoff = (*backoff * 2).min(Duration::from_secs(60));
@@ -211,7 +211,7 @@ async fn rebuild(
         watch.reconcile(&listed);
         eprintln!(
             "herdr_watch_ready machine={} panes={}",
-            watch.machine,
+            one_line(&watch.machine),
             listed.len()
         );
         return Ok(status);
@@ -529,12 +529,12 @@ mod tests {
     }
 
     fn watch(fake: &FakeServer, notify: Notify) -> tokio::task::JoinHandle<()> {
-        let server = Watched {
+        let watched = Watched {
             machine: "local".into(),
             label: "local".into(),
             endpoint: Endpoint::Local(fake.sock.clone()),
         };
-        tokio::spawn(run(server, None, fake.dir.clone(), notify))
+        tokio::spawn(run(watched, None, fake.dir.clone(), notify))
     }
 
     /// Polls with a deadline instead of sleeping bare.

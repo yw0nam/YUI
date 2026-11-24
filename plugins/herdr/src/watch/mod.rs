@@ -23,7 +23,7 @@ pub fn notifier(peer: rmcp::Peer<rmcp::RoleServer>) -> Notify {
                 rmcp::model::CustomNotification::new(SIGNALS_METHOD, Some(params)),
             );
             if let Err(e) = peer.send_notification(notification).await {
-                eprintln!("herdr_signal_failed error={e}");
+                eprintln!("herdr_signal_failed error={}", one_line(&e.to_string()));
             }
         }
     });
@@ -40,13 +40,13 @@ pub fn socket_dir() -> PathBuf {
 pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
     tokio::spawn(async move {
         sweep_stale();
-        let servers = machines::watched(locate).await;
+        let watched = machines::watched(locate).await;
         let dir = socket_dir();
         let ssh = crate::locate::find_ssh();
         let mut remote_ok = true;
-        if servers
+        if watched
             .iter()
-            .any(|s| matches!(s.endpoint, machines::Endpoint::Remote { .. }))
+            .any(|w| matches!(w.endpoint, machines::Endpoint::Remote { .. }))
         {
             if let Err(e) = prepare_dir(&dir) {
                 eprintln!(
@@ -56,14 +56,14 @@ pub fn spawn(locate: fn() -> Option<PathBuf>, notify: Notify) {
                 remote_ok = false;
             }
         }
-        for server in servers {
-            if !remote_ok && matches!(server.endpoint, machines::Endpoint::Remote { .. }) {
+        for w in watched {
+            if !remote_ok && matches!(w.endpoint, machines::Endpoint::Remote { .. }) {
                 continue;
             }
             let notify = Arc::clone(&notify);
             let dir = dir.clone();
             let ssh = ssh.clone();
-            tokio::spawn(subscribe::run(server, ssh, dir, notify));
+            tokio::spawn(subscribe::run(w, ssh, dir, notify));
         }
     });
 }

@@ -48,12 +48,12 @@ pub async fn watched(locate: fn() -> Option<PathBuf>) -> Vec<Watched> {
     };
     let machines = cli::run(&bin, &["machine", "list", "--json"])
         .await
-        .map_err(|e| format!("machine list: {}", one_line(&e)))
+        .map_err(|e| format!("machine list: {e}"))
         .and_then(|text| parse::machine_rows(&text).map_err(|e| format!("machine list: {e}")));
     let machines = match machines {
         Ok(machines) => machines,
         Err(e) => {
-            eprintln!("herdr_watch_failed machine=local error={e}");
+            eprintln!("herdr_watch_failed machine=local error={}", one_line(&e));
             return out;
         }
     };

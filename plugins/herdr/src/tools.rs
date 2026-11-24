@@ -325,9 +325,8 @@ async fn agents(bin: &Path) -> Result<String, String> {
     for (id, label, mut task) in handles {
         match tokio::time::timeout_at(deadline, &mut task).await {
             Ok(Ok(Ok(text))) => {
-                let response = serde_json::from_str::<Value>(&text)
-                    .map_err(|_| "could not parse agent list".to_string());
-                match response.ok().and_then(|v| parse::agent_rows(&v)) {
+                let response = serde_json::from_str::<Value>(&text).ok();
+                match response.and_then(|v| parse::agent_rows(&v)) {
                     Some(list) => rows.extend(list.iter().map(|r| row(&id, &label, r))),
                     None => rows.push(error_row(&id, &label, "could not parse agent list")),
                 }
