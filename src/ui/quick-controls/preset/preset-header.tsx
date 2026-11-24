@@ -13,6 +13,7 @@ import {
   type createAgentNotifySettings,
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
+import type { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import { isPresetOpen, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
@@ -55,6 +56,8 @@ export interface PresetHeaderProps {
   pickPhoto?: (presetId: string) => Promise<string | null>;
   /** The bundled chat transport, for a preset without its own; the edit header names it. */
   getDefaultChatApi?: () => string | undefined;
+  /** The edited preset's endpoints: a chat type switched in this window redraws the header. */
+  endpointsSettings?: Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
   handle: Ref<PresetHeaderHandle>;
 }
 
@@ -67,6 +70,7 @@ export function PresetHeader(p: PresetHeaderProps) {
     useNotify(petWindows?.subscribe),
     useNotify(p.agentNotifySettings?.subscribe),
   ];
+  useNotify(p.endpointsSettings?.subscribe);
   const state = edited.get();
   const windows = petWindows?.get();
   const ingress = p.agentNotifySettings?.get();

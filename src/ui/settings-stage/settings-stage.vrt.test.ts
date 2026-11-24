@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { page } from "vitest/browser";
 import "../../styles.css";
 import "../quick-controls/settings-window.css";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { setLocale } from "../i18n";
@@ -33,6 +34,7 @@ it("keeps the stage 400px and the panel 480px at the 880 x 640 minimum, the long
     mount: app,
     presetRegistry: createPresetRegistry(),
     petWindows: createPetWindows(),
+    endpointsSettings: createEndpointsSettings(),
     boundId: null,
     getDefaultChatApi: () => undefined,
     onSettingsChanged: () => () => {},

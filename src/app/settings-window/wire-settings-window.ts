@@ -185,6 +185,7 @@ export async function wireSettingsWindow(deps: {
     petWindows,
     boundId,
     getDefaultChatApi: quickControlsConfigDefaults(config).getDefaultChatApi,
+    endpointsSettings,
     onSettingsChanged: bridge.onSettingsChanged,
   });
   const panelHost = app.appendChild(document.createElement("div"));

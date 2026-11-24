@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
@@ -37,6 +38,7 @@ async function open(chatUrl: () => string) {
   wireWindowSettings.mockResolvedValue({
     settingsStores: {
       unifiedChatSwitch: createFlagSettings(false),
+      endpointsSettings: createEndpointsSettings(),
       proactiveSettings: createProactiveSettings({ locale: "en" }),
       scheduleSettings: createScheduleSettings({ locale: "en" }),
     },

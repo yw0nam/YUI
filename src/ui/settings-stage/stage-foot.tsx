@@ -1,6 +1,9 @@
 /** The stage's foot: the window's own character's name over her transport and window state. */
 
-import { readChatApiOverride } from "../../settings/backend/endpoints-settings";
+import {
+  type createEndpointsSettings,
+  readChatApiOverride,
+} from "../../settings/backend/endpoints-settings";
 import { presetEntryFor } from "../../settings/preset/active-preset";
 import { isPresetOpen, type PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
@@ -26,6 +29,8 @@ export interface StageFootProps {
   /** The bound preset; null in main's settings window. */
   boundId: string | null;
   getDefaultChatApi: () => string | undefined;
+  /** The panel's endpoints: a chat type switched in this window. */
+  endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
   /** Another window's settings change. */
   onSettingsChanged: Subscribe;
 }
@@ -34,6 +39,7 @@ export function StageFoot(p: StageFootProps) {
   useNotify(p.presetRegistry.subscribe);
   useNotify(p.petWindows.subscribe);
   useNotify(subscribeLocale);
+  useNotify(p.endpointsSettings.subscribe);
   useNotify(p.onSettingsChanged);
   useNotify(onWindowCue);
   const state = p.presetRegistry.get();
