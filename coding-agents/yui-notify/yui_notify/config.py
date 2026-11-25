@@ -7,10 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit
 
-DEFAULTS = {
-    "endpoint": "http://127.0.0.1:8770",
-    "wait": {"stop": 600, "permission": 120},
-}
+DEFAULTS = {"endpoint": "http://127.0.0.1:8770"}
 
 
 def endpoint_error(endpoint: str) -> str | None:
@@ -28,7 +25,7 @@ def _dir(env: Mapping[str, str], var: str, fallback: str) -> str:
 
 
 def load(env: Mapping[str, str]) -> dict:
-    cfg = {**DEFAULTS, "wait": dict(DEFAULTS["wait"])}
+    cfg = dict(DEFAULTS)
     try:
         with open(os.path.join(_dir(env, "XDG_CONFIG_HOME", "~/.config"), "config.json")) as f:
             data = json.load(f)
@@ -38,11 +35,6 @@ def load(env: Mapping[str, str]) -> dict:
         return cfg
     if isinstance(data.get("endpoint"), str) and not endpoint_error(data["endpoint"]):
         cfg["endpoint"] = data["endpoint"]
-    waits = data.get("wait")
-    for phase in cfg["wait"]:
-        value = waits.get(phase) if isinstance(waits, dict) else None
-        if type(value) in (int, float) and 1 <= value <= 600:
-            cfg["wait"][phase] = value
     return cfg
 
 

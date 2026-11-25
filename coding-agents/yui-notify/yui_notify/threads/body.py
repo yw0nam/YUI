@@ -3,12 +3,10 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from typing import Any
-from uuid import uuid4
 
 from yui_notify.hook.event import Event
 from yui_notify.host.claude_pid import claude_pid
 from yui_notify.host.label import make_label, short_hostname
-from yui_notify.threads.question import PROMPT_MAX, new_ask_id, question_ask, usable_questions
 
 ENTRY_MAX = 16384
 BODY_MAX_BYTES = 65536
@@ -29,42 +27,13 @@ def thread_id(event: Event, env: Mapping[str, str]) -> str:
     return f"{event.agent}:{short_hostname()}:{event.session_id}"
 
 
-def permission_ask(ask_id: str, tool: str, agent: str) -> dict:
-    return {
-        "ask_id": ask_id,
-        "prompt": f"Allow {tool}?"[:PROMPT_MAX],
-        "text": True,
-        "placeholder": f"Or tell {agent} what to do instead",
-        "choices": [
-            {"id": "allow", "label": "Allow", "tone": "primary"},
-            {"id": "deny", "label": "Deny", "tone": "danger"},
-        ],
-    }
-
-
-def asked_questions(event: Event) -> list | None:
-    claude_ask = event.agent == "claude-code" and event.phase == "PermissionRequest"
-    return usable_questions(event.tool_input) if claude_ask and event.tool_name == "AskUserQuestion" else None
-
-
-def next_ask(ask_id: str) -> dict:
-    return {"ask_id": ask_id, "prompt": "What next?", "text": True, "placeholder": "Next instruction"}
-
-
-def _ask(event: Event) -> dict:
-    permission = event.phase == "PermissionRequest"
-    ask_id = f"{'perm' if permission else 'stop'}:{event.turn_id}:{uuid4().hex}"
-    return permission_ask(ask_id, event.tool_name, "Codex") if permission else next_ask(ask_id)
-
-
-def build_thread(event: Event, ctx: Mapping[str, Any], front: bool, inbox: bool) -> dict:
+def build_thread(event: Event, ctx: Mapping[str, Any]) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
-    # a Claude Code Stop with no inbox socket has no way to take the answer
-    unanswerable = event.agent == "claude-code" and event.phase == "Stop" and not inbox
+    # a request or notification waits on the user; a stop or a session end finishes the turn
     state = (
-        terminal_state(event.phase)
-        if event.phase in ("UserPromptSubmit", "SessionEnd") or unanswerable
-        else "input-required"
+        "input-required"
+        if event.phase in ("PermissionRequest", "Notification")
+        else terminal_state(event.phase)
     )
     title = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]
     body = {
@@ -74,19 +43,6 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool, inbox: bool)
         "state": state,
         "entries": [{"role": role, "text": event.text}] if event.text else [],
     }
-    if event.phase == "UserPromptSubmit" or state == "completed":
-        body["ask"] = None
-    elif event.agent == "claude-code" and event.phase == "Stop":
-        body["ask"] = next_ask("next:" + uuid4().hex)
-    elif event.agent == "claude-code" and event.phase == "PermissionRequest":
-        questions = asked_questions(event)
-        body["ask"] = (
-            question_ask(new_ask_id(0), questions[0])
-            if questions
-            else permission_ask("perm:" + uuid4().hex, event.tool_name, "Claude")
-        )
-    elif event.agent == "codex" and (event.phase == "Stop" or not front):
-        body["ask"] = _ask(event)
     fit_entries(body)
     return body
 

@@ -4,11 +4,9 @@ import json
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from yui_notify.inbox.post import PREFIX
-from yui_notify.threads.question import usable_questions
-
 # Claude Code marks a queued command only by the prompt's leading tag
 QUEUED = ("<task-notification>", "<agent-message ")
+OPTIONS_MAX = 6
 EVENTS = {
     "Stop",
     "PermissionRequest",
@@ -27,9 +25,26 @@ class Event(NamedTuple):
     session_id: str
     cwd: str
     text: str
-    turn_id: str
     tool_name: str
     tool_input: dict
+
+
+def _usable(question: Any) -> bool:
+    if not isinstance(question, dict):
+        return False
+    text, options = question.get("question"), question.get("options")
+    return (
+        isinstance(text, str)
+        and bool(text)
+        and isinstance(options, list)
+        and 1 <= len(options) <= OPTIONS_MAX
+        and all(isinstance(o, dict) and isinstance(o.get("label"), str) and o["label"] for o in options)
+    )
+
+
+def usable_questions(tool_input: Any) -> list | None:
+    questions = tool_input.get("questions") if isinstance(tool_input, dict) else None
+    return questions if isinstance(questions, list) and questions and all(map(_usable, questions)) else None
 
 
 def _lines(question: dict) -> str:
@@ -108,8 +123,8 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         text = _pending(data)
     elif phase == "UserPromptSubmit":
         text = data.get("prompt") or ""
-        # an inbox answer is already in the store, and a queued report or notification is no typed prompt
-        if agent == "claude-code" and text.startswith((PREFIX, *QUEUED)):
+        # a queued report or notification is no typed prompt
+        if agent == "claude-code" and text.startswith(QUEUED):
             text = ""
     elif phase == "SessionEnd":
         text = "Session ended"
@@ -121,7 +136,6 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         data["session_id"],
         str(data.get("cwd") or ""),
         text,
-        str(data.get("turn_id") or ""),
         str(data.get("tool_name") or ""),
         data["tool_input"] if isinstance(data.get("tool_input"), dict) else {},
     )
