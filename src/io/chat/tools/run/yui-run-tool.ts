@@ -40,6 +40,7 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         return JSON.stringify({ status: "error", error: "code must be a string", logs: [] });
       }
       const stop = signal ?? new AbortController().signal;
+      const writes: WriteResults[] = [];
       const host: ScriptHost = {
         yui: {
           settings: {
@@ -49,12 +50,23 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
               const opts = call[1] as { why?: unknown } | undefined;
               const why = opts?.why;
               // Checked here, before any request: a bad shape must not reach the ask queue.
-              if (!isPlainObject(patch))
-                return { "*": "error: patch must be an object" } as WriteResults;
-              if (why !== undefined && typeof why !== "string") {
-                return { "*": "error: why must be a string" } as WriteResults;
+              if (!isPlainObject(patch)) {
+                const results = { "*": "error: patch must be an object" } as WriteResults;
+                writes.push(results);
+                return results;
               }
-              return ports.settings.write(patch as object, why as string | undefined, stop);
+              if (why !== undefined && typeof why !== "string") {
+                const results = { "*": "error: why must be a string" } as WriteResults;
+                writes.push(results);
+                return results;
+              }
+              const results = await ports.settings.write(
+                patch as object,
+                why as string | undefined,
+                stop,
+              );
+              writes.push(results);
+              return results;
             },
           },
           state: { read: async () => ports.state() },
@@ -62,7 +74,20 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         },
         help: ports.help,
       };
-      return JSON.stringify(await runScript(code, host, stop));
+      const outcome = await runScript(code, host, stop);
+      // Every write's answers ride the envelope, so a script that drops them still reports the real ones.
+      const writesField = writes.length > 0 ? { writes } : {};
+      return JSON.stringify(
+        outcome.status === "error"
+          ? { status: outcome.status, error: outcome.error, ...writesField, logs: outcome.logs }
+          : {
+              status: outcome.status,
+              result: outcome.result,
+              ...(outcome.note === undefined ? {} : { note: outcome.note }),
+              ...writesField,
+              logs: outcome.logs,
+            },
+      );
     },
     failed: (text) => {
       if (text.startsWith("error:")) return true;
