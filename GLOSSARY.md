@@ -134,6 +134,10 @@ _Avoid_: prompt, request
 The user's reply to one Ask: a choice id, several choice ids for a multi-select Ask, text, or both. It travels as an `answer` frame.
 _Avoid_: reply, response
 
+**Settings request**:
+An agent's pending change to settings that need the user's Allow, shown as the Allow / Deny card in the Ask card's slot. Unlike an Ask, the client raises it, not the push transport.
+_Avoid_: permission prompt, approval dialog, access request
+
 **Backend command**:
 A command the backend states in `ready.commands` and runs when the user types `/name` in the text input; push transport only. Its output is a Command reply, never a Turn.
 _Avoid_: slash command (for the client side), Trigger
@@ -182,10 +186,6 @@ _Avoid_: permission, grant, control
 **Access request**:
 A preset's pending read or write on a Terminal it has no access to, shown as the Allow / Deny card.
 _Avoid_: prompt, approval dialog
-
-**Settings request**:
-An agent's pending change to settings that need the user's Allow, shown as the Allow / Deny card in the Ask slot.
-_Avoid_: permission prompt, approval dialog, access request
 
 ### Surfaces & periphery
 

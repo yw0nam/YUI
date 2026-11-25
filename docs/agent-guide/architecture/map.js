@@ -2512,6 +2512,42 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-yui-run.ts"
     },
     {
+      "id": "yui-run-vrm",
+      "from": "io/assets",
+      "to": "io/chat/tools",
+      "carries": "VRM selection list and active id → yui.info bodies and the body row's value; swapVrm → the body row's write",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-speaker",
+      "from": "io/voice/voices",
+      "to": "io/chat/tools",
+      "carries": "speaker selection list and active id → yui.info voices and the voice row's value; swapSpeaker → the voice row's write",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-monitors",
+      "from": "io/window/capture",
+      "to": "io/chat/tools",
+      "carries": "createTauriScreenSourceProvider monitors → yui.info monitors",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-presets",
+      "from": "settings",
+      "to": "io/chat/tools",
+      "carries": "readPresetList and readOpenPresetIds → yui.state characters, each with its open and me flags",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
       "id": "idle-tick-presence",
       "from": "dispatcher/sources/idle-tick",
       "to": "settings",

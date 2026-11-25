@@ -366,7 +366,7 @@ YUI/
         last-together-settings.ts    # The device-wide last present tick under yui.last-together, written at most once a minute; the milestone payload's last_together reads it
       agent-access/                  # The settings a backend agent may read and change through yui_run, and the tier each row takes
         rows.ts                      # The exposed settings rows: path, label, type, range, and the direct or allow tier
-        document.ts                  # Reads the exposed settings as one document, and splits a JSON merge patch into direct writes and allow changes
+        document.ts                  # Reads the exposed settings as one document, and applies the direct rows of a JSON merge patch and returns the allow changes
         paths.ts                     # Dotted-path reads and writes over the settings document
         validate.ts                  # The store probe a row's value passes before it is written
       avatar/                        # Camera, motion, and lip-sync

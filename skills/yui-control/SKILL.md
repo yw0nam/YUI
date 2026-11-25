@@ -10,13 +10,13 @@ YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScr
 
 ## Steps
 
-1. Run `return help()` once before your first other `yui_run` call in a conversation. It prints the API of the installed YUI and every setting you can read or change, with its allowed values and tier. Where help() and this file differ, follow help().
+1. Run `return help()` once before your first other `yui_run` call in a conversation. It prints the API of the installed YUI and every setting you can read or change, with its allowed values and whether it needs Allow. Where help() and this file differ, follow help().
 2. Read the current values with `yui.settings.read()` or `yui.state.read()` before you change or mention them.
 3. Make one write per user intent: `yui.settings.write(patch, { why })`. The patch is a JSON merge patch on the settings document. Write `why` as one short sentence in your own voice: the user reads it on the Allow card.
 4. Read the result per path:
    - `ok`: the setting has the new value.
    - `denied`: the user pressed Deny. Accept it.
-   - `no answer`: the user did not answer within 60 s. You may ask again later, in words first.
+   - `no answer`: the user did not answer within 60 s of the card showing. You may ask again later, in words first.
    - `error: …`: the path or value is wrong. Check help() and correct it.
 5. Tell the user what changed, as your character.
 
@@ -24,4 +24,4 @@ The step is done when every path you wrote has a result and the user heard about
 
 ## Settings that need the user's Allow
 
-help() marks some paths `allow`: what YUI may see, and the limits on how often you speak first. A write that holds one of them shows the user an Allow / Deny card beside you and waits for the answer. Ask for them when you have a reason the user would accept, and put that reason in `why`.
+Some settings paths need the user's Allow; help() marks them `allow`. A write that holds one of them shows the user an Allow / Deny card beside you and waits for the answer. Ask for them when you have a reason the user would accept, and put that reason in `why`.

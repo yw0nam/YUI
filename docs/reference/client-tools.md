@@ -2,7 +2,7 @@
 
 A client tool is a tool YUI runs itself when the backend calls it, and this page is the contract for its built-in tools: arguments, results, the transports that carry each call, and the code that declares and runs it. A backend author reads it to make a call; a client author reads it to add a tool.
 
-The boundary has three rules. Facts the backend needs to judge a turn arrive in `client_context` ([client-context.md](client-context.md)). Declared tools are the actions that perform a reply (`generate_express`, `body_action`, `address_character` and `rate_relation`) and the reads the window hands the backend directly (`look`, and the bridge tools that reach On-demand tools). Every other read or change of YUI's own settings, state and info goes through `yui_run`.
+Facts the backend needs to judge a turn arrive in `client_context` ([client-context.md](client-context.md)). Declared tools are the actions a reply performs: `generate_express`, `body_action`, `address_character` and `rate_relation`, plus `yui_run` itself. `look` and the bridge tools to On-demand tools are declared as well. Every other read or change of YUI's settings, state and info goes through `yui_run`.
 
 ```mermaid
 flowchart TB
@@ -10,7 +10,7 @@ flowchart TB
   A --> C["The schema the model reads"]
   A --> D["Tool-call round trip"]
   D --> E["Results, images and unanswered calls"]
-  A --> F["Per-tool contracts: rate_relation, address_character, bridge tools, terminal tools"]
+  A --> F["Per-tool contracts: rate_relation, address_character, yui_run, bridge tools, terminal tools"]
   A --> G["Backend capability and adding a tool"]
 ```
 
@@ -343,24 +343,36 @@ A screen request succeeds with `{ text: "screenshot of display <n>", images: [da
 
 ## yui_run
 
-`yui_run` runs a script the backend writes against YUI's own settings, state and info. `code` is the body of an async function, so the script uses `await` and returns a JSON value. Its description tells the backend to call `help()` first. `help()` returns the API as text, with the settings rows generated from the settings table and the usage rules.
+`yui_run` runs a script the backend writes against YUI's own settings, state and info. `code` is the body of an async function, so the script uses `await` and returns a JSON value. The description tells the backend to call `help()` first. `help()` returns the API as text.
 
-The script reaches only these globals: `yui`, `help()` and `console.log` ([`sandbox.ts`](../../src/io/chat/tools/run/sandbox.ts)). Each call runs in a fresh module with 1000 ms of CPU, a 256 KiB stack and a 64 MiB heap. The JSON of its logs and its result together may total 64K characters; a larger result answers `error`. The defaults are `DEFAULT_LIMITS` in `src/io/chat/tools/run/sandbox.ts`.
+### Sandbox
 
-The `yui` API:
+The script reaches these host globals: `yui`, `help()` and `console.log`. The QuickJS built-ins such as `JSON`, `Math` and `Promise` remain ([`sandbox.ts`](../../src/io/chat/tools/run/sandbox.ts)). Each call runs in a fresh module with 1000 ms of CPU, a 256 KiB stack and a 64 MiB heap.
+
+The JSON of its logs and its result together may total 64 Ki (65 536) characters; a larger result answers `error`. The defaults are `DEFAULT_LIMITS` in `src/io/chat/tools/run/sandbox.ts`.
+
+### The yui API
 
 - `yui.settings.read()` returns the exposed settings document: this character's settings and the global ones.
-- `yui.settings.write(patch, { why })` applies a JSON merge patch (RFC 7396) to that document and answers one result per changed path. `why` is a string the user reads on the card.
-- `yui.state.read()` returns `running_since`, `last_together`, the `characters` with their open and self flags, and `permissions.screen_recording`.
+- `yui.settings.write(patch, { why })` applies a JSON merge patch (RFC 7396) to that document and answers one result per path in the patch. `why` is a string the user reads on the card.
+- `yui.state.read()` returns `running_since`, `last_together`, the `characters` with their `open` and `me` flags, and `permissions.screen_recording`.
 - `yui.info.read()` returns the `bodies`, `voices` and `monitors` a setting can name, each with its id or index.
 
-The result is one JSON object. A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`. A `code` that is not a string answers the same error form with `code must be a string`. A call marks as failed when its result has `status` `error` or starts with `error:`, such as `error: timed out after 121 s`, the answer when the wait passes. The wait covers the whole script, including any Settings request inside it, and the backend's wait is 125 s ([push-transport.md](push-transport.md#tool-call-waits)).
+### Result
 
-A patch that is not an object answers `{ "*": "error: patch must be an object" }`, and a `why` that is not a string answers `{ "*": "error: why must be a string" }`. Both are refused before any Settings request is raised.
+A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`.
 
-### Tiers and results
+A `code` that is not a string answers the same error form with `code must be a string`.
 
-Each settings row has one tier. A `direct` row applies its write at once. An `allow` row waits for the user: the write calls for a Settings request, and the path answers only after the user's answer. The `yui.settings.write` result has one entry per path:
+A call marks as failed when its result has `status` `error` or starts with `error:`, such as `error: timed out after 121 s`, the answer when the wait passes.
+
+The wait covers the whole script, including any Settings request inside it. The backend's wait is 125 s ([push-transport.md](push-transport.md#tool-call-waits)).
+
+A patch that is not an object answers `{ "*": "error: patch must be an object" }`. A `why` that is not a string answers `{ "*": "error: why must be a string" }`. Both are refused before any Settings request is raised.
+
+### Direct and allow rows
+
+Each settings row is `direct` or `allow`. A `direct` row applies its write at once. An `allow` row waits for the user: its path answers only after the user's answer to a Settings request. The `yui.settings.write` result has one entry per path:
 
 | Result | Meaning |
 |---|---|
@@ -369,13 +381,23 @@ Each settings row has one tier. A `direct` row applies its write at once. An `al
 | `no answer` | The card's 60 s passed, or the turn ended before an answer |
 | `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
 | `error: unknown <path>` | The patch names a path no row holds |
-| `error: <path> failed to load` | The write rejected and left the value unchanged, such as a body that does not load |
+| `error: <path> failed to load` | A write rejected before it stored the value |
 
-`help()` lists each row's tier, and the settings table itself is in `src/settings/agent-access/rows.ts`.
+`help()` lists each row's access, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
 ### Settings request
 
-An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title is the character's name. Each changed path has a line with its label and the value it changes from and to, then the `why` text at up to 200 characters, then a line that says the change applies to every character, and the Deny and Allow choices. The window's ask queue holds it behind the Asks already open, and the oldest shows first; it waits 60 s once shown ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-prompt.ts`](../../src/ui/ask/settings-request-prompt.ts)). Allow writes each path in order, and each path answers `ok` or `error: invalid <path>`. Deny answers `denied` for every path. A card that times out, or whose turn stops, answers `no answer`.
+An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title names the character.
+
+Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, a line saying the change applies to every character, and the Deny and Allow choices.
+
+The window's ask queue holds the card behind the Asks already open, and the oldest shows first. The card waits 60 s once shown ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-prompt.ts`](../../src/ui/ask/settings-request-prompt.ts)).
+
+After Allow, each allow path answers `ok`, `error: invalid <path>` or `error: <path> failed to load`.
+
+Deny answers `denied` for every allow path. The direct paths of the same patch are written before the card and answer `ok`.
+
+A card that times out, or whose turn stops, answers `no answer` for every allow path.
 
 ## On-demand tools
 
