@@ -2,7 +2,7 @@
 
 `plugins/` holds every plugin folder, independent of the app runtime. Each is a **Rust plugin crate** that bundles an MCP server: YUI's MCP host starts it from the `command` in `.mcp.json`, and it speaks MCP over stdio and opens no port. The plugin release workflow builds and releases them; `docs/agent-guide/build-run.md` § Plugin releases gives the layout.
 
-Coding-agent plugins (yui-notify, yui-dev) live in `coding-agents/` and install into Claude Code and Codex from the `yui` marketplace. yui-notify holds standard-library hooks and an inbox poller, with a `uv` project for the development checks.
+Coding-agent plugins (yui-notify, yui-dev) live in `coding-agents/` and install into Claude Code and Codex from the `yui` marketplace. yui-notify holds standard-library hooks, with a `uv` project for the development checks.
 
 `plugins/catalog.json` lists the official and community plugins; the plugin release workflow opens a PR that writes the official entries (`docs/agent-guide/build-run.md` § Plugin releases).
 

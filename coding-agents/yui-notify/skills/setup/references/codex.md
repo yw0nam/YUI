@@ -28,16 +28,20 @@ hooks show "Modified since last trusted - review required", and Codex blocks the
 the user trusts them again.
 
 Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`,
-`PermissionRequest`, and `SessionEnd` hooks with no review warning.
+`PermissionRequest`, and `SessionEnd` hooks with no review warning. yui-notify writes no
+permission marker for Codex, so a permission Thread stays `input-required` until its next
+`Stop` or `UserPromptSubmit`.
 
-## 4. Prove an answer
+## 4. Prove a Thread
 
 Give the user these checks for the restarted session:
 
-1. Send any prompt. When Codex stops, the session's Thread in YUI asks “What next?”.
-2. Type a short instruction in the Threads window and send it.
+1. Send any prompt. When Codex stops, the session's Thread in YUI shows `completed`.
+2. Trigger a permission prompt, such as a command that needs approval. The Thread shows
+   `input-required`. Allow or deny it at the terminal.
 
-Done when: the user confirms Codex continued the turn with that instruction.
+Done when: the user confirms the Thread shows `completed` at the stop, and a permission
+Thread stays `input-required` until the next stop or prompt.
 
 ## What Codex does not send
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -16,20 +15,18 @@ def tool_input_sha256(tool_input: dict) -> str:
 
 
 def _path(env: Mapping[str, str], session: str) -> str:
-    return os.path.join(config.state_dir(env), session + ".json")
+    return os.path.join(config.state_dir(env), session + ".permission.json")
 
 
 def write(
     env: Mapping[str, str], session: str, url: str, body: dict, tool_name: str, tool_input: dict
 ) -> None:
-    # names the open permission ask so the tool's PostToolUse hook can close it after a terminal Yes
+    # names the pending permission Thread so the tool's PostToolUse hook can return it to working
     record: Any = {
         "url": url,
         "body": body,
-        "ask_id": body["ask"]["ask_id"],
         "tool_name": tool_name,
         "tool_input_sha256": tool_input_sha256(tool_input),
-        "written_at": time.time(),
     }
     try:
         os.makedirs(config.state_dir(env), exist_ok=True)
@@ -63,29 +60,17 @@ def matching(env: Mapping[str, str], session: str, tool_name: str, tool_input: d
     return None
 
 
-def close_matched_ask(
-    env: Mapping[str, str], session: str, tool_name: str, tool_input: dict, cap: float
-) -> None:
-    # a terminal Yes never reaches the waiting hook: close its ask once the tool ran
+def close(env: Mapping[str, str], session: str, tool_name: str, tool_input: dict) -> None:
+    # the allowed tool runs and Claude Code fires PostToolUse: its Thread returns to working
     marker = matching(env, session, tool_name, tool_input)
     if not marker:
         return
-    # a marker older than the wait cap names an ask that already closed at the cap
-    if time.time() - marker.get("written_at", 0) > cap:
-        remove(env, session)
-        return
     url = marker["url"]
-    closing = {**marker["body"], "state": "working", "ask": None, "entries": []}
-    status, _, error = put(url, closing)
+    working = {**marker["body"], "state": "working", "entries": []}
+    status, _, error = put(url, working)
     if error:
         config.write_error(env, url, status, error)
     remove(env, session)
-
-
-def remove_if_own(env: Mapping[str, str], session: str, ask_id: str) -> None:
-    marker = _read(env, session)
-    if marker and marker.get("ask_id") == ask_id:
-        remove(env, session)
 
 
 def remove(env: Mapping[str, str], session: str) -> None:

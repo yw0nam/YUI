@@ -1,44 +1,39 @@
 # Agent Lifecycle Hooks
 
 The [yui-notify plugin](../../coding-agents/yui-notify/README.md) posts Claude Code and
-Codex conversations as app-wide [Threads](../reference/threads.md). Threads give the
-main character a turn only when [Thread turns](../reference/threads.md#thread-turns) is
+Codex conversations as app-wide, view-only [Threads](../reference/threads.md). Threads give
+the main character a turn only when [Thread turns](../reference/threads.md#thread-turns) is
 on in YUI (off by default). Producers connect to YUI; YUI never connects back to the agent.
+You answer the agent at its own terminal.
 
 ## Setup
 
 - Claude Code: `/plugin marketplace add yw0nam/YUI`, `/plugin install yui-notify@yui`,
-  then `/yui-notify:setup`. Answers need Claude Code v2.1.224 or later.
+  then `/yui-notify:setup`.
 - Codex: `codex plugin marketplace add yw0nam/YUI`, `codex plugin add yui-notify@yui`,
   then trust the hooks and run `$yui-notify:setup`.
 
-The setup probes the bare listener endpoint, writes endpoint and wait caps, and sends a
-test Thread. **Settings → Proactive → What she reacts to → External signals** enables the loopback
+The setup probes the bare listener endpoint, writes the endpoint, and sends a test Thread.
+**Settings → Proactive → What she reacts to → External signals** enables the loopback
 listener (default port `8770`). Switch and port changes take effect after restart.
 Threads accept no preset prefix and use the listener's Host and Origin checks.
 
-## Events and answers
+## Events
 
-Both agents post user prompts as `working`. A Claude Code Stop asks “What next?” when
-Claude Code exports its inbox socket, starts a detached poller for that ask, and exits at
-once; the poller posts the text answer into the session's inbox socket, which starts the
-next turn. A Claude Code permission request waits for Allow, Deny, or text like Codex's;
-text also goes into the inbox. Elicitation hooks post read-only `input-required` entries.
-The inbox message format and its limits are in the plugin README.
+Both agents post user prompts as `working`. A permission request or an elicitation posts
+`input-required` with the request text and returns at once; no body carries an ask. A Stop and
+a SessionEnd post `completed`, the Stop with the last assistant message and the SessionEnd with
+a `system` entry. A `clear` or `resume` reason sends nothing because the session continues.
+Claude Code background-task and SDK Stops, and non-interactive Codex Stops, send nothing.
 
-Codex Stop posts an ask for the next instruction; permission posts Allow, Deny, and text.
-The synchronous hook long-polls the answer. Stop text continues the turn; permission text
-denies the call and gives Codex the instruction. Release, timeout, closed asks, and errors
-return control to Codex. Default caps are 600 seconds for Stop and 120 for permission.
+Claude Code only: a successful permission PUT writes a marker naming the tool and its input
+hash. When the allowed tool runs, the matching `PostToolUse` or `PostToolUseFailure` hook
+returns the Thread to `working` and deletes the marker; any other tool call sends nothing.
+`UserPromptSubmit`, `Stop`, and `SessionEnd` delete the marker first, so a denied request
+cannot match a later identical tool call. yui-notify writes no permission marker for Codex,
+so a Codex permission Thread waits until its next Stop or prompt.
 
-When the Codex host app is frontmost, permission posts without an ask and exits immediately
-so its terminal prompt appears. Stop still waits. Claude Code background-task and SDK
-Stops, and non-interactive Codex Stops, send nothing. Claude Code `SessionEnd` closes the
-Thread as `completed` with a `system` entry; a `clear` or `resume` reason sends nothing
-because the session continues. An inbox answer Claude Code delivers as a prompt only sets the Thread
-`working`; the store recorded the answer when it was typed.
-
-Thread ids, payload limits, configuration, commands, and fallback details are in the
+Thread ids, payload limits, configuration, and commands are in the
 [plugin README](../../coding-agents/yui-notify/README.md).
 
 ## Other producers

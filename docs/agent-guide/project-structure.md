@@ -1096,7 +1096,7 @@ YUI/
   coding-agents/                     # Coding-agent plugins Claude Code and Codex install from the `yui` marketplace
     README.md                        # The coding-agent plugins for readers, their install commands, and the coding-agent Threads
     yui-dev/                         # Skills for a coding agent that extends YUI: `skills/yui-plugin` (BUILD.md, CONTRIBUTE.md) and `skills/yui-wake-character`
-    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, the Claude Code inbox poller, `skills/setup`, and `skills/thread-producer`
+    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, `skills/setup`, and `skills/thread-producer`
   integrations/                      # Agent-specific adapters, independent of the YUI app runtime
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
