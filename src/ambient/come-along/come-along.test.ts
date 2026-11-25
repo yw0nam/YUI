@@ -266,6 +266,14 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
+  it("vanishes and fades in on the slot when no VRM gives her feet", async () => {
+    const h = harness({ at: { x: 1500, y: 80 }, feet: null });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.events).toEqual(["vanish", "move 100,80", "appear"]);
+  });
+
   it("shows her again when a drag takes her mid-vanish", async () => {
     const h = harness({ at: { x: 1500, y: 80 } });
     const vanished = deferred<void>();

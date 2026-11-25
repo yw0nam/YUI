@@ -161,12 +161,8 @@ export interface Renderer {
    * is loaded or bones/projection are unavailable.
    */
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
-  /**
-   * The landing bounce on the canvas; resolves when it ends. The caller skips it under reduced motion.
-   * With no argument it squashes about the live seat and skips without one; with an origin (canvas px,
-   * the feet anchor) it squashes about that point; with null it fades her in as `appear` does.
-   */
-  land(origin?: { x: number; y: number } | null): Promise<void>;
+  /** The landing bounce about `origin` (canvas px), else about the live seat, skipped without one; the caller skips it under reduced motion. */
+  land(origin?: { x: number; y: number }): Promise<void>;
   /** Fades the canvas out; it stays invisible until the next `land` or `appear`. */
   vanish(): Promise<void>;
   /** Fades the canvas in, with no bounce. */

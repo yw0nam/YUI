@@ -22,7 +22,7 @@ export function createLanding(
   canvas: HTMLElement,
   getSeatPx: () => Point | null,
 ): {
-  land(origin?: Point | null): Promise<void>;
+  land(origin?: Point): Promise<void>;
   vanish(): Promise<void>;
   appear(): Promise<void>;
 } {
@@ -58,7 +58,6 @@ export function createLanding(
 
   return {
     land(origin) {
-      if (origin === null) return appear();
       stop();
       const at = origin ?? getSeatPx();
       if (!at) return Promise.resolve();

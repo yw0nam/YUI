@@ -193,7 +193,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await win.setPositionLogical(to.x, to.y);
       if (id !== move) return;
       hidden = false;
-      await (mode === "fade" ? renderer.appear() : renderer.land(renderer.getCharacterAnchor()));
+      const feet = renderer.getCharacterAnchor();
+      await (mode === "vanish" && feet ? renderer.land(feet) : renderer.appear());
       log.info("come_along_move", {
         mode,
         from,

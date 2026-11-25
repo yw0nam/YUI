@@ -16,12 +16,15 @@ function canvas(finished: Promise<void> = Promise.resolve()) {
   return { el: { style, animate } as unknown as HTMLElement, animate, origins, cancels };
 }
 
-it("squashes her about the seat", async () => {
+it.each([
+  ["the seat with no origin", undefined, "120px 340px"],
+  ["the origin it is given", { x: 30, y: 500 }, "30px 500px"],
+])("squashes her about %s", async (_, origin, expected) => {
   const c = canvas();
 
-  await createLanding(c.el, () => ({ x: 120, y: 340 })).land();
+  await createLanding(c.el, () => ({ x: 120, y: 340 })).land(origin);
 
-  expect(c.origins).toEqual(["120px 340px"]);
+  expect(c.origins).toEqual([expected]);
 });
 
 it("does not animate without a seat", async () => {
@@ -55,17 +58,6 @@ it("a landing after a vanish cancels the vanish", () => {
   void landing.land();
 
   expect(c.cancels.map((cancel) => cancel.mock.calls.length)).toEqual([1, 0]);
-});
-
-it("a landing with no origin after a vanish fades her in", () => {
-  const c = canvas(new Promise(() => {}));
-  const landing = createLanding(c.el, () => ({ x: 120, y: 340 }));
-
-  void landing.vanish();
-  void landing.land(null);
-
-  expect(c.cancels.map((cancel) => cancel.mock.calls.length)).toEqual([1, 0]);
-  expect(c.animate.mock.calls[1]?.[0]).toEqual([{ opacity: 0 }, { opacity: 1 }]);
 });
 
 it("appears by opacity alone", async () => {
