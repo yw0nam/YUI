@@ -38,7 +38,8 @@
     opacity var(--yui-dur-fast) var(--yui-ease),
     transform var(--yui-dur) var(--yui-ease);
 }
-.yui-chip-column .is-capped {
+.yui-chip-column .is-capped,
+.yui-chip-column > .yui-sigchips:not(:has(> [data-chip-count]:not(.is-capped))) {
   display: none;
 }
 /* While the Character menu is open, the column fades out of its way and takes no hits. */

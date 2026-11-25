@@ -53,7 +53,8 @@ export function planColumn({
   const others = rows.flatMap((row, index) => (row.urgent ? [] : [index]));
   // Every kept row adds its height and the gap after it; the fold row comes last.
   let used = rows.reduce((sum, row) => (row.urgent ? sum + height(row) + gap : sum), 0);
-  if (start + used - gap > limit) return { shift, hide: others, folded: 0 };
+  // Only urgent rows may pass the limit: with no room for the fold row, every other row hides unnamed.
+  if (start + used + foldRowHeight > limit) return { shift, hide: others, folded: 0 };
   let kept = 0;
   for (const index of others) {
     const next = used + height(rows[index]!) + gap;

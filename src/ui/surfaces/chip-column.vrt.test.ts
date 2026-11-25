@@ -166,7 +166,7 @@ it("ends 8px above an Ask card", async () => {
   expect([Math.round(cardTop - columnBottom(column)), shown(column).length]).toEqual([8, 5]);
 });
 
-it("in a 190x284 window folds the rows that still do not fit over an Ask card, urgent rows kept", async () => {
+it("in a 190x284 window over an Ask card keeps the urgent rows and hides the rest, with no room for a +N row", async () => {
   await page.viewport(190, 284);
   const { surfaces, column, threads } = build();
   surfaces.setAsks([ask]);
@@ -177,7 +177,7 @@ it("in a 190x284 window folds the rows that still do not fit over an Ask card, u
       el.matches(".yui-chip-column__fold") ? el.textContent : el.hasAttribute("data-chip-urgent"),
     ),
     threadsSlot: threads.slotRect().height,
-  }).toEqual({ rows: [true, true, "+6"], threadsSlot: 32 });
+  }).toEqual({ rows: [true, true], threadsSlot: 32 });
 });
 
 it("fades out while the Character menu is open, taking no hits, and returns when it closes", async () => {
