@@ -29,9 +29,8 @@ const EXPOSED_PATHS = [
   "pace.rest",
   "performance.idle_throttle",
   "privacy.external_signals",
+  "privacy.screen_display",
   "privacy.screen_requests",
-  "privacy.screen_source.index",
-  "privacy.screen_source.kind",
   "privacy.screen_watch.enabled",
   "privacy.screen_watch.long_session_ms",
   "privacy.screen_watch.prev_dwell_ms",
@@ -135,18 +134,18 @@ describe("applyPatch", () => {
   it("keeps the sibling field on a nested patch", () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { privacy: { screen_source: { index: 1 } } });
+    const result = applyPatch(stores, { privacy: { screen_watch: { recent_cap: 10 } } });
 
     expect(result.direct).toEqual({});
     expect(result.allow).toEqual([
       {
-        path: "privacy.screen_source.index",
-        labelKey: "screenshot.source_label",
+        path: "privacy.screen_watch.recent_cap",
+        labelKey: "screen.recent_cap_label",
         from: 0,
-        to: 1,
+        to: 10,
       },
     ]);
-    expect(stores.screenshotSettings.get().source).toEqual({ kind: "monitor", index: 0 });
+    expect(stores.screenSettings.get()).toEqual({ enabled: false });
   });
 
   it("answers an unchanged document as a no-op", () => {
@@ -168,43 +167,29 @@ describe("applyPatch", () => {
     expect(readDocument(stores)).toEqual(before);
   });
 
-  it.each([
-    [{ kind: "bogus" }, "privacy.screen_source.kind"],
-    [{ kind: "window" }, "privacy.screen_source.kind"],
-    [{ kind: "monitor", index: -1 }, "privacy.screen_source.index"],
-    [{ kind: "monitor", index: 1.5 }, "privacy.screen_source.index"],
-  ])("rejects the screen source %j", (source, path) => {
+  it.each([-1, 1.5, "1", null])("rejects the screen display %j", (display) => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { privacy: { screen_source: source } });
-
-    expect(result.direct[path]).toBe(`error: invalid ${path}`);
-  });
-
-  it("rejects a source index when the current source is not a monitor", () => {
-    const stores = createSettingsStores();
-    stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
-
-    const result = applyPatch(stores, { privacy: { screen_source: { index: 1 } } });
+    const result = applyPatch(stores, { privacy: { screen_display: display } });
 
     expect(result.direct).toEqual({
-      "privacy.screen_source.index": "error: invalid privacy.screen_source.index",
+      "privacy.screen_display": "error: invalid privacy.screen_display",
     });
   });
 
-  it("judges a source index against the stored source, not the patch's kind", () => {
+  it("asks to switch a window source to a display, and reads that source as no display", () => {
     const stores = createSettingsStores();
     stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
 
-    const result = applyPatch(stores, {
-      privacy: { screen_source: { kind: "monitor", index: 1 } },
-    });
+    expect(readDocument(stores)).toMatchObject({ privacy: { screen_display: null } });
+    const result = applyPatch(stores, { privacy: { screen_display: 1 } });
 
-    expect(result.direct).toEqual({
-      "privacy.screen_source.kind": "error: invalid privacy.screen_source.kind",
-      "privacy.screen_source.index": "error: invalid privacy.screen_source.index",
+    expect(result.allow).toEqual([
+      { path: "privacy.screen_display", labelKey: "screenshot.source_label", from: null, to: 1 },
+    ]);
+    expect(applyPatch(stores, { privacy: { screen_display: null } }).direct).toEqual({
+      "privacy.screen_display": "ok",
     });
-    expect(result.allow).toEqual([]);
   });
 
   it("returns one result per changed path in a mixed patch", () => {
@@ -216,7 +201,7 @@ describe("applyPatch", () => {
       appearance: { theme: "neon" },
       endpoints: { chat: "https://example" },
       motions: { express_disabled: ["laugh"] },
-      privacy: { screenshot: true, screen_source: { kind: "bogus" } },
+      privacy: { screenshot: true, screen_display: -1 },
     });
 
     expect(result.direct).toEqual({
@@ -224,7 +209,7 @@ describe("applyPatch", () => {
       "appearance.theme": "error: invalid appearance.theme",
       "endpoints.chat": "error: unknown endpoints.chat",
       "motions.express_disabled": "ok",
-      "privacy.screen_source.kind": "error: invalid privacy.screen_source.kind",
+      "privacy.screen_display": "error: invalid privacy.screen_display",
     });
     expect(result.allow).toEqual([
       { path: "privacy.screenshot", labelKey: "screenshot.label", from: false, to: true },

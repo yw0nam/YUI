@@ -54,7 +54,7 @@ it("holds a push Ask behind a shown request, and its Answer then reaches the soc
   w.dispose();
 });
 
-it("lets no push Ask that reuses a request's old id pre-press or answer the request", async () => {
+it("shows a request with nothing picked after a push Ask answered before it, and ignores a late Answer to that Ask", async () => {
   const w = buildAskCard();
   w.push(ask("settings-request-1", [{ id: "allow", label: "Allow" }]));
   const result = w.request([SCREENSHOT]);

@@ -42,6 +42,8 @@ export interface SettingRow {
   store: keyof SettingsStores;
   /** Path of the leaf inside its store's value. */
   field: readonly string[];
+  /** The store field's value for a document value, when the two differ. */
+  toField?(value: unknown): unknown;
   scope: SettingScope;
   tier: SettingTier;
   labelKey: string;
@@ -54,17 +56,19 @@ export interface SettingRow {
   check?(document: unknown): boolean;
   /** Label key of each enum value, as the settings window names it. */
   valueLabels?: Readonly<Record<string, string>>;
-  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text. */
-  unit?: { per: number; suffixKey: string };
+  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text (`oneKey` for exactly 1). */
+  unit?: { per: number; suffixKey: string; oneKey?: string };
+  /** True when a stored 0 means YUI's default rather than zero. */
+  zeroIsDefault?: boolean;
   /** Label key naming a 0-based index as the settings window does, `{n}` its 1-based number. */
   ordinalKey?: string;
 }
 
-type RowSpec = Omit<SettingRow, "read">;
+type RowSpec = Omit<SettingRow, "read"> & Partial<Pick<SettingRow, "read">>;
 
 const row = (spec: RowSpec): SettingRow => ({
-  ...spec,
   read: (stores) => getIn(stores[spec.store].get(), spec.field),
+  ...spec,
 });
 
 export const ROWS: readonly SettingRow[] = [
