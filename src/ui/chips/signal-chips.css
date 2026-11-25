@@ -1,18 +1,6 @@
 /* YUI signal chips — one pill per signal group above the delegation chip, with a details sheet on tap.
    Same pill family as the delegation chip. Tokens live in ../tokens.css. */
 
-/* The chip column's "+N" row of capped rows wears the pill too: a count that takes no clicks. */
-.yui-sigchips,
-.yui-chip-column__fold {
-  --yui-sigchip-h: 1.75rem;
-}
-
-.yui-chip-column__fold {
-  display: flex;
-  align-items: center;
-  cursor: default;
-}
-
 .yui-sigchips {
   display: flex;
   flex-direction: column;

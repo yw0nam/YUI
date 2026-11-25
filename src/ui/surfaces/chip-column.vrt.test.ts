@@ -93,12 +93,7 @@ function build({ urgent = true } = {}) {
     onOpenSettings() {},
   });
   store.replace([{ id: "d1", title: "work", started_at: Date.now(), state: "running" }]);
-  const detach = attachChipColumn({
-    root: surfaces.el,
-    column: mount,
-    bubble: surfaces.el.querySelector<HTMLElement>(".yui-bubble")!,
-    askSlot: surfaces.el.querySelector<HTMLElement>(".yui-ask-slot")!,
-  });
+  const detach = attachChipColumn(surfaces.el);
   disposers.push(surfaces.dispose, signals.dispose, threads.dispose, tasks.dispose, detach);
   return { surfaces, column: mount, threads, typed };
 }

@@ -406,14 +406,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         chatKeySettings: settingsStores.chatKeySettings,
       }),
     );
-    register(
-      attachChipColumn({
-        root: surfaces.el,
-        column: surfaces.chipColumn,
-        bubble: surfaces.el.querySelector<HTMLElement>(".yui-bubble")!,
-        askSlot: surfaces.el.querySelector<HTMLElement>(".yui-ask-slot")!,
-      }),
-    );
+    register(attachChipColumn(surfaces.el));
     if (import.meta.env.DEV) {
       try {
         await wireDevGlobals({

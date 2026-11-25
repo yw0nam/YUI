@@ -892,7 +892,6 @@ const en: Record<string, string> = {
   "sigchip.close": "Close",
   "sigchip.more": "+{n}",
   "sigchip.more_aria": "Show {n} more signals",
-  "chips.folded_hint": "{n} more, shown again when there is room",
   "sigchip.collapse": "Collapse",
   "sigchip.kind": "Kind",
   "sigchip.label": "Label",

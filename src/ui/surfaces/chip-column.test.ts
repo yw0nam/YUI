@@ -136,7 +136,7 @@ describe("attachChipColumn", () => {
       [214, 28],
       [248, 28],
     ]);
-    attachChipColumn({ root, column, bubble, askSlot });
+    attachChipColumn(root);
     bubble.style.top = "250px";
     boxes.set(card, [200, 120]);
 
@@ -157,7 +157,7 @@ describe("attachChipColumn", () => {
       [214, 28],
       [248, 28],
     ]);
-    attachChipColumn({ root, column, bubble, askSlot });
+    attachChipColumn(root);
     bubble.style.top = "250px";
 
     bubble.classList.add("is-visible");
@@ -178,7 +178,7 @@ describe("attachChipColumn", () => {
       [142, 28, 1],
     ]);
     rows[0]!.toggleAttribute("data-chip-urgent", true);
-    const detach = attachChipColumn({ root, column, bubble, askSlot });
+    const detach = attachChipColumn(root);
     boxes.set(card, [128, 120]);
 
     card.hidden = false;
@@ -188,12 +188,12 @@ describe("attachChipColumn", () => {
     expect({
       transform: column.style.transform,
       capped: rows.map((r) => r.classList.contains("is-capped")),
-      fold: [fold?.textContent, fold?.title, column.lastElementChild === fold],
+      fold: [fold?.textContent, column.lastElementChild === fold],
       pending: frames.length,
     }).toEqual({
       transform: "translateY(-32px)",
       capped: [false, false, true, true],
-      fold: ["+3", "3 more, shown again when there is room", true],
+      fold: ["+3", true],
       pending: 0,
     });
 

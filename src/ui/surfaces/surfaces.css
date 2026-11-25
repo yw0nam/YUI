@@ -42,6 +42,22 @@
 .yui-chip-column > .yui-sigchips:not(:has(> [data-chip-count]:not(.is-capped))) {
   display: none;
 }
+/* The "+N" row of the capped rows, in the signal pill's look; the column takes no clicks. */
+.yui-chip-column__fold {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--yui-sigchip-h);
+  padding: 0 0.66rem;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+}
 /* While the Character menu is open, the column fades out of its way and takes no hits. */
 .yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column {
   opacity: 0;

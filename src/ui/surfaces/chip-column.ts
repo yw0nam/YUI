@@ -9,6 +9,9 @@ import { t } from "../i18n";
 /** The room kept above the surface under the column, and under the window's top edge. */
 const CLEARANCE_PX = 8;
 
+/** The class on a row the column hides for want of room. */
+export const CAPPED = "is-capped";
+
 export interface ColumnRow {
   top: number;
   bottom: number;
@@ -77,20 +80,13 @@ function settledBox(el: Element): { top: number; bottom: number } {
   return { top: top - moved, bottom: bottom - moved };
 }
 
-/** Keeps the pet window's chip column clear of the Ask card and the bubble; returns its dispose. */
-export function attachChipColumn({
-  root,
-  column,
-  bubble,
-  askSlot,
-}: {
-  root: HTMLElement;
-  column: HTMLElement;
-  bubble: HTMLElement;
-  askSlot: HTMLElement;
-}): () => void {
+/** Keeps the chip column of the surfaces at `root` clear of their Ask card and bubble; returns its dispose. */
+export function attachChipColumn(root: HTMLElement): () => void {
+  const column = root.querySelector<HTMLElement>(".yui-chip-column")!;
+  const bubble = root.querySelector<HTMLElement>(".yui-bubble")!;
+  const askSlot = root.querySelector<HTMLElement>(".yui-ask-slot")!;
   const fold = document.createElement("div");
-  fold.className = "yui-sigchip__more yui-chip-column__fold";
+  fold.className = "yui-chip-column__fold";
   let frame = 0;
 
   function obstacleTop(): number | null {
@@ -104,7 +100,7 @@ export function attachChipColumn({
   }
 
   function uncap(): void {
-    for (const row of column.querySelectorAll(".is-capped")) row.classList.remove("is-capped");
+    for (const row of column.querySelectorAll(`.${CAPPED}`)) row.classList.remove(CAPPED);
     fold.remove();
   }
 
@@ -138,10 +134,9 @@ export function attachChipColumn({
         foldRowHeight: fold.getBoundingClientRect().height,
       });
       shift = plan.shift;
-      for (const index of plan.hide) rows[index]!.classList.add("is-capped");
+      for (const index of plan.hide) rows[index]!.classList.add(CAPPED);
       if (plan.folded > 0) {
         fold.textContent = t("sigchip.more", { n: plan.folded });
-        fold.title = t("chips.folded_hint", { n: plan.folded });
       } else {
         fold.remove();
       }

@@ -896,7 +896,6 @@ const ja: Record<string, string> = {
   "sigchip.close": "閉じる",
   "sigchip.more": "+{n}",
   "sigchip.more_aria": "シグナルをさらに{n}件表示",
-  "chips.folded_hint": "ほか{n}件、余白ができたら再表示",
   "sigchip.collapse": "たたむ",
   "sigchip.kind": "種類",
   "sigchip.label": "ラベル",

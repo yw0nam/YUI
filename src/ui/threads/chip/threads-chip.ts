@@ -11,6 +11,7 @@ import { isWaiting } from "../../../io/threads/threads-waiting";
 import type { DelegationChipSettingsStore } from "../../../settings/panels/delegation-chip-settings";
 import { holdToFold } from "../../chips/hold-to-fold";
 import { subscribe as subscribeLocale, t } from "../../i18n";
+import { CAPPED } from "../../surfaces/chip-column";
 import { threadSource } from "../thread-source";
 
 const MAX_MARKS = 3;
@@ -138,15 +139,15 @@ export function createThreadsChip({
     },
     slotRect() {
       const { hidden } = el;
-      const capped = el.classList.contains("is-capped");
+      const capped = el.classList.contains(CAPPED);
       if (!hidden && !capped) return rect();
       // Laid out but invisible for one synchronous read; nothing paints before it is put back.
       el.hidden = false;
-      el.classList.remove("is-capped");
+      el.classList.remove(CAPPED);
       el.classList.add("is-measuring");
       const slot = rect();
       el.classList.remove("is-measuring");
-      el.classList.toggle("is-capped", capped);
+      el.classList.toggle(CAPPED, capped);
       el.hidden = hidden;
       return slot;
     },
