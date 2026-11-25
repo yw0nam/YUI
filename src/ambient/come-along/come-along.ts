@@ -4,7 +4,9 @@
  * else by following each later slot herself, then plays one entry clip of her last backend emotion's
  * Entry family. A null slot or the close sends her home. She is picked up and carried on her own
  * monitor, vanishes and lands across monitors or over a long way, and fades under reduced motion.
- * An edge entry plays with her hips pinned beyond her window's right edge (the stage peek pin).
+ * An edge entry plays with her hips pinned beyond her window's right edge (the stage peek pin),
+ * that edge on the slot's right edge while the pin holds; on its release her window eases back to
+ * the centred origin on the renderer's release curve.
  *
  * Whoever moves her owns her: a drag or an agent move ends the session where she is dropped, and
  * the window's later slots are ignored until it minimises or closes; a drag or agent command
@@ -29,6 +31,7 @@ import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame"
 import { latestOnly } from "../../io/window/latest-only";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import { yawAt } from "../../renderer/motion/yaw/body-yaw";
 import type { HoldOptions } from "../locomotion/hold/holds";
 import { pickEntry } from "./entry-pick";
 import { createStagePin } from "./stage-pin";
@@ -118,6 +121,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
   let hidden = false;
   // Her `drag` is the come-along's own pickup until a set-down motion replaces it.
   let carried = false;
+  // The aligned origin's share of her placed origin while she eases back from a released pin.
+  let alignedShare = 0;
+  // Her last submitted place write; whoever takes her next waits for it to land.
+  let placed: Promise<unknown> = Promise.resolve();
   // Each Entry family's last played clip, for this window's memory only.
   const lastClips = new Map<string, string>();
   const pin = createStagePin({
@@ -125,11 +132,13 @@ export function createComeAlong(deps: ComeAlongDeps): {
     reducedMotion: deps.reducedMotion,
     releaseMs: () => deps.stage().edge_release_ms,
     getMotionKind: deps.getMotionKind,
+    onRelease: unalign,
   });
 
   /** Stops whatever move runs and returns the id of the one that takes over. */
   const takeOver = (): number => {
     stopTick?.();
+    alignedShare = 0;
     move += 1;
     return move;
   };
@@ -164,9 +173,18 @@ export function createComeAlong(deps: ComeAlongDeps): {
     };
   }
 
-  /** Her window's origin that stands her feet, else its bottom, centred on the slot's bottom edge. */
-  const dockOrigin = (rect: StageSlot, size: { width: number; height: number }): Point => ({
-    x: Math.round(rect.x + (rect.width - size.width) / 2),
+  /**
+   * Her window's origin that stands her feet, else its bottom, on the slot's bottom edge: centred,
+   * or `aligned` with its right edge on the slot's.
+   */
+  const dockOrigin = (
+    rect: StageSlot,
+    size: { width: number; height: number },
+    aligned: boolean,
+  ): Point => ({
+    x: Math.round(
+      aligned ? rect.x + rect.width - size.width : rect.x + (rect.width - size.width) / 2,
+    ),
     y: Math.round(rect.y + rect.height - (renderer.getCharacterAnchor()?.y ?? size.height)),
   });
 
@@ -328,9 +346,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
     // A user drag plays its own drag motion.
     letGo(by !== "drag");
     log.info("come_along_taken");
-    return wasDocked?.native
+    const detached = wasDocked?.native
       ? deps.dock.detach().catch((err) => log.warn("dock_detach_failed", { error: String(err) }))
-      : Promise.resolve();
+      : null;
+    return Promise.all([placed, detached]).then(() => {});
   }
 
   async function start(rect: StageSlot): Promise<void> {
@@ -368,19 +387,20 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (id !== move) return;
     const { at, size } = await read();
     if (id !== move) return;
-    const target = dockOrigin(rect, size);
+    let target: Point;
     let entry: { family: string; clip: string } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
+      target = dockOrigin(rect, size, false);
       await locomotion.frame.frameWindow().setPositionLogical(target.x, target.y);
     } else {
       // A trip home that this window interrupted keeps the spot she left from.
       home ??= { ...at, ...size };
       store({ home });
-      if (!angry) {
-        entry = pickEntry(stage.entry_families, emotion, lastClips, deps.random);
-        pin.plan(stage.edge_entries[entry.clip] ?? null, size.width);
-      }
+      if (!angry) entry = pickEntry(stage.entry_families, emotion, lastClips, deps.random);
+      const edge = (entry && stage.edge_entries[entry.clip]) ?? null;
+      pin.plan(edge, size.width);
+      target = dockOrigin(rect, size, edge !== null);
       await travel(id, target);
     }
     if (id !== move) return;
@@ -419,18 +439,46 @@ export function createComeAlong(deps: ComeAlongDeps): {
     // Windows: the whole target in the settings window's scale, her size included.
     const px = !docked.native && deps.followsInPhysicalPx;
     const { at, size } = await read();
-    const now = px ? await win.outerPosition() : at;
-    const target = dockOrigin(rect, size);
+    const [now, outer] = px
+      ? await Promise.all([win.outerPosition(), win.outerSize()])
+      : [at, size];
+    if (!docked) return;
+    pin.fit(size.width);
+    const target = dockOrigin(rect, size, false);
     const k = px ? rect.scale : 1;
-    const to = { x: Math.round(target.x * k), y: Math.round(target.y * k) };
-    if (!docked || Math.max(Math.abs(to.x - now.x), Math.abs(to.y - now.y)) < 1) return;
+    const centred = Math.round(target.x * k);
+    // Aligned: the slot's right edge less her measured width, in the unit she is placed in.
+    const aligned = Math.round((rect.x + rect.width) * k - outer.width);
+    const share = pin.holds() ? 1 : alignedShare;
+    const to = {
+      x: Math.round(centred + (aligned - centred) * share),
+      y: Math.round(target.y * k),
+    };
+    if (Math.max(Math.abs(to.x - now.x), Math.abs(to.y - now.y)) < 1) return;
     log.info("come_along_placed", { slot: rect, origin: to, size, ...(px && { px: true }) });
-    await (px ? deps.setPositionPhysical(to.x, to.y) : win.setPositionLogical(to.x, to.y));
+    const write = px ? deps.setPositionPhysical(to.x, to.y) : win.setPositionLogical(to.x, to.y);
+    placed = write.catch(() => {});
+    await write;
   }
 
   const placeLatest = latestOnly(placeOnce);
   const place = (): Promise<void> =>
     placeLatest().catch((err) => log.warn("come_along_place_failed", { error: String(err) }));
+
+  /** The pin let go: her window returns to the centred origin, eased on the pin's own curve. */
+  function unalign(): void {
+    if (deps.reducedMotion()) {
+      void place();
+      return;
+    }
+    const ms = deps.stage().edge_release_ms;
+    alignedShare = 1;
+    void tickUntil((elapsedMs) => {
+      alignedShare = yawAt(1, 0, elapsedMs, ms);
+      void place();
+      return elapsedMs >= ms;
+    });
+  }
 
   /** Her spot, or the nearest monitor's floor when no monitor holds its centre any more. */
   async function homeOrFloor(spot: Home): Promise<Point> {
@@ -472,6 +520,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
         log.warn("dock_detach_failed", { error: String(err) });
       }
       await locomotion.abortTravel();
+      await placed;
       // A start still leaving her spot has no home yet: she lets go where she is.
       const spot = home;
       if (id === move && spot) {

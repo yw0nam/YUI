@@ -826,6 +826,21 @@ describe("createComeAlong", () => {
     expect(h.events).toEqual(events);
   });
 
+  it("centres her next dock after a drag took her during the release", async () => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+    h.setCurrent("idle");
+    h.tick(150);
+    await flush();
+    await h.abort("drag");
+    await h.comeAlong.onStage(null);
+
+    await h.finish(h.comeAlong.onStage(wideSlot));
+
+    // A neutral pick at 0.5 among plain's clips but peek_in is calm, no edge clip.
+    expect(h.playMotion).toHaveBeenLastCalledWith({ id: "calm" });
+    expect([h.real.x, h.real.y]).toEqual([71, -264]);
+  });
+
   it("re-aims the held pin and keeps her right edge on the slot's when her window is resized", async () => {
     const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
     Object.assign(h.real, { width: 600, height: 900 });

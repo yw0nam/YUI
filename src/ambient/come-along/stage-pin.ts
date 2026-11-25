@@ -22,11 +22,17 @@ export function createStagePin(deps: {
   /** Time (ms) the pin takes to ease back to the centre. */
   releaseMs(): number;
   getMotionKind(id: string): MotionKind | undefined;
+  /** The held pin lets go, easing back unless motion is reduced. */
+  onRelease(): void;
 }): {
   /** Plans the pin for `edge` in a window `windowWidth` px wide; null plans none. */
   plan(edge: EdgeEntry | null, windowWidth: number): void;
   /** Arms the planned pin, eased in over `easeMs` when given. */
   arm(easeMs?: number): void;
+  /** Whether the renderer holds an armed pin. */
+  holds(): boolean;
+  /** Re-aims a held pin past the right edge of a window `windowWidth` px wide. */
+  fit(windowWidth: number): void;
   /** An edge `clip` plays: the pin lets go once it stops, and she idles at its `play_ms`. */
   watch(clip: string): void;
   /** Stops watching, drops the plan, and clears an armed pin at once. */
@@ -34,7 +40,8 @@ export function createStagePin(deps: {
 } {
   const { renderer } = deps;
   let planned: { edge: EdgeEntry; windowWidth: number } | null = null;
-  let pinned = false;
+  // The held pin's inset and its target, null while none is held.
+  let pinned: { inset: number; targetXpx: number } | null = null;
   let stopWatch: (() => void) | null = null;
 
   function stop(): void {
@@ -45,8 +52,9 @@ export function createStagePin(deps: {
   /** Eases an armed pin back to the centre. */
   function release(): void {
     if (!pinned) return;
-    pinned = false;
+    pinned = null;
     renderer.setPeekTarget(null, deps.reducedMotion() ? undefined : { easeMs: deps.releaseMs() });
+    deps.onRelease();
   }
 
   return {
@@ -57,11 +65,23 @@ export function createStagePin(deps: {
       const probe = planned && renderer.getPerchProbe();
       if (!planned || !probe) return;
       renderer.setMotionMirror(false);
-      pinned = renderer.setPeekTarget({
-        targetXpx: peekTargetPx(planned.windowWidth, "left", probe.charHpx, planned.edge.inset),
+      const { inset } = planned.edge;
+      const targetXpx = peekTargetPx(planned.windowWidth, "left", probe.charHpx, inset);
+      const accepted = renderer.setPeekTarget({
+        targetXpx,
         ...(easeMs !== undefined && { easeMs }),
         holdsPosture: false,
       });
+      pinned = accepted ? { inset, targetXpx } : null;
+    },
+    holds: () => pinned !== null,
+    fit(windowWidth) {
+      const probe = pinned && renderer.getPerchProbe();
+      if (!pinned || !probe) return;
+      const targetXpx = peekTargetPx(windowWidth, "left", probe.charHpx, pinned.inset);
+      if (targetXpx === pinned.targetXpx) return;
+      pinned.targetXpx = targetXpx;
+      renderer.setPeekTarget({ targetXpx, holdsPosture: false });
     },
     watch(clip) {
       const edge = planned?.edge;
@@ -97,7 +117,7 @@ export function createStagePin(deps: {
       planned = null;
       stop();
       if (pinned) renderer.setPeekTarget(null);
-      pinned = false;
+      pinned = null;
     },
   };
 }
