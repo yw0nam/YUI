@@ -16,26 +16,38 @@ import {
 import { readOpenPresetIds } from "../../settings/preset/pet-windows";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { t } from "../../ui/i18n";
+import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import type { AskQueue } from "./ask-queue";
 import { createSettingsRequest } from "./settings-request";
 
-/** Wraps one window selection and its swap into a yui_run row port. */
+/** Wraps one window selection and its swap into a yui_run row port; an unlisted id rejects. */
 export function selectionPort<T extends { id: string }>(
-  _selection: { list(): T[]; getActiveId(): string },
-  _swap: (option: T) => Promise<void>,
+  selection: { list(): T[]; getActiveId(): string },
+  swap: (option: T) => Promise<void>,
 ): SelectionPort {
-  return { list: () => [], getActiveId: () => "", swap: async () => {} };
+  return {
+    list: () => selection.list(),
+    getActiveId: () => selection.getActiveId(),
+    swap: (id) => {
+      const option = selection.list().find((entry) => entry.id === id);
+      if (!option) return Promise.reject(new Error(`no option ${id}`));
+      return swap(option);
+    },
+  };
 }
 
 export function wireYuiRun(deps: {
   stores: SettingsStores;
   asks: Pick<AskQueue, "put" | "remove">;
   lastTogether: { get(): { at: number | null } };
-  vrm: SelectionPort;
-  speaker: SelectionPort;
+  vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm">;
+  speaker: Pick<ReturnType<typeof wireSpeakerSelection>, "speakerSelection" | "swapSpeaker">;
 }): YuiRunPorts {
   const monitors = createTauriScreenSourceProvider();
-  const rows = selectionRows(deps);
+  const rows = selectionRows({
+    vrm: selectionPort(deps.vrm.vrmSelection, deps.vrm.swapVrm),
+    speaker: selectionPort(deps.speaker.speakerSelection, deps.speaker.swapSpeaker),
+  });
   return {
     settings: createSettingsApi({
       stores: deps.stores,
@@ -54,8 +66,8 @@ export function wireYuiRun(deps: {
       screenRecording: async () => invoke<string>("screen_recording_permission"),
     }),
     info: createInfoApi({
-      bodies: () => deps.vrm.list(),
-      voices: () => deps.speaker.list(),
+      bodies: () => deps.vrm.vrmSelection.list(),
+      voices: () => deps.speaker.speakerSelection.list(),
       monitors: () => monitors.listMonitors(),
     }),
     help: () => helpText(t, rows),

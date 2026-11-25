@@ -39,6 +39,20 @@ export function readDocument(
   return document;
 }
 
+/** Applies one changed leaf; a rejecting write answers the failed-to-load error. */
+export async function writeRow(
+  row: PatchRow,
+  stores: SettingsStores,
+  value: unknown,
+): Promise<"ok" | `error: ${string}`> {
+  try {
+    await row.write(stores, value);
+    return "ok";
+  } catch {
+    return `error: ${row.path} failed to load`;
+  }
+}
+
 /** Merges a JSON merge patch into the document and applies each changed leaf. */
 export async function applyPatch(
   stores: SettingsStores,
@@ -68,8 +82,7 @@ export async function applyPatch(
         direct[path] = `error: invalid ${path}`;
         continue;
       }
-      await row.write(stores, null);
-      direct[path] = "ok";
+      direct[path] = await writeRow(row, stores, null);
       continue;
     }
     if (!row.valid(stores, leaf.value)) {
@@ -85,14 +98,7 @@ export async function applyPatch(
       });
       continue;
     }
-    try {
-      await row.write(stores, leaf.value);
-    } catch {
-      // A write that loads first rejects and leaves the stored value unchanged.
-      direct[path] = `error: ${path} failed to load`;
-      continue;
-    }
-    direct[path] = "ok";
+    direct[path] = await writeRow(row, stores, leaf.value);
   }
 
   return { direct, allow };

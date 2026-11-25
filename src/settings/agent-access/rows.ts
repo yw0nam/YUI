@@ -95,7 +95,7 @@ export interface SettingRow {
   integer?: boolean;
   /** Longest string the row keeps; longer answers invalid. */
   maxLength?: number;
-  /** Where the row's ids come from, for rows pointing into yui.info. */
+  /** A short hint help() prints after the label. */
   note?: string;
 }
 

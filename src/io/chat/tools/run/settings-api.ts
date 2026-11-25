@@ -1,7 +1,7 @@
 /** yui.settings: the exposed settings document, and a patch whose allow paths wait for the user. */
 
 import type { PatchRow, SettingsChange } from "../../../../settings/agent-access/document";
-import { applyPatch, readDocument } from "../../../../settings/agent-access/document";
+import { applyPatch, readDocument, writeRow } from "../../../../settings/agent-access/document";
 import { ROWS } from "../../../../settings/agent-access/rows";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 
@@ -44,8 +44,7 @@ export function createSettingsApi(deps: {
           results[change.path] = `error: invalid ${change.path}`;
           continue;
         }
-        await row.write(deps.stores, change.to);
-        results[change.path] = "ok";
+        results[change.path] = await writeRow(row, deps.stores, change.to);
       }
       return results;
     },
