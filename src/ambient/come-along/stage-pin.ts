@@ -1,4 +1,5 @@
 import type { EdgeEntry } from "../../config/validators/avatar/types";
+import type { MotionKind } from "../../contract";
 import type { Renderer } from "../../renderer";
 import { peekTargetPx } from "../../renderer/geometry/probe/perch-geometry";
 
@@ -20,12 +21,13 @@ export function createStagePin(deps: {
   reducedMotion(): boolean;
   /** Time (ms) the pin takes to ease back to the centre. */
   releaseMs(): number;
+  getMotionKind(id: string): MotionKind | undefined;
 }): {
   /** Plans the pin for `edge` in a window `windowWidth` px wide; null plans none. */
   plan(edge: EdgeEntry | null, windowWidth: number): void;
   /** Arms the planned pin, eased in over `easeMs` when given. */
   arm(easeMs?: number): void;
-  /** `clip` plays: the pin lets go once it stops, or idles her at its `play_ms`. */
+  /** An edge `clip` plays: the pin lets go once it stops, and she idles at its `play_ms`. */
   watch(clip: string): void;
   /** Stops watching, drops the plan, and clears an armed pin at once. */
   snap(): void;
@@ -38,10 +40,11 @@ export function createStagePin(deps: {
   function stop(): void {
     stopWatch?.();
     stopWatch = null;
-    pinned = false;
   }
 
-  function easeBack(): void {
+  /** Eases an armed pin back to the centre. */
+  function release(): void {
+    if (!pinned) return;
     pinned = false;
     renderer.setPeekTarget(null, deps.reducedMotion() ? undefined : { easeMs: deps.releaseMs() });
   }
@@ -63,11 +66,13 @@ export function createStagePin(deps: {
     watch(clip) {
       const edge = planned?.edge;
       planned = null;
-      if (!pinned || !edge) return;
+      if (!edge) return;
+      // A state clip is the motion controller's return target once whatever replaced it ends.
+      const returns = deps.getMotionKind(clip) === "state";
+      let replaced = false;
       stopWatch = renderer.onTick(() => {
         const playing = renderer.getCurrentMotion()?.id === clip;
-        if (!pinned) {
-          // A `play_ms` clip loops as a state the controller returns to; she idles instead.
+        if (replaced) {
           if (playing) {
             stop();
             renderer.playMotion(null);
@@ -75,23 +80,24 @@ export function createStagePin(deps: {
           return;
         }
         if (!playing) {
-          easeBack();
-          if (edge.play_ms === undefined) stop();
+          release();
+          if (returns) replaced = true;
+          else stop();
           return;
         }
         const playedS = renderer.getCurrentMotionTime();
         if (edge.play_ms !== undefined && playedS !== null && playedS * 1000 >= edge.play_ms) {
           stop();
           renderer.playMotion(null);
-          easeBack();
+          release();
         }
       });
     },
     snap() {
-      const wasPinned = pinned;
       planned = null;
       stop();
-      if (wasPinned) renderer.setPeekTarget(null);
+      if (pinned) renderer.setPeekTarget(null);
+      pinned = false;
     },
   };
 }

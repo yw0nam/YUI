@@ -16,6 +16,7 @@
  */
 
 import type { StageConfig } from "../../config/validators/avatar/types";
+import type { MotionKind } from "../../contract";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import {
   clampToWorkArea,
@@ -92,6 +93,8 @@ export interface ComeAlongDeps {
   lastEmotion(decayMs: number): string;
   /** A draw in [0, 1) for the stay roll and the entry pick. */
   random(): number;
+  /** A registered motion's kind. */
+  getMotionKind(id: string): MotionKind | undefined;
 }
 
 export function createComeAlong(deps: ComeAlongDeps): {
@@ -121,6 +124,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     renderer,
     reducedMotion: deps.reducedMotion,
     releaseMs: () => deps.stage().edge_release_ms,
+    getMotionKind: deps.getMotionKind,
   });
 
   /** Stops whatever move runs and returns the id of the one that takes over. */

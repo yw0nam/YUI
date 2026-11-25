@@ -3869,7 +3869,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip",
+      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"

@@ -77,6 +77,7 @@ async function wire(boundId: string | null, listening: Promise<void> = Promise.r
     renderer: {} as never,
     hitTest: { setMoving: vi.fn() },
     getStageConfig: () => avatarFixture().stage,
+    getMotionKind: () => undefined,
     register: (teardown) => teardowns.push(teardown),
   });
   await vi.waitFor(() => expect(onStage).toBeTypeOf("function"));

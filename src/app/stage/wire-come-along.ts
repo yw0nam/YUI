@@ -2,6 +2,7 @@
 import { createComeAlong } from "../../ambient/come-along/come-along";
 import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
 import type { StageConfig } from "../../config/validators/avatar/types";
+import type { MotionKind } from "../../contract";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { lastBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { HitTestController } from "../../io/window/pet/hit-test";
@@ -44,6 +45,7 @@ export function wireComeAlong(deps: {
   renderer: Renderer;
   hitTest: Pick<HitTestController, "setMoving">;
   getStageConfig: () => StageConfig;
+  getMotionKind: (id: string) => MotionKind | undefined;
   register: (teardown: () => void) => void;
 }): void {
   if (!isTauri()) return;
@@ -64,6 +66,7 @@ export function wireComeAlong(deps: {
     stage: deps.getStageConfig,
     lastEmotion: (decayMs) => lastBackendEmotion(Date.now(), decayMs),
     random: Math.random,
+    getMotionKind: deps.getMotionKind,
   });
   const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });
   void (async () => {
