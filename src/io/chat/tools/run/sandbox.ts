@@ -5,11 +5,11 @@
 
 import releaseSync from "@jitl/quickjs-wasmfile-release-sync";
 import {
-  memoizePromiseFactory,
   newQuickJSWASMModuleFromVariant,
   newVariant,
   type QuickJSDeferredPromise,
   type QuickJSHandle,
+  type QuickJSWASMModule,
 } from "quickjs-emscripten-core";
 
 export type RunResult =
@@ -42,14 +42,18 @@ const DEFAULT_LIMITS = {
 
 const NEVER_SETTLES = "the script awaited something that never settles";
 
+const OUT_OF_MEMORY = "InternalError: out of memory";
+// A wasm heap never shrinks, so a module whose heap grew past this is dropped after the run.
+const DISCARD_HEAP_BYTES = 48 * 1024 * 1024;
+
+let quickJS: Promise<QuickJSWASMModule> | undefined;
 // The wasm heap is capped at 64 MiB: setMemoryLimit bounds only a single allocation in this build.
-const loadQuickJS = memoizePromiseFactory(() =>
-  newQuickJSWASMModuleFromVariant(
+const loadQuickJS = () =>
+  (quickJS ??= newQuickJSWASMModuleFromVariant(
     newVariant(releaseSync, {
       wasmMemory: new WebAssembly.Memory({ initial: 256, maximum: 1024 }),
     }),
-  ),
-);
+  ));
 
 export async function runScript(
   code: string,
@@ -58,7 +62,8 @@ export async function runScript(
   limits: RunLimits = {},
 ): Promise<RunResult> {
   const { cpuMs, memoryBytes, stackBytes, outputBytes } = { ...DEFAULT_LIMITS, ...limits };
-  const QuickJS = await loadQuickJS();
+  const loading = loadQuickJS();
+  const QuickJS = await loading;
   const logs: string[] = [];
   if (signal.aborted) return { status: "error", error: "stopped", logs };
 
@@ -119,6 +124,10 @@ export async function runScript(
       jsonParse.dispose();
       context.dispose();
       runtime.dispose();
+      const full =
+        ("error" in outcome && outcome.error === OUT_OF_MEMORY) ||
+        QuickJS.getWasmMemory().buffer.byteLength > DISCARD_HEAP_BYTES;
+      if (full && quickJS === loading) quickJS = undefined;
       finish(
         "error" in outcome
           ? { status: "error", error: outcome.error, logs }
