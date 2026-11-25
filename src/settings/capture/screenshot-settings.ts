@@ -20,13 +20,27 @@ const DEFAULT_SETTINGS: ScreenshotSettings = {
   source: { kind: "monitor", index: 0 },
 };
 
+function isScreenSource(v: unknown): v is ScreenSource {
+  if (v === null || typeof v !== "object") return false;
+  const s = v as Record<string, unknown>;
+  switch (s.kind) {
+    case "monitor":
+      return typeof s.index === "number" && Number.isInteger(s.index) && s.index >= 0;
+    case "browser_tab":
+      return typeof s.browser === "string" && typeof s.tab_title === "string";
+    case "window":
+      return typeof s.app === "string" && typeof s.window_title === "string";
+    default:
+      return false;
+  }
+}
+
 function isValidSettings(v: unknown): v is ScreenshotSettings {
   if (v === null || typeof v !== "object") return false;
   const s = v as Record<string, unknown>;
   if (typeof s.enabled !== "boolean") return false;
   if (s.allowRequests !== undefined && typeof s.allowRequests !== "boolean") return false;
-  if (s.source === null || typeof s.source !== "object") return false;
-  return true;
+  return isScreenSource(s.source);
 }
 
 export function createScreenshotSettings(opts?: { storage?: ScreenshotStorage }) {
