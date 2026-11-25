@@ -335,11 +335,7 @@ describe("wireLocomotion", () => {
 
     await s.locomotion.widen(via);
 
-    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith(
-      { x: 300, y: 517 },
-      via,
-      undefined,
-    );
+    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 300, y: 517 }, via);
   });
 
   it("widens to an end frame by parking the travel frame over it at its size", async () => {

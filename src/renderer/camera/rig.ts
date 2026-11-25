@@ -39,6 +39,8 @@ export interface CameraRig {
   /** Stores the view window; the caller runs its resize to apply it. */
   setViewWindow(next: ViewWindow | null): void;
   viewWindow(): ViewWindow | null;
+  /** A copy of the camera fit to a window of `aspect`, with no view offset; null with nothing to fit. */
+  cameraAt(aspect: number): THREE.PerspectiveCamera | null;
   setZoom(z: number): void;
   setOrbit(angles: OrbitAngles): void;
 }
@@ -65,24 +67,39 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
   // True while effectivePolar is still easing toward its target (keeps frames uncapped).
   let orbitConverging = false;
 
-  /** Reframe the camera to the current model box; no-op when no model is loaded. */
-  function fitCamera(): void {
+  /** Reframes `cam` to the current model box at its aspect; false when no model is loaded. */
+  function fitInto(cam: THREE.PerspectiveCamera): boolean {
     const modelBox = getModelBox();
-    if (!modelBox || !framing) return;
+    if (!modelBox || !framing) return false;
     const fit = computeCameraFit(modelBox, {
       fov: framing.fov,
-      aspect: camera.aspect,
+      aspect: cam.aspect,
       margin: framing.margin,
     });
-    if (!fit) return;
+    if (!fit) return false;
     const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
-    camera.fov = framing.fov;
+    cam.fov = framing.fov;
     // Orbit composes with the radius: orbit sets direction, zoom sets the radius d.
     // effectivePolar is the eased polar (free, or perched-clamped).
     const pos = orbitPosition(fit.target, d, { azimuth, polar: effectivePolar });
-    camera.position.copy(pos);
-    camera.lookAt(fit.target);
-    camera.updateProjectionMatrix();
+    cam.position.copy(pos);
+    cam.lookAt(fit.target);
+    cam.updateProjectionMatrix();
+    return true;
+  }
+
+  /** Reframe the camera to the current model box; no-op when no model is loaded. */
+  function fitCamera(): void {
+    fitInto(camera);
+  }
+
+  function cameraAt(aspect: number): THREE.PerspectiveCamera | null {
+    const cam = camera.clone();
+    cam.aspect = aspect;
+    cam.clearViewOffset();
+    if (!fitInto(cam)) return null;
+    cam.updateMatrixWorld();
+    return cam;
   }
 
   /** Target polar the camera should settle at: tightened to the perched band while perched. */
@@ -166,7 +183,7 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     setFraming,
     setViewWindow,
     viewWindow: () => view,
-    cameraAt: () => null,
+    cameraAt,
     setZoom,
     setOrbit,
   };

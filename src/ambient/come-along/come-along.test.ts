@@ -206,7 +206,6 @@ function harness(
     dock,
     setFramePhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
-    pageHeight: () => real.height,
     refitTo,
     reducedMotion: () => reduced,
     stage: () => ({

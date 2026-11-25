@@ -63,7 +63,6 @@ export function wireComeAlong(deps: {
     dock: { attach: attachDock, detach: detachDock },
     setFramePhysical: setPetFramePhysical,
     followsInPhysicalPx: isWindows(),
-    pageHeight: () => window.innerHeight,
     refitTo: waitRefit,
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,

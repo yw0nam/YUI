@@ -121,7 +121,6 @@ function cycle(at = { x: -48, y: 860 }) {
     dock: { attach: async () => true, detach: async () => {} },
     setFramePhysical: async () => {},
     followsInPhysicalPx: false,
-    pageHeight: () => frame.height,
     refitTo: async () => {},
     reducedMotion: () => false,
     stage: () => avatarFixture().stage,

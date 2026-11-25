@@ -85,6 +85,7 @@ export interface ComeAlongDeps {
     | "setMotionMirror"
     | "getPerchProbe"
     | "getCharacterAnchor"
+    | "getFrameFit"
     | "vanish"
     | "appear"
     | "land"
@@ -96,8 +97,6 @@ export interface ComeAlongDeps {
   setFramePhysical(x: number, y: number, width: number, height: number): Promise<void>;
   /** Follows a settings window she is not linked to in its physical px (Windows), else in logical points. */
   followsInPhysicalPx: boolean;
-  /** Her page's height now, which the renderer's feet anchor and probe are measured in. */
-  pageHeight(): number;
   /** Settles once her page is `width` × `height` and the renderer has refit to it. */
   refitTo(width: number, height: number): Promise<void>;
   reducedMotion(): boolean;
@@ -185,19 +184,16 @@ export function createComeAlong(deps: ComeAlongDeps): {
     };
   }
 
-  /** How far down her height her feet stand, else 1; she is drawn to her window's height. */
-  function feetShare(): number {
-    const page = deps.pageHeight();
-    const feet = renderer.getCharacterAnchor()?.y;
-    return feet === undefined || page <= 0 ? 1 : feet / page;
-  }
+  /** How far down a window of `size` her feet stand at the fit she has there, else its bottom. */
+  const feetShare = (size: Size): number =>
+    renderer.getFrameFit(size.width, size.height)?.feetShare ?? 1;
 
   /** Sets her window's frame `f` in one call. */
   const writeFrame = (win: FrameWindow, f: Frame): Promise<void> =>
     win.setFrameLogical(f.x, f.y, f.width, f.height);
 
-  /** How much taller her window `to` draws her than her page does now. */
-  const heightScale = (to: Frame): number => to.height / deps.pageHeight();
+  /** How much larger her window `to` draws her than she is drawn now. */
+  const drawnScale = (to: Frame): number => renderer.getFrameFit(to.width, to.height)?.scale ?? 1;
 
   /** Shows her canvas again when a vanish left it invisible. */
   function show(): void {
@@ -242,7 +238,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const distance = Math.hypot(to.x - from.x, to.y - from.y);
       const win = locomotion.frame.frameWindow();
       if (distance < 1) {
-        pin.arm(to.width, heightScale(to));
+        pin.arm(to.width, drawnScale(to));
         return writeFrame(win, to);
       }
       const stage = deps.stage();
@@ -268,9 +264,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
       hidden = true;
       await renderer.vanish();
       if (id !== move) return;
-      // Measured at her height before the frame changes.
-      pin.arm(to.width, heightScale(to));
+      pin.arm(to.width, drawnScale(to));
       await writeFrame(win, to);
+      // Her feet are read from the renderer's fit to the new frame.
+      await deps.refitTo(to.width, to.height);
       if (id !== move) return;
       hidden = false;
       const feet = renderer.getCharacterAnchor();
@@ -418,7 +415,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (id !== move) return;
     const { at, size } = await read();
     if (id !== move) return;
-    const target = dockFrame(rect, feetShare());
+    const target = dockFrame(rect, feetShare(rect));
     let entry: { family: string; clip: string } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
@@ -470,8 +467,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       ? await Promise.all([win.outerPosition(), win.outerSize()])
       : [at, size];
     if (!docked) return;
-    const target = dockFrame(rect, feetShare());
-    pin.reaim(target.width, heightScale(target));
+    const target = dockFrame(rect, feetShare(rect));
+    pin.reaim(target.width, drawnScale(target));
     const k = px ? rect.scale : 1;
     const to = {
       x: Math.round(target.x * k),
@@ -507,7 +504,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     log.info("come_along_home_gone", { spot });
     return {
       x: Math.round(clampToWorkArea(spot.x, 0, spot.width, 0, work.x, 0, work.width, 0).x),
-      y: Math.round(floorPx(nearest) - feetShare() * spot.height),
+      y: Math.round(floorPx(nearest) - feetShare(spot) * spot.height),
       width: spot.width,
       height: spot.height,
     };

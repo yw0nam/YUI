@@ -315,11 +315,11 @@ export function wireLocomotion(deps: {
       const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
       // Without an end she ends where she starts: the travel only parks the window over the via origins.
       const start = { x: pos.x / scale, y: pos.y / scale };
-      return travelFrame.travel.begin(
-        end ?? start,
-        via,
-        end && { width: end.width, height: end.height },
-      );
+      if (!end) return travelFrame.travel.begin(start, via);
+      return travelFrame.travel.begin({ x: end.x, y: end.y }, via, {
+        width: end.width,
+        height: end.height,
+      });
     },
     frame: {
       frameWindow: travelFrame.frameWindow,

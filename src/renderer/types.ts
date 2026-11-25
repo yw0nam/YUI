@@ -126,6 +126,11 @@ export interface Renderer {
    */
   getCharacterAnchor(): ScreenAnchor | null;
   /**
+   * In a `width` × `height` window, with the framing she would have there: how far down its
+   * height her feet stand (0 to 1), and how much larger than now she is drawn. null if VRM not loaded.
+   */
+  getFrameFit(width: number, height: number): { feetShare: number; scale: number } | null;
+  /**
    * How wide the character stands on screen (px), measured across the model box at the
    * feet. The box is captured at load, so this is her rest-pose width rather than the
    * live silhouette. null if the VRM is not loaded — a jump sizes the gap it will clear
