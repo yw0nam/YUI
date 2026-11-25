@@ -57,7 +57,7 @@ it.each([
     "screen.prev_dwell_label",
     300_000,
     70_000,
-    "Counts as an app switch after (5 min → 1.2 min)",
+    "Counts as an app switch after (5 min → 1 min)",
   ],
   [
     "privacy.screen_watch.settle_ms",
@@ -99,7 +99,7 @@ it.each([
     "screenshot.source_label",
     null,
     1,
-    "Screen to send (None → Display 2)",
+    "Screen to send (A window or tab → Display 2)",
   ],
 ])("prints %s, labelled %s, from %j to %j as the settings window shows it", (path, labelKey, from, to, line) => {
   const el = render(settingsRequestPrompt("Rin", [{ path, labelKey, from, to }]));
