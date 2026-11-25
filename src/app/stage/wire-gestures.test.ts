@@ -92,6 +92,7 @@ describe("wireStageGestures", () => {
         noteUserDragEnd: vi.fn(() => order.push("noteUserDragEnd")),
       },
       abortTravel: vi.fn(() => travelAbort),
+      keepsGeometry: vi.fn(() => false),
     };
     const hitTest = {
       suspend: vi.fn(() => order.push("suspend")),
@@ -195,6 +196,16 @@ describe("wireStageGestures", () => {
 
     expect(s.cameraSettings.setAzimuth).toHaveBeenCalledWith(0.2 + 20 * CAMERA_ORBIT_SENSITIVITY);
     expect(s.cameraSettings.setPolar).toHaveBeenCalledWith(1.4 - -10 * CAMERA_ORBIT_SENSITIVITY);
+  });
+
+  it("leaves her stored orbit alone while a hold keeps her geometry, as on the settings stage", async () => {
+    const s = await setup();
+    s.locomotion.keepsGeometry.mockReturnValue(true);
+
+    s.dragOpts.onOrbit!({ dx: 20, dy: -10 });
+
+    expect(s.cameraSettings.setAzimuth).not.toHaveBeenCalled();
+    expect(s.cameraSettings.setPolar).not.toHaveBeenCalled();
   });
 
   it("registers initDrag's disposer", async () => {

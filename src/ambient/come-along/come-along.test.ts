@@ -1243,6 +1243,37 @@ describe("createComeAlong", () => {
     expect(h.setStageFraming).toHaveBeenLastCalledWith(0);
   });
 
+  it("gives her own framing back only once her desktop size has landed", async () => {
+    const h = await docked({ size: { width: 300, height: 450 } });
+    await h.abort("drag");
+    const write = deferred<void>();
+    h.frameWindow.setFrameLogical.mockImplementationOnce(async () => write.promise);
+
+    const restored = h.comeAlong.restoreSize();
+    await vi.waitFor(() => expect(h.frameWindow.setFrameLogical).toHaveBeenCalled());
+    await flush();
+    expect(h.setStageFraming).toHaveBeenLastCalledWith(1);
+    write.resolve();
+    await restored;
+
+    expect(h.setStageFraming).toHaveBeenLastCalledWith(0);
+    expect(h.setStageFraming.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      h.refitTo.mock.invocationCallOrder.at(-1)!,
+    );
+  });
+
+  it("gives her own framing back when her window cannot be read as a mover takes her off the stage", async () => {
+    const h = await docked({ size: { width: 300, height: 450 } });
+    await h.abort("drag");
+    h.frameWindow.outerPosition = async () => {
+      throw new Error("window gone");
+    };
+
+    await h.comeAlong.restoreSize();
+
+    expect(h.setStageFraming).toHaveBeenLastCalledWith(0);
+  });
+
   it("eases her framing from where it was when a new carry takes over a carry home", async () => {
     const h = await docked();
     void h.comeAlong.onStage(null);
