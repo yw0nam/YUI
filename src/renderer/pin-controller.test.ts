@@ -9,12 +9,18 @@ import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../logger";
+import type { ViewWindow } from "./camera/view-window";
 import { createGrounding } from "./motion/grounding/grounding";
 import { createPinController, type PinController } from "./pin-controller";
 
 /** One frame of the pins, then the grounding's scene-Y write at grounding weight 0. */
-function stepPins(pins: PinController, camera: THREE.PerspectiveCamera, scene: THREE.Object3D) {
-  pins.step(camera);
+function stepPins(
+  pins: PinController,
+  camera: THREE.PerspectiveCamera,
+  scene: THREE.Object3D,
+  dt = 0.016,
+) {
+  pins.step(camera, dt);
   createGrounding({
     groundedWeight: () => 0,
     perchOffsetY: () => pins.perchOffsetY(),
@@ -22,7 +28,7 @@ function stepPins(pins: PinController, camera: THREE.PerspectiveCamera, scene: T
   }).step({ vrm: { scene } as unknown as VRM, dt: 0, elapsed: 0 });
 }
 
-function createFixture() {
+function createFixture(view: ViewWindow | null = null) {
   const hips = new THREE.Object3D();
   const scene = new THREE.Object3D();
   scene.add(hips);
@@ -45,7 +51,7 @@ function createFixture() {
   camera.updateMatrixWorld();
   const mountWidth = vi.fn(() => 100);
   const mountHeight = vi.fn(() => 100);
-  const pins = createPinController({ log, mountWidth, mountHeight });
+  const pins = createPinController({ log, mountWidth, mountHeight, viewWindow: () => view });
   pins.onVrmLoaded(vrm);
   scene.updateWorldMatrix(true, true);
   return { camera, hips, log, mountHeight, mountWidth, pins, scene, vrm };
@@ -189,6 +195,61 @@ describe("createPinController — stepping", () => {
     pins.setPeekTarget({ targetXpx: 90 });
     pins.step(camera);
     expect(log.error).toHaveBeenCalledWith("step_peek", { error: "Error: read failed" });
+  });
+});
+
+// Hips at the origin project to x 50 of the 100-px view; 40 px at depth 5 under a 30° fov is
+// 40 × 2·5·tan 15° / 100 = 1.0718 world units.
+const PIN_90PX = 1.0718;
+
+describe("createPinController — stage peek pin", () => {
+  it("eases the converged offset in over easeMs", () => {
+    const { camera, pins, scene } = createFixture();
+    pins.setPeekTarget({ targetXpx: 90, easeMs: 200, holdsPosture: false });
+
+    for (let i = 0; i < 10; i += 1) stepPins(pins, camera, scene, 0.01);
+    expect(scene.position.x).toBeCloseTo(PIN_90PX / 2, 2);
+    for (let i = 0; i < 10; i += 1) stepPins(pins, camera, scene, 0.01);
+    expect(scene.position.x).toBeCloseTo(PIN_90PX, 3);
+  });
+
+  it("eases a cleared pin back to the centre over release.easeMs, and snaps without one", () => {
+    const { camera, pins, scene } = createFixture();
+    pins.setPeekTarget({ targetXpx: 90, holdsPosture: false });
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
+
+    pins.setPeekTarget(null, { easeMs: 200 });
+    for (let i = 0; i < 10; i += 1) stepPins(pins, camera, scene, 0.01);
+    expect(scene.position.x).toBeCloseTo(PIN_90PX / 2, 3);
+    for (let i = 0; i < 10; i += 1) stepPins(pins, camera, scene, 0.01);
+    expect(scene.position.x).toBe(0);
+
+    pins.setPeekTarget({ targetXpx: 90, holdsPosture: false });
+    for (let i = 0; i < 20; i += 1) stepPins(pins, camera, scene);
+    pins.setPeekTarget(null);
+    expect(scene.position.x).toBe(0);
+  });
+
+  it("pins her window's px inside a travel's view window", () => {
+    // A 100-px view drawn at x 300 of a 400 × 100 canvas, as a travel parks it.
+    const view = { x: 300, y: 0, width: 100, height: 100 };
+    const { camera, mountWidth, pins, scene } = createFixture(view);
+    mountWidth.mockReturnValue(400);
+    camera.setViewOffset(100, 100, -300, 0, 400, 100);
+    camera.updateProjectionMatrix();
+    pins.setPeekTarget({ targetXpx: 90, holdsPosture: false });
+
+    for (let i = 0; i < 30; i += 1) stepPins(pins, camera, scene);
+
+    expect(scene.position.x).toBeCloseTo(PIN_90PX, 3);
+  });
+
+  it("holds no posture: it is not peeking, and setting or clearing it changes no posture", () => {
+    const { pins } = createFixture();
+
+    expect(pins.setPeekTarget({ targetXpx: 90, holdsPosture: false })).toBe(false);
+    expect(pins.isPeeking()).toBe(false);
+    expect(pins.setPeekTarget(null)).toBe(false);
   });
 });
 
