@@ -28,7 +28,7 @@ export interface ContextProviders {
   getRelations?: () => ClientContext["relations"];
   /** The other open presets' names, read once per turn. */
   getOpenCharacters?: () => string[];
-  /** The Threads waiting for the user's answer, read once per turn. */
+  /** The waiting Threads, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
 }
 

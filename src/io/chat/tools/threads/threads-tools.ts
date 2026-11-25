@@ -27,7 +27,7 @@ export function createThreadsTools(client: Pick<ThreadsClient, "threads">): Clie
       function: {
         name: "threads_list",
         description:
-          "List the user's Threads or read one Thread by id. Threads are outside conversations a producer posted. Each row names the id, source, title, label, state and last update, with the open ask and the last entry under it.",
+          "List the user's Threads or read one Thread by id. Threads are outside conversations a producer posted. Each row names the id, source, title, label, state and last update, with the last entry under it.",
         parameters: {
           type: "object" as const,
           properties: {
@@ -35,7 +35,7 @@ export function createThreadsTools(client: Pick<ThreadsClient, "threads">): Clie
               type: "string",
               enum: ["waiting", "all"],
               description:
-                '"waiting" (default) lists only Threads that wait for the user\'s answer; "all" lists every Thread.',
+                '"waiting" (default) lists only Threads waiting for the user; "all" lists every Thread.',
             },
             source: {
               type: "string",

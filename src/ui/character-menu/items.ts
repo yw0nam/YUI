@@ -31,7 +31,7 @@ export interface MenuState {
   voices: readonly { id: string; label: string }[];
   voice: string;
   pace: BasePace;
-  /** Threads waiting for the user's answer. */
+  /** The waiting Threads. */
   waiting: number;
 }
 

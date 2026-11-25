@@ -25,8 +25,6 @@ const COMMANDS: &[&str] = &[
     "sync_preset_ids",
     "avatar_rpc_response",
     "threads_snapshot",
-    "thread_answer",
-    "thread_seen",
     "thread_read",
     "append_turn_record",
     "set_frame_logical",

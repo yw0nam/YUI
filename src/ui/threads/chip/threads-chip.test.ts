@@ -55,11 +55,7 @@ it("hides at zero waiting and shows the count otherwise", () => {
 
 it("counts a waiting Thread until it is marked read", () => {
   const { chip, button } = build();
-  const waiting: Thread = {
-    ...thread("a", "codex", 1),
-    ask: { ask_id: "a1", prompt: "Next?", choices: [], text: true },
-    seen_ask_id: "a1",
-  };
+  const waiting = thread("a", "codex", 1);
 
   chip.update([waiting]);
   expect(button().hidden).toBe(false);

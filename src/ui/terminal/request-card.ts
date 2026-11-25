@@ -5,6 +5,7 @@
  */
 
 import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
+import "../ask/answer-area.css";
 import "./request-card.css";
 import type { AccessRequest, Terminal } from "../../contract";
 import { createLogger } from "../../logger";

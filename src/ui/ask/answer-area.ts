@@ -1,6 +1,6 @@
 /**
- * The answer area pinned at the thread pane's foot: the ask's prompt, numbered choices that toggle,
- * a one-line field that grows, and a send button named after what it sends.
+ * The answer area of an Ask card: the ask's prompt, numbered choices that toggle, a one-line field
+ * that grows, and a send button named after what it sends.
  */
 
 import "./answer-area.css";

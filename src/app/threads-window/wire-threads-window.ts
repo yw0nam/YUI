@@ -1,4 +1,4 @@
-/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
+/** Wires the Threads window: the store's snapshots into the view, the view's read marks to the store, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
@@ -69,11 +69,6 @@ export async function wireThreadsWindow(deps: {
   const view = createThreadsView({
     mount: deps.app,
     now: Date.now,
-    onAnswer: client.answer,
-    onSeen: (id, askId) =>
-      void client
-        .seen(id, askId)
-        .catch((error) => log.warn("thread_seen_failed", { error: String(error) })),
     onRead: (id) =>
       void client
         .read(id)

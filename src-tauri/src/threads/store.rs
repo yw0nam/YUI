@@ -1,11 +1,7 @@
-use super::model::{
-    Answer, AnswerInput, AskUpdate, DeliveredAnswer, Entry, Role, Thread, ThreadState, Upsert,
-    TEXT_MAX_CHARS,
-};
+use super::model::{Entry, Thread, ThreadState, Upsert};
 use serde::Serialize;
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Condvar, Mutex, PoisonError};
-use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::sync::{Mutex, PoisonError};
 
 const ENTRY_LIMIT: usize = 50;
 const THREAD_LIMIT: usize = 200;
@@ -17,17 +13,8 @@ pub struct ThreadsSnapshot {
     pub threads: Vec<Thread>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum WaitOutcome {
-    Answer(Answer),
-    NoAnswer,
-    Gone,
-    Unknown,
-}
-
 struct State {
     threads: HashMap<String, Thread>,
-    pending: VecDeque<(String, Answer)>,
     revision: u64,
     disk: DiskSink,
 }
@@ -52,7 +39,6 @@ impl State {
                 >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
         });
         self.cap_threads(Some(id));
-        self.pending.retain(|(id, _)| self.threads.contains_key(id));
         self.record(id)
     }
 
@@ -88,10 +74,7 @@ impl State {
 
 pub struct ThreadStore {
     state: Mutex<State>,
-    changed: Condvar,
     emit: Box<dyn Fn(&ThreadsSnapshot) + Send + Sync>,
-    #[cfg(test)]
-    wait_started: Mutex<Option<std::sync::Arc<std::sync::Barrier>>>,
 }
 
 impl ThreadStore {
@@ -102,17 +85,13 @@ impl ThreadStore {
     ) -> Self {
         let mut state = State {
             threads: threads.into_iter().map(|t| (t.id.clone(), t)).collect(),
-            pending: VecDeque::new(),
             revision: 0,
             disk,
         };
         state.cap_threads(None);
         Self {
             state: Mutex::new(state),
-            changed: Condvar::new(),
             emit: Box::new(emit),
-            #[cfg(test)]
-            wait_started: Mutex::new(None),
         }
     }
 
@@ -126,11 +105,8 @@ impl ThreadStore {
                 label: None,
                 state: ThreadState::Working,
                 entries: vec![],
-                ask: None,
                 created_at: now,
                 updated_at: now,
-                answered_ask_ids: Default::default(),
-                seen_ask_id: None,
                 read: false,
                 entry_count: 0,
             });
@@ -149,142 +125,10 @@ impl ThreadStore {
                     at: now,
                 }));
             cap_entries(thread);
-            match body.ask {
-                AskUpdate::Keep => {}
-                AskUpdate::Close => thread.ask = None,
-                AskUpdate::Set(ask) => {
-                    thread.ask = (!thread.answered_ask_ids.contains(&ask.ask_id)).then_some(ask);
-                }
-            }
-            if thread.state != ThreadState::InputRequired {
-                thread.ask = None;
-            }
             state.changed(id, now)
         };
-        self.changed.notify_all();
         (self.emit)(&snapshot);
         now
-    }
-
-    pub fn answer(&self, id: &str, mut answer: AnswerInput, now: u64) -> Result<(), &'static str> {
-        let snapshot = {
-            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
-            let ask = thread.ask.as_ref().ok_or("ask is not open")?;
-            if ask.ask_id != answer.ask_id {
-                return Err("ask_id does not match open ask");
-            }
-            if ask.multiple && answer.choice.is_some() {
-                return Err("multi-select Ask does not accept choice");
-            }
-            if let Some(ids) = &answer.choices {
-                if !ask.multiple {
-                    return Err("single-select Ask does not accept choices");
-                }
-                if ids.is_empty() {
-                    return Err("choices must be non-empty");
-                }
-                let mut unique = std::collections::HashSet::new();
-                for id in ids {
-                    if !unique.insert(id) {
-                        return Err("choices must be distinct");
-                    }
-                    if !ask.choices.iter().any(|choice| &choice.id == id) {
-                        return Err("a choice is not among the ask choices");
-                    }
-                }
-                answer.choices = Some(
-                    ask.choices
-                        .iter()
-                        .filter(|choice| ids.contains(&choice.id))
-                        .map(|choice| choice.id.clone())
-                        .collect(),
-                );
-            }
-            let choice = answer
-                .choice
-                .as_ref()
-                .map(|id| {
-                    ask.choices
-                        .iter()
-                        .find(|c| &c.id == id)
-                        .ok_or("a choice is not among the ask choices")
-                })
-                .transpose()?;
-            if answer.choice.is_none()
-                && answer.choices.is_none()
-                && answer.text.as_ref().is_none_or(|t| t.is_empty())
-                && answer.release != Some(true)
-            {
-                return Err("answer requires a choice, non-empty text, or release");
-            }
-            if answer.text.is_some() && !ask.text {
-                return Err("ask does not accept text");
-            }
-            if answer
-                .text
-                .as_ref()
-                .is_some_and(|t| t.chars().count() > TEXT_MAX_CHARS)
-            {
-                return Err("answer text exceeds 16384 characters");
-            }
-            let text = ask
-                .choices
-                .iter()
-                .filter(|c| {
-                    choice == Some(*c)
-                        || answer
-                            .choices
-                            .as_ref()
-                            .is_some_and(|ids| ids.contains(&c.id))
-                })
-                .map(|c| c.label.as_str())
-                .chain(answer.text.as_deref().filter(|s| !s.is_empty()))
-                .collect::<Vec<_>>()
-                .join("\n");
-            if !text.is_empty() {
-                thread.entries.push(Entry {
-                    role: Role::User,
-                    text,
-                    at: now,
-                });
-                thread.entry_count += 1;
-            }
-            cap_entries(thread);
-            thread.ask = None;
-            thread.state = ThreadState::Working;
-            thread.updated_at = now;
-            thread.answered_ask_ids.insert(answer.ask_id.clone());
-            state.pending.push_back((
-                id.into(),
-                Answer {
-                    input: answer,
-                    at: now,
-                },
-            ));
-            state.changed(id, now)
-        };
-        self.changed.notify_all();
-        (self.emit)(&snapshot);
-        Ok(())
-    }
-
-    pub fn seen(&self, id: &str, ask_id: &str) -> Result<(), &'static str> {
-        let snapshot = {
-            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
-            let ask = thread.ask.as_ref().ok_or("ask is not open")?;
-            if ask.ask_id != ask_id {
-                return Err("ask_id does not match open ask");
-            }
-            if thread.seen_ask_id.as_deref() == Some(ask_id) {
-                return Ok(());
-            }
-            thread.seen_ask_id = Some(ask_id.into());
-            state.record(id)
-        };
-        (self.emit)(&snapshot);
-        Ok(())
     }
 
     pub fn read(&self, id: &str) -> Result<(), &'static str> {
@@ -299,71 +143,6 @@ impl ThreadStore {
         };
         (self.emit)(&snapshot);
         Ok(())
-    }
-
-    pub fn wait_answer(&self, id: &str, ask_id: Option<&str>, timeout: Duration) -> WaitOutcome {
-        let deadline = Instant::now() + timeout;
-        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        loop {
-            let Some(thread) = state.threads.get(id) else {
-                return WaitOutcome::Unknown;
-            };
-            let open = thread
-                .ask
-                .as_ref()
-                .is_some_and(|a| Some(a.ask_id.as_str()) == ask_id);
-            let pending = state.pending.iter().position(|(thread_id, answer)| {
-                thread_id == id && ask_id.is_none_or(|ask| answer.input.ask_id == ask)
-            });
-            if let Some(index) = pending {
-                return WaitOutcome::Answer(
-                    state
-                        .pending
-                        .remove(index)
-                        .expect("pending answer exists")
-                        .1,
-                );
-            }
-            if ask_id.is_some() && !open {
-                return WaitOutcome::Gone;
-            }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                return WaitOutcome::NoAnswer;
-            }
-            #[cfg(test)]
-            if let Some(start) = self
-                .wait_started
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .take()
-            {
-                start.wait();
-            }
-            state = self
-                .changed
-                .wait_timeout(state, remaining)
-                .unwrap_or_else(PoisonError::into_inner)
-                .0;
-        }
-    }
-
-    pub fn drain_answers(&self, source: &str) -> Vec<DeliveredAnswer> {
-        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        let State {
-            threads, pending, ..
-        } = &mut *state;
-        let (drained, kept): (Vec<_>, Vec<_>) =
-            std::mem::take(pending).into_iter().partition(|(id, _)| {
-                threads
-                    .get(id)
-                    .is_some_and(|thread| thread.source == source)
-            });
-        *pending = kept.into();
-        drained
-            .into_iter()
-            .map(|(thread_id, answer)| DeliveredAnswer { thread_id, answer })
-            .collect()
     }
 
     pub fn snapshot(&self) -> ThreadsSnapshot {
@@ -382,9 +161,8 @@ fn cap_entries(thread: &mut Thread) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::threads::model::{tests::body, AskUpdate, InputEntry, Role, ThreadState};
-    use std::sync::{Arc, Barrier, Mutex};
-    use std::time::Instant;
+    use crate::threads::model::{tests::body, InputEntry, Role, ThreadState};
+    use std::sync::{Arc, Mutex};
 
     fn input() -> Upsert {
         Upsert {
@@ -393,23 +171,10 @@ mod tests {
             label: None,
             state: ThreadState::InputRequired,
             entries: vec![],
-            ask: AskUpdate::Set(serde_json::from_value(body()["ask"].clone()).unwrap()),
         }
     }
     fn store() -> ThreadStore {
         ThreadStore::new(vec![], Box::new(|_| Ok(())), |_| {})
-    }
-    fn answer() -> AnswerInput {
-        AnswerInput {
-            ask_id: "a".into(),
-            choice: Some("yes".into()),
-            choices: None,
-            text: Some("Please".into()),
-            release: None,
-        }
-    }
-    fn poll(s: &ThreadStore, ask: &str) -> WaitOutcome {
-        s.wait_answer("t", Some(ask), Duration::ZERO)
     }
 
     #[test]
@@ -422,12 +187,6 @@ mod tests {
         }
         let snapshot = s.snapshot();
         assert_eq!(snapshot.threads.len(), 200);
-        for i in 0..5 {
-            assert_eq!(
-                s.wait_answer(&format!("t{i:03}"), None, Duration::ZERO),
-                WaitOutcome::Unknown
-            );
-        }
         assert_eq!(snapshot.threads.last().unwrap().id, "t005");
     }
 
@@ -487,204 +246,6 @@ mod tests {
     }
 
     #[test]
-    fn count_eviction_wakes_waiter_as_unknown() {
-        let s = Arc::new(store());
-        for i in 0..200 {
-            let mut body = input();
-            body.state = ThreadState::Completed;
-            s.upsert(&format!("t{i:03}"), body, i);
-        }
-        let other = s.clone();
-        let start = Arc::new(Barrier::new(2));
-        *s.wait_started.lock().unwrap() = Some(start.clone());
-        let waiter =
-            std::thread::spawn(move || other.wait_answer("t000", None, Duration::from_secs(2)));
-        start.wait();
-        let elapsed = Instant::now();
-        s.upsert("fresh", input(), 200);
-        assert_eq!(waiter.join().unwrap(), WaitOutcome::Unknown);
-        assert!(
-            elapsed.elapsed() < Duration::from_secs(2),
-            "eviction wakes before the 2 s deadline"
-        );
-    }
-
-    #[test]
-    fn multiple_answers_keep_ids_and_join_labels_in_ask_order() {
-        let s = store();
-        let mut value = body();
-        value["ask"]["multiple"] = serde_json::json!(true);
-        value["ask"]["choices"] = serde_json::json!([
-            {"id":"yes","label":"Allow"}, {"id":"no","label":"Deny"}
-        ]);
-        s.upsert(
-            "t",
-            super::super::model::parse_upsert(&value.to_string()).unwrap(),
-            1,
-        );
-        let a: AnswerInput = serde_json::from_value(serde_json::json!({
-            "ask_id":"a", "choices":["no","yes"], "text":"why"
-        }))
-        .unwrap();
-        assert_eq!(s.answer("t", a, 2), Ok(()));
-        assert_eq!(
-            s.snapshot().threads[0].entries.last().unwrap().text,
-            "Allow\nDeny\nwhy"
-        );
-        let WaitOutcome::Answer(answer) = poll(&s, "a") else {
-            panic!("pending answer");
-        };
-        assert_eq!(
-            serde_json::to_value(answer).unwrap(),
-            serde_json::json!({
-                "ask_id":"a", "choices":["yes","no"], "text":"why", "at":2
-            })
-        );
-    }
-
-    #[test]
-    fn invalid_multiple_answers_leave_the_ask_open() {
-        for (payload, error) in [
-            (
-                serde_json::json!({"choice":"yes"}),
-                "multi-select Ask does not accept choice",
-            ),
-            (
-                serde_json::json!({"choices":[]}),
-                "choices must be non-empty",
-            ),
-            (
-                serde_json::json!({"choices":["yes","yes"]}),
-                "choices must be distinct",
-            ),
-            (
-                serde_json::json!({"choices":["unknown"]}),
-                "a choice is not among the ask choices",
-            ),
-        ] {
-            let s = store();
-            let mut value = body();
-            value["ask"]["multiple"] = serde_json::json!(true);
-            s.upsert(
-                "t",
-                super::super::model::parse_upsert(&value.to_string()).unwrap(),
-                1,
-            );
-            let mut payload = payload;
-            payload["ask_id"] = serde_json::json!("a");
-            payload["text"] = serde_json::json!("why");
-            let result = s.answer("t", serde_json::from_value(payload).unwrap(), 2);
-            assert_eq!(result, Err(error));
-            assert_eq!(s.snapshot().threads[0].ask.as_ref().unwrap().ask_id, "a");
-        }
-    }
-
-    #[test]
-    fn any_ask_delivers_oldest_pending_once_and_never_gone() {
-        let s = store();
-        assert_eq!(
-            s.wait_answer("t", None, Duration::ZERO),
-            WaitOutcome::Unknown
-        );
-        s.upsert("t", input(), 1);
-        assert_eq!(
-            s.wait_answer("t", None, Duration::ZERO),
-            WaitOutcome::NoAnswer
-        );
-        s.answer("t", answer(), 2).unwrap();
-        let mut next = input();
-        if let AskUpdate::Set(ref mut ask) = next.ask {
-            ask.ask_id = "b".into();
-        }
-        s.upsert("t", next, 3);
-        let mut b = answer();
-        b.ask_id = "b".into();
-        s.answer("t", b.clone(), 4).unwrap();
-        for (input, at) in [(answer(), 2), (b, 4)] {
-            assert_eq!(
-                s.wait_answer("t", None, Duration::ZERO),
-                WaitOutcome::Answer(Answer { input, at })
-            );
-        }
-        assert_eq!(
-            s.wait_answer("t", None, Duration::ZERO),
-            WaitOutcome::NoAnswer
-        );
-    }
-
-    #[test]
-    fn sweep_delivers_only_the_named_source_once() {
-        let s = store();
-        let mut github = input();
-        github.source = "github".into();
-        s.upsert("t", input(), 1);
-        s.upsert("pr1", github.clone(), 2);
-        s.upsert("pr2", github, 3);
-        s.answer("t", answer(), 4).unwrap();
-        s.answer("pr1", answer(), 5).unwrap();
-        s.answer("pr2", answer(), 6).unwrap();
-        assert_eq!(
-            s.drain_answers("github"),
-            vec![
-                DeliveredAnswer {
-                    thread_id: "pr1".into(),
-                    answer: Answer {
-                        input: answer(),
-                        at: 5
-                    },
-                },
-                DeliveredAnswer {
-                    thread_id: "pr2".into(),
-                    answer: Answer {
-                        input: answer(),
-                        at: 6
-                    },
-                },
-            ]
-        );
-        assert_eq!(s.drain_answers("github"), Vec::new());
-        assert_eq!(
-            s.drain_answers("codex"),
-            vec![DeliveredAnswer {
-                thread_id: "t".into(),
-                answer: Answer {
-                    input: answer(),
-                    at: 4
-                },
-            }]
-        );
-    }
-
-    #[test]
-    fn sweep_and_long_poll_deliver_each_answer_once() {
-        let s = store();
-        s.upsert("t", input(), 1);
-        s.answer("t", answer(), 2).unwrap();
-        assert_eq!(
-            s.drain_answers("codex"),
-            vec![DeliveredAnswer {
-                thread_id: "t".into(),
-                answer: Answer {
-                    input: answer(),
-                    at: 2
-                },
-            }]
-        );
-        assert_eq!(
-            s.wait_answer("t", None, Duration::ZERO),
-            WaitOutcome::NoAnswer
-        );
-        let s = store();
-        s.upsert("t", input(), 1);
-        s.answer("t", answer(), 2).unwrap();
-        assert!(matches!(
-            s.wait_answer("t", None, Duration::ZERO),
-            WaitOutcome::Answer(_)
-        ));
-        assert_eq!(s.drain_answers("codex"), Vec::new());
-    }
-
-    #[test]
     fn entries_append_stamp_and_cap() {
         let s = store();
         for batch in 0..3 {
@@ -705,176 +266,6 @@ mod tests {
         assert_eq!(t.entries[0].text, "10");
         assert_eq!(t.entries[49].at, 102);
         assert_eq!(t.entry_count, 60);
-        s.answer("t", answer(), 103).unwrap();
-        assert_eq!(s.snapshot().threads[0].entry_count, 61);
-    }
-
-    #[test]
-    fn ask_replace_keep_null_and_state_close() {
-        let s = store();
-        s.upsert("t", input(), 1);
-        let mut keep = input();
-        keep.ask = AskUpdate::Keep;
-        s.upsert("t", keep, 2);
-        assert_eq!(poll(&s, "a"), WaitOutcome::NoAnswer);
-        let mut b = input();
-        if let AskUpdate::Set(ref mut a) = b.ask {
-            a.ask_id = "b".into();
-        }
-        s.upsert("t", b, 3);
-        assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
-        assert_eq!(poll(&s, "b"), WaitOutcome::NoAnswer);
-        let mut b = input();
-        b.ask = AskUpdate::Close;
-        s.upsert("t", b, 4);
-        assert_eq!(poll(&s, "b"), WaitOutcome::Gone);
-        for state in [
-            ThreadState::Working,
-            ThreadState::Completed,
-            ThreadState::Failed,
-        ] {
-            s.upsert("t", input(), 5);
-            let mut b = input();
-            b.state = state;
-            s.upsert("t", b, 6);
-            assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
-        }
-    }
-
-    #[test]
-    fn validates_answers_without_mutating() {
-        for (case, message) in [
-            ("unknown", "unknown thread"),
-            ("closed", "ask is not open"),
-            ("mismatch", "ask_id does not match open ask"),
-            ("choice", "a choice is not among the ask choices"),
-            ("choices", "single-select Ask does not accept choices"),
-            (
-                "empty",
-                "answer requires a choice, non-empty text, or release",
-            ),
-            ("text-disabled", "ask does not accept text"),
-            ("long", "answer text exceeds 16384 characters"),
-        ] {
-            let s = store();
-            if case != "unknown" {
-                s.upsert("t", input(), 1);
-            }
-            if case == "closed" {
-                let mut b = input();
-                b.state = ThreadState::Working;
-                s.upsert("t", b, 2);
-            }
-            if case == "text-disabled" {
-                let mut b = input();
-                if let AskUpdate::Set(ref mut a) = b.ask {
-                    a.text = false;
-                }
-                s.upsert("t", b, 2);
-            }
-            let mut a = answer();
-            match case {
-                "mismatch" => a.ask_id = "b".into(),
-                "choice" => a.choice = Some("no".into()),
-                "choices" => {
-                    a = serde_json::from_value(serde_json::json!({
-                        "ask_id":"a", "choice":"yes", "choices":["yes"], "text":"Please"
-                    }))
-                    .unwrap()
-                }
-                "empty" => {
-                    a.choice = None;
-                    a.text = Some("".into());
-                    a.release = Some(false);
-                }
-                "long" => a.text = Some("x".repeat(16385)),
-                _ => {}
-            }
-            let before = s.snapshot();
-            assert_eq!(s.answer("t", a, 3), Err(message), "{case}");
-            assert_eq!(s.snapshot(), before);
-        }
-    }
-
-    #[test]
-    fn delivers_once_keeps_pending_and_records_user_entry() {
-        let s = store();
-        s.upsert("t", input(), 1);
-        assert_eq!(s.answer("t", answer(), 2), Ok(()));
-        let t = s.snapshot().threads.remove(0);
-        assert_eq!(t.state, ThreadState::Working);
-        assert_eq!(t.ask, None);
-        assert_eq!(t.entries[0].text, "Allow\nPlease");
-        assert_eq!(t.entries[0].role, Role::User);
-        assert_eq!(t.entries[0].at, 2);
-        let mut same = input();
-        same.state = ThreadState::Completed;
-        s.upsert("t", same, 3);
-        let expected = Answer {
-            input: answer(),
-            at: 2,
-        };
-        assert_eq!(poll(&s, "a"), WaitOutcome::Answer(expected));
-        assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
-        let mut next = input();
-        if let AskUpdate::Set(ref mut ask) = next.ask {
-            ask.ask_id = "b".into();
-        }
-        s.upsert("t", next, 4);
-        let a = AnswerInput {
-            ask_id: "b".into(),
-            choice: None,
-            choices: None,
-            text: None,
-            release: Some(true),
-        };
-        assert_eq!(s.answer("t", a, 5), Ok(()));
-        assert_eq!(s.snapshot().threads[0].entries.len(), 1);
-        assert!(matches!(
-            poll(&s, "b"),
-            WaitOutcome::Answer(Answer {
-                input: AnswerInput {
-                    release: Some(true),
-                    ..
-                },
-                ..
-            })
-        ));
-    }
-
-    #[test]
-    fn waiter_wakes_on_answer() {
-        let s = Arc::new(store());
-        s.upsert("t", input(), 1);
-        let other = s.clone();
-        let start = Arc::new(Barrier::new(2));
-        *s.wait_started.lock().unwrap() = Some(start.clone());
-        let worker =
-            std::thread::spawn(move || other.wait_answer("t", Some("a"), Duration::from_secs(2)));
-        start.wait();
-        let elapsed = Instant::now();
-        assert_eq!(s.answer("t", answer(), 2), Ok(()));
-        let expected = Answer {
-            input: answer(),
-            at: 2,
-        };
-        assert_eq!(worker.join().unwrap(), WaitOutcome::Answer(expected));
-        assert!(
-            elapsed.elapsed() < Duration::from_millis(500),
-            "answer wakes before the 2 s deadline"
-        );
-    }
-
-    #[test]
-    fn open_ask_times_out_at_deadline() {
-        let s = store();
-        s.upsert("t", input(), 1);
-        let start = Instant::now();
-        assert_eq!(
-            s.wait_answer("t", Some("a"), Duration::from_millis(30)),
-            WaitOutcome::NoAnswer
-        );
-        assert!(start.elapsed() >= Duration::from_millis(30));
     }
 
     #[test]
@@ -897,7 +288,7 @@ mod tests {
         );
         s.upsert("old", input(), 1);
         s.upsert("new", input(), 2);
-        assert_eq!(s.answer("old", answer(), 3), Ok(()));
+        s.upsert("old", input(), 3);
         assert_eq!(
             seen.lock()
                 .unwrap()
@@ -917,16 +308,9 @@ mod tests {
     }
 
     #[test]
-    fn expiry_removes_threads_and_wakes_waiters() {
-        let s = Arc::new(store());
+    fn expiry_removes_threads() {
+        let s = store();
         s.upsert("t", input(), 1);
-        let other = s.clone();
-        let start = Arc::new(Barrier::new(2));
-        *s.wait_started.lock().unwrap() = Some(start.clone());
-        let waiter =
-            std::thread::spawn(move || other.wait_answer("t", Some("a"), Duration::from_secs(2)));
-        start.wait();
-        let elapsed = Instant::now();
         s.upsert("fresh", input(), 1_209_600_002);
         assert_eq!(
             s.snapshot()
@@ -936,108 +320,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["fresh"]
         );
-        assert_eq!(waiter.join().unwrap(), WaitOutcome::Unknown);
-        assert!(
-            elapsed.elapsed() < Duration::from_millis(500),
-            "expiry wakes before the 2 s deadline"
-        );
-    }
-
-    #[test]
-    fn answered_ask_stays_closed_pending_delivered_and_replayed() {
-        for delivered in [false, true] {
-            let s = store();
-            s.upsert("t", input(), 1);
-            s.answer("t", answer(), 2).unwrap();
-            if delivered {
-                assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
-            }
-            s.upsert("t", input(), 3);
-            assert_eq!(
-                s.snapshot().threads[0].ask,
-                None,
-                "answered ask stays closed (delivered={delivered})"
-            );
-            if !delivered {
-                assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
-            }
-            assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
-            let saved = serde_json::to_string(&s.snapshot().threads).unwrap();
-            let restored = ThreadStore::new(
-                serde_json::from_str(&saved).unwrap(),
-                Box::new(|_| Ok(())),
-                |_| {},
-            );
-            restored.upsert("t", input(), 4);
-            assert_eq!(
-                restored.snapshot().threads[0].ask,
-                None,
-                "answered ask stays closed after replay"
-            );
-            let mut next = input();
-            if let AskUpdate::Set(ref mut a) = next.ask {
-                a.ask_id = "b".into();
-            }
-            restored.upsert("t", next, 5);
-            assert_eq!(poll(&restored, "b"), WaitOutcome::NoAnswer);
-        }
-    }
-
-    #[test]
-    fn seen_records_the_open_ask_in_place_and_survives_a_restart() {
-        let saved = Arc::new(Mutex::new(vec![]));
-        let sink = saved.clone();
-        let s = ThreadStore::new(
-            vec![],
-            Box::new(move |t| {
-                sink.lock().unwrap().push(t.clone());
-                Ok(())
-            }),
-            |_| {},
-        );
-        s.upsert("t", input(), 1);
-        assert_eq!(s.seen("t", "a"), Ok(()));
-        let snap = s.snapshot();
-        assert_eq!(snap.revision, 2);
-        assert_eq!(snap.threads[0].seen_ask_id.as_deref(), Some("a"));
-        assert_eq!(snap.threads[0].updated_at, 1);
-        assert_eq!(
-            saved.lock().unwrap().last().unwrap().seen_ask_id.as_deref(),
-            Some("a")
-        );
-        assert_eq!(s.seen("t", "a"), Ok(()));
-        assert_eq!(s.snapshot().revision, 2);
-        assert_eq!(s.seen("t", "zz"), Err("ask_id does not match open ask"));
-        assert_eq!(s.seen("nope", "a"), Err("unknown thread"));
-        let mut idle = input();
-        idle.state = ThreadState::Working;
-        s.upsert("w", idle, 3);
-        assert_eq!(s.seen("w", "a"), Err("ask is not open"));
-
-        let restored = ThreadStore::new(
-            serde_json::from_str(&serde_json::to_string(&s.snapshot().threads).unwrap()).unwrap(),
-            Box::new(|_| Ok(())),
-            |_| {},
-        );
-        let t = restored
-            .snapshot()
-            .threads
-            .into_iter()
-            .find(|t| t.id == "t");
-        assert_eq!(t.unwrap().seen_ask_id.as_deref(), Some("a"));
-        let mut next = input();
-        if let AskUpdate::Set(ref mut a) = next.ask {
-            a.ask_id = "a2".into();
-        }
-        restored.upsert("t", next, 4);
-        let t = restored
-            .snapshot()
-            .threads
-            .into_iter()
-            .find(|t| t.id == "t")
-            .unwrap();
-        assert_eq!(t.seen_ask_id.as_deref(), Some("a"));
-        assert_eq!(t.ask.unwrap().ask_id, "a2");
     }
 
     #[test]
@@ -1074,7 +356,7 @@ mod tests {
     }
 
     #[test]
-    fn poisoned_store_still_accepts_changes_and_answers() {
+    fn poisoned_store_still_accepts_changes() {
         let s = store();
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _guard = s.state.lock().unwrap();
@@ -1082,12 +364,8 @@ mod tests {
         }));
         assert_eq!(s.upsert("t", input(), 1), 1);
         assert_eq!(s.snapshot().revision, 1);
-        assert_eq!(
-            s.wait_answer("t", Some("a"), Duration::from_millis(1)),
-            WaitOutcome::NoAnswer
-        );
-        assert_eq!(s.answer("t", answer(), 2), Ok(()));
-        assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
+        assert_eq!(s.read("t"), Ok(()));
+        assert_eq!(s.snapshot().revision, 2);
     }
 
     #[test]

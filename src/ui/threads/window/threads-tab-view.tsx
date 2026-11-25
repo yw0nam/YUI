@@ -56,7 +56,6 @@ export function ThreadsTabView({
         thread={drawn.current}
         opened={state.opened}
         now={state.now}
-        answers={tab.answers}
         onRead={onRead}
         onBack={onBack}
       />

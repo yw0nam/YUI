@@ -52,7 +52,7 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
             if matches!(target, Target::Preset(_)) {
                 return Err(404);
             }
-            RouteKind::Thread(thread_routes::parse(method, path, url, body)?)
+            RouteKind::Thread(thread_routes::parse(method, path, body)?)
         }
         "/signals" => RouteKind::Signals(parse_signals_request(method, &path, body)?),
         "/avatar/state" | "/avatar/perch-targets" | "/avatar/command" | "/relations" => {
@@ -137,20 +137,7 @@ mod tests {
             ("PUT", "/threads/한", 404),
             ("PUT", "/threads/a/b", 404),
             ("PUT", "/presets/x/threads/a", 404),
-            ("PUT", "/threads/answers", 404),
             ("POST", "/threads/a", 405),
-            ("POST", "/threads/a/answer?ask_id=q", 405),
-            ("POST", "/threads/answers?source=x", 405),
-            ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
-            ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
-            ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
-            ("GET", "/threads/answers", 400),
-            ("GET", "/threads/answers?source=", 400),
-            (
-                "GET",
-                &format!("/threads/answers?source={}", "x".repeat(65)),
-                400,
-            ),
         ] {
             assert_eq!(
                 parse_route(method, path, "{}").unwrap_err(),
@@ -163,34 +150,15 @@ mod tests {
             404
         );
         let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
-        // The expected id is the sweep's source on the answers route.
-        for (method, path, expected_id, expected_wait) in [
-            ("PUT", "/threads/a_Z-0.:9", "a_Z-0.:9", None),
-            ("GET", "/threads/a/answer?ask_id=q", "a", Some(25)),
-            ("GET", "/threads/a/answer?ask_id=q&wait=0", "a", Some(0)),
-            ("GET", "/threads/a/answer?ask_id=q&wait=25", "a", Some(25)),
-            ("GET", "/threads/a/answer?wait=0", "a", Some(0)),
-            ("GET", "/threads/answers?source=github", "github", None),
-        ] {
-            let route = parse_route(method, path, body).unwrap();
-            assert!(matches!(route.target, Target::Main));
-            match route.kind {
-                RouteKind::Thread(ThreadRoute::Upsert { id, body }) => {
-                    assert_eq!(id, expected_id);
-                    assert_eq!(expected_wait, None);
-                    assert_eq!(body.source, "codex");
-                    assert_eq!(body.title, "Build");
-                    assert_eq!(body.state, crate::threads::model::ThreadState::Working);
-                }
-                RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
-                    assert_eq!(id, expected_id);
-                    assert_eq!(ask_id.as_deref(), path.contains("ask_id").then_some("q"));
-                    assert_eq!(Some(wait.as_secs()), expected_wait);
-                }
-                RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, expected_id),
-                _ => panic!("Thread route expected: {method} {path}"),
-            }
-        }
+        let route = parse_route("PUT", "/threads/a_Z-0.:9", body).unwrap();
+        assert!(matches!(route.target, Target::Main));
+        let RouteKind::Thread(ThreadRoute::Upsert { id, body }) = route.kind else {
+            panic!("Thread route expected");
+        };
+        assert_eq!(id, "a_Z-0.:9");
+        assert_eq!(body.source, "codex");
+        assert_eq!(body.title, "Build");
+        assert_eq!(body.state, crate::threads::model::ThreadState::Working);
     }
 
     #[test]

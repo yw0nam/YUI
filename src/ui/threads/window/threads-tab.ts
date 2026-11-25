@@ -5,11 +5,10 @@
  */
 
 import { flushSync } from "react-dom";
-import type { AskAnswer, Thread, ThreadsSnapshot } from "../../../contract";
+import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
 import type { TabShell, TabView } from "./tab-body";
-import { createThreadAnswers, type ThreadAnswers } from "./thread-answers";
 import {
   nextWaiting,
   openSelection,
@@ -42,9 +41,8 @@ export interface ThreadsTabFocus {
 export interface ThreadsTab extends TabView {
   current(): ThreadsTabState;
   subscribe(cb: () => void): () => void;
-  answers: ThreadAnswers;
   update(snapshot: ThreadsSnapshot): void;
-  /** An open starts on the Waiting filter and the Thread it shows, or on `thread` and the filter that holds it once a snapshot has it; never reported seen. */
+  /** An open starts on the Waiting filter and the Thread it shows, or on `thread` and the filter that holds it once a snapshot has it. */
   reset(thread?: string): void;
   select(id: string): void;
   setFilter(filter: ThreadFilter): void;
@@ -56,10 +54,6 @@ export function createThreadsTab(deps: {
   shell: Pick<TabShell, "selected" | "focusSelected" | "headChanged">;
   focus: ThreadsTabFocus;
   now(): number;
-  /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: AskAnswer): Promise<void>;
-  /** The user picked a Thread whose open ask has not been reported seen. */
-  onSeen(id: string, askId: string): void;
 }): ThreadsTab {
   const { shell, focus } = deps;
   const subscribers = new Set<() => void>();
@@ -70,7 +64,6 @@ export function createThreadsTab(deps: {
   // The Thread an open asked for and the snapshot does not hold yet.
   let wanted: string | null = null;
   let state: ThreadsTabState;
-  const answers = createThreadAnswers({ onAnswer: deps.onAnswer, changed: render });
 
   function applyWanted(): boolean {
     const asked = threads.find((th) => th.id === wanted);
@@ -105,11 +98,9 @@ export function createThreadsTab(deps: {
       subscribers.add(cb);
       return () => subscribers.delete(cb);
     },
-    answers,
     update(snapshot) {
       const before = threads.find((th) => th.id === selected);
       threads = snapshot.threads;
-      answers.prune(threads);
       const marked = before && !before.read && threads.find((th) => th.id === selected)?.read;
       const hadFocus = marked && focus.inPane();
       if (!applyWanted() && marked && selected)
@@ -129,9 +120,6 @@ export function createThreadsTab(deps: {
     select(id) {
       wanted = null;
       selected = id;
-      const picked = threads.find((th) => th.id === id);
-      if (picked?.ask && picked.seen_ask_id !== picked.ask.ask_id)
-        deps.onSeen(id, picked.ask.ask_id);
       const listHid = shell.selected();
       render();
       if (listHid) focus.heading();
@@ -158,8 +146,6 @@ export function createThreadsTab(deps: {
       render();
       shell.focusSelected();
     },
-    pick: answers.pick,
-    focusField: answers.focusField,
     shown: render,
   };
 }

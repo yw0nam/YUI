@@ -5,7 +5,7 @@ import type { ThreadsTab } from "../../io/bridge/settings-bridge";
 import { resetConversation } from "../../io/chat/conversation/reset-conversation";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { ThreadsClient } from "../../io/threads/threads-client";
-import { isUnseenWaiting } from "../../io/threads/threads-waiting";
+import { isWaiting } from "../../io/threads/threads-waiting";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";
 import { createLogger } from "../../logger";
 import { effectiveChatApi } from "../../settings/backend/endpoints-settings";
@@ -96,7 +96,7 @@ export function createCharacterMenuPorts(deps: {
       voices: options(speaker.speakerSelection),
       voice: speaker.speakerSelection.getActiveId(),
       pace: stores.basePaceSettings.get().pace,
-      waiting: deps.threads?.threads().filter(isUnseenWaiting).length ?? 0,
+      waiting: deps.threads?.threads().filter(isWaiting).length ?? 0,
     }),
     actions: {
       talk: (open) => (open ? surfaces.summonInput() : surfaces.dismissInput()),

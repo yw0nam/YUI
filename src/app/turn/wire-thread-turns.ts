@@ -1,9 +1,9 @@
-/** Main only: each Threads snapshot runs through Thread turns; every group it returns goes to the signals source, and a closed ask's buffered group is withdrawn. A null client wires nothing. */
+/** Main only: each Threads snapshot runs through Thread turns; every group it returns goes to the signals source, and the buffered input-required group of a Thread that left input-required is withdrawn. A null client wires nothing. */
 
 import type { SignalGroup, ThreadsSnapshot } from "../../contract";
 import {
   createThreadTurns,
-  THREAD_ASK,
+  THREAD_INPUT_REQUIRED,
   threadEventId,
 } from "../../dispatcher/sources/threads/thread-turns";
 import type { ThreadsClient } from "../../io/threads/threads-client";
@@ -21,7 +21,7 @@ export function wireThreadTurns(deps: {
   const feed = (snapshot: ThreadsSnapshot): void => {
     const { groups, closed } = turns.next(snapshot, deps.level());
     for (const group of groups) deps.offer(group);
-    for (const id of closed) deps.withdraw(threadEventId(id), THREAD_ASK);
+    for (const id of closed) deps.withdraw(threadEventId(id), THREAD_INPUT_REQUIRED);
   };
   const current = threads.snapshot();
   if (current) feed(current);

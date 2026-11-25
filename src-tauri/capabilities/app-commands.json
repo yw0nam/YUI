@@ -42,8 +42,6 @@
     "allow-window-dock-attach",
     "allow-window-dock-detach",
     "allow-threads-snapshot",
-    "allow-thread-answer",
-    "allow-thread-seen",
     "allow-thread-read",
     "allow-terminal-snapshot",
     "allow-terminal-open",

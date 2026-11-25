@@ -184,7 +184,6 @@ mod tests {
             "only canonical files' unexpired Threads replay"
         );
         assert_eq!(loaded[1].title, "Latest");
-        assert_eq!(loaded[1].ask.as_ref().unwrap().ask_id, "a");
         fs::remove_dir_all(dir).unwrap();
     }
 }
