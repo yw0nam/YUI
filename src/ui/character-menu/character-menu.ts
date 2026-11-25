@@ -450,7 +450,7 @@ export function createCharacterMenu(deps: {
     const measured = measure(items);
     const most = (keys: readonly ColumnKey[]): number =>
       Math.max(...keys.map((key) => items[key].length));
-    pending = (async () => {
+    const opening = (async () => {
       let placed: MenuPlacement;
       try {
         placed = await deps.place({
@@ -478,7 +478,9 @@ export function createCharacterMenu(deps: {
       enter([...root.querySelectorAll(".yui-cmenu__col, .yui-cmenu__name")], "is-out");
       focusId("talk");
     })();
-    await pending;
+    // open() rejects when the menu cannot be placed; close() waiting on it never does.
+    pending = opening.catch(() => {});
+    await opening;
   }
 
   /** Closes at once, ending any exit still running, and restores the window. */
