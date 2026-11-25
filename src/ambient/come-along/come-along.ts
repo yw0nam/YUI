@@ -1,7 +1,9 @@
 /**
  * come-along — one settings window's session on its pet window. On the window's first stage slot
- * she leaves her spot, walks onto the slot and docks: as a native child where the shell links one,
- * else by following each later slot herself. A null slot or the close sends her home.
+ * she leaves her spot, travels onto the slot and docks: as a native child where the shell links one,
+ * else by following each later slot herself. A null slot or the close sends her home. She walks on
+ * her own monitor, vanishes and lands across monitors or over a long way, and fades under reduced
+ * motion.
  *
  * Whoever moves her owns her: a drag or an agent move ends the session where she is dropped, and
  * the window's later slots are ignored until it minimises or closes; a drag or agent command
@@ -57,7 +59,14 @@ export interface ComeAlongDeps {
   };
   renderer: Pick<
     Renderer,
-    "onTick" | "playMotion" | "getCurrentMotion" | "setBodyYaw" | "getCharacterAnchor"
+    | "onTick"
+    | "playMotion"
+    | "getCurrentMotion"
+    | "setBodyYaw"
+    | "getCharacterAnchor"
+    | "vanish"
+    | "appear"
+    | "land"
   >;
   hitTest: { setMoving(moving: boolean): void };
   /** Links her window into the settings window; resolves whether a native link is in effect. */
@@ -87,6 +96,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
   // Each move gets a new id; a move owns her while `move` is still its id.
   let move = 0;
   let stopTick: (() => void) | null = null;
+  // A vanish left her canvas invisible, and no land or appear has shown her since.
+  let hidden = false;
 
   /** Stops whatever move runs and returns the id of the one that takes over. */
   const takeOver = (): number => {
@@ -131,22 +142,73 @@ export function createComeAlong(deps: ComeAlongDeps): {
     y: Math.round(rect.y + rect.height - (renderer.getCharacterAnchor()?.y ?? size.height)),
   });
 
-  /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
+  /** Shows her canvas again when a vanish left it invisible. */
+  function show(): void {
+    if (!hidden) return;
+    hidden = false;
+    void renderer.appear();
+  }
+
+  /** Moves her window to `to`: a walk, else a vanish across monitors or a long way, else a fade. */
   async function walk(id: number, to: Point): Promise<void> {
-    const { at: from } = await read();
+    try {
+      await travelTo(id, to);
+    } finally {
+      // Only the move that still owns her shows her canvas and ends her hit-test move.
+      if (id === move) {
+        show();
+        deps.hitTest.setMoving(false);
+      }
+    }
+  }
+
+  async function travelTo(id: number, to: Point): Promise<void> {
+    const [{ at: from, size }, monitors] = await Promise.all([
+      read(),
+      locomotion.frame.listMonitors(),
+    ]);
     if (id !== move) return;
     const distance = Math.hypot(to.x - from.x, to.y - from.y);
-    if (deps.reducedMotion() || distance < 1) {
-      await locomotion.frame.frameWindow().setPositionLogical(to.x, to.y);
-      return;
+    const win = locomotion.frame.frameWindow();
+    if (distance < 1) return win.setPositionLogical(to.x, to.y);
+    const stage = deps.stage();
+    const on = monitorAtLogical(monitors, from.x + size.width / 2, from.y + size.height / 2);
+    const crosses =
+      !on || monitorAtLogical(monitors, to.x + size.width / 2, to.y + size.height / 2) !== on;
+    const reduced = deps.reducedMotion();
+    if (!reduced && !crosses && distance <= stage.walk_full_pt) {
+      return walkOver(
+        id,
+        from,
+        to,
+        stage.walk_ms + stage.walk_extra_ms * (distance / stage.walk_full_pt),
+      );
     }
+    const mode = reduced ? "fade" : "vanish";
+    const startedMs = performance.now();
+    deps.hitTest.setMoving(true);
+    hidden = true;
+    await renderer.vanish();
+    if (id !== move) return;
+    await win.setPositionLogical(to.x, to.y);
+    if (id !== move) return;
+    hidden = false;
+    await (mode === "fade" ? renderer.appear() : renderer.land(renderer.getCharacterAnchor()));
+    log.info("come_along_move", {
+      mode,
+      from,
+      to,
+      ms: Math.round(performance.now() - startedMs),
+    });
+  }
+
+  /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
+  async function walkOver(id: number, from: Point, to: Point, durationMs: number): Promise<void> {
     const travel = await locomotion.widen([to]);
     if (id !== move) {
       await travel.end();
       return;
     }
-    const { walk_ms, walk_extra_ms, walk_full_pt } = deps.stage();
-    const durationMs = walk_ms + walk_extra_ms * Math.min(1, distance / walk_full_pt);
     renderer.playMotion({ id: WALK_MOTION_ID });
     renderer.setBodyYaw(Math.sign(to.x - from.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.hitTest.setMoving(true);
@@ -174,7 +236,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       });
     });
     // Wall time against the curve's time shows a walk the renderer paused (a hidden document).
-    log.info("come_along_walk", {
+    log.info("come_along_move", {
+      mode: "walk",
       from,
       to,
       ms: Math.round(durationMs),
@@ -183,7 +246,6 @@ export function createComeAlong(deps: ComeAlongDeps): {
     });
     if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
-    deps.hitTest.setMoving(false);
     await travel.end();
   }
 
@@ -194,6 +256,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     home = null;
     locomotion.hold("come-along", false);
     deps.hitTest.setMoving(false);
+    show();
   }
 
   /** A drag or an agent move took her: she stays, and this window's session lets her go. */
