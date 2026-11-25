@@ -111,6 +111,37 @@ describe("configs/avatar.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
+  const NECOCOYA_IDS = [
+    "wave",
+    "bow",
+    "excited",
+    "banzai",
+    "peace",
+    "flustered",
+    "startled",
+    "yawn",
+    "gaow",
+    "peek_in",
+    "orz",
+    "shy",
+    "sleep",
+  ];
+
+  it.each(NECOCOYA_IDS)("registers %s off the agent vocabulary", (id) => {
+    expect(m[id], id).toBeDefined();
+    expect(m[id].broker_publish, `${id}.broker_publish`).toBe(false);
+  });
+
+  it.each(NECOCOYA_IDS)("ships %s's clip files under public/", (id) => {
+    expect(m[id], id).toBeDefined();
+    const paths = [m[id].vrma_path, ...(m[id].variants ?? [])];
+    for (const path of paths) {
+      expect(existsSync(resolve(process.cwd(), "public", path.replace(/^\//, ""))), path).toBe(
+        true,
+      );
+    }
+  });
+
   // kind decides whether a finishing oneshot returns to the clip (ambient/state); loop decides
   // whether the player holds the clip until it clears it or waits for the clip to end itself.
   it.each([
