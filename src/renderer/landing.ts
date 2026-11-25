@@ -46,8 +46,9 @@ export function createLanding(
       ),
       new Promise<void>((resolve) => setTimeout(resolve, opts.duration + FLOOR_MS)),
     ]);
+    if (opts.fill === "forwards") return;
     // A newer animation owns the canvas now.
-    if (opts.fill === "forwards" || running !== anim) return;
+    if (running !== anim) return;
     stop();
   }
 
