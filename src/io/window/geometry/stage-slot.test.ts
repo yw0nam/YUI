@@ -7,7 +7,6 @@ const win = vi.hoisted(() => ({
   scaleFactor: vi.fn<() => Promise<number>>(),
   isMinimized: vi.fn<() => Promise<boolean>>(),
   onMoved: vi.fn<(cb: () => void) => Promise<() => void>>(),
-  onResized: vi.fn<(cb: () => void) => Promise<() => void>>(),
 }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => win }));
 
@@ -44,7 +43,6 @@ beforeEach(() => {
     moved = cb;
     return () => {};
   });
-  win.onResized.mockResolvedValue(() => {});
   stage = document.createElement("div");
   stage.style.paddingTop = "600px";
   stage.getBoundingClientRect = () => ({ left: 8, top: 0, width: 400 }) as DOMRect;

@@ -1,15 +1,15 @@
-/* The settings window's stage: a 400px column the full window height, beside the panel. */
+/* The settings window's stage: a column the slot's width and the full window height, beside the panel. */
 .yui-settings-stage {
   display: flex;
-  flex: 0 0 400px;
+  flex: 0 0 var(--yui-stage-slot-w, 400px);
   flex-direction: column;
   box-sizing: border-box;
   /* A long name or state ellipsizes instead of widening the column or spilling into the panel. */
   min-width: 0;
   height: 100%;
   overflow: hidden;
-  /* The top 600px is where her 400 × 600 window docks. */
-  padding-top: 600px;
+  /* The top is the slot her window docks into at its size. */
+  padding-top: var(--yui-stage-slot-h, 600px);
   background: var(--yui-stage-bg);
   color: var(--yui-text);
 }

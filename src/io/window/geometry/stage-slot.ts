@@ -1,6 +1,7 @@
 /**
  * Sends a settings window's stage slot, where her window docks, to its pet window: at boot, on a
- * move, resize or visibility change when it changed, and on every ask; null while minimised.
+ * move, on the stage's layout at a new size, on a visibility change when it changed, and on every
+ * ask; null while minimised.
  */
 
 import { createLogger } from "../../../logger";
@@ -67,8 +68,12 @@ export function sendStageSlot(deps: {
     trySend();
   };
   document.addEventListener("visibilitychange", onVisibility);
+  // After layout, so a window resize never sends the stage's size from before it.
+  const laidOut = new ResizeObserver(trySend);
+  laidOut.observe(stage);
   unlisteners.push(
     () => document.removeEventListener("visibilitychange", onVisibility),
+    () => laidOut.disconnect(),
     deps.onAsk(() => {
       asked = true;
       trySend();
@@ -76,9 +81,9 @@ export function sendStageSlot(deps: {
   );
   void (async () => {
     const win = await current;
-    for (const off of [await win.onMoved(trySend), await win.onResized(trySend)])
-      if (disposed) off();
-      else unlisteners.push(off);
+    const off = await win.onMoved(trySend);
+    if (disposed) off();
+    else unlisteners.push(off);
   })().catch((err) => log.warn("stage_slot_listen_failed", { error: String(err) }));
   trySend();
 

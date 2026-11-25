@@ -6,6 +6,7 @@
  */
 
 import type { AttachedThread, GuideKey, ScreenRect } from "../../contract";
+import { createLogger } from "../../logger";
 import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsFocus, isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
@@ -17,6 +18,8 @@ import { type Channel, type ChannelMethods, createChannelMethods } from "./core/
 import type { MessageControlOp } from "./message/message-bridge";
 import type { MessageSurfaceOp } from "./message/surface-ops";
 import type { ReasoningState } from "./reasoning/reasoning-store";
+
+const log = createLogger("settings-bridge");
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -294,6 +297,12 @@ export const channels = {
       const { x, y, width, height, scale } = (slot ?? {}) as Record<string, unknown>;
       const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
       if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
+      // Its size becomes her window's size.
+      const sane = (v: number): boolean => v >= 100 && v <= 2000;
+      if (!sane(width as number) || !sane(height as number)) {
+        log.warn("settings_stage_slot_dropped", { width, height });
+        return;
+      }
       deliver({ preset, slot: { x, y, width, height, scale } as StageSlot });
     },
   },
