@@ -29,11 +29,6 @@ export function readDocument(stores: SettingsStores): Record<string, unknown> {
 export function applyPatch(stores: SettingsStores, patch: object): PatchResult {
   const document = readDocument(stores);
   const patchLeaves = leaves(patch);
-  // The document the patch asks for, so a row can judge a leaf against its siblings in the same patch.
-  const effective = patchLeaves.reduce<Record<string, unknown>>(
-    (current, leaf) => setIn(current, leaf.keys, leaf.value) as Record<string, unknown>,
-    document,
-  );
   const direct: Record<string, "ok" | `error: ${string}`> = {};
   const allow: SettingsChange[] = [];
 
@@ -55,7 +50,7 @@ export function applyPatch(stores: SettingsStores, patch: object): PatchResult {
       direct[path] = "ok";
       continue;
     }
-    if (!validate(row, stores, leaf.value) || !(row.check?.(effective) ?? true)) {
+    if (!validate(row, stores, leaf.value) || row.check?.(document) === false) {
       direct[path] = `error: invalid ${path}`;
       continue;
     }

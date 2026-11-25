@@ -196,7 +196,9 @@ describe("applyPatch", () => {
     const stores = createSettingsStores();
     stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
 
-    const result = applyPatch(stores, { privacy: { screen_source: { kind: "monitor", index: 1 } } });
+    const result = applyPatch(stores, {
+      privacy: { screen_source: { kind: "monitor", index: 1 } },
+    });
 
     expect(result.direct).toEqual({
       "privacy.screen_source.kind": "error: invalid privacy.screen_source.kind",
