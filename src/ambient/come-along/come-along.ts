@@ -91,7 +91,7 @@ export interface ComeAlongDeps {
 export function createComeAlong(deps: ComeAlongDeps): {
   /** A settings window's stage slot: starts her session or moves her with it; null ends it. */
   onStage(slot: StageSlot | null): Promise<void>;
-  /** The settings window closes or minimises: she walks home. */
+  /** The settings window closes or minimises: she goes home. */
   goHome(): Promise<void>;
   /** Places her on the latest slot again, after her own window was resized or a travel ended. */
   place(): Promise<void>;
@@ -159,9 +159,47 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   /** Moves her window to `to`: a walk, else a vanish across monitors or a long way, else a fade. */
-  async function walk(id: number, to: Point): Promise<void> {
+  async function travel(id: number, to: Point): Promise<void> {
     try {
-      await travelTo(id, to);
+      const [{ at: from, size }, monitors] = await Promise.all([
+        read(),
+        locomotion.frame.listMonitors(),
+      ]);
+      if (id !== move) return;
+      const distance = Math.hypot(to.x - from.x, to.y - from.y);
+      const win = locomotion.frame.frameWindow();
+      if (distance < 1) return win.setPositionLogical(to.x, to.y);
+      const stage = deps.stage();
+      const on = monitorAtLogical(monitors, from.x + size.width / 2, from.y + size.height / 2);
+      const crosses =
+        !on || monitorAtLogical(monitors, to.x + size.width / 2, to.y + size.height / 2) !== on;
+      const reduced = deps.reducedMotion();
+      if (!reduced && !crosses && distance <= stage.walk_full_pt) {
+        // A walk that took over mid-vanish shows her before she sets off.
+        show();
+        return walkOver(
+          id,
+          from,
+          to,
+          stage.walk_ms + stage.walk_extra_ms * (distance / stage.walk_full_pt),
+        );
+      }
+      const mode = reduced ? "fade" : "vanish";
+      const startedMs = performance.now();
+      deps.hitTest.setMoving(true);
+      hidden = true;
+      await renderer.vanish();
+      if (id !== move) return;
+      await win.setPositionLogical(to.x, to.y);
+      if (id !== move) return;
+      hidden = false;
+      await (mode === "fade" ? renderer.appear() : renderer.land(renderer.getCharacterAnchor()));
+      log.info("come_along_move", {
+        mode,
+        from,
+        to,
+        ms: Math.round(performance.now() - startedMs),
+      });
     } finally {
       // Only the move that still owns her shows her canvas and ends her hit-test move.
       if (id === move) {
@@ -171,53 +209,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
   }
 
-  async function travelTo(id: number, to: Point): Promise<void> {
-    const [{ at: from, size }, monitors] = await Promise.all([
-      read(),
-      locomotion.frame.listMonitors(),
-    ]);
-    if (id !== move) return;
-    const distance = Math.hypot(to.x - from.x, to.y - from.y);
-    const win = locomotion.frame.frameWindow();
-    if (distance < 1) return win.setPositionLogical(to.x, to.y);
-    const stage = deps.stage();
-    const on = monitorAtLogical(monitors, from.x + size.width / 2, from.y + size.height / 2);
-    const crosses =
-      !on || monitorAtLogical(monitors, to.x + size.width / 2, to.y + size.height / 2) !== on;
-    const reduced = deps.reducedMotion();
-    if (!reduced && !crosses && distance <= stage.walk_full_pt) {
-      // A walk that took over mid-vanish shows her before she sets off.
-      show();
-      return walkOver(
-        id,
-        from,
-        to,
-        stage.walk_ms + stage.walk_extra_ms * (distance / stage.walk_full_pt),
-      );
-    }
-    const mode = reduced ? "fade" : "vanish";
-    const startedMs = performance.now();
-    deps.hitTest.setMoving(true);
-    hidden = true;
-    await renderer.vanish();
-    if (id !== move) return;
-    await win.setPositionLogical(to.x, to.y);
-    if (id !== move) return;
-    hidden = false;
-    await (mode === "fade" ? renderer.appear() : renderer.land(renderer.getCharacterAnchor()));
-    log.info("come_along_move", {
-      mode,
-      from,
-      to,
-      ms: Math.round(performance.now() - startedMs),
-    });
-  }
-
   /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
   async function walkOver(id: number, from: Point, to: Point, durationMs: number): Promise<void> {
-    const travel = await locomotion.widen([to]);
+    const parked = await locomotion.widen([to]);
     if (id !== move) {
-      await travel.end();
+      await parked.end();
       return;
     }
     renderer.playMotion({ id: WALK_MOTION_ID });
@@ -237,7 +233,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
         elapsedMs += dt * 1000;
         frames += 1;
         const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
-        void travel.win
+        void parked.win
           .setPositionLogical(
             Math.round(from.x + (to.x - from.x) * p),
             Math.round(from.y + (to.y - from.y) * p),
@@ -257,7 +253,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     });
     if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
-    await travel.end();
+    await parked.end();
   }
 
   /** Stops her move and lets her go: no dock, no home, no hold. */
@@ -324,10 +320,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
       home = stored.home;
       await locomotion.frame.frameWindow().setPositionLogical(target.x, target.y);
     } else {
-      // A walk home that this window interrupted keeps the spot she left from.
+      // A trip home that this window interrupted keeps the spot she left from.
       home ??= { ...at, ...size };
       store({ home });
-      await walk(id, target);
+      await travel(id, target);
     }
     if (id !== move) return;
     let native = false;
@@ -415,11 +411,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
       // A start still leaving her spot has no home yet: she lets go where she is.
       const spot = home;
       if (id === move && spot) {
-        await walk(id, await homeOrFloor(spot));
+        await travel(id, await homeOrFloor(spot));
         arrived = id === move;
       }
     } finally {
-      // Whatever ended the walk home lets her go, unless a new move took her over.
+      // Whatever ended the trip home lets her go, unless a new move took her over.
       if (id === move) {
         home = null;
         locomotion.hold("come-along", false);
@@ -430,7 +426,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     await locomotion.drop({ landOnSeam: true });
   }
 
-  /** A failed start or walk home lets her go where she is, and the next slot starts afresh. */
+  /** A failed start or trip home lets her go where she is, and the next slot starts afresh. */
   async function releaseOnFailure(step: Promise<void>): Promise<void> {
     try {
       await step;
