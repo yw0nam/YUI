@@ -836,7 +836,7 @@ describe("createComeAlong", () => {
 
     await h.finish(h.comeAlong.onStage(wideSlot));
 
-    // A neutral pick at 0.5 among plain's clips but peek_in is calm, no edge clip.
+    // plain's last clip, peek_in, is left out, so a neutral pick at 0.5 is calm, no edge clip.
     expect(h.playMotion).toHaveBeenLastCalledWith({ id: "calm" });
     expect([h.real.x, h.real.y]).toEqual([71, -264]);
   });
