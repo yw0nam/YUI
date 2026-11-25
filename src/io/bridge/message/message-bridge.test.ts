@@ -41,7 +41,7 @@ function pair() {
 
 const CONTROL_OPS: MessageControlOp[] = [
   { op: "command", name: "status", args: "" },
-  { op: "submit", text: "hi", images: ["data:image/jpeg;base64,x"] },
+  { op: "submit", text: "hi", images: ["data:image/jpeg;base64,x"], threads: [] },
   { op: "stop" },
   { op: "input-open", open: true },
   { op: "input-error-action" },
@@ -175,10 +175,10 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     remote.onSubmit(onSubmit);
     remote.onStop(onStop);
 
-    message.emitControl({ op: "submit", text: "hi", images: ["data:x"] });
+    message.emitControl({ op: "submit", text: "hi", images: ["data:x"], threads: [] });
     message.emitControl({ op: "stop" });
 
-    expect(onSubmit).toHaveBeenCalledWith("hi", ["data:x"]);
+    expect(onSubmit).toHaveBeenCalledWith("hi", ["data:x"], []);
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 

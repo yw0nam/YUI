@@ -73,6 +73,8 @@ const build = () =>
     onListWidth: () => {},
     resize: { start: () => {}, move: () => {}, end: () => {} },
     onTurnsLevel: () => {},
+    attached: { get: () => [], subscribe: () => () => {} },
+    onAttach: () => {},
   });
 
 it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (theme) => {

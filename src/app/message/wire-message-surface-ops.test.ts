@@ -16,7 +16,8 @@ import {
 } from "../../io/bridge/message/message-remote";
 import type { MessageSurfaceOp, surfaceOps } from "../../io/bridge/message/surface-ops";
 import { focusWindow } from "../../io/window/geometry/companion-column";
-import type { Surfaces } from "../../ui/surfaces/surfaces";
+import { createSurfaces, type Surfaces } from "../../ui/surfaces/surfaces";
+import { noTool } from "../../ui/surfaces/test-helpers";
 import { wireMessageSurfaceOps } from "./wire-message-surface-ops";
 
 const { log } = vi.hoisted(() => ({
@@ -34,6 +35,10 @@ const REPLY = { kind: "settled" as const, name: "status", text: "OK" };
 const QUOTE = { text: "hi", via: "voice" as const, images: 1 };
 const LINES = [{ delivery: "urgent" as const, source: "gh", text: "CI failed" }];
 const IMAGES = ["data:image/jpeg;base64,x"];
+const THREADS = [
+  { id: "gmail:18c2", source: "gmail", title: "Quote reply" },
+  { id: "codex:7", source: "codex", title: "Fix the flaky test" },
+];
 const click = expect.any(Function);
 
 const RECEIVER_METHODS = [
@@ -56,6 +61,7 @@ const RECEIVER_METHODS = [
   "settleQuote",
   "clearQuote",
   "restoreInput",
+  "setThreads",
 ] as const;
 
 /** A copy of `message-bridge.test.ts`'s transport that also records each payload before the copy. */
@@ -283,6 +289,13 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
       received: [["restoreInput", ["hi", IMAGES]]],
     },
   ],
+  threads: [
+    {
+      send: (r) => r.setThreads(THREADS),
+      wire: { op: "threads", threads: THREADS },
+      received: [["setThreads", [THREADS]]],
+    },
+  ],
 };
 
 it.each(
@@ -348,4 +361,40 @@ it.each(["nope", "toString"])("logs an op named %s that has no entry and draws n
     op: JSON.stringify({ op: name }),
   });
   expect(received).toStrictEqual([]);
+});
+
+it("draws main's attached Threads in its popped composer only, sends them with an empty field, and asks to remove one from its ×", () => {
+  const transport = createFakeTransport([]);
+  const windowOf = (preset: string, kind: "pet" | "message") => {
+    history.replaceState(null, "", `/?preset=${preset}`);
+    return createMessageBridge(transport, { windowKind: kind });
+  };
+  const pet = windowOf("main", "pet");
+  const composerOf = (bridge: ReturnType<typeof createMessageBridge>) => {
+    const surfaces = createSurfaces({ tool: noTool, mount: document.createElement("div") });
+    wireMessageSurfaceOps({ bridge, surfaces, name: { set: () => {} } });
+    return surfaces;
+  };
+  const popped = composerOf(windowOf("main", "message"));
+  const bound = composerOf(windowOf("bound", "message"));
+  history.replaceState(null, "", "/");
+  const chips = (surfaces: Surfaces) =>
+    [...surfaces.el.querySelectorAll(".yui-input__thread")].map((chip) => chip.textContent);
+
+  pet.emitSurface({ op: "threads", threads: THREADS });
+
+  expect(chips(popped)).toEqual(["Thread · Quote reply", "Thread · Fix the flaky test"]);
+  expect(chips(bound)).toEqual([]);
+
+  const submitted = vi.fn();
+  const removed = vi.fn();
+  popped.onSubmit(submitted);
+  popped.onThreadRemove(removed);
+  popped.el
+    .querySelector(".yui-input__field")!
+    .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  popped.el.querySelector<HTMLButtonElement>(".yui-input__thread button")!.click();
+
+  expect(submitted).toHaveBeenCalledExactlyOnceWith("", [], THREADS);
+  expect(removed).toHaveBeenCalledExactlyOnceWith(THREADS[0]);
 });

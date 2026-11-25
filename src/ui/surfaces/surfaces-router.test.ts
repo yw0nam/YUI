@@ -57,6 +57,8 @@ function makeLocal(): Surfaces {
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
+    setThreads: vi.fn(),
+    onThreadRemove: vi.fn(),
     setInputAnchor: vi.fn(),
     dispose: vi.fn(),
   };
@@ -84,6 +86,7 @@ function makeRemote(): RemoteSurfaces {
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
+    setThreads: vi.fn(),
     setCommands: vi.fn(),
     showCommandReply: vi.fn(),
     onCommandReplyClose: vi.fn(),
@@ -500,12 +503,12 @@ describe("createSurfacesRouter", () => {
 
     const localSubmit = vi.mocked(local.onSubmit).mock.calls[0][0];
     const remoteSubmit = vi.mocked(remote.onSubmit).mock.calls[0][0];
-    localSubmit("from pet", []);
-    remoteSubmit("from message", ["data:x"]);
+    localSubmit("from pet", [], []);
+    remoteSubmit("from message", ["data:x"], []);
 
     expect(cb).toHaveBeenCalledTimes(2);
-    expect(cb).toHaveBeenNthCalledWith(1, "from pet", []);
-    expect(cb).toHaveBeenNthCalledWith(2, "from message", ["data:x"]);
+    expect(cb).toHaveBeenNthCalledWith(1, "from pet", [], []);
+    expect(cb).toHaveBeenNthCalledWith(2, "from message", ["data:x"], []);
   });
 
   it("fires a stop callback from either side", () => {
@@ -594,7 +597,7 @@ describe("createSurfacesRouter", () => {
       expect(local.quoteUser).not.toHaveBeenCalled();
     });
 
-    it("summons the unified composer, reports it open and shows its errors there", () => {
+    it("summons the unified composer, reports it open, and shows its errors and restores a failed send there", () => {
       setShown(true);
 
       router.summonInput();
@@ -605,10 +608,10 @@ describe("createSurfacesRouter", () => {
       expect(stream.summonInput).toHaveBeenCalledOnce();
       expect(router.isInputOpen()).toBe(true);
       expect(stream.showInputError).toHaveBeenCalledWith("Could not reach the backend", undefined);
-      for (const side of [local, remote, stream]) {
-        expect(side.dismissInput).not.toHaveBeenCalled();
-        expect(side.restoreInput).not.toHaveBeenCalled();
-      }
+      for (const side of [local, remote, stream]) expect(side.dismissInput).not.toHaveBeenCalled();
+      expect(stream.restoreInput).toHaveBeenCalledExactlyOnceWith("hi", []);
+      expect(local.restoreInput).not.toHaveBeenCalled();
+      expect(remote.restoreInput).not.toHaveBeenCalled();
       expect(local.summonInput).not.toHaveBeenCalled();
     });
 
@@ -714,8 +717,8 @@ describe("createSurfacesRouter over the message bridge", () => {
     /** The message window's surfaces and plate, wired to the bridge as its bootstrap does. */
     const mountMessageWindow = () => {
       const surfaces = createSurfaces({ tool: noTool, mount: document.createElement("div") });
-      surfaces.onSubmit((text, images) =>
-        messageBridge.emitControl({ op: "submit", text, images }),
+      surfaces.onSubmit((text, images, threads) =>
+        messageBridge.emitControl({ op: "submit", text, images, threads }),
       );
       const plate = createMessagePlate({
         mount: surfaces.el,
@@ -770,7 +773,7 @@ describe("createSurfacesRouter over the message bridge", () => {
     expect(messageWindow.form.classList.contains("is-running")).toBe(false);
     messageWindow.field.value = "hi";
     messageWindow.form.dispatchEvent(new Event("submit", { cancelable: true }));
-    expect(submitted).toHaveBeenCalledWith("hi", []);
+    expect(submitted).toHaveBeenCalledWith("hi", [], []);
   });
 
   it("shows thinking when the window pops out during a turn started docked", () => {

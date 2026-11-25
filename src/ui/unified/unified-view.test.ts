@@ -300,6 +300,70 @@ describe("unified view — sending", () => {
   });
 });
 
+describe("unified view — attached Threads", () => {
+  const A = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
+  const B = { id: "codex:7", source: "codex", title: "Fix the flaky test" };
+  const HINT =
+    "Attached Threads go to Perlica, the character who can read them. Remove them to pick someone else.";
+  const disabled = () => castRadios().map((r) => (r as HTMLButtonElement).disabled);
+  const hint = () => document.querySelector<HTMLElement>(".yui-uc__threads-hint");
+  const error = () => document.querySelector(".yui-uc__dock .yui-input__error")?.textContent;
+
+  it("while main's Threads are attached, offers only main, refuses a typed @name for anyone else, and sends voice to main; free again once none are", () => {
+    mount();
+    stream("perlica", { op: "threads", threads: [A] });
+
+    expect(disabled()).toEqual([false, true, true]);
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect(hint()?.hidden).toBe(false);
+    expect(hint()?.textContent).toBe(HINT);
+    view.voiceSegment("hello");
+    expect(routed).toEqual([{ sendId: "send-1", to: "perlica", text: "hello", via: "voice" }]);
+    view.turnDone({ sendId: "send-1", preset: "perlica" });
+
+    castRadios()[0]!.focus();
+    castRadios()[0]!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
+    );
+    expect((document.activeElement as HTMLElement).dataset.id).toBe("perlica");
+
+    for (const text of ["@natsume look", "@everyone look", "@all look"]) {
+      type(text);
+      press("Enter");
+      expect(field().value).toBe(text);
+      expect(error()).toBe(HINT);
+    }
+    expect(routed).toHaveLength(1);
+
+    stream("perlica", { op: "threads", threads: [] });
+    expect(disabled()).toEqual([false, false, false]);
+    expect(hint()?.hidden).toBe(true);
+    pick(1);
+    type("look");
+    press("Enter");
+    expect(routed[1]).toMatchObject({ to: "natsume", text: "@Natsume look", mention: "character" });
+  });
+
+  it("shows main's attached Threads as chips and sends them to main with a typed message, or alone", () => {
+    mount();
+    stream("perlica", { op: "threads", threads: [A, B] });
+
+    expect(
+      [...document.querySelectorAll(".yui-uc__dock .yui-input__thread")].map((c) => c.textContent),
+    ).toEqual(["Thread · Quote reply", "Thread · Fix the flaky test"]);
+
+    type("handle these");
+    press("Enter");
+    view.turnDone({ sendId: "send-1", preset: "perlica" });
+    press("Enter");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "handle these", threads: [A, B] },
+      { sendId: "send-2", to: "perlica", text: "", threads: [A, B] },
+    ]);
+  });
+});
+
 describe("unified view — a face that changes", () => {
   const framed = {
     id: "natsume",

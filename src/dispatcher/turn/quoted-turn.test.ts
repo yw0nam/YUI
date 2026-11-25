@@ -123,6 +123,31 @@ describe("createQuotedTurn", () => {
     expect(surfaces.settleQuote).not.toHaveBeenCalled();
   });
 
+  it("names a turn's attached Threads on its quote, and a failure before any utterance puts them back", () => {
+    const restoreThreads = vi.fn();
+    quoted = createQuotedTurn({ surfaces, turnLog, restoreThreads });
+    const threads = [
+      { id: "gmail:18c2", source: "gmail", title: "Quote reply" },
+      { id: "codex:7", source: "codex", title: "Fix the flaky test" },
+    ];
+    const turn = admit({
+      ...userEnv("handle these"),
+      payload: { text: "handle these", threads_attached: threads },
+    });
+
+    expect(surfaces.quoteUser).toHaveBeenCalledWith({
+      text: "handle these",
+      via: "text",
+      images: 0,
+      threads: ["Quote reply", "Fix the flaky test"],
+    });
+
+    quoted.failed(turn);
+
+    expect(surfaces.restoreInput).toHaveBeenCalledWith("handle these", []);
+    expect(restoreThreads).toHaveBeenCalledExactlyOnceWith(threads);
+  });
+
   it("a guide turn that fails before any utterance clears the quote and restores nothing", () => {
     const turn = admit({
       ...userEnv("YUI 조작법 알려줘"),

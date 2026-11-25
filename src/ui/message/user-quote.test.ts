@@ -88,6 +88,24 @@ describe("user quote — the user's message on the bubble's first line", () => {
     expect(quoteText().textContent).toBe(`look (${t("bubble.quote_attached", { count: 1 })})`);
   });
 
+  it("names the attached Threads as chips after the text, and a later quote without them shows none", () => {
+    build();
+    const chips = () =>
+      [...quote().querySelectorAll(".yui-bubble__quote-thread")].map((c) => c.textContent);
+
+    s.quoteUser({
+      text: "handle these",
+      via: "text",
+      images: 0,
+      threads: ["Quote reply", "Fix the flaky test"],
+    });
+    expect(quoteText().textContent).toBe("handle these");
+    expect(chips()).toEqual(["Thread · Quote reply", "Thread · Fix the flaky test"]);
+
+    s.quoteUser({ text: "thanks", via: "text", images: 0 });
+    expect(chips()).toEqual([]);
+  });
+
   it("the reply streams under the quote", () => {
     build();
     s.quoteUser({ text: "hi", via: "text", images: 0 });

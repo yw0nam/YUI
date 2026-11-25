@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { act, fireEvent, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Thread, ThreadsSnapshot } from "../../../contract";
+import type { AttachedThread, Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
 import type { TabBody, TabShell } from "./tab-body";
 import { createThreadsView, type ThreadsView } from "./threads-view";
@@ -105,7 +105,10 @@ function build(listCollapsed = false, listWidth: number | null = null) {
   const onClose = vi.fn();
   const onRead = vi.fn();
   const onListCollapsed = vi.fn();
+  const onAttach = vi.fn();
   const terminal = terminalTab();
+  let attachedNow: AttachedThread[] = [];
+  const attachedSubs = new Set<() => void>();
   const view = createThreadsView({
     terminal: terminal.factory,
     mount: document.body,
@@ -118,6 +121,14 @@ function build(listCollapsed = false, listWidth: number | null = null) {
     onListWidth: vi.fn(),
     resize: { start: vi.fn(), move: vi.fn(), end: vi.fn() },
     onTurnsLevel: vi.fn(),
+    attached: {
+      get: () => attachedNow,
+      subscribe: (cb) => {
+        attachedSubs.add(cb);
+        return () => attachedSubs.delete(cb);
+      },
+    },
+    onAttach,
   });
   views.push(view);
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
@@ -131,6 +142,12 @@ function build(listCollapsed = false, listWidth: number | null = null) {
     onClose,
     onRead,
     onListCollapsed,
+    onAttach,
+    attach: (threads: AttachedThread[]) =>
+      act(() => {
+        attachedNow = threads;
+        for (const cb of attachedSubs) cb();
+      }),
     panel,
     terminal,
     tab,
@@ -368,6 +385,24 @@ it("shows an input-required Thread read-only: its entries and Mark read, and no 
   expect(
     document.querySelectorAll(".yui-threads-pane .yui-answer, .yui-threads-pane textarea"),
   ).toHaveLength(0);
+});
+
+it("the pane's Attach to chat button shows whether its Thread is attached and asks to toggle it", () => {
+  const { update, onAttach, attach } = build();
+  update(snapshot(1, [thread("A", "codex", 2), thread("B", "gmail", 1)]));
+  const button = () => document.querySelector<HTMLButtonElement>(".yui-threads-pane__attach");
+
+  expect(button()?.textContent).toBe("Attach to chat");
+  expect(button()?.getAttribute("aria-pressed")).toBe("false");
+  click(button()!);
+  expect(onAttach).toHaveBeenCalledExactlyOnceWith({ id: "A", source: "codex", title: "A" });
+
+  attach([{ id: "A", source: "codex", title: "A" }]);
+  expect(button()?.textContent).toBe("Attached");
+  expect(button()?.getAttribute("aria-pressed")).toBe("true");
+
+  click(document.querySelector('.yui-threads-list [data-id="B"]')!);
+  expect(button()?.textContent).toBe("Attach to chat");
 });
 
 it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {

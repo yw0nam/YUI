@@ -112,6 +112,24 @@ describe("user_input_source — submit with images", () => {
   });
 });
 
+describe("user_input_source — submit with attached Threads", () => {
+  const THREADS = [
+    { id: "gmail:18c2", source: "gmail", title: "Quote reply" },
+    { id: "codex:7", source: "codex", title: "Fix the flaky test" },
+  ];
+
+  it("carries the attached Threads on the payload, with text or alone", () => {
+    const { bus, pushed } = fakeBus();
+    const src = createUserInputSource(bus);
+    src.submit("handle these", [], undefined, THREADS);
+    src.submit("", [], { sendId: "s1" }, THREADS);
+    expect(pushed.map((e) => e.payload)).toEqual([
+      { text: "handle these", threads_attached: THREADS },
+      { text: "", send_id: "s1", threads_attached: THREADS },
+    ]);
+  });
+});
+
 describe("user_input_source — submitVoice", () => {
   it("pushes a user.voice_segment_ready envelope with text payload", () => {
     const { bus, pushed } = fakeBus();

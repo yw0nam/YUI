@@ -191,6 +191,26 @@ describe("context builder — threads waiting", () => {
   });
 });
 
+describe("context builder — threads attached", () => {
+  it("carries the Threads a user turn's payload attached, and never on a turn the user did not start", async () => {
+    const attached = [
+      { id: "gmail:18c2", source: "gmail", title: "Quote reply" },
+      { id: "codex:7", source: "codex", title: "Fix the flaky test" },
+    ];
+    const user = await buildContext(
+      { ...ENV, payload: { text: "handle these", threads_attached: attached } },
+      {},
+    );
+    expect(user.clientContext.threads_attached).toEqual(attached);
+
+    const signals = await buildContext(
+      { ...ENV, event_name: "signals.batch", payload: { threads_attached: attached } },
+      {},
+    );
+    expect("threads_attached" in signals.clientContext).toBe(false);
+  });
+});
+
 describe("context builder — open characters", () => {
   it("carries the names the provider returns, read again every turn", async () => {
     let open = ["alice"];

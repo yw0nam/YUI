@@ -36,9 +36,22 @@ describe("createRoutedUserSource", () => {
     emit({ sendId: "s3", to: "natsume", text: "hey", via: "voice" });
 
     expect(submit.mock.calls).toEqual([
-      ["@Natsume hi", [], { mention: "character", sendId: "s1" }],
-      ["hello", [], { mention: undefined, sendId: "s2" }],
-      ["hey", [], { mention: undefined, sendId: "s3", via: "voice" }],
+      ["@Natsume hi", [], { mention: "character", sendId: "s1" }, undefined],
+      ["hello", [], { mention: undefined, sendId: "s2" }, undefined],
+      ["hey", [], { mention: undefined, sendId: "s3", via: "voice" }, undefined],
+    ]);
+  });
+
+  it("submits the Threads a routed message carries", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const { source, submit, emit } = setup();
+    source.start();
+    const threads = [{ id: "gmail:18c2", source: "gmail", title: "Quote reply" }];
+
+    emit({ sendId: "s1", to: "natsume", text: "handle this", threads });
+
+    expect(submit.mock.calls).toEqual([
+      ["handle this", [], { mention: undefined, sendId: "s1" }, threads],
     ]);
   });
 

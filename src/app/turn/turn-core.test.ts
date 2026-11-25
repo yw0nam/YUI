@@ -62,6 +62,11 @@ vi.mock("./push/wire-push", async (importOriginal) => ({
   wirePushTransport: () => () => {},
 }));
 
+import type { AttachedThread } from "../../contract";
+import type { BusEnvelope } from "../../dispatcher/core/event-bus";
+import { createUserInputSource } from "../../dispatcher/sources/user-input-source";
+import type { ThreadsAttachRequest, UserTurnRouted } from "../../io/bridge/settings-bridge";
+import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { type TurnCorePhase1, wireTurnCore } from "./turn-core";
 
 function wire(over: Partial<TurnCorePhase1> = {}) {
@@ -188,5 +193,120 @@ describe("wireTurnCore", () => {
   it("does not create an STT engine in a bound pet", async () => {
     await wire({ bound: true }).core;
     expect(createSttEngine).not.toHaveBeenCalled();
+  });
+
+  describe("main's attached Threads", () => {
+    const A = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
+    const B = { id: "slack:C07:1732", source: "slack", title: "0.9 cut" };
+    const C = { id: "codex:7", source: "codex", title: "Fix the flaky test" };
+    const D = { id: "codex:8", source: "codex", title: "Bump the lockfile" };
+
+    async function main() {
+      let request: (r: ThreadsAttachRequest) => void = () => {};
+      let ready: () => void = () => {};
+      let routedTurn: (e: UserTurnRouted) => void = () => {};
+      type Submit = (text: string, images: string[], threads: AttachedThread[]) => void;
+      const submits: Submit[] = [];
+      let open = false;
+      const pushed: BusEnvelope[] = [];
+      const emitThreadsAttached = vi.fn();
+      const setThreads = vi.fn();
+      const summonInput = vi.fn(() => {
+        open = true;
+      });
+      const h = wire({
+        threadsAttach: {
+          onThreadsAttachRequest: (cb) => {
+            request = cb;
+            return () => {};
+          },
+          onThreadsReady: (cb) => {
+            ready = cb;
+            return () => {};
+          },
+          onUserTurnRouted: (cb) => {
+            routedTurn = cb;
+            return () => {};
+          },
+          emitThreadsAttached,
+        },
+        userInput: createUserInputSource({
+          push: (e) => pushed.push(e) > 0,
+          pop: () => null,
+          snapshot: () => [],
+        }),
+        surfaces: {
+          onStop: () => {},
+          onSubmit: (cb: Submit) => submits.push(cb),
+          setCommands: () => {},
+          onCommand: () => {},
+          showCommandReply: () => {},
+          onCommandReplyClose: () => {},
+          setAsks: vi.fn(),
+          onAskAnswer: vi.fn(),
+          setThreads,
+          onThreadRemove: () => {},
+          summonInput,
+          isInputOpen: () => open,
+        } as never,
+      });
+      await (await h.core).connect({ onSubmit: () => {} });
+      return {
+        toggle: (thread: AttachedThread) => request({ op: "toggle", thread }),
+        remove: (thread: AttachedThread) => request({ op: "remove", thread }),
+        ready: () => ready(),
+        routedTurn: (e: UserTurnRouted) => routedTurn(e),
+        submit: (text: string, threads: AttachedThread[]) => {
+          for (const cb of submits) cb(text, [], threads);
+        },
+        restore: (threads: AttachedThread[]) => voiceDeps.at(-1)!.restoreThreads?.(threads),
+        shown: () => setThreads.mock.lastCall?.[0],
+        sent: () => emitThreadsAttached.mock.lastCall?.[0],
+        payloads: () => pushed.map((e) => e.payload),
+        summonInput,
+      };
+    }
+
+    it("attaches each Thread once, opens a closed input on the first, and tells the Threads window on every change and on its ready", async () => {
+      const m = await main();
+
+      m.toggle(A);
+      m.toggle(B);
+      m.toggle(A);
+      m.toggle(C);
+      m.remove(B);
+      m.toggle(A);
+
+      expect(m.shown()).toEqual([C, A]);
+      expect(m.sent()).toEqual({ threads: [C, A] });
+      expect(m.summonInput).toHaveBeenCalledOnce();
+
+      m.ready();
+      expect(m.sent()).toEqual({ threads: [C, A] });
+    });
+
+    it("sends the Threads a submit showed, keeps one attached after the click, and puts a failed send's back once", async () => {
+      const m = await main();
+      m.toggle(A);
+      m.toggle(B);
+      m.toggle(C);
+
+      m.toggle(D);
+      m.submit("handle these", [A, B, C]);
+
+      expect(m.payloads()).toEqual([{ text: "handle these", threads_attached: [A, B, C] }]);
+      expect(m.shown()).toEqual([D]);
+
+      m.remove(D);
+      m.submit("thanks", []);
+      expect(m.payloads().at(-1)).toEqual({ text: "thanks" });
+
+      m.restore([A, B, C]);
+      m.restore([A]);
+      expect(m.shown()).toEqual([A, B, C]);
+
+      m.routedTurn({ sendId: "s1", to: presetIdForWindow(), text: "", threads: [A, C] });
+      expect(m.shown()).toEqual([B]);
+    });
   });
 });
