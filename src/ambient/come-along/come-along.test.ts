@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../config/load-test-helpers";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
+import type { Renderer } from "../../renderer";
 import type { HoldOptions } from "../locomotion/hold/holds";
-import { createComeAlong } from "./come-along";
+import { type ComeAlongDeps, createComeAlong } from "./come-along";
 
 // One 1920 × 900 pt monitor at scale 2, its work area ending at 875 pt.
 const monitor: ScreenMonitor = {
@@ -34,8 +35,12 @@ function harness(
     feet?: number | null;
     /** The last backend emotion, by default neutral. */
     emotion?: string;
-    /** What the stay roll draws, in [0, 1). */
+    /** What the stay roll and the entry pick draw, in [0, 1). */
     roll?: number;
+    /** Her on-screen height in px; null with no probe. */
+    charHpx?: number | null;
+    /** Whether the renderer accepts a stage peek pin. */
+    pinAccepted?: boolean;
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -91,38 +96,56 @@ function harness(
     detach: vi.fn(async () => {}),
   };
   const setPositionPhysical = vi.fn(async (_x: number, _y: number) => {});
-  const playMotion = vi.fn();
+  /** The motion the renderer plays now, and its play time (s). */
+  let current = "idle";
+  let motionTime: number | null = 0;
+  const playMotion = vi.fn<Renderer["playMotion"]>((motion) => {
+    current = motion?.id ?? "idle";
+  });
+  const setPeekTarget = vi.fn<Renderer["setPeekTarget"]>((target) => {
+    if (target) events.push(`pin ${target.targetXpx}`);
+    return opts.pinAccepted ?? true;
+  });
+  const setMotionMirror = vi.fn<Renderer["setMotionMirror"]>();
+  const setBodyYaw = vi.fn<Renderer["setBodyYaw"]>();
   const vanish = vi.fn(async () => {
     events.push("vanish");
   });
   let reduced = false;
+  // Her yaw is watched, though she never turns while carried.
+  const renderer: ComeAlongDeps["renderer"] & Pick<Renderer, "setBodyYaw"> = {
+    onTick: (fn) => {
+      const cb = fn as (ctx: { dt: number }) => void;
+      ticks.add(cb);
+      return () => ticks.delete(cb);
+    },
+    playMotion,
+    getCurrentMotion: () => ({ id: current, vrma_path: "" }),
+    getCurrentMotionTime: () => motionTime,
+    setBodyYaw,
+    setPeekTarget,
+    setMotionMirror,
+    getPerchProbe: () =>
+      opts.charHpx === null ? null : { seatPx: { x: 200, y: 300 }, charHpx: opts.charHpx ?? 500 },
+    getCharacterAnchor: () => {
+      const feet = opts.feet === undefined ? real.height : opts.feet;
+      return feet === null ? null : { x: 200, y: feet };
+    },
+    vanish,
+    land: async (origin) => {
+      events.push(`land ${JSON.stringify(origin)}`);
+    },
+    appear: async () => {
+      events.push("appear");
+    },
+  };
   const comeAlong = createComeAlong({
     settingsLabel: "settings",
     storage: opts.storage ?? fakeStorage(),
     isBusy: () => busy,
     peek: { active: () => false, exit: async () => {} },
     locomotion,
-    renderer: {
-      onTick: (fn) => {
-        const cb = fn as (ctx: { dt: number }) => void;
-        ticks.add(cb);
-        return () => ticks.delete(cb);
-      },
-      playMotion,
-      getCurrentMotion: () => null,
-      setBodyYaw: vi.fn(),
-      getCharacterAnchor: () => {
-        const feet = opts.feet === undefined ? real.height : opts.feet;
-        return feet === null ? null : { x: 200, y: feet };
-      },
-      vanish,
-      land: async (origin) => {
-        events.push(`land ${JSON.stringify(origin)}`);
-      },
-      appear: async () => {
-        events.push("appear");
-      },
-    },
+    renderer,
     hitTest: { setMoving: vi.fn() },
     dock,
     setPositionPhysical,
@@ -151,6 +174,11 @@ function harness(
     await step;
   };
   const abort = () => locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.onAbort?.();
+  /** Waits for her pickup and ticks through its 200 ms hold. */
+  const pickUp = async () => {
+    await vi.waitFor(() => expect(ticks.size).toBe(1));
+    tick(200);
+  };
   return {
     comeAlong,
     real,
@@ -158,6 +186,16 @@ function harness(
     events,
     vanish,
     playMotion,
+    setPeekTarget,
+    setMotionMirror,
+    setBodyYaw,
+    pickUp,
+    setCurrent: (id: string) => {
+      current = id;
+    },
+    setMotionTime: (s: number | null) => {
+      motionTime = s;
+    },
     finish,
     travels,
     ticks,
@@ -201,15 +239,21 @@ async function docked(opts: Parameters<typeof harness>[0] = {}) {
 }
 
 describe("createComeAlong", () => {
-  it("walks onto the slot slow, then fast, then slow, and docks on arrival", async () => {
+  it("picks her up, holds still, carries her slow, then fast, then slow facing front, and docks", async () => {
     const h = harness();
     const done = h.comeAlong.onStage(slot);
     await vi.waitFor(() => expect(h.ticks.size).toBe(1));
 
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }]]);
+    h.tick(199);
+    expect(h.walked).toEqual([]);
+    h.tick(1);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
     // 1200 pt to go takes 900 ms: 10%, 50% and 90% of it, then the end.
     for (const ms of [90, 360, 360, 90]) h.tick(ms);
     await done;
 
+    expect(h.setBodyYaw).not.toHaveBeenCalled();
     expect(h.locomotion.widen).toHaveBeenCalledExactlyOnceWith([{ x: 100, y: 80 }]);
     expect(h.walked).toEqual([
       [1295, 80],
@@ -224,9 +268,10 @@ describe("createComeAlong", () => {
   it.each([
     [1300, 900],
     [400, 675],
-  ])("walks from x %d onto the slot in %d ms", async (x, ms) => {
+  ])("carries her from x %d onto the slot in %d ms after the hold", async (x, ms) => {
     const h = harness({ at: { x, y: 80 } });
     const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
     await vi.waitFor(() => expect(h.ticks.size).toBe(1));
 
     h.tick(ms - 1);
@@ -238,7 +283,7 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
-  it("fades out and in under reduced motion", async () => {
+  it("fades out and in under reduced motion, picking nothing up", async () => {
     const h = harness();
     h.setReduced(true);
 
@@ -246,7 +291,22 @@ describe("createComeAlong", () => {
 
     expect(h.locomotion.widen).not.toHaveBeenCalled();
     expect(h.events).toEqual(["vanish", "move 100,80", "appear"]);
+    expect(h.playMotion).not.toHaveBeenCalledWith({ id: "drag" });
     expect(h.dock.attach).toHaveBeenCalledOnce();
+  });
+
+  it("picks her up and holds still before she vanishes", async () => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }]]);
+    h.tick(199);
+    expect(h.vanish).not.toHaveBeenCalled();
+    h.tick(1);
+    await done;
+
+    expect(h.events).toEqual(["vanish", "move 100,80", 'land {"x":200,"y":600}']);
   });
 
   it.each([
@@ -278,6 +338,7 @@ describe("createComeAlong", () => {
       return vanished.promise;
     });
     const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
     await vi.waitFor(() => expect(h.vanish).toHaveBeenCalledOnce());
 
     await h.abort();
@@ -296,10 +357,13 @@ describe("createComeAlong", () => {
       return vanished.promise;
     });
     const first = h.comeAlong.onStage(slot);
+    await h.pickUp();
     await vi.waitFor(() => expect(h.vanish).toHaveBeenCalledOnce());
 
     await h.comeAlong.onStage(null);
-    await h.comeAlong.onStage(slot);
+    const second = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await second;
     vanished.resolve();
     await first;
 
@@ -332,6 +396,7 @@ describe("createComeAlong", () => {
       return moving.promise;
     });
     const first = h.comeAlong.onStage(slot);
+    await h.pickUp();
     await vi.waitFor(() => expect(h.frameWindow.setPositionLogical).toHaveBeenCalledOnce());
 
     const home = h.comeAlong.onStage(null);
@@ -370,11 +435,16 @@ describe("createComeAlong", () => {
     );
   });
 
-  it("goes home on a null slot: undocks, walks back to her spot, lets go and drops", async () => {
+  it("goes home on a null slot: undocks, carries her back to her spot, idles with no clip, lets go and drops", async () => {
     const h = await docked();
+    h.playMotion.mockClear();
 
     await h.finish(h.comeAlong.onStage(null));
 
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [null]]);
+    expect(h.playMotion.mock.invocationCallOrder[1]).toBeLessThan(
+      h.locomotion.drop.mock.invocationCallOrder[0]!,
+    );
     expect(h.dock.detach).toHaveBeenCalledOnce();
     expect(h.locomotion.widen).toHaveBeenLastCalledWith([{ x: 1300, y: 80 }]);
     expect([h.real.x, h.real.y]).toEqual([1300, 80]);
@@ -500,9 +570,10 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledTimes(2);
   });
 
-  it("stops her walk at once when a drag takes her mid-way: no frame is written after it", async () => {
+  it("stops her carry at once when a drag takes her mid-way: no frame is written after it", async () => {
     const h = harness();
     const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
     await vi.waitFor(() => expect(h.ticks.size).toBe(1));
     h.tick(90);
 
@@ -568,28 +639,48 @@ describe("createComeAlong", () => {
 
     await h.finish(h.comeAlong.onStage(slot));
 
-    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }], [{ id: "sulk" }]]);
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [{ id: "sulk" }]]);
     expect(h.dock.attach.mock.invocationCallOrder[0]).toBeLessThan(
       h.playMotion.mock.invocationCallOrder[1]!,
     );
   });
 
-  it("comes along without a sulk when the last backend emotion is not angry", async () => {
-    const h = harness({ emotion: "neutral", roll: 0 });
+  it("plays one entry clip of her emotion's family once docked, never the family's last one", async () => {
+    const h = await docked({ emotion: "sad" });
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [{ id: "yawn" }]]);
+    expect(h.dock.attach.mock.invocationCallOrder[0]).toBeLessThan(
+      h.playMotion.mock.invocationCallOrder[1]!,
+    );
+
+    await h.finish(h.comeAlong.onStage(null));
+    h.playMotion.mockClear();
+    await h.finish(h.comeAlong.onStage(slot));
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [{ id: "idle_10" }]]);
+  });
+
+  it("records the entry clip only once it plays", async () => {
+    const h = harness();
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await h.abort();
+    await done;
+    await h.comeAlong.onStage(null);
+    h.playMotion.mockClear();
 
     await h.finish(h.comeAlong.onStage(slot));
 
-    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }]]);
-    expect(h.dock.attach).toHaveBeenCalledOnce();
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [{ id: "wave_3" }]]);
   });
 
-  it("after a reload, docks onto the open stage without a walk and goes home to her spot", async () => {
+  it("after a reload, docks onto the open stage with no carry and no entry clip, and goes home to her spot", async () => {
     const storage = fakeStorage();
     await docked({ storage });
     const reloaded = harness({ at: { x: 100, y: 80 }, storage });
 
     await reloaded.comeAlong.onStage(slot);
     expect(reloaded.locomotion.widen).not.toHaveBeenCalled();
+    expect(reloaded.playMotion).not.toHaveBeenCalled();
     expect(reloaded.dock.attach).toHaveBeenCalledOnce();
 
     await reloaded.finish(reloaded.comeAlong.onStage(null));
@@ -607,6 +698,118 @@ describe("createComeAlong", () => {
     await reloaded.comeAlong.onStage(slot);
 
     expect(reloaded.locomotion.hold).not.toHaveBeenCalled();
+  });
+
+  it("pins an edge clip at her window's right edge, easing it in over the carry after the hold", async () => {
+    // A neutral pick at 0.5 is plain's third clip, peek_in.
+    const h = harness({ roll: 0.5 });
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+
+    expect(h.setPeekTarget).not.toHaveBeenCalled();
+    h.tick(200);
+    await vi.waitFor(() => expect(h.setPeekTarget).toHaveBeenCalledOnce());
+    await h.finish(done);
+
+    // Her 400-px window's edge plus 0.06 × her 500 px.
+    expect(h.setPeekTarget).toHaveBeenCalledWith({
+      targetXpx: 430,
+      easeMs: 900,
+      holdsPosture: false,
+    });
+    expect(h.setMotionMirror).toHaveBeenCalledWith(false);
+    expect(h.playMotion).toHaveBeenLastCalledWith({ id: "peek_in" });
+  });
+
+  it.each([
+    ["a vanish", { x: 1500, y: 80 }, false, 'land {"x":200,"y":600}'],
+    ["a fade", { x: 1300, y: 80 }, true, "appear"],
+  ])("snaps an edge clip's pin while she is hidden in %s", async (_, at, reduced, shown) => {
+    const h = harness({ at, roll: 0.5 });
+    h.setReduced(reduced);
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.events).toEqual(["vanish", "pin 430", "move 100,80", shown]);
+    expect(h.setPeekTarget).toHaveBeenCalledWith({ targetXpx: 430, holdsPosture: false });
+  });
+
+  it.each([
+    ["finishes", "idle", false, { easeMs: 600 }],
+    ["is replaced", "happy", false, { easeMs: 600 }],
+    ["finishes under reduced motion", "idle", true, undefined],
+  ])("eases the pin back without an idle when the edge clip %s", async (_, next, reduced, release) => {
+    const h = await docked({ roll: 0.5 });
+    h.setReduced(reduced);
+    h.playMotion.mockClear();
+
+    h.tick(10);
+    expect(h.setPeekTarget).toHaveBeenCalledOnce();
+    h.setCurrent(next);
+    h.tick(10);
+
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, release);
+    expect(h.playMotion).not.toHaveBeenCalled();
+    expect(h.ticks.size).toBe(0);
+  });
+
+  it("hands peek over to idle at its play_ms and eases the pin back", async () => {
+    // A neutral pick at 0.9 is plain's last clip, peek, pinned 0.12 × 500 px past the edge.
+    const h = await docked({ roll: 0.9 });
+    expect(h.setPeekTarget).toHaveBeenCalledWith(expect.objectContaining({ targetXpx: 460 }));
+    h.playMotion.mockClear();
+
+    h.setMotionTime(11.49);
+    h.tick(10);
+    expect(h.playMotion).not.toHaveBeenCalled();
+    h.setMotionTime(11.5);
+    h.tick(10);
+
+    expect(h.playMotion.mock.calls).toEqual([[null]]);
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, { easeMs: 600 });
+  });
+
+  it.each([
+    ["no probe gives her height", { charHpx: null }],
+    ["the renderer refuses the pin", { pinAccepted: false }],
+  ])("plays an edge clip unpinned when %s", async (_, opts) => {
+    const h = await docked({ roll: 0.5, ...opts });
+    h.setCurrent("idle");
+    h.tick(10);
+
+    expect(h.playMotion).toHaveBeenLastCalledWith({ id: "peek_in" });
+    expect(h.setPeekTarget).not.toHaveBeenCalledWith(null, expect.anything());
+  });
+
+  it("snaps the pin when a drag or an agent move takes her mid-carry", async () => {
+    const h = harness({ roll: 0.5 });
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.setPeekTarget).toHaveBeenCalledOnce());
+
+    await h.abort();
+    await done;
+
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null);
+  });
+
+  it("snaps the pin when a start fails after arming it", async () => {
+    const h = harness({ at: { x: 1500, y: 80 }, roll: 0.5 });
+    h.frameWindow.setPositionLogical.mockRejectedValueOnce(new Error("window gone"));
+
+    await expect(h.finish(h.comeAlong.onStage(slot))).rejects.toThrow("window gone");
+
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null);
+  });
+
+  it("snaps the pin and plays no clip when the window closes while she peeks", async () => {
+    const h = await docked({ roll: 0.5 });
+    h.playMotion.mockClear();
+
+    await h.finish(h.comeAlong.onStage(null));
+
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null);
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [null]]);
   });
 
   it("after a reload, stays where she was dropped when a drag had taken her", async () => {
