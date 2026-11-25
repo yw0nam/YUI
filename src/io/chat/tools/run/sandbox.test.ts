@@ -94,6 +94,14 @@ describe("runScript", () => {
     expect(lastRuntime(spy)?.alive).toBe(false);
   });
 
+  it("runs the script after an out-of-memory run on a new 16 MiB heap", async () => {
+    const spy = vi.spyOn(QuickJSWASMModule.prototype, "newRuntime");
+    await run("const a = []; for (let i = 0; i < 40; i++) a.push(new Uint8Array(4e6))");
+    expect(await run("return 1 + 1")).toEqual({ status: "completed", result: 2, logs: [] });
+    const module = spy.mock.contexts.at(-1) as QuickJSWASMModule | undefined;
+    expect(module?.getWasmMemory().buffer.byteLength).toBe(16 * 1024 * 1024);
+  });
+
   it("interrupts an endless loop once the CPU budget is spent", async () => {
     const started = performance.now();
     const result = await runScript(
