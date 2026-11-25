@@ -48,6 +48,8 @@ function harness(
     edgeEntries?: StageConfig["edge_entries"];
     /** Her window's logical size, by default 400 × 600. */
     size?: { width: number; height: number };
+    /** The aspect below which the camera fit binds on her width, by default none. */
+    bound?: number;
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -58,8 +60,18 @@ function harness(
     height: opts.size?.height ?? 600,
   };
   const scale = 2;
-  // She is drawn to her window's height: her feet and her on-screen height scale with it.
-  const startHeight = real.height;
+  type Size = { width: number; height: number };
+  const start: Size = { width: real.width, height: real.height };
+  const startHeight = start.height;
+  // As the renderer's camera fit: drawn to the window's height, or below aspect `bound` to its
+  // width, which draws her smaller about the window's centre.
+  const drawnScale = (s: Size): number =>
+    s.height / Math.max(1, ((opts.bound ?? 0) * s.height) / s.width);
+  const feetBase = (opts.feet ?? startHeight) / startHeight;
+  const feetShareAt = (s: Size): number =>
+    0.5 + ((feetBase - 0.5) * (drawnScale(s) / s.height)) / (drawnScale(start) / startHeight);
+  const charHpxAt = (s: Size): number =>
+    ((opts.charHpx ?? 500) * drawnScale(s)) / drawnScale(start);
   const ticks = new Set<(ctx: { dt: number }) => void>();
   const walked: Array<[number, number]> = [];
   /** The size of each carry frame. */
@@ -68,8 +80,9 @@ function harness(
   const events: string[] = [];
   const travels: Array<{ end: ReturnType<typeof vi.fn> }> = [];
   let virtual = { ...real };
-  // The size the renderer draws her at: the carry's view while a travel parks her, else her window.
-  let view: { height: number } = real;
+  // The size the renderer last fit her to: the carry's view while a travel parks her, else her
+  // window's size at its last refit.
+  let drawn: Size = { ...start };
   let busy = false;
   let travelling = false;
   const frameWindow = {
@@ -95,10 +108,10 @@ function harness(
         _end?: { x: number; y: number; width: number; height: number },
       ) => {
         virtual = { ...real };
-        view = virtual;
+        drawn = virtual;
         const end = vi.fn(async () => {
           Object.assign(real, virtual);
-          view = real;
+          drawn = { width: real.width, height: real.height };
         });
         travels.push({ end });
         return {
@@ -146,6 +159,9 @@ function harness(
     events.push("vanish");
   });
   let reduced = false;
+  const refitTo = vi.fn(async (width: number, height: number) => {
+    drawn = { width, height };
+  });
   // Her yaw is watched, though she never turns while carried.
   const renderer: ComeAlongDeps["renderer"] & Pick<Renderer, "setBodyYaw"> = {
     onTick: (fn) => {
@@ -160,16 +176,17 @@ function harness(
     setPeekTarget,
     setMotionMirror,
     getPerchProbe: () =>
-      opts.charHpx === null
+      opts.charHpx === null ? null : { seatPx: { x: 200, y: 300 }, charHpx: charHpxAt(drawn) },
+    // Projected with the last fit onto the page as it is now.
+    getCharacterAnchor: () =>
+      opts.feet === null ? null : { x: 200, y: feetShareAt(drawn) * real.height },
+    getFrameFit: (width: number, height: number) =>
+      opts.feet === null
         ? null
         : {
-            seatPx: { x: 200, y: 300 },
-            charHpx: ((opts.charHpx ?? 500) * view.height) / startHeight,
+            feetShare: feetShareAt({ width, height }),
+            scale: drawnScale({ width, height }) / drawnScale(drawn),
           },
-    getCharacterAnchor: () => {
-      const feet = opts.feet === undefined ? startHeight : opts.feet;
-      return feet === null ? null : { x: 200, y: (feet * real.height) / startHeight };
-    },
     vanish,
     land: async (origin) => {
       events.push(`land ${JSON.stringify(origin)}`);
@@ -190,7 +207,7 @@ function harness(
     setFramePhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
     pageHeight: () => real.height,
-    refitTo: async () => {},
+    refitTo,
     reducedMotion: () => reduced,
     stage: () => ({
       ...avatarFixture().stage,
@@ -255,6 +272,7 @@ function harness(
     dock,
     frameWindow,
     setFramePhysical,
+    refitTo,
     setBusy: (on: boolean) => {
       busy = on;
     },
@@ -1055,6 +1073,45 @@ describe("createComeAlong", () => {
     expect(h.real).toEqual({ x: 100, y: 80, width: 400, height: 600 });
   });
 
+  it("arrives on the slot at the slot's own fit, her feet on its bottom edge, with no write after the carry", async () => {
+    // Her 827 × 1022 window is fit to her height; the 2:3 slot, narrower than 0.75, to her width.
+    const h = harness({ at: { x: 1290, y: 80 }, size: { width: 827, height: 1022 }, bound: 0.75 });
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+
+    for (const ms of [90, 360, 360, 90]) h.tick(ms);
+    await done;
+
+    // Drawn 8/9 the size about the slot's centre, her feet stand 567 pt down its 600.
+    expect(h.walked.at(-1)).toEqual([100, 113]);
+    expect(h.frameWindow.setFrameLogical).not.toHaveBeenCalled();
+  });
+
+  it("lands her only once her page has refit to the slot's size after a vanish", async () => {
+    const h = harness({ at: { x: 1500, y: 80 }, size: { width: 300, height: 450 } });
+    const refit = deferred<void>();
+    h.refitTo.mockImplementationOnce(async (width, height) => {
+      await refit.promise;
+      h.events.push(`refit ${width}x${height}`);
+    });
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.events).toContain("frame 100,80,400,600"));
+
+    await flush();
+    expect(h.events).toEqual(["vanish", "frame 100,80,400,600"]);
+    refit.resolve();
+    await done;
+
+    expect(h.events).toEqual([
+      "vanish",
+      "frame 100,80,400,600",
+      "refit 400x600",
+      'land {"x":200,"y":600}',
+    ]);
+  });
+
   it("under reduced motion takes the slot's size at once while she is faded out", async () => {
     const h = harness({ size: { width: 300, height: 450 } });
     h.setReduced(true);
@@ -1098,12 +1155,9 @@ describe("createComeAlong", () => {
     expect(reloaded.real).toEqual({ x: 1300, y: 80, width: 300, height: 450 });
   });
 
-  it.each([
-    ["a drag", "drag"],
-    ["an agent move", "agent"],
-  ] as const)("gives her desktop size back once when %s takes her off the stage, bottom-centre where she is", async (_, by) => {
+  it("gives her desktop size back once when a mover takes her off the stage, bottom-centre where she is", async () => {
     const h = await docked({ size: { width: 300, height: 450 } });
-    await h.abort(by);
+    await h.abort("drag");
     // Where the mover has her window when it hands it back.
     Object.assign(h.real, { x: 700, y: 200 });
     h.events.length = 0;

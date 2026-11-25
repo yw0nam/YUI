@@ -109,6 +109,26 @@ describe("createCameraRig", () => {
     expect(bareCamera.position.equals(new THREE.Vector3(3, 4, 5))).toBe(true);
   });
 
+  it("fits a camera for another window's aspect, leaving its own as it was", () => {
+    const { camera, rig } = makeFixture();
+    rig.fit();
+    const own = camera.position.clone();
+    // Below this box's 0.375 aspect, its width binds the fit.
+    const fit = computeCameraFit(BOX, { fov: FRAMING.fov, aspect: 0.3, margin: FRAMING.margin });
+
+    const narrow = rig.cameraAt(0.3);
+
+    expect(narrow?.aspect).toBe(0.3);
+    expectPosition(
+      narrow!,
+      orbitPosition(fit!.target, fit!.distance, {
+        azimuth: CAMERA_AZIMUTH_DEFAULT,
+        polar: CAMERA_POLAR_DEFAULT,
+      }),
+    );
+    expectPosition(camera, own);
+  });
+
   it("setOrbit eases the polar", () => {
     const { camera, rig } = makeFixture();
     rig.fit();

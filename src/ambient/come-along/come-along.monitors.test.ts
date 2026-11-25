@@ -106,6 +106,7 @@ function cycle(at = { x: -48, y: 860 }) {
       setMotionMirror: () => {},
       getPerchProbe: () => null,
       getCharacterAnchor: () => ({ x: 100, y: (FEET * frame.height) / 300 }),
+      getFrameFit: (_width, height) => ({ feetShare: FEET / 300, scale: height / frame.height }),
       vanish: async () => {
         events.push("vanish");
       },

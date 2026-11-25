@@ -68,8 +68,8 @@ it.each([
   [1160, 680, [400, 600, 760]],
   // Tall enough for more than 900: the cap.
   [1160, 1020, [600, 900, 560]],
-  // The panel's 480px bounds the slot's width before the foot bounds its height.
-  [880, 680, [400, 600, 480]],
+  // The panel's 480px binds the slot's width before the foot binds its height.
+  [900, 1000, [420, 630, 480]],
 ])("follows a resize to %d x %d with the largest 2:3 slot that fits, the panel at least 480px", async (width, height, sizes) => {
   const { column, panel } = await mount();
 

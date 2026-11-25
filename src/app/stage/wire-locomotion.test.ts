@@ -351,11 +351,10 @@ describe("wireLocomotion", () => {
 
     await s.locomotion.widen([], { x: 100, y: 80, width: 400, height: 600 });
 
-    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ x: 100, y: 80 }),
-      [],
-      { width: 400, height: 600 },
-    );
+    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 100, y: 80 }, [], {
+      width: 400,
+      height: 600,
+    });
   });
 
   it("gives her window back once an agent move's holds let go and its travel unparked, before the move", async () => {

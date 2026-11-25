@@ -54,6 +54,7 @@ export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
   }
 
   return {
+    getFrameFit: () => null,
     getCharacterAnchor() {
       const modelBox = getModelBox();
       if (!modelBox) return null;

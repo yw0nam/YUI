@@ -166,6 +166,7 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     setFraming,
     setViewWindow,
     viewWindow: () => view,
+    cameraAt: () => null,
     setZoom,
     setOrbit,
   };
