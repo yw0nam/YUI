@@ -360,7 +360,7 @@ YUI/
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
       presence/                      # The user's last presence
-        last-together-settings.ts    # The device-wide last present tick under yui.last-together, written at most once a minute; the milestone payload's last_together and yui.state's last_together read it
+        last-together-settings.ts    # The device-wide last present tick under yui.last-together, written at most once a minute; the milestone payload's last_together reads it
       avatar/                        # Camera, motion, and lip-sync
         camera-settings.ts           # Camera zoom and orbit viewpoint
         camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
