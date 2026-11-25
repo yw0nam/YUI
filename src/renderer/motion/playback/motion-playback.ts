@@ -99,11 +99,7 @@ export function createMotionPlayback(deps: {
     }
   };
 
-  /**
-   * Actually play resolved motion (load clip → compose action → crossfade).
-   * controller.commit is performed by caller (playMotion/finish) with the decision.
-   * `canFallback` allows one fallback attempt per playback; the fallback chain plays with false.
-   */
+  /** Plays the resolved motion; `canFallback` allows one fallback attempt for this playback. */
   async function startMotion(motion: ResolvedMotion, canFallback = true): Promise<void> {
     const startToken = motionStartGeneration.begin();
     // Single play sink — cancel any pending dwell swap for new motion (prevents interrupt delay/stale swap).
@@ -168,11 +164,7 @@ export function createMotionPlayback(deps: {
     }
   }
 
-  /**
-   * A motion's clip failed to load → repair controller state and (re)play its `fallback`
-   * once, else idle. `canFallback` is false for the fallback's own failed load, so a
-   * fallback never chains to another. Recursion guard: idle's own failure no-ops.
-   */
+  /** Recovers a failed clip: its motion's fallback once, else idle. */
   function recoverFailedMotion(failedId: string, canFallback: boolean): void {
     if (!controller) return;
     const fallbackId = canFallback ? motionRegistry?.[failedId]?.fallback : undefined;
