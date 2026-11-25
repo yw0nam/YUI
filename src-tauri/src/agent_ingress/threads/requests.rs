@@ -8,7 +8,6 @@ pub(in crate::agent_ingress) async fn handle(
     store: Arc<ThreadStore>,
     route: ThreadRoute,
 ) -> HttpResponse {
-    let ThreadRoute::Upsert { id, body } = route;
-    let updated_at = store.upsert(&id, body, epoch_ms() as u64);
+    let updated_at = store.upsert(&route.id, route.body, epoch_ms() as u64);
     respond_json(Ok(serde_json::json!({"updated_at": updated_at})))
 }

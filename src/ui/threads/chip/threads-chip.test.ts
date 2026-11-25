@@ -51,17 +51,8 @@ it("hides at zero waiting and shows the count otherwise", () => {
   chip.update([thread("a", "codex", 5)]);
   expect(button().hidden).toBe(false);
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
-});
 
-it("counts a waiting Thread until it is marked read", () => {
-  const { chip, button } = build();
-  const waiting = thread("a", "codex", 1);
-
-  chip.update([waiting]);
-  expect(button().hidden).toBe(false);
-  expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
-
-  chip.update([{ ...waiting, read: true }]);
+  chip.update([{ ...thread("a", "codex", 6), read: true }]);
   expect(button().hidden).toBe(true);
 });
 

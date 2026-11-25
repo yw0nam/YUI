@@ -29,7 +29,7 @@ describe("createThreadTurns", () => {
     const turns = createThreadTurns();
     expect(turns.next(snap(thread({ state: "input-required" })), "notable")).toEqual({
       groups: [],
-      closed: [],
+      stoppedWaiting: [],
     });
   });
 
@@ -69,7 +69,7 @@ describe("createThreadTurns", () => {
     expect(turns.next(snap(again), "notable").groups).toEqual([]);
   });
 
-  it("reports a Thread that left input-required or is gone in closed, and a failed one gives thread.failed", () => {
+  it("reports a Thread that left input-required or is gone in stoppedWaiting, and a failed one gives thread.failed", () => {
     const turns = createThreadTurns();
     turns.next(
       snap(
@@ -83,7 +83,10 @@ describe("createThreadTurns", () => {
       snap(thread({ state: "working" }), thread({ id: "t3", state: "failed" })),
       "notable",
     );
-    expect([kinds(result), result.closed]).toEqual([[["thread.failed", "t3"]], ["t1", "t3", "t2"]]);
+    expect([kinds(result), result.stoppedWaiting]).toEqual([
+      [["thread.failed", "t3"]],
+      ["t1", "t3", "t2"],
+    ]);
   });
 
   it("notable: a Thread becoming failed fires; one becoming completed does not", () => {

@@ -1,7 +1,4 @@
-/**
- * The thread pane: its head and the transcript that scrolls on its own. The transcript draws afresh
- * when the Thread changes and keeps a reader above the newest entry in place.
- */
+/** The thread pane: its head and a transcript that redraws per Thread and keeps a reader above the newest entry in place. */
 
 import "./thread-pane.css";
 import { type RefObject, useLayoutEffect, useRef } from "react";

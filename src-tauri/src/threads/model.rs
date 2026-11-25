@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-pub const TEXT_MAX_CHARS: usize = 16384;
-pub const SOURCE_MAX_CHARS: usize = 64;
+const TEXT_MAX_CHARS: usize = 16384;
+const SOURCE_MAX_CHARS: usize = 64;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]

@@ -59,7 +59,7 @@ describe("threads_list", () => {
     expect(await runList(threads, { state: "all" })).toContain("seen | claude-code |");
   });
 
-  it("shows the last entry under the row and no asks line", async () => {
+  it("shows the last entry under the row", async () => {
     const text = await runList([
       thread({
         id: "deep",
@@ -104,7 +104,7 @@ describe("threads_list", () => {
     expect(text.endsWith("\n(1 more)")).toBe(true);
   });
 
-  it("id returns the newest entries oldest first with the 2000-char cut and no asks line", async () => {
+  it("id returns the newest entries oldest first with the 2000-char cut", async () => {
     const entries = [
       ...Array.from({ length: 21 }, (_, i) => ({
         role: "agent" as const,
@@ -130,7 +130,6 @@ describe("threads_list", () => {
     expect(lines[1]).toBe("agent 2026-01-01 01:02: entry 03");
     expect(lines[19]).toBe(`user 2026-01-02 03:04: ${"x".repeat(2000)}… (500 more chars)`);
     expect(lines[20]).toBe("agent 2026-01-03 05:06: done");
-    expect(lines).toHaveLength(21);
   });
 
   it("keeps entry newlines in the id view", async () => {

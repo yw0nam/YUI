@@ -1,4 +1,4 @@
-/* The answer area: an Ask's prompt, numbered choices, growing field and send button, in the Ask card. Tokens in ../tokens.css. */
+/* The answer area: an Ask's prompt, numbered choices, growing field and send button, in the Ask card; the Terminal request card borrows its look. Tokens in ../tokens.css. */
 
 .yui-answer {
   display: grid;
@@ -231,30 +231,6 @@
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
   font-size: var(--yui-fs-sub);
-}
-
-@container pane (max-width: 559.98px) {
-  .yui-answer {
-    padding-inline: 20px;
-  }
-}
-
-/* A pane under 440px keeps Send beside the field. */
-@container pane (max-width: 439.98px) {
-  .yui-answer {
-    padding-inline: 16px;
-  }
-}
-
-/* A short pane drops the Enter hint and tightens the answer area. */
-@container pane (max-height: 439.98px) {
-  .yui-answer {
-    padding-block: 8px 10px;
-  }
-
-  .yui-answer__head small {
-    display: none;
-  }
 }
 
 .yui-answer__multiple {

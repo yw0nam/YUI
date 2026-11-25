@@ -56,7 +56,7 @@ export function createThreadTurns(): {
   next(
     snapshot: ThreadsSnapshot,
     level: ThreadTurnsLevel,
-  ): { groups: SignalGroup[]; closed: string[] };
+  ): { groups: SignalGroup[]; stoppedWaiting: string[] };
 } {
   let seenById: Map<string, Seen> | undefined;
   return {
@@ -65,18 +65,18 @@ export function createThreadTurns(): {
       const previous = seenById ?? new Map<string, Seen>();
       seenById = new Map();
       const groups: SignalGroup[] = [];
-      const closed: string[] = [];
+      const stoppedWaiting: string[] = [];
       for (const thread of snapshot.threads) {
         const seen = previous.get(thread.id) ?? { entryCount: 0 };
         const type = baseline ? undefined : eventType(thread, seen, level);
         if (type) groups.push(groupOf(thread, type));
         if (seen.state === "input-required" && thread.state !== "input-required")
-          closed.push(thread.id);
+          stoppedWaiting.push(thread.id);
         seenById.set(thread.id, { state: thread.state, entryCount: thread.entry_count });
       }
       for (const [id, seen] of previous)
-        if (seen.state === "input-required" && !seenById.has(id)) closed.push(id);
-      return { groups, closed };
+        if (seen.state === "input-required" && !seenById.has(id)) stoppedWaiting.push(id);
+      return { groups, stoppedWaiting };
     },
   };
 }

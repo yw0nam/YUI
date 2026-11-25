@@ -82,7 +82,7 @@ Revision starts at zero on app start.
 
 ## In the app
 
-Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it. The Threads window draws its list and thread pane. The thread pane shows the Thread's head, state and entries, and takes no input.
+Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it. The Threads window draws its list and thread pane. The thread pane shows the Thread's head, state and entries, and has no answer field.
 
 A Thread waits while its state is `input-required` and it is not read. Main's Threads chip counts the waiting Threads.
 

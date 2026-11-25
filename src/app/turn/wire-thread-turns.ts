@@ -19,9 +19,9 @@ export function wireThreadTurns(deps: {
   if (!threads) return () => {};
   const turns = createThreadTurns();
   const feed = (snapshot: ThreadsSnapshot): void => {
-    const { groups, closed } = turns.next(snapshot, deps.level());
+    const { groups, stoppedWaiting } = turns.next(snapshot, deps.level());
     for (const group of groups) deps.offer(group);
-    for (const id of closed) deps.withdraw(threadEventId(id), THREAD_INPUT_REQUIRED);
+    for (const id of stoppedWaiting) deps.withdraw(threadEventId(id), THREAD_INPUT_REQUIRED);
   };
   const current = threads.snapshot();
   if (current) feed(current);

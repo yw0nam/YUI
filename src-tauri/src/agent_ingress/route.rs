@@ -152,7 +152,7 @@ mod tests {
         let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
         let route = parse_route("PUT", "/threads/a_Z-0.:9", body).unwrap();
         assert!(matches!(route.target, Target::Main));
-        let RouteKind::Thread(ThreadRoute::Upsert { id, body }) = route.kind else {
+        let RouteKind::Thread(ThreadRoute { id, body }) = route.kind else {
             panic!("Thread route expected");
         };
         assert_eq!(id, "a_Z-0.:9");
@@ -177,7 +177,7 @@ mod tests {
             matches!(
                 &route,
                 Ok(Route {
-                    kind: RouteKind::Thread(ThreadRoute::Upsert { id, .. }),
+                    kind: RouteKind::Thread(ThreadRoute { id, .. }),
                     ..
                 }) if id == "answers"
             ),

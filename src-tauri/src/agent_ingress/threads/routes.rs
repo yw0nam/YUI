@@ -3,8 +3,9 @@ use crate::threads::model::{parse_upsert, Upsert};
 const THREAD_ID_MAX_BYTES: usize = 128;
 
 #[derive(Debug)]
-pub(in crate::agent_ingress) enum ThreadRoute {
-    Upsert { id: String, body: Upsert },
+pub(in crate::agent_ingress) struct ThreadRoute {
+    pub(in crate::agent_ingress) id: String,
+    pub(in crate::agent_ingress) body: Upsert,
 }
 
 pub(in crate::agent_ingress) fn parse(
@@ -24,7 +25,7 @@ pub(in crate::agent_ingress) fn parse(
     if method != "PUT" {
         return Err(405);
     }
-    Ok(ThreadRoute::Upsert {
+    Ok(ThreadRoute {
         id: rest.into(),
         body: parse_upsert(body)?,
     })
