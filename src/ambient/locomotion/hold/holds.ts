@@ -3,7 +3,7 @@
 /** What a holder's hold declares when it takes her. */
 export interface HoldOptions {
   /** Runs once when an agent move takes her, or a drag where `endsOnDrag`; the move waits for it. */
-  onAbort?: () => void | Promise<void>;
+  onAbort?: (by: "agent" | "drag") => void | Promise<void>;
   /** A drag start ends this hold too. */
   endsOnDrag?: boolean;
   /** A resize leaves her saved window geometry as it was while this hold lasts. */
@@ -36,7 +36,7 @@ export function createHolds(deps: { pauseKeepOnScreen(paused: boolean): void }) 
       const ended = [...holds.values()].filter((hold) => by === "agent" || hold.endsOnDrag);
       const aborts = ended.map((hold) => hold.onAbort);
       for (const hold of ended) hold.onAbort = undefined;
-      lettingGo = Promise.all(aborts.map((onAbort) => onAbort?.()));
+      lettingGo = Promise.all(aborts.map((onAbort) => onAbort?.(by)));
       return lettingGo;
     },
     /** Settles once the holds the last abort ended have let go. */

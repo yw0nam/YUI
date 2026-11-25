@@ -113,6 +113,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
   let stopTick: (() => void) | null = null;
   // A vanish left her canvas invisible, and no land or appear has shown her since.
   let hidden = false;
+  // Her `drag` is the come-along's own pickup until a set-down motion replaces it.
+  let carried = false;
   // Each Entry family's last played clip, for this window's memory only.
   const lastClips = new Map<string, string>();
   const pin = createStagePin({
@@ -190,6 +192,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
 
   /** She is picked up and held still; no VRM ticks the clock, so none holds her. */
   async function pickUp(): Promise<void> {
+    carried = true;
     renderer.playMotion({ id: DRAG_MOTION_ID });
     const holdMs = renderer.getCharacterAnchor() ? deps.stage().pickup_hold_ms : 0;
     if (holdMs > 0) await tickUntil((elapsedMs) => elapsedMs >= holdMs);
@@ -292,10 +295,18 @@ export function createComeAlong(deps: ComeAlongDeps): {
     await parked.end();
   }
 
-  /** Stops her move and lets her go: no dock, no home, no hold, no pin. */
-  function letGo(): void {
+  /** Sets her down into `motion`, ending the come-along's pickup. */
+  function setDown(motion: { id: string } | null): void {
+    carried = false;
+    renderer.playMotion(motion);
+  }
+
+  /** Stops her move and lets her go: no dock, no home, no hold, no pin; `idle` sets down her pickup. */
+  function letGo(idle: boolean): void {
     takeOver();
     pin.snap();
+    if (carried && idle && renderer.getCurrentMotion()?.id === DRAG_MOTION_ID) setDown(null);
+    carried = false;
     docked = null;
     home = null;
     locomotion.hold("come-along", false);
@@ -304,13 +315,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
   }
 
   /** A drag or an agent move took her: she stays, and this window's session lets her go. */
-  function yieldToMover(): Promise<void> {
+  function yieldToMover(by: "agent" | "drag"): Promise<void> {
     const wasDocked = docked;
     if (session === "on-stage") {
       session = "staying";
       store({ stays: true });
     }
-    letGo();
+    // A user drag plays its own drag motion.
+    letGo(by !== "drag");
     log.info("come_along_taken");
     return wasDocked?.native
       ? deps.dock.detach().catch((err) => log.warn("dock_detach_failed", { error: String(err) }))
@@ -386,9 +398,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
       origin: target,
       size,
     });
-    if (angry) renderer.playMotion({ id: SULK_MOTION_ID });
+    if (angry) setDown({ id: SULK_MOTION_ID });
     if (entry) {
-      renderer.playMotion({ id: entry.clip });
+      setDown({ id: entry.clip });
       lastClips.set(entry.family, entry.clip);
       pin.watch(entry.clip);
     }
@@ -471,7 +483,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
     if (!arrived) return;
     log.info("come_along_home");
-    renderer.playMotion(null);
+    setDown(null);
     await locomotion.drop({ landOnSeam: true });
   }
 
@@ -482,7 +494,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     } catch (err) {
       session = "none";
       store(null);
-      letGo();
+      letGo(true);
       throw err;
     }
   }
