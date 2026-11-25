@@ -76,7 +76,7 @@ function build(over: Partial<MenuState> = {}) {
     },
   });
   menus.push(menu);
-  return { menu, actions, restore, order, blur: () => blur() };
+  return { menu, actions, restore, order, state, blur: () => blur() };
 }
 
 const labels = (side: "left" | "right") =>
@@ -124,6 +124,23 @@ it("replaces the left column in place with a list and Back, and Back returns to 
   click("back");
   expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
   expect(focused()).toBe("body");
+});
+
+it("keeps the five bodies it opened with until it closes, a pick only moving the check", async () => {
+  const bodies = Array.from({ length: 30 }, (_, i) => ({ id: `o${i + 1}`, label: `O${i + 1}` }));
+  const { menu, actions, state } = build({ bodies, body: "o30" });
+  actions.body.mockImplementation((id: string) => {
+    state.body = id;
+  });
+  await menu.open();
+
+  click("body");
+  click("body:o2");
+  click("body");
+
+  // O5 was never drawn, so it was never measured either.
+  expect(labels("left")).toEqual(["Back", "O1", "O2", "O3", "O4", "O30", "More…"]);
+  expect(pill("body:o2")?.getAttribute("aria-checked")).toBe("true");
 });
 
 it("asks before Reset chat with focus on Cancel, and a confirmed reset keeps More open", async () => {
