@@ -133,6 +133,7 @@ The backend cuts `title` and `summary` to their limits, counting Unicode code po
 | `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, address_character | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, yui_tool_call | 121 s on the client, 125 s on the backend |
+| `tool_call` wait, yui_run | 121 s on the client, 125 s on the backend |
 | `tool_call` wait, yui_tool_describe | 2 s on the client, 7 s on the backend |
 | `tool_call` wait, plugin_skill | 2 s on the client, 7 s on the backend |
 
@@ -202,7 +203,7 @@ For `tools`:
 - Absent when the client declares none. A `tools` frame replaces the list while connected.
 - The descriptions of `yui_tool_call` and `plugin_skill` carry the window's On-demand tool and plugin skill lists ([client-tools.md](client-tools.md#the-lists-in-the-descriptions)), so they change with the enabled plugins.
 - Every pet window declares `rate_relation` and `address_character`.
-- A pet window under Tauri also declares `yui_tool_describe`, `yui_tool_call` and `plugin_skill`.
+- A pet window under Tauri also declares `yui_tool_describe`, `yui_tool_call`, `plugin_skill` and `yui_run`.
 - `main` also declares `body_action` and `look`.
 
 #### What `accepts` covers

@@ -183,6 +183,10 @@ _Avoid_: permission, grant, control
 A preset's pending read or write on a Terminal it has no access to, shown as the Allow / Deny card.
 _Avoid_: prompt, approval dialog
 
+**Settings request**:
+An agent's pending change to settings that need the user's Allow, shown as the Allow / Deny card in the Ask slot.
+_Avoid_: permission prompt, approval dialog, access request
+
 ### Surfaces & periphery
 
 **Surface**:
@@ -282,8 +286,12 @@ _Avoid_: host tool, relay tool
 A tool the client does not declare; the backend learns its name and summary from `yui_tool_call`'s description and reaches it through `yui_tool_describe` and `yui_tool_call`: a Plugin tool, or a Terminal or Threads tool the client runs itself.
 
 **Client tool**:
-A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill) or a Terminal or Threads On-demand tool.
+A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill, yui_run) or a Terminal or Threads On-demand tool.
 _Avoid_: in-app tool, local tool
+
+**yui API**:
+What a `yui_run` script reaches: settings, state, info.
+_Avoid_: SDK, bridge
 
 **Producer**:
 An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks), or a plugin's MCP server that sends the signals notification.

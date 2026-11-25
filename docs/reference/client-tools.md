@@ -2,6 +2,8 @@
 
 A client tool is a tool YUI runs itself when the backend calls it, and this page is the contract for its built-in tools: arguments, results, the transports that carry each call, and the code that declares and runs it. A backend author reads it to make a call; a client author reads it to add a tool.
 
+The boundary has three rules. Facts the backend needs to judge a turn arrive in `client_context` ([client-context.md](client-context.md)). Declared tools are the actions that perform a reply (`generate_express`, `body_action`, `address_character` and `rate_relation`) and the reads the window hands the backend directly (`look`, and the bridge tools that reach On-demand tools). Every other read or change of YUI's own settings, state and info goes through `yui_run`.
+
 ```mermaid
 flowchart TB
   A["Catalog: the built-in tools"] --> B["How each transport declares them"]
@@ -21,6 +23,7 @@ Each row gives one tool's purpose, its arguments and result, the transports that
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets` or `screen`. Result: JSON for the body and perch targets, an image for `screen` ([details](#look)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward`, `delta` and `why`. Result: the band word after the change, `clamped: <band>` when the cap or the range held the value, or a refusal such as `error: unknown target` ([details](#rate-relation)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Arguments `to` (string: a name from the `open characters:` line) and optional boolean `handoff`, which passes the user's message to that character to answer. Result: `ok`, `ignored: already addressed <name>`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `yui_run` | Runs a backend script against the `yui` API: YUI's settings, state and info ([details](#yui_run)) | Argument `code` (string: an async function body). Result: a JSON object with `status` (`completed` or `error`), `result` or `error`, and `logs`; `error: timed out after 121 s` when the wait passes | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createYuiRunTool` in `src/io/chat/tools/run/yui-run-tool.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `yui_tool_describe` | Describes an On-demand tool | Argument `name` (string: the On-demand tool's name). Result: the tool's name, its description and its input schema on three lines, or `error: unknown tool: <name>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | The bridge reads a built-in definition or the MCP host snapshot |
 | `yui_tool_call` | Runs an On-demand tool | Arguments `name` (string: the On-demand tool's name) and `arguments` (object: the tool's arguments). Result: the tool's text and its images as data URLs, or `error: unknown tool: <name>`, or `error: invalid arguments (<violation>)` with the tool's input schema | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | The bridge runs built-ins through `executeClientTool`, or calls the MCP host through `src/io/mcp-host/mcp-host.ts` |
 | `plugin_skill` | Reads a plugin skill the host publishes | Argument `name` (string: the plugin skill's name). Result: the skill's instructions | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | Tauri command `plugin_host_skill` through `src/io/mcp-host/mcp-host.ts` |
@@ -57,9 +60,9 @@ The `threads_list` details:
 
 | Window | Tools it hands to `createClientTools` |
 |---|---|
-| Every pet window | `rate_relation` and `address_character`, and under Tauri the bridge tools `yui_tool_describe`, `yui_tool_call` and `plugin_skill` |
+| Every pet window | `rate_relation` and `address_character`, and under Tauri the bridge tools `yui_tool_describe`, `yui_tool_call` and `plugin_skill`, and `yui_run` |
 | `main` | the tools of every pet window, plus `body_action` and `look` |
-| A bound pet window | `rate_relation`, `address_character`, and under Tauri the bridge tools |
+| A bound pet window | `rate_relation`, `address_character`, and under Tauri the bridge tools and `yui_run` |
 | The browser build | `rate_relation` and `address_character` |
 
 `main` alone creates the avatar executor and the Threads client, so only that window runs `body_action` and `look` and offers `threads_list` and `threads_search` on demand. Every pet window offers the terminal tools on demand under Tauri: they call the Rust shell, which holds every Terminal.
@@ -338,6 +341,42 @@ The body and perch results are JSON strings.
 
 A screen request succeeds with `{ text: "screenshot of display <n>", images: [dataUrl] }`. It is refused with `error: screen capture is off`, and an invalid monitor answers `error: invalid field monitor`.
 
+## yui_run
+
+`yui_run` runs a script the backend writes against YUI's own settings, state and info. `code` is the body of an async function, so the script uses `await` and returns a JSON value. Its description tells the backend to call `help()` first. `help()` returns the API as text, with the settings rows generated from the settings table and the usage rules.
+
+The script reaches only these globals: `yui`, `help()` and `console.log` ([`sandbox.ts`](../../src/io/chat/tools/run/sandbox.ts)). Each call runs in a fresh module with 1000 ms of CPU, a 256 KiB stack and a 64 MiB heap. The JSON of its logs and its result together may total 64K characters; a larger result answers `error`. The defaults are `DEFAULT_LIMITS` in `src/io/chat/tools/run/sandbox.ts`.
+
+The `yui` API:
+
+- `yui.settings.read()` returns the exposed settings document: this character's settings and the global ones.
+- `yui.settings.write(patch, { why })` applies a JSON merge patch (RFC 7396) to that document and answers one result per changed path. `why` is a string the user reads on the card.
+- `yui.state.read()` returns `running_since`, `last_together`, the `characters` with their open and self flags, and `permissions.screen_recording`.
+- `yui.info.read()` returns the `bodies`, `voices` and `monitors` a setting can name, each with its id or index.
+
+The result is one JSON object. A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`. A `code` that is not a string answers the same error form with `code must be a string`. A call marks as failed when its result has `status` `error` or starts with `error:`, such as `error: timed out after 121 s`, the answer when the wait passes. The wait covers the whole script, including any Settings request inside it, and the backend's wait is 125 s ([push-transport.md](push-transport.md#tool-call-waits)).
+
+A patch that is not an object answers `{ "*": "error: patch must be an object" }`, and a `why` that is not a string answers `{ "*": "error: why must be a string" }`. Both are refused before any Settings request is raised.
+
+### Tiers and results
+
+Each settings row has one tier. A `direct` row applies its write at once. An `allow` row waits for the user: the write calls for a Settings request, and the path answers only after the user's answer. The `yui.settings.write` result has one entry per path:
+
+| Result | Meaning |
+|---|---|
+| `ok` | The value is set, applied at once or after Allow |
+| `denied` | The user chose Deny |
+| `no answer` | The card's 60 s passed, or the turn ended before an answer |
+| `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
+| `error: unknown <path>` | The patch names a path no row holds |
+| `error: <path> failed to load` | A direct write rejected before it stored the value |
+
+`help()` lists each row's tier, and the settings table itself is in `src/settings/agent-access/rows.ts`.
+
+### Settings request
+
+An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title is the character's name. Each changed path has a line with its label and the value it changes from and to, then the `why` text at up to 200 characters, then a line that says the change applies to every character, and the Deny and Allow choices. The window's ask queue holds it behind the Asks already open, and the oldest shows first; it waits 60 s once shown ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-prompt.ts`](../../src/ui/ask/settings-request-prompt.ts)). Allow writes each path in order, and each path answers `ok` or `error: invalid <path>`. Deny answers `denied` for every path. A card that times out, or whose turn stops, answers `no answer`.
+
 ## On-demand tools
 
 An On-demand tool runs in the client without a declaration in `tools[]` or `hello.tools`. Under Tauri, every pet window offers `terminal_open`, `terminal_list`, `terminal_read`, `terminal_write` and `terminal_close`; main also offers `threads_list` and `threads_search`. Enabled Plugin tools are On-demand tools too.
@@ -491,3 +530,5 @@ Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progr
 ② Add the tool to the list `createClientTools` returns in `src/io/chat/tools/client-tools.ts`. `src/app/turn/wire-dispatcher.ts` declares that list on every turn. A tool that needs a handle only one window owns joins the array that window hands to `createClientTools`, as the avatar tools do; the push socket declares that array in `hello.tools`.
 
 ③ Add its row to the catalog table at the top of this page. `src/io/chat/tools/client-tools.test.ts` fails while a tool in that list has no row.
+
+④ A read or action on YUI's settings, state or info joins the `yui` API that `yui_run` runs, in `src/io/chat/tools/run/`, and gets no tool of its own. An action that performs a reply is a declared tool, added as in ①–③.

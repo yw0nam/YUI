@@ -57,6 +57,9 @@ YUI/
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
         wire-first-conversation.ts   # After Quick start connects, and on its Replay: the greeting on an empty session, then the input and the controls hint with the two guides
+        ask-queue.ts                 # The window's Ask queue: the push socket's Asks and the Settings requests, shown oldest first, the user's pick sent to the owner of the one shown
+        settings-request.ts          # A yui_run write's allow paths as one Settings request in the Ask queue, answered Allow or Deny
+        wire-yui-run.ts              # Builds the ports a yui_run script reaches from this window's stores, Ask queue, selections and Tauri commands
         session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
           wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
@@ -361,6 +364,11 @@ YUI/
         screenshot-settings.ts       # Screenshot enabled state and source
       presence/                      # The user's last presence
         last-together-settings.ts    # The device-wide last present tick under yui.last-together, written at most once a minute; the milestone payload's last_together reads it
+      agent-access/                  # The settings a backend agent may read and change through yui_run, and the tier each row takes
+        rows.ts                      # The exposed settings rows: path, label, type, range, and the direct or allow tier
+        document.ts                  # Reads the exposed settings as one document, and splits a JSON merge patch into direct writes and allow changes
+        paths.ts                     # Dotted-path reads and writes over the settings document
+        validate.ts                  # The store probe a row's value passes before it is written
       avatar/                        # Camera, motion, and lip-sync
         camera-settings.ts           # Camera zoom and orbit viewpoint
         camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
@@ -433,6 +441,14 @@ YUI/
             on-demand-lines.ts         # Builds the lists the Bridge tool descriptions carry: built-in summaries first, then enabled plugin tools, then plugin skills
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
+          run/                         # yui_run: a backend script in a QuickJS sandbox over the yui API
+            yui-run-tool.ts            # The yui_run tool: runs the script and answers its JSON result
+            sandbox.ts                 # Runs a script in a fresh QuickJS module under the CPU, stack and output limits
+            help.ts                    # The text help() prints: the yui API, the settings rows, and the usage rules
+            settings-api.ts            # yui.settings: the exposed document, and a patch whose allow paths wait for the user
+            state-api.ts               # yui.state: start time, last presence, open characters, screen recording permission
+            info-api.ts                # yui.info: the bodies, voices and monitors a setting can name
+            selection-rows.ts          # The io-owned settings rows: the VRM body and the speaker voice
           screen/                      # The screen tool
             screen-query.ts            # Answers a screen query from the live monitors and a screenshot
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
@@ -688,6 +704,7 @@ YUI/
         answer-area.ts               # The answer area: numbered choices, the growing field, and the send button
         ask-card.ts                  # The oldest supplied Ask above the input, with its countdown, choices and draft
         ask-route.ts                 # Shows the Asks on the one side the target picks, clearing the previous side, and hears answers from every side
+        settings-request-prompt.ts   # The Settings request card's lines, with every agent-written value escaped as plain text
       character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches

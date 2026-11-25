@@ -86,7 +86,7 @@ On Windows, a process started with `CREATE_BREAKAWAY_FROM_JOB` leaves the tree a
 
 A tool name held by a built-in client tool or by an already enabled plugin is hidden, though the later plugin still runs ([Plugins](./plugins.md)).
 
-These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_skill`, `rate_relation`, `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_write`, `threads_list`, `threads_search`, `yui_tool_call`, `yui_tool_describe`.
+These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_skill`, `rate_relation`, `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_write`, `threads_list`, `threads_search`, `yui_run`, `yui_tool_call`, `yui_tool_describe`.
 
 | `_meta` key | Where | What it does |
 |---|---|---|
