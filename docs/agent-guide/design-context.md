@@ -2,7 +2,7 @@
 
 Before any UI/visual work, read [`PRODUCT.md`](../../PRODUCT.md) + [`DESIGN.md`](../../DESIGN.md). The impeccable skill (`/impeccable`) uses these as its canonical source.
 
-> **Workflow (mandatory):** ① Review existing UI surfaces (`src/ui/`, `DESIGN.md`, `PRODUCT.md`) to align style and patterns, ② Propose the UI structure/layout to the user in text for confirmation, ③ Create a **standalone mock HTML** for visual approval, then ④ Proceed to implementation.
+> **Workflow (mandatory):** ① Write each user journey the change touches in the issue; a change to how the character moves or performs adds a **storyboard**, one beat per row with the real render, its duration, its hand-over to the next beat (a cut or a crossfade, with its ms) and whether input works, ② Review existing UI surfaces (`src/ui/`, `DESIGN.md`, `PRODUCT.md`) to align style and patterns, ③ Propose the UI structure/layout to the user in text for confirmation, ④ Create a **standalone mock HTML** for visual approval (a storyboard's mock plays its beats at the pet window's real size, 400×600, and steps back and forth through them), then ⑤ Proceed to implementation.
 
 - **Register:** `product` — design serves the character, not marketing.
 - **Core tone:** **invisible-by-default, warm-when-present.**
