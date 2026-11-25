@@ -124,7 +124,7 @@ user the command with `<plugin root>`, `<host>`, and `<endpoint>` filled in.
 ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/bin/yui-notify probe --endpoint <endpoint>'
 ```
 
-Done when: the command prints `ok: YUI is listening at <endpoint>/threads/yui-notify-probe/answer?ask_id=probe&wait=0`. The endpoint for
+Done when: the command prints `ok: YUI is listening at <endpoint>/threads/yui-notify-probe`. The endpoint for
 setup step 3 is `<endpoint>`.
 
 ## The label on a remote Thread
