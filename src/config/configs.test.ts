@@ -111,30 +111,28 @@ describe("configs/avatar.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
-  const NECOCOYA_IDS = [
-    "wave",
-    "bow",
-    "excited",
-    "banzai",
-    "peace",
-    "flustered",
-    "startled",
-    "yawn",
-    "gaow",
-    "peek_in",
-    "orz",
-    "shy",
-    "sleep",
+  const NECOCOYA_CLIPS: Array<[string, string[]]> = [
+    ["wave", ["/motions/wave_01.vrma", "/motions/wave_02.vrma"]],
+    ["bow", ["/motions/bow.vrma"]],
+    ["excited", ["/motions/excited.vrma"]],
+    ["banzai", ["/motions/banzai.vrma"]],
+    ["peace", ["/motions/peace_01.vrma", "/motions/peace_02.vrma"]],
+    ["flustered", ["/motions/flustered.vrma"]],
+    ["startled", ["/motions/startled.vrma"]],
+    ["yawn", ["/motions/yawn.vrma"]],
+    ["gaow", ["/motions/gaow.vrma"]],
+    ["peek_in", ["/motions/peek_in.vrma"]],
+    ["orz", ["/motions/orz.vrma"]],
+    ["shy", ["/motions/shy_01.vrma", "/motions/shy_02.vrma"]],
+    ["sleep", ["/motions/sleep.vrma"]],
   ];
 
-  it.each(NECOCOYA_IDS)("registers %s off the agent vocabulary", (id) => {
-    expect(m[id], id).toBeDefined();
-    expect(m[id].broker_publish, `${id}.broker_publish`).toBe(false);
-  });
-
-  it.each(NECOCOYA_IDS)("ships %s's clip files under public/", (id) => {
-    expect(m[id], id).toBeDefined();
-    const paths = [m[id].vrma_path, ...(m[id].variants ?? [])];
+  it.each(
+    NECOCOYA_CLIPS,
+  )("registers %s off the agent vocabulary with its exact clip files", (id, paths) => {
+    expect(m[id]?.broker_publish, `${id}.broker_publish`).toBe(false);
+    expect(m[id]?.vrma_path, `${id}.vrma_path`).toBe(paths[0]);
+    expect(m[id]?.variants ?? [paths[0]], `${id}.variants`).toEqual(paths);
     for (const path of paths) {
       expect(existsSync(resolve(process.cwd(), "public", path.replace(/^\//, ""))), path).toBe(
         true,
