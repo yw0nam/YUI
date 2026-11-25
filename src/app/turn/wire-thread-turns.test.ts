@@ -14,13 +14,12 @@ const thread = (over: Partial<Thread>): Thread => ({
   ...over,
 });
 
-it("takes the existing snapshot as the baseline and offers one group for a later new ask", () => {
+it("takes the existing snapshot as the baseline and offers one group for a Thread that later turns input-required", () => {
   let listener: ((snapshot: ThreadsSnapshot) => void) | undefined;
   const offer = vi.fn();
-  const ask = { ask_id: "a1", prompt: "Merge?", choices: [], text: true };
   wireThreadTurns({
     threads: {
-      snapshot: () => ({ revision: 1, threads: [thread({ state: "input-required", ask })] }),
+      snapshot: () => ({ revision: 1, threads: [thread({ id: "t0", state: "input-required" })] }),
       subscribe: (cb) => {
         listener = cb;
         return () => {};
@@ -33,18 +32,17 @@ it("takes the existing snapshot as the baseline and offers one group for a later
   expect(offer).not.toHaveBeenCalled();
   listener?.({
     revision: 2,
-    threads: [thread({ state: "input-required", ask: { ...ask, ask_id: "a2" } })],
+    threads: [thread({ id: "t0", state: "input-required" }), thread({ state: "input-required" })],
   });
   expect(offer.mock.calls.map(([group]) => group.envelope.event_id)).toEqual(["thread:t1"]);
 });
 
-it("withdraws the buffered ask group of a Thread whose ask closed", () => {
+it("withdraws the buffered input_required group of a Thread that left input-required", () => {
   let listener: ((snapshot: ThreadsSnapshot) => void) | undefined;
   const withdraw = vi.fn();
-  const ask = { ask_id: "a1", prompt: "Merge?", choices: [], text: true };
   wireThreadTurns({
     threads: {
-      snapshot: () => ({ revision: 1, threads: [thread({ state: "input-required", ask })] }),
+      snapshot: () => ({ revision: 1, threads: [thread({ state: "input-required" })] }),
       subscribe: (cb) => {
         listener = cb;
         return () => {};
@@ -55,7 +53,7 @@ it("withdraws the buffered ask group of a Thread whose ask closed", () => {
     withdraw,
   });
   listener?.({ revision: 2, threads: [thread({ state: "working" })] });
-  expect(withdraw.mock.calls).toEqual([["thread:t1", "thread.ask"]]);
+  expect(withdraw.mock.calls).toEqual([["thread:t1", "thread.input_required"]]);
 });
 
 it("wires nothing without a Threads client", () => {

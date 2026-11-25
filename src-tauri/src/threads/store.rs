@@ -1091,6 +1091,20 @@ mod tests {
     }
 
     #[test]
+    fn an_ask_key_in_a_put_is_never_stored() {
+        let s = store();
+        let mut value = body();
+        value["ask"] = serde_json::json!({"ask_id":"a","prompt":"Allow?","text":true});
+        s.upsert(
+            "t",
+            super::super::model::parse_upsert(&value.to_string()).unwrap(),
+            1,
+        );
+        let stored = serde_json::to_value(&s.snapshot().threads[0]).unwrap();
+        assert_eq!(stored.get("ask"), None);
+    }
+
+    #[test]
     fn failed_disk_append_leaves_change_applied() {
         let s = ThreadStore::new(
             vec![],

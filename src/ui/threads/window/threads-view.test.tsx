@@ -473,6 +473,17 @@ it("selects an asked Thread on the first snapshot that holds it, until a user pi
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
 });
 
+it("shows an input-required Thread read-only: its entries and Mark read, and no answer area or field", () => {
+  const { update, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 1)]));
+
+  expect($(".yui-threads-entry__text").textContent).toBe("Done.");
+  expect($(".yui-threads-pane__read").textContent).toBe("Mark read");
+  expect(
+    document.querySelectorAll(".yui-threads-pane .yui-answer, .yui-threads-pane textarea"),
+  ).toHaveLength(0);
+});
+
 it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {
   const { update, $, onRead } = build();
   const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];

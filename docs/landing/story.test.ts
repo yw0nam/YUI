@@ -5,7 +5,7 @@ import { type Recording, store } from "./session/thread-store";
 import { currentPhase, startSession } from "./story";
 
 const cast = vi.hoisted(() => {
-  const marks = { ready: 1, answer: 2, end: 3 };
+  const marks = { ready: 1, answer: 2, final: 2.5, end: 3 };
   return {
     marks: vi.fn<typeof import("./session/cast").marks>(() => marks),
     readCast: vi.fn<typeof import("./session/cast").readCast>(() => ({
@@ -33,9 +33,13 @@ vi.mock("./guide/steps", () => ({
 vi.mock("./session/speech", () => ({
   say: vi.fn<typeof import("./session/speech").say>(async () => {}),
 }));
+const dom = vi.hoisted(() => ({ listeners: new Map<string, () => void>(), added: [] as string[] }));
 vi.mock("./shared/dom", () => {
-  const el = { addEventListener() {}, classList: { add() {} } };
-  return { $: () => el, grab: el, reduced: true, term: el };
+  const el = (id: string) => ({
+    addEventListener: (type: string, cb: () => void) => dom.listeners.set(`${id}:${type}`, cb),
+    classList: { add: (name: string) => dom.added.push(`${id}.${name}`) },
+  });
+  return { $: el, grab: el("grab"), reduced: true, term: el("term") };
 });
 vi.mock("./voice", () => ({ soundBtn: { classList: { add() {} } } }));
 
@@ -56,7 +60,10 @@ const recorded = (ask: object) =>
     ],
   }) as unknown as Recording["snapshots"][number];
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 it("keeps the replay on its path when the visitor answers the closing ask", async () => {
   vi.useFakeTimers();
@@ -86,4 +93,18 @@ it("keeps the replay on its path when the visitor answers the closing ask", asyn
   expect(vi.mocked(say).mock.calls).toEqual([
     ["1,284 tests passed. Want me to open the PR for review?", "allow"],
   ]);
+});
+
+it("plays to the final snapshot, speaks the closing line, and Replay restarts the page", async () => {
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+  startSession();
+  await vi.waitFor(() => expect(currentPhase()).toBe("done"));
+  expect(cast.playTo.mock.calls).toEqual([[2.5], [3]]);
+  expect(vi.mocked(say).mock.calls.at(-1)).toEqual([
+    "1,284 tests passed. Want me to open the PR for review?",
+  ]);
+  expect(dom.added).toContain("replay.on");
+  dom.listeners.get("replay:click")?.();
+  expect(reload).toHaveBeenCalledOnce();
 });

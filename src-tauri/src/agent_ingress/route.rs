@@ -194,6 +194,30 @@ mod tests {
     }
 
     #[test]
+    fn answer_routes_are_gone_and_answers_is_an_ordinary_thread_id() {
+        assert_eq!(
+            parse_route("GET", "/threads/a/answer?ask_id=q", "{}").err(),
+            Some(404)
+        );
+        assert_eq!(
+            parse_route("GET", "/threads/answers?source=x", "{}").err(),
+            Some(405)
+        );
+        let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
+        let route = parse_route("PUT", "/threads/answers", body);
+        assert!(
+            matches!(
+                &route,
+                Ok(Route {
+                    kind: RouteKind::Thread(ThreadRoute::Upsert { id, .. }),
+                    ..
+                }) if id == "answers"
+            ),
+            "{route:?}"
+        );
+    }
+
+    #[test]
     fn a_missing_envelope_is_refused() {
         assert_eq!(
             parse_route("POST", "/signals", r#"{"signals":[{"id":1}]}"#).unwrap_err(),

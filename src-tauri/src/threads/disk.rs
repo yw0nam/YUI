@@ -122,6 +122,29 @@ mod tests {
     }
 
     #[test]
+    fn replay_drops_the_ask_fields_of_a_stored_line() {
+        let dir =
+            std::env::temp_dir().join(format!("yui_threads_replay_ask_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let mut t = body();
+        t["id"] = json!("t");
+        t["created_at"] = json!(1);
+        t["updated_at"] = json!(1);
+        t["entries"] = json!([]);
+        t["ask"] = json!({"ask_id":"a","prompt":"Allow?","text":true,"choices":[]});
+        t["answered_ask_ids"] = json!(["z"]);
+        t["seen_ask_id"] = json!("a");
+        fs::write(dir.join("threads_2026-10-29.jsonl"), format!("{t}\n")).unwrap();
+        let loaded = serde_json::to_value(replay(&dir, 1)).unwrap();
+        fs::remove_dir_all(dir).unwrap();
+        assert_eq!(loaded[0]["id"], json!("t"));
+        for key in ["ask", "answered_ask_ids", "seen_ask_id"] {
+            assert_eq!(loaded[0].get(key), None, "{key}");
+        }
+    }
+
+    #[test]
     fn replay_orders_files_skips_malformed_and_expires_old_threads() {
         let dir = std::env::temp_dir().join(format!("yui_threads_replay_{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
