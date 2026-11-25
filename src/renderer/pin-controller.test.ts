@@ -166,17 +166,17 @@ describe("createPinController — stepping", () => {
 
   it("no-ops without an adopted VRM, hips bone, or active pin", () => {
     const { camera, log, mountHeight, mountWidth, pins, scene } = createFixture();
-    expect(() => pins.step(camera)).not.toThrow();
+    expect(() => pins.step(camera, 0.016)).not.toThrow();
     expect(scene.position.toArray()).toEqual([0, 0, 0]);
     expect(mountWidth).not.toHaveBeenCalled();
     expect(mountHeight).not.toHaveBeenCalled();
 
     pins.onVrmDisposed();
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    expect(() => pins.step(camera)).not.toThrow();
+    expect(() => pins.step(camera, 0.016)).not.toThrow();
 
     pins.onVrmLoaded({ scene: new THREE.Object3D() } as unknown as VRM);
-    expect(() => pins.step(camera)).not.toThrow();
+    expect(() => pins.step(camera, 0.016)).not.toThrow();
     expect(log.error).not.toHaveBeenCalled();
   });
 
@@ -187,13 +187,13 @@ describe("createPinController — stepping", () => {
     });
 
     pins.setPerchTarget({ edgeLocalYpx: 10 });
-    pins.step(camera);
+    pins.step(camera, 0.016);
     expect(log.error).toHaveBeenCalledWith("step_perch", { error: "Error: read failed" });
 
     pins.setPerchTarget(null);
     log.error.mockClear();
     pins.setPeekTarget({ targetXpx: 90 });
-    pins.step(camera);
+    pins.step(camera, 0.016);
     expect(log.error).toHaveBeenCalledWith("step_peek", { error: "Error: read failed" });
   });
 });

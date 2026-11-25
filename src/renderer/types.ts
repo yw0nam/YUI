@@ -6,6 +6,7 @@ import type { OrbitAngles } from "./camera/camera-fit";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";
 import type { ScreenAnchor } from "./geometry/probe/project-anchor";
 import type { RenderMotionSignal } from "./motion/playback/motion-controller";
+import type { PeekTarget } from "./pin-controller";
 
 export interface RendererOptions {
   /** Canvas element to mount the VRM render. */
@@ -190,8 +191,13 @@ export interface Renderer {
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** Current perch active state — used by occlusion poll to detect perch end. */
   isPerched(): boolean;
-  /** Set the side-peek edge pin, or clear it and restore the horizontal baseline. */
-  setPeekTarget(target: { targetXpx: number } | null): void;
+  /**
+   * Set the side-peek edge pin (`targetXpx` in her window's px), or clear it and restore the
+   * horizontal baseline, eased over `release.easeMs` when given. A pin with `easeMs` eases in; one
+   * with `holdsPosture: false` holds no `peeking` posture, and its clear plays no idle return.
+   * Returns false when an active perch refuses the pin.
+   */
+  setPeekTarget(target: PeekTarget | null, release?: { easeMs: number }): boolean;
   /** Select mirrored clips for motions started after this call without restarting playback. */
   setMotionMirror(on: boolean): void;
   /**

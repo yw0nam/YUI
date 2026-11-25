@@ -38,6 +38,7 @@ export interface CameraRig {
   setFraming(next: FramingConfig): void;
   /** Stores the view window; the caller runs its resize to apply it. */
   setViewWindow(next: ViewWindow | null): void;
+  viewWindow(): ViewWindow | null;
   setZoom(z: number): void;
   setOrbit(angles: OrbitAngles): void;
 }
@@ -164,6 +165,7 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     startEase,
     setFraming,
     setViewWindow,
+    viewWindow: () => view,
     setZoom,
     setOrbit,
   };
