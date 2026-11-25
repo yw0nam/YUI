@@ -266,7 +266,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `come-along` | `come_along_move_failed` | `error` | A carry step's move threw (`warn` level). |
 | `come-along` | `come_along_place_failed` | `error` | Placing her on a new slot threw (`warn` level). |
 | `come-along` | `come_along_store_failed` | `error` | Session storage refused her home or opt-out, so a reload forgets it (`warn` level). |
-| `wire-come-along` | `come_along_failed` | `error` | A start or a walk home threw; she stays where she is and the next slot starts afresh (`warn` level). |
+| `wire-come-along` | `come_along_failed` | `error` | A start or a trip home threw; she stays where she is and the next slot starts afresh (`warn` level). |
 | `stage-slot` | `stage_slot_read_failed` | `error` | Reading the window's position, scale or minimised state threw; no slot is sent (`warn` level). |
 | `stage-slot` | `stage_slot_listen_failed` | `error` | Listening to the window's moves or resizes failed (`warn` level). |
 | Rust `window_dock.rs` | `window_dock_detach_failed` | `window`, `error` | Unlinking the pet window `window` when its settings window closes or miniaturizes failed (`warn` level). |

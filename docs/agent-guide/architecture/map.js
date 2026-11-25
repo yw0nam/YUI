@@ -633,7 +633,7 @@ globalThis.YUI_MAP =
       "id": "renderer",
       "module": "renderer",
       "label": "renderer core",
-      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()). The perch and side-peek pins move the model inside the canvas; a stage peek pin eases in and out, follows a travel's view window and holds no posture.",
+      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()). The perch and side-peek pins move the model inside the canvas; the peek pin follows a travel's view window, and a stage peek pin eases in and out and holds no posture.",
       "paths": [
         "src/renderer"
       ]
@@ -3860,7 +3860,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; drop({ landOnSeam: true }) after the carry home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"

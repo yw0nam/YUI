@@ -103,7 +103,7 @@ Her travel from her desktop spot onto the settings stage when the settings windo
 _Avoid_: summon, follow
 
 **Entry family**:
-One of four groups (glad, plain, glum, sulking) that a Come-along takes its entry from, picked from the last backend emotion through a fixed client table.
+A named group of backend emotions and entry clips in `stage.entry_families` of `configs/avatar.json` (shipped: glad, plain, glum), from which a Come-along picks its entry clip by the last backend emotion; plain takes any emotion no family lists. An angry emotion takes the sulking case instead.
 _Avoid_: mood, entry type
 
 **Page reaction**:
