@@ -48,7 +48,10 @@ export function wireCamera(deps: {
   deps.renderer.setIdleThrottleEnabled(deps.idleThrottleSettings.get().enabled);
   deps.idleThrottleSettings.subscribe((s) => deps.renderer.setIdleThrottleEnabled(s.enabled));
   // Only the wheel listener is ours — the store subscribers die with the stores' own disposal.
-  return { dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom) };
+  return {
+    dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom),
+    lockWheel: () => {},
+  };
 }
 
 export function wireInputAnchor(deps: {

@@ -9,7 +9,7 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   characterScreenHeight,
   projectToScreen,
@@ -73,7 +73,7 @@ function makeFixture() {
   const make = (overrides?: {
     hipsBone?: () => THREE.Object3D | null;
     seatDrop?: number;
-    cameraAt?: (aspect: number) => THREE.PerspectiveCamera | null;
+    cameraAt?: (aspect: number, framing?: number) => THREE.PerspectiveCamera | null;
   }) =>
     createScreenProbes({
       camera,
@@ -145,6 +145,18 @@ describe("createScreenProbes", () => {
     expect(fit?.feetShare).toBeCloseTo(projectFeetAnchor(modelBox, at, 1, 1)!.y, 9);
     // Twice as far, in a window 1.5 times as tall: 0.75 of her drawn size now.
     expect(fit?.scale).toBeCloseTo(0.75, 9);
+  });
+
+  it("reads the fit at the stage framing it is asked for", () => {
+    const { modelBox, make } = makeFixture();
+    const at = makeCamera();
+    const cameraAt = vi.fn((_aspect: number, _framing?: number) => at);
+    const probes = make({ cameraAt });
+
+    const fit = probes.getFrameFit(400, 600, 1);
+
+    expect(cameraAt).toHaveBeenCalledExactlyOnceWith(400 / 600, 1);
+    expect(fit?.feetShare).toBeCloseTo(projectFeetAnchor(modelBox, at, 1, 1)!.y, 9);
   });
 
   it("reports a finite positive pixels-per-metre that grows as the model comes closer", () => {

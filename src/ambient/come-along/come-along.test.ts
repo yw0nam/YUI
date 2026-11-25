@@ -34,7 +34,7 @@ function harness(
     /** Follows a settings window it is not linked to in physical px, as on Windows. */
     physicalFollow?: boolean;
     storage?: Storage;
-    /** Her feet's y in her window at its starting size, by default at its bottom; null with no VRM loaded. */
+    /** Her feet's y in her window at its starting size, fit by her height, by default at its bottom; null with no VRM loaded. */
     feet?: number | null;
     /** The last backend emotion, by default neutral. */
     emotion?: string;
@@ -50,6 +50,8 @@ function harness(
     size?: { width: number; height: number };
     /** The aspect below which the camera fit binds on her width, by default none. */
     bound?: number;
+    /** Her stored wheel zoom, by default 1. */
+    zoom?: number;
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -63,15 +65,18 @@ function harness(
   type Size = { width: number; height: number };
   const start: Size = { width: real.width, height: real.height };
   const startHeight = start.height;
-  // As the renderer's camera fit: drawn to the window's height, or below aspect `bound` to its
-  // width, which draws her smaller about the window's centre.
-  const drawnScale = (s: Size): number =>
-    s.height / Math.max(1, ((opts.bound ?? 0) * s.height) / s.width);
+  // As the renderer's camera fit, against the fit by her height alone: below aspect `bound` her
+  // width binds it, her zoom divides it, and the stage framing `k` eases both away. A farther
+  // camera draws her smaller about the window's centre.
+  const distance = (s: Size, k: number): number => {
+    const own = Math.max(1, ((opts.bound ?? 0) * s.height) / s.width) / (opts.zoom ?? 1);
+    return own + (1 - own) * k;
+  };
+  const drawnScale = (s: Size, k: number): number => s.height / distance(s, k);
   const feetBase = (opts.feet ?? startHeight) / startHeight;
-  const feetShareAt = (s: Size): number =>
-    0.5 + ((feetBase - 0.5) * (drawnScale(s) / s.height)) / (drawnScale(start) / startHeight);
-  const charHpxAt = (s: Size): number =>
-    ((opts.charHpx ?? 500) * drawnScale(s)) / drawnScale(start);
+  const feetShareAt = (s: Size, k: number): number => 0.5 + (feetBase - 0.5) / distance(s, k);
+  const charHpxAt = (s: Size, k: number): number =>
+    ((opts.charHpx ?? 500) * drawnScale(s, k)) / startHeight;
   const ticks = new Set<(ctx: { dt: number }) => void>();
   const walked: Array<[number, number]> = [];
   /** The size of each carry frame. */
@@ -83,6 +88,8 @@ function harness(
   // The size the renderer last fit her to: the carry's view while a travel parks her, else her
   // window's size at its last refit.
   let drawn: Size = { ...start };
+  // The stage framing the renderer last applied.
+  let drawnK = 0;
   let busy = false;
   let travelling = false;
   const frameWindow = {
@@ -159,6 +166,9 @@ function harness(
     events.push("vanish");
   });
   let reduced = false;
+  const setStageFraming = vi.fn((k: number) => {
+    drawnK = k;
+  });
   const refitTo = vi.fn(async (width: number, height: number) => {
     drawn = { width, height };
   });
@@ -176,17 +186,20 @@ function harness(
     setPeekTarget,
     setMotionMirror,
     getPerchProbe: () =>
-      opts.charHpx === null ? null : { seatPx: { x: 200, y: 300 }, charHpx: charHpxAt(drawn) },
+      opts.charHpx === null
+        ? null
+        : { seatPx: { x: 200, y: 300 }, charHpx: charHpxAt(drawn, drawnK) },
     // Projected with the last fit onto the page as it is now.
     getCharacterAnchor: () =>
-      opts.feet === null ? null : { x: 200, y: feetShareAt(drawn) * real.height },
-    getFrameFit: (width: number, height: number) =>
+      opts.feet === null ? null : { x: 200, y: feetShareAt(drawn, drawnK) * real.height },
+    getFrameFit: (width: number, height: number, k = drawnK) =>
       opts.feet === null
         ? null
         : {
-            feetShare: feetShareAt({ width, height }),
-            scale: drawnScale({ width, height }) / drawnScale(drawn),
+            feetShare: feetShareAt({ width, height }, k),
+            scale: drawnScale({ width, height }, k) / drawnScale(drawn, drawnK),
           },
+    setStageFraming,
     vanish,
     land: async (origin) => {
       events.push(`land ${JSON.stringify(origin)}`);
@@ -272,6 +285,7 @@ function harness(
     frameWindow,
     setFramePhysical,
     refitTo,
+    setStageFraming,
     setBusy: (on: boolean) => {
       busy = on;
     },
@@ -753,6 +767,7 @@ describe("createComeAlong", () => {
     expect(reloaded.locomotion.widen).not.toHaveBeenCalled();
     expect(reloaded.playMotion).not.toHaveBeenCalled();
     expect(reloaded.dock.attach).toHaveBeenCalledOnce();
+    expect(reloaded.setStageFraming).toHaveBeenCalledExactlyOnceWith(1);
 
     await reloaded.finish(reloaded.comeAlong.onStage(null));
     expect([reloaded.real.x, reloaded.real.y]).toEqual([1300, 80]);
@@ -984,6 +999,7 @@ describe("createComeAlong", () => {
     await expect(h.finish(h.comeAlong.onStage(home ? null : slot))).rejects.toThrow("window gone");
 
     expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [null]]);
+    expect(h.setStageFraming).toHaveBeenLastCalledWith(0);
   });
 
   it.each([
@@ -1165,6 +1181,86 @@ describe("createComeAlong", () => {
     await h.comeAlong.restoreSize();
 
     expect(h.events).toEqual(["frame 750,350,300,450"]);
+  });
+
+  it("eases her stage framing in with the carry onto the stage and out with the carry home", async () => {
+    const h = harness();
+    const carry = async (step: Promise<void>) => {
+      await h.pickUp();
+      await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+      for (const ms of [90, 360, 360, 90]) h.tick(ms);
+      await step;
+    };
+    const framings = () => h.setStageFraming.mock.calls.map(([k]) => Number(k.toFixed(3)));
+
+    await carry(h.comeAlong.onStage(slot));
+    expect(framings()).toEqual([0.004, 0.5, 0.996, 1]);
+    h.setStageFraming.mockClear();
+    await carry(h.comeAlong.onStage(null));
+
+    expect(framings()).toEqual([0.996, 0.5, 0.004, 0]);
+  });
+
+  it("at a 0.5 zoom docks her feet on the slot's edge at the stage framing, along the eased feet path", async () => {
+    // Feet 560 pt down her window at the height-only fit: 430 down at her own half-size fit.
+    const h = harness({ at: { x: 1290, y: 80 }, zoom: 0.5, feet: 560 });
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+
+    for (const ms of [90, 360, 360, 90]) h.tick(ms);
+    await done;
+
+    // Her feet ease from 510 to 680 pt; the frame's y follows her fit at each frame's framing.
+    expect(h.walked).toEqual([
+      [1285, 80],
+      [690, 122],
+      [104, 120],
+      [100, 120],
+    ]);
+  });
+
+  it("sets the stage framing while she is hidden in a vanish, before her page refits", async () => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.setStageFraming).toHaveBeenCalledExactlyOnceWith(1);
+    const at = h.setStageFraming.mock.invocationCallOrder[0]!;
+    expect(h.vanish.mock.invocationCallOrder[0]).toBeLessThan(at);
+    expect(at).toBeLessThan(h.refitTo.mock.invocationCallOrder[0]!);
+  });
+
+  it.each([
+    ["her own size back", { width: 300, height: 450 }],
+    ["her size already", { width: 400, height: 600 }],
+  ])("gives her own framing back when a mover takes her off the stage at %s", async (_, size) => {
+    const h = await docked({ size });
+    await h.abort("drag");
+
+    await h.comeAlong.restoreSize();
+
+    expect(h.setStageFraming).toHaveBeenLastCalledWith(0);
+  });
+
+  it("eases her framing from where it was when a new carry takes over a carry home", async () => {
+    const h = await docked();
+    void h.comeAlong.onStage(null);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+    // Halfway home: the framing is at 0.5.
+    h.tick(90);
+    h.tick(360);
+    await flush();
+
+    const back = h.comeAlong.onStage(slot);
+    await h.pickUp();
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+    h.tick(75);
+
+    // 0.4% of the 750 ms carry back from 0.5 toward 1.
+    expect(h.setStageFraming.mock.lastCall?.[0]).toBeCloseTo(0.502, 3);
+    await h.finish(back);
   });
 
   it("after a reload, stays where she was dropped when a drag had taken her", async () => {

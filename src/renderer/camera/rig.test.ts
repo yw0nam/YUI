@@ -129,6 +129,56 @@ describe("createCameraRig", () => {
     expectPosition(camera, own);
   });
 
+  it("at stage framing fits her by her height alone, head-on and without her zoom, easing from her own fit", () => {
+    const { camera, rig, setBox } = makeFixture();
+    // Arms spread in the rest pose: wider than 2:3, so her own fit binds on her width.
+    const box = new THREE.Box3(
+      new THREE.Vector3(-0.68, 0, -0.2),
+      new THREE.Vector3(0.68, 1.6, 0.2),
+    );
+    setBox(box);
+    camera.aspect = 2 / 3;
+    rig.setZoom(0.5);
+    rig.setOrbit({ azimuth: 0.6, polar: 1.2 });
+    stepUntilSettled(rig);
+    const target = new THREE.Vector3(0, 0.8, 0);
+    const own = computeCameraFit(box, { fov: FRAMING.fov, aspect: 2 / 3, margin: FRAMING.margin })!;
+    const ownDistance = own.distance / 0.5;
+    // Half her 1.6 height over tan(15°), plus the 10% margin.
+    const stageDistance = (0.8 / Math.tan((15 * Math.PI) / 180)) * 1.1;
+    const distanceAt = (k: number): number => {
+      rig.setStageFraming(k);
+      return camera.position.distanceTo(target);
+    };
+
+    expect(distanceAt(0)).toBeCloseTo(ownDistance, 6);
+    expect(distanceAt(0.5)).toBeCloseTo((ownDistance + stageDistance) / 2, 6);
+    expect(distanceAt(1)).toBeCloseTo(stageDistance, 6);
+    expectPosition(
+      camera,
+      orbitPosition(target, stageDistance, {
+        azimuth: CAMERA_AZIMUTH_DEFAULT,
+        polar: CAMERA_POLAR_DEFAULT,
+      }),
+    );
+  });
+
+  it("fits a camera copy at the stage framing it is asked for, leaving its own as it was", () => {
+    const { camera, rig } = makeFixture();
+    rig.setZoom(0.5);
+    rig.fit();
+    const own = camera.position.clone();
+    const target = new THREE.Vector3(0, 0.8, 0);
+
+    const copy = rig.cameraAt(2 / 3, 1);
+
+    expect(copy!.position.distanceTo(target)).toBeCloseTo(
+      (0.8 / Math.tan((15 * Math.PI) / 180)) * 1.1,
+      6,
+    );
+    expectPosition(camera, own);
+  });
+
   it("setOrbit eases the polar", () => {
     const { camera, rig } = makeFixture();
     rig.fit();
