@@ -48,7 +48,8 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `sheepish` | oneshot | no | Sheepish/awkward standing gesture; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
 | `calm` | oneshot | no | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | state | yes (cycle) | Held while side-perched. The clip mirrors on its configured side. `crossfade_loop: true`: the clip clamps on its last frame and crossfades back to frame 0 (`fade_ms: 700`) each loop, hiding the wrap seam. `broker_publish: false`. | PET_HIDING/PET_HIDE | 14.0s |
-| `thinking` | state | yes | Looping thinking pose, played by the client as a TTFT latency affordance (see [Thinking](#thinking)). `pingpong: true` (single variant), priority 50. `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
+| `thinking` | state | yes | Looping thinking pose, played by the client as a TTFT latency affordance (see [Thinking](#thinking)). `pingpong: true` (single variant), priority 50. `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `thinking_free` (`idle_04`) when absent. | もいらんど thinking | — |
+| `thinking_free` | state | yes | Free stand-in for `thinking` when the purchased clip is absent: the `idle_04` pose under the same policy. `pingpong: true` (single variant), priority 50. `broker_publish: false`. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
 | `sulk` | oneshot | no | Sulk/pout (拗ね) emotion gesture. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
 | `wave` | oneshot | no | Random hand-wave pool: one hand raised and waved side to side. | necocoya EmoteSet_Free_v130 / `01_tefuri1`, `01_tefuri3` | 5.5s / 5.8s |
 | `bow` | oneshot | no | Polite standing bow. | necocoya EmoteSet_Free_v130 / `02_ojigi` | 7.5s |
@@ -84,7 +85,7 @@ Priority 45 puts it above `idle`, and below `thinking` and the emote oneshots, w
 
 #### Floor stroll
 
-The floor stroll runs whenever the body is on `idle`, `thinking` or `walk`, through a turn's thinking, its filler and its response speech (expressions and lip-sync apply as they arrive). It ends in place when a response `motion_id` takes the body.
+The floor stroll runs whenever the body is on `idle`, `thinking`, `thinking_free` or `walk`, through a turn's thinking, its filler and its response speech (expressions and lip-sync apply as they arrive). It ends in place when a response `motion_id` takes the body.
 
 A floor stroll may continue past its own monitor's edge onto a neighbouring monitor that shares its floor line and scale factor, with the window translating frame by frame.
 
@@ -165,7 +166,7 @@ A drag drop keeps the window where the user left it. A voluntary exit releases t
 
 The pose plays forward↔reverse continuously (`pingpong: true`, single variant), seam-free at the turnaround, until interrupted. Its priority is 50, above `idle` and below the `window_sit` perch and the reactive emotes.
 
-It is `broker_publish: false`, a purchased asset at `public/purchased_motions/thinking.vrma` that falls back to `idle` when absent.
+It is `broker_publish: false`, a purchased asset at `public/purchased_motions/thinking.vrma` that falls back to `thinking_free` (`idle_04`) when absent.
 
 ### Perch states
 
@@ -274,7 +275,7 @@ Distribution names the product, the circle and the Booth link, as the source man
 
 ### もいらんど
 
-[もいらんど: thinking](https://booth.pm/ja/items/5562384) supplies `thinking` only. It is a purchased licensed asset. It is kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
+[もいらんど: thinking](https://booth.pm/ja/items/5562384) supplies `thinking` only. It is a purchased licensed asset. It is kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, `thinking` plays `thinking_free`, which reuses `idle_04.vrma`.
 
 ### Mixamo
 
@@ -307,7 +308,7 @@ The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_liv
 | `drag` | `kind: reactive` pickup |
 | `head_pat` | `kind: reactive` pat loop |
 | `peek`, `window_sit` | `broker_publish: false`, client-held perch states |
-| `thinking` | `broker_publish: false`, client-played TTFT affordance |
+| `thinking`, `thinking_free` | `broker_publish: false`, client-played TTFT affordance |
 | `walk` | `kind: reactive` + `broker_publish: false`, the client-scheduled ambient stroll |
 | `jump` | `broker_publish: false`, its window-to-window crossing |
 | `falling`, `landing` | `broker_publish: false`, the client-owned fall chain |
@@ -352,11 +353,13 @@ A sole is a skinned vertex whose strongest skin weight is on `leftFoot`, `rightF
 
 No smoothing filter runs while a grounded motion plays. When the playing motion changes between grounded and not grounded, the applied share of the offset follows the mixer's crossfade over the incoming motion's `fade_ms`. A motion that is not grounded keeps the scene height the perch gives it.
 
-The grounded entries are `idle`, `idle_lively`, `head_pat`, `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`, `thinking`, `walk`, `sulk`, `wave`, `bow`, `excited`, `banzai`, `peace`, `flustered`, `startled`, `yawn`, `gaow`, `peek_in`, `orz`, `shy`, `sleep` and `dance`.
+The grounded entries are `idle`, `idle_lively`, `head_pat`, `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`, `thinking`, `thinking_free`, `walk`, `sulk`, `wave`, `bow`, `excited`, `banzai`, `peace`, `flustered`, `startled`, `yawn`, `gaow`, `peek_in`, `orz`, `shy`, `sleep` and `dance`.
 
 The clips sink without it because `createVRMAnimationClip` scales only the hips translation to the model and copies the leg rotations as authored. A model whose leg length or sole height differs from the clip's source rig sinks or floats.
 
 ### Missing-clip fallback
 
-Any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM, for example a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle`, so the failed id never pins controller state or blocks a later idle by priority.
+A motion whose clip fails to load (missing or invalid `.vrma` for the live VRM) plays its entry's `fallback` once when one is set and registered. If the fallback fails too, or none is set, the motion recovers to `idle`.
+
+A fallback never chains to its own fallback, so `A → B → A` cannot happen. The renderer force-commits what it plays, so the failed id never pins controller state or blocks a later idle by priority. `fallback` names another registered motion id and may not name the entry's own id.
 

@@ -159,6 +159,18 @@
   },
   "thinking": {
     "vrma_path": "/purchased_motions/thinking.vrma",
+    "fallback": "thinking_free",
+    "fade_ms": 200,
+    "pingpong": true,
+    "grounded": true,
+    "kind": "state",
+    "loop": true,
+    "priority": 50,
+    "interrupt_policy": "ignore",
+    "broker_publish": false
+  },
+  "thinking_free": {
+    "vrma_path": "/motions/idle_04.vrma",
     "fade_ms": 200,
     "pingpong": true,
     "grounded": true,

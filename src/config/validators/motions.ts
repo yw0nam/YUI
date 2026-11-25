@@ -17,6 +17,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
   if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
   const out: MotionRegistry = {};
+  const ids = new Set(Object.keys(raw));
   for (const [id, entry] of Object.entries(raw)) {
     if (!isObject(entry)) {
       issues.push(`${id}: entry is not an object`);
@@ -73,6 +74,20 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     // variant_policy without variants is a dead field ignored by resolve() — fail-loud.
     if (rawVariantPolicy !== undefined && rawVariants === undefined) {
       issues.push(`${id}.variant_policy has no meaning without variants`);
+    }
+    // fallback: a registered motion played once when this clip fails to load.
+    const rawFallback = entry.fallback;
+    let fallback: string | undefined;
+    if (rawFallback !== undefined) {
+      if (typeof rawFallback !== "string") {
+        issues.push(`${id}.fallback must be a string`);
+      } else if (rawFallback === id) {
+        issues.push(`${id}.fallback must not name its own id`);
+      } else if (!ids.has(rawFallback)) {
+        issues.push(`${id}.fallback "${rawFallback}" is not a registered motion id`);
+      } else {
+        fallback = rawFallback;
+      }
     }
     const rawBrokerPublish = entry.broker_publish;
     let broker_publish: boolean | undefined;
@@ -198,6 +213,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     out[id] = {
       vrma_path: entry.vrma_path as string,
       ...(variants !== undefined ? { variants } : {}),
+      ...(fallback !== undefined ? { fallback } : {}),
       ...(variant_policy !== undefined ? { variant_policy } : {}),
       ...(cycle_dwell_ms !== undefined ? { cycle_dwell_ms } : {}),
       ...(pingpong !== undefined ? { pingpong } : {}),

@@ -102,8 +102,9 @@ export function createMotionPlayback(deps: {
   /**
    * Actually play resolved motion (load clip → compose action → crossfade).
    * controller.commit is performed by caller (playMotion/finish) with the decision.
+   * `canFallback` allows one fallback attempt per playback; the fallback chain plays with false.
    */
-  async function startMotion(motion: ResolvedMotion): Promise<void> {
+  async function startMotion(motion: ResolvedMotion, canFallback = true): Promise<void> {
     const startToken = motionStartGeneration.begin();
     // Single play sink — cancel any pending dwell swap for new motion (prevents interrupt delay/stale swap).
     cycleDwell.cancel();
@@ -112,9 +113,9 @@ export function createMotionPlayback(deps: {
       let clip = await deps.clips.load(motion.vrma_path, motion.root_lock_y, motion.root_keep_xz);
       if (!motionStartGeneration.isCurrent(startToken)) return;
       if (!clip) {
-        // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
+        // Real load failure (clip missing/invalid for the live VRM) → play the fallback chain.
         // A hotswap/teardown drop (no vrm / no mixer) just returns silently.
-        if (vrm && mixer) fallbackToBaseline(motion.id);
+        if (vrm && mixer) fallbackToBaseline(motion.id, canFallback);
         return;
       }
       if (!mixer) return;
@@ -160,25 +161,24 @@ export function createMotionPlayback(deps: {
       if (motion.kind === "state") lastStateMotionId = motion.id;
     } catch (err) {
       log.error("start_motion", { error: String(err) });
-      // Loader threw for the live VRM → recover to idle. Drops (hotswap/teardown) return silently.
+      // Loader threw for the live VRM → play the fallback chain. Drops (hotswap/teardown) return silently.
       if (motionStartGeneration.isCurrent(startToken) && vrm && mixer) {
-        fallbackToBaseline(motion.id);
+        fallbackToBaseline(motion.id, canFallback);
       }
     }
   }
 
   /**
-   * A motion's clip failed to load → repair controller state to idle and (re)play it.
-   * playMotion commits before the async load, so a failed clip leaves current +
-   * previousStable pinned at the dead id and a later idle blocked by priority;
-   * force-committing idle (baseline-fallback) overwrites both. Recursion guard: idle's
-   * own failure resolves to null and no-ops. Honors public/purchased_motions/AGENTS.md.
+   * A motion's clip failed to load → repair controller state and (re)play its `fallback`
+   * once, else idle. `canFallback` is false for the fallback's own failed load, so a
+   * fallback never chains to another. Recursion guard: idle's own failure no-ops.
    */
-  function fallbackToBaseline(failedId: string): void {
+  function fallbackToBaseline(failedId: string, canFallback: boolean): void {
     if (!controller) return;
-    log.warn("motion_fallback_to_idle", { failed_id: failedId });
-    const idle = resolveBaselineFallback(controller, failedId);
-    if (idle) void startMotion(idle);
+    const fallbackId = canFallback ? motionRegistry?.[failedId]?.fallback : undefined;
+    log.warn("motion_fallback_to_idle", { failed_id: failedId, fallback_id: fallbackId ?? null });
+    const next = resolveBaselineFallback(controller, failedId, fallbackId);
+    if (next) void startMotion(next, false);
   }
 
   /** If registry exists, lay down baseline so ambient always plays. */
