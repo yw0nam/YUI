@@ -8,7 +8,6 @@
 import { describe, expect, it } from "vitest";
 import { createSettingsStores } from "../settings-stores";
 import { applyPatch, readDocument } from "./document";
-import { ROWS } from "./rows";
 
 const EXPOSED_PATHS = [
   "appearance.text_size",
@@ -138,6 +137,7 @@ describe("applyPatch", () => {
 
     const result = applyPatch(stores, { privacy: { screen_source: { index: 1 } } });
 
+    expect(result.direct).toEqual({});
     expect(result.allow).toEqual([
       {
         path: "privacy.screen_source.index",
@@ -146,8 +146,100 @@ describe("applyPatch", () => {
         to: 1,
       },
     ]);
-    const index = ROWS.find((row) => row.path === "privacy.screen_source.index")!;
-    index.write(stores, 1);
-    expect(stores.screenshotSettings.get().source).toEqual({ kind: "monitor", index: 1 });
+    expect(stores.screenshotSettings.get().source).toEqual({ kind: "monitor", index: 0 });
+  });
+
+  it("answers an unchanged document as a no-op", () => {
+    const stores = createSettingsStores();
+
+    const result = applyPatch(stores, readDocument(stores));
+
+    expect(result.direct).toEqual(Object.fromEntries(EXPOSED_PATHS.map((path) => [path, "ok"])));
+    expect(result.allow).toEqual([]);
+  });
+
+  it.each(["privacy.screenshot", "bubble.keep"])("answers a dotted key %s as unknown", (key) => {
+    const stores = createSettingsStores();
+    const before = readDocument(stores);
+
+    const result = applyPatch(stores, { [key]: true });
+
+    expect(result.direct).toEqual({ [key]: `error: unknown ${key}` });
+    expect(readDocument(stores)).toEqual(before);
+  });
+
+  it.each([
+    [{ kind: "bogus" }, "privacy.screen_source.kind"],
+    [{ kind: "window" }, "privacy.screen_source.kind"],
+    [{ kind: "monitor", index: -1 }, "privacy.screen_source.index"],
+    [{ kind: "monitor", index: 1.5 }, "privacy.screen_source.index"],
+  ])("rejects the screen source %j", (source, path) => {
+    const stores = createSettingsStores();
+
+    const result = applyPatch(stores, { privacy: { screen_source: source } });
+
+    expect(result.direct[path]).toBe(`error: invalid ${path}`);
+  });
+
+  it("rejects a source index when the current source is not a monitor", () => {
+    const stores = createSettingsStores();
+    stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
+
+    const result = applyPatch(stores, { privacy: { screen_source: { index: 1 } } });
+
+    expect(result.direct).toEqual({
+      "privacy.screen_source.index": "error: invalid privacy.screen_source.index",
+    });
+  });
+
+  it("rejects a source index when the patch sets another kind", () => {
+    const stores = createSettingsStores();
+
+    const result = applyPatch(stores, {
+      privacy: {
+        screen_source: { kind: "window", app: "Cursor", window_title: "a.md", index: 1 },
+      },
+    });
+
+    expect(result.direct["privacy.screen_source.index"]).toBe(
+      "error: invalid privacy.screen_source.index",
+    );
+  });
+
+  it("returns one result per changed path in a mixed patch", () => {
+    const stores = createSettingsStores();
+    stores.expressMotionSettings.setEnabled("happy", false);
+
+    const result = applyPatch(stores, {
+      bubble: { keep: true },
+      appearance: { theme: "neon" },
+      endpoints: { chat: "https://example" },
+      motions: { express_disabled: ["laugh"] },
+      privacy: { screenshot: true, screen_source: { kind: "bogus" } },
+    });
+
+    expect(result.direct).toEqual({
+      "bubble.keep": "ok",
+      "appearance.theme": "error: invalid appearance.theme",
+      "endpoints.chat": "error: unknown endpoints.chat",
+      "motions.express_disabled": "ok",
+      "privacy.screen_source.kind": "error: invalid privacy.screen_source.kind",
+    });
+    expect(result.allow).toEqual([
+      { path: "privacy.screenshot", labelKey: "screenshot.label", from: false, to: true },
+    ]);
+    expect(stores.bubblePersistSettings.get().enabled).toBe(true);
+    expect(stores.themeSettings.get().theme).toBe("system");
+    expect(stores.expressMotionSettings.get().disabled).toEqual(["laugh"]);
+    expect(stores.screenshotSettings.get().enabled).toBe(false);
+  });
+
+  it("answers an empty object at a leaf as invalid", () => {
+    const stores = createSettingsStores();
+
+    const result = applyPatch(stores, { bubble: { keep: {} } });
+
+    expect(result.direct).toEqual({ "bubble.keep": "error: invalid bubble.keep" });
+    expect(stores.bubblePersistSettings.get()).toEqual({ enabled: false });
   });
 });
