@@ -74,6 +74,10 @@ export function createMentionPicker(deps: {
     };
     for (const e of matches) add(e.id, e.name, avatarEl(e, 14));
     if (deps.allowed(EVERYONE)) add(EVERYONE, `@${EVERYONE}`, null, t("unified.everyone_sub"));
+    if (options.length === 0) {
+      close();
+      return;
+    }
     box.set(options);
     box.open();
     if (matches.length > 0) activate(0);

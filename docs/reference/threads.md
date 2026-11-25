@@ -104,7 +104,7 @@ The input is the unified chat composer while unified chat shows. Otherwise it is
 
 The button reads Attached while the chip is in the input. A second press takes the chip off, as the chip's × does.
 
-A send, typed or spoken, carries every chip the input showed as that turn's [`threads attached:`](./client-context.md#threads-attached) block, and the chips clear. The sent message's bubble shows them. A Thread attached after the send stays for the next one. A failed send puts the text and the chips back.
+A send, typed or spoken, carries every chip the input showed as that turn's [`threads attached:`](./client-context.md#threads-attached) block, and the chips clear. The sent message's bubble shows them. A Thread attached after the send stays for the next one. A failed send puts the chips back, and a failed typed send also puts its text back.
 
 In unified chat, while any chip is attached, a send goes to the main character, the only character that reads Threads. The other cast chips and everyone are disabled, the @ list offers only her, and a hint above the input says why. A typed `@name` for anyone else is refused with that hint.
 

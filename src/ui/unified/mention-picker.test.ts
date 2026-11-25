@@ -60,6 +60,23 @@ describe("createMentionPicker", () => {
     expect(list().hidden).toBe(true);
   });
 
+  it("stays closed when the allowed recipients leave no option", () => {
+    document.body.innerHTML = '<div id="dock"><textarea></textarea></div>';
+    field = document.querySelector("textarea")!;
+    createMentionPicker({
+      field,
+      mount: document.querySelector("#dock")!,
+      cast: () => CAST,
+      allowed: (id) => id === "perlica",
+      onPick,
+    });
+
+    type("hi @na");
+
+    expect(list().hidden).toBe(true);
+    expect(field.getAttribute("aria-expanded")).not.toBe("true");
+  });
+
   it("Enter on an active option picks it, removes the fragment and does not reach the input", () => {
     type("hi @na");
 
