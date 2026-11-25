@@ -61,6 +61,7 @@ const ko: Record<string, string> = {
   "bubble.backlog": "백로그",
   "bubble.backlog_hide": "백로그 닫기",
   "bubble.quote_attached": "첨부 {count}장",
+  "bubble.quote_thread": "스레드 · {title}",
   "bubble.sources_more": "+{n}개",
   "signals.delivery_urgent": "긴급 신호",
   "signals.delivery_batched": "모아서 전달한 신호",

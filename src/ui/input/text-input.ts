@@ -228,14 +228,20 @@ export function createTextInput(
 
   function setThreads(next: AttachedThread[]): void {
     threads = next;
+    renderThreads();
+  }
+
+  function renderThreads(): void {
     threadsEl.replaceChildren(
-      ...next.map((thread) => {
+      ...threads.map((thread) => {
         const chip = document.createElement("span");
         chip.className = "yui-input__thread";
         const label = document.createElement("span");
+        label.className = "yui-input__thread-label";
         label.textContent = t("input.thread_chip", { title: thread.title });
         const remove = document.createElement("button");
         remove.type = "button";
+        remove.className = "yui-input__thread-remove";
         remove.innerHTML = REMOVE_ICON;
         remove.setAttribute("aria-label", t("aria.remove_thread", { title: thread.title }));
         remove.addEventListener("click", () => {
@@ -245,7 +251,7 @@ export function createTextInput(
         return chip;
       }),
     );
-    threadsEl.hidden = next.length === 0;
+    threadsEl.hidden = threads.length === 0;
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
@@ -348,6 +354,7 @@ export function createTextInput(
     attachBtn.setAttribute("aria-label", t("aria.attach_image"));
     field.placeholder = t("input.placeholder");
     field.setAttribute("aria-label", t("aria.input_field"));
+    renderThreads();
   }
   applyLocaleLabels();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabels);

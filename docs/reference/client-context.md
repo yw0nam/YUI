@@ -435,7 +435,9 @@ threads attached:
   github-ci:run-412 | github-ci | Release build failed
 ```
 
-The block is present only on the user-started turn whose message carried the Threads, and only in the main character's window. The next turn carries none. The client names the Threads and nothing else. The backend reads each one by id with `threads_list` and decides what to do. A Thread that expired before the turn answers `error: unknown thread: <id>`.
+The block is present only on the user-started turn whose message, typed or spoken, carried the Threads, and only in the main character's window. The next turn carries none.
+
+The client names the Threads and nothing else. The backend reads each one by id with `threads_list` and decides what to do. A Thread that expired before the turn answers `error: unknown thread: <id>`.
 
 The `ClientContext` field is `threads_attached?: { id: string; source: string; title: string }[]`. Every transport carries it in `client_context`.
 

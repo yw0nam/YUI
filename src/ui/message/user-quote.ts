@@ -42,6 +42,17 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
     whoEl.append(shown && lead ? lead(shown) : t("bubble.you"));
   }
 
+  function renderThreads(): void {
+    threadsEl.replaceChildren(
+      ...(shown?.threads ?? []).map((title) => {
+        const chip = document.createElement("span");
+        chip.className = "yui-bubble__quote-thread";
+        chip.textContent = t("bubble.quote_thread", { title });
+        return chip;
+      }),
+    );
+  }
+
   function quoteText(quote: UserQuote): string {
     const attached = quote.images > 0 ? t("bubble.quote_attached", { count: quote.images }) : "";
     if (quote.text === "") return attached;
@@ -58,14 +69,7 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
     bubble.reveal({ clearSpeech: true });
     renderWho();
     textEl.textContent = quoteText(quote);
-    threadsEl.replaceChildren(
-      ...(quote.threads ?? []).map((title) => {
-        const chip = document.createElement("span");
-        chip.className = "yui-bubble__quote-thread";
-        chip.textContent = t("input.thread_chip", { title });
-        return chip;
-      }),
-    );
+    renderThreads();
     el.hidden = false;
     bubble.measure();
   }
@@ -82,9 +86,12 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
     bubble.measure();
   }
 
-  // Surfaces aren't remounted on locale change, so the label is (re)applied here.
+  // Surfaces aren't remounted on locale change, so the label and the chips are (re)applied here.
   renderWho();
-  const unsubscribeLocale = subscribeLocale(renderWho);
+  const unsubscribeLocale = subscribeLocale(() => {
+    renderWho();
+    renderThreads();
+  });
 
   return {
     show,

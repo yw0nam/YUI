@@ -1191,7 +1191,7 @@ globalThis.YUI_MAP =
       "id": "ui/unified",
       "module": "display",
       "label": "unified chat",
-      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, a grip beside them and the box's name plate that drag the window, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop; while main's attached Threads show as chips, every send goes to main, the other cast chips and everyone are disabled, a hint above the field says why, and a typed or picked @name for anyone else is refused with it; a failed send's text comes back to an empty field.",
+      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, a grip beside them and the box's name plate that drag the window, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop; while main's attached Threads show as chips, a send goes to main and carries them, the other cast chips and everyone are disabled, the @ list offers only main, a hint above the field says why, and a typed @name for anyone else is refused with it, a spoken send leaving that token in the field; the rule lives in one helper beside the routing; a failed send's text comes back to an empty field.",
       "paths": [
         "src/ui/unified"
       ]
@@ -1384,7 +1384,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-attach",
       "module": "wiring",
       "label": "attached Threads wiring",
-      "role": "Main only, wired by the chat turn: the list of Threads attached to the main character's chat input, each once. The Threads window's toggle and every chip's × change it; a toggle that adds opens a closed input; every composer draws it; a send drops the Threads it carried and keeps any attached since; a failed send puts them back; the Threads window hears each change and gets it again on its ready.",
+      "role": "Main only, wired by the chat turn: the list of Threads attached to the main character's chat input, each once. The Threads window's toggle and every chip's × change it; a toggle that adds opens a closed input; every composer draws it; a send, typed or spoken, drops the Threads it carried and keeps any attached since, and a spoken send in main's own window carries the list as it stands; a failed send puts them back; the Threads window hears each change and gets it again on its ready.",
       "paths": [
         "src/app/threads-attach"
       ]
@@ -1618,7 +1618,7 @@ globalThis.YUI_MAP =
       "id": "stt-submit",
       "from": "io/voice/stt",
       "to": "dispatcher/sources/user-input",
-      "carries": "onVoiceSegment(text) → submitVoice while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
+      "carries": "onVoiceSegment(text) → submitVoice(text, main's attached Threads, which it then drops) while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
@@ -1627,7 +1627,7 @@ globalThis.YUI_MAP =
       "id": "user-input-bus",
       "from": "dispatcher/sources/user-input",
       "to": "dispatcher/core",
-      "carries": "bus.push(BusEnvelope): user.text_submitted, with payload.threads_attached when Threads came with it, user.voice_segment_ready",
+      "carries": "bus.push(BusEnvelope): user.text_submitted and user.voice_segment_ready, each with payload.threads_attached when Threads came with it",
       "kind": "call",
       "transport": "shared"
     },
@@ -4101,7 +4101,7 @@ globalThis.YUI_MAP =
       "id": "user-turn-routed",
       "from": "ui/unified",
       "to": "dispatcher/sources/routed",
-      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message; threads are the attached Threads a typed send carries, and while any are attached every send goes to main",
+      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message; threads are the attached Threads a send carries, typed or spoken, and while any are attached a send goes to main",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"

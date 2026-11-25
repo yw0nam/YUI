@@ -1,7 +1,4 @@
-/**
- * Main's attached Threads: the Threads window's toggles and the chips' × change them, every composer
- * draws them, a send drops the ones it carried, and the Threads window hears each change.
- */
+/** Main's attached Threads: changed by the Threads window and the chips' ×, drawn by every composer, dropped by the send that carried them. */
 
 import { publishState } from "../../io/bridge/core/state-mirror";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
@@ -20,7 +17,7 @@ export function wireThreadsAttach(deps: {
   /** Main's preset id: a unified chat message routed here drops the Threads it carried. */
   selfPresetId: string;
   register: (dispose: () => void) => void;
-}): Pick<AttachedThreads, "restore"> {
+}): Pick<AttachedThreads, "get" | "drop" | "restore"> {
   const { bridge, surfaces, register } = deps;
   const attached = createAttachedThreads();
   register(attached.subscribe(surfaces.setThreads));
@@ -45,5 +42,5 @@ export function wireThreadsAttach(deps: {
       if (to === deps.selfPresetId && threads) attached.drop(threads);
     }),
   );
-  return { restore: attached.restore };
+  return { get: attached.get, drop: attached.drop, restore: attached.restore };
 }

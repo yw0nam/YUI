@@ -118,14 +118,16 @@ describe("user_input_source — submit with attached Threads", () => {
     { id: "codex:7", source: "codex", title: "Fix the flaky test" },
   ];
 
-  it("carries the attached Threads on the payload, with text or alone", () => {
+  it("carries the attached Threads on the payload, typed with text or alone, or spoken", () => {
     const { bus, pushed } = fakeBus();
     const src = createUserInputSource(bus);
     src.submit("handle these", [], undefined, THREADS);
     src.submit("", [], { sendId: "s1" }, THREADS);
+    src.submitVoice("and this", THREADS);
     expect(pushed.map((e) => e.payload)).toEqual([
       { text: "handle these", threads_attached: THREADS },
       { text: "", send_id: "s1", threads_attached: THREADS },
+      { text: "and this", threads_attached: THREADS },
     ]);
   });
 });

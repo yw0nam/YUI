@@ -71,7 +71,7 @@
   color: var(--yui-text);
 }
 .yui-uc__chip:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 .yui-uc__chip-name {

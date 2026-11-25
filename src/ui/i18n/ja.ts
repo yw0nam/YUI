@@ -61,6 +61,7 @@ const ja: Record<string, string> = {
   "bubble.backlog": "バックログ",
   "bubble.backlog_hide": "バックログを閉じる",
   "bubble.quote_attached": "添付 {count}件",
+  "bubble.quote_thread": "スレッド · {title}",
   "bubble.sources_more": "+{n}件",
   "signals.delivery_urgent": "緊急シグナル",
   "signals.delivery_batched": "まとめて届いたシグナル",

@@ -139,7 +139,7 @@ export function createSurfacesRouter({
       remote.setBusy(busy);
       stream.setBusy(busy);
     },
-    // Retry resends the composer's own draft, which the unified composer does not restore.
+    // The unified composer offers no Retry; a failed send's text comes back to it through restoreInput.
     showInputError: (message, action) =>
       shown.get()
         ? stream.showInputError(message, action === "retry" ? undefined : action)

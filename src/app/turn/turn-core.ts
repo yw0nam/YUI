@@ -181,7 +181,12 @@ export async function wireTurnCore(
     shown: phase1.unifiedShown,
     bargeIn: () => settings.vadSettings.get().bargeIn,
     sendSegment: (text) => phase1.emitVoiceSegment({ text }),
-    submitHere: (text) => userInput.submitVoice(text),
+    submitHere(text) {
+      // A spoken message carries the chips the input shows, as a typed one does.
+      const threads = attached?.get() ?? [];
+      userInput.submitVoice(text, threads);
+      if (text.trim()) attached?.drop(threads);
+    },
     emitSpeechOnset: phase1.emitSpeechOnset,
   });
   const turnVoice = wireTurnVoice({

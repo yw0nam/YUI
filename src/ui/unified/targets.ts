@@ -27,6 +27,15 @@ export function recipientOf(send: Send): Mention {
   return send.mention === EVERYONE ? EVERYONE : (send.targets[0] ?? "");
 }
 
+/** Whether a send may name `mention`: anyone, or only main while main's attached Threads show, since only main reads Threads. */
+export function isAllowedRecipient(
+  mention: Mention,
+  attached: readonly AttachedThread[],
+  mainId: string,
+): boolean {
+  return attached.length === 0 || mention === mainId;
+}
+
 /** The preset id of the newest row a preset spoke. */
 export function lastSpeakerOf(rows: readonly Row[]): string | undefined {
   return rows.findLast((r) => r.who !== "user")?.who;

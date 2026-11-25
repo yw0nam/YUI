@@ -215,6 +215,7 @@ describe("wireTurnCore", () => {
         open = true;
       });
       const h = wire({
+        unifiedShown: { get: () => false },
         threadsAttach: {
           onThreadsAttachRequest: (cb) => {
             request = cb;
@@ -260,6 +261,7 @@ describe("wireTurnCore", () => {
           for (const cb of submits) cb(text, [], threads);
         },
         restore: (threads: AttachedThread[]) => voiceDeps.at(-1)!.restoreThreads?.(threads),
+        speak: (text: string) => voiceDeps.at(-1)!.submitVoice(text),
         shown: () => setThreads.mock.lastCall?.[0],
         sent: () => emitThreadsAttached.mock.lastCall?.[0],
         payloads: () => pushed.map((e) => e.payload),
@@ -307,6 +309,17 @@ describe("wireTurnCore", () => {
 
       m.routedTurn({ sendId: "s1", to: presetIdForWindow(), text: "", threads: [A, C] });
       expect(m.shown()).toEqual([B]);
+    });
+
+    it("sends the shown Threads with a spoken message and drops them", async () => {
+      const m = await main();
+      m.toggle(A);
+      m.toggle(B);
+
+      m.speak("handle these");
+
+      expect(m.payloads()).toEqual([{ text: "handle these", threads_attached: [A, B] }]);
+      expect(m.shown()).toEqual([]);
     });
   });
 });

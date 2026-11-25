@@ -318,7 +318,9 @@ describe("unified view — attached Threads", () => {
     expect(hint()?.hidden).toBe(false);
     expect(hint()?.textContent).toBe(HINT);
     view.voiceSegment("hello");
-    expect(routed).toEqual([{ sendId: "send-1", to: "perlica", text: "hello", via: "voice" }]);
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "hello", via: "voice", threads: [A] },
+    ]);
     view.turnDone({ sendId: "send-1", preset: "perlica" });
 
     castRadios()[0]!.focus();
@@ -342,6 +344,32 @@ describe("unified view — attached Threads", () => {
     type("look");
     press("Enter");
     expect(routed[1]).toMatchObject({ to: "natsume", text: "@Natsume look", mention: "character" });
+  });
+
+  it("sends main's attached Threads with a spoken message too, leaving a typed @name for someone else in the field", () => {
+    mount();
+    stream("perlica", { op: "threads", threads: [A] });
+    type("@natsume ");
+
+    view.voiceSegment("hello");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "hello", via: "voice", threads: [A] },
+    ]);
+    expect(field().value).toBe("@natsume ");
+  });
+
+  it("offers only main in the @ list while main's Threads are attached", () => {
+    mount();
+    const options = () =>
+      [...document.querySelectorAll(".yui-uc__opt-name")].map((o) => o.textContent);
+    stream("perlica", { op: "threads", threads: [A] });
+
+    type("@");
+    expect(options()).toEqual(["Perlica"]);
+
+    stream("perlica", { op: "threads", threads: [] });
+    expect(options()).toEqual(["Perlica", "Natsume", "@everyone"]);
   });
 
   it("shows main's attached Threads as chips and sends them to main with a typed message, or alone", () => {
@@ -438,6 +466,14 @@ describe("unified view — running replies", () => {
     expect(
       document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
     ).toBe(false);
+  });
+
+  it("puts a failed send's text back into an empty field", () => {
+    mount();
+
+    stream("natsume", { op: "restore-input", text: "hi there", images: [] });
+
+    expect(field().value).toBe("hi there");
   });
 
   it("shows a routed turn's error under the composer", () => {

@@ -19,12 +19,12 @@ const GRIP = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><c
 const STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
 export interface CastChips {
-  /** checked: the recipient the row names; undefined checks no chip. only: the one chip left enabled. */
+  /** checked: the recipient the row names; undefined checks no chip. allowed: the chips left enabled, every one without it. */
   render(
     cast: readonly PresetEntry[],
     stateOf: (id: string) => CastState,
     checked: Mention | undefined,
-    only?: string,
+    allowed?: (mention: Mention) => boolean,
   ): void;
   dispose(): void;
 }
@@ -123,7 +123,7 @@ export function createCastChips(deps: {
   close.addEventListener("click", deps.onClose);
 
   return {
-    render(cast, stateOf, checked, only) {
+    render(cast, stateOf, checked, allowed) {
       // Rebuilt only when the cast changes, so a press and its click land on the same button.
       const key = JSON.stringify(cast);
       let focused: string | undefined;
@@ -141,7 +141,7 @@ export function createCastChips(deps: {
           r.querySelector(".yui-uc__chip-name")!.textContent = t("unified.everyone");
         else r.dataset.state = stateOf(id);
         r.setAttribute("aria-checked", String(id === checked));
-        r.disabled = only !== undefined && id !== only;
+        r.disabled = allowed !== undefined && !allowed(id);
         r.tabIndex = r === stop ? 0 : -1;
       }
       // A rebuild keeps focus on the same chip, else on the tab stop when its preset left.

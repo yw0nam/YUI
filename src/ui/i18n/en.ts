@@ -62,6 +62,7 @@ const en: Record<string, string> = {
   "bubble.backlog": "Backlog",
   "bubble.backlog_hide": "Hide backlog",
   "bubble.quote_attached": "{count} attached",
+  "bubble.quote_thread": "Thread · {title}",
   "bubble.sources_more": "+{n} more",
   "signals.delivery_urgent": "Urgent signal",
   "signals.delivery_batched": "Batched signal",

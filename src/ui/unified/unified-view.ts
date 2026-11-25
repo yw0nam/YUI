@@ -27,6 +27,7 @@ import {
   buildSend,
   EVERYONE,
   fallbackTarget,
+  isAllowedRecipient,
   lastSpeakerOf,
   type Mention,
   recipientOf,
@@ -88,8 +89,10 @@ export function createUnifiedView(deps: {
   const stopCbs: Array<() => void> = [];
   const errorActionCbs: Array<(preset: string) => void> = [];
   let pending: PendingSend[] = [];
-  // Main's attached Threads: while any are, every send goes to main, the one character that can read them.
+  // Main's attached Threads, which every send carries and which hold the recipients to isAllowedRecipient.
   let attached: AttachedThread[] = [];
+  const allowed = (mention: Mention): boolean =>
+    isAllowedRecipient(mention, attached, deps.mainId());
 
   const entryOf = (id: string): PresetEntry | undefined => deps.cast().find((e) => e.id === id);
   const nameOf = (id: string): string => castState.nameOf(id);
@@ -127,7 +130,7 @@ export function createUnifiedView(deps: {
   box.el.classList.add("yui-ui--message");
   const lanes = createLaneQueue({ box });
   const castState = createCastState({ cast: deps.cast, lanes });
-  const composer = createComposer({ mount: dock, cast: deps.cast });
+  const composer = createComposer({ mount: dock, cast: deps.cast, allowed });
   const commands = createUnifiedCommands({
     composer,
     box,
@@ -146,11 +149,10 @@ export function createUnifiedView(deps: {
     return castState.running() || sequence.current() !== null;
   }
 
-  // The recipient the row and the placeholder name: main while Threads are attached, a pick or typed @name, else the running send's, else the fallback.
+  // The recipient the row and the placeholder name: a pick or typed @name, else the running send's, else the fallback; main when the rule holds that one back.
   function shown(): Mention | undefined {
     const send = sequence.current();
-    if (attached.length && !send) return deps.mainId();
-    return (
+    const recipient =
       composer.getExplicitMention() ??
       (send
         ? recipientOf(send)
@@ -158,18 +160,15 @@ export function createUnifiedView(deps: {
             cast: deps.cast().map((e) => e.id),
             lastSpeaker: lastSpeakerOf(rows()),
             mainId: deps.mainId(),
-          }))
-    );
+          }));
+    return recipient !== undefined && !allowed(recipient) ? deps.mainId() : recipient;
   }
 
   function paint(): void {
     const recipient = shown();
-    const main = attached.length ? deps.mainId() : undefined;
-    chips.render(deps.cast(), castState.stateOf, recipient, main);
-    composer.lockRecipient(
-      main === undefined
-        ? null
-        : { id: main, hint: t("unified.threads_hint", { name: nameOf(main) }) },
+    chips.render(deps.cast(), castState.stateOf, recipient, allowed);
+    composer.holdRecipients(
+      attached.length ? t("unified.threads_hint", { name: nameOf(deps.mainId()) }) : undefined,
     );
     composer.showRecipient(
       recipient === undefined || deps.cast().length === 0
@@ -194,12 +193,13 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  function route(text: string, via?: UserTurnRouted["via"], threads?: AttachedThread[]): void {
+  function route(text: string, via?: UserTurnRouted["via"]): void {
     // A spoken send names the pick or a typed @name; the fallback picks the target as for a typed send.
+    const explicit = composer.getExplicitMention();
     const send = buildSend({
       text,
-      mention: via ? composer.getExplicitMention() : composer.getMention(),
-      cast: attached.length ? deps.cast().filter((e) => e.id === deps.mainId()) : deps.cast(),
+      mention: via ? explicit : composer.getMention(),
+      cast: deps.cast().filter((e) => allowed(e.id)),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
       shuffle: shuffled,
@@ -212,9 +212,10 @@ export function createUnifiedView(deps: {
       to: recipientOf(send),
       at: deps.now(),
     });
-    sequence.run({ ...send, via, threads });
+    sequence.run({ ...send, via, threads: attached });
     // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
-    if (via && composer.getMention() === null) composer.consumeMentionToken();
+    if (via && composer.getMention() === null && explicit !== null && allowed(explicit))
+      composer.consumeMentionToken();
     composer.setMention(null);
     log.info("route", {
       targets: send.targets.length,
@@ -236,7 +237,7 @@ export function createUnifiedView(deps: {
     log.info("stop");
   }
 
-  composer.onSubmit((text, threads) => route(text, undefined, threads));
+  composer.onSubmit((text) => route(text));
   composer.onChange(paint);
   composer.onStop(stopButton);
 

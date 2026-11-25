@@ -39,7 +39,7 @@ The backend can pick all 10 emotions and 8 of the motions. Each emotion has a fa
 | Waiting filler | A thinking motion and short lines while a reply is pending, editable per language |
 | History and message window | History on the device with every Signal, and an optional message window |
 | Unified chat window | One window for every open character, with a cast row |
-| Threads | Outside conversations from coding agents, read in the Threads window; the Waiting for you chip marks those that need you, and Attach to chat hands one to her with your next message |
+| Threads | Outside conversations from coding agents, read in the Threads window; the Waiting for you chip marks those that need you, and Attach to chat hands one to her with your next send |
 | Ask card | A push backend's question above the input, answered by choice or text; a timed one shows the time left |
 
 ## Backend

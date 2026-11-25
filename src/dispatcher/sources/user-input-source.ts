@@ -25,8 +25,8 @@ export interface UserInputSource {
   ): void;
   /** Help-button submit: the request text plus the guide that answers it → bus push, as a text turn. */
   submitGuide(guide: GuideKey, text: string): void;
-  /** Voice text from STT → bus push with payload.text. Empty text is ignored. */
-  submitVoice(text: string): void;
+  /** Voice text from STT → bus push with payload.text, and the attached Threads when any. Empty text is ignored. */
+  submitVoice(text: string, threads?: AttachedThread[]): void;
 }
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
@@ -67,14 +67,14 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
       });
     },
 
-    submitVoice(text) {
+    submitVoice(text, threads) {
       const trimmed = text.trim();
       if (trimmed.length === 0) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.voice_segment_ready",
         ts: Date.now(),
-        payload: { text: trimmed },
+        payload: { text: trimmed, ...(threads?.length ? { threads_attached: threads } : {}) },
         dnd_override: true,
       };
       bus.push(env);

@@ -35,6 +35,7 @@ beforeEach(() => {
     field,
     mount: document.querySelector("#dock")!,
     cast: () => CAST,
+    allowed: () => true,
     onPick,
   });
   reachesInput = vi.fn<(e: KeyboardEvent) => void>();

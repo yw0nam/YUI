@@ -147,7 +147,7 @@ A Thread in `input-required` that the user has not marked read since the produce
 _Avoid_: unread, pending
 
 **Attached Thread**:
-A Thread the user put on the main character's chat input with the Threads window's Attach to chat, shown as a chip; the next message carries it by id as that turn's `threads attached:` block, and the chip clears.
+A Thread the user put on the main character's chat input with the Threads window's Attach to chat, shown as a chip; the next send, typed or spoken, carries it by id as that turn's `threads attached:` block, and the chip clears.
 _Avoid_: reference, link, pinned Thread
 
 **Threads window**:

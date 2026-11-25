@@ -5,7 +5,7 @@ import { createComposer } from "./composer";
 it("shares one combobox between the mention and Backend command lists and releases it on disposal", () => {
   const mount = document.createElement("div");
   document.body.append(mount);
-  const composer = createComposer({ mount, cast: () => [] });
+  const composer = createComposer({ mount, cast: () => [], allowed: () => true });
   const field = mount.querySelector<HTMLTextAreaElement>("textarea")!;
   try {
     expect(field.getAttribute("aria-controls")).toBe("yui-uc-mention-list");

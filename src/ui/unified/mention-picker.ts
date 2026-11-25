@@ -26,6 +26,8 @@ export function createMentionPicker(deps: {
   /** Where the list sits; a positioned ancestor of the field. */
   mount: HTMLElement;
   cast: () => PresetEntry[];
+  /** The recipients the list offers. */
+  allowed: (mention: Mention) => boolean;
   onPick: (mention: Mention) => void;
 }): MentionPicker {
   const { field, mount, onPick } = deps;
@@ -47,7 +49,9 @@ export function createMentionPicker(deps: {
   function open(next: string): void {
     fragment = next;
     const prefix = fragment.toLowerCase();
-    const matches = deps.cast().filter((e) => e.name.toLowerCase().startsWith(prefix));
+    const matches = deps
+      .cast()
+      .filter((e) => deps.allowed(e.id) && e.name.toLowerCase().startsWith(prefix));
     options = [];
     list.replaceChildren();
     const add = (id: string, label: string, icon: HTMLElement | null, sub?: string): void => {
@@ -69,7 +73,7 @@ export function createMentionPicker(deps: {
       options.push({ id, el });
     };
     for (const e of matches) add(e.id, e.name, avatarEl(e, 14));
-    add(EVERYONE, `@${EVERYONE}`, null, t("unified.everyone_sub"));
+    if (deps.allowed(EVERYONE)) add(EVERYONE, `@${EVERYONE}`, null, t("unified.everyone_sub"));
     box.set(options);
     box.open();
     if (matches.length > 0) activate(0);
