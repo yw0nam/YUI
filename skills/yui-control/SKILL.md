@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # yui-control
 
-YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScript function against the `yui` API and returns `{"status":"completed","result":…}` or `{"status":"error","error":…}`.
+YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScript function against the `yui` API and returns `{"status":"completed","result":…}`, with a `note` when the script returned nothing, or `{"status":"error","error":…}`.
 
 ## Steps
 

@@ -1,4 +1,4 @@
-/** The name plate's turn state: responding from a line's begin to its end or hide, thinking while busy. */
+/** The name plate's turn state: responding from a line's begin to its end or hide, waiting while a card shows, thinking while busy. */
 
 import type { Surfaces } from "../surfaces/surfaces";
 import type { MessagePlate } from "./message-plate";

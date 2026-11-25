@@ -79,13 +79,25 @@ it("answers busy for a second request while one waits, with no second card, and 
 
 it("answers no answer for every request when the window's queue is disposed, and for one asked after", async () => {
   const w = buildAskCard();
-  const shown = w.request([SCREENSHOT]);
+  const abort = new AbortController();
+  const shown = w.request([SCREENSHOT], abort.signal);
+  // A different owner queued ahead, so the next Settings request really waits behind one.
+  const ahead = { answer: () => true };
+  w.asks.put(ahead, {
+    type: "ask",
+    ask: { ask_id: "ahead", prompt: "ahead", choices: [], text: false },
+  });
+  abort.abort();
   const queued = w.request([SCREENSHOT]);
   expect(w.shown()).not.toBeNull();
   w.asks.dispose();
   const late = w.request([SCREENSHOT]);
   await vi.waitFor(() =>
-    expect([shown.value, queued.value, late.value]).toEqual(["no answer", "busy", "no answer"]),
+    expect([shown.value, queued.value, late.value]).toEqual([
+      "no answer",
+      "no answer",
+      "no answer",
+    ]),
   );
   expect(w.setAsks).toHaveBeenLastCalledWith([]);
   expect(w.shown()).toBeNull();

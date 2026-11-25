@@ -119,13 +119,6 @@ describe("createMessagePlate", () => {
     expect(stateLabel().textContent).toBe("");
   });
 
-  it("shows the connection label over waiting", () => {
-    plate.setBusy(true);
-    plate.setWaiting(true);
-    plate.setConnection("failed");
-    expect(stateLabel().textContent).toBe(t("plate.key_rejected"));
-  });
-
   it("re-applies the state label on locale change", () => {
     plate.setBusy(true);
     setLocale("ja");

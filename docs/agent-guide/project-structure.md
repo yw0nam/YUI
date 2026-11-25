@@ -58,7 +58,7 @@ YUI/
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
         wire-first-conversation.ts   # After Quick start connects, and on its Replay: the greeting on an empty session, then the input and the controls hint with the two guides
         ask-queue.ts                 # The window's Ask queue: the push socket's Asks and the Settings requests, shown oldest first, the user's pick sent to the owner of the one shown
-        settings-request.ts          # A yui_run write's allow paths as one Settings request in the Ask queue, answered Allow or Deny
+        settings-request.ts          # A yui_run write's allow paths as one Settings request in the Ask queue, answered Allow, Deny, no answer, or busy when one is already open
         wire-yui-run.ts              # Builds the ports a yui_run script reaches from this window's stores, Ask queue, selections and Tauri commands
         session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
@@ -632,7 +632,7 @@ YUI/
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
         reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message window
         message-plate.ts             # Name plate on the box's top-left edge in both modes: face, name, state; the message window's OS drag handle
-        plate-state.ts               # The plate's turn state in both modes: responding from a line's begin to its end or hide, thinking while busy
+        plate-state.ts               # The plate's turn state in both modes: responding from a line's begin to its end or hide, waiting while a card shows, thinking while busy
         markdown.ts                  # Markdown for the bubble, backlog and Thread entries: marked, then DOMPurify keeping only Markdown's elements
         message-plate.css            # Name-plate chip styles: face, name, state dot, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
