@@ -538,7 +538,8 @@ YUI/
             window-drag.ts             # Threshold-gated OS-native drag handoff for the main window
           window-resize-source.ts      # Ctrl+wheel over the character resizes the pet window
           summon-hotkey.ts             # Registers the OS-wide summon accelerator and summons the input
-          window-dock.ts               # The dock commands into her own settings window, its close event, and a physical-px move
+          window-dock.ts               # The dock commands into her own settings window, its close event, and a physical-px frame
+          page-refit.ts                # Waits for her page to take a new size and the renderer to refit to it
       bridge/
         settings-bridge.ts             # Typed cross-window settings bus: one table of its channels, each with its scope and payload check
         core/                          # The cross-window bus every bridge here is built on

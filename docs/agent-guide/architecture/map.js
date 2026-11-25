@@ -912,7 +912,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, and the dock commands into her own settings window with its close event.",
+      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, the dock commands into her own settings window with its close event, and the wait for her page's refit to a new size.",
       "paths": [
         "src/io/window/pet"
       ]
@@ -3923,7 +3923,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible; getPerchProbe() for her height, scaled to the height her window is about to take, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
+      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height) for her feet share in the slot or home frame she is about to take and how much larger she is drawn there; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3941,7 +3941,7 @@ globalThis.YUI_MAP =
       "id": "come-along-dock-call",
       "from": "ambient/come-along",
       "to": "io/window/pet",
-      "carries": "dock.attach, dock.detach, setPetFramePhysical (setSize then setPosition, physical px) for the Windows follow",
+      "carries": "dock.attach, dock.detach, setPetFramePhysical (setSize then setPosition, physical px) for the Windows follow, refitTo → waitRefit(width, height) after a vanish's frame and a size given back",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
