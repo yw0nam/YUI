@@ -192,18 +192,17 @@ describe("applyPatch", () => {
     });
   });
 
-  it("rejects a source index when the patch sets another kind", () => {
+  it("judges a source index against the stored source, not the patch's kind", () => {
     const stores = createSettingsStores();
+    stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
 
-    const result = applyPatch(stores, {
-      privacy: {
-        screen_source: { kind: "window", app: "Cursor", window_title: "a.md", index: 1 },
-      },
+    const result = applyPatch(stores, { privacy: { screen_source: { kind: "monitor", index: 1 } } });
+
+    expect(result.direct).toEqual({
+      "privacy.screen_source.kind": "error: invalid privacy.screen_source.kind",
+      "privacy.screen_source.index": "error: invalid privacy.screen_source.index",
     });
-
-    expect(result.direct["privacy.screen_source.index"]).toBe(
-      "error: invalid privacy.screen_source.index",
-    );
+    expect(result.allow).toEqual([]);
   });
 
   it("returns one result per changed path in a mixed patch", () => {

@@ -62,7 +62,7 @@ describe("createScreenshotSettings — malformed/throwing storage", () => {
     const malformed = { enabled: false, source: null } as unknown as ScreenshotSettings;
     const store = createScreenshotSettings({ storage: fakeStorage(malformed) });
     expect(store.get().enabled).toBe(false);
-    expect(store.get().source).toEqual(DEFAULT_SOURCE);
+    expect(store.get()).toEqual({ enabled: false, allowRequests: false, source: DEFAULT_SOURCE });
   });
 });
 
@@ -179,6 +179,6 @@ describe("createScreenshotSettings — source validation", () => {
       storage: fakeStorage({ enabled: true, source } as unknown as ScreenshotSettings),
     });
 
-    expect(store.get().source).toEqual(DEFAULT_SOURCE);
+    expect(store.get()).toEqual({ enabled: false, allowRequests: false, source: DEFAULT_SOURCE });
   });
 });
