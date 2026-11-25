@@ -201,6 +201,12 @@ describe("configs/motions.json", () => {
     expect(m.thinking.interrupt_policy).toBe("ignore");
   });
 
+  it("points thinking at the free idle_04 stand-in when its purchased clip is absent", () => {
+    expect(m.thinking.fallback).toBe("thinking_free");
+    expect(m.thinking_free.vrma_path).toBe("/motions/idle_04.vrma");
+    expect(m.thinking_free.broker_publish).toBe(false);
+  });
+
   it("locks the root vertically on the climb clips alone", () => {
     const locked = Object.entries(m)
       .filter(([, e]: [string, any]) => e.root_lock_y === true)
