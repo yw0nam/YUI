@@ -19,7 +19,7 @@ import {
   seatOffsetWorldY,
   worldYPerPixel,
 } from "./geometry/probe/perch-geometry";
-import { easeInOut } from "./motion/yaw/body-yaw";
+import { yawAt } from "./motion/yaw/body-yaw";
 
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
@@ -44,10 +44,7 @@ export interface PinController {
   hipsBone(): THREE.Object3D | null;
   /** Set or clear the window-sit vertical pin. Returns whether the perched state changed. */
   setPerchTarget(target: { edgeLocalYpx: number } | null): boolean;
-  /**
-   * Set or clear the side-peek horizontal pin; a clear with `release` eases the offset back to 0.
-   * Returns whether the `peeking` posture changed.
-   */
+  /** Set or clear the side-peek pin, easing a clear over `release`; false if a perch refuses it. */
   setPeekTarget(target: PeekTarget | null, release?: { easeMs: number }): boolean;
   isPerched(): boolean;
   /** A peek pin that holds the `peeking` posture is set. */
@@ -150,9 +147,8 @@ export function createPinController(deps: {
   function easeShare(dt: number): number {
     if (!peekEase) return 1;
     peekEase.elapsedMs += dt * 1000;
-    const t = Math.min(1, peekEase.elapsedMs / peekEase.ms);
-    const share = peekEase.from + (peekEase.to - peekEase.from) * easeInOut(t);
-    if (t >= 1) peekEase = null;
+    const share = yawAt(peekEase.from, peekEase.to, peekEase.elapsedMs, peekEase.ms);
+    if (peekEase.elapsedMs >= peekEase.ms) peekEase = null;
     return share;
   }
 
@@ -232,7 +228,6 @@ export function createPinController(deps: {
       return !wasPerched;
     },
     setPeekTarget(target, release) {
-      const wasPeeking = holdsPosture();
       if (target === null) {
         if (release && peekTarget !== null) {
           peekTarget = null;
@@ -242,7 +237,7 @@ export function createPinController(deps: {
         } else {
           resetPeek();
         }
-        return wasPeeking;
+        return true;
       }
       if (perchTargetYpx !== null) {
         log.warn("perch_pin_conflict", { active: "perch", requested: "peek" });
@@ -252,7 +247,7 @@ export function createPinController(deps: {
         peekEase = target.easeMs ? { from: 0, to: 1, ms: target.easeMs, elapsedMs: 0 } : null;
       }
       peekTarget = target;
-      return wasPeeking !== holdsPosture();
+      return true;
     },
     isPerched() {
       return perchTargetYpx !== null;

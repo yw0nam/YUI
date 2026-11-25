@@ -191,12 +191,7 @@ export interface Renderer {
   setPerchTarget(target: { edgeLocalYpx: number } | null): void;
   /** Current perch active state — used by occlusion poll to detect perch end. */
   isPerched(): boolean;
-  /**
-   * Set the side-peek edge pin (`targetXpx` in her window's px), or clear it and restore the
-   * horizontal baseline, eased over `release.easeMs` when given. A pin with `easeMs` eases in; one
-   * with `holdsPosture: false` holds no `peeking` posture, and its clear plays no idle return.
-   * Returns false when an active perch refuses the pin.
-   */
+  /** Sets or clears the side-peek pin, easing a clear over `release`; false if a perch refuses. */
   setPeekTarget(target: PeekTarget | null, release?: { easeMs: number }): boolean;
   /** Select mirrored clips for motions started after this call without restarting playback. */
   setMotionMirror(on: boolean): void;

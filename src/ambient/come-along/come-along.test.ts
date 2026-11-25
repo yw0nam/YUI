@@ -802,7 +802,7 @@ describe("createComeAlong", () => {
     expect(h.setPeekTarget).toHaveBeenLastCalledWith(null);
   });
 
-  it("snaps the pin and plays no clip when the window closes while she peeks", async () => {
+  it("snaps the pin and plays no clip when the window closes during a stage peek", async () => {
     const h = await docked({ roll: 0.5 });
     h.playMotion.mockClear();
 

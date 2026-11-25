@@ -369,10 +369,10 @@ export function createRenderer(options: RendererOptions): Renderer {
       return pins.isPerched();
     },
     setPeekTarget(target, release) {
-      const changed = pins.setPeekTarget(target, release);
-      if (changed && target === null) motion.playMotion(null);
-      // Only an active perch refuses a peek pin.
-      return target === null || !pins.isPerched();
+      const wasPeeking = pins.isPeeking();
+      const accepted = pins.setPeekTarget(target, release);
+      if (target === null && wasPeeking) motion.playMotion(null);
+      return accepted;
     },
     setMotionMirror(on) {
       clips.setMirror(on);

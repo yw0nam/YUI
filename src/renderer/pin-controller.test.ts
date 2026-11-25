@@ -69,15 +69,15 @@ describe("createPinController — state and conflicts", () => {
     expect(pins.setPerchTarget(null)).toBe(false);
   });
 
-  it("reports peek transitions only when set state changes", () => {
+  it("accepts every peek target and clear while no perch is set", () => {
     const { pins } = createFixture();
 
     expect(pins.setPeekTarget({ targetXpx: 75 })).toBe(true);
     expect(pins.isPeeking()).toBe(true);
-    expect(pins.setPeekTarget({ targetXpx: 80 })).toBe(false);
+    expect(pins.setPeekTarget({ targetXpx: 80 })).toBe(true);
     expect(pins.setPeekTarget(null)).toBe(true);
     expect(pins.isPeeking()).toBe(false);
-    expect(pins.setPeekTarget(null)).toBe(false);
+    expect(pins.setPeekTarget(null)).toBe(true);
   });
 
   it("keeps the active pin when the other pin is requested", () => {
@@ -123,7 +123,7 @@ describe("createPinController — state and conflicts", () => {
     stepPins(pins, camera, scene);
     const firstX = scene.position.x;
 
-    expect(pins.setPeekTarget({ targetXpx: 90 })).toBe(false);
+    expect(pins.setPeekTarget({ targetXpx: 90 })).toBe(true);
     stepPins(pins, camera, scene);
 
     expect(scene.position.x).toBeGreaterThan(firstX);
@@ -244,12 +244,11 @@ describe("createPinController — stage peek pin", () => {
     expect(scene.position.x).toBeCloseTo(PIN_90PX, 3);
   });
 
-  it("holds no posture: it is not peeking, and setting or clearing it changes no posture", () => {
+  it("holds no posture: a set stage pin is not peeking", () => {
     const { pins } = createFixture();
 
-    expect(pins.setPeekTarget({ targetXpx: 90, holdsPosture: false })).toBe(false);
+    expect(pins.setPeekTarget({ targetXpx: 90, holdsPosture: false })).toBe(true);
     expect(pins.isPeeking()).toBe(false);
-    expect(pins.setPeekTarget(null)).toBe(false);
   });
 });
 
