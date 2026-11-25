@@ -34,8 +34,9 @@ fail to bind, or takes the port from it. This prints nothing when the entry is c
 ssh -G <host> | grep -i remoteforward
 ```
 
-The remote host's `sshd_config` must allow TCP forwarding: `AllowTcpForwarding` is `yes`,
-or left at its default. The remote end binds to `127.0.0.1` only, so the server needs no
+The remote host's `sshd_config` must allow remote forwarding: `AllowTcpForwarding` is `yes`,
+`all` or `remote` (or left at its default), `DisableForwarding` is not set, and
+`PermitListen`, when set, allows the chosen port. The remote end binds to `127.0.0.1` only, so the server needs no
 `GatewayPorts` setting.
 
 The tunnel is one `ssh` process:

@@ -25,7 +25,8 @@ thread. Set each Thread's state from what the user should do:
 - `input-required`: the user should look or decide.
 - `working`: the conversation is open and the user has nothing to do yet.
 - `completed`: the conversation is handled.
-- `failed`: the source cannot be read, or an action failed and nothing is left to try.
+- `failed`: the source cannot be read, or the last action on it failed; the entry names the
+  cause, and the user can still ask the character to try again.
 
 Done when: each state maps to what the user should do about its Thread.
 
@@ -39,8 +40,8 @@ Done when: the shape and its schedule are named.
 ### 3. Reach YUI
 
 The endpoint is `http://127.0.0.1:<port>`. The port is shown under Settings → Proactive →
-What she reacts to → External signals (default 8770). Turn **External signals** on. Turning
-it off takes effect for Threads at the next launch. A producer on another host reaches YUI
+What she reacts to → External signals (default 8770). Turn **External signals** on, then
+restart YUI: the Threads routes follow the switch from the next launch. A producer on another host reaches YUI
 through a reverse SSH tunnel; read `references/remote.md`.
 
 Done when: `GET /threads/probe` from the producer's host returns 405, since the route exists
@@ -52,7 +53,7 @@ PUT `/threads/<id>` once per conversation, with:
 
 - `id`: `<source>:<natural key>`, such as `github-pr:<owner>:<repo>:<n>`. Use 1 to 128 ASCII
   letters, digits, `_`, `-`, `.`, or `:`; replace any other character.
-- `source`: one short name per producer.
+- `source`: required, one short name per producer (at most 64 characters).
 - `title`: required on every PUT.
 - `label`: optional.
 - `state`: from step 1.

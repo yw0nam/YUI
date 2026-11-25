@@ -1106,6 +1106,7 @@ YUI/
       skills/yui-openclaw-setup/     # Step-by-step gateway and YUI connection setup with a check per step, and a symptom table
   skills/                            # Skill folders for the character's backend agent, copied into the agent's skill folder or fetched by raw URL
     README.md                        # The skills for readers: what each one teaches and how an agent takes it
+    thread-producer/                 # Backend-agnostic skill: a producer posts outside conversations (PRs, mail, chat) as view-only Threads, and the backend acts in the source when the user asks
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
   mocks/                             # Standalone HTML mocks, one folder per screen; they link src/ui stylesheets by relative path (README.md)
   docs/                              # Design source of truth

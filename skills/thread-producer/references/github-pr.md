@@ -26,14 +26,17 @@ failed, or have not finished.
 ## Post the Thread
 
 1. Gather the title, the author, and the head SHA (`gh pr view <n>`, or REST
-   `GET /repos/{owner}/{repo}/pulls/{n}`), then each check run's `status` and `conclusion`
-   (`gh pr checks <n>`, or REST `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`).
+   `GET /repos/{owner}/{repo}/pulls/{n}`), then each check's result
+   (`gh pr checks <n> --json name,state,bucket`, whose `bucket` is `pass`, `fail`, `pending`,
+   `skipping` or `cancel`; or REST `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`, with
+   `status` and `conclusion` as above).
 
    Done when: a test PR's finished checks yield the head SHA and each check's conclusion.
 
 2. All checks pass: state `input-required`. One entry names the head SHA the user decides
    on, for example `Head <sha>: checks passed. Merge, close, or comment.`
-3. Any check fails: state `failed`, with one entry naming the failing checks.
+3. Any check fails: state `input-required`, with one entry naming the head SHA and the
+   failing checks, for example `Head <sha>: lint and test failed.`
 
 A new head gets a new entry naming its SHA, and the state for that head. The user's
 decision applies to the SHA it was made on, so an action checks that SHA before it runs.
