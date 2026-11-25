@@ -5,8 +5,8 @@ import type { MotionRegistry } from "../../../contract";
 import type { Logger } from "../../../logger";
 import type { VrmParticipant } from "../../vrm-participant";
 import type { ClipLibrary } from "../clip/clip-library";
-import { resolveBaselineFallback } from "./baseline-fallback";
 import { createCycleDwell } from "./cycle-dwell";
+import { resolveFallback } from "./fallback";
 import {
   createMotionController,
   type MotionController,
@@ -115,7 +115,7 @@ export function createMotionPlayback(deps: {
       if (!clip) {
         // Real load failure (clip missing/invalid for the live VRM) → play the fallback chain.
         // A hotswap/teardown drop (no vrm / no mixer) just returns silently.
-        if (vrm && mixer) fallbackToBaseline(motion.id, canFallback);
+        if (vrm && mixer) recoverFailedMotion(motion.id, canFallback);
         return;
       }
       if (!mixer) return;
@@ -163,7 +163,7 @@ export function createMotionPlayback(deps: {
       log.error("start_motion", { error: String(err) });
       // Loader threw for the live VRM → play the fallback chain. Drops (hotswap/teardown) return silently.
       if (motionStartGeneration.isCurrent(startToken) && vrm && mixer) {
-        fallbackToBaseline(motion.id, canFallback);
+        recoverFailedMotion(motion.id, canFallback);
       }
     }
   }
@@ -173,11 +173,11 @@ export function createMotionPlayback(deps: {
    * once, else idle. `canFallback` is false for the fallback's own failed load, so a
    * fallback never chains to another. Recursion guard: idle's own failure no-ops.
    */
-  function fallbackToBaseline(failedId: string, canFallback: boolean): void {
+  function recoverFailedMotion(failedId: string, canFallback: boolean): void {
     if (!controller) return;
     const fallbackId = canFallback ? motionRegistry?.[failedId]?.fallback : undefined;
-    log.warn("motion_fallback_to_idle", { failed_id: failedId, fallback_id: fallbackId ?? null });
-    const next = resolveBaselineFallback(controller, failedId, fallbackId);
+    log.warn("motion_fallback", { failed_id: failedId, fallback_id: fallbackId ?? null });
+    const next = resolveFallback(controller, failedId, fallbackId);
     if (next) void startMotion(next, false);
   }
 

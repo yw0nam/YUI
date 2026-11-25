@@ -1,5 +1,5 @@
 /**
- * baseline-fallback — idle-fallback decision for a motion whose clip fails to load.
+ * fallback — idle-fallback decision for a motion whose clip fails to load.
  *
  * playMotion commits the motion decision *before* the async clip load resolves, so a
  * failed load (missing/invalid VRMA — e.g. a gitignored purchased motion absent locally)
@@ -26,24 +26,18 @@ import type { MotionController, ResolvedMotion } from "./motion-controller";
  *    failed; do not loop).
  *  - neither a registered fallback nor the baseline is available → nothing to play.
  */
-export function resolveBaselineFallback(
+export function resolveFallback(
   controller: MotionController,
   failedId: string,
   fallbackId?: string,
 ): ResolvedMotion | null {
   const baselineId = controller.baseline();
   if (failedId === baselineId) return null;
-  if (fallbackId !== undefined) {
-    const fallback = controller.resolve({ id: fallbackId });
-    if (fallback) {
-      // Force-commit (not request()) so the dead motion's priority can't block the fallback.
-      controller.commit({ action: "play", motion: fallback });
-      return fallback;
-    }
-  }
-  const baseline = controller.resolve({ id: baselineId });
-  if (!baseline) return null;
-  // Force-commit (not request()) so the dead motion's priority can't block the baseline.
-  controller.commit({ action: "play", motion: baseline });
-  return baseline;
+  const motion =
+    (fallbackId !== undefined ? controller.resolve({ id: fallbackId }) : null) ??
+    controller.resolve({ id: baselineId });
+  if (!motion) return null;
+  // Force-commit (not request()) so the dead motion's priority can't block the recovery.
+  controller.commit({ action: "play", motion });
+  return motion;
 }

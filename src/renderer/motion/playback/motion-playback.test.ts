@@ -118,7 +118,7 @@ describe("createMotionPlayback", () => {
 
     expect(motion.current()?.id).toBe("idle");
     expect(log.warn).toHaveBeenCalledWith(
-      "motion_fallback_to_idle",
+      "motion_fallback",
       expect.objectContaining({ failed_id: "wave" }),
     );
   });
