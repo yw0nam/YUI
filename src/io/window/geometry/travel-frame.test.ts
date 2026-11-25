@@ -125,6 +125,24 @@ describe("createTravelFrame", () => {
     expect(setFrameLogical).not.toHaveBeenCalled();
   });
 
+  it("parks over the start rect and an end rect of another size, carries the size on the virtual frame, and ends at it", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin({ x: 100, y: 300 }, [], { width: 600, height: 900 });
+    // Bounding box of [300,700]×[517,1117] and [100,700]×[300,1200].
+    expect(setFrameLogical).toHaveBeenLastCalledWith(100, 300, 600, 900);
+    vi.mocked(setViewWindow).mockClear();
+    vi.mocked(setFrameLogical).mockClear();
+
+    await t.win.setFrameLogical(150, 350, 500, 750);
+
+    expect(vi.mocked(setViewWindow).mock.calls).toEqual([
+      [{ x: 50, y: 50, width: 500, height: 750 }],
+    ]);
+    await expect(t.win.outerSize()).resolves.toEqual({ width: 1000, height: 1500 });
+    await t.end();
+    expect(setFrameLogical).toHaveBeenCalledExactlyOnceWith(150, 350, 500, 750);
+  });
+
   it("exposes the virtual window through current() while a travel runs", async () => {
     const travel = makeTravel();
     expect(travel.current()).toBeNull();

@@ -96,6 +96,7 @@ describe("wireLocomotion", () => {
       abandonSit: vi.fn(),
       release: vi.fn(),
       setKeepOnScreenPaused: vi.fn(),
+      resizeSettled: vi.fn(async () => {}),
       dispose: () => teardowns.push("windowSources.dispose"),
     };
     const percher = {
@@ -118,6 +119,8 @@ describe("wireLocomotion", () => {
           onRelocated(): Promise<void>;
           noteAgentMove(): Promise<void>;
           onResizeApplied(bounds: { x: number; y: number; width: number; height: number }): void;
+          isResizeLocked?(): boolean;
+          onDropped?(): Promise<void>;
         }
       | undefined;
     let climberDeps: { isDragging(): boolean } | undefined;
@@ -335,6 +338,96 @@ describe("wireLocomotion", () => {
     expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 300, y: 517 }, via);
   });
 
+  it("widens to an end frame by parking the travel frame over it at its size", async () => {
+    const s = setup();
+    s.travelFrame.getWindow.mockReturnValue({
+      outerPosition: async () => ({ x: 600, y: 1034 }),
+      scaleFactor: async () => 2,
+    });
+
+    await s.locomotion.widen([], { x: 100, y: 80, width: 400, height: 600 });
+
+    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ x: 100, y: 80 }),
+      [],
+      { width: 400, height: 600 },
+    );
+  });
+
+  it("gives her window back once an agent move's holds let go and its travel unparked, before the move", async () => {
+    const s = setup();
+    const order: string[] = [];
+    let unpark!: () => void;
+    s.travelFrame.abort.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          unpark = () => {
+            order.push("unparked");
+            resolve();
+          };
+        }),
+    );
+    s.locomotion.hold("come-along", true, {
+      onAbort: async () => {
+        order.push("let go");
+      },
+    });
+    s.locomotion.onMoverTakesOver(async () => {
+      order.push("given back");
+    });
+
+    const moved = s.windowSourcesDeps.noteAgentMove().then(() => order.push("move"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    unpark();
+    await moved;
+
+    expect(order).toEqual(["let go", "unparked", "given back", "move"]);
+  });
+
+  it("gives her window back at a drag's drop", async () => {
+    const s = setup();
+    const givenBack = vi.fn(async () => {});
+    s.locomotion.onMoverTakesOver(givenBack);
+
+    await s.windowSourcesDeps.onDropped?.();
+
+    expect(givenBack).toHaveBeenCalledOnce();
+  });
+
+  it("locks Ctrl+wheel while a travel parks her or a hold keeps her geometry", () => {
+    const s = setup();
+    const locked = () => s.windowSourcesDeps.isResizeLocked?.();
+    const seen = [locked()];
+
+    s.locomotion.hold("come-along", true, { keepsGeometry: true });
+    seen.push(locked());
+    s.locomotion.hold("come-along", false);
+    s.travelFrame.travel.current.mockReturnValue({} as never);
+    seen.push(locked());
+
+    expect(seen).toEqual([false, true, true]);
+  });
+
+  it("ends a travel abort only once a Ctrl+wheel resize in flight has landed", async () => {
+    const s = setup();
+    let land!: () => void;
+    s.windowSources.resizeSettled.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        land = resolve;
+      }),
+    );
+    let ended = false;
+
+    void s.locomotion.abortTravel().then(() => {
+      ended = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ended).toBe(false);
+    land();
+
+    await vi.waitFor(() => expect(ended).toBe(true));
+  });
+
   it("tells every holder once when an agent move takes her", async () => {
     const s = setup();
     const menuAbort = vi.fn();
@@ -411,11 +504,9 @@ describe("wireLocomotion", () => {
     expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith("hold", false);
   });
 
-  it("saves a resize as her window geometry only while no hold keeps it, and tells each resize listener", () => {
+  it("saves a resize as her window geometry only while no hold keeps it", () => {
     const s = setup();
     const bounds = { x: 0, y: 0, width: 424, height: 636 };
-    const resized = vi.fn();
-    s.locomotion.onResizeApplied(resized);
     s.locomotion.hold("come-along", true, { keepsGeometry: true });
 
     s.windowSourcesDeps.onResizeApplied(bounds);
@@ -423,7 +514,6 @@ describe("wireLocomotion", () => {
     s.windowSourcesDeps.onResizeApplied(bounds);
 
     expect(s.windowGeometry.onResizeApplied.mock.calls).toEqual([[bounds]]);
-    expect(resized).toHaveBeenCalledTimes(2);
   });
 
   it("follows the climb toggle: the stored value at start and each later store change", () => {

@@ -321,6 +321,7 @@ export function wireLocomotion(deps: {
     ready: travelFrame.ready,
     isTravelling: () => travelFrame.travel.current() !== null,
     onHoldReleased: holds.onReleased,
+    onMoverTakesOver: () => () => {},
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
     armedSit: () => windowSources.armedSit(),
   };

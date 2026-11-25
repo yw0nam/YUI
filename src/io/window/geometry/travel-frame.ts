@@ -96,6 +96,7 @@ export function createTravelFrame(deps: {
         if (s.ended) return deps.frame.scaleFactor();
         return scaleAt(s);
       },
+      async setFrameLogical() {},
       async setPositionLogical(x, y) {
         const s = get();
         if (s.ended) {

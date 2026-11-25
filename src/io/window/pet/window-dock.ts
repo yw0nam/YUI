@@ -13,7 +13,7 @@ export async function detachDock(): Promise<void> {
 }
 
 /** Moves her window to a physical origin, the settings window's own px when it follows another scale. */
-export async function setPetPositionPhysical(x: number, y: number): Promise<void> {
+export async function setPetFramePhysical(x: number, y: number): Promise<void> {
   const [{ getCurrentWindow }, { PhysicalPosition }] = await Promise.all([
     import("@tauri-apps/api/window"),
     import("@tauri-apps/api/dpi"),

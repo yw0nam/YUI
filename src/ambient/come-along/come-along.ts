@@ -551,5 +551,6 @@ export function createComeAlong(deps: ComeAlongDeps): {
     },
     goHome: () => releaseOnFailure(goHome()),
     place,
+    restoreSize: async () => {},
   };
 }

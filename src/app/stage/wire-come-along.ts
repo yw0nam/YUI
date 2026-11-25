@@ -10,7 +10,7 @@ import {
   attachDock,
   detachDock,
   onSettingsStageEnded,
-  setPetPositionPhysical,
+  setPetFramePhysical,
 } from "../../io/window/pet/window-dock";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -60,7 +60,7 @@ export function wireComeAlong(deps: {
     renderer: deps.renderer,
     hitTest: deps.hitTest,
     dock: { attach: attachDock, detach: detachDock },
-    setPositionPhysical: setPetPositionPhysical,
+    setPositionPhysical: setPetFramePhysical,
     followsInPhysicalPx: isWindows(),
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,

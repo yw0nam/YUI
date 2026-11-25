@@ -167,6 +167,7 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
   }
 
   return {
+    settled: () => Promise.resolve(),
     start() {
       if (listening) return;
       listening = true;
