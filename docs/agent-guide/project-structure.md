@@ -105,6 +105,9 @@ YUI/
         wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
       threads-reaction/              # Main's Thread reactions: the Threads client, the Threads window, the chip's taps, presence, speech, the turn pipeline, the stage and the renderer
         wire-thread-reactions.ts     # Wires the thread reaction in main; a window without a Threads client wires nothing
+      threads-attach/                # Main's attached Threads, wired by the chat turn in main's window only
+        attached-threads.ts          # The list: each Thread once, toggled, dropped by the Threads a send carried, and a failed send's put back
+        wire-threads-attach.ts       # The Threads window's toggles and the chips' × into the list, the list into every composer and out to the Threads window, a send's drop
       threads-chip/                  # Main's ways into the Threads window: the chip, the tray's Terminal item and a bound Character menu's requests
         wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window and reporting its taps
         wire-threads-open-requests.ts # The tray's Terminal item and a bound Character menu's request, opening the Threads window on their tab
@@ -129,7 +132,7 @@ YUI/
         character-menu-frame.ts      # Widens the pet window to the menu's reach and restores it, holding her still meanwhile
         character-menu-ports.ts      # The menu's actions over the stores and openers the pet window has: Rest, Listen, Body, Voice, Pace, Keep bubble, Unified chat, Reset chat, Threads, Turn off
       threads-window/                # The Threads window's wiring
-        wire-threads-window.ts       # Snapshots into the view, read marks to the store, the frame store into placement and resize, the list choice, the open request, theme and language
+        wire-threads-window.ts       # Snapshots into the view, read marks to the store, main's attached Threads into the pane and its Attach to chat back, the frame store into placement and resize, the list choice, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
         threads-presence.ts          # One open or close at a time: show and grow, or focus or raise without focus while shown; shrink and hide, then the closed report, and the presented report for an automatic request
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply

@@ -37,6 +37,7 @@ The `threads_list` details:
 - By default it lists waiting Threads (`input-required`, not read). With `state: "all"`, it lists every Thread.
 - The list holds at most 20 rows, newest first, then `(N more)` when more Threads exist. Each row shows its last entry, cut at 160 characters.
 - With `id`, it reads one Thread: its newest 20 entries, oldest first, with texts cut at 2000 characters.
+- A turn's [`threads attached:`](client-context.md#threads-attached) block names the ids of the Threads the user attached to the message.
 
 ## Declaration per transport
 

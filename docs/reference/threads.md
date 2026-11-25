@@ -94,7 +94,19 @@ The Threads window renders each entry's text as Markdown with the speech bubble'
 
 A picked Thread and a fresh open start at the newest entry. A new entry follows a reader at the bottom and leaves a reader above it in place.
 
-The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line.
+The main character's backend reads Threads through the `threads_list` and `threads_search` client tools, the `threads:` client-context line and the `threads attached:` block.
+
+### Attach to chat
+
+The thread pane's Attach to chat button sits beside Mark read. It adds a chip naming the Thread to the main character's chat input. Several Threads can be attached at once, and attaching opens a closed input.
+
+The input is the unified chat composer while unified chat shows. Otherwise it is the character window's input, or its popped message window.
+
+The button reads Attached while the chip is in the input. A second press takes the chip off, as the chip's × does.
+
+One send carries every chip it showed as that turn's [`threads attached:`](./client-context.md#threads-attached) block, and the chips clear. The sent message's bubble shows them. A Thread attached after the press stays for the next send. A failed send puts the text and the chips back.
+
+In unified chat, while any chip is attached, every send goes to the main character, the only character that reads Threads. A hint above the input says so.
 
 ## Thread turns
 
