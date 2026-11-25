@@ -2,7 +2,8 @@
 
 import { expect, it } from "vitest";
 import type { Thread, ThreadAsk } from "../../../contract";
-import { type Draft, draftKey, pruneDrafts } from "./drafts";
+import type { Draft } from "../../ask/answer-area";
+import { draftKey, pruneDrafts } from "./drafts";
 
 function thread(id: string, ask?: ThreadAsk): Thread {
   return {

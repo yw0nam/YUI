@@ -5,8 +5,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./answer-area.css", () => ({}));
 
-import type { ThreadAsk } from "../../../contract";
-import { setLocale } from "../../i18n";
+import type { ThreadAsk } from "../../contract";
+import { setLocale } from "../i18n";
 import { createAnswerArea } from "./answer-area";
 
 const ASK: ThreadAsk = {

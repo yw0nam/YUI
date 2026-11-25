@@ -2105,6 +2105,15 @@ globalThis.YUI_MAP =
       "wiring": "src/ui/surfaces/surfaces.ts"
     },
     {
+      "id": "threads-answer-area",
+      "from": "ui/threads",
+      "to": "ui/ask",
+      "carries": "createAnswerArea {ask, draft, error, sending, …} → AnswerArea {el, pick}",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/threads/window/thread-answers.ts"
+    },
+    {
       "id": "previous-playback",
       "from": "dispatcher/backend",
       "to": "io/chat/push",

@@ -4,11 +4,15 @@
  */
 
 import "./answer-area.css";
-import type { AskAnswer, ThreadAsk } from "../../../contract";
-import { t } from "../../i18n";
-import { CHECK_SVG } from "../glyphs";
-import type { Draft } from "./drafts";
-import { entryMarkdown } from "./entry-markdown";
+import type { AskAnswer, ThreadAsk } from "../../contract";
+import { t } from "../i18n";
+import { CHECK_SVG } from "../threads/glyphs";
+import { entryMarkdown } from "../threads/window/entry-markdown";
+
+export interface Draft {
+  picks: string[];
+  text: string;
+}
 
 /** The field grows with its text up to this height, then scrolls. */
 const FIELD_MAX_PX = 200;

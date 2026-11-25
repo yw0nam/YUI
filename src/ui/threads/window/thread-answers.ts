@@ -4,8 +4,8 @@
  */
 
 import type { AskAnswer, Thread, ThreadAsk } from "../../../contract";
-import { type AnswerArea, createAnswerArea } from "./answer-area";
-import { type Draft, draftKey, pruneDrafts } from "./drafts";
+import { type AnswerArea, createAnswerArea, type Draft } from "../../ask/answer-area";
+import { draftKey, pruneDrafts } from "./drafts";
 
 /** What an ask's answer area starts from. */
 export interface AnswerStart {

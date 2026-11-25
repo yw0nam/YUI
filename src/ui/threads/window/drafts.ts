@@ -1,11 +1,7 @@
 /** Unsent Answers, keyed by the ask they answer, so a draft never outlives its ask. */
 
 import type { Thread, ThreadAsk } from "../../../contract";
-
-export interface Draft {
-  picks: string[];
-  text: string;
-}
+import type { Draft } from "../../ask/answer-area";
 
 /** Ask ids are unique only within a Thread, so the key carries both. */
 export const draftKey = (threadId: string, askId: string): string => `${threadId}\n${askId}`;
