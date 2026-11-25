@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../config/load-test-helpers";
+import type { StageConfig } from "../../config/validators/avatar/types";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { Renderer } from "../../renderer";
@@ -41,6 +42,8 @@ function harness(
     charHpx?: number | null;
     /** Whether the renderer accepts a stage peek pin. */
     pinAccepted?: boolean;
+    /** Edge entries in place of the shipped ones. */
+    edgeEntries?: StageConfig["edge_entries"];
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -151,7 +154,12 @@ function harness(
     setPositionPhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
-    stage: () => avatarFixture().stage,
+    stage: () => ({
+      ...avatarFixture().stage,
+      ...(opts.edgeEntries && { edge_entries: opts.edgeEntries }),
+    }),
+    // configs/motions.json registers peek as a state, the clip the motion controller returns to.
+    getMotionKind: (id) => (id === "peek" ? "state" : "oneshot"),
     // The fixture's stage.emotion_decay_min is 30.
     lastEmotion: (decayMs) => (decayMs === 30 * 60_000 ? (opts.emotion ?? "neutral") : "neutral"),
     random: () => opts.roll ?? 0,
@@ -752,6 +760,29 @@ describe("createComeAlong", () => {
     expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, release);
     expect(h.playMotion).not.toHaveBeenCalled();
     expect(h.ticks.size).toBe(0);
+  });
+
+  it("idles her when the controller returns to a replaced state edge clip that has no play_ms", async () => {
+    const h = await docked({ roll: 0.9, edgeEntries: { peek: { inset: 0.12 } } });
+    h.playMotion.mockClear();
+
+    h.setCurrent("happy");
+    h.tick(10);
+    h.setCurrent("peek");
+    h.tick(10);
+
+    expect(h.playMotion.mock.calls).toEqual([[null]]);
+  });
+
+  it("hands an unpinned peek over to idle at its play_ms", async () => {
+    const h = await docked({ roll: 0.9, pinAccepted: false });
+    h.playMotion.mockClear();
+
+    h.setMotionTime(11.5);
+    h.tick(10);
+
+    expect(h.playMotion.mock.calls).toEqual([[null]]);
+    expect(h.setPeekTarget).not.toHaveBeenCalledWith(null, expect.anything());
   });
 
   it("hands peek over to idle at its play_ms and eases the pin back", async () => {
