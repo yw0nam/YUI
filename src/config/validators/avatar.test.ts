@@ -68,9 +68,18 @@ function without(path: string): Record<string, unknown> {
   return raw;
 }
 
+/** Keys a file may leave out: a family besides plain, an edge entry, and an edge entry's play_ms. */
+const OPTIONAL_PATHS = [
+  "stage.entry_families.glad",
+  "stage.entry_families.glum",
+  "stage.edge_entries.peek_in",
+  "stage.edge_entries.peek",
+  "stage.edge_entries.peek.play_ms",
+];
+
 /** Every tunable the file owns — vrm_url has its own cases. */
 const TUNABLE_PATHS = tunablePaths(avatarFixture() as unknown as Record<string, unknown>).filter(
-  (path) => path !== "vrm_url",
+  (path) => path !== "vrm_url" && !OPTIONAL_PATHS.includes(path),
 );
 
 describe("validateAvatar — configs/avatar.json owns every tunable", () => {
@@ -992,6 +1001,48 @@ describe("validateAvatar — gaze", () => {
   });
 });
 
+describe("validateAvatar — stage", () => {
+  it.each<[string, Record<string, unknown>, string]>([
+    [
+      "a missing plain family",
+      { entry_families: { plain: undefined } },
+      "stage.entry_families.plain must be an object (got: undefined)",
+    ],
+    [
+      "a family with no clips",
+      { entry_families: { glad: { clips: [] } } },
+      "stage.entry_families.glad.clips must be a non-empty array of non-empty strings (got: [])",
+    ],
+    [
+      "a family emotion that is not a string",
+      { entry_families: { glum: { emotions: ["sad", 3] } } },
+      'stage.entry_families.glum.emotions must be a non-empty array of non-empty strings (got: ["sad",3])',
+    ],
+    [
+      "an edge inset above 1",
+      { edge_entries: { peek: { inset: 2 } } },
+      "stage.edge_entries.peek.inset must be a finite number in [0, 1] (got: 2)",
+    ],
+    [
+      "an edge play_ms of 0",
+      { edge_entries: { peek: { play_ms: 0 } } },
+      "stage.edge_entries.peek.play_ms must be a finite number > 0 (got: 0)",
+    ],
+    [
+      "an edge_release_ms of 0",
+      { edge_release_ms: 0 },
+      "stage.edge_release_ms must be a finite number > 0 (got: 0)",
+    ],
+    [
+      "a negative pickup_hold_ms",
+      { pickup_hold_ms: -1 },
+      "stage.pickup_hold_ms must be a finite number >= 0 (got: -1)",
+    ],
+  ])("rejects a stage with %s", (_, stage, issue) => {
+    expectIssue(avatarWith({ stage }), issue);
+  });
+});
+
 /** Valid vrm_url and an array-valued available, with at least one fault in every section. */
 const BROKEN_EVERYWHERE = {
   vrm_url: "/vrms/x.vrm",
@@ -1068,11 +1119,10 @@ const BROKEN_EVERYWHERE = {
     flight_timeout_ms: 0,
   },
   stage: {
-    walk_ms: 0,
-    walk_extra_ms: -1,
-    walk_full_pt: 1200,
+    ...avatarFixture().stage,
+    carry_ms: 0,
+    carry_extra_ms: -1,
     stay_chance: 2,
-    emotion_decay_min: 30,
   },
   drag_hold_ms: 0,
   gesture_cues: {
@@ -1148,8 +1198,8 @@ describe("validateAvatar — characterization", () => {
       "jump.height_up_max_frac must be a finite number > 0 (got: 0)",
       "jump.flight_timeout_ms must be an integer > 0 (got: 0)",
       "jump.takeoff_frac must be < jump.land_frac (got: 0.8 >= 0.5)",
-      "stage.walk_ms must be a finite number > 0 (got: 0)",
-      "stage.walk_extra_ms must be a finite number >= 0 (got: -1)",
+      "stage.carry_ms must be a finite number > 0 (got: 0)",
+      "stage.carry_extra_ms must be a finite number >= 0 (got: -1)",
       "stage.stay_chance must be a finite number in [0, 1] (got: 2)",
       "drag_hold_ms must be an integer >= 1 (got: 0)",
       "gesture_cues.extra is an unknown key",
@@ -1273,11 +1323,25 @@ describe("validateAvatar — characterization", () => {
         flight_timeout_ms: 4000,
       },
       stage: {
-        walk_ms: 600,
-        walk_extra_ms: 300,
-        walk_full_pt: 1200,
+        carry_ms: 600,
+        carry_extra_ms: 300,
+        carry_full_pt: 1200,
         stay_chance: 0.6,
         emotion_decay_min: 30,
+        entry_families: {
+          glad: {
+            emotions: ["happy", "surprised"],
+            clips: ["excited", "wave_1", "peek_in", "gaow"],
+          },
+          plain: {
+            emotions: ["neutral", "relaxed", "curious", "thinking"],
+            clips: ["wave_3", "bow", "peek_in", "calm", "peek"],
+          },
+          glum: { emotions: ["sad", "sleepy", "embarrassed"], clips: ["yawn", "idle_10"] },
+        },
+        edge_entries: { peek_in: { inset: 0.06 }, peek: { inset: 0.12, play_ms: 11500 } },
+        edge_release_ms: 600,
+        pickup_hold_ms: 200,
       },
       drag_hold_ms: 5000,
       gesture_cues: {

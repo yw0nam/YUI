@@ -92,6 +92,20 @@ describe("configs/avatar.json", () => {
     ]);
   });
 
+  it("names stage entry clips that are registered motions with a shipped clip file", () => {
+    expect(a.stage).toHaveProperty(["entry_families", "plain"]);
+    const families = Object.values(a.stage.entry_families) as Array<{ clips: string[] }>;
+    const clips = families.flatMap((f) => f.clips);
+    for (const id of [...clips, ...Object.keys(a.stage.edge_entries)]) {
+      expect(m, `stage clip ${id}`).toHaveProperty([id]);
+      const file = resolve(process.cwd(), "public", m[id].vrma_path.replace(/^\//, ""));
+      expect(existsSync(file), m[id].vrma_path).toBe(true);
+    }
+    for (const id of Object.keys(a.stage.edge_entries)) {
+      expect(clips, `edge entry ${id}`).toContain(id);
+    }
+  });
+
   it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
     const builtIn: Array<[string, object]> = [
       ...Object.entries(a.tap.region_cues ?? {}).map(
@@ -112,7 +126,8 @@ describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
   const NECOCOYA_CLIPS: Array<[string, string[]]> = [
-    ["wave", ["/motions/wave_01.vrma", "/motions/wave_02.vrma"]],
+    ["wave_1", ["/motions/wave_01.vrma"]],
+    ["wave_3", ["/motions/wave_02.vrma"]],
     ["bow", ["/motions/bow.vrma"]],
     ["excited", ["/motions/excited.vrma"]],
     ["banzai", ["/motions/banzai.vrma"]],
