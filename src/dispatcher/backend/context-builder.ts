@@ -74,7 +74,14 @@ function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
   if (typeof payload?.name !== "string" || typeof payload?.local_time !== "string") {
     return undefined;
   }
-  return { name: payload.name, local_time: payload.local_time };
+  const lastTogether = payload.last_together;
+  return {
+    name: payload.name,
+    local_time: payload.local_time,
+    ...(typeof lastTogether === "number" || lastTogether === null
+      ? { last_together: lastTogether }
+      : {}),
+  };
 }
 
 export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
