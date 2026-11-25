@@ -55,11 +55,13 @@ const ja: Record<string, string> = {
   "aria.send": "送信",
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
+  "aria.remove_thread": "メッセージから{title}を外す",
   "aria.dismiss_bubble": "吹き出しを閉じる",
   "bubble.you": "自分",
   "bubble.backlog": "バックログ",
   "bubble.backlog_hide": "バックログを閉じる",
   "bubble.quote_attached": "添付 {count}件",
+  "bubble.quote_thread": "スレッド · {title}",
   "bubble.sources_more": "+{n}件",
   "signals.delivery_urgent": "緊急シグナル",
   "signals.delivery_batched": "まとめて届いたシグナル",
@@ -68,6 +70,7 @@ const ja: Record<string, string> = {
   "aria.dismiss_error": "エラーを閉じる",
 
   "input.placeholder": "話しかけてみて…",
+  "input.thread_chip": "スレッド · {title}",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",
   "input.error_http": "{status} {message}",
@@ -395,6 +398,8 @@ const ja: Record<string, string> = {
   "unified.everyone": "みんな",
   "unified.recipients": "送り先",
   "unified.placeholder_to": "{name}に話しかけてみて…",
+  "unified.threads_hint":
+    "添付したスレッドは、スレッドを読める{name}に届きます。ほかのキャラクターを選ぶには添付を外してください。",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",
@@ -924,6 +929,8 @@ const ja: Record<string, string> = {
   "threads.role_system": "システム",
   "threads.just_now": "たった今",
   "threads.mark_read": "既読にする",
+  "threads.attached": "添付済み",
+  "threads.attach": "チャットに添付",
   "threads.turns_button": "スレッドへの反応: {level}",
   "threads.turns_caption": "スレッドをメインキャラクターに知らせる",
   "threads.turns_off_sub": "スレッドはここに残り、キャラクターには伝わりません。",

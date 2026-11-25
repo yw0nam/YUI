@@ -5,8 +5,14 @@
  * reports the utterance it opened, the turn log reports settlement, and each fact becomes one call
  * on the surfaces. Whether there is a reply is the backend's.
  */
+import type { AttachedThread } from "../../contract";
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
-import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
+import {
+  guideKeyOf,
+  threadsAttachedOf,
+  userImagesOf,
+  userTextOf,
+} from "../backend/context-builder";
 import { mentionOf, routedViaOf, userTurnSourceOf } from "../core/classify";
 import { sourceLinesOf } from "./signal-lines";
 import type { Turn, TurnLog } from "./turn";
@@ -33,6 +39,8 @@ export interface QuotedTurn {
 export function createQuotedTurn(deps: {
   surfaces: QuoteSurfaces;
   turnLog: Pick<TurnLog, "subscribe">;
+  /** Puts a failed turn's attached Threads back on the chat input. */
+  restoreThreads?: (threads: AttachedThread[]) => void;
 }): QuotedTurn {
   const { surfaces } = deps;
   type Quoted =
@@ -41,6 +49,7 @@ export function createQuotedTurn(deps: {
         id: number;
         text: string;
         images: string[];
+        threads: AttachedThread[];
         via: UserQuote["via"];
         guide: boolean;
         spoke: boolean;
@@ -71,18 +80,26 @@ export function createQuotedTurn(deps: {
       }
       const text = userTextOf(turn.trigger) ?? "";
       const images = userImagesOf(turn.trigger) ?? [];
+      const threads = threadsAttachedOf(turn.trigger) ?? [];
       const via = routedViaOf(turn.trigger) ?? source;
       quoted = {
         kind: "user",
         id: turn.id,
         text,
         images,
+        threads,
         via,
         guide: guideKeyOf(turn.trigger) !== undefined,
         spoke: false,
       };
       const mention = mentionOf(turn.trigger);
-      surfaces.quoteUser({ text, via, images: images.length, ...(mention ? { mention } : {}) });
+      surfaces.quoteUser({
+        text,
+        via,
+        images: images.length,
+        ...(mention ? { mention } : {}),
+        ...(threads.length ? { threads: threads.map((t) => t.title) } : {}),
+      });
     },
     utteranceStart() {
       if (!quoted) return;
@@ -102,6 +119,7 @@ export function createQuotedTurn(deps: {
       // Resending the bare request would lose the guide, so a guide turn restores nothing.
       if (failedQuote.via === "text" && !failedQuote.guide)
         surfaces.restoreInput(failedQuote.text, failedQuote.images);
+      if (failedQuote.threads.length) deps.restoreThreads?.(failedQuote.threads);
       surfaces.clearQuote();
     },
     dispose() {

@@ -50,6 +50,7 @@ interface Row {
 }
 
 const none = { args: [], wire: undefined, delivered: [] };
+const THREAD = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
 const same = (value: unknown) => ({ args: [value], wire: value, delivered: [value] });
 
 const rows: Record<keyof typeof channels, Row> = {
@@ -85,6 +86,16 @@ const rows: Record<keyof typeof channels, Row> = {
     name: "yui://threads-presented",
     scope: "shared",
     ...same({ present: "p1" }),
+  },
+  ThreadsAttachRequest: {
+    name: "yui://threads-attach-request",
+    scope: "shared",
+    ...same({ op: "toggle", thread: THREAD }),
+  },
+  ThreadsAttached: {
+    name: "yui://threads-attached",
+    scope: "shared",
+    ...same({ threads: [THREAD] }),
   },
   ThreadsOpenRequest: {
     name: "yui://threads-open-request",
@@ -210,6 +221,17 @@ describe("every channel", () => {
     ["VoiceSet", undefined, [[false]]],
     ["Delegations", "garbage", [[[]]]],
     ["Reasoning", null, []],
+    [
+      "ThreadsAttachRequest",
+      { op: "remove", thread: { ...THREAD, extra: 1 } },
+      [[{ op: "remove", thread: THREAD }]],
+    ],
+    ["ThreadsAttachRequest", { op: "pin", thread: THREAD }, []],
+    ["ThreadsAttachRequest", { op: "toggle", thread: { ...THREAD, id: "" } }, []],
+    ["ThreadsAttachRequest", { op: "toggle", thread: { id: "t1", source: "gmail" } }, []],
+    ["ThreadsAttached", { threads: [] }, [[{ threads: [] }]]],
+    ["ThreadsAttached", { threads: [THREAD, { ...THREAD, title: 7 }] }, []],
+    ["ThreadsAttached", { threads: "gmail:18c2" }, []],
   ] as const)("normalizes a raw %s payload %j", (key, payload, calls) => {
     const { t, samePreset } = windows();
     const cb = vi.fn();
@@ -498,11 +520,13 @@ describe("createSettingsBridge", () => {
     });
     unified.emitUserTurnRouted({ sendId: "s2", to: "natsume", text: "hi" });
     unified.emitUserTurnRouted({ sendId: "s3", to: "natsume", text: "hey", via: "voice" });
+    unified.emitUserTurnRouted({ sendId: "s4", to: "natsume", text: "", threads: [THREAD] });
 
     expect(cb.mock.calls).toEqual([
       [{ sendId: "s1", to: "natsume", text: "@Natsume hi", mention: "character" }],
       [{ sendId: "s2", to: "natsume", text: "hi" }],
       [{ sendId: "s3", to: "natsume", text: "hey", via: "voice" }],
+      [{ sendId: "s4", to: "natsume", text: "", threads: [THREAD] }],
     ]);
   });
 
@@ -525,6 +549,7 @@ describe("createSettingsBridge", () => {
     { sendId: 7, to: "natsume", text: "x" },
     { sendId: "s1", to: "natsume", text: "x", mention: "all" },
     { sendId: "s1", to: "natsume", text: "x", via: "text" },
+    { sendId: "s1", to: "natsume", text: "x", threads: [{ id: "t1" }] },
     "garbage",
   ])("ignores a malformed user-turn-routed payload %j", (payload) => {
     const t = createFakeTransport();
@@ -641,6 +666,9 @@ describe("speech stream", () => {
     { op: "hide" },
     { op: "quote", quote: { text: "hey", via: "voice", images: 1 } },
     { op: "quote", quote: { text: "hey", via: "text", images: 0, mention: "everyone" } },
+    { op: "quote", quote: { text: "", via: "text", images: 0, threads: ["Quote reply"] } },
+    { op: "threads", threads: [THREAD] },
+    { op: "restore-input", text: "x", images: [] },
     { op: "quote-signals", lines: [{ delivery: "urgent", source: "ci", text: "Build failed" }] },
     { op: "settle-quote" },
     { op: "clear-quote" },
@@ -662,7 +690,12 @@ describe("speech stream", () => {
     { preset: "yui", op: "end" },
     { preset: "yui", op: { op: "other" } },
     { preset: "yui", op: { op: "dismiss-input" } },
-    { preset: "yui", op: { op: "restore-input", text: "x", images: [] } },
+    { preset: "yui", op: { op: "restore-input", text: "x", images: [7] } },
+    { preset: "yui", op: { op: "threads", threads: [{ ...THREAD, source: null }] } },
+    {
+      preset: "yui",
+      op: { op: "quote", quote: { text: "x", via: "text", images: 0, threads: [7] } },
+    },
     { preset: "yui", op: { op: "push", delta: 7 } },
     { preset: "yui", op: { op: "quote", quote: { text: "x", via: "fax", images: 0 } } },
     {

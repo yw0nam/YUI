@@ -1,8 +1,8 @@
 /** The thread pane: its head and a transcript that redraws per Thread and keeps a reader above the newest entry in place. */
 
 import "./thread-pane.css";
-import { type RefObject, useLayoutEffect, useRef } from "react";
-import type { Thread, ThreadEntry } from "../../../contract";
+import { type RefObject, useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import type { AttachedThread, Thread, ThreadEntry } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
 import { RefMount } from "../../ref-mount";
@@ -85,12 +85,20 @@ function Transcript({
   );
 }
 
+/** Main's attached Threads, as the Threads window last heard them. */
+export interface AttachedSource {
+  get(): AttachedThread[];
+  subscribe(cb: () => void): () => void;
+}
+
 export function ThreadPane({
   thread,
   opened,
   now,
   onRead,
   onBack,
+  attached,
+  onAttach,
 }: {
   thread: Thread | undefined;
   /** Counts the opens; each starts a fresh transcript. */
@@ -99,8 +107,13 @@ export function ThreadPane({
   onRead(id: string): void;
   /** The narrow layout's way back to the list. */
   onBack(): void;
+  attached: AttachedSource;
+  /** Attach to chat, or take the Thread off again. */
+  onAttach(thread: AttachedThread): void;
 }) {
   const reader = useRef<Reader | null>(null);
+  const attachedList = useSyncExternalStore(attached.subscribe, attached.get);
+  const isAttached = thread !== undefined && attachedList.some((a) => a.id === thread.id);
   // An empty pane forgets its reader, so the next Thread starts at its newest entry.
   useLayoutEffect(() => {
     if (!thread) reader.current = null;
@@ -130,6 +143,15 @@ export function ThreadPane({
                   {t("threads.mark_read")}
                 </button>
               )}
+              <button
+                type="button"
+                className={`yui-threads-pane__attach${isAttached ? " is-attached" : ""}`}
+                onClick={() =>
+                  onAttach({ id: thread.id, source: thread.source, title: thread.title })
+                }
+              >
+                {t(isAttached ? "threads.attached" : "threads.attach")}
+              </button>
             </div>
             <h2 tabIndex={-1}>{thread.title}</h2>
             {thread.label && <p className="yui-threads-pane__label">{thread.label}</p>}

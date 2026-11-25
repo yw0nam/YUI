@@ -85,6 +85,12 @@ function renderThreadsWaiting(threads: ClientContext["threads_waiting"]): string
   return `threads: ${threads.total} waiting (${groups.join(", ")})`;
 }
 
+function renderThreadsAttached(threads: ClientContext["threads_attached"]): string[] {
+  if (!threads?.length) return [];
+  const rows = threads.map((t) => `  ${[t.id, t.source, t.title].map(oneLine).join(" | ")}`);
+  return ["threads attached:", ...rows];
+}
+
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
   if (!switches || switches.length === 0) return undefined;
   const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
@@ -218,6 +224,8 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const threads = renderThreadsWaiting(clientContext.threads_waiting);
   if (threads) lines.push(threads);
+
+  lines.push(...renderThreadsAttached(clientContext.threads_attached));
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);

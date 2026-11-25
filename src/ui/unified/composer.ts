@@ -4,6 +4,7 @@
  * into stop while a reply runs; routing stays with the view.
  */
 
+import type { AttachedThread } from "../../contract";
 import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { createCommandInput } from "../commands/command-input";
@@ -31,8 +32,15 @@ export interface Composer {
   fill(text: string): void;
   /** Drops the field's leading @name token, with its space, the way typing does; the rest stays. */
   consumeMentionToken(): void;
-  /** text is trimmed and never empty. */
+  /** text is trimmed, and empty only when Threads are attached. */
   onSubmit(cb: (text: string) => void): void;
+  /** Draws main's attached Threads as chips above the field. */
+  setThreads(threads: AttachedThread[]): void;
+  onThreadRemove(cb: (thread: AttachedThread) => void): void;
+  /** Re-reads `allowed`: a pick it no longer allows is dropped, and while it holds sends the hint shows above the field and a typed leading @name it does not allow is refused with it. */
+  holdRecipients(hint: string | undefined): void;
+  /** Puts a failed send's text back while the field is empty. */
+  restore(text: string): void;
   /** While busy, send becomes stop and Enter sends nothing. */
   setBusy(busy: boolean): void;
   onStop(cb: () => void): void;
@@ -42,7 +50,12 @@ export interface Composer {
   dispose(): void;
 }
 
-export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEntry[] }): Composer {
+export function createComposer(deps: {
+  mount: HTMLElement;
+  cast: () => PresetEntry[];
+  /** The recipients a send may name, which the @ list offers. */
+  allowed: (mention: Mention) => boolean;
+}): Composer {
   const dock = deps.mount;
   dock.insertAdjacentHTML(
     "beforeend",
@@ -63,12 +76,22 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const q = <T extends HTMLElement>(sel: string): T => dock.querySelector<T>(sel)!;
   const form = q<HTMLFormElement>(".yui-input");
   const field = q<HTMLTextAreaElement>(".yui-input__field");
+  const hint = document.createElement("p");
+  hint.className = "yui-uc__threads-hint";
+  hint.hidden = true;
+  form.before(hint);
 
   let mention: Mention | null = null;
   const changeCbs: Array<() => void> = [];
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
-  const picker = createMentionPicker({ field, mount: dock, cast: deps.cast, onPick: setMention });
+  const picker = createMentionPicker({
+    field,
+    mount: dock,
+    cast: deps.cast,
+    allowed: deps.allowed,
+    onPick: setMention,
+  });
   let commandRecipient: string | undefined;
   const commandInput = createCommandInput({
     field,
@@ -95,7 +118,14 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       if (!open) input.summonInput();
     },
   );
-  input.interceptSubmit(commandInput.interceptSubmit);
+  input.interceptSubmit((text, images) => {
+    const command = commandInput.interceptSubmit(text, images);
+    if (command !== false || hint.hidden) return command;
+    const typed = typedMention(text, deps.cast());
+    if (typed === null || deps.allowed(typed)) return false;
+    input.showInputError(hint.textContent ?? "");
+    return "refused";
+  });
   input.summonInput();
 
   // The recipient a send names before the fallback: the counted pick, else a typed leading @name.
@@ -148,6 +178,16 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
         // The field clears after the submit handlers, with no input event — the recipient follows then.
         queueMicrotask(changed);
       }),
+    setThreads: input.setThreads,
+    onThreadRemove: input.onThreadRemove,
+    holdRecipients(text) {
+      if (mention !== null && !deps.allowed(mention)) mention = null;
+      const changedHold = hint.hidden !== (text === undefined);
+      hint.textContent = text ?? "";
+      hint.hidden = text === undefined;
+      if (changedHold) picker.refresh();
+    },
+    restore: (text) => input.restoreInput(text, []),
     setBusy: input.setBusy,
     onStop: input.onStop,
     showError: (message, action) => input.showInputError(message, action),

@@ -7,7 +7,7 @@ import "./threads-view.css";
 import { createElement, createRef } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { ScreenRect, ThreadsSnapshot } from "../../../contract";
+import type { AttachedThread, ScreenRect, ThreadsSnapshot } from "../../../contract";
 import type { ThreadsOpen, ThreadsTab } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import type { TabsHandle } from "../../controls/tabs";
@@ -19,6 +19,7 @@ import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
 import type { TabBody, TabShell, TabView } from "./tab-body";
 import { THREADS_LIST_ID } from "./thread-list";
+import type { AttachedSource } from "./thread-pane";
 import { attachThreadsKeys } from "./threads-keys";
 import { createThreadsLayout } from "./threads-layout";
 import { createThreadsTab } from "./threads-tab";
@@ -76,6 +77,10 @@ export function createThreadsView(deps: {
   terminal(shell: TabShell): TabBody;
   /** A level picked in the head's Thread turns menu. */
   onTurnsLevel(level: ThreadTurnsLevel): void;
+  /** Main's attached Threads, which the pane's Attach to chat button reads. */
+  attached: AttachedSource;
+  /** The pane's Attach to chat button. */
+  onAttach(thread: AttachedThread): void;
 }): ThreadsView {
   const root = document.createElement("div");
   root.className = "yui-threads";
@@ -132,6 +137,8 @@ export function createThreadsView(deps: {
           for (const cb of headListeners) cb(event);
         },
         onTurnsLevel: deps.onTurnsLevel,
+        attached: deps.attached,
+        onAttach: deps.onAttach,
       }),
     ),
   );

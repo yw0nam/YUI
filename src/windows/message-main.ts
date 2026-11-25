@@ -113,7 +113,13 @@ async function bootstrap(): Promise<void> {
     ),
   });
   surfaces.el.classList.add("yui-ui--message");
-  surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
+  surfaces.onSubmit((text, images, threads) =>
+    bridge.emitControl({ op: "submit", text, images, threads }),
+  );
+  // Only main's window draws Thread chips, and main keeps the list.
+  surfaces.onThreadRemove((thread) =>
+    settingsBridge.emitThreadsAttachRequest({ op: "remove", thread }),
+  );
   surfaces.onCommand((name, args) => {
     bridge.emitControl({ op: "command", name, args });
     return true;

@@ -1,4 +1,5 @@
 import type {
+  AttachedThread,
   BodyState,
   ClientContext,
   FrontmostState,
@@ -51,6 +52,12 @@ export function userImagesOf(env: BusEnvelope): string[] | undefined {
   return Array.isArray(images) && images.every((url) => typeof url === "string")
     ? (images as string[])
     : undefined;
+}
+
+/** The Threads the user attached to this turn's message, absent when none came with it. */
+export function threadsAttachedOf(env: BusEnvelope): AttachedThread[] | undefined {
+  const threads = env.payload?.threads_attached;
+  return Array.isArray(threads) && threads.length > 0 ? (threads as AttachedThread[]) : undefined;
 }
 
 /** The guide the user's help button named on this turn. */
@@ -264,6 +271,7 @@ export async function buildContext(
   const openCharacters = providers.getOpenCharacters?.();
   const threadsWaiting = providers.getThreadsWaiting?.();
   const userTurn = triggerKind(env.event_name) === "user";
+  const attached = userTurn ? threadsAttachedOf(env) : undefined;
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -281,6 +289,7 @@ export async function buildContext(
     ...(userTurn && threadsWaiting && threadsWaiting.total > 0
       ? { threads_waiting: threadsWaiting }
       : {}),
+    ...(attached ? { threads_attached: attached } : {}),
   };
 
   return { ctx, clientContext, overheard };

@@ -303,6 +303,9 @@ export interface Thread {
   entry_count: number;
 }
 
+/** A Thread the user attached to the main character's chat input, named the way `threads_list` rows name it. */
+export type AttachedThread = Pick<Thread, "id" | "source" | "title">;
+
 export interface ThreadsSnapshot {
   revision: number;
   /** Newest `updated_at` first. */
@@ -449,6 +452,8 @@ export interface ClientContext {
   open_characters?: string[];
   /** The waiting Threads, read this turn; main's window only, on user-started turns. */
   threads_waiting?: { total: number; by_source: Array<{ source: string; count: number }> };
+  /** The Threads the user attached to this turn's message; main's window only, on that turn only. */
+  threads_attached?: AttachedThread[];
   trigger: TriggerMeta;
 }
 

@@ -1,5 +1,6 @@
 /** Pure: who a message from the unified chat window goes to, and the send that carries it. */
 
+import type { AttachedThread } from "../../contract";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { RESERVED_NAMES } from "../../settings/preset/preset-registry";
@@ -18,11 +19,21 @@ export interface Send {
   text: string;
   mention?: UserTurnRouted["mention"];
   via?: UserTurnRouted["via"];
+  threads?: AttachedThread[];
 }
 
 /** Who a send goes to: EVERYONE, or its one target. */
 export function recipientOf(send: Send): Mention {
   return send.mention === EVERYONE ? EVERYONE : (send.targets[0] ?? "");
+}
+
+/** Whether a send may name `mention`: anyone, or only main while main's attached Threads show, since only main reads Threads. */
+export function isAllowedRecipient(
+  mention: Mention,
+  attached: readonly AttachedThread[],
+  mainId: string,
+): boolean {
+  return attached.length === 0 || mention === mainId;
 }
 
 /** The preset id of the newest row a preset spoke. */

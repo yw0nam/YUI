@@ -171,6 +171,12 @@ export const surfaceOps = {
     (text, images) => ({ text, images }),
     (p, s) => s.restoreInput(p.text, p.images),
   ),
+  threads: entry(
+    "setThreads",
+    (threads) => ({ threads }),
+    (p, s) => s.setThreads(p.threads),
+    { replay: true },
+  ),
 };
 
 type Table = typeof surfaceOps;

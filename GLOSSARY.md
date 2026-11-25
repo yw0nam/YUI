@@ -146,6 +146,10 @@ _Avoid_: reply panel, Answer
 A Thread in `input-required` that the user has not marked read since the producer's last update.
 _Avoid_: unread, pending
 
+**Attached Thread**:
+A Thread the user put on the main character's chat input with the Threads window's Attach to chat, shown as a chip; the next send, typed or spoken, carries it by id as that turn's `threads attached:` block, and the chip clears.
+_Avoid_: reference, link, pinned Thread
+
 **Threads window**:
 The window `threads` where the user reads Threads and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Character menu's Threads and Terminal items, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
 _Avoid_: inbox, panel, dashboard

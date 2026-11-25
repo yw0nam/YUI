@@ -5,7 +5,14 @@
 
 import "./threads-window.css";
 import { Tabs } from "@base-ui/react/tabs";
-import { type PointerEvent, type Ref, useEffect, useImperativeHandle, useState } from "react";
+import {
+  type ComponentProps,
+  type PointerEvent,
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import type { ThreadsTab as TabId } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import { Tab, TabPanel, type TabsHandle, TabsRoot, useTabs } from "../../controls/tabs";
@@ -47,6 +54,8 @@ export function ThreadsWindow({
   onClose,
   onHeadPointerDown,
   onTurnsLevel,
+  attached,
+  onAttach,
 }: {
   /** Each tab's head, layout and keys. */
   bodies: Record<TabId, TabView>;
@@ -65,6 +74,8 @@ export function ThreadsWindow({
   /** A press on the head outside its buttons, the window's drag. */
   onHeadPointerDown(event: globalThis.PointerEvent): void;
   onTurnsLevel(level: ThreadTurnsLevel): void;
+  attached: ComponentProps<typeof ThreadsTabView>["attached"];
+  onAttach: ComponentProps<typeof ThreadsTabView>["onAttach"];
 }) {
   const [heads, setHeads] = useState(() => headsOf(bodies));
   useImperativeHandle(handle, () => ({ headChanged: () => setHeads(headsOf(bodies)) }), [bodies]);
@@ -128,6 +139,8 @@ export function ThreadsWindow({
             shown={tabs.value === "threads"}
             onRead={onRead}
             onBack={onBack}
+            attached={attached}
+            onAttach={onAttach}
           />
         </TabPanel>
         <TabPanel value="terminal" className="yui-threads__terminal">

@@ -344,6 +344,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       onStopTurns: windowBridge.onStopTurns,
       emitVoiceSegment: windowBridge.emitVoiceSegment,
       emitSpeechOnset: windowBridge.emitSpeechOnset,
+      threadsAttach: bound ? undefined : windowBridge,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,

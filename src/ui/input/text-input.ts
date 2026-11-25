@@ -6,6 +6,7 @@
  */
 
 import type { AttachmentLimits } from "../../config/validators/guardrails";
+import type { AttachedThread } from "../../contract";
 import type { InputErrorOffer } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton } from "./action-button";
@@ -21,8 +22,8 @@ export interface TextInput {
   dismissInput(): void;
   /** Whether the input is open. */
   isInputOpen(): boolean;
-  /** Register a submit callback. text is trimmed (empty string when sending images only); images is an array of data URLs. */
-  onSubmit(cb: (text: string, images: string[]) => void): void;
+  /** Register a submit callback. text is trimmed (empty string when sending attachments only); images is an array of data URLs; threads are the Thread chips shown. */
+  onSubmit(cb: (text: string, images: string[], threads: AttachedThread[]) => void): void;
   /** Register a stop callback. Fires only when the send button is explicitly pressed while busy. */
   onStop(cb: () => void): void;
   /**
@@ -36,6 +37,10 @@ export interface TextInput {
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
   restoreInput(text: string, images: string[]): void;
+  /** Draws the attached Threads as chips in their own row above the field. */
+  setThreads(threads: AttachedThread[]): void;
+  /** Register a callback for a Thread chip's ×. */
+  onThreadRemove(cb: (thread: AttachedThread) => void): void;
   /**
    * Set the input's bottom offset (px) for tracking the character's feet. Overrides
    * the CSS `bottom: var(--yui-input-bottom, 4%)` in pixels. null clears the var,
@@ -67,13 +72,25 @@ const DEFAULT_INPUT_BOTTOM_PX = 48;
 // Minimum gap (px) between the bubble bottom and the input top.
 const BUBBLE_INPUT_GAP_PX = 12;
 
+const REMOVE_ICON =
+  `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
+  `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>` +
+  `</svg>`;
+
 export function createTextInput(
   { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn }: TextInputElements,
   bubble: TextInputBubbleAnchor,
   onOpenChange?: (open: boolean) => void,
 ): TextInput {
-  const submitHandlers: Array<(text: string, images: string[]) => void> = [];
+  const submitHandlers: Array<(text: string, images: string[], threads: AttachedThread[]) => void> =
+    [];
   const stopHandlers: Array<() => void> = [];
+  const threadRemoveHandlers: Array<(thread: AttachedThread) => void> = [];
+  let threads: AttachedThread[] = [];
+  const threadsEl = document.createElement("div");
+  threadsEl.className = "yui-input__threads";
+  threadsEl.hidden = true;
+  trayEl.before(threadsEl);
   let submitInterceptor: ((text: string, images: string[]) => SubmitInterception) | undefined;
   const attachments: string[] = [];
   // Accepted but still being read into a data URL — counts against max_count so a
@@ -162,7 +179,7 @@ export function createTextInput(
   }
 
   function hasDraft(): boolean {
-    return field.value.trim() !== "" || attachments.length > 0;
+    return field.value.trim() !== "" || attachments.length > 0 || threads.length > 0;
   }
 
   function showInputError(message: string, action?: InputErrorOffer): void {
@@ -205,8 +222,37 @@ export function createTextInput(
     fitField();
   }
 
-  function onSubmit(cb: (text: string, images: string[]) => void): void {
+  function onSubmit(cb: (text: string, images: string[], threads: AttachedThread[]) => void): void {
     submitHandlers.push(cb);
+  }
+
+  function setThreads(next: AttachedThread[]): void {
+    threads = next;
+    renderThreads();
+  }
+
+  function renderThreads(): void {
+    threadsEl.replaceChildren(
+      ...threads.map((thread) => {
+        const chip = document.createElement("span");
+        chip.className = "yui-input__thread";
+        const label = document.createElement("span");
+        label.className = "yui-input__thread-label";
+        label.textContent = t("input.thread_chip", { title: thread.title });
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "yui-input__thread-remove";
+        remove.innerHTML = REMOVE_ICON;
+        remove.setAttribute("aria-label", t("aria.remove_thread", { title: thread.title }));
+        remove.addEventListener("click", () => {
+          for (const cb of threadRemoveHandlers) cb(thread);
+        });
+        chip.append(label, remove);
+        return chip;
+      }),
+    );
+    threadsEl.hidden = threads.length === 0;
+    if (!formEl.hidden) liftBubbleAboveInput();
   }
 
   /** The attach affordance stays off while there is nothing to validate a picked image against. */
@@ -276,10 +322,7 @@ export function createTextInput(
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "yui-chip__remove";
-    remove.innerHTML =
-      `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
-      `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>` +
-      `</svg>`;
+    remove.innerHTML = REMOVE_ICON;
     remove.setAttribute("aria-label", t("aria.remove_attachment"));
     remove.addEventListener("click", () => {
       const idx = Array.from(trayEl.children).indexOf(chip);
@@ -311,6 +354,7 @@ export function createTextInput(
     attachBtn.setAttribute("aria-label", t("aria.attach_image"));
     field.placeholder = t("input.placeholder");
     field.setAttribute("aria-label", t("aria.input_field"));
+    renderThreads();
   }
   applyLocaleLabels();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
@@ -325,7 +369,7 @@ export function createTextInput(
 
   function submitCurrent(): void {
     const text = field.value.trim();
-    if (text === "" && attachments.length === 0) return;
+    if (text === "" && attachments.length === 0 && threads.length === 0) return;
     const images = attachments.slice();
     const intercepted = submitInterceptor?.(text, images);
     if (intercepted === "refused") {
@@ -334,7 +378,9 @@ export function createTextInput(
     }
     if (intercepted !== "accepted" && busy) return;
     clearInputError();
-    if (intercepted !== "accepted") for (const cb of submitHandlers) cb(text, images);
+    // A handler can redraw the chips; every one gets the chips this submit showed.
+    const shown = threads;
+    if (intercepted !== "accepted") for (const cb of submitHandlers) cb(text, images, shown);
     clearAttachments();
     field.value = "";
     fitField();
@@ -438,6 +484,7 @@ export function createTextInput(
     formEl.removeEventListener("drop", onDrop);
     submitHandlers.length = 0;
     stopHandlers.length = 0;
+    threadRemoveHandlers.length = 0;
   }
 
   return {
@@ -453,6 +500,10 @@ export function createTextInput(
     showInputError,
     setAttachmentLimits,
     restoreInput,
+    setThreads,
+    onThreadRemove(cb) {
+      threadRemoveHandlers.push(cb);
+    },
     setInputAnchor,
     dispose,
   };

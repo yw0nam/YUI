@@ -31,14 +31,26 @@ export interface UserQuoteLine {
 }
 
 export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuoteLine {
-  el.innerHTML = `<span class="yui-bubble__quote-who"></span><span class="yui-bubble__quote-text"></span>`;
+  el.innerHTML = `<span class="yui-bubble__quote-who"></span><span class="yui-bubble__quote-text"></span><span class="yui-bubble__quote-threads"></span>`;
   const whoEl = el.querySelector<HTMLElement>(".yui-bubble__quote-who")!;
   const textEl = el.querySelector<HTMLElement>(".yui-bubble__quote-text")!;
+  const threadsEl = el.querySelector<HTMLElement>(".yui-bubble__quote-threads")!;
   let shown: UserQuote | null = null;
 
   function renderWho(): void {
     whoEl.innerHTML = shown?.via === "voice" ? MIC_ICON : "";
     whoEl.append(shown && lead ? lead(shown) : t("bubble.you"));
+  }
+
+  function renderThreads(): void {
+    threadsEl.replaceChildren(
+      ...(shown?.threads ?? []).map((title) => {
+        const chip = document.createElement("span");
+        chip.className = "yui-bubble__quote-thread";
+        chip.textContent = t("bubble.quote_thread", { title });
+        return chip;
+      }),
+    );
   }
 
   function quoteText(quote: UserQuote): string {
@@ -49,14 +61,15 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
 
   function show(quote: UserQuote): void {
     shown = quote;
-    // The slot may hold source lines, so the two spans are put back.
+    // The slot may hold source lines, so the spans are put back.
     el.classList.remove("is-sources");
-    el.replaceChildren(whoEl, textEl);
+    el.replaceChildren(whoEl, textEl, threadsEl);
     // Hold first, so the reveal keeps the slot.
     bubble.holdForTurn(true);
     bubble.reveal({ clearSpeech: true });
     renderWho();
     textEl.textContent = quoteText(quote);
+    renderThreads();
     el.hidden = false;
     bubble.measure();
   }
@@ -73,9 +86,12 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
     bubble.measure();
   }
 
-  // Surfaces aren't remounted on locale change, so the label is (re)applied here.
+  // Surfaces aren't remounted on locale change, so the label and the chips are (re)applied here.
   renderWho();
-  const unsubscribeLocale = subscribeLocale(renderWho);
+  const unsubscribeLocale = subscribeLocale(() => {
+    renderWho();
+    renderThreads();
+  });
 
   return {
     show,

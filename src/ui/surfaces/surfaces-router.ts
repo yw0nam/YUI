@@ -127,7 +127,7 @@ export function createSurfacesRouter({
     finishTool: local.finishTool,
     hideTool: local.hideTool,
 
-    // The unified composer is always open, so it takes the summons and the errors; there is nothing to dismiss or restore.
+    // The unified composer is always open, so it takes the summons, the errors and a failed send; there is nothing to dismiss.
     summonInput: () => (shown.get() ? stream : input()).summonInput(),
     dismissInput() {
       if (!shown.get()) input().dismissInput();
@@ -139,14 +139,20 @@ export function createSurfacesRouter({
       remote.setBusy(busy);
       stream.setBusy(busy);
     },
-    // Retry resends the composer's own draft, which the unified composer does not restore.
+    // The unified composer offers no Retry; a failed send's text comes back to it through restoreInput.
     showInputError: (message, action) =>
       shown.get()
         ? stream.showInputError(message, action === "retry" ? undefined : action)
         : input().showInputError(message, action),
-    restoreInput(text, images) {
-      if (!shown.get()) input().restoreInput(text, images);
+    restoreInput: (text, images) => (shown.get() ? stream : input()).restoreInput(text, images),
+    // Every composer draws the chips, so the one a mode change or the unified window reveals is current.
+    setThreads(threads) {
+      local.setThreads(threads);
+      remote.setThreads(threads);
+      stream.setThreads(threads);
     },
+    // The other composers' × reach main over the settings bridge.
+    onThreadRemove: local.onThreadRemove,
     setAttachmentLimits(limits) {
       local.setAttachmentLimits(limits);
       remote.setAttachmentLimits(limits);

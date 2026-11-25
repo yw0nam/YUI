@@ -930,7 +930,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, settings-stage, settings-stage-ask, open-devtools, threads-open, threads-ready, threads-closed, threads-presented and threads-open-request.",
+      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, settings-stage, settings-stage-ask, open-devtools, threads-open, threads-ready, threads-closed, threads-presented, threads-open-request, threads-attach-request and threads-attached.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1182,7 +1182,7 @@ globalThis.YUI_MAP =
       "id": "ui/input",
       "module": "input",
       "label": "text input",
-      "role": "The composer: submit, stop, mic button, and image attachments.",
+      "role": "The composer: submit, stop, mic button, image attachments, and a row of attached Thread chips above them, each with its ×; a message of chips alone sends.",
       "paths": [
         "src/ui/input"
       ]
@@ -1191,7 +1191,7 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the typewriter that types each line at 40 ms per character as text arrives, the quoted user line or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
+      "role": "The speech bubble, the typewriter that types each line at 40 ms per character as text arrives, the quoted user line with its attached Threads as chips, or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
       "paths": [
         "src/ui/message"
       ]
@@ -1200,7 +1200,7 @@ globalThis.YUI_MAP =
       "id": "ui/unified",
       "module": "display",
       "label": "unified chat",
-      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, a grip beside them and the box's name plate that drag the window, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop.",
+      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, a grip beside them and the box's name plate that drag the window, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop; while main's attached Threads show as chips, a send goes to main and carries them, the other cast chips and everyone are disabled, the @ list offers only main, a hint above the field says why, and a typed @name for anyone else is refused with it, a spoken send leaving that token in the field; the rule lives in one helper beside the routing; a failed send's text comes back to an empty field.",
       "paths": [
         "src/ui/unified"
       ]
@@ -1264,7 +1264,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1387,6 +1387,15 @@ globalThis.YUI_MAP =
       "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, opens the Threads window from its tap, and passes each tap on to the reaction wiring; the chip hides from the open until the window's closed report. The tray's Terminal item and a bound pet window's Character menu Threads or Terminal item open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
+      ]
+    },
+    {
+      "id": "app/threads-attach",
+      "module": "wiring",
+      "label": "attached Threads wiring",
+      "role": "Main only, wired by the chat turn: the list of Threads attached to the main character's chat input, each once. The Threads window's toggle and every chip's × change it; a toggle that adds opens a closed input; every composer draws it; a send, typed or spoken, drops the Threads it carried and keeps any attached since, and a spoken send in main's own window carries the list as it stands; a failed send puts them back; the Threads window hears each change and gets it again on its ready.",
+      "paths": [
+        "src/app/threads-attach"
       ]
     },
     {
@@ -1593,7 +1602,7 @@ globalThis.YUI_MAP =
       "id": "input-submit",
       "from": "ui/input",
       "to": "ui/surfaces",
-      "carries": "submit and stop handlers; interceptSubmit(text, images) returns whether handled",
+      "carries": "submit(text, images, threads) and stop handlers, threads being the Thread chips shown; interceptSubmit(text, images) returns whether handled; setThreads(list) and the chip's onThreadRemove(thread)",
       "kind": "callback",
       "transport": "shared"
     },
@@ -1601,7 +1610,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-submit",
       "from": "ui/surfaces",
       "to": "dispatcher/sources/user-input",
-      "carries": "userInput.submit(text, images)",
+      "carries": "userInput.submit(text, images, undefined, threads)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/turn-core.ts"
@@ -1618,7 +1627,7 @@ globalThis.YUI_MAP =
       "id": "stt-submit",
       "from": "io/voice/stt",
       "to": "dispatcher/sources/user-input",
-      "carries": "onVoiceSegment(text) → submitVoice while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
+      "carries": "onVoiceSegment(text) → submitVoice(text, main's attached Threads, which it then drops) while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
@@ -1627,7 +1636,7 @@ globalThis.YUI_MAP =
       "id": "user-input-bus",
       "from": "dispatcher/sources/user-input",
       "to": "dispatcher/core",
-      "carries": "bus.push(BusEnvelope): user.text_submitted, user.voice_segment_ready",
+      "carries": "bus.push(BusEnvelope): user.text_submitted and user.voice_segment_ready, each with payload.threads_attached when Threads came with it",
       "kind": "call",
       "transport": "shared"
     },
@@ -1651,7 +1660,7 @@ globalThis.YUI_MAP =
       "id": "ledger-quote",
       "from": "dispatcher/turn",
       "to": "ui/surfaces",
-      "carries": "onTurnAdmitted, utteranceStart → quoteUser, quoteSignals, settleQuote, clearQuote",
+      "carries": "onTurnAdmitted, utteranceStart → quoteUser (with the attached Threads' titles), quoteSignals, settleQuote, clearQuote; a failed text turn → restoreInput(text, images)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -3632,6 +3641,69 @@ globalThis.YUI_MAP =
       "wiring": "src/app/threads-window/wire-threads-window.ts"
     },
     {
+      "id": "threads-attach-request",
+      "from": "app/threads-window",
+      "to": "app/threads-attach",
+      "carries": "yui://threads-attach-request {op: \"toggle\", thread: {id, source, title}}, unscoped: the pane's Attach to chat adds the Thread, or takes it off while attached",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-attach-remove-message",
+      "from": "ui/surfaces",
+      "to": "app/threads-attach",
+      "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the popped message window",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/windows/message-main.ts"
+    },
+    {
+      "id": "threads-attach-remove-unified",
+      "from": "ui/unified",
+      "to": "app/threads-attach",
+      "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the unified composer",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/windows/unified-main.ts"
+    },
+    {
+      "id": "threads-attached",
+      "from": "app/threads-attach",
+      "to": "app/threads-window",
+      "carries": "yui://threads-attached {threads: {id, source, title}[]}, unscoped: on every change and on threads-ready; the pane's button reads Attached for a listed Thread",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
+    },
+    {
+      "id": "threads-attach-surfaces",
+      "from": "app/threads-attach",
+      "to": "ui/surfaces",
+      "carries": "setThreads(list) on every change, which the router gives the docked input, the message window and the speech stream; summonInput() when a toggle adds while the input is closed; back: onThreadRemove(thread) from the docked chip's ×, onSubmit(text, images, threads) dropping the Threads a send carried",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
+    },
+    {
+      "id": "threads-attach-routed",
+      "from": "ui/unified",
+      "to": "app/threads-attach",
+      "carries": "yui://user-turn-routed {to: main, threads}: a unified chat send drops the Threads it carried",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
+    },
+    {
+      "id": "threads-attach-restore",
+      "from": "dispatcher/turn",
+      "to": "app/threads-attach",
+      "carries": "restoreThreads(threads): a user turn that failed before any utterance puts its attached Threads back, each once",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice.ts"
+    },
+    {
       "id": "threads-closed",
       "from": "app/threads-window",
       "to": "io/window/openers",
@@ -4074,7 +4146,7 @@ globalThis.YUI_MAP =
       "id": "user-turn-routed",
       "from": "ui/unified",
       "to": "dispatcher/sources/routed",
-      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message",
+      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message; threads are the attached Threads a send carries, typed or spoken, and while any are attached a send goes to main",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4749,7 +4821,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream",
       "from": "ui/surfaces",
       "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, commands, command-reply); busy, name and commands always; Command replies go to the issuing window",
+      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, restore-input, threads, commands, command-reply); busy, name, threads and commands always; Command replies go to the issuing window",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -6416,6 +6488,34 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "threads-attach-request-threads",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-attach-request {op: \"toggle\", thread}: the pane's Attach to chat",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-attach-request-message",
+        "from": "message",
+        "to": "pet",
+        "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-attach-request-unified",
+        "from": "unified",
+        "to": "pet",
+        "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-attached-pet",
+        "from": "pet",
+        "to": "threads",
+        "carries": "yui://threads-attached {threads}: on every change and on threads-ready",
+        "kind": "bridge"
+      },
+      {
         "id": "threads-ready-pet",
         "from": "threads",
         "to": "pet",
@@ -6783,7 +6883,7 @@ globalThis.YUI_MAP =
         "id": "message-surface",
         "from": "pet",
         "to": "message",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames}",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply, asks {frames} and threads {threads}",
         "kind": "bridge"
       },
       {
@@ -6797,7 +6897,7 @@ globalThis.YUI_MAP =
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
+        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
         "kind": "bridge"
       },
       {
@@ -6839,21 +6939,21 @@ globalThis.YUI_MAP =
         "id": "speech-stream-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always; commands and Command replies for this window",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy, name and the attached Threads always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-pet-bound-unified",
         "from": "pet-<id>",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always; commands and Command replies for this window",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy and name always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
         "id": "user-turn-routed-unified-pet",
         "from": "unified",
         "to": "pet",
-        "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}; unscoped: every pet window receives it and keeps the one naming its preset; main drops the Threads it carried",
         "kind": "bridge"
       },
       {

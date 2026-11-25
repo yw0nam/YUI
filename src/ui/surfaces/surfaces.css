@@ -430,6 +430,32 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Attached Threads wrap under the line as quiet pills. */
+.yui-bubble__quote:has(.yui-bubble__quote-thread) {
+  flex-wrap: wrap;
+}
+.yui-bubble__quote:has(.yui-bubble__quote-thread) .yui-bubble__quote-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.yui-bubble__quote-threads {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.yui-bubble__quote-threads:empty {
+  display: none;
+}
+.yui-bubble__quote-thread {
+  max-width: 100%;
+  padding: 0 7px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-pill);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Alone in the box, the line has nothing to divide from. */
 .yui-bubble__box:has(.yui-bubble__text:empty):not(:has(.yui-bubble__think:not([hidden])))
 .yui-bubble__quote {
@@ -810,6 +836,58 @@
 }
 .yui-input__tray:empty {
   display: none;
+}
+/* Attached Threads — their own row above the image tray, one amber-edged pill per Thread. */
+.yui-input__threads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem 0.1rem;
+}
+.yui-input__threads[hidden] {
+  display: none;
+}
+.yui-input__thread {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 1px 2px 1px 9px;
+  border: 1px solid var(--yui-accent);
+  border-radius: var(--yui-radius-pill);
+  color: var(--yui-accent-ink);
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+}
+.yui-input__thread-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yui-input__thread-remove {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.yui-input__thread-remove:hover {
+  background: var(--yui-hover);
+}
+.yui-input__thread-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+.yui-input__thread-remove svg {
+  width: 10px;
+  height: 10px;
 }
 .yui-chip {
   position: relative;

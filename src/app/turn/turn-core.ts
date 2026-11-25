@@ -9,13 +9,14 @@ import type { UserInputSource } from "../../dispatcher/sources/user-input-source
 import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import type { VoiceSegment } from "../../io/bridge/settings-bridge";
+import type { SettingsBridge, VoiceSegment } from "../../io/bridge/settings-bridge";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import { selectFetch } from "../../io/chat/stream/chat-client";
 import { type ClientTool, createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -28,6 +29,7 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
+import { wireThreadsAttach } from "../threads-attach/wire-threads-attach";
 import { wireAskSession } from "./push/ask-session";
 import { wirePlayback } from "./push/playback";
 import { wireBackendCommands } from "./push/wire-backend-commands";
@@ -82,6 +84,11 @@ export interface TurnCorePhase1 {
   emitVoiceSegment(event: VoiceSegment): void;
   /** Tells the unified chat window the user started speaking, with barge-in on. */
   emitSpeechOnset(): void;
+  /** The bridge Threads are attached over; main's window only, since only main can read Threads. */
+  threadsAttach?: Pick<
+    SettingsBridge,
+    "onThreadsAttachRequest" | "emitThreadsAttached" | "onThreadsReady" | "onUserTurnRouted"
+  >;
 }
 
 export interface TurnCore {
@@ -162,11 +169,24 @@ export async function wireTurnCore(
   // Published by connect(); a turn reads it when it builds its client tools.
   let vocabulary: Vocabulary | undefined;
 
+  const attached = phase1.threadsAttach
+    ? wireThreadsAttach({
+        bridge: phase1.threadsAttach,
+        surfaces,
+        selfPresetId: presetIdForWindow(),
+        register,
+      })
+    : undefined;
   const unifiedVoice = createUnifiedVoice({
     shown: phase1.unifiedShown,
     bargeIn: () => settings.vadSettings.get().bargeIn,
     sendSegment: (text) => phase1.emitVoiceSegment({ text }),
-    submitHere: (text) => userInput.submitVoice(text),
+    submitHere(text) {
+      // A spoken message carries the chips the input shows, as a typed one does.
+      const threads = attached?.get() ?? [];
+      userInput.submitVoice(text, threads);
+      if (text.trim()) attached?.drop(threads);
+    },
     emitSpeechOnset: phase1.emitSpeechOnset,
   });
   const turnVoice = wireTurnVoice({
@@ -190,6 +210,7 @@ export async function wireTurnCore(
     getSecret: (name) => config.secrets.get(name),
     submitVoice: unifiedVoice.segment,
     onVoiceTurnStart: () => unifiedVoice.speechActive(),
+    restoreThreads: attached?.restore,
     register,
   });
   const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =
@@ -332,8 +353,8 @@ export async function wireTurnCore(
         socket: pushSocket,
         log,
       });
-      surfaces.onSubmit((text, images) => {
-        userInput.submit(text, images);
+      surfaces.onSubmit((text, images, threads) => {
+        userInput.submit(text, images, undefined, threads);
         hooks.onSubmit();
       });
       return { vocabulary: published, stopTurn };

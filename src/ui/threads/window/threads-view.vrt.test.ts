@@ -1,13 +1,15 @@
 import { beforeEach, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import "../../../styles.css";
-import type { Thread } from "../../../contract";
+import type { AttachedThread, Thread } from "../../../contract";
 import { setLocale } from "../../i18n";
 import type { TabBody } from "./tab-body";
 import { createThreadsView } from "./threads-view";
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60_000;
+// useSyncExternalStore needs the same snapshot between changes.
+const NO_THREADS: AttachedThread[] = [];
 
 const threads: Thread[] = [
   {
@@ -73,6 +75,8 @@ const build = () =>
     onListWidth: () => {},
     resize: { start: () => {}, move: () => {}, end: () => {} },
     onTurnsLevel: () => {},
+    attached: { get: () => NO_THREADS, subscribe: () => () => {} },
+    onAttach: () => {},
   });
 
 it.each(["dawn", "hearth"] as const)("paints the Threads window in %s", async (theme) => {

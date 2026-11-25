@@ -129,7 +129,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 4. `body`
 5. `relation`
 6. `open characters`
-7. `threads`
+7. `threads`, then the `threads attached:` block
 8. `tool switches`
 9. `previous turn`
 10. `overheard`
@@ -424,6 +424,22 @@ The line is present only when all three of these hold:
 At zero waiting, the line is omitted.
 
 The backend reads Threads only through the `threads_list` and `threads_search` on-demand tools. It calls them through `yui_tool_call` ([client-tools.md](client-tools.md)). They read the same store snapshot that this count comes from. A Thread update gives a turn only through [Thread turns](./threads.md#thread-turns).
+
+### `threads attached`
+
+The block names the Threads the user attached to this turn's message with Attach to chat ([threads.md](./threads.md#attach-to-chat)). It follows the `threads:` line, or takes its place when that line is absent. Each row is one Thread as `id | source | title`, the first three fields of a `threads_list` row, each value through the sanitization above.
+
+```text
+threads attached:
+  claude-code:7f2 | claude-code | Fix the flaky login test
+  github-ci:run-412 | github-ci | Release build failed
+```
+
+The block is present only on the user-started turn whose message, typed or spoken, carried the Threads, and only in the main character's window. The next turn carries none.
+
+The client names the Threads and nothing else. The backend reads each one by id with `threads_list` and decides what to do. A Thread that expired before the turn answers `error: unknown thread: <id>`.
+
+The `ClientContext` field is `threads_attached?: { id: string; source: string; title: string }[]`. Every transport carries it in `client_context`.
 
 ## Trigger lines
 

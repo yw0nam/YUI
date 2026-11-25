@@ -1,9 +1,9 @@
 /** The Threads tab's view: the list pane, its rail and the thread pane, drawn from the tab's state. */
 
-import { type RefObject, useRef, useSyncExternalStore } from "react";
+import { type ComponentProps, type RefObject, useRef, useSyncExternalStore } from "react";
 import { focusCurrentRow } from "./row-focus";
 import { ThreadList } from "./thread-list";
-import { ThreadPane } from "./thread-pane";
+import { type AttachedSource, ThreadPane } from "./thread-pane";
 import { ThreadRail } from "./thread-rail";
 import type { ThreadsTab, ThreadsTabFocus } from "./threads-tab";
 
@@ -23,12 +23,16 @@ export function ThreadsTabView({
   shown,
   onRead,
   onBack,
+  attached,
+  onAttach,
 }: {
   tab: ThreadsTab;
   /** Whether the tab shows. */
   shown: boolean;
   onRead(id: string): void;
   onBack(): void;
+  attached: AttachedSource;
+  onAttach: ComponentProps<typeof ThreadPane>["onAttach"];
 }) {
   const state = useSyncExternalStore(tab.subscribe, tab.current);
   const thread = state.threads.find((th) => th.id === state.selected);
@@ -58,6 +62,8 @@ export function ThreadsTabView({
         now={state.now}
         onRead={onRead}
         onBack={onBack}
+        attached={attached}
+        onAttach={onAttach}
       />
     </>
   );

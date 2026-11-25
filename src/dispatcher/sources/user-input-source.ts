@@ -4,34 +4,36 @@
  * Produces:
  *  - user.text_submitted  — keyboard chat submit (tier2, dnd_override=true).
  *  - user.voice_segment_ready — STT text from VAD pipeline (tier2, dnd_override=true).
- * Both events carry the utterance in payload.text; a help-button submit also names its guide.
+ * Both events carry the utterance in payload.text; a help-button submit also names its guide, and a
+ * chat submit the Threads the user attached.
  */
 
-import type { GuideKey, TriggerMeta } from "../../contract";
+import type { AttachedThread, GuideKey, TriggerMeta } from "../../contract";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 export interface UserInputSource {
   /**
-   * Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached.
+   * Chat submit → bus push. Pushes when text is non-empty OR ≥1 image or Thread is attached.
    * A routed message carries the unified chat window's send id, so every preset records the same user entry and reports done for it.
    */
   submit(
     text: string,
     images?: string[],
     routed?: { mention?: TriggerMeta["mention"]; sendId: string; via?: UserTurnRouted["via"] },
+    threads?: AttachedThread[],
   ): void;
   /** Help-button submit: the request text plus the guide that answers it → bus push, as a text turn. */
   submitGuide(guide: GuideKey, text: string): void;
-  /** Voice text from STT → bus push with payload.text. Empty text is ignored. */
-  submitVoice(text: string): void;
+  /** Voice text from STT → bus push with payload.text, and the attached Threads when any. Empty text is ignored. */
+  submitVoice(text: string, threads?: AttachedThread[]): void;
 }
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
   return {
-    submit(text, images, routed) {
+    submit(text, images, routed, threads) {
       const trimmed = text.trim();
-      if (trimmed.length === 0 && (images?.length ?? 0) === 0) return;
+      if (trimmed.length === 0 && !images?.length && !threads?.length) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.text_submitted",
@@ -46,6 +48,7 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
                 ...(routed.via ? { via: routed.via } : {}),
               }
             : {}),
+          ...(threads?.length ? { threads_attached: threads } : {}),
         },
         dnd_override: true,
       };
@@ -64,14 +67,14 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
       });
     },
 
-    submitVoice(text) {
+    submitVoice(text, threads) {
       const trimmed = text.trim();
       if (trimmed.length === 0) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.voice_segment_ready",
         ts: Date.now(),
-        payload: { text: trimmed },
+        payload: { text: trimmed, ...(threads?.length ? { threads_attached: threads } : {}) },
         dnd_override: true,
       };
       bus.push(env);

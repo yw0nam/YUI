@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../../config/load";
 import { STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../../config/secrets";
-import type { EndpointsConfig, UtteranceIdentity } from "../../../contract";
+import type { AttachedThread, EndpointsConfig, UtteranceIdentity } from "../../../contract";
 import {
   createPreviousTurn,
   type PreviousTurnSlot,
@@ -72,6 +72,8 @@ export function wireTurnVoice(deps: {
   submitVoice: (text: string) => void;
   /** A sustained user utterance began. */
   onVoiceTurnStart?: () => void;
+  /** Puts a failed turn's attached Threads back on the chat input; main's window only. */
+  restoreThreads?: (threads: AttachedThread[]) => void;
   register: (teardown: () => void) => void;
 }): {
   voice: TurnVoice;
@@ -118,7 +120,7 @@ export function wireTurnVoice(deps: {
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
   const previousTurn = createPreviousTurn();
-  const quotedTurn = createQuotedTurn({ surfaces, turnLog });
+  const quotedTurn = createQuotedTurn({ surfaces, turnLog, restoreThreads: deps.restoreThreads });
   register(quotedTurn.dispose);
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
   let strollingRef: { isStrolling(): boolean } | null = null;

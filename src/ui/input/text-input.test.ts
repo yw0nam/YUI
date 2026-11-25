@@ -624,7 +624,7 @@ describe("onStop — stop fires only on explicit button click while busy", () =>
     form().dispatchEvent(new Event("submit", { cancelable: true }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledWith("안녕", []);
+    expect(onSubmit).toHaveBeenCalledWith("안녕", [], []);
   });
 });
 
@@ -1069,7 +1069,7 @@ describe("multiline field — Enter, IME safety, auto-grow", () => {
 
     expect(e.defaultPrevented).toBe(true);
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledWith("안녕", []);
+    expect(onSubmit).toHaveBeenCalledWith("안녕", [], []);
   });
 
   it("keeps Shift+Enter as a line break — no submit, default not prevented", () => {
@@ -1178,7 +1178,7 @@ describe("Backend commands from the real input", () => {
       expect(run).toHaveBeenCalledWith("status", "");
       expect(submit).not.toHaveBeenCalled();
     } else {
-      expect(submit).toHaveBeenCalledWith("/hello", []);
+      expect(submit).toHaveBeenCalledWith("/hello", [], []);
       expect(run).not.toHaveBeenCalled();
     }
     expect(field.value).toBe("");
