@@ -2,8 +2,9 @@
  * Signal chips — one pill per signal group beside the avatar, above the delegation chip.
  *
  * Pure renderer — firing ≠ judgment: source, label, event type and items are drawn verbatim.
- * A tap opens the group's details, the cross dismisses, "+N" unfolds the rest in place, and a
- * held press folds the chips with the delegation chip through the shared fold store.
+ * Urgent groups each keep a row; batched ones share the newest one's row, whose "+N" unfolds the rest
+ * in place. A tap opens the group's details, the cross dismisses, and a held press folds the chips with
+ * the delegation chip through the shared fold store. Each row root carries `data-chip-count`.
  */
 
 import "./signal-chips.css";
@@ -16,8 +17,6 @@ import { holdToFold } from "./hold-to-fold";
 import type { SignalChipItem, SignalChipsModel } from "./signal-chips-model";
 import { renderSignalDetails } from "./signal-details";
 
-const SHOWN_FOLDED = 3;
-
 export interface SignalChips {
   el: HTMLElement;
   dispose(): void;
@@ -28,6 +27,8 @@ interface Pill {
   open: HTMLButtonElement;
   src: HTMLElement;
   text: HTMLElement;
+  /** The grouped row's batched total, drawn in a narrow column; empty on any other pill. */
+  count: HTMLElement;
   x: HTMLButtonElement;
   fold: ReturnType<typeof holdToFold>;
 }
@@ -60,7 +61,13 @@ export function createSignalChips({
   more.addEventListener("click", () => {
     expanded = !expanded;
     render();
+    // Expanding focuses the first revealed chip; collapsing keeps focus on "+N".
+    if (expanded) region.children[1]?.querySelector<HTMLElement>(".yui-sigchip__open")?.focus();
+    else more.focus();
   });
+  // The expanded batched chips scroll here, apart from the urgent ones.
+  const region = document.createElement("div");
+  region.className = "yui-sigchips__batched";
 
   function setVisible(next: boolean): void {
     if (visible === next) return;
@@ -84,6 +91,7 @@ export function createSignalChips({
         <span class="yui-sigchip__dot" aria-hidden="true"></span>
         <b class="yui-sigchip__src"></b>
         <span class="yui-sigchip__text"></span>
+        <span class="yui-sigchip__count" aria-hidden="true"></span>
       </button>
       <button type="button" class="yui-sigchip__x">${CROSS_SVG}</button>
     `;
@@ -92,6 +100,7 @@ export function createSignalChips({
       open: pill.querySelector(".yui-sigchip__open")!,
       src: pill.querySelector(".yui-sigchip__src")!,
       text: pill.querySelector(".yui-sigchip__text")!,
+      count: pill.querySelector(".yui-sigchip__count")!,
       x: pill.querySelector(".yui-sigchip__x")!,
       fold: holdToFold(pill, collapsed),
     };
@@ -121,6 +130,9 @@ export function createSignalChips({
     const { source, label, event_type, event_id } = item.group.envelope;
     const text = label ?? event_type;
     pill.el.className = `yui-sigchip yui-sigchip--${item.delivery}`;
+    pill.el.toggleAttribute("data-chip-urgent", item.delivery === "urgent");
+    pill.x.hidden = false;
+    pill.count.textContent = "";
     pill.src.textContent = source;
     pill.text.textContent = text;
     pill.open.setAttribute("aria-expanded", String(openId === event_id));
@@ -135,9 +147,9 @@ export function createSignalChips({
     el.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
   }
 
-  /** Puts `node` at `index` among the container's children, moving it only when it is elsewhere. */
-  function place(node: HTMLElement, index: number): void {
-    if (el.children[index] !== node) el.insertBefore(node, el.children[index] ?? null);
+  /** Puts `node` at `index` among `parent`'s children, moving it only when it is elsewhere. */
+  function place(node: HTMLElement, index: number, parent: HTMLElement = el): void {
+    if (parent.children[index] !== node) parent.insertBefore(node, parent.children[index] ?? null);
   }
 
   function closeDetails(): void {
@@ -156,44 +168,73 @@ export function createSignalChips({
       setVisible(false);
       return;
     }
-    if (items.length <= SHOWN_FOLDED) expanded = false;
-    const shown = expanded ? items : items.slice(0, SHOWN_FOLDED);
+    const urgent = items.filter((i) => i.delivery === "urgent");
+    const batched = items.filter((i) => i.delivery !== "urgent");
+    if (batched.length < 2) expanded = false;
+    const shownBatched = expanded ? batched : batched.slice(0, 1);
     const opened = items.find((i) => i.group.envelope.event_id === openId);
     if (!opened) openId = null;
-    el.classList.toggle("is-expanded", expanded);
 
-    const shownIds = new Set(shown.map((i) => i.group.envelope.event_id));
+    const shownIds = new Set([...urgent, ...shownBatched].map((i) => i.group.envelope.event_id));
     for (const [id, pill] of pills) {
       if (shownIds.has(id)) continue;
       pill.fold.dispose();
       pill.el.remove();
       pills.delete(id);
     }
-    shown.forEach((item, index) => {
+    const pillOf = (item: SignalChipItem): Pill => {
       const id = item.group.envelope.event_id;
       let pill = pills.get(id);
       if (!pill) pills.set(id, (pill = createPill(id)));
       updatePill(pill, item);
-      place(pill.el, index);
+      return pill;
+    };
+    urgent.forEach((item, index) => {
+      const { el: row } = pillOf(item);
+      row.dataset.chipCount = "1";
+      place(row, index);
     });
 
-    if (items.length > SHOWN_FOLDED) {
-      more.textContent = expanded
-        ? t("sigchip.collapse")
-        : t("sigchip.more", { n: items.length - SHOWN_FOLDED });
-      more.setAttribute(
-        "aria-label",
-        expanded
-          ? t("sigchip.collapse")
-          : t("sigchip.more_aria", { n: items.length - SHOWN_FOLDED }),
-      );
-      more.setAttribute("aria-expanded", String(expanded));
-      place(more, shown.length);
+    const hiddenCount = batched.length - 1;
+    more.textContent = expanded ? t("sigchip.collapse") : t("sigchip.more", { n: hiddenCount });
+    more.setAttribute(
+      "aria-label",
+      expanded ? t("sigchip.collapse") : t("sigchip.more_aria", { n: hiddenCount }),
+    );
+    more.setAttribute("aria-expanded", String(expanded));
+    let rows = urgent.length;
+    if (expanded) {
+      // The region is the row: its chips carry no count of their own.
+      shownBatched.forEach((item, index) => {
+        const { el: chip } = pillOf(item);
+        delete chip.dataset.chipCount;
+        place(chip, index, region);
+      });
+      place(more, shownBatched.length, region);
+      region.dataset.chipCount = String(batched.length);
+      place(region, rows++);
     } else {
-      more.remove();
+      region.remove();
+      const [newest] = shownBatched;
+      if (newest) {
+        const pill = pillOf(newest);
+        pill.el.dataset.chipCount = String(batched.length);
+        place(pill.el, rows++);
+        if (hiddenCount > 0) {
+          // The name carries the "+N" a narrow column hides.
+          pill.open.setAttribute(
+            "aria-label",
+            `${pill.open.getAttribute("aria-label")}. ${t("sigchip.more_aria", { n: hiddenCount })}`,
+          );
+          pill.x.hidden = true;
+          pill.count.textContent = String(batched.length);
+          if (more.parentNode !== pill.el) pill.el.append(more);
+        }
+      }
+      if (hiddenCount === 0) more.remove();
     }
 
-    renderDetails(opened && !collapsed.get().collapsed ? opened : undefined, shown.length);
+    renderDetails(opened && !collapsed.get().collapsed ? opened : undefined, rows);
     setVisible(true);
     if (details) fitSheet(details.el);
   }
@@ -225,7 +266,7 @@ export function createSignalChips({
           .querySelector<HTMLElement>(".yui-sigdetails__close")
           ?.focus({ preventScroll: true });
     }
-    place(details.el, shownCount + (more.parentNode === el ? 1 : 0));
+    place(details.el, shownCount);
   }
 
   function onKeydown(e: KeyboardEvent): void {

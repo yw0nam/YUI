@@ -105,21 +105,29 @@
   display: grid;
 }
 
-/* In the pet window's chip column, half the window less 3.5rem (surfaces.css), the label has no room under 24rem, so
-   the chip folds; the message window's plate row keeps it whole. */
-@media (width < 24rem) {
+/* In a chip column under 9rem (surfaces.css), a signal-pill-tall dot then count; the message window keeps the label. */
+@container (width < 9rem) {
   .yui-chip-column .yui-deleg__label {
     display: none;
   }
 
   .yui-chip-column .yui-deleg__chip {
-    position: relative;
-    gap: 0;
-    padding: 0.3rem 0.4rem;
+    box-sizing: border-box;
+    height: var(--yui-sigchip-h);
+    gap: 0.4rem;
+    padding: 0 0.55rem 0 0.4rem;
   }
 
   .yui-chip-column .yui-deleg__count {
-    display: grid;
+    display: inline;
+    position: static;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    background: none;
+    color: var(--yui-text-dim);
+    font-size: var(--yui-fs-sub);
+    font-variant-numeric: tabular-nums;
   }
 }
 
