@@ -229,8 +229,24 @@ const realFactories: ConfiguredBootstrapFactories = {
         stores: settings,
         asks,
         lastTogether: lastTogetherSettings,
-        vrm: vrmSelection,
-        speaker: phase1.speaker.speakerSelection,
+        vrm: {
+          list: () => phase1.vrm.vrmSelection.list(),
+          getActiveId: () => phase1.vrm.vrmSelection.getActiveId(),
+          select: (id) => phase1.vrm.vrmSelection.select(id),
+          swap: (id) => {
+            const option = phase1.vrm.vrmSelection.list().find((entry) => entry.id === id);
+            return option ? phase1.vrm.swapVrm(option) : Promise.resolve();
+          },
+        },
+        speaker: {
+          list: () => phase1.speaker.speakerSelection.list(),
+          getActiveId: () => phase1.speaker.speakerSelection.getActiveId(),
+          select: (id) => phase1.speaker.speakerSelection.select(id),
+          swap: (id) => {
+            const option = phase1.speaker.speakerSelection.list().find((entry) => entry.id === id);
+            return option ? phase1.speaker.swapSpeaker(option) : Promise.resolve();
+          },
+        },
       }),
     });
     const card = wireCard({

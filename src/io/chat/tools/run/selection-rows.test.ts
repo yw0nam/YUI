@@ -2,15 +2,18 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../../../../settings/settings-stores";
-import { type SelectionPort, selectionRows } from "./selection-rows";
+import { selectionRows } from "./selection-rows";
 import { createSettingsApi, type RequestSettings } from "./settings-api";
 
-function fakeSelection(active: string, ids: string[]): SelectionPort {
+function fakeSelection(active: string, ids: string[]) {
   let current = active;
   return {
     list: () => ids.map((id) => ({ id })),
     getActiveId: () => current,
     select: vi.fn((id: string) => {
+      current = id;
+    }),
+    swap: vi.fn(async (id: string) => {
       current = id;
     }),
   };
@@ -66,5 +69,30 @@ describe("selectionRows", () => {
       ),
     ).toEqual({ "character.body": "error: invalid character.body" });
     expect(vrm.select).not.toHaveBeenCalled();
+  });
+
+  it("runs the load through the swap before the selection moves", async () => {
+    const { settings, vrm } = harness();
+
+    expect(
+      await settings.write({ character: { body: "kei" } }, undefined, new AbortController().signal),
+    ).toEqual({ "character.body": "ok" });
+    expect(vrm.swap).toHaveBeenCalledWith("kei");
+    expect(vrm.getActiveId()).toBe("kei");
+  });
+
+  it("answers failed to load and keeps the selection when the swap rejects", async () => {
+    const { settings, speaker } = harness();
+    speaker.swap.mockRejectedValueOnce(new Error("load failed"));
+
+    expect(
+      await settings.write(
+        { character: { voice: "airy" } },
+        undefined,
+        new AbortController().signal,
+      ),
+    ).toEqual({ "character.voice": "error: character.voice failed to load" });
+    expect(speaker.swap).toHaveBeenCalledWith("airy");
+    expect(speaker.getActiveId()).toBe("soft");
   });
 });

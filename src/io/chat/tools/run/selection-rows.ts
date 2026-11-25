@@ -8,6 +8,8 @@ export interface SelectionPort {
   list(): { id: string; label?: string }[];
   getActiveId(): string;
   select(id: string): void;
+  /** Loads and then commits the selection; a failed load leaves it unchanged and rejects. */
+  swap(id: string): Promise<void>;
 }
 
 interface SelectionRow extends PatchRow {

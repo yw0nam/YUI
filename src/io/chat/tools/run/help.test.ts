@@ -12,6 +12,7 @@ const pick = (id: string): SelectionPort => ({
   list: () => [{ id }],
   getActiveId: () => id,
   select() {},
+  swap: async () => {},
 });
 const text = helpText(label, selectionRows({ vrm: pick("yui"), speaker: pick("soft") }));
 
@@ -115,18 +116,6 @@ describe("helpText", () => {
         path: "body.mouth_gain",
         type: "number",
         comment: "L(expression.mouth_label) [global, direct]; 0.5..6",
-      },
-      {
-        path: "motions.idle_disabled",
-        type: "string[]",
-        comment:
-          "L(idle_motion.section) [global, direct]; YUI's motion ids; unknown ids are kept but ignored",
-      },
-      {
-        path: "motions.express_disabled",
-        type: "string[]",
-        comment:
-          "L(express_motion.section) [global, direct]; YUI's motion ids; unknown ids are kept but ignored",
       },
       {
         path: "pace.base",

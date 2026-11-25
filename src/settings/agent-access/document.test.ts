@@ -23,8 +23,6 @@ const EXPOSED_PATHS = [
   "limits.proactive_gap_ms",
   "limits.tier2_max",
   "limits.urgent_max",
-  "motions.express_disabled",
-  "motions.idle_disabled",
   "pace.base",
   "pace.rest",
   "performance.idle_throttle",
@@ -69,6 +67,10 @@ describe("readDocument", () => {
     expect(paths).not.toContain("card");
     expect(paths).not.toContain("presence");
     expect(paths).not.toContain("proactive");
+  });
+
+  it("keeps the motion-id lists unexposed", () => {
+    expect(readDocument(createSettingsStores()).motions).toBeUndefined();
   });
 });
 
@@ -194,13 +196,11 @@ describe("applyPatch", () => {
 
   it("returns one result per changed path in a mixed patch", () => {
     const stores = createSettingsStores();
-    stores.expressMotionSettings.setEnabled("happy", false);
 
     const result = applyPatch(stores, {
       bubble: { keep: true },
       appearance: { theme: "neon" },
       endpoints: { chat: "https://example" },
-      motions: { express_disabled: ["laugh"] },
       privacy: { screenshot: true, screen_display: -1 },
     });
 
@@ -208,7 +208,6 @@ describe("applyPatch", () => {
       "bubble.keep": "ok",
       "appearance.theme": "error: invalid appearance.theme",
       "endpoints.chat": "error: unknown endpoints.chat",
-      "motions.express_disabled": "ok",
       "privacy.screen_display": "error: invalid privacy.screen_display",
     });
     expect(result.allow).toEqual([
@@ -216,7 +215,6 @@ describe("applyPatch", () => {
     ]);
     expect(stores.bubblePersistSettings.get().enabled).toBe(true);
     expect(stores.themeSettings.get().theme).toBe("system");
-    expect(stores.expressMotionSettings.get().disabled).toEqual(["laugh"]);
     expect(stores.screenshotSettings.get().enabled).toBe(false);
   });
 

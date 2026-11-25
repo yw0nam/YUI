@@ -26,7 +26,7 @@ export interface PatchRow {
   /** The row's own acceptance check, where the store-clamp probe does not apply. */
   valid?(stores: SettingsStores, value: unknown): boolean;
   read(stores: SettingsStores): unknown;
-  write(stores: SettingsStores, value: unknown): void;
+  write(stores: SettingsStores, value: unknown): void | Promise<void>;
 }
 
 /** Every exposed setting of this character and the global ones, as one document. */
