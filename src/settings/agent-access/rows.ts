@@ -1,16 +1,33 @@
 import type { FillerLang } from "../../config/validators/filler";
+import { FILLER_LANGS } from "../../config/validators/filler";
 import { createActiveHoursSettings } from "../active-hours/active-hours-settings";
 import { type BasePace, createBasePaceSettings } from "../active-hours/base-pace-settings";
-import type { Span } from "../active-hours/spans";
-import { createTextSizeSettings, type TextSize } from "../appearance/text-size-settings";
-import { createThemeSettings, type Theme } from "../appearance/theme-settings";
+import { PACES, type Span } from "../active-hours/spans";
+import {
+  createTextSizeSettings,
+  TEXT_SIZES,
+  type TextSize,
+} from "../appearance/text-size-settings";
+import { createThemeSettings, THEMES, type Theme } from "../appearance/theme-settings";
 import { createExpressMotionSettings } from "../avatar/express-motion-settings";
 import { createIdleMotionSettings } from "../avatar/idle-motion-settings";
-import { createLipsyncSettings } from "../avatar/lipsync-settings";
+import {
+  createLipsyncSettings,
+  LIPSYNC_GAIN_MAX,
+  LIPSYNC_GAIN_MIN,
+} from "../avatar/lipsync-settings";
 import { createAgentNotifySettings } from "../backend/agent-notify-settings";
-import { createAgentSettings, type ReasoningEffort } from "../backend/agent-settings";
-import { createGuardrailsSettings } from "../backend/guardrails-settings";
-import { createScreenKnobSettings } from "../capture/screen-settings";
+import {
+  createAgentSettings,
+  REASONING_EFFORTS,
+  type ReasoningEffort,
+} from "../backend/agent-settings";
+import { createGuardrailsSettings, RATE_LIMIT_MAX } from "../backend/guardrails-settings";
+import {
+  createScreenKnobSettings,
+  SCREEN_MS_MAX,
+  SCREEN_RECENT_CAP_MAX,
+} from "../capture/screen-settings";
 import { createScreenshotSettings } from "../capture/screenshot-settings";
 import { createUserNameSettings } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
@@ -18,6 +35,8 @@ import { createRelationsSwitch } from "../relations/relations-switch";
 import { createPacerGapStore, type SettingsStores } from "../settings-stores";
 import {
   createThreadReactionThresholdsSettings,
+  REACTION_COUNTS,
+  REACTION_WAITS,
   type ReactionCount,
   type ReactionWait,
 } from "../threads/thread-reaction-thresholds-settings";
@@ -25,7 +44,7 @@ import { createThreadTurnsSettings, type ThreadTurnsLevel } from "../threads/thr
 import { createUnifiedChatSwitch } from "../unified/unified-chat-switch";
 import { createFillerSettings } from "../voice/filler-settings";
 import { createReadingsSettings } from "../voice/readings-settings";
-import { createVadSettings } from "../voice/vad-settings";
+import { createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../voice/vad-settings";
 import { getIn } from "./paths";
 
 export type SettingScope = "char" | "global";
@@ -57,10 +76,25 @@ export interface SettingRow {
   unit?: { per: number; suffixKey: string; oneKey?: string };
   /** True when a stored 0 means YUI's default rather than zero. */
   zeroIsDefault?: boolean;
+  /** What a written 0 means, when it is neither zero nor YUI's default. */
+  zeroNote?: string;
   /** Label key naming a 0-based index as the settings window does, `{n}` its 1-based number. */
   ordinalKey?: string;
   /** Label key for a null value, where null names something other than "none". */
   nullKey?: string;
+  /** The printed type, for rows the store probe cannot infer (complex shapes, io-backed rows). */
+  type?: string;
+  /** Every value the row accepts, as its store's own vocabulary lists them. */
+  values?: readonly (string | number)[];
+  /** Inclusive store clamp, printed by help(); the store still does the validation. */
+  min?: number;
+  max?: number;
+  /** True when the store takes whole numbers only. */
+  integer?: boolean;
+  /** Longest string the row keeps; longer answers invalid. */
+  maxLength?: number;
+  /** Where the row's ids come from, for rows pointing into yui.info. */
+  note?: string;
 }
 
 type RowSpec = Omit<SettingRow, "read"> & Partial<Pick<SettingRow, "read">>;
@@ -69,6 +103,9 @@ const row = (spec: RowSpec): SettingRow => ({
   read: (stores) => getIn(stores[spec.store].get(), spec.field),
   ...spec,
 });
+
+const union = (values: readonly (string | number)[]): string =>
+  values.map((value) => (typeof value === "string" ? `"${value}"` : String(value))).join(" | ");
 
 export const ROWS: readonly SettingRow[] = [
   row({
@@ -108,6 +145,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "char",
     tier: "direct",
     labelKey: "filler.lang_label",
+    values: FILLER_LANGS,
     write: (stores, value) => stores.fillerSettings.setLanguage(value as FillerLang),
     factory: (storage) => createFillerSettings({ storage }),
   }),
@@ -118,6 +156,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "reading.section",
+    maxLength: 16_384,
     write: (stores, value) => stores.readingsSettings.setText(value as string),
     factory: (storage) => createReadingsSettings({ storage }),
   }),
@@ -128,6 +167,8 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "voice_input.silence_label",
+    min: VAD_SILENCE_MIN,
+    max: VAD_SILENCE_MAX,
     write: (stores, value) => stores.vadSettings.setSilenceMs(value as number),
     factory: (storage) => createVadSettings({ storage }),
   }),
@@ -148,6 +189,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "char",
     tier: "direct",
     labelKey: "reasoning.label",
+    values: REASONING_EFFORTS,
     write: (stores, value) => stores.agentSettings.setReasoningEffort(value as ReasoningEffort),
     factory: (storage) => createAgentSettings({ storage }),
   }),
@@ -159,6 +201,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "direct",
     labelKey: "active_hours.label",
     nullable: true,
+    type: `{ start: "HH:MM"; end: "HH:MM"; pace: ${union(PACES)} }[] | null`,
     write: (stores, value) =>
       value === null
         ? stores.activeHoursSettings.reset()
@@ -172,6 +215,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "card.user_name",
+    maxLength: 64,
     write: (stores, value) => stores.userNameSettings.setName(value as string),
     factory: (storage) => createUserNameSettings({ storage }),
   }),
@@ -182,6 +226,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "appearance.label",
+    values: THEMES,
     write: (stores, value) => stores.themeSettings.setTheme(value as Theme),
     factory: (storage) => createThemeSettings({ storage }),
   }),
@@ -192,6 +237,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "textsize.label",
+    values: TEXT_SIZES,
     write: (stores, value) => stores.textSizeSettings.setScale(value as TextSize),
     factory: (storage) => createTextSizeSettings({ storage }),
   }),
@@ -242,6 +288,8 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "expression.mouth_label",
+    min: LIPSYNC_GAIN_MIN,
+    max: LIPSYNC_GAIN_MAX,
     write: (stores, value) => stores.lipsyncSettings.setGain(value as number),
     factory: (storage) => createLipsyncSettings({ storage }),
   }),
@@ -252,6 +300,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "idle_motion.section",
+    note: "YUI's motion ids; unknown ids are kept but ignored",
     write: (stores, value) => {
       const next = value as string[];
       const current = stores.idleMotionSettings.get().disabled;
@@ -273,6 +322,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "express_motion.section",
+    note: "YUI's motion ids; unknown ids are kept but ignored",
     write: (stores, value) => {
       const next = value as string[];
       const current = stores.expressMotionSettings.get().disabled;
@@ -294,6 +344,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "base_pace.title",
+    values: ["high", "normal", "low"],
     write: (stores, value) => stores.basePaceSettings.setPace(value as BasePace),
     factory: (storage) => createBasePaceSettings({ storage }),
   }),
@@ -314,6 +365,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "threadReactionThresholds.count_label",
+    values: REACTION_COUNTS,
     write: (stores, value) =>
       stores.threadReactionThresholdsSettings.setCount(value as ReactionCount),
     factory: (storage) => createThreadReactionThresholdsSettings({ storage }),
@@ -325,6 +377,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "threadReactionThresholds.wait_label",
+    values: REACTION_WAITS,
     write: (stores, value) =>
       stores.threadReactionThresholdsSettings.setWait(value as ReactionWait),
     factory: (storage) => createThreadReactionThresholdsSettings({ storage }),
@@ -402,6 +455,8 @@ export const ROWS: readonly SettingRow[] = [
       const { source } = stores.screenshotSettings.get();
       return source.kind === "monitor" ? source.index : null;
     },
+    type: "number | null",
+    note: "index from yui.info.read().monitors; null means a window or tab source and cannot be written",
     write: (stores, value) =>
       stores.screenshotSettings.setSource({ kind: "monitor", index: value as number }),
     ordinalKey: "screenshot.display",
@@ -425,6 +480,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "screen.prev_dwell_label",
+    min: 0,
+    max: SCREEN_MS_MAX,
+    integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ prev_dwell_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
     zeroIsDefault: true,
@@ -437,6 +495,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "screen.settle_label",
+    min: 0,
+    max: SCREEN_MS_MAX,
+    integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ settle_ms: value as number }),
     unit: { per: 1_000, suffixKey: "screen.seconds_suffix" },
     zeroIsDefault: true,
@@ -449,6 +510,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "screen.long_session_label",
+    min: 0,
+    max: SCREEN_MS_MAX,
+    integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ long_session_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
     zeroIsDefault: true,
@@ -461,6 +525,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "screen.recent_cap_label",
+    min: 0,
+    max: SCREEN_RECENT_CAP_MAX,
+    integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ recent_cap: value as number }),
     unit: { per: 1, suffixKey: "screen.count_suffix", oneKey: "settings_request.entry" },
     zeroIsDefault: true,
@@ -498,6 +565,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "reactions.rate_tier2_label",
+    min: 0,
+    max: RATE_LIMIT_MAX,
+    integer: true,
     write: (stores, value) => stores.guardrailsSettings.set({ tier2_max: value as number }),
     zeroIsDefault: true,
     factory: (storage) => createGuardrailsSettings({ storage }),
@@ -509,6 +579,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "reactions.rate_urgent_label",
+    min: 0,
+    max: RATE_LIMIT_MAX,
+    integer: true,
     write: (stores, value) => stores.guardrailsSettings.set({ urgent_max: value as number }),
     zeroIsDefault: true,
     factory: (storage) => createGuardrailsSettings({ storage }),
@@ -520,6 +593,9 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "reactions.rate_addressed_label",
+    min: 0,
+    max: RATE_LIMIT_MAX,
+    integer: true,
     write: (stores, value) =>
       stores.guardrailsSettings.set({ addressed_chain_max: value as number }),
     zeroIsDefault: true,
@@ -532,6 +608,10 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "allow",
     labelKey: "reactions.pacer_gap_label",
+    min: 0,
+    max: 10_800_000,
+    integer: true,
+    zeroNote: "0 turns the wait off",
     write: (stores, value) => stores.pacerGapSettings.set(value as number),
     unit: { per: 60_000, suffixKey: "reactions.minutes_suffix" },
     factory: (storage) => createPacerGapStore(storage),

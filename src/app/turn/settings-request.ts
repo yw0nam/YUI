@@ -1,16 +1,11 @@
 /** A Settings request: the user's Allow or Deny on settings an agent may change only with it, shown in the Ask card's slot. */
 
-import type { SettingsChange } from "../../settings/agent-access/document";
+import type { RequestSettings, SettingsAnswer } from "../../io/chat/tools/run/settings-api";
 import { settingsRequestPrompt } from "../../ui/ask/settings-request-prompt";
 import { t } from "../../ui/i18n";
 import type { AskOwner, AskQueue } from "./ask-queue";
 
-export type SettingsAnswer = "allow" | "deny" | "no answer";
-
-export type RequestSettings = (
-  request: { changes: SettingsChange[]; why?: string },
-  signal: AbortSignal,
-) => Promise<SettingsAnswer>;
+export type { RequestSettings, SettingsAnswer };
 
 /** How long the card waits for the user once it shows. */
 const SHOWN_MS = 60_000;

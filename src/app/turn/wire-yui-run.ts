@@ -1,8 +1,9 @@
-/** Builds the ports a yui_run script reaches from this window's stores, ask queue and Tauri commands. */
+/** Builds the ports a yui_run script reaches from this window's stores, ask queue, selections and Tauri commands. */
 
 import { invoke } from "@tauri-apps/api/core";
 import { helpText } from "../../io/chat/tools/run/help";
 import { createInfoApi } from "../../io/chat/tools/run/info-api";
+import { type SelectionRow, selectionRows } from "../../io/chat/tools/run/selection-rows";
 import { createSettingsApi } from "../../io/chat/tools/run/settings-api";
 import { createStateApi } from "../../io/chat/tools/run/state-api";
 import type { YuiRunPorts } from "../../io/chat/tools/run/yui-run-tool";
@@ -22,11 +23,11 @@ export function wireYuiRun(deps: {
   stores: SettingsStores;
   asks: Pick<AskQueue, "put" | "remove">;
   lastTogether: { get(): { at: number | null } };
-  /** Late-bound: the window reads these stores only when a script asks. */
-  vrm: () => { list(): { id: string; label?: string }[] };
-  speaker: () => { list(): { id: string; label?: string }[] };
+  vrm: Parameters<typeof selectionRows>[0]["vrm"];
+  speaker: Parameters<typeof selectionRows>[0]["speaker"];
 }): YuiRunPorts {
   const monitors = createTauriScreenSourceProvider();
+  const rows: readonly SelectionRow[] = selectionRows(deps);
   return {
     settings: createSettingsApi({
       stores: deps.stores,
@@ -34,6 +35,7 @@ export function wireYuiRun(deps: {
         asks: deps.asks,
         name: () => readPresetName(presetIdForWindow()),
       }),
+      rows,
     }),
     state: createStateApi({
       startedAt: async () => invoke<number>("app_started_at"),
@@ -44,10 +46,10 @@ export function wireYuiRun(deps: {
       screenRecording: async () => invoke<string>("screen_recording_permission"),
     }),
     info: createInfoApi({
-      bodies: () => deps.vrm().list(),
-      voices: () => deps.speaker().list(),
+      bodies: () => deps.vrm.list(),
+      voices: () => deps.speaker.list(),
       monitors: () => monitors.listMonitors(),
     }),
-    help: () => helpText(t),
+    help: () => helpText(t, rows),
   };
 }

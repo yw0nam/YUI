@@ -1,7 +1,7 @@
 import type { SettingsStores } from "../settings-stores";
 import { getIn, leaves, setIn } from "./paths";
-import { ROWS, type SettingTier } from "./rows";
 import type { SettingRow } from "./rows";
+import { ROWS, type SettingTier } from "./rows";
 import { validate } from "./validate";
 
 /** One allow-tier change an agent asked for, named by label key for the request card. */
@@ -30,7 +30,10 @@ export interface PatchRow {
 }
 
 /** Every exposed setting of this character and the global ones, as one document. */
-export function readDocument(stores: SettingsStores, rows: readonly PatchRow[] = ROWS): Record<string, unknown> {
+export function readDocument(
+  stores: SettingsStores,
+  rows: readonly PatchRow[] = ROWS,
+): Record<string, unknown> {
   let document: Record<string, unknown> = {};
   for (const row of rows) {
     document = setIn(document, row.path.split("."), row.read(stores)) as Record<string, unknown>;
@@ -39,7 +42,11 @@ export function readDocument(stores: SettingsStores, rows: readonly PatchRow[] =
 }
 
 /** Merges a JSON merge patch into the document and applies each changed leaf. */
-export function applyPatch(stores: SettingsStores, patch: object, rows: readonly PatchRow[] = ROWS): PatchResult {
+export function applyPatch(
+  stores: SettingsStores,
+  patch: object,
+  rows: readonly PatchRow[] = ROWS,
+): PatchResult {
   const document = readDocument(stores);
   const patchLeaves = leaves(patch);
   const direct: Record<string, "ok" | `error: ${string}`> = {};
@@ -67,7 +74,10 @@ export function applyPatch(stores: SettingsStores, patch: object, rows: readonly
       direct[path] = "ok";
       continue;
     }
-    if (!validate(row as SettingRow, stores, leaf.value)) {
+    const accepted = row.valid
+      ? row.valid(stores, leaf.value)
+      : validate(row as SettingRow, stores, leaf.value);
+    if (!accepted) {
       direct[path] = `error: invalid ${path}`;
       continue;
     }

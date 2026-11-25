@@ -2,8 +2,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../../../../settings/settings-stores";
+import { type SelectionPort, selectionRows } from "./selection-rows";
 import { createSettingsApi, type RequestSettings } from "./settings-api";
-import { selectionRows, type SelectionPort } from "./selection-rows";
 
 function fakeSelection(active: string, ids: string[]): SelectionPort {
   let current = active;
@@ -59,7 +59,11 @@ describe("selectionRows", () => {
     const { settings, vrm } = harness();
 
     expect(
-      await settings.write({ character: { body: "ghost" } }, undefined, new AbortController().signal),
+      await settings.write(
+        { character: { body: "ghost" } },
+        undefined,
+        new AbortController().signal,
+      ),
     ).toEqual({ "character.body": "error: invalid character.body" });
     expect(vrm.select).not.toHaveBeenCalled();
   });

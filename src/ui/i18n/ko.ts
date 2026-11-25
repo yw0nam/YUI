@@ -946,6 +946,8 @@ const ko: Record<string, string> = {
   "settings_request.entry": "개",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "허용",
+  "run.body_label": "몸 (VRM)",
+  "run.voice_label": "목소리",
   "settings_request.deny": "거부",
   "threads.all_count": "전체 {n}개",
   "threads.rail_aria": "스레드 목록, 간단히",

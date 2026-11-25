@@ -1,9 +1,10 @@
 /** yui_run: runs the backend's JavaScript against the yui API in the sandbox and answers its JSON result. */
 
+import { isPlainObject } from "../../../../settings/persisted-store";
 import type { ClientTool } from "../client-tools";
 import type { InfoDoc } from "./info-api";
 import { runScript, type ScriptHost } from "./sandbox";
-import type { SettingsApi } from "./settings-api";
+import type { SettingsApi, WriteResults } from "./settings-api";
 import type { StateDoc } from "./state-api";
 
 export interface YuiRunPorts {
@@ -43,12 +44,18 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         yui: {
           settings: {
             read: async () => ports.settings.read(),
-            write: async (...call: unknown[]) =>
-              ports.settings.write(
-                call[0] as object,
-                (call[1] as { why?: string } | undefined)?.why,
-                stop,
-              ),
+            write: async (...call: unknown[]) => {
+              const patch = call[0];
+              const opts = call[1] as { why?: unknown } | undefined;
+              const why = opts?.why;
+              // Checked here, before any request: a bad shape must not reach the ask queue.
+              if (!isPlainObject(patch))
+                return { "*": "error: patch must be an object" } as WriteResults;
+              if (why !== undefined && typeof why !== "string") {
+                return { "*": "error: why must be a string" } as WriteResults;
+              }
+              return ports.settings.write(patch as object, why as string | undefined, stop);
+            },
           },
           state: { read: async () => ports.state() },
           info: { read: async () => ports.info() },

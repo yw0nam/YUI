@@ -954,6 +954,8 @@ const en: Record<string, string> = {
   "settings_request.entry": "entry",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "Allow",
+  "run.body_label": "Body (VRM)",
+  "run.voice_label": "Voice",
   "settings_request.deny": "Deny",
   "threads.all_count": "{n} in all",
   "threads.rail_aria": "Thread list, compact",

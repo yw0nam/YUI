@@ -1,7 +1,8 @@
 /** yui.settings: the exposed settings document, and a patch whose allow paths wait for the user. */
 
-import type { SettingsChange, PatchRow } from "../../../../settings/agent-access/document";
+import type { PatchRow, SettingsChange } from "../../../../settings/agent-access/document";
 import { applyPatch, readDocument } from "../../../../settings/agent-access/document";
+import type { SettingRow } from "../../../../settings/agent-access/rows";
 import { ROWS } from "../../../../settings/agent-access/rows";
 import { validate } from "../../../../settings/agent-access/validate";
 import type { SettingsStores } from "../../../../settings/settings-stores";
@@ -24,12 +25,14 @@ export interface SettingsApi {
 export function createSettingsApi(deps: {
   stores: SettingsStores;
   request: RequestSettings;
+  /** Rows the io layer owns, alongside the settings-table rows. */
   rows?: readonly PatchRow[];
 }): SettingsApi {
+  const rows: readonly PatchRow[] = deps.rows?.length ? [...ROWS, ...deps.rows] : ROWS;
   return {
-    read: () => readDocument(deps.stores),
+    read: () => readDocument(deps.stores, rows),
     write: async (patch, why, signal) => {
-      const { direct, allow } = applyPatch(deps.stores, patch);
+      const { direct, allow } = applyPatch(deps.stores, patch, rows);
       const results: WriteResults = { ...direct };
       if (allow.length === 0) return results;
       const answer = await deps.request({ changes: allow, why }, signal);
@@ -38,8 +41,13 @@ export function createSettingsApi(deps: {
           results[change.path] = answer === "deny" ? "denied" : "no answer";
           continue;
         }
-        const row = ROWS.find((entry) => entry.path === change.path);
-        if (!row || !validate(row, deps.stores, change.to)) {
+        const row = rows.find((entry) => entry.path === change.path);
+        const accepted = row
+          ? row.valid
+            ? row.valid(deps.stores, change.to)
+            : validate(row as SettingRow, deps.stores, change.to)
+          : false;
+        if (!row || !accepted) {
           results[change.path] = `error: invalid ${change.path}`;
           continue;
         }

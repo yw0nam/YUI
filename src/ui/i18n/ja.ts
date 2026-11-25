@@ -959,6 +959,8 @@ const ja: Record<string, string> = {
   "settings_request.entry": "件",
   "settings_request.why": "「{why}」",
   "settings_request.allow": "許可",
+  "run.body_label": "体（VRM）",
+  "run.voice_label": "声",
   "settings_request.deny": "拒否",
   "threads.all_count": "すべて {n}件",
   "threads.rail_aria": "スレッド一覧（簡易）",

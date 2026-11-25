@@ -229,8 +229,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         stores: settings,
         asks,
         lastTogether: lastTogetherSettings,
-        vrm: () => vrmSelection,
-        speaker: () => phase1.speaker.speakerSelection,
+        vrm: vrmSelection,
+        speaker: phase1.speaker.speakerSelection,
       }),
     });
     const card = wireCard({
