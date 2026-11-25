@@ -13,7 +13,7 @@ export interface UserNameSettings {
 
 export type UserNameStorage = PersistedStorage<UserNameSettings>;
 
-const MAX_LEN = 64;
+export const MAX_LEN = 64;
 
 const coerceName = (v: unknown): string =>
   typeof v === "string" ? v.trim().slice(0, MAX_LEN) : "";

@@ -1,33 +1,37 @@
 /** The text help() prints inside a script: the yui API, the settings document generated from the rows, the usage rules. */
 
 import { getIn } from "../../../../settings/agent-access/paths";
-import type { SettingRow, SettingScope, SettingTier } from "../../../../settings/agent-access/rows";
-import { ROWS } from "../../../../settings/agent-access/rows";
+import { ROWS, type SettingRow, union } from "../../../../settings/agent-access/rows";
 
-/** What help() prints per row; rows.ts rows and the io selection rows both satisfy it. */
-export interface HelpRow {
-  path: string;
-  scope: SettingScope;
-  tier: SettingTier;
-  labelKey: string;
-  /** The printed type, for rows the store probe cannot infer. */
-  type?: string;
-  values?: readonly (string | number)[];
-  valueLabels?: Readonly<Record<string, string>>;
-  min?: number;
-  max?: number;
-  integer?: boolean;
-  maxLength?: number;
-  zeroIsDefault?: boolean;
-  zeroNote?: string;
-  note?: string;
-}
+/** What help() prints per row; the io selection rows satisfy it too. */
+export type HelpRow = Pick<
+  SettingRow,
+  | "path"
+  | "scope"
+  | "tier"
+  | "labelKey"
+  | "type"
+  | "values"
+  | "valueLabels"
+  | "min"
+  | "max"
+  | "integer"
+  | "maxLength"
+  | "zeroIsDefault"
+  | "zeroNote"
+  | "note"
+>;
+
+// Where an io-owned value's ids come from; the settings layer cannot name the tool.
+const IO_NOTES: Record<string, string> = {
+  "privacy.screen_display": "index from yui.info.read().monitors",
+};
 
 const API = `declare const yui: {
   settings: {
     /** This character's settings and the global ones, as one JSON document. */
     read(): Promise<SettingsDoc>;
-    /** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ... }; allow paths wait up to 60 s for the user. */
+    /** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait up to 60 s for the user. */
     write(patch: object, opts?: { why?: string }): Promise<Record<string, "ok" | "denied" | "no answer" | \`error: \${string}\`>>;
   };
   state: { read(): Promise<{ running_since: string; last_together: string | null; characters: { name: string; open: boolean; me: boolean }[]; permissions: { screen_recording: "granted" | "denied" | "unknown" } }> };
@@ -45,9 +49,6 @@ const RULES = `1. Await every yui call; the returned value is the tool result.
 3. One write per intent, with a why the user reads on the request card.
 4. Rows marked allow wait for the user; denied or no answer changes nothing.
 `;
-
-const union = (values: readonly (string | number)[]): string =>
-  values.map((value) => (typeof value === "string" ? `"${value}"` : String(value))).join(" | ");
 
 function typeOf(row: SettingRow | HelpRow): string {
   if (row.type) return row.type;
@@ -72,6 +73,8 @@ function commentOf(row: SettingRow | HelpRow, t: (key: string) => string): strin
     comment += `; ${row.min}..${row.max}${row.integer ? " integer" : ""}`;
   }
   if (row.maxLength !== undefined) comment += `; up to ${row.maxLength} characters`;
+  const ioNote = IO_NOTES[row.path];
+  if (ioNote) comment += `; ${ioNote}`;
   return comment;
 }
 

@@ -9,8 +9,6 @@ import {
   type TextSize,
 } from "../appearance/text-size-settings";
 import { createThemeSettings, THEMES, type Theme } from "../appearance/theme-settings";
-import { createExpressMotionSettings } from "../avatar/express-motion-settings";
-import { createIdleMotionSettings } from "../avatar/idle-motion-settings";
 import {
   createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
@@ -29,10 +27,10 @@ import {
   SCREEN_RECENT_CAP_MAX,
 } from "../capture/screen-settings";
 import { createScreenshotSettings } from "../capture/screenshot-settings";
-import { createUserNameSettings } from "../identity/user-name-settings";
+import { createUserNameSettings, MAX_LEN } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
 import { createRelationsSwitch } from "../relations/relations-switch";
-import { createPacerGapStore, type SettingsStores } from "../settings-stores";
+import { createPacerGapStore, PACER_GAP_MAX, type SettingsStores } from "../settings-stores";
 import {
   createThreadReactionThresholdsSettings,
   REACTION_COUNTS,
@@ -46,6 +44,7 @@ import { createFillerSettings } from "../voice/filler-settings";
 import { createReadingsSettings } from "../voice/readings-settings";
 import { createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../voice/vad-settings";
 import { getIn } from "./paths";
+import { validate } from "./validate";
 
 export type SettingScope = "char" | "global";
 export type SettingTier = "direct" | "allow";
@@ -68,7 +67,10 @@ export interface SettingRow {
   /** True when a null clears the row instead of invalidating it. */
   nullable?: boolean;
   read(stores: SettingsStores): unknown;
-  write(stores: SettingsStores, value: unknown): void;
+  /** Applies the value; a row that loads first rejects and leaves the store unchanged. */
+  write(stores: SettingsStores, value: unknown): void | Promise<void>;
+  /** The row's own acceptance check; table rows probe the store, io rows check their list. */
+  valid(stores: SettingsStores, value: unknown): boolean;
   factory(storage: PersistedStorage<any>): StoreGetter;
   /** Label key of each enum value, as the settings window names it. */
   valueLabels?: Readonly<Record<string, string>>;
@@ -97,14 +99,15 @@ export interface SettingRow {
   note?: string;
 }
 
-type RowSpec = Omit<SettingRow, "read"> & Partial<Pick<SettingRow, "read">>;
+type RowSpec = Omit<SettingRow, "read" | "valid"> & Partial<Pick<SettingRow, "read">>;
 
 const row = (spec: RowSpec): SettingRow => ({
   read: (stores) => getIn(stores[spec.store].get(), spec.field),
+  valid: (stores, value) => validate(spec, stores, value),
   ...spec,
 });
 
-const union = (values: readonly (string | number)[]): string =>
+export const union = (values: readonly (string | number)[]): string =>
   values.map((value) => (typeof value === "string" ? `"${value}"` : String(value))).join(" | ");
 
 export const ROWS: readonly SettingRow[] = [
@@ -156,6 +159,7 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "reading.section",
+    note: "one surface=reading per line",
     maxLength: 16_384,
     write: (stores, value) => stores.readingsSettings.setText(value as string),
     factory: (storage) => createReadingsSettings({ storage }),
@@ -215,7 +219,8 @@ export const ROWS: readonly SettingRow[] = [
     scope: "global",
     tier: "direct",
     labelKey: "card.user_name",
-    maxLength: 64,
+    note: "no leading or trailing spaces",
+    maxLength: MAX_LEN,
     write: (stores, value) => stores.userNameSettings.setName(value as string),
     factory: (storage) => createUserNameSettings({ storage }),
   }),
@@ -294,57 +299,13 @@ export const ROWS: readonly SettingRow[] = [
     factory: (storage) => createLipsyncSettings({ storage }),
   }),
   row({
-    path: "motions.idle_disabled",
-    store: "idleMotionSettings",
-    field: ["disabled"],
-    scope: "global",
-    tier: "direct",
-    labelKey: "idle_motion.section",
-    note: "YUI's motion ids; unknown ids are kept but ignored",
-    write: (stores, value) => {
-      const next = value as string[];
-      const current = stores.idleMotionSettings.get().disabled;
-      for (const path of next)
-        if (!current.includes(path)) {
-          stores.idleMotionSettings.setEnabled(path, false);
-        }
-      for (const path of current)
-        if (!next.includes(path)) {
-          stores.idleMotionSettings.setEnabled(path, true);
-        }
-    },
-    factory: (storage) => createIdleMotionSettings({ storage }),
-  }),
-  row({
-    path: "motions.express_disabled",
-    store: "expressMotionSettings",
-    field: ["disabled"],
-    scope: "global",
-    tier: "direct",
-    labelKey: "express_motion.section",
-    note: "YUI's motion ids; unknown ids are kept but ignored",
-    write: (stores, value) => {
-      const next = value as string[];
-      const current = stores.expressMotionSettings.get().disabled;
-      for (const id of next)
-        if (!current.includes(id)) {
-          stores.expressMotionSettings.setEnabled(id, false);
-        }
-      for (const id of current)
-        if (!next.includes(id)) {
-          stores.expressMotionSettings.setEnabled(id, true);
-        }
-    },
-    factory: (storage) => createExpressMotionSettings({ storage }),
-  }),
-  row({
     path: "pace.base",
     store: "basePaceSettings",
     field: ["pace"],
     scope: "global",
     tier: "direct",
     labelKey: "base_pace.title",
-    values: ["high", "normal", "low"],
+    values: ["high", "normal", "low"] satisfies readonly BasePace[],
     write: (stores, value) => stores.basePaceSettings.setPace(value as BasePace),
     factory: (storage) => createBasePaceSettings({ storage }),
   }),
@@ -456,7 +417,7 @@ export const ROWS: readonly SettingRow[] = [
       return source.kind === "monitor" ? source.index : null;
     },
     type: "number | null",
-    note: "index from yui.info.read().monitors; null means a window or tab source and cannot be written",
+    note: "null means a window or tab source and cannot be written",
     write: (stores, value) =>
       stores.screenshotSettings.setSource({ kind: "monitor", index: value as number }),
     ordinalKey: "screenshot.display",
@@ -609,7 +570,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "reactions.pacer_gap_label",
     min: 0,
-    max: 10_800_000,
+    max: PACER_GAP_MAX,
     integer: true,
     zeroNote: "0 turns the wait off",
     write: (stores, value) => stores.pacerGapSettings.set(value as number),

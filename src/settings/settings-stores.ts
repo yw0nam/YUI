@@ -84,9 +84,12 @@ export const createPresenceStore = (
   );
 
 /** Global proactive gap held after any turn start, in ms. 0 disables the pacer; ceiling is 3 h. */
+/** Largest proactive gap the pacer accepts, in ms. */
+export const PACER_GAP_MAX = 10_800_000;
+
 export const createPacerGapStore = (
   storage: PersistedStorage<{ value: number }> = localStorageStore("yui.proactive-pacer-gap"),
-) => createClampedIntSettings({ default: 600000, floor: 0, ceil: 10800000 }, { storage });
+) => createClampedIntSettings({ default: 600000, floor: 0, ceil: PACER_GAP_MAX }, { storage });
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).

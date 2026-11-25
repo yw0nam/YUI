@@ -1,26 +1,16 @@
 /** The per-character io selections exposed as direct setting rows: the VRM body and the speaker voice. */
 
 import type { PatchRow } from "../../../../settings/agent-access/document";
-import type { SettingScope } from "../../../../settings/agent-access/rows";
+import type { SettingRow } from "../../../../settings/agent-access/rows";
 
-/** The part of a selection store a yui_run row reads and writes. */
+/** The part of a selection a yui_run row reads and writes; the swap loads before it commits. */
 export interface SelectionPort {
   list(): { id: string; label?: string }[];
   getActiveId(): string;
-  select(id: string): void;
-  /** Loads and then commits the selection; a failed load leaves it unchanged and rejects. */
   swap(id: string): Promise<void>;
 }
 
-interface SelectionRow extends PatchRow {
-  scope: SettingScope;
-  /** An id; help() prints it as string. */
-  type: string;
-  /** Where the id comes from. */
-  note: string;
-}
-
-export type { SelectionRow };
+export type SelectionRow = PatchRow & Pick<SettingRow, "scope" | "type" | "note">;
 
 const selectionRow = (
   path: string,
@@ -35,7 +25,9 @@ const selectionRow = (
   type: "string",
   note,
   read: () => selection.getActiveId(),
-  write: (_stores, value) => selection.select(value as string),
+  write: async (_stores, value) => {
+    await selection.swap(value as string);
+  },
   valid: (_stores, value) => selection.list().some((option) => option.id === value),
 });
 

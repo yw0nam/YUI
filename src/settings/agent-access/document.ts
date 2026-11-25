@@ -1,8 +1,6 @@
 import type { SettingsStores } from "../settings-stores";
 import { getIn, leaves, setIn } from "./paths";
-import type { SettingRow } from "./rows";
 import { ROWS, type SettingTier } from "./rows";
-import { validate } from "./validate";
 
 /** One allow-tier change an agent asked for, named by label key for the request card. */
 export interface SettingsChange {
@@ -23,8 +21,8 @@ export interface PatchRow {
   tier: SettingTier;
   labelKey: string;
   nullable?: boolean;
-  /** The row's own acceptance check, where the store-clamp probe does not apply. */
-  valid?(stores: SettingsStores, value: unknown): boolean;
+  /** The row's own acceptance check; rows.ts rows probe the store, io rows check their list. */
+  valid(stores: SettingsStores, value: unknown): boolean;
   read(stores: SettingsStores): unknown;
   write(stores: SettingsStores, value: unknown): void | Promise<void>;
 }
@@ -42,12 +40,12 @@ export function readDocument(
 }
 
 /** Merges a JSON merge patch into the document and applies each changed leaf. */
-export function applyPatch(
+export async function applyPatch(
   stores: SettingsStores,
   patch: object,
   rows: readonly PatchRow[] = ROWS,
-): PatchResult {
-  const document = readDocument(stores);
+): Promise<PatchResult> {
+  const document = readDocument(stores, rows);
   const patchLeaves = leaves(patch);
   const direct: Record<string, "ok" | `error: ${string}`> = {};
   const allow: SettingsChange[] = [];
@@ -70,14 +68,11 @@ export function applyPatch(
         direct[path] = `error: invalid ${path}`;
         continue;
       }
-      row.write(stores, null);
+      await row.write(stores, null);
       direct[path] = "ok";
       continue;
     }
-    const accepted = row.valid
-      ? row.valid(stores, leaf.value)
-      : validate(row as SettingRow, stores, leaf.value);
-    if (!accepted) {
+    if (!row.valid(stores, leaf.value)) {
       direct[path] = `error: invalid ${path}`;
       continue;
     }
@@ -90,7 +85,13 @@ export function applyPatch(
       });
       continue;
     }
-    row.write(stores, leaf.value);
+    try {
+      await row.write(stores, leaf.value);
+    } catch {
+      // A write that loads first rejects and leaves the stored value unchanged.
+      direct[path] = `error: ${path} failed to load`;
+      continue;
+    }
     direct[path] = "ok";
   }
 

@@ -2,9 +2,7 @@
 
 import type { PatchRow, SettingsChange } from "../../../../settings/agent-access/document";
 import { applyPatch, readDocument } from "../../../../settings/agent-access/document";
-import type { SettingRow } from "../../../../settings/agent-access/rows";
 import { ROWS } from "../../../../settings/agent-access/rows";
-import { validate } from "../../../../settings/agent-access/validate";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 
 export type SettingsAnswer = "allow" | "deny" | "no answer";
@@ -32,7 +30,7 @@ export function createSettingsApi(deps: {
   return {
     read: () => readDocument(deps.stores, rows),
     write: async (patch, why, signal) => {
-      const { direct, allow } = applyPatch(deps.stores, patch, rows);
+      const { direct, allow } = await applyPatch(deps.stores, patch, rows);
       const results: WriteResults = { ...direct };
       if (allow.length === 0) return results;
       const answer = await deps.request({ changes: allow, why }, signal);
@@ -42,16 +40,11 @@ export function createSettingsApi(deps: {
           continue;
         }
         const row = rows.find((entry) => entry.path === change.path);
-        const accepted = row
-          ? row.valid
-            ? row.valid(deps.stores, change.to)
-            : validate(row as SettingRow, deps.stores, change.to)
-          : false;
-        if (!row || !accepted) {
+        if (!row?.valid(deps.stores, change.to)) {
           results[change.path] = `error: invalid ${change.path}`;
           continue;
         }
-        row.write(deps.stores, change.to);
+        await row.write(deps.stores, change.to);
         results[change.path] = "ok";
       }
       return results;

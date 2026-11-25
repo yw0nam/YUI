@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { helpText } from "../../io/chat/tools/run/help";
 import { createInfoApi } from "../../io/chat/tools/run/info-api";
-import { type SelectionRow, selectionRows } from "../../io/chat/tools/run/selection-rows";
+import { type SelectionPort, selectionRows } from "../../io/chat/tools/run/selection-rows";
 import { createSettingsApi } from "../../io/chat/tools/run/settings-api";
 import { createStateApi } from "../../io/chat/tools/run/state-api";
 import type { YuiRunPorts } from "../../io/chat/tools/run/yui-run-tool";
@@ -23,11 +23,11 @@ export function wireYuiRun(deps: {
   stores: SettingsStores;
   asks: Pick<AskQueue, "put" | "remove">;
   lastTogether: { get(): { at: number | null } };
-  vrm: Parameters<typeof selectionRows>[0]["vrm"];
-  speaker: Parameters<typeof selectionRows>[0]["speaker"];
+  vrm: SelectionPort;
+  speaker: SelectionPort;
 }): YuiRunPorts {
   const monitors = createTauriScreenSourceProvider();
-  const rows: readonly SelectionRow[] = selectionRows(deps);
+  const rows = selectionRows(deps);
   return {
     settings: createSettingsApi({
       stores: deps.stores,

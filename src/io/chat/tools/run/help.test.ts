@@ -11,7 +11,6 @@ const label = (key: string) => `L(${key})`;
 const pick = (id: string): SelectionPort => ({
   list: () => [{ id }],
   getActiveId: () => id,
-  select() {},
   swap: async () => {},
 });
 const text = helpText(label, selectionRows({ vrm: pick("yui"), speaker: pick("soft") }));
@@ -61,7 +60,8 @@ describe("helpText", () => {
       {
         path: "voice.readings",
         type: "string",
-        comment: "L(reading.section) [global, direct]; up to 16384 characters",
+        comment:
+          "L(reading.section) [global, direct]; one surface=reading per line; up to 16384 characters",
       },
       {
         path: "voice_input.silence_ms",
@@ -96,7 +96,8 @@ describe("helpText", () => {
       {
         path: "user.name",
         type: "string",
-        comment: "L(card.user_name) [global, direct]; up to 64 characters",
+        comment:
+          "L(card.user_name) [global, direct]; no leading or trailing spaces; up to 64 characters",
       },
       {
         path: "appearance.theme",
@@ -167,7 +168,7 @@ describe("helpText", () => {
         path: "privacy.screen_display",
         type: "number | null",
         comment:
-          "L(screenshot.source_label) [global, allow]; index from yui.info.read().monitors; null means a window or tab source and cannot be written",
+          "L(screenshot.source_label) [global, allow]; null means a window or tab source and cannot be written; index from yui.info.read().monitors",
       },
       {
         path: "privacy.screen_watch.enabled",
@@ -242,7 +243,7 @@ describe("helpText", () => {
       "/** This character's settings and the global ones, as one JSON document. */",
     );
     expect(text).toContain(
-      '/** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ... }; allow paths wait up to 60 s for the user. */',
+      '/** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait up to 60 s for the user. */',
     );
     expect(text).toContain(
       "monitors: { index: number; name?: string; width?: number; height?: number }[]",

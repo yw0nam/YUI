@@ -75,29 +75,29 @@ describe("readDocument", () => {
 });
 
 describe("applyPatch", () => {
-  it("writes a direct setting and answers ok", () => {
+  it("writes a direct setting and answers ok", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { bubble: { keep: true } });
+    const result = await applyPatch(stores, { bubble: { keep: true } });
 
     expect(result.direct).toEqual({ "bubble.keep": "ok" });
     expect(result.allow).toEqual([]);
     expect(stores.bubblePersistSettings.get()).toEqual({ enabled: true });
   });
 
-  it("rejects a theme outside the list and leaves the store", () => {
+  it("rejects a theme outside the list and leaves the store", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { appearance: { theme: "neon" } });
+    const result = await applyPatch(stores, { appearance: { theme: "neon" } });
 
     expect(result.direct).toEqual({ "appearance.theme": "error: invalid appearance.theme" });
     expect(stores.themeSettings.get()).toEqual({ theme: "system" });
   });
 
-  it("rejects a number a store would clamp", () => {
+  it("rejects a number a store would clamp", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { voice_input: { silence_ms: 100 } });
+    const result = await applyPatch(stores, { voice_input: { silence_ms: 100 } });
 
     expect(result.direct).toEqual({
       "voice_input.silence_ms": "error: invalid voice_input.silence_ms",
@@ -105,16 +105,18 @@ describe("applyPatch", () => {
     expect(stores.vadSettings.get().silenceMs).toBe(1500);
   });
 
-  it("answers an unknown path with an error", () => {
-    const result = applyPatch(createSettingsStores(), { endpoints: { chat: "https://example" } });
+  it("answers an unknown path with an error", async () => {
+    const result = await applyPatch(createSettingsStores(), {
+      endpoints: { chat: "https://example" },
+    });
 
     expect(result.direct).toEqual({ "endpoints.chat": "error: unknown endpoints.chat" });
   });
 
-  it("returns an allow setting without writing it", () => {
+  it("returns an allow setting without writing it", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { privacy: { screenshot: true } });
+    const result = await applyPatch(stores, { privacy: { screenshot: true } });
 
     expect(result.allow).toEqual([
       { path: "privacy.screenshot", labelKey: "screenshot.label", from: false, to: true },
@@ -123,20 +125,20 @@ describe("applyPatch", () => {
     expect(stores.screenshotSettings.get().enabled).toBe(false);
   });
 
-  it("clears the active hours when their value is null", () => {
+  it("clears the active hours when their value is null", async () => {
     const stores = createSettingsStores();
     stores.activeHoursSettings.setSpans([{ start: "09:00", end: "17:00", pace: "high" }]);
 
-    const result = applyPatch(stores, { character: { active_hours: null } });
+    const result = await applyPatch(stores, { character: { active_hours: null } });
 
     expect(result.direct).toEqual({ "character.active_hours": "ok" });
     expect(stores.activeHoursSettings.get()).toEqual({ spans: null });
   });
 
-  it("keeps the sibling field on a nested patch", () => {
+  it("keeps the sibling field on a nested patch", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { privacy: { screen_watch: { recent_cap: 10 } } });
+    const result = await applyPatch(stores, { privacy: { screen_watch: { recent_cap: 10 } } });
 
     expect(result.direct).toEqual({});
     expect(result.allow).toEqual([
@@ -150,54 +152,57 @@ describe("applyPatch", () => {
     expect(stores.screenSettings.get()).toEqual({ enabled: false });
   });
 
-  it("answers an unchanged document as a no-op", () => {
+  it("answers an unchanged document as a no-op", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, readDocument(stores));
+    const result = await applyPatch(stores, readDocument(stores));
 
     expect(result.direct).toEqual(Object.fromEntries(EXPOSED_PATHS.map((path) => [path, "ok"])));
     expect(result.allow).toEqual([]);
   });
 
-  it.each(["privacy.screenshot", "bubble.keep"])("answers a dotted key %s as unknown", (key) => {
+  it.each([
+    "privacy.screenshot",
+    "bubble.keep",
+  ])("answers a dotted key %s as unknown", async (key) => {
     const stores = createSettingsStores();
     const before = readDocument(stores);
 
-    const result = applyPatch(stores, { [key]: true });
+    const result = await applyPatch(stores, { [key]: true });
 
     expect(result.direct).toEqual({ [key]: `error: unknown ${key}` });
     expect(readDocument(stores)).toEqual(before);
   });
 
-  it.each([-1, 1.5, "1", null])("rejects the screen display %j", (display) => {
+  it.each([-1, 1.5, "1", null])("rejects the screen display %j", async (display) => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { privacy: { screen_display: display } });
+    const result = await applyPatch(stores, { privacy: { screen_display: display } });
 
     expect(result.direct).toEqual({
       "privacy.screen_display": "error: invalid privacy.screen_display",
     });
   });
 
-  it("asks to switch a window source to a display, and reads that source as no display", () => {
+  it("asks to switch a window source to a display, and reads that source as no display", async () => {
     const stores = createSettingsStores();
     stores.screenshotSettings.setSource({ kind: "window", app: "Cursor", window_title: "a.md" });
 
     expect(readDocument(stores)).toMatchObject({ privacy: { screen_display: null } });
-    const result = applyPatch(stores, { privacy: { screen_display: 1 } });
+    const result = await applyPatch(stores, { privacy: { screen_display: 1 } });
 
     expect(result.allow).toEqual([
       { path: "privacy.screen_display", labelKey: "screenshot.source_label", from: null, to: 1 },
     ]);
-    expect(applyPatch(stores, { privacy: { screen_display: null } }).direct).toEqual({
+    expect((await applyPatch(stores, { privacy: { screen_display: null } })).direct).toEqual({
       "privacy.screen_display": "ok",
     });
   });
 
-  it("returns one result per changed path in a mixed patch", () => {
+  it("returns one result per changed path in a mixed patch", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, {
+    const result = await applyPatch(stores, {
       bubble: { keep: true },
       appearance: { theme: "neon" },
       endpoints: { chat: "https://example" },
@@ -218,10 +223,10 @@ describe("applyPatch", () => {
     expect(stores.screenshotSettings.get().enabled).toBe(false);
   });
 
-  it("answers an empty object at a leaf as invalid", () => {
+  it("answers an empty object at a leaf as invalid", async () => {
     const stores = createSettingsStores();
 
-    const result = applyPatch(stores, { bubble: { keep: {} } });
+    const result = await applyPatch(stores, { bubble: { keep: {} } });
 
     expect(result.direct).toEqual({ "bubble.keep": "error: invalid bubble.keep" });
     expect(stores.bubblePersistSettings.get()).toEqual({ enabled: false });
