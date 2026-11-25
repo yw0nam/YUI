@@ -62,8 +62,6 @@ describe("runScript", () => {
     ["return await yui.settings.read()", { theme: "dawn" }],
     ["return await yui.echo({ a: [1, 2] }, 3)", [{ a: [1, 2] }, 3]],
     ["return await yui.echo(Symbol('s'), Promise.resolve(1))", [null, {}]],
-    ["const x = 1", null],
-    ["}), (() => 5), (() => {", null],
     [
       "return [typeof fetch, typeof window, typeof document, typeof setTimeout]",
       ["undefined", "undefined", "undefined", "undefined"],
@@ -74,6 +72,22 @@ describe("runScript", () => {
       echo: async (...args: unknown[]) => args,
     };
     expect(await settled(run(code, yui))).toEqual({ status: "completed", result, logs: [] });
+  });
+
+  it.each([
+    ["a missing return", "const x = 1"],
+    ["a body that is only wrapped away, with no return", "}), (() => 5), (() => {"],
+  ])("answers %s with a note to end the script with return", async (_name, code) => {
+    expect(await settled(run(code))).toEqual({
+      status: "completed",
+      result: null,
+      note: "the script returned nothing; end it with return and a JSON value",
+      logs: [],
+    });
+  });
+
+  it("answers an explicit return null without the note", async () => {
+    expect(await run("return null")).toEqual({ status: "completed", result: null, logs: [] });
   });
 
   it("collects console.log lines", async () => {

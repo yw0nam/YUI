@@ -272,6 +272,9 @@ describe("helpText", () => {
   it("declares the yui API and four rules, and stays under 8 KB", () => {
     expect(text).toContain("declare const yui:");
     expect(text).toContain("declare function help(): string;");
+    expect(text).toContain(
+      "3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.",
+    );
     expect(text.match(/^\d\. /gm)).toHaveLength(4);
     expect(text.length).toBeLessThan(8192);
   });

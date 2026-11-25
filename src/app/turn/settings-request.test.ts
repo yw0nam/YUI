@@ -61,6 +61,22 @@ it.each(["expiry", "abort"])("answers no answer on %s and closes the card", asyn
   w.dispose();
 });
 
+it("answers busy for a second request while one waits, with no second card, and shows a new card after the answer", async () => {
+  const w = buildAskCard();
+  const first = w.request([SCREENSHOT]);
+  const second = w.request([SCREENSHOT]);
+
+  await vi.waitFor(() => expect(second.value).toBe("busy"));
+  expect(w.setAsks).toHaveBeenCalledOnce();
+
+  w.choose("Allow");
+  await vi.waitFor(() => expect(first.value).toBe("allow"));
+
+  w.request([SCREENSHOT]);
+  expect(w.shown()).not.toBeNull();
+  w.dispose();
+});
+
 it("answers no answer for every request when the window's queue is disposed, and for one asked after", async () => {
   const w = buildAskCard();
   const shown = w.request([SCREENSHOT]);
@@ -69,11 +85,7 @@ it("answers no answer for every request when the window's queue is disposed, and
   w.asks.dispose();
   const late = w.request([SCREENSHOT]);
   await vi.waitFor(() =>
-    expect([shown.value, queued.value, late.value]).toEqual([
-      "no answer",
-      "no answer",
-      "no answer",
-    ]),
+    expect([shown.value, queued.value, late.value]).toEqual(["no answer", "busy", "no answer"]),
   );
   expect(w.setAsks).toHaveBeenLastCalledWith([]);
   expect(w.shown()).toBeNull();

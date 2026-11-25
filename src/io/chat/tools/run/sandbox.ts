@@ -13,7 +13,7 @@ import {
 } from "quickjs-emscripten-core";
 
 export type RunResult =
-  | { status: "completed"; result: unknown; logs: string[] }
+  | { status: "completed"; result: unknown; note?: string; logs: string[] }
   | { status: "error"; error: string; logs: string[] };
 
 /** Async functions take and return JSON values; a nested object becomes a nested namespace. */

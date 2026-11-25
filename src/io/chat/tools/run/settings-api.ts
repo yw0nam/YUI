@@ -5,7 +5,7 @@ import { applyPatch, readDocument, writeRow } from "../../../../settings/agent-a
 import { ROWS } from "../../../../settings/agent-access/rows";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 
-export type SettingsAnswer = "allow" | "deny" | "no answer";
+export type SettingsAnswer = "allow" | "deny" | "no answer" | "busy";
 
 /** Asks the user once for every allow path of a write; the signal withdraws the ask. */
 export type RequestSettings = (

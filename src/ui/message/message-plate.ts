@@ -16,9 +16,11 @@ export interface MessagePlate {
   setName(name: string): void;
   /** Shows the preset's face: its photo, else a dot in its hue. */
   setFace(entry: PresetEntry): void;
-  /** Speech streams — "responding" while set, outranking busy. */
+  /** Speech streams — "responding" while set, outranking waiting and busy. */
   setLive(live: boolean): void;
-  /** A turn runs — "thinking" while set, unless speech streams. */
+  /** An Ask or a Settings request card shows — "waiting" while set, above busy. */
+  setWaiting(waiting: boolean): void;
+  /** A turn runs — "thinking" while set, unless speech or a card outranks it. */
   setBusy(busy: boolean): void;
   /** The transport behind this window — a non-"up" state outranks the turn state. */
   setConnection(conn: "up" | "reconnecting" | "failed"): void;
@@ -118,6 +120,7 @@ export function createMessagePlate({
       live = value;
       applyState();
     },
+    setWaiting(_value: boolean) {},
     setBusy(value) {
       busy = value;
       applyState();

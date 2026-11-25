@@ -40,7 +40,7 @@ describe("createYuiRunTool", () => {
     const { tool } = harness();
 
     expect(tool.definition.function.description).toBe(
-      "Run JavaScript against YUI's yui API and get its result. Call help() first: it prints the API. The code is an async function body: use await and return a JSON value.",
+      "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.",
     );
   });
 
@@ -121,6 +121,20 @@ describe("createYuiRunTool", () => {
 
     expect(result.result).toEqual({ "privacy.screenshot": path, "privacy.screen_requests": path });
     expect(stores.screenshotSettings.get()).toMatchObject({ enabled: false, allowRequests: false });
+  });
+
+  it("maps a busy answer to the error for every allow path and keeps the direct paths", async () => {
+    const { run, stores } = harness("busy");
+
+    const result = await run(
+      "return await yui.settings.write({ bubble: { keep: true }, privacy: { screenshot: true } })",
+    );
+
+    expect(result.result).toEqual({
+      "bubble.keep": "ok",
+      "privacy.screenshot": "error: a settings request is already waiting",
+    });
+    expect(stores.screenshotSettings.get()).toMatchObject({ enabled: false });
   });
 
   it("answers invalid for an allowed value the store no longer accepts", async () => {

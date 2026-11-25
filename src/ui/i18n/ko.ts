@@ -88,6 +88,7 @@ const ko: Record<string, string> = {
 
   // message window name plate
   "plate.thinking": "생각 중",
+  "plate.waiting": "답을 기다리는 중",
   "plate.responding": "응답 중",
   "plate.reconnecting": "재연결 중",
   "plate.key_rejected": "키 거부됨",

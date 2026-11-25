@@ -89,6 +89,7 @@ const en: Record<string, string> = {
 
   // message window name plate
   "plate.thinking": "Thinking",
+  "plate.waiting": "Waiting for you",
   "plate.responding": "Responding",
   "plate.reconnecting": "Reconnecting",
   "plate.key_rejected": "Key rejected",

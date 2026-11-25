@@ -3,11 +3,11 @@
 import type { Surfaces } from "../surfaces/surfaces";
 import type { MessagePlate } from "./message-plate";
 
-type Driven = Pick<Surfaces, "beginSpeech" | "endSpeech" | "hideSpeech" | "setBusy">;
+type Driven = Pick<Surfaces, "beginSpeech" | "endSpeech" | "hideSpeech" | "setBusy" | "setAsks">;
 
-/** The same surfaces, with the plate following their speech and busy state. */
+/** The same surfaces, with the plate following their speech, ask and busy state. */
 export function withPlateState<S extends Driven>(
-  plate: Pick<MessagePlate, "setLive" | "setBusy">,
+  plate: Pick<MessagePlate, "setLive" | "setBusy" | "setWaiting">,
   surfaces: S,
 ): S {
   return {

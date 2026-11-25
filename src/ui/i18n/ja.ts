@@ -88,6 +88,7 @@ const ja: Record<string, string> = {
 
   // message window name plate
   "plate.thinking": "考え中",
+  "plate.waiting": "返事を待っています",
   "plate.responding": "応答中",
   "plate.reconnecting": "再接続中",
   "plate.key_rejected": "キー拒否",
