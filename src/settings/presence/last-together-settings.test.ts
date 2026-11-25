@@ -5,10 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  createLastTogetherSettings,
-  type LastTogetherSettings,
-} from "./last-together-settings";
+import { createLastTogetherSettings, type LastTogetherSettings } from "./last-together-settings";
 
 function storageWith(loaded: unknown): {
   load: () => LastTogetherSettings | null;

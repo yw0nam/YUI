@@ -517,7 +517,11 @@ describe("buildClientContext — milestone forwarding", () => {
   it("forwards the payload's last_together and drops a non-numeric one", () => {
     const numeric = buildClientContext(
       CTX,
-      milestoneEnv({ name: "first_activity", local_time: "08:12", last_together: 1_717_000_000_000 }),
+      milestoneEnv({
+        name: "first_activity",
+        local_time: "08:12",
+        last_together: 1_717_000_000_000,
+      }),
     );
     expect(numeric.trigger.milestone).toEqual({
       name: "first_activity",
