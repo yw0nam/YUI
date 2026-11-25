@@ -296,6 +296,53 @@ def test_test_without_answer_closes_the_thread(tmp_path, server, capsys, monkeyp
     assert received[-1][1] == {**received[0][1], "state": "completed", "ask": None, "entries": []}
 
 
+@pytest.mark.parametrize(
+    "status,code,line",
+    [
+        (405, 0, "ok: YUI is listening at {url}"),
+        (400, 1, "update YUI: Threads are not supported at {url}"),
+        (404, 1, "update YUI: Threads are not supported at {url}"),
+    ],
+    ids=["listening", "old-yui", "no-threads-route"],
+)
+def test_probe_reports_a_threads_listener(tmp_path, server, capsys, status, code, line):
+    endpoint, received = server
+    received.status[1] = status
+    assert main(["probe", "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == code
+    assert capsys.readouterr().out == line.format(url=endpoint + "/threads/yui-notify-probe") + "\n"
+    assert received.polls == ["/threads/yui-notify-probe"]
+
+
+def test_probe_with_nothing_listening_reports_the_unreachable_line(tmp_path, capsys):
+    assert main(["probe", "--endpoint", "http://127.0.0.1:1"], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
+    out = capsys.readouterr().out
+    assert out.startswith("YUI is not listening at http://127.0.0.1:1/threads/yui-notify-probe")
+    assert out.endswith(" (External signals off, wrong port, or no tunnel)\n")
+
+
+def test_the_test_command_posts_one_input_required_thread(tmp_path, server, capsys):
+    endpoint, received = server
+    received.status[1] = 410
+    assert main(["test", "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 0
+    assert capsys.readouterr().out == "sent: HTTP 200; look for it in YUI's Threads window\n"
+    assert len(received) == 1
+    path, body = received[0]
+    assert path == f"/threads/yui-notify:test:{socket.gethostname().split('.')[0]}"
+    assert body == {
+        "source": "yui-notify",
+        "title": os.path.basename(os.getcwd()),
+        "state": "input-required",
+        "entries": [
+            {
+                "role": "system",
+                "text": "Test Thread from the yui-notify setup. Mark it read in YUI's Threads window.",
+            }
+        ],
+    }
+    assert "ask" not in body
+    assert received.polls == []
+
+
 def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
     endpoint, received = server
     monkeypatch.setattr("os.getppid", lambda: 9000)
@@ -619,6 +666,106 @@ def test_a_waiter_keeps_a_marker_holding_another_ask(tmp_path, server):
     assert len(received) == 1
     assert json.loads(marker.read_text())["ask_id"] == "perm:replaced:" + "0" * 32
     assert marker_path(tmp_path).stat().st_mode & 0o777 == 0o600
+
+
+PERMISSION_TEXT = "Bash:\n```\ntouch /Users/dev/projects/demo/hello.txt\n```"
+
+
+def permission_marker(tmp_path):
+    return tmp_path / "state" / "yui-notify" / "bc68d697-4e8f-4be0-8ea6-e67f955b2586.permission.json"
+
+
+def test_claude_permission_posts_input_required_and_returns_at_once(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 410
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    assert len(received) == 1
+    path, body = received[0]
+    assert path == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:8864"
+    assert body == {
+        "source": "claude-code",
+        "title": "demo",
+        "label": None,
+        "state": "input-required",
+        "entries": [{"role": "system", "text": PERMISSION_TEXT}],
+    }
+    assert "ask" not in body
+    assert received.polls == []
+    assert permission_marker(tmp_path).exists()
+
+
+@pytest.mark.parametrize("hook", ["PostToolUse", "PostToolUseFailure"])
+def test_the_allowed_tool_returns_the_thread_to_working(tmp_path, server, hook):
+    endpoint, received = server
+    received.status[1] = 410
+    run_hook(tmp_path, endpoint, "claude-permission.json")
+    assert permission_marker(tmp_path).exists(), "the permission hook wrote no marker"
+    run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name=hook)
+    assert len(received) == 2
+    assert received[1][0] == received[0][0]
+    assert received[1][1] == {**received[0][1], "state": "working", "entries": []}
+    assert "ask" not in received[1][1]
+    assert not permission_marker(tmp_path).exists()
+
+
+def test_a_tool_run_with_no_marker_sends_nothing(tmp_path, server):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
+    assert received == []
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [{"tool_name": "Edit"}, {"tool_input": {"command": "rm -rf build"}}],
+    ids=["other-tool", "other-input"],
+)
+def test_a_tool_run_that_matches_no_marker_sends_nothing(tmp_path, server, updates):
+    endpoint, received = server
+    received.status[1] = 410
+    run_hook(tmp_path, endpoint, "claude-permission.json")
+    run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse", **updates)
+    assert len(received) == 1
+
+
+def test_claude_stop_drops_the_permission_marker_before_its_put(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 204  # a waiting permission hook holds its marker here
+
+    def stop_while_the_permission_hook_waits():
+        deadline = time.time() + 10
+        while not (permission_marker(tmp_path).exists() or received.polls) and time.time() < deadline:
+            time.sleep(0.02)
+        run_hook(tmp_path, endpoint, "claude-stop.json")
+        run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
+        received.status[1] = 410
+
+    worker = threading.Thread(target=stop_while_the_permission_hook_waits)
+    worker.start()
+    assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
+    worker.join(10)
+    assert not permission_marker(tmp_path).exists()
+    assert len(received) == 2
+
+
+def test_claude_stop_posts_completed_with_an_inbox_socket(tmp_path, server):
+    endpoint, received = server
+    assert run_hook(tmp_path, endpoint, "claude-stop.json", extra_env=INBOX) == 0
+    assert len(received) == 1
+    _, body = received[0]
+    assert body["state"] == "completed"
+    assert "ask" not in body
+    assert received.polls == []
+
+
+def test_codex_permission_posts_input_required_and_returns_at_once(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 410
+    assert run_hook(tmp_path, endpoint, "codex-permission.json") == 0
+    assert len(received) == 1
+    _, body = received[0]
+    assert body["state"] == "input-required"
+    assert "ask" not in body
+    assert received.polls == []
 
 
 FRUITS = {
