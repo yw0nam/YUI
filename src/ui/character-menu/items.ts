@@ -71,6 +71,19 @@ const choice = (
   value,
 });
 
+/** The most options a Body or Voice list shows; the rest wait behind its "More…". */
+const LIST_CAP = 5;
+
+/** The first options in list order, the current one in the last slot when it falls past them. */
+export function capped<T extends { id: string }>(
+  options: readonly T[],
+  current: string,
+): readonly T[] {
+  const shown = options.slice(0, LIST_CAP);
+  const chosen = options.find((o) => o.id === current);
+  return !chosen || shown.includes(chosen) ? shown : [...shown.slice(0, -1), chosen];
+}
+
 const BACK = (): MenuItem => ({
   id: "back",
   label: t("character_menu.back"),
@@ -111,14 +124,14 @@ export function listItems(id: ListId, kind: MenuKind, state: MenuState): MenuIte
   if (id === "body")
     return [
       BACK(),
-      ...state.bodies.map((o) => choice("body", o.id, o.label, state.body)),
+      ...capped(state.bodies, state.body).map((o) => choice("body", o.id, o.label, state.body)),
       moreItems("body"),
     ];
   if (id === "voice")
     return [
       BACK(),
       // The empty id is no voice.
-      ...state.voices.map((o) =>
+      ...capped(state.voices, state.voice).map((o) =>
         o.id === ""
           ? choice("voice", "", t("character_menu.voice_none"), state.voice, "mute")
           : choice("voice", o.id, o.label, state.voice),

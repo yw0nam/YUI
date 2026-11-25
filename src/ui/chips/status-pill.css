@@ -4,6 +4,8 @@
 .yui-status {
   position: absolute;
   top: 4.5%;
+  /* With the window grown upward for the Character menu, 4.5% of it plus this is 4.5% down her own box. */
+  margin-top: calc(var(--yui-box-top, 0px) * (1 - 0.045));
   /* The centre of her own box, which the Character menu sets while it widens the window. */
   left: calc(var(--yui-box-left, 0px) + var(--yui-box-width, 100%) / 2);
   transform: translate(-50%, -6px);

@@ -134,7 +134,7 @@ This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Dr
 - Invisible-by-default: on the desktop, chrome is absent at rest; the character and desktop fill the stage.
 - Warm-when-present: when a surface appears, a small amber warmth meets humanist warmth.
 - Legible-on-anything: readable over any background through self-contrast, not the backdrop.
-- Calm motion: feedback transitions, one slow float on the speech bubble, and short travel and reactions for the character that never block input. Under reduced motion, her travel fades and the Character menu's pills only fade in.
+- Calm motion: feedback transitions, one slow float on the speech bubble, and short travel and reactions for the character that never block input. Under reduced motion, her travel fades and the Character menu only fades.
 - Her stage: the settings window is where she comes along.
 
 ## 2. Colors
@@ -283,21 +283,25 @@ A dismissible floating notice (`boot-error.css`) shown when config or VRM loadin
 ### Character menu
 A right-click on the character opens the Character menu around her. The menu draws in the pet window and is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
 
-Two pill columns flank her at the shoulder line, 88px from her centre. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
+Two pill columns flank her, 88px from her centre, under one shared top. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
 
-The pet window widens only while the menu is open, to about 500px, and it restores when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
+The columns' top is set once when the menu opens, from the tallest list it can show, so swapping lists never moves the columns. It sits at her head, unless that would bring a column within 8px of the window bottom or the work-area bottom, whichever is higher. Then both columns shift up together.
+
+The pet window widens only while the menu is open, to about 500px. When the shifted columns would start less than 8px below the window top, the window also grows upward for the menu. It returns to its size when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
 
 Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
 
 The top level holds Talk, Rest, Listen, Body ›, Voice ›, Pace ›, Settings and More ›. More holds Threads with its waiting count, Keep bubble, Unified chat, Terminal, Reset chat and Turn off. An item that cannot act in a window is hidden: Listen shows in the main window only, and Turn off shows only in a bound pet window. The Threads chip on the character opens Threads while something waits.
 
-Body › lists her bodies, and Voice › lists the voices. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads, Terminal and a confirmed Turn off close the menu.
+Body › lists her bodies, and Voice › lists the voices, at most five each with the current one always among them, so no list column exceeds seven rows. Each list marks the current choice with a check and ends with a "More…" that opens that settings page. Pace › sets the base pace, which GLOSSARY.md defines: Less, Normal or More. A pick applies at once. The menu then returns to the top level and stays open. Toggles inside More keep More open. Talk, Settings, a trailing "More…", Threads, Terminal and a confirmed Turn off close the menu.
 
 Reset chat and Turn off morph in place into "Sure?" and "Cancel", with focus on Cancel.
 
-Focus goes to the first pill when the menu opens, and focus stays inside the menu while it is open. Arrows, Tab and Shift+Tab move in reading order, and Home and End also work. Enter or Space picks. In a second level, ← or Esc goes back, and Esc at the top level closes the menu. The menu adds no global shortcut.
+Focus goes to the first pill when the menu opens, and focus stays inside the menu while it is open. Arrows, Tab and Shift+Tab move in reading order, and Home and End also work. Enter or Space picks. In a second level, ← or Esc goes back, and Esc at the top level closes the menu. Keys act at once, with no motion. The menu adds no global shortcut.
 
-The plate is opaque, with a hairline edge and one Float shadow, and it has no glass. Amber marks ON states and focus only. Pills pop out from her chest in keyboard order, 30ms apart, over 320ms. Under reduced motion they only fade. In the transparent pet window, visible menu surfaces take pointer input, and the area around them passes clicks through.
+The plate is opaque, with a hairline edge and one Float shadow, and it has no glass. Amber marks ON states and focus only. Both columns enter together from her chest, scaling up from 0.92 as they fade in over 200ms, with no stagger, and her name only fades in. A click outside it or in another app sends everything back toward her chest at once in 140ms, and the window restores after. A right-click on her during that exit takes it back. Esc and a closing pick close it at once.
+
+A list swap by the mouse crossfades. The old column fades out in 140ms, moving 8px away, while the new one fades in over 200ms, moving 8px in: from the right for a list, from the left for Back or a pick that returns to the top level. Under reduced motion the menu only fades, at the same durations. In the transparent pet window, the pills take pointer input, but not those of an old column or of a menu in its exit, and the area around them passes clicks through.
 
 ### Settings stage
 The settings window is her stage. A stage area sits on its left and holds her name and her state. The stage is a 400px column on the window's left, the pet window's width so the 341px input fits beside her, on `--yui-stage-bg`, with the panel beside it. The window opens at 1160 × 680 below the title bar, its minimum 880 × 640; at the minimum the panel takes its narrow layout and the stage foot folds to one line. The foot names the window's own character, the bound one or else main's, at the title size (600) over her transport and window state in Text mute, in the words of her character header item; folded, the name sits at the head size with the state after a `·`. The stage's tuning values (the stay chance, the last backend emotion's decay, the travel time and the carry distance) have defaults in the `stage` section of `configs/avatar.json`. The backend may also receive an opt-in `settings opened {page}` event, which is off by default and switched in Proactive › Advanced; the backend decides whether she says anything.
