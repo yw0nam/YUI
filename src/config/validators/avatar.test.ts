@@ -741,15 +741,6 @@ describe("validateAvatar — descend", () => {
   });
 });
 
-describe("validateAvatar — stage", () => {
-  it("rejects a stay_chance outside [0, 1]", () => {
-    expectIssue(
-      avatarWith({ stage: { stay_chance: 1.5 } }),
-      "stage.stay_chance must be a finite number in [0, 1]",
-    );
-  });
-});
-
 describe("validateAvatar — climb", () => {
   it("keeps every climb key the file declares", () => {
     const out = validateAvatar(

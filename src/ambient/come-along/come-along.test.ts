@@ -137,10 +137,6 @@ function harness(
     for (const cb of [...ticks]) cb({ dt: ms / 1000 });
   };
   /** Ticks in 10 ms frames until nothing listens, then lets the walk settle. */
-  const walkOut = async () => {
-    await vi.waitFor(() => expect(ticks.size).toBe(1));
-    while (ticks.size > 0) tick(10);
-  };
   /** Ticks in 10 ms frames until `step` settles, however she travels. */
   const finish = async (step: Promise<void>) => {
     let settled = false;
@@ -166,7 +162,6 @@ function harness(
     travels,
     ticks,
     tick,
-    walkOut,
     abort,
     locomotion,
     dock,
@@ -378,9 +373,7 @@ describe("createComeAlong", () => {
   it("goes home on a null slot: undocks, walks back to her spot, lets go and drops", async () => {
     const h = await docked();
 
-    const done = h.comeAlong.onStage(null);
-    await h.walkOut();
-    await done;
+    await h.finish(h.comeAlong.onStage(null));
 
     expect(h.dock.detach).toHaveBeenCalledOnce();
     expect(h.locomotion.widen).toHaveBeenLastCalledWith([{ x: 1300, y: 80 }]);
@@ -545,10 +538,10 @@ describe("createComeAlong", () => {
 
   it("undocks at once when the attach resolves after an abort", async () => {
     const h = harness();
+    h.setReduced(true);
     const attached = deferred<boolean>();
     h.dock.attach.mockReturnValueOnce(attached.promise);
     const done = h.comeAlong.onStage(slot);
-    await h.walkOut();
     await vi.waitFor(() => expect(h.dock.attach).toHaveBeenCalledOnce());
 
     await h.abort();
@@ -599,9 +592,7 @@ describe("createComeAlong", () => {
     expect(reloaded.locomotion.widen).not.toHaveBeenCalled();
     expect(reloaded.dock.attach).toHaveBeenCalledOnce();
 
-    const done = reloaded.comeAlong.onStage(null);
-    await reloaded.walkOut();
-    await done;
+    await reloaded.finish(reloaded.comeAlong.onStage(null));
     expect([reloaded.real.x, reloaded.real.y]).toEqual([1300, 80]);
   });
 
