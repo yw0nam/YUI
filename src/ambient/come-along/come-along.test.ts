@@ -32,6 +32,10 @@ function harness(
     storage?: Storage;
     /** Her feet's y in her window, logical, by default at its bottom; null with no VRM loaded. */
     feet?: number | null;
+    /** The last backend emotion, by default neutral. */
+    emotion?: string;
+    /** What the stay roll draws, in [0, 1). */
+    roll?: number;
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -87,6 +91,7 @@ function harness(
     detach: vi.fn(async () => {}),
   };
   const setPositionPhysical = vi.fn(async (_x: number, _y: number) => {});
+  const playMotion = vi.fn();
   const vanish = vi.fn(async () => {
     events.push("vanish");
   });
@@ -103,7 +108,7 @@ function harness(
         ticks.add(cb);
         return () => ticks.delete(cb);
       },
-      playMotion: vi.fn(),
+      playMotion,
       getCurrentMotion: () => null,
       setBodyYaw: vi.fn(),
       getCharacterAnchor: () => {
@@ -124,6 +129,8 @@ function harness(
     followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
     stage: () => avatarFixture().stage,
+    lastEmotion: () => opts.emotion ?? "neutral",
+    random: () => opts.roll ?? 0,
   });
   const tick = (ms: number) => {
     for (const cb of [...ticks]) cb({ dt: ms / 1000 });
@@ -153,6 +160,7 @@ function harness(
     walked,
     events,
     vanish,
+    playMotion,
     finish,
     travels,
     ticks,
@@ -519,6 +527,38 @@ describe("createComeAlong", () => {
     await done;
 
     expect(h.dock.detach).toHaveBeenCalledOnce();
+  });
+
+  it("stays on the desktop and sulks when angry and the roll falls under stay_chance", async () => {
+    const storage = fakeStorage();
+    const h = harness({ emotion: "angry", roll: 0.59, storage });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.locomotion.widen).not.toHaveBeenCalled();
+    expect(h.dock.attach).not.toHaveBeenCalled();
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "sulk" }]]);
+    expect(storage.getItem("yui.come-along.settings")).toBe('{"stays":true}');
+  });
+
+  it("comes along and sulks on the stage when angry and the roll reaches stay_chance", async () => {
+    const h = harness({ emotion: "angry", roll: 0.6 });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }], [{ id: "sulk" }]]);
+    expect(h.dock.attach.mock.invocationCallOrder[0]).toBeLessThan(
+      h.playMotion.mock.invocationCallOrder[1]!,
+    );
+  });
+
+  it("comes along without a sulk when the last backend emotion is not angry", async () => {
+    const h = harness({ emotion: "neutral", roll: 0 });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }]]);
+    expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
   it("after a reload, docks onto the open stage without a walk and goes home to her spot", async () => {
