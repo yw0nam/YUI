@@ -17,6 +17,7 @@ import type { Renderer } from "../../renderer";
 import { windowLabel } from "../../settings/preset/pet-windows";
 import { isTauri, isWindows } from "../../tauri-env";
 import type { wireLocomotion } from "./wire-locomotion";
+import { waitRefit } from "./wire-window-geometry";
 
 const log = createLogger("wire-come-along");
 
@@ -36,8 +37,8 @@ export function wireComeAlong(deps: {
     | "drop"
     | "frame"
     | "getAvatarExecutor"
-    | "onResizeApplied"
     | "onHoldReleased"
+    | "onMoverTakesOver"
     | "isTravelling"
     | "ready"
   >;
@@ -60,8 +61,10 @@ export function wireComeAlong(deps: {
     renderer: deps.renderer,
     hitTest: deps.hitTest,
     dock: { attach: attachDock, detach: detachDock },
-    setPositionPhysical: setPetFramePhysical,
+    setFramePhysical: setPetFramePhysical,
     followsInPhysicalPx: isWindows(),
+    pageHeight: () => window.innerHeight,
+    pageAt: waitRefit,
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,
     lastEmotion: (decayMs) => lastBackendEmotion(Date.now(), decayMs),
@@ -80,9 +83,9 @@ export function wireComeAlong(deps: {
     register(
       await onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)),
     );
-    register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
     // The Character menu lets go after its parked frame ends: the newest slot applies then.
     register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));
+    register(locomotion.onMoverTakesOver(() => comeAlong.restoreSize()));
     // Both listeners are in place before the answer can arrive.
     await deps.bridgeListening();
     deps.emitSettingsStageAsk();

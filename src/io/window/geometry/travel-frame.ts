@@ -5,8 +5,9 @@
  * re-rasterizes the window at the old backing scale. A travel avoids the whole stretch of
  * per-frame moves that would cross the seam: it parks the real window once at the
  * bounding box of the path, then hands the mover a virtual window whose `setPositionLogical`
- * only redraws the reference-size framing at an offset inside that parked canvas
- * (`Renderer.setViewWindow`) — the real window never moves again until the travel ends.
+ * and `setFrameLogical` only redraw her framing, at the travel's size or the one it was given,
+ * at an offset inside that parked canvas (`Renderer.setViewWindow`) — the real window never
+ * moves again until the travel ends.
  * `current()` keeps reporting the virtual window for the whole end() call, including its
  * own `setFrameLogical` round trip, so nobody observes the parked real window in between;
  * once ended, the virtual window degrades into forwarding straight to the real one.
@@ -26,7 +27,7 @@ export interface FrameWindow extends PetWindow {
 
 export interface Travel {
   /** The window the movers drive during the travel. */
-  win: PetWindow;
+  win: FrameWindow;
   /** Park the real window at the virtual window's current rect and clear the view offset. Idempotent. */
   end(): Promise<void>;
 }
@@ -37,7 +38,7 @@ interface TravelState {
   frameRect: { x: number; y: number; width: number; height: number };
   monitors: ScreenMonitor[];
   startScale: number;
-  win: PetWindow;
+  win: FrameWindow;
   /** Set once the end frame call has settled — the virtual window then forwards to the real one. */
   ended: boolean;
   /** Set on the first end() call; every later call returns this same promise. */
@@ -51,10 +52,15 @@ export function createTravelFrame(deps: {
   setKeepOnScreenPaused(paused: boolean): void;
 }): {
   /**
-   * Park the real window over the bounding box of the start rect, `end` and every `via`
-   * origin (logical px, all the same size), and hand back the virtual window.
+   * Park the real window over the bounding box of the start rect, `end` at `endSize` (by
+   * default the start size) and every `via` origin at the start size (logical px), and hand
+   * back the virtual window.
    */
-  begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+  begin(
+    end: { x: number; y: number },
+    via?: Array<{ x: number; y: number }>,
+    endSize?: { width: number; height: number },
+  ): Promise<Travel>;
   /** The virtual window while a travel runs or is ending, else null. */
   current(): PetWindow | null;
   /**
@@ -77,7 +83,22 @@ export function createTravelFrame(deps: {
     return monitorAtLogical(s.monitors, s.origin.x, s.origin.y)?.scaleFactor ?? s.startScale;
   }
 
-  function makeVirtualWindow(get: () => TravelState): PetWindow {
+  function makeVirtualWindow(get: () => TravelState): FrameWindow {
+    /** Draws her at `origin` and `size` inside the parked canvas. */
+    function draw(
+      s: TravelState,
+      origin: { x: number; y: number },
+      size: TravelState["size"],
+    ): void {
+      s.origin = origin;
+      s.size = size;
+      deps.renderer.setViewWindow({
+        x: origin.x - s.frameRect.x,
+        y: origin.y - s.frameRect.y,
+        width: size.width,
+        height: size.height,
+      });
+    }
     return {
       async outerPosition() {
         const s = get();
@@ -96,20 +117,15 @@ export function createTravelFrame(deps: {
         if (s.ended) return deps.frame.scaleFactor();
         return scaleAt(s);
       },
-      async setFrameLogical() {},
       async setPositionLogical(x, y) {
         const s = get();
-        if (s.ended) {
-          await deps.frame.setPositionLogical(x, y);
-          return;
-        }
-        s.origin = { x, y };
-        deps.renderer.setViewWindow({
-          x: x - s.frameRect.x,
-          y: y - s.frameRect.y,
-          width: s.size.width,
-          height: s.size.height,
-        });
+        if (s.ended) await deps.frame.setPositionLogical(x, y);
+        else draw(s, { x, y }, s.size);
+      },
+      async setFrameLogical(x, y, width, height) {
+        const s = get();
+        if (s.ended) await deps.frame.setFrameLogical(x, y, width, height);
+        else draw(s, { x, y }, { width, height });
       },
     };
   }
@@ -135,7 +151,7 @@ export function createTravelFrame(deps: {
   }
 
   return {
-    begin(end, via = []) {
+    begin(end, via = [], endSize) {
       abortRequested = false;
 
       const attempt = (async (): Promise<Travel> => {
@@ -150,11 +166,12 @@ export function createTravelFrame(deps: {
         const scale = sf > 0 ? sf : 1;
         const start = { x: pos.x / scale, y: pos.y / scale };
         const logicalSize = { width: size.width / scale, height: size.height / scale };
-        const points = [start, end, ...via];
-        const lefts = points.map((p) => p.x);
-        const tops = points.map((p) => p.y);
-        const rights = points.map((p) => p.x + logicalSize.width);
-        const bottoms = points.map((p) => p.y + logicalSize.height);
+        const rects = [start, ...via].map((p) => ({ ...p, ...logicalSize }));
+        rects.push({ ...end, ...(endSize ?? logicalSize) });
+        const lefts = rects.map((r) => r.x);
+        const tops = rects.map((r) => r.y);
+        const rights = rects.map((r) => r.x + r.width);
+        const bottoms = rects.map((r) => r.y + r.height);
         const frameRect = {
           x: Math.min(...lefts),
           y: Math.min(...tops),
@@ -174,7 +191,13 @@ export function createTravelFrame(deps: {
           deps.setKeepOnScreenPaused(false);
           throw err;
         }
-        log.info("travel_begin", { start, end, via, frame: frameRect });
+        log.info("travel_begin", {
+          start,
+          end,
+          via,
+          ...(endSize && { endSize }),
+          frame: frameRect,
+        });
 
         const state: TravelState = {
           origin: { ...start },
@@ -182,7 +205,7 @@ export function createTravelFrame(deps: {
           frameRect,
           monitors,
           startScale: scale,
-          win: undefined as unknown as PetWindow,
+          win: undefined as unknown as FrameWindow,
           ended: false,
           ending: null,
         };

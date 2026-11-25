@@ -2,11 +2,11 @@ import type { EdgeEntry } from "../../config/validators/avatar/types";
 import type { MotionKind } from "../../contract";
 import type { Renderer } from "../../renderer";
 import { peekTargetPx } from "../../renderer/geometry/probe/perch-geometry";
-import { easeInOut } from "../../renderer/motion/yaw/body-yaw";
 
 /**
  * The stage peek pin: an edge entry plays with her hips `inset` × her height beyond her window's
- * right edge, and the pin lets go when the clip stops or at its `play_ms`.
+ * right edge, and the pin lets go when the clip stops or at its `play_ms`. Her height is the probe's,
+ * scaled by `heightScale` when her window is about to take another height.
  */
 export function createStagePin(deps: {
   renderer: Pick<
@@ -23,31 +23,23 @@ export function createStagePin(deps: {
   /** Time (ms) the pin takes to ease back to the centre. */
   releaseMs(): number;
   getMotionKind(id: string): MotionKind | undefined;
-  /** The held pin lets go, easing back unless motion is reduced. */
-  onRelease(): void;
 }): {
-  /** Plans the pin for `edge` in a window `windowWidth` px wide; null plans none. */
-  plan(edge: EdgeEntry | null, windowWidth: number): void;
-  /** Arms the planned pin, eased in over `easeMs` when given. */
-  arm(easeMs?: number): void;
+  /** Plans the pin for `edge`; null plans none. */
+  plan(edge: EdgeEntry | null): void;
+  /** Arms the planned pin past the right edge of a window `windowWidth` px wide, eased in over `easeMs` when given. */
+  arm(windowWidth: number, heightScale: number, easeMs?: number): void;
   /** Re-aims a held pin past the right edge of a window `windowWidth` px wide. */
-  reaim(windowWidth: number): void;
-  /** The aligned dock origin's share: 1 while the pin holds, easing to 0 over its release, else 0. */
-  share(): number;
-  /** Moves the release's ease to `elapsedMs` since the release; true once it is over. */
-  easeTo(elapsedMs: number): boolean;
+  reaim(windowWidth: number, heightScale: number): void;
   /** An edge `clip` plays: the pin lets go once it stops, and she idles at its `play_ms`. */
   watch(clip: string): void;
-  /** Stops watching, drops the plan, and clears an armed pin and its release's ease at once. */
+  /** Stops watching, drops the plan, and clears an armed pin at once. */
   snap(): void;
 } {
   const { renderer } = deps;
-  let planned: { edge: EdgeEntry; windowWidth: number } | null = null;
+  let planned: EdgeEntry | null = null;
   // The held pin's inset and its target, null while none is held.
   let pinned: { inset: number; targetXpx: number } | null = null;
   let stopWatch: (() => void) | null = null;
-  // Ms into the release's ease, null while none runs.
-  let releasedMs: number | null = null;
 
   function stop(): void {
     stopWatch?.();
@@ -58,22 +50,19 @@ export function createStagePin(deps: {
   function release(): void {
     if (!pinned) return;
     pinned = null;
-    const reduced = deps.reducedMotion();
-    renderer.setPeekTarget(null, reduced ? undefined : { easeMs: deps.releaseMs() });
-    releasedMs = reduced ? null : 0;
-    deps.onRelease();
+    renderer.setPeekTarget(null, deps.reducedMotion() ? undefined : { easeMs: deps.releaseMs() });
   }
 
   return {
-    plan(edge, windowWidth) {
-      planned = edge && { edge, windowWidth };
+    plan(edge) {
+      planned = edge;
     },
-    arm(easeMs) {
+    arm(windowWidth, heightScale, easeMs) {
       const probe = planned && renderer.getPerchProbe();
       if (!planned || !probe) return;
       renderer.setMotionMirror(false);
-      const { inset } = planned.edge;
-      const targetXpx = peekTargetPx(planned.windowWidth, "left", probe.charHpx, inset);
+      const { inset } = planned;
+      const targetXpx = peekTargetPx(windowWidth, "left", probe.charHpx * heightScale, inset);
       const accepted = renderer.setPeekTarget({
         targetXpx,
         ...(easeMs !== undefined && { easeMs }),
@@ -81,25 +70,21 @@ export function createStagePin(deps: {
       });
       pinned = accepted ? { inset, targetXpx } : null;
     },
-    reaim(windowWidth) {
+    reaim(windowWidth, heightScale) {
       const probe = pinned && renderer.getPerchProbe();
       if (!pinned || !probe) return;
-      const targetXpx = peekTargetPx(windowWidth, "left", probe.charHpx, pinned.inset);
+      const targetXpx = peekTargetPx(
+        windowWidth,
+        "left",
+        probe.charHpx * heightScale,
+        pinned.inset,
+      );
       if (targetXpx === pinned.targetXpx) return;
       pinned.targetXpx = targetXpx;
       renderer.setPeekTarget({ targetXpx, holdsPosture: false });
     },
-    share() {
-      if (pinned) return 1;
-      // The renderer's own release curve, so her window and her hips move as one.
-      return releasedMs === null ? 0 : 1 - easeInOut(releasedMs / deps.releaseMs());
-    },
-    easeTo(elapsedMs) {
-      releasedMs = elapsedMs >= deps.releaseMs() ? null : elapsedMs;
-      return releasedMs === null;
-    },
     watch(clip) {
-      const edge = planned?.edge;
+      const edge = planned;
       planned = null;
       if (!edge) return;
       // A state clip is the motion controller's return target once whatever replaced it ends.
@@ -133,7 +118,6 @@ export function createStagePin(deps: {
       stop();
       if (pinned) renderer.setPeekTarget(null);
       pinned = null;
-      releasedMs = null;
     },
   };
 }

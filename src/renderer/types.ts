@@ -102,11 +102,11 @@ export interface Renderer {
   /** Replace the fit-to-bounds framing; refits at once when a VRM is loaded. */
   setFraming(framing: FramingConfig): void;
   /**
-   * Draw the reference-size framing — the window size at travel start — at canvas
-   * offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the OS
-   * window over its whole path and uses this to keep the character's on-screen size
-   * and every camera-projected consumer (feet anchor, width, hit test) unchanged while
-   * she moves inside the parked canvas.
+   * Draw the framing of a `width` × `height` window — her window's size in the travel —
+   * at canvas offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the
+   * OS window over its whole path and uses this to keep the character's on-screen size
+   * and every camera-projected consumer (feet anchor, width, hit test) that of her window
+   * while she moves inside the parked canvas.
    */
   setViewWindow(view: { x: number; y: number; width: number; height: number } | null): void;
   /**
