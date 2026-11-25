@@ -44,7 +44,7 @@ const NEVER_SETTLES = "the script awaited something that never settles";
 const TOO_LARGE = "result too large";
 const HOST_NOT_JSON = "a host function returned a value that is not JSON";
 
-// Captured before the script runs, so the script cannot replace what converts its values.
+// JSON, Error and AsyncFunction are captured before the script runs; a script that replaces String or Array methods only garbles its own output.
 const HELPERS = `((stringify, parse, Err, AsyncFunction) => ({
   stringify,
   parse,
