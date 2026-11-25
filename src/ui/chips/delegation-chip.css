@@ -105,9 +105,9 @@
   display: grid;
 }
 
-/* In the pet window's chip column, half the window less 3.5rem (surfaces.css), the label has no room under 24rem, so
-   the chip folds; the message window's plate row keeps it whole. */
-@media (width < 24rem) {
+/* In a chip column under 9rem (surfaces.css) the chip folds to its dot and count; the message window's plate row,
+   no query container, keeps it whole. */
+@container (width < 9rem) {
   .yui-chip-column .yui-deleg__label {
     display: none;
   }

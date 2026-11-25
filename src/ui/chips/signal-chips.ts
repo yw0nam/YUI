@@ -27,6 +27,8 @@ interface Pill {
   open: HTMLButtonElement;
   src: HTMLElement;
   text: HTMLElement;
+  /** The grouped row's batched total, drawn in a narrow column; empty on any other pill. */
+  count: HTMLElement;
   x: HTMLButtonElement;
   fold: ReturnType<typeof holdToFold>;
 }
@@ -89,6 +91,7 @@ export function createSignalChips({
         <span class="yui-sigchip__dot" aria-hidden="true"></span>
         <b class="yui-sigchip__src"></b>
         <span class="yui-sigchip__text"></span>
+        <span class="yui-sigchip__count" aria-hidden="true"></span>
       </button>
       <button type="button" class="yui-sigchip__x">${CROSS_SVG}</button>
     `;
@@ -97,6 +100,7 @@ export function createSignalChips({
       open: pill.querySelector(".yui-sigchip__open")!,
       src: pill.querySelector(".yui-sigchip__src")!,
       text: pill.querySelector(".yui-sigchip__text")!,
+      count: pill.querySelector(".yui-sigchip__count")!,
       x: pill.querySelector(".yui-sigchip__x")!,
       fold: holdToFold(pill, collapsed),
     };
@@ -128,6 +132,7 @@ export function createSignalChips({
     pill.el.className = `yui-sigchip yui-sigchip--${item.delivery}`;
     pill.el.toggleAttribute("data-chip-urgent", item.delivery === "urgent");
     pill.x.hidden = false;
+    pill.count.textContent = "";
     pill.src.textContent = source;
     pill.text.textContent = text;
     pill.open.setAttribute("aria-expanded", String(openId === event_id));
@@ -217,6 +222,7 @@ export function createSignalChips({
         place(pill.el, rows++);
         if (hiddenCount > 0) {
           pill.x.hidden = true;
+          pill.count.textContent = String(batched.length);
           if (more.parentNode !== pill.el) pill.el.append(more);
         }
       }

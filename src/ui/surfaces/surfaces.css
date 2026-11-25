@@ -39,6 +39,8 @@
   align-items: flex-start;
   gap: 0.4rem;
   pointer-events: none;
+  /* The chips' narrow rules query the column's own width, inside its padding. */
+  container-type: inline-size;
   transition:
     opacity var(--yui-dur-fast) var(--yui-ease),
     transform var(--yui-dur) var(--yui-ease);
