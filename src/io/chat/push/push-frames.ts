@@ -199,7 +199,7 @@ function choicesReadable(choices: unknown): boolean {
   return ids.size === choices.length;
 }
 
-/** The field that makes an ask frame unreadable, or null: the Ask fields of threads.md (no prompt cap) and an `expires_at` that is absent or finite. */
+/** The field that makes an ask frame unreadable, or null: the Ask fields of push-transport.md (no prompt cap) and an `expires_at` that is absent or finite. */
 export function askFrameFault(v: Record<string, unknown>): string | null {
   const ask = v.ask;
   if (ask === null || typeof ask !== "object" || Array.isArray(ask)) return "ask";

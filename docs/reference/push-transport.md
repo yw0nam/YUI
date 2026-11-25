@@ -649,10 +649,22 @@ An Ask is a question the backend holds open for the user in a character's own ch
 
 | Field | Value |
 |---|---|
-| `ask` | The Ask: `ask_id`, `prompt`, optional `choices` and `multiple`, `text`, and optional `placeholder`, as [threads.md](threads.md#ask-fields) defines them |
+| `ask` | The Ask, with the fields below |
 | `expires_at` | Optional epoch milliseconds after which the backend takes no answer. Absent, the Ask has no deadline |
 
-- `ask` follows the Ask fields of [threads.md](threads.md#ask-fields), except that `prompt` has no length cap of its own. The [text frame size](#frame-sizes) applies.
+#### Ask fields
+
+| Field | Rule |
+|---|---|
+| `ask_id` | Required non-empty string, at most 128 code points |
+| `prompt` | Required non-empty string. No length cap of its own; the [text frame size](#frame-sizes) applies |
+| `choices` | Optional array of at most 6 choices with unique ids |
+| `multiple` | Optional. Omitted or `null` means single-select; `true` requires non-empty `choices` |
+| `text` | Required boolean: whether free text is accepted |
+| `placeholder` | Optional string, at most 200 code points |
+
+Each choice has a required non-empty `id` and `label`, each at most 64 code points. Optional `tone` is `primary` or `danger`.
+
 - `prompt` is Markdown, rendered as Thread entry text is.
 - `choices` absent reads as none.
 - The client closes the Ask at `expires_at`, when it has one.
@@ -678,7 +690,7 @@ An Ask is a question the backend holds open for the user in a character's own ch
 | `choices` | Optional non-empty array of distinct offered ids, only for a `multiple` Ask; never with `choice` |
 | `text` | Optional free text, sent only when `ask.text` is true |
 
-- An `answer` carries `choice` or `choices`, `text`, or both, under the Answer rules of [threads.md](threads.md#user-answers).
+- An `answer` carries a valid pick (`choice` or `choices`), non-blank `text`, or both. The client trims `text` and omits it when blank. The [text frame size](#frame-sizes) applies.
 - A multi-select Answer uses `choices` even for one pick, in the Ask's choice order, and never `choice`. A text-only Answer omits both.
 - A choice belongs to the Ask it answers.
 - The client sends `answer` only while the socket is `ready`.
