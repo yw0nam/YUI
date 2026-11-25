@@ -67,6 +67,7 @@ import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 import { wireThreadTurns } from "./turn/wire-thread-turns";
+import { wireYuiRun } from "./turn/wire-yui-run";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
 const log = createLogger("bootstrap");
@@ -224,6 +225,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       recordAddressed: addressed.record,
       mcpHost,
       threads: phase1.threads,
+      run: wireYuiRun({}),
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,

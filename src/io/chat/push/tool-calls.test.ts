@@ -9,6 +9,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import type { ClientTool } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
+import { stubYuiRunPorts } from "../tools/run/yui-run-test-ports";
+import { createYuiRunTool } from "../tools/run/yui-run-tool";
 import { fitTurnImages } from "./fit-turn-images";
 import type { ToolCallFrame } from "./push-frames";
 import { PUSH_FRAME_MAX_BYTES } from "./push-socket";
@@ -382,6 +384,29 @@ describe("createPushToolCalls — local status", () => {
     expect(onStatus.mock.calls).toEqual([
       ["c1", "running", "echo_args"],
       ["c1", "done", "echo_args"],
+    ]);
+  });
+});
+
+describe("push yui_run", () => {
+  it("answers the call with the script's JSON result", async () => {
+    const h = harness({ tools: createClientToolRegistry([createYuiRunTool(stubYuiRunPorts())]) });
+    h.calls.handle({
+      type: "tool_call",
+      id: "c1",
+      turn_id: "t",
+      name: "yui_run",
+      arguments: { code: "return 1+1" },
+    });
+
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+    expect(h.sent).toEqual([
+      {
+        type: "tool_result",
+        id: "c1",
+        turn_id: "t",
+        result: '{"status":"completed","result":2,"logs":[]}',
+      },
     ]);
   });
 });

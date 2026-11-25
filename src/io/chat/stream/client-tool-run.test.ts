@@ -9,6 +9,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ClientTool, ClientToolRegistry } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
+import { stubYuiRunPorts } from "../tools/run/yui-run-test-ports";
+import { createYuiRunTool } from "../tools/run/yui-run-tool";
 import type { ChatStreamEvent } from "./chat-client";
 import { runClientCall } from "./client-tool-run";
 
@@ -168,5 +170,18 @@ describe("runClientCall — image result status", () => {
     ]);
     expect(statusesOf(await collect(registry, "body_action", "{}"))).toEqual(["running", "failed"]);
     expect(failed).toHaveBeenCalledWith("nope");
+  });
+});
+
+describe("runClientCall — yui_run", () => {
+  it("runs the script and hands the model its JSON result", async () => {
+    const registry = createClientToolRegistry([createYuiRunTool(stubYuiRunPorts())]);
+    const gen = runClientCall(registry, "yui_run", '{"code":"return 1+1"}');
+    const events: ChatStreamEvent[] = [];
+    let next = await gen.next();
+    for (; !next.done; next = await gen.next()) events.push(next.value);
+
+    expect(statusesOf(events)).toEqual(["running", "done"]);
+    expect(next.value?.run?.result).toBe('{"status":"completed","result":2,"logs":[]}');
   });
 });

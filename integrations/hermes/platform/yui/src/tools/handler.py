@@ -22,6 +22,7 @@ WAITS_S = {
     "rate_relation": 7.0,
     "address_character": 7.0,
     "yui_tool_call": 125.0,
+    "yui_run": 20.0,
     "yui_tool_describe": 7.0,
     "plugin_skill": 7.0,
 }

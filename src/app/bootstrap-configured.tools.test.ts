@@ -20,12 +20,20 @@ it.each([
       "yui_tool_describe",
       "yui_tool_call",
       "plugin_skill",
+      "yui_run",
     ],
   ],
   [
     true,
     true,
-    ["rate_relation", "address_character", "yui_tool_describe", "yui_tool_call", "plugin_skill"],
+    [
+      "rate_relation",
+      "address_character",
+      "yui_tool_describe",
+      "yui_tool_call",
+      "plugin_skill",
+      "yui_run",
+    ],
   ],
   [false, false, ["rate_relation", "address_character"]],
 ])("a pet window (tauri: %s, bound: %s) declares %j", async (tauri, bound, names) => {
