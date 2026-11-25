@@ -642,7 +642,7 @@ globalThis.YUI_MAP =
       "id": "renderer/camera",
       "module": "renderer",
       "label": "camera",
-      "role": "Fit-to-bounds framing, zoom, orbit, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
+      "role": "Fit-to-bounds framing, zoom, orbit, the stage framing that eases her from her own fit to one by her height alone, head-on and without her zoom, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
       "paths": [
         "src/renderer/camera"
       ]
@@ -3923,7 +3923,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height) for her feet share in the slot or home frame she is about to take and how much larger she is drawn there; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
+      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height, framing) for her feet share in the slot (framing 1) or home (framing 0) frame she is about to take, at each carry frame's framing, and how much larger she is drawn there; setStageFraming(k) eased with each carry frame toward 1 onto the stage and 0 home from the value last set, set with the frame while hidden in a vanish or fade, 1 on a reload that resumes on the stage, and 0 when a mover takes her off the stage or a start or trip home fails; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3986,7 +3986,7 @@ globalThis.YUI_MAP =
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
-      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit",
+      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-pet-stage.ts"
