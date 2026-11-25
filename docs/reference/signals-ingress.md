@@ -76,7 +76,7 @@ One listener on one port serves every window, and the path chooses the recipient
 
 | Path | Recipient |
 |---|---|
-| `/threads/<id>`, `/threads/<id>/answer`, `/threads/answers?source=<source>` | The Thread store, no window; see [Threads](./threads.md) |
+| `/threads/<id>` | The Thread store, no window; see [Threads](./threads.md) |
 | `/signals` | `main`: the main window's character, whichever preset is active |
 | `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations` | `main` |
 | `/presets/<id>/signals` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
@@ -165,7 +165,7 @@ With the Thread reactions switch on, a Thread reaction holds every Thread turn g
 
 When a reaction finishes, every held, buffered group leaves together as one `signals.batch` turn; a turn the bus refuses leaves them held for the next reaction.
 
-The five-group cap of the batch buffer can still push a held group out, and the switch going off releases every held group to normal delivery ([Threads](./threads.md#closed-asks-and-reactions)).
+The five-group cap of the batch buffer can still push a held group out, and the switch going off releases every held group to normal delivery ([Threads](./threads.md#withdrawn-groups-and-reactions)).
 
 ### Groups that go back
 
@@ -255,7 +255,7 @@ A request under `/presets/` whose id no preset has, or whose path after the id i
 
 A request for a preset id that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
-Threads accept only PUT on `/threads/<id>`, GET on `/threads/<id>/answer`, and GET on `/threads/answers?source=<source>`; wrong methods receive 405. Invalid or missing Thread ids and any preset-prefixed Threads path receive 404. Field and query validation receives 400; the [Threads reference](./threads.md) defines answer outcomes, the sweep, and the wait-worker limit.
+Threads accept only PUT on `/threads/<id>`; a wrong method receives 405. Invalid or missing Thread ids, any other path under `/threads`, and any preset-prefixed Threads path receive 404. Field validation receives 400; the [Threads reference](./threads.md) defines the fields.
 
 ### What 200 means
 

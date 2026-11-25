@@ -741,7 +741,7 @@ globalThis.YUI_MAP =
       "id": "io/threads",
       "module": "display",
       "label": "threads client",
-      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer and the open ask the user picked through thread_seen and a Thread the user marked read through thread_read; inert outside Tauri.",
+      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends a Thread the user marked read through thread_read; inert outside Tauri.",
       "paths": [
         "src/io/threads"
       ]
@@ -1119,7 +1119,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/threads",
       "module": "sources",
       "label": "thread turns",
-      "role": "Diffs each Threads snapshot against the last one seen and returns the batched signal groups the Thread turns level asks for: a new ask or a Thread becoming failed (notable), or a new agent or system entry (every); the first snapshot is the baseline.",
+      "role": "Diffs each Threads snapshot against the last one seen and returns the batched signal groups the Thread turns level asks for: a Thread becoming input-required or failed (notable), or a new agent or system entry (every); the first snapshot is the baseline.",
       "paths": [
         "src/dispatcher/sources/threads"
       ]
@@ -1255,7 +1255,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen; an automatic open selects the Thread a Thread reaction names, without reporting it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding 1–9 and ↑/↓ from the list and the answer area while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no field.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1264,7 +1264,7 @@ globalThis.YUI_MAP =
       "id": "ui/ask",
       "module": "display",
       "label": "ask card",
-      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window. It owns the answer area (prompt, numbered choices, growing field, send) that the thread pane also mounts.",
+      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window. It owns the answer area (prompt, numbered choices, growing field, send).",
       "paths": [
         "src/ui/ask"
       ]
@@ -1337,7 +1337,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.ask group of a Thread whose ask closed is withdrawn.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.input_required group of a Thread that left input-required is withdrawn.",
       "paths": [
         "src/app/turn"
       ]
@@ -1438,7 +1438,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or, while it shows, only focusing it (an open for a Thread reaction, with focus false, only raises it and changes no tab or selection, and reports presented once it is shown or raised), its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, the Thread turns pick written to yui.thread-turns and announced by settings-changed, the menu redrawn from the Thread turns and External signals stores, and the stored theme, text size, language, Thread turns and External signals reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, read marks to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or, while it shows, only focusing it (an open for a Thread reaction, with focus false, only raises it and changes no tab or selection, and reports presented once it is shown or raised), its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, the Thread turns pick written to yui.thread-turns and announced by settings-changed, the menu redrawn from the Thread turns and External signals stores, and the stored theme, text size, language, Thread turns and External signals reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -1510,7 +1510,7 @@ globalThis.YUI_MAP =
       "id": "shell/threads",
       "module": "shell",
       "label": "threads",
-      "role": "Keeps Threads and their asks, appends each change to a dated JSONL file kept 14 days, wakes answer waits, and publishes a revisioned snapshot to every window.",
+      "role": "Keeps Threads and their read marks, appends each change to a dated JSONL file kept 14 days, and publishes a revisioned snapshot to every window.",
       "paths": [
         "src-tauri/src/threads"
       ]
@@ -2087,15 +2087,6 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/surfaces/surfaces.ts"
-    },
-    {
-      "id": "threads-answer-area",
-      "from": "ui/threads",
-      "to": "ui/ask",
-      "carries": "createAnswerArea {ask, draft, error, sending, …} → AnswerArea {el, pick}",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-answers.ts"
     },
     {
       "id": "previous-playback",
@@ -2950,7 +2941,7 @@ globalThis.YUI_MAP =
       "id": "thread-turns-offer",
       "from": "dispatcher/sources/threads",
       "to": "dispatcher/sources/inbox",
-      "carries": "offer(group): one batched thread.ask, thread.failed or thread.entry group per Thread, event_id thread:<id>",
+      "carries": "offer(group): one batched thread.input_required, thread.failed or thread.entry group per Thread, event_id thread:<id>",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-thread-turns.ts"
@@ -2959,7 +2950,7 @@ globalThis.YUI_MAP =
       "id": "thread-turns-withdraw",
       "from": "dispatcher/sources/threads",
       "to": "dispatcher/sources/inbox",
-      "carries": "withdraw(thread:<id>, thread.ask) for each Thread whose open ask closed or that is gone",
+      "carries": "withdraw(thread:<id>, thread.input_required) for each Thread that left input-required or is gone",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-thread-turns.ts"
@@ -3439,7 +3430,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-threads",
       "from": "ui/character-menu",
       "to": "io/window/openers",
-      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the window is restored; the Threads pill's count is main's waiting Threads the user has not picked",
+      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the window is restored; the Threads pill's count is main's waiting Threads",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/character-menu/character-menu-ports.ts"
@@ -3474,7 +3465,7 @@ globalThis.YUI_MAP =
       "id": "threads-shell-command",
       "from": "io/threads",
       "to": "shell/threads",
-      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, choices?, text?}; thread_seen {id, askId}; thread_read {id}",
+      "carries": "threads_snapshot once after the listen; thread_read {id}",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -3572,26 +3563,8 @@ globalThis.YUI_MAP =
       "id": "threads-window-snapshot",
       "from": "io/threads",
       "to": "ui/threads",
-      "carries": "the snapshot → the list, the thread pane and the drafts its asks still accept",
+      "carries": "the snapshot → the list and the thread pane",
       "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-answer",
-      "from": "ui/threads",
-      "to": "io/threads",
-      "carries": "an Answer {choice?, choices?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-seen",
-      "from": "ui/threads",
-      "to": "io/threads",
-      "carries": "the Thread and the open ask id the user picked in the list or the rail; a rejection is logged",
-      "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
     },
@@ -4823,7 +4796,7 @@ globalThis.YUI_MAP =
       "to": "shell/agent-ingress",
       "kind": "http",
       "transport": "shared",
-      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask? with multiple?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer {ask_id, choice?, choices?, text?, release?, at} once, 204, 404; 410 only with ask_id); GET /threads/answers?source=<source> sweeps every pending answer of that source, oldest first, delivered once",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?} → {updated_at}",
       "wiring": "src-tauri/src/agent_ingress/mod.rs"
     },
     {
@@ -4832,7 +4805,7 @@ globalThis.YUI_MAP =
       "to": "shell/threads",
       "kind": "call",
       "transport": "shared",
-      "carries": "upsert, wait_answer, drain_answers",
+      "carries": "upsert",
       "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
     },
     {
@@ -4938,7 +4911,7 @@ globalThis.YUI_MAP =
       "id": "threads-pane-ref-mount",
       "from": "ui/threads",
       "to": "ui/ref-mount",
-      "carries": "RefMount: each entry's Markdown nodes, and the answer area, mounted again only when the ask, its error, its in-flight send or the locale changed",
+      "carries": "RefMount: each entry's Markdown nodes, mounted again only when its text changed",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/threads/window/thread-pane.tsx"

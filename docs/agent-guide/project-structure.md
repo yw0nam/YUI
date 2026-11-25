@@ -129,7 +129,7 @@ YUI/
         character-menu-frame.ts      # Widens the pet window to the menu's reach and restores it, holding her still meanwhile
         character-menu-ports.ts      # The menu's actions over the stores and openers the pet window has: Rest, Listen, Body, Voice, Pace, Keep bubble, Unified chat, Reset chat, Threads, Turn off
       threads-window/                # The Threads window's wiring
-        wire-threads-window.ts       # Snapshots into the view, Answers to the store, the frame store into placement and resize, the list choice, the open request, theme and language
+        wire-threads-window.ts       # Snapshots into the view, read marks to the store, the frame store into placement and resize, the list choice, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
         threads-presence.ts          # One open or close at a time: show and grow, or focus or raise without focus while shown; shrink and hide, then the closed report, and the presented report for an automatic request
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
@@ -451,7 +451,7 @@ YUI/
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       threads/                         # The Thread store's client
-        threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, thread_answer, thread_seen and thread_read
+        threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, and thread_read
       presence/                        # The user's presence for main's pet window
         presence.ts                    # The last os_idle_tick idle ms read against the away threshold
       mcp-host/                        # The MCP host client and enabled plugin summaries and skills
@@ -670,11 +670,9 @@ YUI/
         window/thread-rail.tsx       # The rail: the Waiting / All segment as marks over counts, the kind select behind a mark, one source mark per row
         window/row-focus.ts          # Focuses a list's current row, and gives the focus of a row that left to its neighbour
         window/thread-meta.tsx       # The source line and the state word a row and the pane lead with
-        window/thread-pane.tsx       # The thread pane: head, scrolling transcript, and the answer area through a RefMount
-        window/thread-answers.ts     # Each ask's draft, send error and in-flight send, and the answer area that shows
+        window/thread-pane.tsx       # The thread pane: head, Mark read, and the scrolling transcript
         window/turns-menu.tsx        # The head's Thread turns button and its popover of the three levels
         window/glyph.tsx             # A Threads line glyph as JSX
-        window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/entry-markdown.ts     # An entry's text as Markdown nodes: https images only, no list formatting whitespace
         window/grow.ts               # The grow out of the chip, with a jelly on an automatic open, and the shrink back
         window/hop.ts                # The panel's hop inside its margin when a Thread reaction raises the window
