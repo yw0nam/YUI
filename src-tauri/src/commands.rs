@@ -11,6 +11,9 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::screenshot::list_screen_sources,
         #[cfg(desktop)]
+        crate::screenshot::screen_recording_permission,
+        crate::process_state::app_started_at,
+        #[cfg(desktop)]
         crate::screenshot::capture_screen,
         #[cfg(desktop)]
         crate::screenshot::capture_screen_at,

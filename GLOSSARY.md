@@ -134,6 +134,10 @@ _Avoid_: prompt, request
 The user's reply to one Ask: a choice id, several choice ids for a multi-select Ask, text, or both. It travels as an `answer` frame.
 _Avoid_: reply, response
 
+**Settings request**:
+An agent's pending change to settings that need the user's Allow, shown as the Allow / Deny card in the Ask card's slot. Unlike an Ask, the client raises it, not the push transport.
+_Avoid_: permission prompt, approval dialog, access request
+
 **Backend command**:
 A command the backend states in `ready.commands` and runs when the user types `/name` in the text input; push transport only. Its output is a Command reply, never a Turn.
 _Avoid_: slash command (for the client side), Trigger
@@ -282,8 +286,12 @@ _Avoid_: host tool, relay tool
 A tool the client does not declare; the backend learns its name and summary from `yui_tool_call`'s description and reaches it through `yui_tool_describe` and `yui_tool_call`: a Plugin tool, or a Terminal or Threads tool the client runs itself.
 
 **Client tool**:
-A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill) or a Terminal or Threads On-demand tool.
+A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill, yui_run) or a Terminal or Threads On-demand tool.
 _Avoid_: in-app tool, local tool
+
+**yui API**:
+What a `yui_run` script reaches: settings, state, info.
+_Avoid_: SDK, bridge
 
 **Producer**:
 An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks), or a plugin's MCP server that sends the signals notification.

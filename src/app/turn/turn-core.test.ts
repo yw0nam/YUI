@@ -107,6 +107,7 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
     screenCapturer: {} as never,
     openSettings: () => {},
     turnNotice: { show: () => {}, clear: () => {} },
+    asks: { put: () => {}, remove: () => {} },
     register: (teardown) => teardowns.push(teardown),
     ensureActive: () => {},
   });

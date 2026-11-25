@@ -498,7 +498,8 @@ globalThis.YUI_MAP =
         "src-tauri/src/lib.rs",
         "src-tauri/src/plugins.rs",
         "src-tauri/src/setup.rs",
-        "src-tauri/src/commands.rs"
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/process_state.rs"
       ]
     },
     {
@@ -678,7 +679,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, each preset's edited active-hours spans live in its yui.active-hours key (null while the card's spans apply), the device-wide yui.base-pace holds the base pace (low, normal or high, default normal) that each pet window multiplies with its span pace, the device-wide yui.proactive-pacer-gap holds the proactive gap in ms (0 disables it), the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, each preset's edited active-hours spans live in its yui.active-hours key (null while the card's spans apply), the device-wide yui.base-pace holds the base pace (low, normal or high, default normal) that each pet window multiplies with its span pace, the device-wide yui.proactive-pacer-gap holds the proactive gap in ms (0 disables it), the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position; the device-wide yui.last-together holds the last present tick, written at most once a minute, which the milestone payload's last_together reads; agent-access/ holds the settings rows a backend agent may read and patch through yui_run, each on the direct or allow tier.",
       "paths": [
         "src/settings"
       ]
@@ -705,7 +706,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds the tool and skill lists the yui_tool_call and plugin_skill descriptions carry. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds the tool and skill lists the yui_tool_call and plugin_skill descriptions carry; run/yui-run-tool.ts is the yui_run runner, a script in a QuickJS sandbox over the yui API (settings, state, info), whose settings writes run through run/settings-api.ts. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_run, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -1346,7 +1347,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.input_required group of a Thread that left input-required is withdrawn.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.input_required group of a Thread that left input-required is withdrawn; ask-queue.ts is the window's Ask queue, holding the push socket's Asks and the Settings requests of yui_run, shown oldest first, and settings-request.ts and wire-yui-run.ts build the Settings request and yui_run's ports.",
       "paths": [
         "src/app/turn"
       ]
@@ -2109,8 +2110,8 @@ globalThis.YUI_MAP =
     {
       "id": "push-ask",
       "from": "io/chat/push",
-      "to": "ui/surfaces",
-      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer {ask_id, choice?, choices?, text?}",
+      "to": "app/turn",
+      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → the window's Ask queue (put, remove); the queue's answer for the push owner → sendAnswer {ask_id, choice?, choices?, text?}",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/ask-session.ts"
@@ -2509,6 +2510,96 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "ask-queue-surfaces",
+      "from": "app/turn",
+      "to": "ui/surfaces",
+      "carries": "setAsks(the queue's frames, oldest first) → AskCard; onAskAnswer → the answer goes to the owner of the head frame: a push Ask's sendAnswer, or a Settings request's Allow or Deny",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "settings-agent-access",
+      "from": "settings",
+      "to": "io/chat/tools",
+      "carries": "yui.settings.read: the exposed rows read as one document; yui.settings.write: a JSON merge patch applied to the rows, direct rows written at once and allow rows written only after the user's Allow",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "tools-ask-queue",
+      "from": "io/chat/tools",
+      "to": "app/turn",
+      "carries": "yui.settings.write's allow paths → one Settings request → the window's Ask queue (put, remove); the card's Allow or Deny answers the write; no answer comes after the card's 60 s once shown, or when the turn stops",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "tools-shell-screenshot",
+      "from": "io/chat/tools",
+      "to": "shell/screenshot",
+      "carries": "screen_recording_permission → yui.state permissions.screen_recording",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "tools-shell-core",
+      "from": "io/chat/tools",
+      "to": "shell/core",
+      "carries": "app_started_at → yui.state running_since",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-vrm",
+      "from": "io/assets",
+      "to": "io/chat/tools",
+      "carries": "VRM selection list and active id → yui.info bodies and the body row's value; swapVrm → the body row's write",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-speaker",
+      "from": "io/voice/voices",
+      "to": "io/chat/tools",
+      "carries": "speaker selection list and active id → yui.info voices and the voice row's value; swapSpeaker → the voice row's write",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-monitors",
+      "from": "io/window/capture",
+      "to": "io/chat/tools",
+      "carries": "createTauriScreenSourceProvider monitors → yui.info monitors",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "yui-run-presets",
+      "from": "settings",
+      "to": "io/chat/tools",
+      "carries": "readPresetList and readOpenPresetIds → yui.state characters, each with its open and me flags",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-yui-run.ts"
+    },
+    {
+      "id": "idle-tick-presence",
+      "from": "dispatcher/sources/idle-tick",
+      "to": "settings",
+      "carries": "lastTogether.record(ts) on each present tick, written to yui.last-together at most once a minute",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
     },
     {
       "id": "settings-tool-switches",
@@ -3040,7 +3131,7 @@ globalThis.YUI_MAP =
       "id": "idle-tick-bus",
       "from": "dispatcher/sources/idle-tick",
       "to": "dispatcher/core",
-      "carries": "bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity, proactive.screen_app_switched, proactive.screen_long_session",
+      "carries": "bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity (its payload's last_together is the day's first present tick's snapshot of yui.last-together, null before the first), proactive.screen_app_switched, proactive.screen_long_session",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"

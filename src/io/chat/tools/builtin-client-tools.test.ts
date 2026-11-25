@@ -4,6 +4,7 @@ import { createRelationsStore } from "../../../settings/relations/relations-stor
 import { noopScreenCapturer } from "../../window/capture/screen-source-provider";
 import { createGenerateExpressTool } from "./express";
 import { createPetWindowTools } from "./pet-window-tools";
+import { stubYuiRunPorts } from "./run/yui-run-test-ports";
 
 vi.mock("../../../tauri-env", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../tauri-env")>()),
@@ -33,6 +34,7 @@ function windowTools(relationsEnabled = false) {
       subscribe: vi.fn(),
     },
     threads: { threads: () => [] },
+    run: stubYuiRunPorts(),
   });
 }
 
@@ -60,6 +62,7 @@ describe("builtin-client-tools.json", () => {
       "yui_tool_describe",
       "yui_tool_call",
       "plugin_skill",
+      "yui_run",
     ]);
     expect(tools.onDemand.map((tool) => tool.name)).toEqual([
       "threads_list",

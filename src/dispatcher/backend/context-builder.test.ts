@@ -514,6 +514,38 @@ describe("buildClientContext — milestone forwarding", () => {
     expect(client.trigger.milestone).toEqual({ name: "first_activity", local_time: "08:12" });
   });
 
+  it("forwards the payload's last_together and drops a non-numeric one", () => {
+    const numeric = buildClientContext(
+      CTX,
+      milestoneEnv({
+        name: "first_activity",
+        local_time: "08:12",
+        last_together: 1_717_000_000_000,
+      }),
+    );
+    expect(numeric.trigger.milestone).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: 1_717_000_000_000,
+    });
+
+    const nulled = buildClientContext(
+      CTX,
+      milestoneEnv({ name: "first_activity", local_time: "08:12", last_together: null }),
+    );
+    expect(nulled.trigger.milestone).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: null,
+    });
+
+    const invalid = buildClientContext(
+      CTX,
+      milestoneEnv({ name: "first_activity", local_time: "08:12", last_together: "08:00" }),
+    );
+    expect(invalid.trigger.milestone).toEqual({ name: "first_activity", local_time: "08:12" });
+  });
+
   it("carries drained signal groups on a milestone turn", () => {
     const client = buildClientContext(
       CTX,
