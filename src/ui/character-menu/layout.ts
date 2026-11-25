@@ -66,10 +66,7 @@ export function planMenu(input: {
 /** A column of `rows` pills, top of the first to bottom of the last (px). */
 export const columnHeight = (rows: number): number => rows * ROW_PX - GRID_PX;
 
-/**
- * The columns' shared top in her box's px (0 = her window top, y down): at her head, else
- * 8px above the nearer bottom edge; `growUp` is how far her window grows upward to keep 8px above it.
- */
+/** The columns' shared top in her box's px, and how far her window grows upward to keep it 8px below its top. */
 export function planTop(input: {
   head: number;
   height: number;

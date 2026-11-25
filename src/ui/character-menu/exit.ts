@@ -18,12 +18,10 @@ export function createExit(): {
   /** Drops the running exit: its `done` never runs. */
   cancel(): void;
 } {
-  let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let off = (): void => {};
 
   function cancel(): void {
-    generation++;
     clearTimeout(timer);
     off();
     off = () => {};
@@ -31,16 +29,14 @@ export function createExit(): {
 
   function run(els: readonly Element[], done: () => void): void {
     cancel();
-    const current = generation;
     const waiting = new Set<EventTarget>(els);
     const finish = (): void => {
-      if (current !== generation) return;
       cancel();
       done();
     };
     const onEnd = (e: Event): void => {
-      if (current !== generation || (e as TransitionEvent).propertyName !== "opacity") return;
-      if (e.target && waiting.delete(e.target) && waiting.size === 0) finish();
+      if ((e as TransitionEvent).propertyName !== "opacity" || !e.target) return;
+      if (waiting.delete(e.target) && waiting.size === 0) finish();
     };
     for (const el of els) el.addEventListener("transitionend", onEnd);
     off = () => {
