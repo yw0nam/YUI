@@ -52,6 +52,12 @@ export interface SettingRow {
   factory(storage: PersistedStorage<any>): StoreGetter;
   /** Extra rule the store cannot express, judged against the document the patch produces. */
   check?(document: unknown): boolean;
+  /** Label key of each enum value, as the settings window names it. */
+  valueLabels?: Readonly<Record<string, string>>;
+  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text. */
+  unit?: { per: number; suffixKey: string };
+  /** Label key naming a 0-based index as the settings window does, `{n}` its 1-based number. */
+  ordinalKey?: string;
 }
 
 type RowSpec = Omit<SettingRow, "read">;
