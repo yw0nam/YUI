@@ -1,9 +1,10 @@
 /**
  * come-along — one settings window's session on its pet window. On the window's first stage slot
  * she leaves her spot, travels onto the slot and docks: as a native child where the shell links one,
- * else by following each later slot herself. A null slot or the close sends her home. She walks on
- * her own monitor, vanishes and lands across monitors or over a long way, and fades under reduced
- * motion.
+ * else by following each later slot herself, then plays one entry clip of her last backend emotion's
+ * Entry family. A null slot or the close sends her home. She is picked up and carried on her own
+ * monitor, vanishes and lands across monitors or over a long way, and fades under reduced motion.
+ * An edge entry plays with her hips pinned beyond her window's right edge (the stage peek pin).
  *
  * Whoever moves her owns her: a drag or an agent move ends the session where she is dropped, and
  * the window's later slots are ignored until it minimises or closes; a drag or agent command
@@ -14,7 +15,7 @@
  * probability, the same opt-out as a drag at the open, else she comes along and sulks on the stage.
  */
 
-import type { StageConfig } from "../../config/validators/avatar/types";
+import type { EdgeEntry, StageConfig } from "../../config/validators/avatar/types";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import {
   clampToWorkArea,
@@ -27,12 +28,14 @@ import type { FrameWindow, Travel } from "../../io/window/geometry/travel-frame"
 import { latestOnly } from "../../io/window/latest-only";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import { peekTargetPx } from "../../renderer/geometry/probe/perch-geometry";
 import type { HoldOptions } from "../locomotion/hold/holds";
-import { WALK_MOTION_ID, WALK_YAW_EASE_MS, WALK_YAW_RAD } from "../locomotion/walk/walker";
+import { pickEntry } from "./entry-pick";
 
 const log = createLogger("come-along");
 
 const SULK_MOTION_ID = "sulk";
+const DRAG_MOTION_ID = "drag";
 
 /** Slow at the start, faster through the middle, slow again on arrival. */
 const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
@@ -44,6 +47,9 @@ type SessionRecord = { home: Home } | { stays: true };
 
 /** Her window's frame where she left her spot, in logical points. */
 type Home = Point & { width: number; height: number };
+
+/** Arms the stage peek pin for a move, eased in over `easeMs` when given. */
+type ArmPin = (easeMs?: number) => void;
 
 export interface ComeAlongDeps {
   /** The settings window's label, which keys what `storage` keeps. */
@@ -67,7 +73,10 @@ export interface ComeAlongDeps {
     | "onTick"
     | "playMotion"
     | "getCurrentMotion"
-    | "setBodyYaw"
+    | "getCurrentMotionTime"
+    | "setPeekTarget"
+    | "setMotionMirror"
+    | "getPerchProbe"
     | "getCharacterAnchor"
     | "vanish"
     | "appear"
@@ -84,7 +93,7 @@ export interface ComeAlongDeps {
   stage(): StageConfig;
   /** The last backend emotion, neutral once older than `decayMs`. */
   lastEmotion(decayMs: number): string;
-  /** A draw in [0, 1) for the stay roll. */
+  /** A draw in [0, 1) for the stay roll and the entry pick. */
   random(): number;
 }
 
@@ -107,6 +116,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
   let stopTick: (() => void) | null = null;
   // A vanish left her canvas invisible, and no land or appear has shown her since.
   let hidden = false;
+  // Each Entry family's last played clip, for this window's memory only.
+  const lastClips = new Map<string, string>();
+  // The stage peek pin is armed, and the watcher that releases it once its clip plays.
+  let pinned = false;
+  let stopRelease: (() => void) | null = null;
 
   /** Stops whatever move runs and returns the id of the one that takes over. */
   const takeOver = (): number => {
@@ -158,8 +172,35 @@ export function createComeAlong(deps: ComeAlongDeps): {
     void renderer.appear();
   }
 
-  /** Moves her window to `to`: a walk, else a vanish across monitors or a long way, else a fade. */
-  async function travel(id: number, to: Point): Promise<void> {
+  /** Runs `frame` with the elapsed ms on each tick until it returns true or a takeover stops it. */
+  function tickUntil(frame: (elapsedMs: number) => boolean): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let elapsedMs = 0;
+      let off = (): void => {};
+      stopTick = () => {
+        off();
+        stopTick = null;
+        resolve();
+      };
+      off = renderer.onTick(({ dt }) => {
+        elapsedMs += dt * 1000;
+        if (frame(elapsedMs)) stopTick?.();
+      });
+    });
+  }
+
+  /** She is picked up and held still; no VRM ticks the clock, so none holds her. */
+  async function pickUp(): Promise<void> {
+    renderer.playMotion({ id: DRAG_MOTION_ID });
+    const holdMs = renderer.getCharacterAnchor() ? deps.stage().pickup_hold_ms : 0;
+    if (holdMs > 0) await tickUntil((elapsedMs) => elapsedMs >= holdMs);
+  }
+
+  /**
+   * Moves her window to `to`: a carry, else a vanish across monitors or a long way, else a fade.
+   * `arm` pins her for an edge entry once she sets off, or while she is hidden.
+   */
+  async function travel(id: number, to: Point, arm?: ArmPin): Promise<void> {
     try {
       const [{ at: from, size }, monitors] = await Promise.all([
         read(),
@@ -168,28 +209,35 @@ export function createComeAlong(deps: ComeAlongDeps): {
       if (id !== move) return;
       const distance = Math.hypot(to.x - from.x, to.y - from.y);
       const win = locomotion.frame.frameWindow();
-      if (distance < 1) return win.setPositionLogical(to.x, to.y);
+      if (distance < 1) {
+        arm?.();
+        return win.setPositionLogical(to.x, to.y);
+      }
       const stage = deps.stage();
       const on = monitorAtLogical(monitors, from.x + size.width / 2, from.y + size.height / 2);
       const crosses =
         !on || monitorAtLogical(monitors, to.x + size.width / 2, to.y + size.height / 2) !== on;
       const reduced = deps.reducedMotion();
       if (!reduced && !crosses && distance <= stage.carry_full_pt) {
-        // A walk that took over mid-vanish shows her before she sets off.
+        // A carry that took over mid-vanish shows her before she sets off.
         show();
-        return walkOver(
+        return carryOver(
           id,
           from,
           to,
           stage.carry_ms + stage.carry_extra_ms * (distance / stage.carry_full_pt),
+          arm,
         );
       }
       const mode = reduced ? "fade" : "vanish";
       const startedMs = performance.now();
       deps.hitTest.setMoving(true);
+      if (mode === "vanish") await pickUp();
+      if (id !== move) return;
       hidden = true;
       await renderer.vanish();
       if (id !== move) return;
+      arm?.();
       await win.setPositionLogical(to.x, to.y);
       if (id !== move) return;
       hidden = false;
@@ -210,56 +258,98 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
   }
 
-  /** Walks her window to `to` over the parked travel frame; resolves on arrival or once stopped. */
-  async function walkOver(id: number, from: Point, to: Point, durationMs: number): Promise<void> {
+  /**
+   * Picks her up and carries her window to `to` over the parked travel frame, facing front;
+   * resolves on arrival or once stopped. She arrives still in the `drag` motion.
+   */
+  async function carryOver(
+    id: number,
+    from: Point,
+    to: Point,
+    durationMs: number,
+    arm?: ArmPin,
+  ): Promise<void> {
     const parked = await locomotion.widen([to]);
     if (id !== move) {
       await parked.end();
       return;
     }
-    renderer.playMotion({ id: WALK_MOTION_ID });
-    renderer.setBodyYaw(Math.sign(to.x - from.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.hitTest.setMoving(true);
+    await pickUp();
+    if (id !== move) {
+      await parked.end();
+      return;
+    }
+    arm?.(durationMs);
     const startedMs = performance.now();
     let frames = 0;
-    await new Promise<void>((resolve) => {
-      let elapsedMs = 0;
-      let off = (): void => {};
-      stopTick = () => {
-        off();
-        stopTick = null;
-        resolve();
-      };
-      off = renderer.onTick(({ dt }) => {
-        elapsedMs += dt * 1000;
-        frames += 1;
-        const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
-        void parked.win
-          .setPositionLogical(
-            Math.round(from.x + (to.x - from.x) * p),
-            Math.round(from.y + (to.y - from.y) * p),
-          )
-          .catch((err) => log.warn("come_along_move_failed", { error: String(err) }));
-        if (elapsedMs >= durationMs) stopTick?.();
-      });
+    await tickUntil((elapsedMs) => {
+      frames += 1;
+      const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
+      void parked.win
+        .setPositionLogical(
+          Math.round(from.x + (to.x - from.x) * p),
+          Math.round(from.y + (to.y - from.y) * p),
+        )
+        .catch((err) => log.warn("come_along_move_failed", { error: String(err) }));
+      return elapsedMs >= durationMs;
     });
-    // Wall time against the curve's time shows a walk the renderer paused (a hidden document).
+    // Wall time against the curve's time shows a carry the renderer paused (a hidden document).
     log.info("come_along_move", {
-      mode: "walk",
+      mode: "carry",
       from,
       to,
       ms: Math.round(durationMs),
       wallMs: Math.round(performance.now() - startedMs),
       frames,
     });
-    if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
-    renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     await parked.end();
   }
 
-  /** Stops her move and lets her go: no dock, no home, no hold. */
+  /** Arms the stage peek pin for an edge entry: hips `inset` × her height past her window's right edge. */
+  function armEdge(edge: EdgeEntry, windowWidth: number, easeMs?: number): void {
+    const probe = renderer.getPerchProbe();
+    if (!probe) return;
+    renderer.setMotionMirror(false);
+    pinned = renderer.setPeekTarget({
+      targetXpx: peekTargetPx(windowWidth, "left", probe.charHpx, edge.inset),
+      ...(easeMs !== undefined && { easeMs }),
+      holdsPosture: false,
+    });
+  }
+
+  /** Releases the pin once `clip` stops playing, or hands her to idle at its `play_ms`. */
+  function watchRelease(clip: string, edge: EdgeEntry): void {
+    const release = (idle: boolean): void => {
+      unpin(false);
+      if (idle) renderer.playMotion(null);
+      renderer.setPeekTarget(
+        null,
+        deps.reducedMotion() ? undefined : { easeMs: deps.stage().edge_release_ms },
+      );
+    };
+    const off = renderer.onTick(() => {
+      if (renderer.getCurrentMotion()?.id !== clip) return release(false);
+      const playedS = renderer.getCurrentMotionTime();
+      if (edge.play_ms !== undefined && playedS !== null && playedS * 1000 >= edge.play_ms) {
+        release(true);
+      }
+    });
+    stopRelease = off;
+  }
+
+  /** Stops the release watcher, and with `snap` clears an armed pin at once. */
+  function unpin(snap: boolean): void {
+    stopRelease?.();
+    stopRelease = null;
+    if (snap && pinned) renderer.setPeekTarget(null);
+    pinned = false;
+  }
+
+  /** Stops her move and lets her go: no dock, no home, no hold, no pin. */
   function letGo(): void {
     takeOver();
+    unpin(true);
     docked = null;
     home = null;
     locomotion.hold("come-along", false);
@@ -295,7 +385,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
     };
     if (deps.isBusy()) return stay("come_along_stayed");
     const stage = deps.stage();
-    const angry = deps.lastEmotion(stage.emotion_decay_min * 60_000) === "angry";
+    const emotion = deps.lastEmotion(stage.emotion_decay_min * 60_000);
+    const angry = emotion === "angry";
     if (angry && deps.random() < stage.stay_chance) {
       renderer.playMotion({ id: SULK_MOTION_ID });
       return stay("come_along_sulked");
@@ -316,6 +407,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     const { at, size } = await read();
     if (id !== move) return;
     const target = dockOrigin(rect, size);
+    let entry: { family: string; clip: string; edge?: EdgeEntry } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
       await locomotion.frame.frameWindow().setPositionLogical(target.x, target.y);
@@ -323,7 +415,12 @@ export function createComeAlong(deps: ComeAlongDeps): {
       // A trip home that this window interrupted keeps the spot she left from.
       home ??= { ...at, ...size };
       store({ home });
-      await travel(id, target);
+      if (!angry) {
+        const picked = pickEntry(stage.entry_families, emotion, lastClips, deps.random);
+        entry = { ...picked, edge: stage.edge_entries[picked.clip] };
+      }
+      const edge = entry?.edge;
+      await travel(id, target, edge && ((easeMs) => armEdge(edge, size.width, easeMs)));
     }
     if (id !== move) return;
     let native = false;
@@ -345,6 +442,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
       size,
     });
     if (angry) renderer.playMotion({ id: SULK_MOTION_ID });
+    if (entry) {
+      renderer.playMotion({ id: entry.clip });
+      lastClips.set(entry.family, entry.clip);
+      if (pinned && entry.edge) watchRelease(entry.clip, entry.edge);
+    }
     await place();
   }
 
@@ -398,6 +500,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     store(null);
     if (was !== "on-stage") return;
     const id = takeOver();
+    unpin(true);
     const wasDocked = docked;
     docked = null;
     let arrived = false;
@@ -423,6 +526,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
     if (!arrived) return;
     log.info("come_along_home");
+    renderer.playMotion(null);
     await locomotion.drop({ landOnSeam: true });
   }
 

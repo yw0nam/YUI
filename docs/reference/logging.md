@@ -254,7 +254,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `come-along` | `come_along_docked` | `native`, `slot`, `feet`, `origin`, `size` | She docked on the stage; `native` is whether the shell linked her as a child window, `feet` her feet's y in her window, `origin` and `size` her window's logical frame (`info` level). |
-| `come-along` | `come_along_move` | `mode`, `from`, `to`, `ms`, `wallMs?`, `frames?` | A move onto the stage or home ended. `mode` is `walk`, `vanish` (across monitors or over `stage.carry_full_pt`) or `fade` (reduced motion). A walk's `ms` is the curve's time and `wallMs` the time it took, longer while the renderer was paused; a vanish or fade's `ms` is the time it took (`info` level). |
+| `come-along` | `come_along_move` | `mode`, `from`, `to`, `ms`, `wallMs?`, `frames?` | A move onto the stage or home ended. `mode` is `carry`, `vanish` (across monitors or over `stage.carry_full_pt`) or `fade` (reduced motion). A carry's `ms` is the curve's time and `wallMs` the time it took, longer while the renderer was paused; a vanish or fade's `ms` is the time it took (`info` level). |
 | `come-along` | `come_along_placed` | `slot`, `origin`, `size`, `px?` | A new slot moved her; `px` marks a follow in the settings window's physical px (`info` level). |
 | `come-along` | `come_along_stayed` | none | A drag or an agent command ran when the settings window showed, so she stays for that session (`info` level). |
 | `come-along` | `come_along_sulked` | none | The last backend emotion was angry and the stay roll fell under `stage.stay_chance`, so she stays on the desktop and sulks for that session (`info` level). |
@@ -263,7 +263,7 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `come-along` | `come_along_home_gone` | `spot` | No monitor holds her spot any more, so she walks to the nearest floor (`info` level). |
 | `come-along` | `dock_attach_failed` | `error` | `window_dock_attach` rejected; she follows the slot herself and stays above other windows (`warn` level). |
 | `come-along` | `dock_detach_failed` | `error` | `window_dock_detach` rejected (`warn` level). |
-| `come-along` | `come_along_move_failed` | `error` | A walk step's move threw (`warn` level). |
+| `come-along` | `come_along_move_failed` | `error` | A carry step's move threw (`warn` level). |
 | `come-along` | `come_along_place_failed` | `error` | Placing her on a new slot threw (`warn` level). |
 | `come-along` | `come_along_store_failed` | `error` | Session storage refused her home or opt-out, so a reload forgets it (`warn` level). |
 | `wire-come-along` | `come_along_failed` | `error` | A start or a walk home threw; she stays where she is and the next slot starts afresh (`warn` level). |

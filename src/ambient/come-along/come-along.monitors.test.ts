@@ -99,7 +99,10 @@ function cycle(at = { x: -48, y: 860 }) {
       },
       playMotion: () => {},
       getCurrentMotion: () => null,
-      setBodyYaw: () => {},
+      getCurrentMotionTime: () => null,
+      setPeekTarget: () => true,
+      setMotionMirror: () => {},
+      getPerchProbe: () => null,
       getCharacterAnchor: () => ({ x: 100, y: FEET }),
       vanish: async () => {
         events.push("vanish");
