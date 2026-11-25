@@ -1,5 +1,4 @@
 import type { FillerLang } from "../../config/validators/filler";
-import type { ScreenSource } from "../../contract";
 import { createActiveHoursSettings } from "../active-hours/active-hours-settings";
 import { type BasePace, createBasePaceSettings } from "../active-hours/base-pace-settings";
 import type { Span } from "../active-hours/spans";
@@ -52,8 +51,6 @@ export interface SettingRow {
   read(stores: SettingsStores): unknown;
   write(stores: SettingsStores, value: unknown): void;
   factory(storage: PersistedStorage<any>): StoreGetter;
-  /** Extra rule the store cannot express, judged against the document the patch produces. */
-  check?(document: unknown): boolean;
   /** Label key of each enum value, as the settings window names it. */
   valueLabels?: Readonly<Record<string, string>>;
   /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text (`oneKey` for exactly 1). */
@@ -391,37 +388,22 @@ export const ROWS: readonly SettingRow[] = [
     factory: (storage) => createScreenshotSettings({ storage }),
   }),
   row({
-    path: "privacy.screen_source.kind",
+    path: "privacy.screen_display",
     store: "screenshotSettings",
-    field: ["source", "kind"],
+    field: ["source"],
     scope: "global",
     tier: "allow",
     labelKey: "screenshot.source_label",
-    write: (stores, value) => {
-      const source = stores.screenshotSettings.get().source;
-      stores.screenshotSettings.setSource({ ...source, kind: value } as ScreenSource);
+    toField: (index) => ({ kind: "monitor", index }),
+    // A window or browser tab source names no display.
+    read: (stores) => {
+      const { source } = stores.screenshotSettings.get();
+      return source.kind === "monitor" ? source.index : null;
     },
-    valueLabels: {
-      monitor: "screenshot.kind_monitor",
-      window: "screenshot.kind_window",
-      browser_tab: "screenshot.kind_browser_tab",
-    },
-    factory: (storage) => createScreenshotSettings({ storage }),
-  }),
-  row({
-    path: "privacy.screen_source.index",
-    store: "screenshotSettings",
-    field: ["source", "index"],
-    scope: "global",
-    tier: "allow",
-    labelKey: "screenshot.source_label",
-    write: (stores, value) => {
-      const source = stores.screenshotSettings.get().source;
-      stores.screenshotSettings.setSource({ ...source, index: value } as ScreenSource);
-    },
+    write: (stores, value) =>
+      stores.screenshotSettings.setSource({ kind: "monitor", index: value as number }),
     ordinalKey: "screenshot.display",
     factory: (storage) => createScreenshotSettings({ storage }),
-    check: (document) => getIn(document, ["privacy", "screen_source", "kind"]) === "monitor",
   }),
   row({
     path: "privacy.screen_watch.enabled",
@@ -442,6 +424,7 @@ export const ROWS: readonly SettingRow[] = [
     labelKey: "screen.prev_dwell_label",
     write: (stores, value) => stores.screenKnobSettings.set({ prev_dwell_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
+    zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -453,6 +436,7 @@ export const ROWS: readonly SettingRow[] = [
     labelKey: "screen.settle_label",
     write: (stores, value) => stores.screenKnobSettings.set({ settle_ms: value as number }),
     unit: { per: 1_000, suffixKey: "screen.seconds_suffix" },
+    zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -464,6 +448,7 @@ export const ROWS: readonly SettingRow[] = [
     labelKey: "screen.long_session_label",
     write: (stores, value) => stores.screenKnobSettings.set({ long_session_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
+    zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -474,7 +459,8 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "screen.recent_cap_label",
     write: (stores, value) => stores.screenKnobSettings.set({ recent_cap: value as number }),
-    unit: { per: 1, suffixKey: "screen.count_suffix" },
+    unit: { per: 1, suffixKey: "screen.count_suffix", oneKey: "settings_request.entry" },
+    zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -510,6 +496,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "reactions.rate_tier2_label",
     write: (stores, value) => stores.guardrailsSettings.set({ tier2_max: value as number }),
+    zeroIsDefault: true,
     factory: (storage) => createGuardrailsSettings({ storage }),
   }),
   row({
@@ -520,6 +507,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "reactions.rate_urgent_label",
     write: (stores, value) => stores.guardrailsSettings.set({ urgent_max: value as number }),
+    zeroIsDefault: true,
     factory: (storage) => createGuardrailsSettings({ storage }),
   }),
   row({
@@ -531,6 +519,7 @@ export const ROWS: readonly SettingRow[] = [
     labelKey: "reactions.rate_addressed_label",
     write: (stores, value) =>
       stores.guardrailsSettings.set({ addressed_chain_max: value as number }),
+    zeroIsDefault: true,
     factory: (storage) => createGuardrailsSettings({ storage }),
   }),
   row({

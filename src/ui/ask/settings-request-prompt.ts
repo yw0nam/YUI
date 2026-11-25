@@ -5,6 +5,7 @@ import type { SettingsChange } from "../../settings/agent-access/document";
 import { ROWS, type SettingRow } from "../../settings/agent-access/rows";
 import { t } from "../i18n";
 
+// A why is one sentence; 200 code points keep the card readable at a glance, as the push placeholder cap does.
 const WHY_MAX = 200;
 
 /** The prompt renders as Markdown, so every ASCII punctuation mark is backslash-escaped. */
@@ -15,13 +16,17 @@ function plain(text: string): string {
 /** A value as the row's control in the settings window shows it. */
 function value(row: SettingRow | undefined, v: unknown): string {
   if (typeof v === "boolean") return t(v ? "settings_request.on" : "settings_request.off");
-  const label = row?.valueLabels?.[String(v)];
-  if (label) return t(label);
-  if (typeof v === "number" && row?.ordinalKey) return t(row.ordinalKey, { n: v + 1 });
-  if (typeof v === "number" && row?.unit) {
-    return t("settings_request.amount", { n: v / row.unit.per, unit: t(row.unit.suffixKey) });
+  if (v === null) return t("settings_request.none");
+  if (row?.valueLabels && Object.hasOwn(row.valueLabels, String(v))) {
+    return t(row.valueLabels[String(v)]!);
   }
-  return plain(String(v));
+  if (typeof v !== "number" || !row) return plain(String(v));
+  if (v === 0 && row.zeroIsDefault) return t("settings_request.default");
+  if (row.ordinalKey) return t(row.ordinalKey, { n: v + 1 });
+  if (!row.unit) return String(v);
+  const n = Math.round((v / row.unit.per) * 10) / 10;
+  const unit = t(n === 1 && row.unit.oneKey ? row.unit.oneKey : row.unit.suffixKey);
+  return t("settings_request.amount", { n, unit });
 }
 
 export function settingsRequestPrompt(

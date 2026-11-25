@@ -41,21 +41,21 @@ export function applyPatch(stores: SettingsStores, patch: object): PatchResult {
       direct[path] = `error: unknown ${path}`;
       continue;
     }
+    if (JSON.stringify(row.read(stores)) === JSON.stringify(leaf.value)) {
+      direct[path] = "ok";
+      continue;
+    }
     if (leaf.value === null) {
       if (!row.nullable) {
         direct[path] = `error: invalid ${path}`;
         continue;
       }
-      if (row.read(stores) !== null) row.write(stores, null);
+      row.write(stores, null);
       direct[path] = "ok";
       continue;
     }
-    if (!validate(row, stores, leaf.value) || row.check?.(document) === false) {
+    if (!validate(row, stores, leaf.value)) {
       direct[path] = `error: invalid ${path}`;
-      continue;
-    }
-    if (JSON.stringify(row.read(stores)) === JSON.stringify(leaf.value)) {
-      direct[path] = "ok";
       continue;
     }
     if (row.tier === "allow") {
