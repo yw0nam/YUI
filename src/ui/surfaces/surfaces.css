@@ -26,7 +26,8 @@
 
 /* ── chip column ──
    A full-width strip at right-shoulder height: the padding keeps the chips beside the
-   character while the strip's right edge anchors their lists inside the window. */
+   character while the strip's right edge anchors their lists inside the window. Over the
+   bubble or an Ask card, chip-column.ts moves it up and caps the rows that still do not fit. */
 .yui-chip-column {
   position: absolute;
   top: 30%;
@@ -37,6 +38,42 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.4rem;
+  pointer-events: none;
+  /* The chips' narrow rules query the column's own width, inside its padding. */
+  container-type: inline-size;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+.yui-chip-column .is-capped,
+.yui-chip-column > .yui-sigchips:not(:has(> [data-chip-count]:not(.is-capped))) {
+  display: none;
+}
+/* The "+N" row of the capped rows, in the signal pill's look; the column takes no clicks. */
+.yui-chip-column__fold {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--yui-sigchip-h);
+  padding: 0 0.66rem;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+}
+/* While the Character menu is open, the column fades out of its way and takes no hits. */
+.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    visibility 0s linear var(--yui-dur-fast);
+}
+.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column * {
   pointer-events: none;
 }
 .yui-chip-column > .yui-deleg,
@@ -64,6 +101,9 @@
 
 /* prefers-reduced-motion: soften transitions to opacity-only, drop choreography (principle ⑤) */
 @media (prefers-reduced-motion: reduce) {
+  .yui-chip-column {
+    transition-property: opacity;
+  }
   .yui-bubble,
   .yui-input {
     transition-duration: var(--yui-dur-fast) !important;

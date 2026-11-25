@@ -184,6 +184,7 @@ export function createDelegationChip({
       labelEl.textContent = lostLabel(state);
       chipBtn.setAttribute("aria-label", labelEl.textContent);
       countEl.textContent = "";
+      el.dataset.chipCount = "1";
       show();
       return;
     }
@@ -200,6 +201,7 @@ export function createDelegationChip({
       running === 1 ? t("deleg.chip_running_one") : t("deleg.chip_running", { n: running });
     chipBtn.setAttribute("aria-label", labelEl.textContent);
     countEl.textContent = String(running);
+    el.dataset.chipCount = String(running);
     if (listOpen) renderDelegationRows(rowsEl, items, now());
     show();
     // A chip already visible from the lost state still needs the timer the lost branch cleared.

@@ -2,13 +2,17 @@
 export const BUBBLE =
   ".yui-ui:not(:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]), .yui-cmd-list:not([hidden]))) .yui-bubble.is-visible";
 
+/** The chip column, which takes no hits while the Character menu is open. */
+const CHIP_COLUMN = ".yui-ui:not(:has(> .yui-cmenu:not([hidden]))) .yui-chip-column";
+
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
  * stays click-through. Of the bubble, the box (a click completes the line), the buttons on its edge,
  * the speech action button under the text, and the backlog's toggle and open panel are targets; the
  * area around them passes through to the character. The status pill takes them on its capture
- * button and on its action button while it offers one. The Threads chip and the Ask card take
- * them while they show, and the Character menu on its pills alone, but for a column or a menu leaving.
+ * button and on its action button while it offers one. The chips take them while they show and
+ * the Character menu is closed, the Ask card while it shows, and the Character menu on its pills
+ * alone, but for a column or a menu leaving.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
@@ -21,12 +25,12 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   `${BUBBLE} .yui-bubble__backlog:not([hidden])`,
   ".yui-status.is-visible .yui-status__capture:not([hidden])",
   ".yui-status.is-visible .yui-status__action:not([hidden])",
-  ".yui-deleg.is-visible .yui-deleg__chip",
-  ".yui-deleg.is-visible .yui-deleg__list.is-open",
-  ".yui-sigchips.is-visible .yui-sigchip",
-  ".yui-sigchips.is-visible .yui-sigchip__more",
-  ".yui-sigdetails",
-  ".yui-threadchip:not([hidden])",
+  `${CHIP_COLUMN} .yui-deleg.is-visible .yui-deleg__chip`,
+  `${CHIP_COLUMN} .yui-deleg.is-visible .yui-deleg__list.is-open`,
+  `${CHIP_COLUMN} .yui-sigchips.is-visible .yui-sigchip`,
+  `${CHIP_COLUMN} .yui-sigchips.is-visible .yui-sigchip__more`,
+  `${CHIP_COLUMN} .yui-sigdetails`,
+  `${CHIP_COLUMN} .yui-threadchip:not([hidden])`,
   ".yui-ask-card:not([hidden])",
   ".yui-cmenu:not([hidden]):not(.is-closing) .yui-cmenu__col:not(.is-leaving) .yui-cmenu__pill",
 ] as const;

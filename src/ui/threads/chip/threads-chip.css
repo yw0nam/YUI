@@ -121,19 +121,13 @@
   display: none;
 }
 
-/* The column is half the window less 3.5rem (surfaces.css): these widths leave it 8.5rem and 4.5rem. */
-@media (width < 24rem) {
-  .yui-threadchip__label,
-  .yui-threadchip__mark + .yui-threadchip__mark {
-    display: none;
-  }
-}
-
-@media (width < 16rem) {
+/* In a chip column under 9rem (surfaces.css), the chip shows its count alone; its label stays its name. */
+@container (width < 9rem) {
   .yui-threadchip {
     padding-right: 0.25rem;
   }
 
+  .yui-threadchip__label,
   .yui-threadchip__marks {
     display: none;
   }

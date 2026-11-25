@@ -67,6 +67,7 @@ import { createStatusPill } from "../ui/chips/status-pill";
 import { createTurnNotice } from "../ui/chips/turn-notice";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
+import { attachChipColumn } from "../ui/surfaces/chip-column";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { wireMessageSurfaces } from "../ui/surfaces/wire";
 
@@ -405,6 +406,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         chatKeySettings: settingsStores.chatKeySettings,
       }),
     );
+    register(attachChipColumn(surfaces.el));
     if (import.meta.env.DEV) {
       try {
         await wireDevGlobals({

@@ -55,7 +55,11 @@ describe("createDelegationChip", () => {
     setLocale("ko");
     clock = NOW;
     mount = document.createElement("div");
-    document.body.appendChild(mount);
+    mount.className = "yui-chip-column";
+    const overlay = document.createElement("div");
+    overlay.className = "yui-ui";
+    overlay.appendChild(mount);
+    document.body.appendChild(overlay);
   });
 
   afterEach(() => {
