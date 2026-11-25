@@ -1,22 +1,16 @@
-/**
- * The thread pane: its head, the transcript that scrolls on its own, and the answer area pinned
- * under it. The transcript draws afresh when the Thread changes and keeps a reader above the newest
- * entry in place; the answer area mounts again only when what it shows changed, so the field keeps
- * its focus, caret and draft.
- */
+/** The thread pane: its head and a transcript that redraws per Thread and keeps a reader above the newest entry in place. */
 
 import "./thread-pane.css";
 import { type RefObject, useLayoutEffect, useRef } from "react";
 import type { Thread, ThreadEntry } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
-import { getLocale, t } from "../../i18n";
+import { t } from "../../i18n";
 import { RefMount } from "../../ref-mount";
 import { CHECK_PATHS } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { entryMarkdown } from "./entry-markdown";
 import { Glyph } from "./glyph";
 import { relativeTime } from "./relative-time";
-import type { ThreadAnswers } from "./thread-answers";
 import { SourceLine, StateWord } from "./thread-meta";
 
 function speaker(entry: ThreadEntry, source: string): string {
@@ -95,7 +89,6 @@ export function ThreadPane({
   thread,
   opened,
   now,
-  answers,
   onRead,
   onBack,
 }: {
@@ -103,7 +96,6 @@ export function ThreadPane({
   /** Counts the opens; each starts a fresh transcript. */
   opened: number;
   now: number;
-  answers: ThreadAnswers;
   onRead(id: string): void;
   /** The narrow layout's way back to the list. */
   onBack(): void;
@@ -113,8 +105,6 @@ export function ThreadPane({
   useLayoutEffect(() => {
     if (!thread) reader.current = null;
   });
-  const ask = thread?.ask;
-  const sent = thread && ask ? answers.of(thread.id, ask.ask_id) : null;
   return (
     <article className="yui-threads-pane" aria-label={t("threads.pane_aria")}>
       {thread && (
@@ -151,13 +141,6 @@ export function ThreadPane({
             now={now}
             reader={reader}
           />
-          {ask && sent && (
-            <RefMount
-              className="yui-threads-pane__answer"
-              deps={[thread.id, JSON.stringify(ask), sent.error, sent.sending, getLocale()]}
-              mount={(host) => answers.mount(host, thread.id, ask, sent)}
-            />
-          )}
         </>
       )}
     </article>

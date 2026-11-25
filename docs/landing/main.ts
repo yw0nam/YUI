@@ -6,7 +6,7 @@ import "./resize";
 import { baseline, initializeBody } from "./character/body";
 import { setBaseline } from "./character/motion";
 import { startLoop } from "./loop";
-import { currentPhase, startSession, startStory } from "./story";
+import { startSession, startStory } from "./story";
 import { onTerminalPlaced, placeScene } from "./terminal";
 
 if (import.meta.env.DEV) {
@@ -16,5 +16,5 @@ setBaseline(baseline);
 onTerminalPlaced(startSession);
 placeScene();
 initializeBody();
-startLoop(currentPhase);
+startLoop();
 startStory();

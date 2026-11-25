@@ -1,6 +1,6 @@
 /** The text of a Threads tool result: the Thread rows, one Thread's conversation, and a search snippet. */
 
-import type { Ask, Thread, ThreadEntry } from "../../../../contract";
+import type { Thread, ThreadEntry } from "../../../../contract";
 import { oneLine } from "../../one-line";
 
 const LIST_LIMIT = 20;
@@ -30,10 +30,6 @@ function row(thread: Thread): string {
   ].join(" | ");
 }
 
-function asksPrompt(thread: Thread): string | undefined {
-  return thread.ask ? `  asks: ${oneLine(thread.ask.prompt)}` : undefined;
-}
-
 function lastLine(thread: Thread): string | undefined {
   const last = thread.entries.at(-1);
   if (!last) return undefined;
@@ -45,9 +41,7 @@ export function listText(threads: Thread[]): string {
   if (threads.length === 0) return "no threads";
   const shown = threads.slice(0, LIST_LIMIT);
   const lines = shown.flatMap((thread) =>
-    [row(thread), asksPrompt(thread), lastLine(thread)].filter(
-      (line): line is string => line !== undefined,
-    ),
+    [row(thread), lastLine(thread)].filter((line): line is string => line !== undefined),
   );
   const rest = threads.length - shown.length;
   return rest > 0 ? [...lines, `(${rest} more)`].join("\n") : lines.join("\n");
@@ -60,22 +54,12 @@ function entryText(entry: ThreadEntry): string {
     : entry.text;
 }
 
-function asksDetail(ask: Ask): string {
-  const parts = [oneLine(ask.prompt)];
-  if (ask.choices.length > 0) {
-    parts.push(`[choices: ${ask.choices.map((choice) => oneLine(choice.label)).join(", ")}]`);
-  }
-  if (ask.text) parts.push("[free text]");
-  return `asks: ${parts.join(" ")}`;
-}
-
-/** The threads_list result for one id: the header row, its newest entries oldest first, and the open ask. */
+/** The threads_list result for one id: the header row and its newest entries oldest first. */
 export function detailText(thread: Thread): string {
   const lines = [row(thread)];
   for (const entry of thread.entries.slice(-LIST_LIMIT)) {
     lines.push(`${entry.role} ${localTime(entry.at)}: ${entryText(entry)}`);
   }
-  if (thread.ask) lines.push(asksDetail(thread.ask));
   return lines.join("\n");
 }
 

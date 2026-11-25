@@ -28,12 +28,10 @@ function frame() {
   overlays();
   updateSteps(readBody());
   updateTerminal(currentStep());
-  guide(now, phase());
+  guide(now);
   renderer.render(scene, cam);
 }
 
-let phase = () => "intro";
-export function startLoop(readPhase: () => string) {
-  phase = readPhase;
+export function startLoop() {
   frame();
 }

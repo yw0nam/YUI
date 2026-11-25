@@ -7,7 +7,7 @@
 
 import "./threads-chip.css";
 import type { AccessRequest, ScreenRect, Thread } from "../../../contract";
-import { isUnseenWaiting } from "../../../io/threads/threads-waiting";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import type { DelegationChipSettingsStore } from "../../../settings/panels/delegation-chip-settings";
 import { holdToFold } from "../../chips/hold-to-fold";
 import { subscribe as subscribeLocale, t } from "../../i18n";
@@ -119,7 +119,7 @@ export function createThreadsChip({
   return {
     el,
     update(threads) {
-      waiting = threads.filter(isUnseenWaiting).sort((a, b) => b.updated_at - a.updated_at);
+      waiting = threads.filter(isWaiting).sort((a, b) => b.updated_at - a.updated_at);
       track(
         "thread",
         waiting.map((th) => th.id),

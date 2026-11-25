@@ -3,7 +3,7 @@ import { charH, rHips } from "../character/load";
 import { surfaces } from "../character/overlays";
 import { deskRect, LH, LW } from "../desk";
 import { readThreadsWindow } from "../session/threads-window";
-import { $, reduced, term, threadsWin } from "../shared/dom";
+import { $, reduced, term } from "../shared/dom";
 import { clamp, rect } from "../shared/math";
 import { readTerminal, seatPoint } from "../terminal";
 import { readGuide } from "./steps";
@@ -79,7 +79,7 @@ const hideArc = () => {
   arcOn = false;
   show(arc, false);
 };
-export function guide(now: number, phase: string) {
+export function guide(now: number) {
   const { step, idle } = readGuide(now);
   const body = readBody();
   const { dragging, target } = readTerminal();
@@ -115,23 +115,11 @@ export function guide(now: number, phase: string) {
   } else if (step === "session") {
     hideArc();
     const chipEl = surfaces.chipColumn.querySelector<HTMLElement>(".yui-threadchip");
-    const answer = threadsWin.querySelector(".yui-answer");
     if (!threadsOpen && chipEl && !chipEl.hidden) {
       const c = deskRect(chipEl);
       label("Click this", c.r + 12, (c.t + c.b) / 2, "right");
       ringOn(c, 3);
       ring.style.borderRadius = "999px";
-    } else if (threadsOpen && answer && phase === "asking") {
-      const picked = answer.querySelector('.yui-answer__choices [aria-pressed="true"]');
-      const send = answer.querySelector(".yui-answer__send");
-      const el =
-        picked && !(send as HTMLButtonElement).disabled
-          ? send
-          : answer.querySelector(".yui-answer__choices");
-      const r = deskRect(el!);
-      ring.style.borderRadius = "12px";
-      ringOn(r, 4);
-      label(el === send ? "Send it" : "Choose one", r.l - 12, (r.t + r.b) / 2, "left");
     } else {
       show(coach, false);
       ringOn(null);

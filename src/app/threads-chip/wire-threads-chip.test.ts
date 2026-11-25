@@ -40,8 +40,6 @@ function fakeClient(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    answer: async () => {},
-    seen: async () => {},
     read: async () => {},
     dispose: () => {},
     fire(next) {

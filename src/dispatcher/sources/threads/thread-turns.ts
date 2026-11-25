@@ -1,25 +1,24 @@
-/** thread-turns — diffs Thread snapshots and returns the signal groups a Thread turns level asks for, and the Threads whose ask closed. */
+/** thread-turns — diffs Thread snapshots and returns the signal groups a Thread turns level asks for, and the Threads that left input-required. */
 
 import type { SignalGroup, SignalItem, Thread, ThreadsSnapshot } from "../../../contract";
 import { oneLine } from "../../../io/chat/one-line";
 import { LAST_CUT } from "../../../io/chat/tools/threads/thread-text";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 
-export const THREAD_ASK = "thread.ask";
+export const THREAD_INPUT_REQUIRED = "thread.input_required";
 
 /** The signal `event_id` of a Thread's group. */
 export const threadEventId = (threadId: string): string => `thread:${threadId}`;
 
 type Seen = {
-  askIds: Set<string>;
-  openAskId?: string;
   state?: Thread["state"];
   entryCount: number;
 };
 
 function eventType(thread: Thread, seen: Seen, level: ThreadTurnsLevel): string | undefined {
   if (level === "notable") {
-    if (thread.ask && !seen.askIds.has(thread.ask.ask_id)) return THREAD_ASK;
+    if (thread.state === "input-required" && seen.state !== "input-required")
+      return THREAD_INPUT_REQUIRED;
     if (thread.state === "failed" && seen.state !== "failed") return "thread.failed";
   }
   if (level === "every") {
@@ -37,7 +36,6 @@ function groupOf(thread: Thread, event_type: string): SignalGroup {
     title: oneLine(thread.title),
     ...(thread.label && { label: oneLine(thread.label) }),
     state: thread.state,
-    ...(thread.ask && { ask: oneLine(thread.ask.prompt) }),
     ...(last && { last: { role: last.role, text: oneLine(last.text).slice(0, LAST_CUT) } }),
   };
   return {
@@ -54,11 +52,11 @@ function groupOf(thread: Thread, event_type: string): SignalGroup {
 }
 
 export function createThreadTurns(): {
-  /** Diffs `snapshot` against the last one seen: the groups `level` asks for, and the Threads whose open ask closed or that are gone. The first call is the baseline and returns both empty. */
+  /** Diffs `snapshot` against the last one seen: the groups `level` asks for, and the Threads that were input-required and are not now, or are gone. The first call is the baseline and returns both empty. */
   next(
     snapshot: ThreadsSnapshot,
     level: ThreadTurnsLevel,
-  ): { groups: SignalGroup[]; closed: string[] };
+  ): { groups: SignalGroup[]; stoppedWaiting: string[] };
 } {
   let seenById: Map<string, Seen> | undefined;
   return {
@@ -67,22 +65,18 @@ export function createThreadTurns(): {
       const previous = seenById ?? new Map<string, Seen>();
       seenById = new Map();
       const groups: SignalGroup[] = [];
-      const closed: string[] = [];
+      const stoppedWaiting: string[] = [];
       for (const thread of snapshot.threads) {
-        const seen = previous.get(thread.id) ?? { askIds: new Set(), entryCount: 0 };
+        const seen = previous.get(thread.id) ?? { entryCount: 0 };
         const type = baseline ? undefined : eventType(thread, seen, level);
         if (type) groups.push(groupOf(thread, type));
-        if (seen.openAskId && !thread.ask) closed.push(thread.id);
-        if (thread.ask) seen.askIds.add(thread.ask.ask_id);
-        seenById.set(thread.id, {
-          ...seen,
-          openAskId: thread.ask?.ask_id,
-          state: thread.state,
-          entryCount: thread.entry_count,
-        });
+        if (seen.state === "input-required" && thread.state !== "input-required")
+          stoppedWaiting.push(thread.id);
+        seenById.set(thread.id, { state: thread.state, entryCount: thread.entry_count });
       }
-      for (const [id, seen] of previous) if (seen.openAskId && !seenById.has(id)) closed.push(id);
-      return { groups, closed };
+      for (const [id, seen] of previous)
+        if (seen.state === "input-required" && !seenById.has(id)) stoppedWaiting.push(id);
+      return { groups, stoppedWaiting };
     },
   };
 }

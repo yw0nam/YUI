@@ -123,15 +123,15 @@ _Avoid_: level, tier, mood
 ### Threads
 
 **Thread**:
-One outside conversation a producer posts, with an id, source, state, entries, and at most one open Ask.
+One outside conversation a producer posts for the user to read, with an id, source, state, and entries; replying to its source is the backend agent's job.
 _Avoid_: session, ticket, inbox
 
 **Ask**:
-One question held open for the user: the one a Thread holds, or one the backend asks in a character's own chat over the push transport (an `ask` frame). It has an `ask_id`, a prompt, optional choices, and whether free text is accepted.
+One question held open for the user, which the backend asks in a character's own chat over the push transport (an `ask` frame). It has an `ask_id`, a prompt, optional choices, and whether free text is accepted.
 _Avoid_: prompt, request
 
 **Answer**:
-The user's reply to one Ask: a choice id, several choice ids for a multi-select Ask, text, both, or `release` to answer at the agent's own terminal. Over push, it travels as an `answer` frame.
+The user's reply to one Ask: a choice id, several choice ids for a multi-select Ask, text, or both. It travels as an `answer` frame.
 _Avoid_: reply, response
 
 **Backend command**:
@@ -147,7 +147,7 @@ A Thread in `input-required` that the user has not marked read since the produce
 _Avoid_: unread, pending
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Character menu's Threads and Terminal items, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
+The window `threads` where the user reads Threads and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Character menu's Threads and Terminal items, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail. An automatic open by a Thread reaction does not take keyboard focus.
 _Avoid_: inbox, panel, dashboard
 
 **Thread turns**:
@@ -162,7 +162,7 @@ The device-wide setting `yui.thread-reaction-thresholds`: the waiting count (Off
 _Avoid_: trigger (a Trigger is a turn's cause), summon
 
 **Threads chip**:
-The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests; tapping it opens the Threads window and starts a Thread reaction; it hides while that window is open.
+The pill in the main window's chip column that counts waiting Threads and access requests; tapping it opens the Threads window and starts a Thread reaction; it hides while that window is open.
 _Avoid_: badge, notification pill
 
 ### Terminal

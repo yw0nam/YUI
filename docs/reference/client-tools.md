@@ -35,8 +35,8 @@ Each row gives one tool's purpose, its arguments and result, the transports that
 The `threads_list` details:
 
 - By default it lists waiting Threads (`input-required`, not read). With `state: "all"`, it lists every Thread.
-- The list holds at most 20 rows, newest first, then `(N more)` when more Threads exist. Each row shows its open ask and its last entry, cut at 160 characters.
-- With `id`, it reads one Thread: its newest 20 entries, oldest first, with texts cut at 2000 characters, and its open ask.
+- The list holds at most 20 rows, newest first, then `(N more)` when more Threads exist. Each row shows its last entry, cut at 160 characters.
+- With `id`, it reads one Thread: its newest 20 entries, oldest first, with texts cut at 2000 characters.
 
 ## Declaration per transport
 

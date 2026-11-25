@@ -16,7 +16,6 @@ pub(in crate::agent_ingress) struct Server {
     stop: Option<oneshot::Sender<()>>,
     worker: Option<thread::JoinHandle<()>>,
     connections: Arc<Semaphore>,
-    pub(in crate::agent_ingress) store: Arc<crate::threads::store::ThreadStore>,
 }
 
 impl Server {
@@ -31,12 +30,11 @@ impl Server {
         let (stop, stopped) = oneshot::channel();
         let connections = Arc::new(Semaphore::new(server::CONNECTION_LIMIT));
         let capacity = connections.clone();
-        let store = Arc::new(crate::threads::store::ThreadStore::new(
+        let threads = Arc::new(crate::threads::store::ThreadStore::new(
             vec![],
             Box::new(|_| Ok(())),
             |_| {},
         ));
-        let threads = store.clone();
         let worker = thread::spawn(move || {
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -105,7 +103,6 @@ impl Server {
             stop: Some(stop),
             worker: Some(worker),
             connections,
-            store,
         }
     }
 

@@ -1,20 +1,14 @@
 /* The thread pane: reading first, the transcript owns the height and scrolls on its own.
    Tokens in ../../tokens.css. */
 
-/* The second size container: the pane's width tightens its paddings, its height drops the label line.
-   The answer area's row takes at most half the pane. */
+/* The second size container: the pane's width tightens its paddings, its height drops the label line. */
 .yui-threads-pane {
   container: pane / size;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) fit-content(50%);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-
-/* The answer area's host lays out nothing: the area is the pane's last row. */
-.yui-threads-pane__answer {
-  display: contents;
 }
 
 .yui-threads-pane__head {

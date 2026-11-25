@@ -221,7 +221,6 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `snapshot-feed` | `snapshot.listen_failed` | `event`, `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
 | `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
-| `wire-threads-window` | `thread_seen_failed` | `error` | `thread_seen` rejected, e.g. the ask closed before the pick reached the store; the chip keeps counting that Thread (`warn` level). |
 | `wire-threads-window` | `thread_read_failed` | `error` | `thread_read` rejected, e.g. the Thread expired before the click reached the store; the Thread keeps waiting (`warn` level). |
 | `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip leaves its open state (`error` level). |
 | `threads-presence` | `threads_focus_failed` | `error` | Bringing the shown window forward on a second open threw (`warn` level). |

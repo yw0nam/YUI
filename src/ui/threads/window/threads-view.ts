@@ -7,7 +7,7 @@ import "./threads-view.css";
 import { createElement, createRef } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { AskAnswer, ScreenRect, ThreadsSnapshot } from "../../../contract";
+import type { ScreenRect, ThreadsSnapshot } from "../../../contract";
 import type { ThreadsOpen, ThreadsTab } from "../../../io/bridge/settings-bridge";
 import type { ThreadTurnsLevel } from "../../../settings/threads/thread-turns-settings";
 import type { TabsHandle } from "../../controls/tabs";
@@ -34,7 +34,7 @@ const REFRESH_MS = 60_000;
 
 export interface ThreadsView {
   update(snapshot: ThreadsSnapshot): void;
-  /** Shows `tab` (Threads by default), resets the filters, selects `thread` or the Thread an open shows, grows out of `from` (window-local px) when there is one, and focuses a field unless `focus` is false. */
+  /** Shows `tab` (Threads by default), resets the filters, selects `thread` or the Thread an open shows, grows out of `from` (window-local px) when there is one, and focuses the selected row unless `focus` is false. */
   open(
     from: ScreenRect | null,
     tab?: ThreadsTab,
@@ -63,9 +63,6 @@ function backButton(): HTMLButtonElement {
 export function createThreadsView(deps: {
   mount: HTMLElement;
   now(): number;
-  /** Rejects with the store's error string. */
-  onAnswer(id: string, askId: string, answer: AskAnswer): Promise<void>;
-  onSeen(id: string, askId: string): void;
   onRead(id: string): void;
   onClose(): void;
   /** The stored choice of the list collapsed to the rail. */
@@ -107,8 +104,6 @@ export function createThreadsView(deps: {
     shell,
     focus: threadsTabFocus(threadsPanel),
     now: deps.now,
-    onAnswer: deps.onAnswer,
-    onSeen: deps.onSeen,
   });
   const terminal = deps.terminal({ ...shell, back: terminalBack });
   terminal.list.id = TERMINAL_LIST_ID;
@@ -162,9 +157,6 @@ export function createThreadsView(deps: {
       if (turns.current!.isOpen()) turns.current!.close();
       else if (!layout.escape()) deps.onClose();
     },
-    onPick: (index) => {
-      if (!turns.current!.isOpen()) current().pick?.(index);
-    },
     onMove: (delta) => {
       if (!turns.current!.isOpen()) current().move(delta);
     },
@@ -185,8 +177,7 @@ export function createThreadsView(deps: {
       threads.reset(opts.thread);
       tabs.current!.select(tab);
       await growOpen({ root, panel, content }, at, { jelly: opts.focus === false });
-      if (opts.focus === false) return;
-      if (!current().focusField?.()) layout.focusSelected();
+      if (opts.focus !== false) layout.focusSelected();
     },
     select(tab) {
       if (tabs.current!.selected() !== tab) tabs.current!.select(tab);

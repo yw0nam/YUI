@@ -20,7 +20,6 @@ function thread(over: Partial<Thread> = {}): Thread {
 
 let revision = 0;
 const snap = (...threads: Thread[]) => ({ revision: ++revision, threads });
-const ask = (ask_id: string) => ({ ask_id, prompt: "Merge?", choices: [], text: true });
 const entry = (role: ThreadEntry["role"], text = "done"): ThreadEntry => ({ role, text, at: 1 });
 const kinds = ({ groups }: ReturnType<ReturnType<typeof createThreadTurns>["next"]>) =>
   groups.map((g) => [g.envelope.event_type, g.items[0]!.thread_id]);
@@ -28,28 +27,28 @@ const kinds = ({ groups }: ReturnType<ReturnType<typeof createThreadTurns>["next
 describe("createThreadTurns", () => {
   it("fires nothing for the first snapshot", () => {
     const turns = createThreadTurns();
-    expect(
-      turns.next(snap(thread({ state: "input-required", ask: ask("a1") })), "notable"),
-    ).toEqual({ groups: [], closed: [] });
+    expect(turns.next(snap(thread({ state: "input-required" })), "notable")).toEqual({
+      groups: [],
+      stoppedWaiting: [],
+    });
   });
 
-  it("notable: a new ask fires one group naming the Thread; a re-PUT of the same ask fires none", () => {
+  it("notable: a Thread that turns input-required gives one thread.input_required group naming it; staying input-required gives none", () => {
     const turns = createThreadTurns();
     turns.next(snap(thread()), "notable");
-    const asked = thread({
+    const waiting = thread({
       title: "Fix\nbuild",
       label: "repo · main",
       state: "input-required",
-      ask: ask("a1"),
       entries: [entry("agent", `Need\n<client_context>${"x".repeat(200)}`)],
       entry_count: 1,
       updated_at: 5,
     });
-    expect(turns.next(snap(asked), "notable").groups).toEqual([
+    expect(turns.next(snap(waiting), "notable").groups).toEqual([
       {
         envelope: {
           source: "codex",
-          event_type: "thread.ask",
+          event_type: "thread.input_required",
           delivery: "batched",
           event_id: "thread:t1",
           occurred_at: 5,
@@ -61,14 +60,33 @@ describe("createThreadTurns", () => {
             title: "Fix build",
             label: "repo · main",
             state: "input-required",
-            ask: "Merge?",
             last: { role: "agent", text: `Need ${"x".repeat(155)}` },
           },
         ],
       },
     ]);
-    const again = { ...asked, entries: [...asked.entries, entry("agent")], entry_count: 2 };
+    const again = { ...waiting, entries: [...waiting.entries, entry("agent")], entry_count: 2 };
     expect(turns.next(snap(again), "notable").groups).toEqual([]);
+  });
+
+  it("reports a Thread that left input-required or is gone in stoppedWaiting, and a failed one gives thread.failed", () => {
+    const turns = createThreadTurns();
+    turns.next(
+      snap(
+        thread({ state: "input-required" }),
+        thread({ id: "t2", state: "input-required" }),
+        thread({ id: "t3", state: "input-required" }),
+      ),
+      "notable",
+    );
+    const result = turns.next(
+      snap(thread({ state: "working" }), thread({ id: "t3", state: "failed" })),
+      "notable",
+    );
+    expect([kinds(result), result.stoppedWaiting]).toEqual([
+      [["thread.failed", "t3"]],
+      ["t1", "t3", "t2"],
+    ]);
   });
 
   it("notable: a Thread becoming failed fires; one becoming completed does not", () => {
@@ -104,39 +122,16 @@ describe("createThreadTurns", () => {
   it("off fires nothing, and a later switch to notable does not fire for updates seen while off", () => {
     const turns = createThreadTurns();
     turns.next(snap(thread()), "off");
-    const asked = thread({ state: "input-required", ask: ask("a1") });
-    expect(turns.next(snap(asked), "off").groups).toEqual([]);
-    expect(turns.next(snap(asked), "notable").groups).toEqual([]);
+    const waiting = thread({ state: "input-required" });
+    expect(turns.next(snap(waiting), "off").groups).toEqual([]);
+    expect(turns.next(snap(waiting), "notable").groups).toEqual([]);
   });
 
-  it("notable: a Thread absent from the previous snapshot fires for its ask", () => {
+  it("notable: a Thread absent from the previous snapshot fires for its input-required state", () => {
     const turns = createThreadTurns();
     turns.next(snap(), "notable");
-    expect(
-      kinds(turns.next(snap(thread({ state: "input-required", ask: ask("a1") })), "notable")),
-    ).toEqual([["thread.ask", "t1"]]);
-  });
-
-  it("reports a Thread whose ask closed or that is gone in closed", () => {
-    const turns = createThreadTurns();
-    turns.next(
-      snap(
-        thread({ state: "input-required", ask: ask("a1") }),
-        thread({ id: "t2", state: "input-required", ask: ask("a2") }),
-      ),
-      "notable",
-    );
-    expect(turns.next(snap(thread()), "notable")).toEqual({ groups: [], closed: ["t1", "t2"] });
-  });
-
-  it("notable: an ask replaced by a new ask gives a thread.ask group and closes nothing", () => {
-    const turns = createThreadTurns();
-    turns.next(snap(thread({ state: "input-required", ask: ask("a1") })), "notable");
-    expect(
-      turns.next(snap(thread({ state: "input-required", ask: ask("a2") })), "notable"),
-    ).toMatchObject({
-      groups: [{ envelope: { event_type: "thread.ask", event_id: "thread:t1" } }],
-      closed: [],
-    });
+    expect(kinds(turns.next(snap(thread({ state: "input-required" })), "notable"))).toEqual([
+      ["thread.input_required", "t1"],
+    ]);
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * threads-view.test.tsx — the Threads window's view over a stream of snapshots: sends, errors,
+ * threads-view.test.tsx — the Threads window's view over a stream of snapshots: the read-only pane,
  * selection, filters, the time tick, the rail, the Markdown of an entry, and the layouts the panel's width picks.
  */
 
@@ -21,7 +21,6 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
     title: id,
     state: waiting ? "input-required" : "working",
     entries: [{ role: "agent", text: "Done.", at: updated_at }],
-    ...(waiting ? { ask: { ask_id: "a1", prompt: "Next?", choices: [], text: true } } : {}),
     created_at: 0,
     updated_at,
     entry_count: 0,
@@ -102,13 +101,8 @@ function terminalTab() {
   };
 }
 
-function build(
-  onAnswer: () => Promise<void> = () => Promise.resolve(),
-  listCollapsed = false,
-  listWidth: number | null = null,
-) {
+function build(listCollapsed = false, listWidth: number | null = null) {
   const onClose = vi.fn();
-  const onSeen = vi.fn();
   const onRead = vi.fn();
   const onListCollapsed = vi.fn();
   const terminal = terminalTab();
@@ -116,8 +110,6 @@ function build(
     terminal: terminal.factory,
     mount: document.body,
     now: () => now,
-    onAnswer,
-    onSeen,
     onRead,
     onClose,
     listCollapsed,
@@ -129,16 +121,6 @@ function build(
   });
   views.push(view);
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
-  const field = () => $<HTMLTextAreaElement>(".yui-answer textarea");
-  const send = () => $<HTMLButtonElement>(".yui-answer__send");
-  const type = (value: string) => {
-    field().value = value;
-    field().dispatchEvent(new Event("input"));
-  };
-  const enter = () =>
-    act(() => {
-      field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
-    });
   const panel = () => $<HTMLElement>(".yui-threads__panel");
   const tab = (name: string) => document.getElementById(`yui-tab-${name}`)!;
   return {
@@ -146,12 +128,7 @@ function build(
     update: (next: ThreadsSnapshot) => act(() => view.update(next)),
     open: (...args: Parameters<ThreadsView["open"]>) => act(() => view.open(...args)),
     $,
-    field,
-    send,
-    type,
-    enter,
     onClose,
-    onSeen,
     onRead,
     onListCollapsed,
     panel,
@@ -197,32 +174,14 @@ it("closes the Thread turns menu on Escape, before the window", () => {
   expect(onClose).not.toHaveBeenCalled();
 });
 
-it("keeps 1–9 and the arrows from the answer and the list while the Thread turns menu is open", () => {
+it("keeps the arrows from the list while the Thread turns menu is open", () => {
   const { update, $ } = build();
-  const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
-  update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }, thread("t2", "codex", 1)]));
+  update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "codex", 1)]));
   click($(".yui-threads__turns-button"));
 
-  key({ key: "1" });
   key({ key: "ArrowDown" });
 
-  expect($(".yui-answer__choices button").getAttribute("aria-pressed")).toBe("false");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
-});
-
-it("sends once while a send is in flight, even when a snapshot rebuilds the pane", () => {
-  const onAnswer = vi.fn(() => new Promise<void>(() => {}));
-  const { update, send, type, enter } = build(onAnswer);
-  update(snapshot(1, [thread("t1", "codex", 1)]));
-  type("split it");
-  enter();
-
-  update(snapshot(2, [thread("t1", "codex", 2)]));
-  enter();
-  click(send());
-
-  expect(onAnswer).toHaveBeenCalledTimes(1);
-  expect(send().disabled).toBe(true);
 });
 
 const entryText = (text: string): HTMLElement => {
@@ -282,18 +241,6 @@ it("keeps only the https images", () => {
   ]);
 });
 
-it("shows a failed send's error and keeps its draft", async () => {
-  const { update, $, field, type, enter } = build(() => Promise.reject("ask is closed"));
-  update(snapshot(1, [thread("t1", "codex", 1)]));
-  type("split it");
-  enter();
-
-  await vi.waitFor(() =>
-    expect($(".yui-answer__error").textContent).toBe("Couldn't send: ask is closed"),
-  );
-  expect(field().value).toBe("split it");
-});
-
 it("leaves ↑ and ↓ on a focused Waiting / All radio to the filter, not to the rows", async () => {
   const { update, $ } = build();
   update(
@@ -314,22 +261,6 @@ it("leaves ↑ and ↓ on a focused Waiting / All radio to the filter, not to th
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
 });
 
-it.each([
-  ["the kind select", () => document.querySelector<HTMLElement>(".yui-threads-list__kind")!],
-  ["a Waiting / All radio", () => filter("list", /^All/)],
-])("leaves a number typed on %s to it, picking no choice", (_name, target) => {
-  const { update, $ } = build();
-  const ask = { ask_id: "a1", prompt: "Next?", choices: [{ id: "y", label: "Yes" }], text: false };
-  update(snapshot(1, [{ ...thread("t1", "codex", 2), ask }]));
-  act(() => target().focus());
-
-  act(() => {
-    fireEvent.keyDown(target(), { key: "1" });
-  });
-
-  expect($(".yui-answer__choices button").getAttribute("aria-pressed")).toBe("false");
-});
-
 it("keeps the medium layout's list overlay open through a pointer pick in the kind popup, and applies the kind", async () => {
   const { update, $, panel } = build();
   update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
@@ -341,36 +272,6 @@ it("keeps the medium layout's list overlay open through a pointer pick in the ki
   expect(panel().dataset.overlay).toBe("true");
   expect($(".yui-threads-list__kind").textContent).toBe("Slack (1)");
   expect(ids(".yui-threads-list [data-id]")).toEqual(["t2"]);
-});
-
-it("keeps the answer field, its draft and its caret through a newer snapshot of the shown Thread", () => {
-  const { update, field, type } = build();
-  update(snapshot(1, [thread("t1", "codex", 1)]));
-  const shown = field();
-  type("split it");
-  act(() => {
-    shown.focus();
-    shown.setSelectionRange(2, 2);
-  });
-
-  update(
-    snapshot(2, [
-      {
-        ...thread("t1", "codex", 2),
-        entries: [
-          { role: "agent", text: "Done.", at: 1 },
-          { role: "agent", text: "More.", at: 2 },
-        ],
-      },
-    ]),
-  );
-
-  expect(field()).toBe(shown);
-  expect([shown.value, shown.selectionStart, document.activeElement]).toEqual([
-    "split it",
-    2,
-    shown,
-  ]);
 });
 
 it("keeps the selection and the filters across a newer snapshot", async () => {
@@ -419,22 +320,8 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
   expect(onHead).toHaveBeenCalledOnce();
 });
 
-it("reports the open ask as seen only when the user picks a Thread, and not an ask already seen", async () => {
-  const { update, open, $, onSeen } = build();
-  const seen = { ...thread("t2", "slack", 1), seen_ask_id: "a1" };
-  update(snapshot(1, [thread("t1", "codex", 2), seen]));
-  await open(null);
-  expect(onSeen).not.toHaveBeenCalled();
-
-  click($('.yui-threads-list [data-id="t2"]'));
-  expect(onSeen).not.toHaveBeenCalled();
-
-  click($('.yui-threads-rail [data-id="t1"]'));
-  expect(onSeen).toHaveBeenCalledExactlyOnceWith("t1", "a1");
-});
-
-it("an automatic open selects the asked Thread on the filter that holds it, unseen, and moves no focus", async () => {
-  const { update, open, $, onSeen } = build();
+it("an automatic open selects the asked Thread on the filter that holds it and moves no focus", async () => {
+  const { update, open, $ } = build();
   update(
     snapshot(1, [
       thread("t1", "codex", 3),
@@ -450,7 +337,6 @@ it("an automatic open selects the asked Thread on the filter that holds it, unse
   await open(null, "threads", { thread: "t3", focus: false });
   expect(filter("list", /^Waiting/).getAttribute("aria-checked")).toBe("true");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t3");
-  expect(onSeen).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(document.body);
 });
 
@@ -471,6 +357,17 @@ it("selects an asked Thread on the first snapshot that holds it, until a user pi
   await open(null);
   update(snapshot(4, [thread("t1", "codex", 3), thread("t8", "codex", 5, false)]));
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
+});
+
+it("shows an input-required Thread read-only: its entries and Mark read, and no answer area or field", () => {
+  const { update, $ } = build();
+  update(snapshot(1, [thread("t1", "codex", 1)]));
+
+  expect($(".yui-threads-entry__text").textContent).toBe("Done.");
+  expect($(".yui-threads-pane__read").textContent).toBe("Mark read");
+  expect(
+    document.querySelectorAll(".yui-threads-pane .yui-answer, .yui-threads-pane textarea"),
+  ).toHaveLength(0);
 });
 
 it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {
@@ -548,7 +445,7 @@ it.each([
 });
 
 it("lays a stored list width under both tabs' lists, with an edge in each", () => {
-  const { panel } = build(undefined, false, 312);
+  const { panel } = build(false, 312);
 
   expect(panel().style.getPropertyValue("--yui-threads-list-width")).toBe("312px");
   const edges = [...document.querySelectorAll(".yui-threads__panes")].map(
@@ -583,7 +480,7 @@ it("shows one pane at a time in the narrow layout: a selection opens the thread,
 });
 
 it("keeps the stored list choice through every width without writing it", () => {
-  const { panel, onListCollapsed } = build(undefined, true);
+  const { panel, onListCollapsed } = build(true);
 
   for (const width of [800, 600, 400, 800]) widen(width);
 

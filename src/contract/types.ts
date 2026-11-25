@@ -293,12 +293,8 @@ export interface Thread {
   label?: string;
   state: "working" | "input-required" | "completed" | "failed";
   entries: ThreadEntry[];
-  ask?: Ask;
   created_at: number;
   updated_at: number;
-  answered_ask_ids?: string[];
-  /** The open ask the user picked in the Threads window. */
-  seen_ask_id?: string;
   /** The user marked the Thread read since the producer's last update. */
   read?: boolean;
   /** How many entries were ever appended; `entries` keeps only the newest 50. */
@@ -449,7 +445,7 @@ export interface ClientContext {
   }[];
   /** The other open presets' names as the tools accept them, read this turn; absent when none. */
   open_characters?: string[];
-  /** Threads waiting for the user's answer, read this turn; main's window only, on user-started turns. */
+  /** The waiting Threads, read this turn; main's window only, on user-started turns. */
   threads_waiting?: { total: number; by_source: Array<{ source: string; count: number }> };
   trigger: TriggerMeta;
 }

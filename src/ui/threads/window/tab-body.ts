@@ -20,10 +20,6 @@ export interface TabView {
   focusList(): void;
   focusRail(): void;
   move(delta: 1 | -1): void;
-  /** Toggles the open ask's choice at `index`, where the tab has one. */
-  pick?(index: number): void;
-  /** Focuses the tab's text field; false when it has none. */
-  focusField?(): boolean;
   /** Its tab became the shown one. */
   shown(): void;
 }

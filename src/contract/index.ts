@@ -5,7 +5,7 @@
 export type {
   // Pending read or write on a terminal — the Allow / Deny card
   AccessRequest,
-  // An Ask, its choices, and its Answer, shared by Threads and push
+  // A push Ask, its choices, and its Answer
   Ask,
   AskAnswer,
   AskChoice,

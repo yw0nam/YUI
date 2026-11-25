@@ -1,46 +1,10 @@
-use super::model::AnswerInput;
 use super::store::{ThreadStore, ThreadsSnapshot};
-use crate::os_event_watcher::epoch_ms;
 use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
 pub fn threads_snapshot(store: State<'_, Arc<ThreadStore>>) -> ThreadsSnapshot {
     store.snapshot()
-}
-
-#[tauri::command]
-pub fn thread_answer(
-    store: State<'_, Arc<ThreadStore>>,
-    id: String,
-    ask_id: String,
-    choice: Option<String>,
-    choices: Option<Vec<String>>,
-    text: Option<String>,
-    release: Option<bool>,
-) -> Result<(), String> {
-    store
-        .answer(
-            &id,
-            AnswerInput {
-                ask_id,
-                choice,
-                choices,
-                text,
-                release,
-            },
-            epoch_ms() as u64,
-        )
-        .map_err(str::to_owned)
-}
-
-#[tauri::command]
-pub fn thread_seen(
-    store: State<'_, Arc<ThreadStore>>,
-    id: String,
-    ask_id: String,
-) -> Result<(), String> {
-    store.seen(&id, &ask_id).map_err(str::to_owned)
 }
 
 #[tauri::command]

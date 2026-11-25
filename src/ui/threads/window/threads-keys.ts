@@ -1,9 +1,8 @@
-/** The Threads window's keys: Control+Command+S toggles the list, Escape closes, 1–9 pick a choice, ↑/↓ move through the list; a terminal keeps every key. */
+/** The Threads window's keys: Control+Command+S toggles the list, Escape closes, ↑/↓ move through the list; a terminal keeps every key. */
 
 export function attachThreadsKeys(deps: {
   onToggleList(): void;
   onEscape(): void;
-  onPick(index: number): void;
   onMove(delta: 1 | -1): void;
 }): () => void {
   function onKeydown(e: KeyboardEvent): void {
@@ -18,13 +17,10 @@ export function attachThreadsKeys(deps: {
       deps.onEscape();
       return;
     }
-    // A field, a select or a radio group keeps its keys, and a shortcut is not a choice.
+    // A field, a select or a radio group keeps its arrows, and a shortcut is not a move.
     const own = "textarea, select, input, [role=combobox], [role=radiogroup]";
     if (target?.closest?.(own) || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (/^[1-9]$/.test(e.key)) {
-      e.preventDefault();
-      deps.onPick(Number(e.key) - 1);
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       deps.onMove(e.key === "ArrowDown" ? 1 : -1);
     }

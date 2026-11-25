@@ -21,8 +21,6 @@ const chip = createThreadsChip({
 const view = createThreadsView({
   mount: threadsWin,
   now: Date.now,
-  onAnswer: (id, askId, ans) => store.answer(id, askId, ans),
-  onSeen() {},
   onRead: (id) => store.read(id),
   async onClose() {
     if (!box.close()) return;
@@ -49,13 +47,7 @@ store.subscribe((s) => {
 document.addEventListener(
   "keydown",
   (e) => {
-    if (
-      !box.isOpen() &&
-      (/^[1-9]$/.test(e.key) ||
-        e.key === "ArrowUp" ||
-        e.key === "ArrowDown" ||
-        (e.ctrlKey && e.metaKey))
-    )
+    if (!box.isOpen() && (e.key === "ArrowUp" || e.key === "ArrowDown" || (e.ctrlKey && e.metaKey)))
       e.stopImmediatePropagation();
   },
   { capture: true },

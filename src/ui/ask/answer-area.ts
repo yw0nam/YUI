@@ -1,7 +1,4 @@
-/**
- * The answer area pinned at the thread pane's foot: the ask's prompt, numbered choices that toggle,
- * a one-line field that grows, and a send button named after what it sends.
- */
+/** An Ask card's answer area: the prompt, toggling numbered choices, a growing field, and a send button named after what it sends. */
 
 import "./answer-area.css";
 import type { Ask, AskAnswer } from "../../contract";

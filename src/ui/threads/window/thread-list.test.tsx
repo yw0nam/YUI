@@ -47,7 +47,7 @@ describe("ThreadList", () => {
 
     const row = container.querySelector(".yui-threads-row")!;
     expect([...row.children].map((el) => [el.tagName, el.textContent])).toEqual([
-      ["SPAN", "CCodexNeeds replyjust now"],
+      ["SPAN", "CCodexNeeds youjust now"],
       ["STRONG", "w1"],
       ["SPAN", "mbp · memory-base (main)"],
     ]);

@@ -965,7 +965,7 @@ describe("signals_source — a reacting Thread's group", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  const group = (event_id: string, event_type = "thread.ask"): SignalGroup => ({
+  const group = (event_id: string, event_type = "thread.input_required"): SignalGroup => ({
     envelope: { ...ENVELOPE, event_id, event_type },
     items: [{ thread_id: event_id }],
   });
@@ -1130,13 +1130,13 @@ describe("signals_source — a reacting Thread's group", () => {
     expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t1"]]]);
   });
 
-  it("withdraw drops the buffered thread.ask group and keeps a thread.failed group with that event id", async () => {
+  it("withdraw drops the buffered thread.input_required group and keeps a thread.failed group with that event id", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
     s.src.offer(group("thread:t1"));
     s.src.offer(group("thread:t2", "thread.failed"));
-    s.src.withdraw("thread:t1", "thread.ask");
-    s.src.withdraw("thread:t2", "thread.ask");
+    s.src.withdraw("thread:t1", "thread.input_required");
+    s.src.withdraw("thread:t2", "thread.input_required");
     s.busy.setBusy(false);
     expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t2"]]]);
   });
@@ -1257,12 +1257,12 @@ describe("signals_source — a plugin's group is ungated", () => {
     const s = setup(() => true);
     await s.src.start();
     const thread: SignalGroup = {
-      envelope: { ...ENVELOPE, event_id: "thread:t1", event_type: "thread.ask" },
+      envelope: { ...ENVELOPE, event_id: "thread:t1", event_type: "thread.input_required" },
       items: [{ thread_id: "t1" }],
     };
     s.emitInbox(fromPlugin(thread.envelope, [{ id: 2 }]));
     s.src.offer(thread);
-    s.src.withdraw("thread:t1", "thread.ask");
+    s.src.withdraw("thread:t1", "thread.input_required");
     expect(s.src.drain()).toEqual([{ envelope: thread.envelope, items: [{ id: 2 }], plugin: "p" }]);
   });
 
@@ -1274,7 +1274,7 @@ describe("signals_source — a plugin's group is ungated", () => {
       envelope: {
         ...ENVELOPE,
         event_id: "thread:t1",
-        event_type: "thread.ask",
+        event_type: "thread.input_required",
       },
       items: [{ thread_id: "t1" }],
     };

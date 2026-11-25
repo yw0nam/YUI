@@ -3,11 +3,11 @@ import recording from "../cc.json";
 import { $, cssVar } from "../shared/dom";
 import { type Recording, store } from "./thread-store";
 
-const CC = recording as unknown as Record<"allow" | "deny", Recording>;
+const CC = recording as unknown as Recording;
 
 const xt = new Terminal({
-  cols: CC.allow.cols,
-  rows: CC.allow.rows,
+  cols: CC.cols,
+  rows: CC.rows,
   fontSize: 13,
   lineHeight: 1.12,
   fontFamily: cssVar("--term-font"),
@@ -18,7 +18,7 @@ const xt = new Terminal({
 });
 xt.open($("termScreen"));
 const castState = {
-  rec: CC.allow,
+  rec: CC,
   castT: 0,
   castStart: 0,
   holdT: 0,
@@ -26,24 +26,15 @@ const castState = {
   si: 0,
   playing: false,
 };
-export function switchTo(name: "allow" | "deny", at: number) {
-  xt.reset();
-  castState.rec = CC[name];
-  castState.ei = 0;
-  castState.si = 0;
-  while (castState.ei < castState.rec.events.length && castState.rec.events[castState.ei][0] <= at)
-    xt.write(castState.rec.events[castState.ei++][1]);
-  while (
-    castState.si < castState.rec.snapshots.length &&
-    castState.rec.snapshots[castState.si].t <= at
-  )
-    castState.si++;
-  castState.castT = at;
-}
+let reached = () => {};
+/** Plays on to `until`; resolves once the playback reaches it. */
 export function playTo(until: number) {
   castState.holdT = until;
   castState.castStart = performance.now() - castState.castT * 1000;
   castState.playing = true;
+  return new Promise<void>((resolve) => {
+    reached = resolve;
+  });
 }
 export function pumpCast(now: number) {
   if (!castState.playing) return;
@@ -58,15 +49,15 @@ export function pumpCast(now: number) {
     castState.rec.snapshots[castState.si].t <= castState.castT
   )
     store.fromRecording(castState.rec.snapshots[castState.si++], castState.rec.snapshots[0].t);
-  if (castState.castT >= castState.holdT) castState.playing = false;
+  if (castState.castT >= castState.holdT) {
+    castState.playing = false;
+    reached();
+  }
 }
 
-export function seek(at: number) {
-  castState.castT = at;
-}
 export function readCast() {
-  return { castT: castState.castT, playing: castState.playing, marks: { ...castState.rec.marks } };
+  return { castT: castState.castT, playing: castState.playing };
 }
-export function marks(name: "allow" | "deny") {
-  return { ...CC[name].marks };
+export function marks() {
+  return { ...CC.marks };
 }

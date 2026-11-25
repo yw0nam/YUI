@@ -67,7 +67,7 @@ Every key, click, and menu that moves her.
 | Item | What it does |
 | --- | --- |
 | Tray menu | Show / Hide Character, Do Not Disturb (a check that mirrors the Character menu's Rest), Settings…, Terminal, and Quit YUI |
-| Waiting for you chip | Threads that wait for your answer; tap it to open the Threads window |
+| Waiting for you chip | Threads that wait for you; tap it to open the Threads window |
 | Status pill | The tool she is running; a moon while Do not disturb is on |
 | Signal pill | One per Signal group; tap it for details, the cross dismisses it, and **+N** unfolds the rest |
 | Delegation chip | Lists background work; tap to open it, hold to fold it away |

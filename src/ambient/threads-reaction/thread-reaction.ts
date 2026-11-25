@@ -4,7 +4,7 @@ import type { FillerPool } from "../../config/validators/filler";
 import type { EmotionId, ScreenRect, Thread, ThreadsSnapshot, WindowRect } from "../../contract";
 import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { ThreadsClient } from "../../io/threads/threads-client";
-import { isUnseenWaiting } from "../../io/threads/threads-waiting";
+import { isWaiting } from "../../io/threads/threads-waiting";
 import { createShuffleBag } from "../../io/voice/filler/shuffle-bag";
 import { overlaps } from "../../io/window/geometry/screen-geometry";
 import type { ThreadsWindowController } from "../../io/window/openers/threads-window";
@@ -86,7 +86,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
     },
   });
   let snapshot: ThreadsSnapshot | null = null;
-  /** The waiting unseen Threads, newest first — the count's present target and a wait's validity. */
+  /** The waiting Threads, newest first — the count's present target and a wait's validity. */
   let counted: Thread[] = [];
   /** The snapshot's Thread ids whose turn stays held while the switch is on. */
   const held = new Set<string>();
@@ -321,7 +321,7 @@ export function createThreadReaction(deps: ThreadReactionDeps): { dispose(): voi
 
   function onSnapshot(next: ThreadsSnapshot): void {
     snapshot = next;
-    counted = next.threads.filter(isUnseenWaiting).sort((a, b) => b.updated_at - a.updated_at);
+    counted = next.threads.filter(isWaiting).sort((a, b) => b.updated_at - a.updated_at);
     if (enabled()) holdSnapshot(next);
     thresholds.next(counted);
     tryRun();

@@ -51,23 +51,9 @@ it("hides at zero waiting and shows the count otherwise", () => {
   chip.update([thread("a", "codex", 5)]);
   expect(button().hidden).toBe(false);
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
-});
 
-it("skips a waiting Thread whose open ask the user picked, and counts and wiggles a new ask on it", () => {
-  const { chip, button } = build();
-  const seen = (ask_id: string, updated_at: number): Thread => ({
-    ...thread("a", "codex", updated_at),
-    ask: { ask_id, prompt: "Next?", choices: [], text: true },
-    seen_ask_id: "a1",
-  });
-
-  chip.update([seen("a1", 1)]);
+  chip.update([{ ...thread("a", "codex", 6), read: true }]);
   expect(button().hidden).toBe(true);
-
-  chip.update([seen("a2", 2)]);
-  expect(button().hidden).toBe(false);
-  expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
-  expect(button().classList.contains("is-wiggle")).toBe(true);
 });
 
 it("hides while the window is open, at any count, and returns on close while something waits", () => {

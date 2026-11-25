@@ -1,7 +1,6 @@
 import { $ } from "./shared/dom";
 
-import allowUrl from "./voice/allow.mp3?url";
-import denyUrl from "./voice/deny.mp3?url";
+import closingUrl from "./voice/closing.mp3?url";
 
 const LIPSYNC_GAIN = 6;
 const voiceState = {
@@ -11,13 +10,9 @@ const voiceState = {
   speaking: false,
   muted: false,
 };
-const voiceBytes = Promise.all(
-  [allowUrl, denyUrl].map((url) =>
-    fetch(url)
-      .then((r) => (r.ok ? r.arrayBuffer() : null))
-      .catch(() => null),
-  ),
-);
+const voiceBytes = fetch(closingUrl)
+  .then((r) => (r.ok ? r.arrayBuffer() : null))
+  .catch(() => null);
 function ensureAudio() {
   if (!voiceState.actx) {
     voiceState.actx = new AudioContext();
@@ -30,8 +25,8 @@ function ensureAudio() {
 }
 addEventListener("pointerdown", ensureAudio, { capture: true });
 addEventListener("keydown", ensureAudio, { capture: true });
-export async function speakAudio(name: "allow" | "deny") {
-  const bytes = (await voiceBytes)[name === "allow" ? 0 : 1];
+export async function speakAudio() {
+  const bytes = await voiceBytes;
   const audio = await voiceState.actx!.decodeAudioData(bytes!.slice(0));
   const src = voiceState.actx!.createBufferSource();
   src.buffer = audio;
@@ -62,6 +57,6 @@ soundBtn.addEventListener("click", () => {
 });
 
 export const isSpeaking = () => voiceState.speaking;
-export async function canSpeak(name: "allow" | "deny") {
-  return !voiceState.muted && !!voiceState.actx && !!(await voiceBytes)[name === "allow" ? 0 : 1];
+export async function canSpeak() {
+  return !voiceState.muted && !!voiceState.actx && !!(await voiceBytes);
 }
