@@ -23,7 +23,7 @@ Every key, click, and menu that moves her.
 | Press and hold on the head | A head pat |
 | Wheel | Zooms in and out, except while she is on the settings stage |
 | `Ctrl` + wheel | Resizes her, feet in place, except while she is on the settings stage |
-| `Shift` + drag | Orbits the camera |
+| `Shift` + drag | Orbits the camera, except while she is on the settings stage |
 | Right-click | Opens the Character menu around her: Talk, Rest (Do not disturb), Listen, Settings, Body, Voice, Pace, and More (Threads, Keep bubble, Unified chat, Terminal, Reset chat, Turn off for another character) |
 
 ## Text input

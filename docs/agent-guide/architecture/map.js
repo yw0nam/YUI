@@ -3986,7 +3986,7 @@ globalThis.YUI_MAP =
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
-      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired",
+      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired; the Shift-drag orbit writes no angle under the same hold",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-pet-stage.ts"
@@ -4757,7 +4757,7 @@ globalThis.YUI_MAP =
       "id": "user-window",
       "from": "user",
       "to": "io/window/pet",
-      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit; Ctrl-wheel resize",
+      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit, ignored on the settings stage; Ctrl-wheel resize",
       "kind": "user",
       "transport": "shared"
     },
