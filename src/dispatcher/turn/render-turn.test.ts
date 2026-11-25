@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExpressArgs } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import { lastBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-frames";
 import { createSentenceSegmenter } from "../../io/voice/tts/sentence-segmenter";
 import type { Logger } from "../../logger";
@@ -379,6 +380,30 @@ describe("render_turn — a turn the user stopped", () => {
 
     expect(pipeline.spoken).toEqual([{ text: "One more thing.", cue: null }]);
     expect(turnOutput.releaseMute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("render_turn — the last backend emotion", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Each row runs at its own time, far past the other's decay window.
+  it.each([
+    ["sad", "played frame", false, 1_000_000],
+    ["neutral", "frame of a cut turn", true, 9_000_000],
+  ])("is %s after a %s", (expected, _, cut, nowMs) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: nowMs });
+    if (cut) {
+      pushTurns.opened("7", "user.text_submitted");
+      pushTurns.cut();
+    }
+
+    turn().render(
+      frame([{ cues: [{ emotion_id: "angry" }, { motion_id: "nod" }, { emotion_id: "sad" }] }]),
+    );
+
+    expect(lastBackendEmotion(nowMs, 60_000)).toBe(expected);
   });
 });
 

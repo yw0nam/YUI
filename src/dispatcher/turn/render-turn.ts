@@ -26,6 +26,7 @@
 
 import type { ExpressArgs } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import { recordBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-frames";
 import { buildRenderRecord, type RenderRecord } from "../../io/chat/record/turn-record-log";
 import { isSilenceToken } from "../../io/chat/stream/silence-token";
@@ -121,6 +122,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
     const said: string[] = [];
     for (const segment of segments) {
       const cue = mergeCues(segment.cues ?? []);
+      if (cue.emotion_id) recordBackendEmotion(cue.emotion_id, Date.now());
       const speech = segment.speech ?? "";
       const speaks = Boolean(speech.trim()) && !isSilenceToken(speech);
 

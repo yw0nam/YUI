@@ -633,7 +633,7 @@ globalThis.YUI_MAP =
       "id": "renderer",
       "module": "renderer",
       "label": "renderer core",
-      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the landing bounce on the canvas after a sit (land()).",
+      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()).",
       "paths": [
         "src/renderer"
       ]
@@ -642,7 +642,7 @@ globalThis.YUI_MAP =
       "id": "renderer/camera",
       "module": "renderer",
       "label": "camera",
-      "role": "Fit-to-bounds framing, zoom, orbit, and the travel view window.",
+      "role": "Fit-to-bounds framing, zoom, orbit, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
       "paths": [
         "src/renderer/camera"
       ]
@@ -789,6 +789,15 @@ globalThis.YUI_MAP =
       "role": "Appends one JSONL record per completed turn or skipped fire.",
       "paths": [
         "src/io/chat/record"
+      ]
+    },
+    {
+      "id": "io/chat/last-emotion",
+      "module": "conversation",
+      "label": "last backend emotion",
+      "role": "The last emotion id a backend cue carried in this window and when, in memory only; it reads as neutral when none is recorded or the record is older than the decay the reader passes.",
+      "paths": [
+        "src/io/chat/last-emotion"
       ]
     },
     {
@@ -1128,7 +1137,7 @@ globalThis.YUI_MAP =
       "id": "ambient/come-along",
       "module": "ambient",
       "label": "come-along",
-      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot, walks onto it on an ease-in-out curve over 600 to 900 ms and docks with her feet on its bottom edge, as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. Her home and a stay survive a reload.",
+      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, docking with her feet on its bottom edge. On her own monitor she walks on an ease-in-out curve over stage.walk_ms to walk_ms + walk_extra_ms; across monitors or past stage.walk_full_pt she vanishes and lands, and under reduced motion she fades. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
       "paths": [
         "src/ambient/come-along"
       ]
@@ -2042,6 +2051,24 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/turn-core.ts"
+    },
+    {
+      "id": "render-last-emotion",
+      "from": "dispatcher/turn",
+      "to": "io/chat/last-emotion",
+      "carries": "recordBackendEmotion(emotion_id, now) for each played segment's merged cue that names one; a frame of a cut turn records none",
+      "kind": "call",
+      "transport": "push",
+      "wiring": "src/dispatcher/turn/render-turn.ts"
+    },
+    {
+      "id": "stream-last-emotion",
+      "from": "dispatcher/backend",
+      "to": "io/chat/last-emotion",
+      "carries": "recordBackendEmotion(emotion_id, now) for each express cue that names one; a stopped turn records none",
+      "kind": "call",
+      "transport": "request",
+      "wiring": "src/dispatcher/backend/stream-attempt.ts"
     },
     {
       "id": "render-record",
@@ -3770,8 +3797,26 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the walk; playMotion walk, setBodyYaw toward the slot",
+      "carries": "onTick drives the walk; playMotion walk, setBodyYaw toward the slot; playMotion sulk while the last backend emotion is angry",
       "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "come-along-canvas",
+      "from": "ambient/come-along",
+      "to": "renderer",
+      "carries": "vanish() before a move across monitors, past stage.walk_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-come-along.ts"
+    },
+    {
+      "id": "come-along-last-emotion",
+      "from": "ambient/come-along",
+      "to": "io/chat/last-emotion",
+      "carries": "lastEmotion(stage.emotion_decay_min in ms) → lastBackendEmotion(now, that decay) at a stage slot that starts a session",
+      "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
     },

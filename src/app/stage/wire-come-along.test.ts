@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { avatarFixture } from "../../config/load-test-helpers";
 import type { SettingsStage } from "../../io/bridge/settings-bridge";
 
 const mocks = vi.hoisted(() => ({
@@ -75,6 +76,7 @@ async function wire(boundId: string | null, listening: Promise<void> = Promise.r
     peek: { active: () => false, exit: async () => {} },
     renderer: {} as never,
     hitTest: { setMoving: vi.fn() },
+    getStageConfig: () => avatarFixture().stage,
     register: (teardown) => teardowns.push(teardown),
   });
   await vi.waitFor(() => expect(onStage).toBeTypeOf("function"));

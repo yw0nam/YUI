@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { avatarFixture } from "../../config/load-test-helpers";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { HoldOptions } from "../locomotion/hold/holds";
@@ -31,6 +32,10 @@ function harness(
     storage?: Storage;
     /** Her feet's y in her window, logical, by default at its bottom; null with no VRM loaded. */
     feet?: number | null;
+    /** The last backend emotion, by default neutral. */
+    emotion?: string;
+    /** What the stay roll draws, in [0, 1). */
+    roll?: number;
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
@@ -38,6 +43,8 @@ function harness(
   const scale = 2;
   const ticks = new Set<(ctx: { dt: number }) => void>();
   const walked: Array<[number, number]> = [];
+  /** Her real window's moves and her canvas's vanish, land and appear, in order. */
+  const events: string[] = [];
   const travels: Array<{ end: ReturnType<typeof vi.fn> }> = [];
   let virtual = { x: real.x, y: real.y };
   let busy = false;
@@ -47,6 +54,7 @@ function harness(
     outerSize: async () => ({ width: real.width * scale, height: real.height * scale }),
     scaleFactor: async () => scale,
     setPositionLogical: vi.fn(async (x: number, y: number) => {
+      events.push(`move ${x},${y}`);
       real.x = x;
       real.y = y;
     }),
@@ -83,6 +91,10 @@ function harness(
     detach: vi.fn(async () => {}),
   };
   const setPositionPhysical = vi.fn(async (_x: number, _y: number) => {});
+  const playMotion = vi.fn();
+  const vanish = vi.fn(async () => {
+    events.push("vanish");
+  });
   let reduced = false;
   const comeAlong = createComeAlong({
     settingsLabel: "settings",
@@ -96,12 +108,19 @@ function harness(
         ticks.add(cb);
         return () => ticks.delete(cb);
       },
-      playMotion: vi.fn(),
+      playMotion,
       getCurrentMotion: () => null,
       setBodyYaw: vi.fn(),
       getCharacterAnchor: () => {
         const feet = opts.feet === undefined ? real.height : opts.feet;
         return feet === null ? null : { x: 200, y: feet };
+      },
+      vanish,
+      land: async (origin) => {
+        events.push(`land ${JSON.stringify(origin)}`);
+      },
+      appear: async () => {
+        events.push("appear");
       },
     },
     hitTest: { setMoving: vi.fn() },
@@ -109,24 +128,40 @@ function harness(
     setPositionPhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
+    stage: () => avatarFixture().stage,
+    // The fixture's stage.emotion_decay_min is 30.
+    lastEmotion: (decayMs) => (decayMs === 30 * 60_000 ? (opts.emotion ?? "neutral") : "neutral"),
+    random: () => opts.roll ?? 0,
   });
   const tick = (ms: number) => {
     for (const cb of [...ticks]) cb({ dt: ms / 1000 });
   };
   /** Ticks in 10 ms frames until nothing listens, then lets the walk settle. */
-  const walkOut = async () => {
-    await vi.waitFor(() => expect(ticks.size).toBe(1));
-    while (ticks.size > 0) tick(10);
+  /** Ticks in 10 ms frames until `step` settles, however she travels. */
+  const finish = async (step: Promise<void>) => {
+    let settled = false;
+    const settle = () => {
+      settled = true;
+    };
+    step.then(settle, settle);
+    while (!settled) {
+      tick(10);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await step;
   };
   const abort = () => locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.onAbort?.();
   return {
     comeAlong,
     real,
     walked,
+    events,
+    vanish,
+    playMotion,
+    finish,
     travels,
     ticks,
     tick,
-    walkOut,
     abort,
     locomotion,
     dock,
@@ -161,9 +196,7 @@ function fakeStorage(): Storage {
 /** Docks her from (1300, 80) onto `slot` and returns the harness. */
 async function docked(opts: Parameters<typeof harness>[0] = {}) {
   const h = harness(opts);
-  const done = h.comeAlong.onStage(slot);
-  await h.walkOut();
-  await done;
+  await h.finish(h.comeAlong.onStage(slot));
   return h;
 }
 
@@ -191,7 +224,6 @@ describe("createComeAlong", () => {
   it.each([
     [1300, 900],
     [400, 675],
-    [2600, 900],
   ])("walks from x %d onto the slot in %d ms", async (x, ms) => {
     const h = harness({ at: { x, y: 80 } });
     const done = h.comeAlong.onStage(slot);
@@ -206,15 +238,109 @@ describe("createComeAlong", () => {
     expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
-  it("arrives at once under reduced motion", async () => {
+  it("fades out and in under reduced motion", async () => {
     const h = harness();
     h.setReduced(true);
 
     await h.comeAlong.onStage(slot);
 
     expect(h.locomotion.widen).not.toHaveBeenCalled();
-    expect(h.frameWindow.setPositionLogical).toHaveBeenCalledExactlyOnceWith(100, 80);
+    expect(h.events).toEqual(["vanish", "move 100,80", "appear"]);
     expect(h.dock.attach).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["over 1200 pt on her monitor", { x: 1500, y: 80 }],
+    ["from a spot on no monitor", { x: 100, y: 700 }],
+  ])("vanishes and lands on the slot %s", async (_, at) => {
+    const h = harness({ at });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.locomotion.widen).not.toHaveBeenCalled();
+    expect(h.events).toEqual(["vanish", "move 100,80", 'land {"x":200,"y":600}']);
+    expect(h.dock.attach).toHaveBeenCalledOnce();
+  });
+
+  it("vanishes and fades in on the slot when no VRM gives her feet", async () => {
+    const h = harness({ at: { x: 1500, y: 80 }, feet: null });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.events).toEqual(["vanish", "move 100,80", "appear"]);
+  });
+
+  it("shows her again when a drag takes her mid-vanish", async () => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+    const vanished = deferred<void>();
+    h.vanish.mockImplementationOnce(() => {
+      h.events.push("vanish");
+      return vanished.promise;
+    });
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.vanish).toHaveBeenCalledOnce());
+
+    await h.abort();
+    vanished.resolve();
+    await done;
+
+    expect(h.events).toEqual(["vanish", "appear"]);
+    expect(h.dock.attach).not.toHaveBeenCalled();
+  });
+
+  it("leaves her to the newer move when the window closes and reopens mid-vanish", async () => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+    const vanished = deferred<void>();
+    h.vanish.mockImplementationOnce(() => {
+      h.events.push("vanish");
+      return vanished.promise;
+    });
+    const first = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.vanish).toHaveBeenCalledOnce());
+
+    await h.comeAlong.onStage(null);
+    await h.comeAlong.onStage(slot);
+    vanished.resolve();
+    await first;
+
+    expect(h.events).toEqual([
+      "vanish",
+      "move 1500,80",
+      "appear",
+      "vanish",
+      "move 100,80",
+      'land {"x":200,"y":600}',
+    ]);
+    expect(h.dock.attach).toHaveBeenCalledOnce();
+  });
+
+  it("shows her again when her window fails to move mid-vanish", async () => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+    h.frameWindow.setPositionLogical.mockRejectedValueOnce(new Error("window gone"));
+
+    await expect(h.finish(h.comeAlong.onStage(slot))).rejects.toThrow("window gone");
+
+    expect(h.events).toEqual(["vanish", "appear"]);
+  });
+
+  it("shows her before she walks home when the window closes mid-vanish", async () => {
+    // From a spot on no monitor; her home is then the floor 195 pt below the slot.
+    const h = harness({ at: { x: 100, y: 700 } });
+    const moving = deferred<void>();
+    h.frameWindow.setPositionLogical.mockImplementationOnce(async (x, y) => {
+      Object.assign(h.real, { x, y });
+      return moving.promise;
+    });
+    const first = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.frameWindow.setPositionLogical).toHaveBeenCalledOnce());
+
+    const home = h.comeAlong.onStage(null);
+    await vi.waitFor(() => expect(h.locomotion.widen).toHaveBeenCalledOnce());
+
+    expect(h.events).toEqual(["vanish", "appear"]);
+    await h.finish(home);
+    moving.resolve();
+    await first;
   });
 
   it.each([
@@ -247,9 +373,7 @@ describe("createComeAlong", () => {
   it("goes home on a null slot: undocks, walks back to her spot, lets go and drops", async () => {
     const h = await docked();
 
-    const done = h.comeAlong.onStage(null);
-    await h.walkOut();
-    await done;
+    await h.finish(h.comeAlong.onStage(null));
 
     expect(h.dock.detach).toHaveBeenCalledOnce();
     expect(h.locomotion.widen).toHaveBeenLastCalledWith([{ x: 1300, y: 80 }]);
@@ -278,9 +402,7 @@ describe("createComeAlong", () => {
     // On the stage her window grew; with this size her spot's centre would sit below the monitor.
     Object.assign(h.real, { width: 800, height: 1800 });
 
-    const done = h.comeAlong.goHome();
-    await h.walkOut();
-    await done;
+    await h.finish(h.comeAlong.goHome());
 
     expect([h.real.x, h.real.y]).toEqual([1300, 80]);
   });
@@ -291,9 +413,7 @@ describe("createComeAlong", () => {
   ])("goes home to the nearest floor when her spot is %s", async (_, at, home) => {
     const h = await docked({ at });
 
-    const done = h.comeAlong.goHome();
-    await h.walkOut();
-    await done;
+    await h.finish(h.comeAlong.goHome());
 
     expect([h.real.x, h.real.y]).toEqual(home);
   });
@@ -418,10 +538,10 @@ describe("createComeAlong", () => {
 
   it("undocks at once when the attach resolves after an abort", async () => {
     const h = harness();
+    h.setReduced(true);
     const attached = deferred<boolean>();
     h.dock.attach.mockReturnValueOnce(attached.promise);
     const done = h.comeAlong.onStage(slot);
-    await h.walkOut();
     await vi.waitFor(() => expect(h.dock.attach).toHaveBeenCalledOnce());
 
     await h.abort();
@@ -429,6 +549,38 @@ describe("createComeAlong", () => {
     await done;
 
     expect(h.dock.detach).toHaveBeenCalledOnce();
+  });
+
+  it("stays on the desktop and sulks when angry and the roll falls under stay_chance", async () => {
+    const storage = fakeStorage();
+    const h = harness({ emotion: "angry", roll: 0.59, storage });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.locomotion.widen).not.toHaveBeenCalled();
+    expect(h.dock.attach).not.toHaveBeenCalled();
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "sulk" }]]);
+    expect(storage.getItem("yui.come-along.settings")).toBe('{"stays":true}');
+  });
+
+  it("comes along and sulks on the stage when angry and the roll reaches stay_chance", async () => {
+    const h = harness({ emotion: "angry", roll: 0.6 });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }], [{ id: "sulk" }]]);
+    expect(h.dock.attach.mock.invocationCallOrder[0]).toBeLessThan(
+      h.playMotion.mock.invocationCallOrder[1]!,
+    );
+  });
+
+  it("comes along without a sulk when the last backend emotion is not angry", async () => {
+    const h = harness({ emotion: "neutral", roll: 0 });
+
+    await h.finish(h.comeAlong.onStage(slot));
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "walk" }]]);
+    expect(h.dock.attach).toHaveBeenCalledOnce();
   });
 
   it("after a reload, docks onto the open stage without a walk and goes home to her spot", async () => {
@@ -440,9 +592,7 @@ describe("createComeAlong", () => {
     expect(reloaded.locomotion.widen).not.toHaveBeenCalled();
     expect(reloaded.dock.attach).toHaveBeenCalledOnce();
 
-    const done = reloaded.comeAlong.onStage(null);
-    await reloaded.walkOut();
-    await done;
+    await reloaded.finish(reloaded.comeAlong.onStage(null));
     expect([reloaded.real.x, reloaded.real.y]).toEqual([1300, 80]);
   });
 

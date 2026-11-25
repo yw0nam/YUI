@@ -20,7 +20,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
 import { routeDirective } from "./apply-directive";
-import { clampPixelRatio } from "./camera/pixel-ratio";
+import { clampPixelRatio, watchPixelRatio } from "./camera/pixel-ratio";
 import { createCameraRig } from "./camera/rig";
 import type { ViewWindow } from "./camera/view-window";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./expression/emotion-crossfade";
@@ -71,6 +71,11 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio));
+  // setPixelRatio resizes the drawing buffer itself.
+  const stopPixelRatio = watchPixelRatio((ratio) => {
+    const next = clampPixelRatio(ratio);
+    if (next !== renderer.getPixelRatio()) renderer.setPixelRatio(next);
+  });
   renderer.setClearColor(0x000000, 0); // transparent background — character only in pet window.
   mount.appendChild(renderer.domElement);
 
@@ -346,7 +351,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       alphaHitTest.setThreshold(threshold);
     },
     getPerchProbe: probes.getPerchProbe,
-    land: createLanding(renderer.domElement, () => probes.getPerchProbe()?.seatPx ?? null),
+    ...createLanding(renderer.domElement, () => probes.getPerchProbe()?.seatPx ?? null),
     getTapPoints: probes.getTapPoints,
     getHandAnchors: probes.getHandAnchors,
     setPerchTarget(target) {
@@ -393,6 +398,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     dispose() {
       frameLoop.dispose();
+      stopPixelRatio();
       ro.disconnect();
       disposeCurrent();
       alphaHitTest.dispose();
