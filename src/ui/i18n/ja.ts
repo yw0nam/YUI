@@ -955,6 +955,7 @@ const ja: Record<string, string> = {
   "settings_request.amount": "{n}{unit}",
   "settings_request.default": "既定値",
   "settings_request.none": "なし",
+  "settings_request.not_display": "ウィンドウかタブ",
   "settings_request.entry": "件",
   "settings_request.why": "「{why}」",
   "settings_request.allow": "許可",

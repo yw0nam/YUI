@@ -59,6 +59,8 @@ export interface SettingRow {
   zeroIsDefault?: boolean;
   /** Label key naming a 0-based index as the settings window does, `{n}` its 1-based number. */
   ordinalKey?: string;
+  /** Label key for a null value, where null names something other than "none". */
+  nullKey?: string;
 }
 
 type RowSpec = Omit<SettingRow, "read"> & Partial<Pick<SettingRow, "read">>;
@@ -403,6 +405,7 @@ export const ROWS: readonly SettingRow[] = [
     write: (stores, value) =>
       stores.screenshotSettings.setSource({ kind: "monitor", index: value as number }),
     ordinalKey: "screenshot.display",
+    nullKey: "settings_request.not_display",
     factory: (storage) => createScreenshotSettings({ storage }),
   }),
   row({

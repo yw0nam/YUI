@@ -16,7 +16,7 @@ function plain(text: string): string {
 /** A value as the row's control in the settings window shows it. */
 function value(row: SettingRow | undefined, v: unknown): string {
   if (typeof v === "boolean") return t(v ? "settings_request.on" : "settings_request.off");
-  if (v === null) return t("settings_request.none");
+  if (v === null) return t(row?.nullKey ?? "settings_request.none");
   if (row?.valueLabels && Object.hasOwn(row.valueLabels, String(v))) {
     return t(row.valueLabels[String(v)]!);
   }
@@ -24,7 +24,7 @@ function value(row: SettingRow | undefined, v: unknown): string {
   if (v === 0 && row.zeroIsDefault) return t("settings_request.default");
   if (row.ordinalKey) return t(row.ordinalKey, { n: v + 1 });
   if (!row.unit) return String(v);
-  const n = Math.round((v / row.unit.per) * 10) / 10;
+  const n = Math.round(v / row.unit.per);
   const unit = t(n === 1 && row.unit.oneKey ? row.unit.oneKey : row.unit.suffixKey);
   return t("settings_request.amount", { n, unit });
 }

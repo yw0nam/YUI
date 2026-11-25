@@ -950,6 +950,7 @@ const en: Record<string, string> = {
   "settings_request.amount": "{n} {unit}",
   "settings_request.default": "Default",
   "settings_request.none": "None",
+  "settings_request.not_display": "A window or tab",
   "settings_request.entry": "entry",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "Allow",

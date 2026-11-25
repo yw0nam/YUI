@@ -942,6 +942,7 @@ const ko: Record<string, string> = {
   "settings_request.amount": "{n}{unit}",
   "settings_request.default": "기본값",
   "settings_request.none": "없음",
+  "settings_request.not_display": "창 또는 탭",
   "settings_request.entry": "개",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "허용",
