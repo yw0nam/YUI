@@ -5,7 +5,6 @@ import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
-import { createExit } from "./exit";
 import { CHEVRON, GLYPHS } from "./glyphs";
 import {
   capped,
@@ -18,6 +17,7 @@ import {
 } from "./items";
 import { menuKey } from "./keys";
 import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
+import { createMenuMotion, LIVE } from "./motion";
 
 /** Where the menu draws, in the mount's px. */
 export interface MenuPlacement {
@@ -48,8 +48,6 @@ export interface MenuActions {
 const log = createLogger("character-menu");
 
 const LISTS: readonly ListId[] = ["body", "voice", "pace", "more"];
-/** The columns the menu acts on: a column leaving in a list swap is out of reach. */
-const LIVE = ".yui-cmenu__col:not(.is-leaving)";
 
 type ColumnKey = "right" | "left" | "all" | ListId;
 type Side = "left" | "right";
@@ -82,8 +80,7 @@ export function createCharacterMenu(deps: {
   let widths: Record<ColumnKey, number> | null = null;
   /** The state at open, cut to the Body and Voice options it shows, which stay until close. */
   let opened: MenuState | null = null;
-  const menuExit = createExit();
-  const swapExit = createExit();
+  const motion = createMenuMotion(root);
 
   function pill(item: MenuItem, measuring = false): HTMLButtonElement {
     const b = document.createElement("button");
@@ -241,32 +238,14 @@ export function createCharacterMenu(deps: {
 
   const focusId = (id: string): void => focusRow(root.querySelector(`${LIVE} [data-id="${id}"]`));
 
-  /** Starts `els` from `state` and lets them transition to how they are drawn. */
-  function enter(els: readonly Element[], state: string): void {
-    for (const el of els) el.classList.add(state);
-    void root.offsetWidth;
-    for (const el of els) el.classList.remove(state);
-  }
-
   /** Swaps the list column; a mouse swap crossfades the old column out and the new one in. */
   function show(next: ListId | null, focus: string, animate: boolean): void {
-    swapExit.cancel();
-    for (const el of root.querySelectorAll(".is-leaving")) el.remove();
     const fold = placement?.fold ?? "none";
-    const side = fold === "none" ? "left" : fold;
-    const old = animate ? root.querySelector<HTMLElement>(`.yui-cmenu__col--${side}`) : null;
-    if (old) {
-      root.classList.toggle("is-back", next === null);
-      old.classList.add("is-leaving");
-      old.setAttribute("inert", "");
-    }
-    list = next;
-    confirm = null;
-    render();
-    if (old) {
-      enter([...root.querySelectorAll(`${LIVE}.yui-cmenu__col--${side}`)], "is-entering");
-      swapExit.run([old], () => old.remove());
-    }
+    motion.swap(fold === "none" ? "left" : fold, animate ? { back: next === null } : null, () => {
+      list = next;
+      confirm = null;
+      render();
+    });
     focusId(focus);
   }
 
@@ -426,19 +405,13 @@ export function createCharacterMenu(deps: {
     if (phase === "opening") void close();
     if (phase !== "open") return;
     phase = "leaving";
-    root.classList.add("is-closing");
-    const columns = [...root.querySelectorAll(LIVE)];
-    for (const el of [...columns, ...root.querySelectorAll(".yui-cmenu__name")])
-      el.classList.add("is-out");
-    menuExit.run(columns, () => void close());
+    motion.leave(() => void close());
   }
 
   async function open(): Promise<void> {
     if (phase === "leaving") {
-      menuExit.cancel();
+      motion.takeBack();
       phase = "open";
-      root.classList.remove("is-closing");
-      for (const el of root.querySelectorAll(".is-out")) el.classList.remove("is-out");
       if (!inMenu(document.activeElement)) focusRow(root.querySelector(`${LIVE} > *`));
       return;
     }
@@ -481,7 +454,7 @@ export function createCharacterMenu(deps: {
       root.setAttribute("aria-label", t("character_menu.label", { name: deps.name() }));
       root.hidden = false;
       render();
-      enter([...root.querySelectorAll(".yui-cmenu__col, .yui-cmenu__name")], "is-out");
+      motion.enter();
       focusId("talk");
     })();
     // open() rejects when the menu cannot be placed; close() waiting on it never does.
@@ -494,11 +467,9 @@ export function createCharacterMenu(deps: {
     if (phase === "opening") phase = "closing";
     if (phase !== "open" && phase !== "leaving") return pending;
     phase = "closing";
-    menuExit.cancel();
-    swapExit.cancel();
+    motion.stop();
     root.hidden = true;
     root.replaceChildren();
-    root.classList.remove("is-closing", "is-back");
     pending = settle();
     return pending;
   }
