@@ -36,6 +36,14 @@ describe("createYuiRunTool", () => {
     expect(tool.waitMs).toBe(121_000);
   });
 
+  it("describes the call exactly as the contract words it", () => {
+    const { tool } = harness();
+
+    expect(tool.definition.function.description).toBe(
+      "Run JavaScript against YUI's yui API and get its result. Call help() first: it prints the API. The code is an async function body: use await and return a JSON value.",
+    );
+  });
+
   it("answers the script's result and logs, and gives it help, state and info", async () => {
     const { run } = harness();
 
