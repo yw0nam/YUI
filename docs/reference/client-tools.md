@@ -369,7 +369,7 @@ Each settings row has one tier. A `direct` row applies its write at once. An `al
 | `no answer` | The card's 60 s passed, or the turn ended before an answer |
 | `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
 | `error: unknown <path>` | The patch names a path no row holds |
-| `error: <path> failed to load` | A direct write rejected before it stored the value |
+| `error: <path> failed to load` | The write rejected and left the value unchanged, such as a body that does not load |
 
 `help()` lists each row's tier, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
