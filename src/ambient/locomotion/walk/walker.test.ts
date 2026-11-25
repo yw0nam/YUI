@@ -802,6 +802,13 @@ describe("createWalker", () => {
       },
     ],
     [
+      "the free thinking fallback holds the body",
+      {
+        motionKind: () => "state" as const,
+        currentMotion: { id: "thinking_free", vrma_path: "/motions/idle_04.vrma" },
+      },
+    ],
+    [
       "the walk clip holds the body",
       {
         motionKind: () => "reactive" as const,

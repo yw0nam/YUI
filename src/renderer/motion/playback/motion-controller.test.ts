@@ -904,7 +904,7 @@ describe("resolve() — variantFilter restricts the pool", () => {
       variantFilter: (id, variants) =>
         id === "idle" ? variants.filter((v) => v === "/motions/calm.vrma") : variants,
     });
-    const recovered = resolveBaselineFallback(mc, "thinking");
+    const recovered = resolveBaselineFallback(mc, "happy");
     expect(recovered?.id).toBe("idle");
     expect(recovered?.vrma_path).toBe("/motions/calm.vrma");
   });

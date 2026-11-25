@@ -188,6 +188,30 @@ describe("validateMotions — broker_publish", () => {
   });
 });
 
+describe("validateMotions — fallback", () => {
+  it("rejects a fallback naming an unknown id, naming both ids", () => {
+    expectIssue(
+      { idle: baseEntry({ fallback: "bogus" }) },
+      'idle.fallback "bogus" is not a registered motion id',
+    );
+  });
+
+  it("rejects a fallback naming the entry's own id", () => {
+    expectIssue(
+      { idle: baseEntry({ fallback: "idle" }) },
+      "idle.fallback must not name its own id",
+    );
+  });
+
+  it("passes a fallback naming another registered id through", () => {
+    const out = validateMotions(FILE, {
+      idle: baseEntry(),
+      free: baseEntry({ vrma_path: "/motions/idle_04.vrma", fallback: "idle" }),
+    });
+    expect(out.free.fallback).toBe("idle");
+  });
+});
+
 describe("validateMotions — cycle_dwell_ms", () => {
   it("rejects a non-integer", () => {
     expectIssue(

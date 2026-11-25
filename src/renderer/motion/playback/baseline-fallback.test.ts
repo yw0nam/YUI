@@ -25,11 +25,23 @@ const realRegistry: MotionRegistry = JSON.parse(
 );
 
 describe("resolveBaselineFallback — failed clip repairs controller to idle", () => {
+  // Fixture copy of a kind:state motion with no fallback — the generic recovery path.
+  const noFallbackState: MotionRegistry = {
+    ...realRegistry,
+    thinking: {
+      vrma_path: "/motions/thinking.vrma",
+      kind: "state",
+      loop: true,
+      priority: 50,
+      interrupt_policy: "ignore",
+    },
+  };
+
   it("a failed kind:state motion (thinking) is overwritten by force-committed idle", () => {
-    const controller = createMotionController(realRegistry, { rng: () => 0 });
+    const controller = createMotionController(noFallbackState, { rng: () => 0 });
 
     // Simulate playMotion having committed thinking *before* its async clip load failed:
-    // current + previousStable are now pinned at the dead state motion.
+    // current is now pinned at the dead state motion.
     const thinking = controller.resolve({ id: "thinking" });
     expect(thinking).not.toBeNull();
     controller.commit({ action: "play", motion: thinking! });
@@ -40,19 +52,19 @@ describe("resolveBaselineFallback — failed clip repairs controller to idle", (
     expect(idle).not.toBeNull();
     expect(idle!.id).toBe("idle");
 
-    // Force-commit overwrote both current and previousStable with idle (ambient).
+    // Force-commit overwrote current with idle (ambient).
     expect(controller.current()?.id).toBe("idle");
   });
 
   it("force-committed idle repairs previousStable so a later oneshot returns to idle, not the dead motion", () => {
     const controller = createMotionController(realRegistry, { rng: () => 0 });
 
-    const thinking = controller.resolve({ id: "thinking" })!;
-    controller.commit({ action: "play", motion: thinking });
+    const peek = controller.resolve({ id: "peek" })!;
+    controller.commit({ action: "play", motion: peek });
 
-    resolveBaselineFallback(controller, "thinking");
+    resolveBaselineFallback(controller, "peek");
 
-    // Play a oneshot then finish it — it must return to idle (previousStable), not thinking.
+    // Play a oneshot then finish it — it must return to idle (previousStable), not peek.
     const happy = controller.resolve({ id: "happy" })!;
     controller.commit({ action: "play", motion: happy });
     const next = controller.finish("happy");
