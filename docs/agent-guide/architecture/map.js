@@ -1280,7 +1280,7 @@ globalThis.YUI_MAP =
       "id": "ui/ask",
       "module": "display",
       "label": "ask card",
-      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window.",
+      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window. It owns the answer area (prompt, numbered choices, growing field, send) that the thread pane also mounts.",
       "paths": [
         "src/ui/ask"
       ]

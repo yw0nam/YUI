@@ -682,6 +682,8 @@ YUI/
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
       ask/                           # The Ask card and its answer area
         answer-area.ts               # The answer area: numbered choices, the growing field, and the send button
+        ask-card.ts                  # The oldest supplied Ask above the input, with its countdown, choices and draft
+        ask-route.ts                 # Shows the Asks on the one side the target picks, clearing the previous side, and hears answers from every side
       character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches

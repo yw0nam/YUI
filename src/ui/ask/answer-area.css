@@ -1,4 +1,4 @@
-/* The answer area pinned at the thread pane's foot. Tokens in ../tokens.css. */
+/* The answer area: an Ask's prompt, numbered choices, growing field and send button, in the Ask card and the thread pane. Tokens in ../tokens.css. */
 
 .yui-answer {
   display: grid;
