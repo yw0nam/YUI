@@ -1,6 +1,6 @@
 /** yui.settings: the exposed settings document, and a patch whose allow paths wait for the user. */
 
-import type { SettingsChange } from "../../../../settings/agent-access/document";
+import type { SettingsChange, PatchRow } from "../../../../settings/agent-access/document";
 import { applyPatch, readDocument } from "../../../../settings/agent-access/document";
 import { ROWS } from "../../../../settings/agent-access/rows";
 import { validate } from "../../../../settings/agent-access/validate";
@@ -24,6 +24,7 @@ export interface SettingsApi {
 export function createSettingsApi(deps: {
   stores: SettingsStores;
   request: RequestSettings;
+  rows?: readonly PatchRow[];
 }): SettingsApi {
   return {
     read: () => readDocument(deps.stores),

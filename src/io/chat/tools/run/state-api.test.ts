@@ -1,11 +1,11 @@
 /** state-api.test.ts — yui.state reports times as ISO 8601 with the local offset, who is open, and the screen-recording permission. */
 
+const previousTz = process.env.TZ;
 process.env.TZ = "Asia/Seoul";
 
 import { afterAll, describe, expect, it } from "vitest";
 import { createStateApi } from "./state-api";
 
-const previousTz = process.env.TZ;
 afterAll(() => {
   process.env.TZ = previousTz;
 });

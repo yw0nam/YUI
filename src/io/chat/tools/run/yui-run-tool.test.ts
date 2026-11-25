@@ -175,4 +175,39 @@ describe("createYuiRunTool", () => {
     expect(JSON.parse(text)).toEqual({ status: "error", error: "code must be a string", logs: [] });
     expect(tool.failed?.(text)).toBe(true);
   });
+
+  it.each([
+    ["a string", "return await yui.settings.write('x')"],
+    ["null", "return await yui.settings.write(null)"],
+  ])("answers a shape error for a patch that is %s, without asking", async (_shape, code) => {
+    const { run, request, stores } = harness();
+
+    const result = await run(code);
+
+    expect(result.result).toEqual({ "*": "error: patch must be an object" });
+    expect(request).not.toHaveBeenCalled();
+    expect(stores.bubblePersistSettings.get().enabled).toBe(false);
+  });
+
+  it("answers a shape error for a non-string why, without asking", async () => {
+    const { run, request, stores } = harness();
+
+    const result = await run(
+      "return await yui.settings.write({ bubble: { keep: true } }, { why: 5 })",
+    );
+
+    expect(result.result).toEqual({ "*": "error: why must be a string" });
+    expect(request).not.toHaveBeenCalled();
+    expect(stores.bubblePersistSettings.get().enabled).toBe(false);
+  });
+
+  it("rejects a readings text above the row's cap as invalid", async () => {
+    const { run } = harness();
+
+    const result = await run(
+      "return await yui.settings.write({ voice: { readings: 'a'.repeat(4e6) } })",
+    );
+
+    expect(result.result).toEqual({ "voice.readings": "error: invalid voice.readings" });
+  });
 });

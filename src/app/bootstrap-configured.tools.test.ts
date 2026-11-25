@@ -54,6 +54,7 @@ it.each([
         surfaces: { setAsks: () => {}, onAskAnswer: () => {} },
         conversation: { relationsStore: {} },
         vrm: { vrmSelection: {} },
+        speaker: { speakerSelection: {} },
         // Threads belong to the main character; the wiring hands the client to main's window only.
         threads: tauri && !bound ? { threads: () => [] } : null,
         isDisposed: () => false,
