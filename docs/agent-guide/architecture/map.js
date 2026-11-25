@@ -1173,7 +1173,7 @@ globalThis.YUI_MAP =
       "id": "ui/surfaces",
       "module": "display",
       "label": "surfaces",
-      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet.",
+      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet. In the pet window, the chip column moves up to end 8px above a shown Ask card or bubble, the rows that still do not fit, never urgent signal chips, fold into one \"+N\" row, and the column fades out while the Character menu is open.",
       "paths": [
         "src/ui/surfaces"
       ]
@@ -1218,7 +1218,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chips (urgent ones a row each, the batched ones one row whose \"+N\" unfolds the rest in a scroll region) and their details sheet, and the voice-input status model; each chip row carries its count for the chip column.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1264,7 +1264,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, its count for the chip column, and its slot rect, also while hidden or capped) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
       "paths": [
         "src/ui/threads"
       ]
@@ -2332,6 +2332,51 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
+    },
+    {
+      "id": "chip-column-chips",
+      "from": "ui/chips",
+      "to": "ui/surfaces",
+      "carries": "the signal chips' row roots with data-chip-count and, on urgent ones, data-chip-urgent, and the delegation chip's root with data-chip-count → the chip column's plan, which caps the rows that do not fit with is-capped",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-threads",
+      "from": "ui/threads",
+      "to": "ui/surfaces",
+      "carries": "the Threads chip's root with data-chip-count → the chip column's plan; slotRect lifts is-capped for its one read",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-bubble",
+      "from": "ui/message",
+      "to": "ui/surfaces",
+      "carries": "the bubble's is-visible, hidden and style, and its box → the chip column ends 8px above it while it shows and has not stepped aside",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-ask",
+      "from": "ui/ask",
+      "to": "ui/surfaces",
+      "carries": "the Ask card's hidden and its box → the chip column ends 8px above it while it shows",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-menu",
+      "from": "ui/character-menu",
+      "to": "ui/surfaces",
+      "carries": "the menu root, mounted in the surfaces overlay, shown → surfaces.css's :has rule fades the chip column out over 140 ms and the overlay hit targets drop its chips, until the root hides",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "feed-tool",

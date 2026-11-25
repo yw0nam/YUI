@@ -2,7 +2,6 @@
    Same pill family as the delegation chip. Tokens live in ../tokens.css. */
 
 .yui-sigchips {
-  --yui-sigchip-h: 1.75rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -25,15 +24,21 @@
   pointer-events: auto;
 }
 
-/* Expanded past three: exactly eight rows show, then the column scrolls inside. The scroll box
-   would clip the Float shadow into a hard edge, so the pills go without it here. */
-.yui-sigchips.is-expanded {
+/* The expanded batched chips, below the urgent ones: exactly eight rows show, then the region scrolls
+   inside. The scroll box would clip the Float shadow into a hard edge, so the pills go without it here. */
+.yui-sigchips__batched {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  gap: 0.4rem;
   max-height: calc(8 * var(--yui-sigchip-h) + 7 * 0.4rem);
   overflow-y: auto;
 }
 
-.yui-sigchips.is-expanded .yui-sigchip,
-.yui-sigchips.is-expanded .yui-sigchip__more {
+.yui-sigchips__batched .yui-sigchip,
+.yui-sigchips__batched .yui-sigchip__more {
   box-shadow: none;
 }
 
@@ -105,6 +110,11 @@
   cursor: pointer;
 }
 
+/* display: grid beats the UA's [hidden] rule; the grouped row hides its cross for "+N". */
+.yui-sigchip__x[hidden] {
+  display: none;
+}
+
 .yui-sigchip__x:hover {
   color: var(--yui-text);
 }
@@ -170,6 +180,23 @@
   cursor: pointer;
 }
 
+/* In the grouped row, "+N" takes the cross's place inside the newest batched pill. */
+.yui-sigchip > .yui-sigchip__more {
+  height: auto;
+  padding: 0.3rem 0.66rem 0.3rem 0.2rem;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.yui-sigchip > .yui-sigchip__more:hover {
+  color: var(--yui-text);
+}
+
+.yui-sigchip__count {
+  display: none;
+}
+
 /* Folded (is-mini): every chip shrinks to its dot. */
 .yui-sigchips.is-mini .yui-sigchip__src,
 .yui-sigchips.is-mini .yui-sigchip__text,
@@ -179,8 +206,44 @@
 }
 
 .yui-sigchips.is-mini .yui-sigchip__open {
-  gap: 0;
   padding: 0.3rem 0.4rem;
+}
+
+/* In a chip column under 9rem (surfaces.css), pills show their dot, the grouped row its total, and Collapse a glyph. */
+@container (width < 9rem) {
+  .yui-sigchip__src,
+  .yui-sigchip__text,
+  .yui-sigchip__x,
+  .yui-sigchip > .yui-sigchip__more {
+    display: none;
+  }
+
+  .yui-sigchip__open {
+    gap: 0.4rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .yui-sigchip__open:has(.yui-sigchip__count:not(:empty)) {
+    padding-right: 0.55rem;
+  }
+
+  .yui-sigchip__count:not(:empty) {
+    display: inline;
+    color: var(--yui-text-dim);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The word gives way to a minus; aria-label keeps the name. */
+  .yui-sigchips__batched > .yui-sigchip__more {
+    padding: 0 0.55rem;
+    font-size: 0;
+  }
+
+  .yui-sigchips__batched > .yui-sigchip__more::before {
+    content: "\2212";
+    font-size: var(--yui-fs-sub);
+  }
 }
 
 /* The details sheet hangs under the whole chip column, its right edge 0.5rem inside the window, lifted or capped by fitSheet to stay inside it. */

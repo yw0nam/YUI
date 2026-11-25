@@ -65,6 +65,7 @@
   --yui-radius-group: 12px;
   --yui-radius-control: 8px;
   --yui-radius-pill: 999px;
+  --yui-sigchip-h: 1.75rem; /* 28px: a signal pill, and the chip column's "+N" row in its look */
   --yui-bubble-bottom: 16%; /* Character's lower-half band — bottom anchor so face isn't hidden */
   /* Three speech lines at line-height 1.75 + 56px padding + 2px border */
   --yui-bubble-three-lines: calc(3 * 1.75 * var(--yui-fs-speech) + 58px);
