@@ -315,6 +315,8 @@ export function createSurfaces({
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
+    setThreads: input.setThreads,
+    onThreadRemove: input.onThreadRemove,
     setInputAnchor: anchorWithInputSlots([askSlot, commandSlot], input.setInputAnchor),
     dispose,
   };

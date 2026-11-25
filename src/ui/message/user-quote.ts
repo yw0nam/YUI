@@ -31,9 +31,10 @@ export interface UserQuoteLine {
 }
 
 export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuoteLine {
-  el.innerHTML = `<span class="yui-bubble__quote-who"></span><span class="yui-bubble__quote-text"></span>`;
+  el.innerHTML = `<span class="yui-bubble__quote-who"></span><span class="yui-bubble__quote-text"></span><span class="yui-bubble__quote-threads"></span>`;
   const whoEl = el.querySelector<HTMLElement>(".yui-bubble__quote-who")!;
   const textEl = el.querySelector<HTMLElement>(".yui-bubble__quote-text")!;
+  const threadsEl = el.querySelector<HTMLElement>(".yui-bubble__quote-threads")!;
   let shown: UserQuote | null = null;
 
   function renderWho(): void {
@@ -49,14 +50,22 @@ export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuo
 
   function show(quote: UserQuote): void {
     shown = quote;
-    // The slot may hold source lines, so the two spans are put back.
+    // The slot may hold source lines, so the spans are put back.
     el.classList.remove("is-sources");
-    el.replaceChildren(whoEl, textEl);
+    el.replaceChildren(whoEl, textEl, threadsEl);
     // Hold first, so the reveal keeps the slot.
     bubble.holdForTurn(true);
     bubble.reveal({ clearSpeech: true });
     renderWho();
     textEl.textContent = quoteText(quote);
+    threadsEl.replaceChildren(
+      ...(quote.threads ?? []).map((title) => {
+        const chip = document.createElement("span");
+        chip.className = "yui-bubble__quote-thread";
+        chip.textContent = t("input.thread_chip", { title });
+        return chip;
+      }),
+    );
     el.hidden = false;
     bubble.measure();
   }

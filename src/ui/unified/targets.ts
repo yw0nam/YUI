@@ -1,5 +1,6 @@
 /** Pure: who a message from the unified chat window goes to, and the send that carries it. */
 
+import type { AttachedThread } from "../../contract";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { RESERVED_NAMES } from "../../settings/preset/preset-registry";
@@ -18,6 +19,7 @@ export interface Send {
   text: string;
   mention?: UserTurnRouted["mention"];
   via?: UserTurnRouted["via"];
+  threads?: AttachedThread[];
 }
 
 /** Who a send goes to: EVERYONE, or its one target. */

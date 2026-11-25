@@ -70,6 +70,10 @@
     linear-gradient(var(--yui-accent-faint), var(--yui-accent-faint)), var(--yui-scrim-strong);
   color: var(--yui-text);
 }
+.yui-uc__chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .yui-uc__chip-name {
   font-size: var(--yui-fs-sub);
   font-weight: 600;
@@ -245,4 +249,15 @@
 
 .yui-uc .yui-cmd-slot:not(:has(.yui-cmd-reply:not([hidden]))) {
   display: none;
+}
+
+/* Why the recipient is held to main while Threads are attached. */
+.yui-uc__threads-hint {
+  margin: 0 0 6px;
+  padding: 6px 9px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-scrim-strong);
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-caption);
+  line-height: 1.4;
 }

@@ -5,7 +5,7 @@
  * so each channel here rides the cross-window bridge core.
  */
 
-import type { GuideKey, ScreenRect } from "../../contract";
+import type { AttachedThread, GuideKey, ScreenRect } from "../../contract";
 import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsFocus, isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
@@ -71,6 +71,8 @@ export interface UserTurnRouted {
   text: string;
   mention?: "character" | "everyone";
   via?: "voice";
+  /** The Threads the message's composer showed attached. */
+  threads?: AttachedThread[];
 }
 
 /** Main's recognized speech for the unified chat window. */
@@ -106,6 +108,17 @@ export interface ThreadsOpen {
   present?: string;
 }
 
+/** The Threads window toggling a Thread in main's chat input, or a chip's × removing it. */
+export interface ThreadsAttachRequest {
+  op: "toggle" | "remove";
+  thread: AttachedThread;
+}
+
+/** The Threads attached to main's chat input. */
+export interface ThreadsAttached {
+  threads: AttachedThread[];
+}
+
 /** The Threads window reporting that the automatic request `present` finished. */
 export interface ThreadsPresented {
   present: string;
@@ -124,6 +137,21 @@ const isBool = (v: unknown): v is boolean => typeof v === "boolean";
 const isNonEmptyString = (v: unknown): v is string => isString(v) && v !== "";
 const isThreadsTab = (v: unknown): v is ThreadsTab => v === "threads" || v === "terminal";
 
+/** The Thread rebuilt from its three fields, or undefined when one is not a string or the id is empty. */
+function attachedThread(v: unknown): AttachedThread | undefined {
+  const { id, source, title } = (v ?? {}) as Record<string, unknown>;
+  return isNonEmptyString(id) && isString(source) && isString(title)
+    ? { id, source, title }
+    : undefined;
+}
+
+/** Every Thread of the list rebuilt, or undefined when it is not a list of Threads. */
+function attachedThreads(v: unknown): AttachedThread[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const threads = v.map(attachedThread);
+  return threads.every((t) => t !== undefined) ? (threads as AttachedThread[]) : undefined;
+}
+
 function isQuote(v: unknown): boolean {
   if (v === null || typeof v !== "object") return false;
   const q = v as Record<string, unknown>;
@@ -131,7 +159,8 @@ function isQuote(v: unknown): boolean {
     isString(q.text) &&
     (q.via === "text" || q.via === "voice") &&
     typeof q.images === "number" &&
-    isOptional(q.mention, (m) => m === "character" || m === "everyone")
+    isOptional(q.mention, (m) => m === "character" || m === "everyone") &&
+    isOptional(q.threads, (t) => Array.isArray(t) && t.every(isString))
   );
 }
 
@@ -185,6 +214,10 @@ function isStreamOp(v: unknown): v is MessageSurfaceOp {
       return Array.isArray(o.lines) && o.lines.every(isSourceLine);
     case "busy":
       return isBool(o.busy);
+    case "threads":
+      return attachedThreads(o.threads) !== undefined;
+    case "restore-input":
+      return isString(o.text) && Array.isArray(o.images) && o.images.every(isString);
     case "name":
       return isString(o.name);
     case "input-error":
@@ -288,6 +321,25 @@ export const channels = {
         ...(focus === undefined ? {} : { focus }),
         ...(present === undefined ? {} : { present }),
       });
+    },
+  },
+  /** The Threads window or a chip's × asking main to change its attached Threads. */
+  ThreadsAttachRequest: {
+    name: "yui://threads-attach-request",
+    scope: "shared",
+    read(request, deliver: (request: ThreadsAttachRequest) => void) {
+      const { op, thread } = (request ?? {}) as Record<string, unknown>;
+      const attached = attachedThread(thread);
+      if ((op === "toggle" || op === "remove") && attached) deliver({ op, thread: attached });
+    },
+  },
+  /** Main's attached Threads, sent on every change and on the Threads window's ready. */
+  ThreadsAttached: {
+    name: "yui://threads-attached",
+    scope: "shared",
+    read(event, deliver: (event: ThreadsAttached) => void) {
+      const threads = attachedThreads((event as Partial<ThreadsAttached> | null)?.threads);
+      if (threads) deliver({ threads });
     },
   },
   /** The Threads window reporting it has booted. */
@@ -442,12 +494,15 @@ export const channels = {
       const mention = e.mention === "character" || e.mention === "everyone" ? e.mention : undefined;
       if (e.mention !== undefined && mention === undefined) return;
       if (e.via !== undefined && e.via !== "voice") return;
+      const threads = e.threads === undefined ? undefined : attachedThreads(e.threads);
+      if (e.threads !== undefined && threads === undefined) return;
       deliver({
         sendId: e.sendId,
         to: e.to,
         text: e.text,
         ...(mention ? { mention } : {}),
         ...(e.via ? { via: e.via } : {}),
+        ...(threads ? { threads } : {}),
       });
     },
   },

@@ -7,6 +7,7 @@
  * that API's arguments and nothing more — no judgment crosses the wire.
  */
 
+import type { AttachedThread } from "../../../contract";
 import type { AskAnswer } from "../../chat/push/push-frames";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
 import type { MessageSurfaceOp } from "./surface-ops";
@@ -21,6 +22,8 @@ export interface UserQuote {
   images: number;
   /** A turn the unified chat window routed: one character, or everyone. */
   mention?: "character" | "everyone";
+  /** The titles of the Threads attached to the message. */
+  threads?: string[];
 }
 
 /** One signal group as the bubble quotes it: its delivery class, its source, and its label. */
@@ -41,7 +44,7 @@ export type MessageControlOp =
   | { op: "ask-answer"; answer: AskAnswer }
   | { op: "command-reply-close" }
   | { op: "command"; name: string; args: string }
-  | { op: "submit"; text: string; images: string[] }
+  | { op: "submit"; text: string; images: string[]; threads: AttachedThread[] }
   | { op: "stop" }
   | { op: "input-open"; open: boolean }
   | { op: "input-error-action" }

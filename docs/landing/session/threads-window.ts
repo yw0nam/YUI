@@ -1,3 +1,4 @@
+import { createAttachedThreads } from "../../../src/app/threads-attach/attached-threads";
 import { wireTerminalTab } from "../../../src/app/threads-window/wire-terminal-tab";
 import { createDelegationChipSettings } from "../../../src/settings/panels/delegation-chip-settings";
 import { createThreadsChip } from "../../../src/ui/threads/chip/threads-chip";
@@ -8,6 +9,7 @@ import { store } from "./thread-store";
 import { createThreadsBox } from "./threads-box";
 
 const box = createThreadsBox({ win: threadsWin, desk, pet: readPet });
+const attached = createAttachedThreads();
 const chip = createThreadsChip({
   mount: surfaces.chipColumn,
   collapsed: createDelegationChipSettings(),
@@ -33,6 +35,8 @@ const view = createThreadsView({
   listWidth: null,
   onListWidth() {},
   onTurnsLevel() {},
+  attached,
+  onAttach: (thread) => attached.toggle(thread),
   resize: box.resize,
   terminal: wireTerminalTab({
     register() {},

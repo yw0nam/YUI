@@ -55,6 +55,7 @@ const ko: Record<string, string> = {
   "aria.send": "보내기",
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
+  "aria.remove_thread": "메시지에서 {title} 빼기",
   "aria.dismiss_bubble": "말풍선 닫기",
   "bubble.you": "나",
   "bubble.backlog": "백로그",
@@ -68,6 +69,7 @@ const ko: Record<string, string> = {
   "aria.dismiss_error": "오류 닫기",
 
   "input.placeholder": "말 걸기…",
+  "input.thread_chip": "스레드 · {title}",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",
   "input.error_http": "{status} {message}",
@@ -392,6 +394,8 @@ const ko: Record<string, string> = {
   "unified.everyone": "모두",
   "unified.recipients": "받는 사람",
   "unified.placeholder_to": "{name}에게 말 걸기…",
+  "unified.threads_hint":
+    "첨부한 스레드는 스레드를 읽을 수 있는 {name}에게 가요. 다른 캐릭터를 고르려면 첨부를 빼 주세요.",
 
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",
@@ -912,6 +916,8 @@ const ko: Record<string, string> = {
   "threads.role_system": "시스템",
   "threads.just_now": "방금",
   "threads.mark_read": "읽음",
+  "threads.attached": "첨부됨",
+  "threads.attach": "채팅에 첨부",
   "threads.turns_button": "캐릭터 반응: {level}",
   "threads.turns_caption": "메인 캐릭터에게 스레드 알리기",
   "threads.turns_off_sub": "스레드는 여기에만 남고 캐릭터는 몰라요.",

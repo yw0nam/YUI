@@ -4,6 +4,7 @@
  * decide whether and what to say; the view renders what their windows stream.
  */
 
+import type { AttachedThread } from "../../contract";
 import type {
   SpeechStream,
   SpeechStreamControl,
@@ -12,7 +13,7 @@ import type {
 } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
-import { subscribe as subscribeLocale } from "../i18n";
+import { subscribe as subscribeLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { backlogLines, recipientName, shownQuote, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
@@ -55,6 +56,8 @@ export interface UnifiedView {
   onStop(cb: () => void): void;
   /** A click on an error's fix, for the preset whose window showed the error. */
   onInputErrorAction(cb: (preset: string) => void): void;
+  /** A Thread chip's ×. */
+  onThreadRemove(cb: (thread: AttachedThread) => void): void;
   dispose(): void;
 }
 
@@ -85,6 +88,8 @@ export function createUnifiedView(deps: {
   const stopCbs: Array<() => void> = [];
   const errorActionCbs: Array<(preset: string) => void> = [];
   let pending: PendingSend[] = [];
+  // Main's attached Threads: while any are, every send goes to main, the one character that can read them.
+  let attached: AttachedThread[] = [];
 
   const entryOf = (id: string): PresetEntry | undefined => deps.cast().find((e) => e.id === id);
   const nameOf = (id: string): string => castState.nameOf(id);
@@ -141,9 +146,10 @@ export function createUnifiedView(deps: {
     return castState.running() || sequence.current() !== null;
   }
 
-  // The recipient the row and the placeholder name: a pick or typed @name, else the running send's, else the fallback.
+  // The recipient the row and the placeholder name: main while Threads are attached, a pick or typed @name, else the running send's, else the fallback.
   function shown(): Mention | undefined {
     const send = sequence.current();
+    if (attached.length && !send) return deps.mainId();
     return (
       composer.getExplicitMention() ??
       (send
@@ -158,7 +164,13 @@ export function createUnifiedView(deps: {
 
   function paint(): void {
     const recipient = shown();
-    chips.render(deps.cast(), castState.stateOf, recipient);
+    const main = attached.length ? deps.mainId() : undefined;
+    chips.render(deps.cast(), castState.stateOf, recipient, main);
+    composer.lockRecipient(
+      main === undefined
+        ? null
+        : { id: main, hint: t("unified.threads_hint", { name: nameOf(main) }) },
+    );
     composer.showRecipient(
       recipient === undefined || deps.cast().length === 0
         ? undefined
@@ -182,12 +194,12 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  function route(text: string, via?: UserTurnRouted["via"]): void {
+  function route(text: string, via?: UserTurnRouted["via"], threads?: AttachedThread[]): void {
     // A spoken send names the pick or a typed @name; the fallback picks the target as for a typed send.
     const send = buildSend({
       text,
       mention: via ? composer.getExplicitMention() : composer.getMention(),
-      cast: deps.cast(),
+      cast: attached.length ? deps.cast().filter((e) => e.id === deps.mainId()) : deps.cast(),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
       shuffle: shuffled,
@@ -200,7 +212,7 @@ export function createUnifiedView(deps: {
       to: recipientOf(send),
       at: deps.now(),
     });
-    sequence.run({ ...send, via });
+    sequence.run({ ...send, via, threads });
     // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
     if (via && composer.getMention() === null) composer.consumeMentionToken();
     composer.setMention(null);
@@ -224,7 +236,7 @@ export function createUnifiedView(deps: {
     log.info("stop");
   }
 
-  composer.onSubmit((text) => route(text));
+  composer.onSubmit((text, threads) => route(text, undefined, threads));
   composer.onChange(paint);
   composer.onStop(stopButton);
 
@@ -246,6 +258,14 @@ export function createUnifiedView(deps: {
         case "summon-input":
           // A document focus in an unfocused webview leaves the keystrokes with the pet window.
           void deps.focusWindow().then(composer.focus);
+          break;
+        case "threads":
+          if (preset !== deps.mainId()) break;
+          attached = op.threads;
+          composer.setThreads(op.threads);
+          break;
+        case "restore-input":
+          composer.restore(op.text);
           break;
         case "input-error":
           composer.showError(
@@ -290,6 +310,7 @@ export function createUnifiedView(deps: {
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),
+    onThreadRemove: composer.onThreadRemove,
     dispose() {
       unsubscribeLocale();
       sequence.dispose();

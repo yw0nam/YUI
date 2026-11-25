@@ -4,6 +4,7 @@
  * into stop while a reply runs; routing stays with the view.
  */
 
+import type { AttachedThread } from "../../contract";
 import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { createCommandInput } from "../commands/command-input";
@@ -31,8 +32,15 @@ export interface Composer {
   fill(text: string): void;
   /** Drops the field's leading @name token, with its space, the way typing does; the rest stays. */
   consumeMentionToken(): void;
-  /** text is trimmed and never empty. */
-  onSubmit(cb: (text: string) => void): void;
+  /** text is trimmed, and empty only when Threads are attached. */
+  onSubmit(cb: (text: string, threads: AttachedThread[]) => void): void;
+  /** Draws main's attached Threads as chips above the field. */
+  setThreads(threads: AttachedThread[]): void;
+  onThreadRemove(cb: (thread: AttachedThread) => void): void;
+  /** Holds sends to one recipient: the hint shows above the field, and a typed leading @name for anyone else is refused with it; null frees the choice. */
+  lockRecipient(lock: { id: Mention; hint: string } | null): void;
+  /** Puts a failed send's text back while the field is empty. */
+  restore(text: string): void;
   /** While busy, send becomes stop and Enter sends nothing. */
   setBusy(busy: boolean): void;
   onStop(cb: () => void): void;
@@ -63,6 +71,11 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const q = <T extends HTMLElement>(sel: string): T => dock.querySelector<T>(sel)!;
   const form = q<HTMLFormElement>(".yui-input");
   const field = q<HTMLTextAreaElement>(".yui-input__field");
+  const hint = document.createElement("p");
+  hint.className = "yui-uc__threads-hint";
+  hint.hidden = true;
+  form.before(hint);
+  let lock: { id: Mention; hint: string } | null = null;
 
   let mention: Mention | null = null;
   const changeCbs: Array<() => void> = [];
@@ -95,7 +108,18 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       if (!open) input.summonInput();
     },
   );
-  input.interceptSubmit(commandInput.interceptSubmit);
+  input.interceptSubmit((text, images) => {
+    const command = commandInput.interceptSubmit(text, images);
+    if (command !== false || lock === null) return command;
+    const cast = deps.cast();
+    const held = lock.id;
+    const elsewhere = [countedMention(mention, cast), typedMention(text, cast)].some(
+      (m) => m !== null && m !== held,
+    );
+    if (!elsewhere) return false;
+    input.showInputError(lock.hint);
+    return "refused";
+  });
   input.summonInput();
 
   // The recipient a send names before the fallback: the counted pick, else a typed leading @name.
@@ -143,11 +167,21 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       field.dispatchEvent(new Event("input", { bubbles: true }));
     },
     onSubmit: (cb) =>
-      input.onSubmit((text) => {
-        cb(text);
+      input.onSubmit((text, _images, threads) => {
+        cb(text, threads);
         // The field clears after the submit handlers, with no input event — the recipient follows then.
         queueMicrotask(changed);
       }),
+    setThreads: input.setThreads,
+    onThreadRemove: input.onThreadRemove,
+    lockRecipient(next) {
+      lock = next;
+      // A pick of someone else would be refused, so the lock drops it.
+      if (next && mention !== null && mention !== next.id) mention = null;
+      hint.textContent = next?.hint ?? "";
+      hint.hidden = next === null;
+    },
+    restore: (text) => input.restoreInput(text, []),
     setBusy: input.setBusy,
     onStop: input.onStop,
     showError: (message, action) => input.showInputError(message, action),

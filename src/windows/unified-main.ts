@@ -84,6 +84,9 @@ async function bootstrap(): Promise<void> {
   view.onInputErrorAction((preset) =>
     settingsBridge.emitSpeechStreamControl({ preset, op: { op: "input-error-action" } }),
   );
+  view.onThreadRemove((thread) =>
+    settingsBridge.emitThreadsAttachRequest({ op: "remove", thread }),
+  );
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {

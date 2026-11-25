@@ -9,6 +9,8 @@ export type {
   Ask,
   AskAnswer,
   AskChoice,
+  // A Thread attached to the main character's chat input
+  AttachedThread,
   // Current posture reported each turn
   BodyState,
   // Flat system-message context (client → backend each turn)

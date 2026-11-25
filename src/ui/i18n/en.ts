@@ -56,6 +56,7 @@ const en: Record<string, string> = {
   "aria.send": "Send",
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
+  "aria.remove_thread": "Remove {title} from the message",
   "aria.dismiss_bubble": "Dismiss speech bubble",
   "bubble.you": "You",
   "bubble.backlog": "Backlog",
@@ -69,6 +70,7 @@ const en: Record<string, string> = {
   "aria.dismiss_error": "Dismiss error",
 
   "input.placeholder": "Say something…",
+  "input.thread_chip": "Thread · {title}",
   "input.error_auth": "Auth failed · check API key",
   "input.error_network": "No response · check connection",
   "input.error_http": "{status} {message}",
@@ -393,6 +395,8 @@ const en: Record<string, string> = {
   "unified.everyone": "everyone",
   "unified.recipients": "Send to",
   "unified.placeholder_to": "Say something to {name}…",
+  "unified.threads_hint":
+    "Attached Threads go to {name}, the character who can read them. Remove them to pick someone else.",
 
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",
@@ -920,6 +924,8 @@ const en: Record<string, string> = {
   "threads.role_system": "System",
   "threads.just_now": "just now",
   "threads.mark_read": "Mark read",
+  "threads.attached": "Attached",
+  "threads.attach": "Attach to chat",
   "threads.turns_button": "Thread turns: {level}",
   "threads.turns_caption": "Tell the main character about Threads",
   "threads.turns_off_sub": "Threads stay here. The character hears nothing.",

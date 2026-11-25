@@ -1,6 +1,8 @@
-/** Wires the Threads window: the store's snapshots into the view, the view's read marks to the store, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
+/** Wires the Threads window: the store's snapshots into the view, the view's read marks to the store, main's attached Threads into the pane and its Attach to chat back, the Terminal tab, the Thread turns menu, its frame, open and close, theme and language. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { AttachedThread } from "../../contract";
+import { createStateMirror } from "../../io/bridge/core/state-mirror";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createThreadsClient } from "../../io/threads/threads-client";
 import { createLogger } from "../../logger";
@@ -58,6 +60,12 @@ export async function wireThreadsWindow(deps: {
     emitSettingsChanged: bridge.emitSettingsChanged,
   });
   const client = createThreadsClient();
+  // Main sends its attached Threads on every change and answers this window's ready.
+  const attached = createStateMirror<AttachedThread[]>({
+    initial: [],
+    on: (cb) => bridge.onThreadsAttached(({ threads }) => cb(threads)),
+    ask: () => {},
+  });
   const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage() });
   const placement = createThreadsPlacement({ settings });
   const resize = createThreadsResize({
@@ -81,6 +89,8 @@ export async function wireThreadsWindow(deps: {
     resize,
     terminal: wireTerminalTab({ register, settings }),
     onTurnsLevel: turnsMenu.pick,
+    attached,
+    onAttach: (thread) => bridge.emitThreadsAttachRequest({ op: "toggle", thread }),
   });
   const presence = createThreadsPresence({
     view,
@@ -98,6 +108,7 @@ export async function wireThreadsWindow(deps: {
   register(() => threadTurnsSettings.dispose());
   register(() => agentNotifySettings.dispose());
   register(() => bridge.dispose());
+  register(() => attached.dispose());
   register(() => client.dispose());
   register(() => view.dispose());
   register(turnsMenu.draw(view.setTurns));
@@ -134,5 +145,7 @@ export async function wireThreadsWindow(deps: {
       .hide()
       .catch((error) => log.warn("threads_boot_hide_failed", { error: String(error) }));
   }
+  // Main answers the ready with its attached Threads, which the mirror must be listening for.
+  await bridge.listening();
   bridge.emitThreadsReady();
 }

@@ -9,7 +9,7 @@
  */
 
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
-import type { UtteranceIdentity } from "../../../contract";
+import type { AttachedThread, UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
 import { createCoalescingBridge } from "./coalesce-pushes";
@@ -67,7 +67,9 @@ export interface RemoteSurfaces {
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into the message window's composer when it is open and empty. */
   restoreInput(text: string, images: string[]): void;
-  onSubmit(cb: (text: string, images: string[]) => void): void;
+  /** Main's attached Threads, drawn as chips in the message window's composer. */
+  setThreads(threads: AttachedThread[]): void;
+  onSubmit(cb: (text: string, images: string[], threads: AttachedThread[]) => void): void;
   onStop(cb: () => void): void;
   /** The dock button on the message window's plate. */
   onDock(cb: () => void): void;
@@ -79,7 +81,8 @@ export interface RemoteSurfaces {
 export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
   const bridge = createCoalescingBridge(rawBridge);
   const log = createLogger("message-remote");
-  const submitHandlers: Array<(text: string, images: string[]) => void> = [];
+  const submitHandlers: Array<(text: string, images: string[], threads: AttachedThread[]) => void> =
+    [];
   const stopHandlers: Array<() => void> = [];
   const dockHandlers: Array<() => void> = [];
   const openSettingsHandlers: Array<() => void> = [];
@@ -104,7 +107,7 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
         for (const cb of commandHandlers) cb(op.name, op.args);
         break;
       case "submit":
-        for (const cb of submitHandlers) cb(op.text, op.images);
+        for (const cb of submitHandlers) cb(op.text, op.images, op.threads);
         break;
       case "stop":
         for (const cb of stopHandlers) cb();
