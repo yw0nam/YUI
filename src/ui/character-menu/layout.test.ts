@@ -1,9 +1,15 @@
 import { expect, it } from "vitest";
-import { planMenu } from "./layout";
+import { planMenu, planTop } from "./layout";
 
 const workArea = { x: 0, y: 25, width: 1440, height: 875 };
 // Widest pills as measured: the right top column, the left top column, all top items, and each list.
-const widths = { right: 101, left: 90, all: 150, lists: [130, 120, 95, 171] };
+const widths = {
+  right: 101,
+  left: 90,
+  all: 150,
+  lists: [130, 120, 95, 171],
+  rows: { none: 6, folded: 8 },
+};
 
 it.each([
   // 88 from her centre, then the column on the 8px grid, then the 16px shadow margin.
@@ -28,4 +34,33 @@ it.each([
   ],
 ] as const)("plans %s", (_name, centre, measured, plan) => {
   expect(planMenu({ centre, half: 200, workArea, widths: measured })).toEqual(plan);
+});
+
+it.each([
+  [
+    "under her head where the list fits",
+    { windowBottom: 600, workBottom: 900 },
+    256,
+    { top: 120, growUp: 0 },
+  ],
+  [
+    "8px above the window bottom",
+    { windowBottom: 284, workBottom: 900 },
+    256,
+    { top: 20, growUp: 0 },
+  ],
+  [
+    "8px above the work-area bottom",
+    { windowBottom: 600, workBottom: 300 },
+    256,
+    { top: 36, growUp: 0 },
+  ],
+  [
+    "8px below a window grown up for it",
+    { windowBottom: 284, workBottom: 900 },
+    344,
+    { top: -68, growUp: 76 },
+  ],
+] as const)("puts the columns' top %s", (_name, bottoms, height, plan) => {
+  expect(planTop({ head: 120, height, ...bottoms })).toEqual(plan);
 });
