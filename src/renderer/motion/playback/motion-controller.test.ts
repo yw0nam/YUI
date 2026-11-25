@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../../../contract";
-import { resolveBaselineFallback } from "./baseline-fallback";
+import { resolveFallback } from "./fallback";
 import {
   createMotionController,
   needsRestartOnPoolChange,
@@ -904,7 +904,7 @@ describe("resolve() — variantFilter restricts the pool", () => {
       variantFilter: (id, variants) =>
         id === "idle" ? variants.filter((v) => v === "/motions/calm.vrma") : variants,
     });
-    const recovered = resolveBaselineFallback(mc, "thinking");
+    const recovered = resolveFallback(mc, "happy");
     expect(recovered?.id).toBe("idle");
     expect(recovered?.vrma_path).toBe("/motions/calm.vrma");
   });

@@ -47,6 +47,8 @@ const log = createLogger("walker");
 export const WALK_MOTION_ID = "walk";
 /** Registry id of the turn-in-flight loop — a body a stroll may take. */
 const THINKING_MOTION_ID = "thinking";
+/** Registry id of the free turn-in-flight stand-in, when the purchased clip is absent. */
+const THINKING_FREE_MOTION_ID = "thinking_free";
 /** Mixamo "Walking" advances this far per cycle at playback rate 1.0. */
 const WALK_METRES_PER_CYCLE = 1.34;
 /** Root yaw (rad) toward the travel direction — a quarter turn off camera-facing. */
@@ -322,6 +324,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       bodyFree:
         deps.currentMotionKind() === "ambient" ||
         bodyId === THINKING_MOTION_ID ||
+        bodyId === THINKING_FREE_MOTION_ID ||
         bodyId === WALK_MOTION_ID,
       reducedMotion: reduce,
     };

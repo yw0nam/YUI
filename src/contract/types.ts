@@ -68,6 +68,8 @@ export interface MotionRegistryEntry {
   vrma_path: string;
   /** Pool of 2+ VRMAs. If present, the client selects one per entry for playback (variant_policy); otherwise uses vrma_path alone. */
   variants?: string[];
+  /** Id of a registered motion played once when this clip fails to load, before the baseline. */
+  fallback?: string;
   /** Selection policy when variants exist. Default "random". */
   variant_policy?: "random" | "sequential";
   /** Milliseconds to hold the final (settling) frame before swapping to the next variant in a cycle motion. If absent/0, swap immediately. Requires variants>1 + loop. */

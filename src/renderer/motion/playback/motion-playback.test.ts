@@ -7,6 +7,9 @@ import { createMotionPlayback } from "./motion-playback";
 
 const IDLE_PATH = "/motions/idle.vrma";
 const WAVE_PATH = "/motions/wave.vrma";
+const BOW_PATH = "/motions/bow.vrma";
+const NOD_PATH = "/motions/nod.vrma";
+const SIT_PATH = "/motions/sit.vrma";
 
 const registry: MotionRegistry = {
   idle: {
@@ -27,7 +30,7 @@ const registry: MotionRegistry = {
     fade_ms: 0,
   },
   sit: {
-    vrma_path: "/motions/sit.vrma",
+    vrma_path: SIT_PATH,
     kind: "oneshot",
     loop: false,
     priority: 70,
@@ -35,13 +38,23 @@ const registry: MotionRegistry = {
     fade_ms: 200,
   },
   nod: {
-    vrma_path: "/motions/nod.vrma",
+    vrma_path: NOD_PATH,
     kind: "oneshot",
     loop: false,
     priority: 80,
     interrupt_policy: "replace",
     fade_ms: 200,
     grounded: true,
+    fallback: "sit",
+  },
+  bow: {
+    vrma_path: BOW_PATH,
+    kind: "oneshot",
+    loop: false,
+    priority: 70,
+    interrupt_policy: "replace",
+    fade_ms: 0,
+    fallback: "nod",
   },
 };
 
@@ -105,9 +118,38 @@ describe("createMotionPlayback", () => {
 
     expect(motion.current()?.id).toBe("idle");
     expect(log.warn).toHaveBeenCalledWith(
-      "motion_fallback_to_idle",
+      "motion_fallback",
       expect.objectContaining({ failed_id: "wave" }),
     );
+  });
+
+  it("a failed clip plays its motion's fallback", async () => {
+    const { motion, vrm } = makePlayback(async (path) =>
+      path === BOW_PATH ? null : new THREE.AnimationClip(path, 1, []),
+    );
+    motion.onVrmLoaded(vrm);
+    await flush();
+
+    motion.playMotion({ id: "bow" });
+    await flush();
+
+    expect(motion.current()?.id).toBe("nod");
+  });
+
+  it("a failed fallback plays the baseline, never the fallback's own fallback", async () => {
+    const { motion, clips, vrm } = makePlayback(async (path) =>
+      path === BOW_PATH || path === NOD_PATH ? null : new THREE.AnimationClip(path, 1, []),
+    );
+    motion.onVrmLoaded(vrm);
+    await flush();
+
+    motion.playMotion({ id: "bow" });
+    await flush();
+
+    const loaded = clips.load.mock.calls.map(([path]) => path);
+    expect(loaded).toContain(NOD_PATH);
+    expect(loaded).not.toContain(SIT_PATH);
+    expect(motion.current()?.id).toBe("idle");
   });
 });
 

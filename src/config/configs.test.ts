@@ -111,6 +111,35 @@ describe("configs/avatar.json", () => {
 describe("configs/motions.json", () => {
   const m = read("configs/motions.json");
 
+  const NECOCOYA_CLIPS: Array<[string, string[]]> = [
+    ["wave", ["/motions/wave_01.vrma", "/motions/wave_02.vrma"]],
+    ["bow", ["/motions/bow.vrma"]],
+    ["excited", ["/motions/excited.vrma"]],
+    ["banzai", ["/motions/banzai.vrma"]],
+    ["peace", ["/motions/peace_01.vrma", "/motions/peace_02.vrma"]],
+    ["flustered", ["/motions/flustered.vrma"]],
+    ["startled", ["/motions/startled.vrma"]],
+    ["yawn", ["/motions/yawn.vrma"]],
+    ["gaow", ["/motions/gaow.vrma"]],
+    ["peek_in", ["/motions/peek_in.vrma"]],
+    ["orz", ["/motions/orz.vrma"]],
+    ["shy", ["/motions/shy_01.vrma", "/motions/shy_02.vrma"]],
+    ["sleep", ["/motions/sleep.vrma"]],
+  ];
+
+  it.each(
+    NECOCOYA_CLIPS,
+  )("registers %s off the agent vocabulary with its exact clip files", (id, paths) => {
+    expect(m[id]?.broker_publish, `${id}.broker_publish`).toBe(false);
+    expect(m[id]?.vrma_path, `${id}.vrma_path`).toBe(paths[0]);
+    expect(m[id]?.variants ?? [paths[0]], `${id}.variants`).toEqual(paths);
+    for (const path of paths) {
+      expect(existsSync(resolve(process.cwd(), "public", path.replace(/^\//, ""))), path).toBe(
+        true,
+      );
+    }
+  });
+
   // kind decides whether a finishing oneshot returns to the clip (ambient/state); loop decides
   // whether the player holds the clip until it clears it or waits for the clip to end itself.
   it.each([
@@ -170,6 +199,12 @@ describe("configs/motions.json", () => {
 
   it("keeps thinking on the ignore policy, so a lower-ranked clip cannot take the TTFT filler", () => {
     expect(m.thinking.interrupt_policy).toBe("ignore");
+  });
+
+  it("points thinking at the free idle_04 stand-in when its purchased clip is absent", () => {
+    expect(m.thinking.fallback).toBe("thinking_free");
+    expect(m.thinking_free.vrma_path).toBe("/motions/idle_04.vrma");
+    expect(m.thinking_free.broker_publish).toBe(false);
   });
 
   it("locks the root vertically on the climb clips alone", () => {
