@@ -319,6 +319,26 @@ describe("createComeAlong", () => {
     expect(h.events).toEqual(["vanish", "appear"]);
   });
 
+  it("shows her before she walks home when the window closes mid-vanish", async () => {
+    // From a spot on no monitor; her home is then the floor 195 pt below the slot.
+    const h = harness({ at: { x: 100, y: 700 } });
+    const moving = deferred<void>();
+    h.frameWindow.setPositionLogical.mockImplementationOnce(async (x, y) => {
+      Object.assign(h.real, { x, y });
+      return moving.promise;
+    });
+    const first = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.frameWindow.setPositionLogical).toHaveBeenCalledOnce());
+
+    const home = h.comeAlong.onStage(null);
+    await vi.waitFor(() => expect(h.locomotion.widen).toHaveBeenCalledOnce());
+
+    expect(h.events).toEqual(["vanish", "appear"]);
+    await h.finish(home);
+    moving.resolve();
+    await first;
+  });
+
   it.each([
     [560, 120],
     [null, 80],
