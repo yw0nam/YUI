@@ -65,6 +65,9 @@ function fakeLastTogether(initial: { at: number | null } = { at: null }): {
     setAt: (at) => {
       saved.push(at);
     },
+    record: (now) => {
+      saved.push(now);
+    },
   };
   return { store, saved };
 }
@@ -111,6 +114,7 @@ describe("milestone_source — first present tick of the day", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -149,6 +153,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -173,6 +178,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -195,6 +201,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: storage,
@@ -224,6 +231,7 @@ describe("milestone_source — bus rejection", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: storage,
@@ -254,6 +262,7 @@ describe("milestone_source — drained groups", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,
@@ -280,6 +289,7 @@ describe("milestone_source — drained groups", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: fakeFiredStorage().storage,
@@ -349,7 +359,7 @@ describe("milestone_source — last together", () => {
     });
   });
 
-  it("writes at on present ticks at most once per 60 s", async () => {
+  it("records on present ticks and not on absent ticks", async () => {
     const { bus } = fakeBus();
     const { listen, emit } = fakeListen();
     const { store, saved } = fakeLastTogether();
@@ -371,14 +381,23 @@ describe("milestone_source — last together", () => {
     emit(idleTick(500));
     t += 31_000;
     emit(idleTick(500));
+    emit(idleTick(PRESENT_MAX + 1));
+    emit(idleTick(null));
 
-    expect(saved).toEqual([at(2026, 5, 15, 8, 12), at(2026, 5, 15, 8, 12) + 61_000]);
+    expect(saved).toEqual([
+      at(2026, 5, 15, 8, 12),
+      at(2026, 5, 15, 8, 12) + 30_000,
+      at(2026, 5, 15, 8, 12) + 61_000,
+    ]);
   });
 
-  it("does not write on absent ticks", async () => {
-    const { bus } = fakeBus();
+  it("carries the day's pre-write at when the first push is rejected and retried", async () => {
+    let accepted = false;
+    const { bus, pushed } = fakeBus(() => accepted);
     const { listen, emit } = fakeListen();
-    const { store, saved } = fakeLastTogether();
+    const storedAt = at(2026, 5, 14, 22, 3);
+    const { store } = fakeLastTogether({ at: storedAt });
+    let t = at(2026, 5, 15, 8, 12);
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
@@ -387,15 +406,43 @@ describe("milestone_source — last together", () => {
       lastTogether: store,
       firedStorage: fakeFiredStorage().storage,
       listen,
-      now: () => at(2026, 5, 15, 8, 12),
+      now: () => t,
     });
     await src.start();
 
     emit(idleTick(500));
-    emit(idleTick(PRESENT_MAX + 1));
-    emit(idleTick(null));
+    accepted = true;
+    t = at(2026, 5, 15, 8, 30);
+    emit(idleTick(500));
 
-    expect(saved).toEqual([at(2026, 5, 15, 8, 12)]);
+    expect(pushed[1].payload?.last_together).toBe(storedAt);
+  });
+
+  it("carries the day's pre-write at when the schedule turns on mid-day", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const storedAt = at(2026, 5, 14, 22, 3);
+    const { store } = fakeLastTogether({ at: storedAt });
+    let enabled = false;
+    let t = at(2026, 5, 15, 8, 0);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => enabled,
+      drainSignals: () => [],
+      lastTogether: store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    enabled = true;
+    t = at(2026, 5, 15, 11, 0);
+    emit(idleTick(500));
+
+    expect(pushed[0].payload?.last_together).toBe(storedAt);
   });
 });
 
@@ -415,6 +462,7 @@ describe("milestone_source — presence gate", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -439,6 +487,7 @@ describe("milestone_source — enable gate", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => false,
       drainSignals,
       firedStorage: storage,
@@ -461,6 +510,7 @@ describe("milestone_source — lifecycle", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,
@@ -478,6 +528,7 @@ describe("milestone_source — lifecycle", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,

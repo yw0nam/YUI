@@ -18,6 +18,8 @@ export interface LastTogetherStore {
   get(): LastTogetherSettings;
   /** Record a present tick. */
   setAt(at: number): void;
+  /** Write `now` as the last presence. */
+  record(now: number): void;
 }
 
 export function createLastTogetherSettings(opts?: {
@@ -36,6 +38,9 @@ export function createLastTogetherSettings(opts?: {
     get: core.get,
     setAt(at: number): void {
       core.commit({ at });
+    },
+    record(now: number): void {
+      core.commit({ at: now });
     },
   };
 }

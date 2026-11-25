@@ -26,3 +26,34 @@ describe("createLastTogetherSettings — parse", () => {
     expect(store.get()).toEqual({ at: null });
   });
 });
+
+describe("createLastTogetherSettings — record", () => {
+  function spyStorage(): {
+    storage: { load: () => null; save: (s: LastTogetherSettings) => void };
+    saves: LastTogetherSettings[];
+  } {
+    const saves: LastTogetherSettings[] = [];
+    return { storage: { load: () => null, save: (s) => saves.push(s) }, saves };
+  }
+
+  it("writes once inside a minute of the last write", () => {
+    const { storage, saves } = spyStorage();
+    const store = createLastTogetherSettings({ storage });
+
+    store.record(1_000);
+    store.record(31_000);
+
+    expect(saves).toEqual([{ at: 1_000 }]);
+  });
+
+  it("writes again past a minute of the last write", () => {
+    const { storage, saves } = spyStorage();
+    const store = createLastTogetherSettings({ storage });
+
+    store.record(1_000);
+    store.record(31_000);
+    store.record(61_000);
+
+    expect(saves).toEqual([{ at: 1_000 }, { at: 61_000 }]);
+  });
+});
