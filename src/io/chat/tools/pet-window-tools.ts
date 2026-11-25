@@ -13,6 +13,7 @@ import { createBridgeTools } from "./bridge/bridge-tools";
 import type { ClientTool } from "./client-tools";
 import { createRateRelationTool } from "./relation";
 import type { YuiRunPorts } from "./run/yui-run-tool";
+import { createYuiRunTool } from "./run/yui-run-tool";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 import { createTerminalTools } from "./terminal/terminal-tools";
 import { createThreadsTools } from "./threads/threads-tools";
@@ -54,6 +55,7 @@ export function createPetWindowTools(deps: {
     address,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
     ...createBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow, onDemand }),
+    createYuiRunTool(deps.run),
   ];
   return { declared, onDemand };
 }

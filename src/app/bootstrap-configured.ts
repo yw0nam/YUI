@@ -225,7 +225,13 @@ const realFactories: ConfiguredBootstrapFactories = {
       recordAddressed: addressed.record,
       mcpHost,
       threads: phase1.threads,
-      run: wireYuiRun({}),
+      run: wireYuiRun({
+        stores: settings,
+        asks,
+        lastTogether: lastTogetherSettings,
+        vrm: () => vrmSelection,
+        speaker: () => phase1.speaker.speakerSelection,
+      }),
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,

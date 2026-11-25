@@ -12,6 +12,7 @@
   "terminal_write",
   "threads_list",
   "threads_search",
+  "yui_run",
   "yui_tool_call",
   "yui_tool_describe"
 ]

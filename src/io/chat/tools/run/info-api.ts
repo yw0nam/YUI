@@ -13,10 +13,24 @@ interface Option {
   label?: string;
 }
 
-export function createInfoApi(_deps: {
+export function createInfoApi(deps: {
   bodies(): Option[];
   voices(): Option[];
   monitors(): Promise<MonitorInfo[]>;
 }): () => Promise<InfoDoc> {
-  return async () => ({ bodies: [], voices: [], monitors: [] });
+  return async () => {
+    const named = (options: Option[]) =>
+      options.map((option) => ({ id: option.id, label: option.label ?? option.id }));
+    const monitors = await deps.monitors();
+    return {
+      bodies: named(deps.bodies()),
+      voices: named(deps.voices()),
+      monitors: monitors.map((monitor) => ({
+        index: monitor.index,
+        ...(monitor.label !== undefined && { name: monitor.label }),
+        ...(monitor.width !== undefined && { width: monitor.width }),
+        ...(monitor.height !== undefined && { height: monitor.height }),
+      })),
+    };
+  };
 }
