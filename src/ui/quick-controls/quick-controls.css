@@ -379,8 +379,8 @@
   color: var(--yui-text-mute);
 }
 
-/* A narrow panel (480px beside the stage at the settings window's 880px minimum) keeps its
-   content width: the rail drops to icons. */
+/* A narrow panel (480px wide or less, as beside the stage in an 880px-wide settings window)
+   keeps its content width: the rail drops to icons. */
 @container (width <= 30rem) {
   .yui-rail {
     flex-basis: 3rem;

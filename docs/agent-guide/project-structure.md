@@ -303,8 +303,9 @@ YUI/
           user-turn-done.ts          # Reports user-turn-done for a closed or dropped turn's send id
     ambient/                         # Backend-independent local liveliness and movement
       come-along/                    # Her come-along onto the settings stage
-        come-along.ts                # One settings window's session: the pickup and ease-in-out carry onto the slot, the dock and entry clip, following the slot, the carry home, and a drag or agent move letting her go
+        come-along.ts                # One settings window's session: the pickup and ease-in-out carry onto the slot at its size, the dock and entry clip, following the slot, the carry home at her desktop size, and a drag or agent move letting her go with her size back
         entry-pick.ts                # Picks her entry clip from the Entry family of her last backend emotion
+        stage-frame.ts               # Her window's frame on the slot, resized about its bottom centre, and eased along a carry
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
@@ -696,7 +697,7 @@ YUI/
       use-snapshot/                  # React hooks for sources that return a fresh object each read
         use-snapshot.ts              # Binds such a source to a component
         use-notify.ts                # Re-renders a component on each notify of a source it reads itself
-      settings-stage/                # The settings window's 400px stage on its left, beside the panel
+      settings-stage/                # The settings window's stage on its left, its slot following the window's size
         settings-stage.ts            # The stage's factory: mounts it first in the window's row and re-renders its foot for the window's own character
         stage-foot.tsx               # Her name over her transport and window state
         settings-stage.css           # The stage column on the stage ground
