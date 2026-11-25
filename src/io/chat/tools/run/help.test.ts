@@ -237,13 +237,13 @@ describe("helpText", () => {
 
   it("prints the tag legend and the read and write docs", () => {
     expect(text).toContain(
-      "// [char|global, direct|allow]: char = this character, global = every character; direct = written at once, allow = waits up to 60 s for the user.",
+      "// [char|global, direct|allow]: char = this character, global = every character; direct = written at once, allow = waits for the user, 60 s once the card shows.",
     );
     expect(text).toContain(
       "/** This character's settings and the global ones, as one JSON document. */",
     );
     expect(text).toContain(
-      '/** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait up to 60 s for the user. */',
+      '/** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait for the user, 60 s once the card shows. */',
     );
     expect(text).toContain(
       "monitors: { index: number; name?: string; width?: number; height?: number }[]",

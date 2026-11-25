@@ -31,7 +31,7 @@ const API = `declare const yui: {
   settings: {
     /** This character's settings and the global ones, as one JSON document. */
     read(): Promise<SettingsDoc>;
-    /** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait up to 60 s for the user. */
+    /** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait for the user, 60 s once the card shows. */
     write(patch: object, opts?: { why?: string }): Promise<Record<string, "ok" | "denied" | "no answer" | \`error: \${string}\`>>;
   };
   state: { read(): Promise<{ running_since: string; last_together: string | null; characters: { name: string; open: boolean; me: boolean }[]; permissions: { screen_recording: "granted" | "denied" | "unknown" } }> };
@@ -42,7 +42,7 @@ declare const console: { log(...a: unknown[]): void };
 `;
 
 const LEGEND =
-  "// [char|global, direct|allow]: char = this character, global = every character; direct = written at once, allow = waits up to 60 s for the user.\n";
+  "// [char|global, direct|allow]: char = this character, global = every character; direct = written at once, allow = waits for the user, 60 s once the card shows.\n";
 
 const RULES = `1. Await every yui call; the returned value is the tool result.
 2. Return a JSON value the model reads; no prose around it.
