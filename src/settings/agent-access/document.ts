@@ -1,8 +1,8 @@
 import type { SettingsStores } from "../settings-stores";
 import { getIn, leaves, setIn } from "./paths";
-import { ROWS, type SettingTier } from "./rows";
+import { ROWS, type SettingAccess } from "./rows";
 
-/** One allow-tier change an agent asked for, named by label key for the request card. */
+/** One allow change an agent asked for, named by label key for the request card. */
 export interface SettingsChange {
   path: string;
   labelKey: string;
@@ -18,7 +18,7 @@ export interface PatchResult {
 /** What applying a patch consumes from a row; rows.ts rows and io rows both satisfy it. */
 export interface PatchRow {
   path: string;
-  tier: SettingTier;
+  access: SettingAccess;
   labelKey: string;
   nullable?: boolean;
   /** The row's own acceptance check; rows.ts rows probe the store, io rows check their list. */
@@ -89,7 +89,7 @@ export async function applyPatch(
       direct[path] = `error: invalid ${path}`;
       continue;
     }
-    if (row.tier === "allow") {
+    if (row.access === "allow") {
       allow.push({
         path,
         labelKey: row.labelKey,

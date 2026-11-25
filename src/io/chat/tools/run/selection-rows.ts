@@ -20,7 +20,7 @@ const selectionRow = (
 ): SelectionRow => ({
   path,
   scope: "char",
-  tier: "direct",
+  access: "direct",
   labelKey,
   type: "string",
   note,

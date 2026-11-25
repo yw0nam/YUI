@@ -8,7 +8,7 @@ export type HelpRow = Pick<
   SettingRow,
   | "path"
   | "scope"
-  | "tier"
+  | "access"
   | "labelKey"
   | "type"
   | "values"
@@ -65,7 +65,7 @@ function typeOf(row: SettingRow | HelpRow): string {
 }
 
 function commentOf(row: SettingRow | HelpRow, t: (key: string) => string): string {
-  let comment = `${t(row.labelKey)} [${row.scope}, ${row.tier}]`;
+  let comment = `${t(row.labelKey)} [${row.scope}, ${row.access}]`;
   if (row.note) comment += `; ${row.note}`;
   if (row.zeroNote) comment += `; ${row.zeroNote}`;
   else if (row.zeroIsDefault) comment += "; 0 means YUI's default";

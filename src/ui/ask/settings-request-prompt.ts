@@ -47,7 +47,7 @@ export function settingsRequestPrompt(
       t("settings_request.why", { why: plain([...oneLine(why)].slice(0, WHY_MAX).join("")) }),
     );
   }
-  // Every allow-tier row is global.
+  // Every allow row is global.
   lines.push(t("settings_request.shared"));
   // The blank line makes the title the card's head block and the rest its body.
   return `${t("settings_request.title", { name: plain(name) })}\n\n${lines.join("\n")}`;

@@ -2,7 +2,7 @@
  * document.test.ts — the settings document an agent reads and patches.
  *
  * Pins the exposed path set, a direct write, validation through each store's own parse, the allow
- * tier that waits for the user, and the merge of a partial nested patch.
+ * rows that wait for the user, and the merge of a partial nested patch.
  */
 
 import { describe, expect, it } from "vitest";
