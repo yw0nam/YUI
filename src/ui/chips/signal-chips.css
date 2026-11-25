@@ -25,15 +25,21 @@
   pointer-events: auto;
 }
 
-/* Expanded past three: exactly eight rows show, then the column scrolls inside. The scroll box
-   would clip the Float shadow into a hard edge, so the pills go without it here. */
-.yui-sigchips.is-expanded {
+/* The expanded batched chips, below the urgent ones: exactly eight rows show, then the region scrolls
+   inside. The scroll box would clip the Float shadow into a hard edge, so the pills go without it here. */
+.yui-sigchips__batched {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  gap: 0.4rem;
   max-height: calc(8 * var(--yui-sigchip-h) + 7 * 0.4rem);
   overflow-y: auto;
 }
 
-.yui-sigchips.is-expanded .yui-sigchip,
-.yui-sigchips.is-expanded .yui-sigchip__more {
+.yui-sigchips__batched .yui-sigchip,
+.yui-sigchips__batched .yui-sigchip__more {
   box-shadow: none;
 }
 
@@ -168,6 +174,19 @@
   font-size: var(--yui-fs-sub);
   font-weight: 500;
   cursor: pointer;
+}
+
+/* In the grouped row, "+N" takes the cross's place inside the newest batched pill. */
+.yui-sigchip > .yui-sigchip__more {
+  height: auto;
+  padding: 0.3rem 0.66rem 0.3rem 0.2rem;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.yui-sigchip > .yui-sigchip__more:hover {
+  color: var(--yui-text);
 }
 
 /* Folded (is-mini): every chip shrinks to its dot. */
