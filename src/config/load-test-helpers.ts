@@ -95,6 +95,13 @@ export function avatarFixture(): AvatarConfig {
       land_frac: 0.67,
       flight_timeout_ms: 4000,
     },
+    stage: {
+      walk_ms: 600,
+      walk_extra_ms: 300,
+      walk_full_pt: 1200,
+      stay_chance: 0.6,
+      emotion_decay_min: 30,
+    },
     drag_hold_ms: 5000,
     gesture_cues: {
       drag_held: { label: "dragged around" },

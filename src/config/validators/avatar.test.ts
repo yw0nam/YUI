@@ -741,6 +741,15 @@ describe("validateAvatar — descend", () => {
   });
 });
 
+describe("validateAvatar — stage", () => {
+  it("rejects a stay_chance outside [0, 1]", () => {
+    expectIssue(
+      avatarWith({ stage: { stay_chance: 1.5 } }),
+      "stage.stay_chance must be a finite number in [0, 1]",
+    );
+  });
+});
+
 describe("validateAvatar — climb", () => {
   it("keeps every climb key the file declares", () => {
     const out = validateAvatar(
@@ -1261,6 +1270,13 @@ describe("validateAvatar — characterization", () => {
         gap_max_width_frac: 1.5,
         apex_lift_frac: 0.15,
         flight_timeout_ms: 4000,
+      },
+      stage: {
+        walk_ms: 600,
+        walk_extra_ms: 300,
+        walk_full_pt: 1200,
+        stay_chance: 0.6,
+        emotion_decay_min: 30,
       },
       drag_hold_ms: 5000,
       gesture_cues: {
