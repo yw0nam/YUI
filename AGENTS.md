@@ -58,7 +58,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Connecting OpenClaw as the backend, or repairing that connection** → `integrations/openclaw/skills/yui-openclaw-setup/SKILL.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `skills/yui-daily-briefing/SKILL.md`
 - **Waking one YUI character from a backend agent or producer** → `coding-agents/yui-dev/skills/yui-wake-character/SKILL.md`
-- **Building a Thread producer for any source (PRs, mail, …)** → `coding-agents/yui-notify/skills/thread-producer/SKILL.md`
+- **Building a Thread producer for any source (PRs, mail, chat), run by the backend agent** → `skills/thread-producer/SKILL.md`
 - **Runtime evidence for a yui platform plugin change (live Hermes gateway, throwaway profile)** → `integrations/hermes/platform/yui/skills/yui-platform-smoke-test/SKILL.md`
 - **IO or backend work (chat/STT/TTS)** → `docs/agent-guide/backend-integration.md`
 - **Coding-agent Threads (yui-notify plugin)** → `coding-agents/yui-notify/README.md`

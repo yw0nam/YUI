@@ -7,7 +7,7 @@
     {
       "name": "yui-notify",
       "source": "./coding-agents/yui-notify",
-      "description": "Coding-agent Threads: Claude Code and Codex sessions post view-only Threads to YUI, and a skill that builds a Thread producer for any other source."
+      "description": "Coding-agent Threads: Claude Code and Codex sessions post view-only Threads to YUI."
     },
     {
       "name": "yui-dev",
