@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { avatarFixture } from "../../config/load-test-helpers";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
@@ -55,9 +55,11 @@ function macWindow(frame: { x: number; y: number; width: number; height: number 
   return { frame, win };
 }
 
-function cycle() {
-  const { frame, win } = macWindow({ x: -48, y: 860, width: 200, height: 300 });
+function cycle(at = { x: -48, y: 860 }) {
+  const { frame, win } = macWindow({ ...at, width: 200, height: 300 });
   const ticks = new Set<(ctx: { dt: number }) => void>();
+  /** Travel frames widened, her canvas's vanish, land and appear, and her drop home, in order. */
+  const events: string[] = [];
   const travel = createTravelFrame({
     frame: win,
     renderer: { setViewWindow: () => {} },
@@ -78,11 +80,14 @@ function cycle() {
       hold: () => {},
       abortTravel: () => travel.abort(),
       widen: async (via) => {
+        events.push("widen");
         const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
         return travel.begin({ x: pos.x / scale, y: pos.y / scale }, via);
       },
       release: () => {},
-      drop: async () => {},
+      drop: async () => {
+        events.push("drop");
+      },
       isTravelling: () => travel.current() !== null,
       frame: { frameWindow: () => win, listMonitors: async () => monitors },
     },
@@ -96,6 +101,15 @@ function cycle() {
       getCurrentMotion: () => null,
       setBodyYaw: () => {},
       getCharacterAnchor: () => ({ x: 100, y: FEET }),
+      vanish: async () => {
+        events.push("vanish");
+      },
+      land: async (origin) => {
+        events.push(`land ${JSON.stringify(origin)}`);
+      },
+      appear: async () => {
+        events.push("appear");
+      },
     },
     hitTest: { setMoving: () => {} },
     dock: { attach: async () => true, detach: async () => {} },
@@ -104,12 +118,20 @@ function cycle() {
     reducedMotion: () => false,
     stage: () => avatarFixture().stage,
   });
+  /** Ticks 16 ms frames until `step` settles, however she travels. */
   const walk = async (step: Promise<void>) => {
-    await vi.waitFor(() => expect(ticks.size).toBe(1));
-    while (ticks.size > 0) for (const cb of [...ticks]) cb({ dt: 0.016 });
+    let settled = false;
+    const settle = () => {
+      settled = true;
+    };
+    step.then(settle, settle);
+    while (!settled) {
+      for (const cb of [...ticks]) cb({ dt: 0.016 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
     await step;
   };
-  return { frame, comeAlong, walk };
+  return { frame, comeAlong, walk, events };
 }
 
 describe("come-along across monitors of different scale", () => {
@@ -147,5 +169,27 @@ describe("come-along across monitors of different scale", () => {
       "-562,-590 200x300",
       "-48,860 200x300",
     ]);
+  });
+
+  it("vanishes and lands on another monitor's stage under 1200 pt away", async () => {
+    // From the built-in's top edge onto a stage on external A, about 500 pt away.
+    const { frame, comeAlong, walk, events } = cycle({ x: 900, y: 100 });
+    const aSlot: StageSlot = { x: 1000, y: -700, width: 400, height: 600, scale: 1 };
+
+    await walk(comeAlong.onStage(aSlot));
+
+    expect(events).toEqual(["vanish", `land {"x":100,"y":${FEET}}`]);
+    expect(`${frame.x},${frame.y}`).toBe("1100,-357");
+  });
+
+  it("goes home across monitors by vanishing, landing at her spot, then dropping", async () => {
+    const { frame, comeAlong, walk, events } = cycle();
+    await walk(comeAlong.onStage(slot));
+    events.length = 0;
+
+    await walk(comeAlong.onStage(null));
+
+    expect(events).toEqual(["vanish", `land {"x":100,"y":${FEET}}`, "drop"]);
+    expect(`${frame.x},${frame.y}`).toBe("-48,860");
   });
 });
