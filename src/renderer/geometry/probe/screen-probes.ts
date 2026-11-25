@@ -18,8 +18,8 @@ export interface ScreenProbeDeps {
   mountHeight: () => number;
   hipsBone: () => THREE.Object3D | null;
   seatDrop: number;
-  /** The camera fit to a window of `aspect`, null with nothing to fit. */
-  cameraAt: (aspect: number) => THREE.PerspectiveCamera | null;
+  /** The camera fit to a window of `aspect` at a stage framing (default the current), null with nothing to fit. */
+  cameraAt: (aspect: number, framing?: number) => THREE.PerspectiveCamera | null;
 }
 
 export type ScreenProbes = Pick<
@@ -75,9 +75,9 @@ export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
   }
 
   return {
-    getFrameFit(width, height) {
+    getFrameFit(width, height, framing) {
       const modelBox = getModelBox();
-      const at = modelBox && cameraAt(width / height);
+      const at = modelBox && cameraAt(width / height, framing);
       if (!modelBox || !at) return null;
       const feet = projectFeetAnchor(modelBox, at, 1, 1);
       const there = pxPerMetre(at, modelBox, height);

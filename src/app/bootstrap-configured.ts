@@ -76,6 +76,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   /** The window's Threads client, feeding the two tools and the waiting line; null outside main. */
   threads: ThreadsClient | null;
   ambient: Tier1Engine;
+  /** Ignores the plain wheel's zoom while `isLocked` holds. */
+  lockWheelZoom(isLocked: () => boolean): void;
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
   stage: HTMLElement;
@@ -367,6 +369,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     core.setStrolling(locomotion.walker);
+    // On the settings stage her framing is the stage's, so the wheel leaves her zoom alone.
+    phase1.lockWheelZoom(locomotion.keepsGeometry);
     wireComeAlong({
       boundId: phase1.menuHost.boundId,
       onSettingsStage: phase1.onSettingsStage,

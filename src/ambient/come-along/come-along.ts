@@ -2,10 +2,12 @@
  * come-along — one settings window's session on its pet window. On the window's first stage slot
  * she leaves her spot, travels onto the slot and docks: as a native child where the shell links one,
  * else by following each later slot herself, then plays one entry clip of her last backend emotion's
- * Entry family. On the stage her window is the slot, her feet on its bottom edge, and follows every
- * slot the settings window sends. A null slot or the close sends her home at her desktop size. She
- * is picked up and carried on her own monitor, her size easing with her, vanishes and lands across
- * monitors or over a long way, and fades under reduced motion; hidden, her size changes at once.
+ * Entry family. On the stage her window is the slot, framed by the renderer's stage framing (her
+ * height alone, head-on, no wheel zoom), her feet on its bottom edge, and follows every slot the
+ * settings window sends. A null slot or the close sends her home at her desktop size and framing.
+ * She is picked up and carried on her own monitor, her size and framing easing with her, vanishes
+ * and lands across monitors or over a long way, and fades under reduced motion; hidden, her size
+ * and framing change at once.
  * An edge entry plays with her hips pinned beyond her window's right edge (the stage peek pin).
  *
  * Whoever moves her owns her: a drag or an agent move ends the session where she is dropped, and
@@ -86,6 +88,7 @@ export interface ComeAlongDeps {
     | "getPerchProbe"
     | "getCharacterAnchor"
     | "getFrameFit"
+    | "setStageFraming"
     | "vanish"
     | "appear"
     | "land"
@@ -136,6 +139,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
   let carried = false;
   // Her last submitted place write; whoever takes her next waits for it to land.
   let placed: Promise<unknown> = Promise.resolve();
+  // The stage framing she was last set to: 0 her own, 1 the stage's.
+  let framing = 0;
   // The desktop size a mover that took her off the stage gives back, once her last write landed.
   let owed: Promise<Size | null> = Promise.resolve(null);
   // Each Entry family's last played clip, for this window's memory only.
@@ -184,16 +189,24 @@ export function createComeAlong(deps: ComeAlongDeps): {
     };
   }
 
-  /** How far down a window of `size` her feet stand at the fit she has there, else its bottom. */
-  const feetShare = (size: Size): number =>
-    renderer.getFrameFit(size.width, size.height)?.feetShare ?? 1;
+  /** How far down a window of `size` her feet stand at stage framing `k`, else its bottom. */
+  const feetShare = (size: Size, k: number): number =>
+    renderer.getFrameFit(size.width, size.height, k)?.feetShare ?? 1;
+
+  /** Sets her stage framing to `k` when it is not there already. */
+  function setFraming(k: number): void {
+    if (k === framing) return;
+    framing = k;
+    renderer.setStageFraming(k);
+  }
 
   /** Sets her window's frame `f` in one call. */
   const writeFrame = (win: FrameWindow, f: Frame): Promise<void> =>
     win.setFrameLogical(f.x, f.y, f.width, f.height);
 
-  /** How much larger her window `to` draws her than she is drawn now. */
-  const drawnScale = (to: Frame): number => renderer.getFrameFit(to.width, to.height)?.scale ?? 1;
+  /** How much larger her window `to` at stage framing `k` draws her than she is drawn now. */
+  const drawnScale = (to: Frame, k: number): number =>
+    renderer.getFrameFit(to.width, to.height, k)?.scale ?? 1;
 
   /** Shows her canvas again when a vanish left it invisible. */
   function show(): void {
@@ -227,8 +240,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (holdMs > 0) await tickUntil((elapsedMs) => elapsedMs >= holdMs);
   }
 
-  /** Moves her window to `to`: a carry, else a vanish across monitors or a long way, else a fade. */
-  async function travel(id: number, to: Frame): Promise<void> {
+  /** Moves her window to `to` at stage framing `k`: a carry, else a vanish across monitors or a long way, else a fade. */
+  async function travel(id: number, to: Frame, k: number): Promise<void> {
     try {
       const [{ at: from, size }, monitors] = await Promise.all([
         read(),
@@ -238,7 +251,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const distance = Math.hypot(to.x - from.x, to.y - from.y);
       const win = locomotion.frame.frameWindow();
       if (distance < 1) {
-        pin.arm(to.width, drawnScale(to));
+        pin.arm(to.width, drawnScale(to, k));
+        setFraming(k);
         return writeFrame(win, to);
       }
       const stage = deps.stage();
@@ -253,6 +267,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
           id,
           { ...from, ...size },
           to,
+          k,
           stage.carry_ms + stage.carry_extra_ms * (distance / stage.carry_full_pt),
         );
       }
@@ -264,7 +279,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       hidden = true;
       await renderer.vanish();
       if (id !== move) return;
-      pin.arm(to.width, drawnScale(to));
+      pin.arm(to.width, drawnScale(to, k));
+      setFraming(k);
       await writeFrame(win, to);
       // Her feet are read from the renderer's fit to the new frame.
       await deps.refitTo(to.width, to.height);
@@ -287,8 +303,18 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
   }
 
-  /** Carries her window to `to` over the parked travel frame, her size eased with her; she arrives still in `drag`. */
-  async function carryOver(id: number, from: Frame, to: Frame, durationMs: number): Promise<void> {
+  /**
+   * Carries her window to `to` over the parked travel frame, her size and her stage framing eased
+   * with her toward `k`, her feet on the eased line between where they stand and where they will;
+   * she arrives still in `drag`.
+   */
+  async function carryOver(
+    id: number,
+    from: Frame,
+    to: Frame,
+    k: number,
+    durationMs: number,
+  ): Promise<void> {
     const parked = await locomotion.widen([], to);
     if (id !== move) {
       await parked.end();
@@ -301,11 +327,19 @@ export function createComeAlong(deps: ComeAlongDeps): {
       return;
     }
     pin.arm(from.width, 1, durationMs);
+    const fromK = framing;
+    const fromFeet = from.y + feetShare(from, fromK) * from.height;
+    const toFeet = to.y + feetShare(to, k) * to.height;
     const startedMs = performance.now();
     let frames = 0;
     await tickUntil((elapsedMs) => {
       frames += 1;
-      const at = easedFrame(from, to, easeInOutCubic(Math.min(1, elapsedMs / durationMs)));
+      const p = easeInOutCubic(Math.min(1, elapsedMs / durationMs));
+      const eased = easedFrame(from, to, p);
+      const kAt = fromK + (k - fromK) * p;
+      const feet = fromFeet + (toFeet - fromFeet) * p;
+      const at = { ...eased, y: Math.round(feet - feetShare(eased, kAt) * eased.height) };
+      setFraming(kAt);
       void writeFrame(parked.win, at).catch((err) =>
         log.warn("come_along_move_failed", { error: String(err) }),
       );
@@ -370,8 +404,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (!to) return;
     try {
       const { at, size } = await read();
-      if (!differs({ ...at, ...size }, { ...at, ...to })) return;
       const frame = bottomCentred({ ...at, ...size }, to);
+      setFraming(0);
+      if (!differs(frame, { ...at, ...size })) return;
       await writeFrame(locomotion.frame.frameWindow(), frame);
       await deps.refitTo(to.width, to.height);
       log.info("come_along_size_restored", { frame });
@@ -415,10 +450,11 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (id !== move) return;
     const { at, size } = await read();
     if (id !== move) return;
-    const target = dockFrame(rect, feetShare(rect));
+    const target = dockFrame(rect, feetShare(rect, 1));
     let entry: { family: string; clip: string } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
+      setFraming(1);
       await writeFrame(locomotion.frame.frameWindow(), target);
     } else {
       // A trip home that this window interrupted keeps the spot and size she left from.
@@ -426,7 +462,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       store({ home });
       if (!angry) entry = pickEntry(stage.entry_families, emotion, lastClips, deps.random);
       pin.plan((entry && stage.edge_entries[entry.clip]) ?? null);
-      await travel(id, target);
+      await travel(id, target, 1);
     }
     if (id !== move) return;
     let native = false;
@@ -467,8 +503,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       ? await Promise.all([win.outerPosition(), win.outerSize()])
       : [at, size];
     if (!docked) return;
-    const target = dockFrame(rect, feetShare(rect));
-    pin.reaim(target.width, drawnScale(target));
+    const target = dockFrame(rect, feetShare(rect, 1));
+    pin.reaim(target.width, drawnScale(target, 1));
     const k = px ? rect.scale : 1;
     const to = {
       x: Math.round(target.x * k),
@@ -504,7 +540,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     log.info("come_along_home_gone", { spot });
     return {
       x: Math.round(clampToWorkArea(spot.x, 0, spot.width, 0, work.x, 0, work.width, 0).x),
-      y: Math.round(floorPx(nearest) - feetShare(spot) * spot.height),
+      y: Math.round(floorPx(nearest) - feetShare(spot, 0) * spot.height),
       width: spot.width,
       height: spot.height,
     };
@@ -531,7 +567,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       // A start still leaving her spot has no home yet: she lets go where she is.
       const spot = home;
       if (id === move && spot) {
-        await travel(id, await homeOrFloor(spot));
+        await travel(id, await homeOrFloor(spot), 0);
         arrived = id === move;
       }
     } finally {
@@ -555,6 +591,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       session = "none";
       store(null);
       letGo(true);
+      setFraming(0);
       throw err;
     }
   }

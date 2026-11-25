@@ -93,6 +93,8 @@ export function wireLocomotion(deps: {
   ready: Promise<void>;
   /** Whether a travel parks her real window right now. */
   isTravelling(): boolean;
+  /** Whether a hold keeps her window geometry, as the come-along does on the settings stage. */
+  keepsGeometry(): boolean;
   /** Calls `cb` after each holder lets go of her; returns its disposer. */
   onHoldReleased(cb: () => void): () => void;
   /**
@@ -329,6 +331,7 @@ export function wireLocomotion(deps: {
     drop: (opts) => faller.drop(opts),
     ready: travelFrame.ready,
     isTravelling: () => travelFrame.travel.current() !== null,
+    keepsGeometry: holds.keepsGeometry,
     onHoldReleased: holds.onReleased,
     onMoverTakesOver(cb) {
       takeoverListeners.add(cb);

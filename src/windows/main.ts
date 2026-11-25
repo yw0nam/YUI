@@ -133,7 +133,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   );
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-  const { renderer, ambient } = createStageRenderer({
+  const { renderer, ambient, lockWheelZoom } = createStageRenderer({
     stage,
     settings: settingsStores,
     register,
@@ -309,6 +309,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       config,
       renderer,
       ambient,
+      lockWheelZoom,
       surfaces,
       settings: settingsStores,
       activeHours,

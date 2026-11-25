@@ -1089,7 +1089,7 @@ describe("createComeAlong", () => {
   });
 
   it("arrives on the slot at the slot's own fit, her feet on its bottom edge, with no write after the carry", async () => {
-    // Her 827 × 1022 window is fit to her height; the 2:3 slot, narrower than 0.75, to her width.
+    // The 2:3 slot is narrower than the 0.75 at which her width binds her own fit.
     const h = harness({ at: { x: 1290, y: 80 }, size: { width: 827, height: 1022 }, bound: 0.75 });
     const done = h.comeAlong.onStage(slot);
     await h.pickUp();
@@ -1098,8 +1098,8 @@ describe("createComeAlong", () => {
     for (const ms of [90, 360, 360, 90]) h.tick(ms);
     await done;
 
-    // Drawn 8/9 the size about the slot's centre, her feet stand 567 pt down its 600.
-    expect(h.walked.at(-1)).toEqual([100, 113]);
+    // The stage fits her by her height alone, so her feet stand on the slot's bottom edge.
+    expect(h.walked.at(-1)).toEqual([100, 80]);
     expect(h.frameWindow.setFrameLogical).not.toHaveBeenCalled();
   });
 

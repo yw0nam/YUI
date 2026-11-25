@@ -105,7 +105,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     mountHeight: () => mount.clientHeight || 1,
     hipsBone: () => pins.hipsBone(),
     seatDrop: SEAT_DROP,
-    cameraAt: (aspect) => rig.cameraAt(aspect),
+    cameraAt: (aspect, framing) => rig.cameraAt(aspect, framing),
   });
   const rig = createCameraRig({
     camera,
@@ -335,6 +335,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     setOrbit: rig.setOrbit,
     getCharacterAnchor: probes.getCharacterAnchor,
     getFrameFit: probes.getFrameFit,
+    setStageFraming: rig.setStageFraming,
     getCharacterWidthPx: probes.getCharacterWidthPx,
     hitTest(x, y) {
       const stage = clientToStage(x, y, mountRect);
