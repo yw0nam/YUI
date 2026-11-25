@@ -99,7 +99,7 @@ A short client-side utterance from a pool, covering the silence between a firing
 _Avoid_: thinking, placeholder, stall
 
 **Come-along**:
-Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family.
+Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family. The stage peek pin, which holds her hips beyond her window's edge for an edge entry clip, holds no Posture and is not a Perch.
 _Avoid_: summon, follow
 
 **Entry family**:

@@ -258,9 +258,9 @@ The rest runs in the Threads window. `windows/threads-main.ts` boots it, `app/th
 | `come-along` | `come_along_placed` | `slot`, `origin`, `size`, `px?` | A new slot moved her; `px` marks a follow in the settings window's physical px (`info` level). |
 | `come-along` | `come_along_stayed` | none | A drag or an agent command ran when the settings window showed, so she stays for that session (`info` level). |
 | `come-along` | `come_along_sulked` | none | The last backend emotion was angry and the stay roll fell under `stage.stay_chance`, so she stays on the desktop and sulks for that session (`info` level). |
-| `come-along` | `come_along_taken` | none | A drag or an agent move took her off the stage or her walk (`info` level). |
+| `come-along` | `come_along_taken` | none | A drag or an agent move took her off the stage or her carry (`info` level). |
 | `come-along` | `come_along_home` | none | She arrived home after the window minimised or closed (`info` level). |
-| `come-along` | `come_along_home_gone` | `spot` | No monitor holds her spot any more, so she walks to the nearest floor (`info` level). |
+| `come-along` | `come_along_home_gone` | `spot` | No monitor holds her spot any more, so she goes to the nearest floor (`info` level). |
 | `come-along` | `dock_attach_failed` | `error` | `window_dock_attach` rejected; she follows the slot herself and stays above other windows (`warn` level). |
 | `come-along` | `dock_detach_failed` | `error` | `window_dock_detach` rejected (`warn` level). |
 | `come-along` | `come_along_move_failed` | `error` | A carry step's move threw (`warn` level). |

@@ -633,7 +633,7 @@ globalThis.YUI_MAP =
       "id": "renderer",
       "module": "renderer",
       "label": "renderer core",
-      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()).",
+      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()). The perch and side-peek pins move the model inside the canvas; a stage peek pin eases in and out, follows a travel's view window and holds no posture.",
       "paths": [
         "src/renderer"
       ]
@@ -1137,7 +1137,7 @@ globalThis.YUI_MAP =
       "id": "ambient/come-along",
       "module": "ambient",
       "label": "come-along",
-      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, docking with her feet on its bottom edge. On her own monitor she walks on an ease-in-out curve over stage.carry_ms to carry_ms + carry_extra_ms; across monitors or past stage.carry_full_pt she vanishes and lands, and under reduced motion she fades. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
+      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, docking with her feet on its bottom edge. On her own monitor she is picked up (drag, held still stage.pickup_hold_ms) and carried facing front on an ease-in-out curve over stage.carry_ms to carry_ms + carry_extra_ms; across monitors or past stage.carry_full_pt she is picked up, vanishes and lands, and under reduced motion she fades. Docked, she plays one entry clip picked from the Entry family of her last backend emotion, never the family's last one; an edge entry plays with the stage peek pin past her window's right edge, released when the clip ends or at its play_ms. Going home plays no clip. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
       "paths": [
         "src/ambient/come-along"
       ]
@@ -3860,7 +3860,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the walk; drop({ landOnSeam: true }) after the walk home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; drop({ landOnSeam: true }) after the carry home; onAbort when a drag or an agent move takes her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3869,7 +3869,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the walk; playMotion walk, setBodyYaw toward the slot; playMotion sulk while the last backend emotion is angry",
+      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3878,7 +3878,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible",
+      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible; getPerchProbe() for her height and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
