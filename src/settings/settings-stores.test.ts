@@ -63,6 +63,7 @@ describe("createSettingsStores", () => {
       "expressMotionSettings",
       "relationsSwitch",
       "unifiedChatSwitch",
+      "lastTogetherSettings",
     ]);
   });
 

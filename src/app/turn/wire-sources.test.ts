@@ -105,6 +105,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
 
     expect(Object.keys(result).sort()).toEqual([
@@ -160,6 +161,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
 
     const milestone = created.milestone as {
@@ -189,6 +191,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
 
     const group = { items: [{ skill: "yui-daily-briefing" }] };
@@ -218,6 +221,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
     const group = { items: [{ id: 1 }] };
     drainQueue.push(group);
@@ -245,6 +249,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
 
     const screen = created.screen as {
@@ -279,6 +284,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
 
     const screen = created.screen as { getConfig: () => typeof screenConfig };
@@ -306,6 +312,7 @@ describe("wireDispatcherSources", () => {
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
       selfPresetId: "natsume",
+      lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
     });
   }
 

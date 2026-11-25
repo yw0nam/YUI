@@ -94,6 +94,7 @@ it("restores signals after a failed milestone turn is dropped", async () => {
     present_max_idle_ms: 10_000,
     isEnabled: () => true,
     drainSignals: signalsSource.drain,
+    lastTogether: { get: () => ({ at: null }), record: () => {} },
     firedStorage: { load: () => ({}), save: () => {} },
     listen: milestoneListen,
   });

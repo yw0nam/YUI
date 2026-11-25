@@ -80,8 +80,7 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen", "NSGraphics"] }
 objc2-foundation = { version = "0.3", features = ["NSGeometry", "NSNotification", "NSString", "NSOperation", "block2"] }
 block2 = "0.6"
-# Screen Recording preflight (CGPreflightScreenCaptureAccess) for the webview's permission read.
-core-graphics = "0.25.0"
+core-graphics = "0.25.0" # ScreenCaptureAccess::preflight — core-graphics-0.25.0 src/access.rs:15-16
 
 # Release builds use Cargo's default profile; LTO and strip are unmeasured for this app, so nothing is tuned.
 # The screenshot resize and JPEG encode run in these two crates.

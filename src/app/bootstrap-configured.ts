@@ -177,6 +177,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       climbSettings,
       fallSettings,
       hintSettings,
+      lastTogetherSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
 
@@ -299,6 +300,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       scheduleSettings,
       agentNotifySettings,
       screenSettings,
+      lastTogetherSettings,
       getScreenConfig: () => mergeScreen(config.get().screen, screenKnobSettings.get()),
       pipelineBusy: {
         isBusy: dispatcher.isPipelineBusy,

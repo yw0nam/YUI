@@ -56,15 +56,12 @@ function idleTick(os_idle_ms: number | null | undefined, ts = 0): OsEventPayload
 }
 
 function fakeLastTogether(initial: { at: number | null } = { at: null }): {
-  store: LastTogetherStore;
+  store: Pick<LastTogetherStore, "get" | "record">;
   saved: number[];
 } {
   const saved: number[] = [];
-  const store: LastTogetherStore = {
+  const store: Pick<LastTogetherStore, "get" | "record"> = {
     get: () => ({ at: saved.at(-1) ?? initial.at }),
-    setAt: (at) => {
-      saved.push(at);
-    },
     record: (now) => {
       saved.push(now);
     },
