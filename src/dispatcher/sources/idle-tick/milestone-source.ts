@@ -3,7 +3,9 @@
  *
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and fires
  * `time_milestone.first_activity` (tier2) on the first tick of the local day that finds
- * the user "present" (OS idle within `present_max_idle_ms`). The day key is persisted
+ * the user "present" (OS idle within `present_max_idle_ms`). Every present tick records
+ * the user's presence into `yui.last-together`, at most once a minute; the fired payload
+ * carries the value stored before it as `last_together`. The day key is persisted
  * across restarts; `isEnabled()` gates firing only, without stopping the
  * subscription. Buffered `/signals` groups ride the same candidate event.
  *
@@ -20,11 +22,18 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../../../settings/persisted-store";
+import {
+  createLastTogetherSettings,
+  type LastTogetherStore,
+} from "../../../settings/presence/last-together-settings";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("milestone-source");
 
 const MILESTONE_NAME = "first_activity" as const;
+
+/** Present ticks write the presence store at most once a minute. */
+const PRESENCE_WRITE_INTERVAL_MS = 60_000;
 
 interface MilestoneSourceDeps {
   bus: Pick<EventBus, "push">;
@@ -39,6 +48,8 @@ interface MilestoneSourceDeps {
   now?: () => number;
   /** Injectable fired-latch persistence; defaults to the `yui.milestone-fired` store. */
   firedStorage?: PersistedStorage<Record<string, string>>;
+  /** Injectable last-presence store; defaults to the `yui.last-together` store. */
+  lastTogether?: LastTogetherStore;
 }
 
 export interface FirstActivity {
@@ -64,6 +75,8 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
   const fired: Record<string, string> = isPlainObject(loaded)
     ? (loaded as Record<string, string>)
     : {};
+  const lastTogether = deps.lastTogether ?? createLastTogetherSettings();
+  let lastWriteMs: number | null = null;
 
   let unlisten: (() => void) | undefined;
 
@@ -89,6 +102,12 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     if (idle > present_max_idle_ms) return;
 
     const ts = now();
+    // The fired payload carries the presence stored before this tick, so read before writing.
+    const lastTogetherAt = lastTogether.get().at;
+    if (lastWriteMs === null || ts - lastWriteMs >= PRESENCE_WRITE_INTERVAL_MS) {
+      lastTogether.setAt(ts);
+      lastWriteMs = ts;
+    }
     const first = owed(ts);
     if (!first) return;
     let signals: SignalGroup[] = [];
@@ -104,6 +123,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       ts,
       payload: {
         ...first,
+        last_together: lastTogetherAt ?? null,
         ...(signals.length > 0 ? { signals } : {}),
       },
     };

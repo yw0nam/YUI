@@ -1,6 +1,11 @@
 /** Device-wide store of the user's last presence; the milestone source is its only writer. */
 
-import { localStorageStore, type PersistedStorage } from "../persisted-store";
+import {
+  createPersistedStore,
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "../persisted-store";
 
 export interface LastTogetherSettings {
   /** Epoch ms of the last recorded present tick; null until the first one. */
@@ -18,13 +23,19 @@ export interface LastTogetherStore {
 export function createLastTogetherSettings(opts?: {
   storage?: LastTogetherStorage;
 }): LastTogetherStore {
-  const storage = opts?.storage ?? localStorageStore<LastTogetherSettings>("yui.last-together");
-  let state: LastTogetherSettings = storage.load() ?? { at: null };
+  const core = createPersistedStore<LastTogetherSettings>({
+    storage: opts?.storage ?? localStorageStore<LastTogetherSettings>("yui.last-together"),
+    defaults: { at: null },
+    parse: (v) =>
+      isPlainObject(v) && typeof (v as LastTogetherSettings).at === "number"
+        ? { at: (v as LastTogetherSettings).at }
+        : null,
+    equals: (a, b) => a.at === b.at,
+  });
   return {
-    get: () => ({ ...state }),
+    get: core.get,
     setAt(at: number): void {
-      state = { at };
-      storage.save(state);
+      core.commit({ at });
     },
   };
 }

@@ -4,6 +4,8 @@ const COMMANDS: &[&str] = &[
     "list_windows",
     "window_bounds",
     "list_screen_sources",
+    "screen_recording_permission",
+    "app_started_at",
     "capture_screen",
     "capture_screen_at",
     "import_vrm_file",
