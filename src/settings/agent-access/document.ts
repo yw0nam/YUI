@@ -1,4 +1,3 @@
-import { isPlainObject } from "../persisted-store";
 import type { SettingsStores } from "../settings-stores";
 import { getIn, leaves, setIn } from "./paths";
 import { ROWS } from "./rows";
@@ -29,53 +28,53 @@ export function readDocument(stores: SettingsStores): Record<string, unknown> {
 /** Merges a JSON merge patch into the document and applies each changed leaf. */
 export function applyPatch(stores: SettingsStores, patch: object): PatchResult {
   const document = readDocument(stores);
-  const merged = merge(document, patch);
+  const patchLeaves = leaves(patch);
+  // The document the patch asks for, so a row can judge a leaf against its siblings in the same patch.
+  const effective = patchLeaves.reduce<Record<string, unknown>>(
+    (current, leaf) => setIn(current, leaf.keys, leaf.value) as Record<string, unknown>,
+    document,
+  );
   const direct: Record<string, "ok" | `error: ${string}`> = {};
   const allow: SettingsChange[] = [];
 
-  for (const leaf of leaves(patch)) {
-    const parts = leaf.path.split(".");
-    const row = ROWS.find((entry) => entry.path === leaf.path);
+  for (const leaf of patchLeaves) {
+    const path = leaf.keys.join(".");
+    const row = leaf.keys.some((key) => key.includes("."))
+      ? undefined
+      : ROWS.find((entry) => entry.path === path);
     if (!row) {
-      direct[leaf.path] = `error: unknown ${leaf.path}`;
+      direct[path] = `error: unknown ${path}`;
       continue;
     }
     if (leaf.value === null) {
       if (!row.nullable) {
-        direct[leaf.path] = `error: invalid ${leaf.path}`;
+        direct[path] = `error: invalid ${path}`;
         continue;
       }
-      row.write(stores, null);
-      direct[leaf.path] = "ok";
+      if (row.read(stores) !== null) row.write(stores, null);
+      direct[path] = "ok";
       continue;
     }
-    if (!validate(row, stores, leaf.value)) {
-      direct[leaf.path] = `error: invalid ${leaf.path}`;
+    if (!validate(row, stores, leaf.value) || !(row.check?.(effective) ?? true)) {
+      direct[path] = `error: invalid ${path}`;
+      continue;
+    }
+    if (JSON.stringify(row.read(stores)) === JSON.stringify(leaf.value)) {
+      direct[path] = "ok";
       continue;
     }
     if (row.tier === "allow") {
       allow.push({
-        path: leaf.path,
+        path,
         labelKey: row.labelKey,
-        from: getIn(document, parts),
-        to: getIn(merged, parts),
+        from: getIn(document, leaf.keys),
+        to: leaf.value,
       });
       continue;
     }
     row.write(stores, leaf.value);
-    direct[leaf.path] = "ok";
+    direct[path] = "ok";
   }
 
   return { direct, allow };
-}
-
-/** RFC 7396: a null deletes a member, a nested object merges, anything else replaces. */
-function merge(target: unknown, patch: object): Record<string, unknown> {
-  const out = isPlainObject(target) ? { ...(target as Record<string, unknown>) } : {};
-  for (const [key, value] of Object.entries(patch)) {
-    if (value === null) delete out[key];
-    else if (isPlainObject(value)) out[key] = merge(out[key], value);
-    else out[key] = value;
-  }
-  return out;
 }

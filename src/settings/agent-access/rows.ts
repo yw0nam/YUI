@@ -50,6 +50,8 @@ export interface SettingRow {
   read(stores: SettingsStores): unknown;
   write(stores: SettingsStores, value: unknown): void;
   factory(storage: PersistedStorage<any>): StoreGetter;
+  /** Extra rule the store cannot express, judged against the document the patch produces. */
+  check?(document: unknown): boolean;
 }
 
 type RowSpec = Omit<SettingRow, "read">;
@@ -403,6 +405,7 @@ export const ROWS: readonly SettingRow[] = [
       stores.screenshotSettings.setSource({ ...source, index: value } as ScreenSource);
     },
     factory: (storage) => createScreenshotSettings({ storage }),
+    check: (document) => getIn(document, ["privacy", "screen_source", "kind"]) === "monitor",
   }),
   row({
     path: "privacy.screen_watch.enabled",

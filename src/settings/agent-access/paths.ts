@@ -1,7 +1,7 @@
 /** Dotted-path reads and writes over the settings document. */
 
 export interface JsonLeaf {
-  path: string;
+  keys: readonly string[];
   value: unknown;
 }
 
@@ -25,14 +25,14 @@ export function setIn(root: unknown, path: readonly string[], value: unknown): u
   return { ...base, [head]: setIn(base[head], rest, value) };
 }
 
-/** Every non-object leaf of a JSON object, with its dotted path. */
+/** Every leaf of a JSON object, with its key path; an empty object is a leaf. */
 export function leaves(root: unknown, prefix: readonly string[] = []): JsonLeaf[] {
   if (!isRecord(root)) return [];
   const out: JsonLeaf[] = [];
   for (const [key, child] of Object.entries(root)) {
-    const path = [...prefix, key];
-    if (isRecord(child)) out.push(...leaves(child, path));
-    else out.push({ path: path.join("."), value: child });
+    const keys = [...prefix, key];
+    if (isRecord(child) && Object.keys(child).length > 0) out.push(...leaves(child, keys));
+    else out.push({ keys, value: child });
   }
   return out;
 }
