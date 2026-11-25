@@ -28,9 +28,9 @@ hooks show "Modified since last trusted - review required", and Codex blocks the
 the user trusts them again.
 
 Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`,
-`PermissionRequest`, and `SessionEnd` hooks with no review warning. Codex runs no
-`PostToolUse` or `PostToolUseFailure` hook, so a permission Thread stays `input-required`
-until its next `Stop` or `UserPromptSubmit`.
+`PermissionRequest`, and `SessionEnd` hooks with no review warning. yui-notify writes no
+permission marker for Codex, so a permission Thread stays `input-required` until its next
+`Stop` or `UserPromptSubmit`.
 
 ## 4. Prove a Thread
 

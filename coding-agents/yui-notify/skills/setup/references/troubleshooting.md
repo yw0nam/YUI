@@ -24,8 +24,8 @@ needs updating. A successful probe creates no Thread or signal.
 The Thread returns to `working` when the allowed tool runs and its `PostToolUse` or
 `PostToolUseFailure` hook matches the pending permission marker. A denied request, or a tool
 that never ran, leaves the Thread waiting until the next prompt, stop, or session end removes
-the marker. Codex runs no `PostToolUse` hook, so its permission Thread waits until its next
-`Stop` or `UserPromptSubmit`.
+the marker. yui-notify writes no permission marker for Codex, so its permission Thread waits
+until its next `Stop` or `UserPromptSubmit`.
 
 ## Read `last-error.json`
 

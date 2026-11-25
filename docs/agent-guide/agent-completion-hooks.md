@@ -30,8 +30,8 @@ Claude Code only: a successful permission PUT writes a marker naming the tool an
 hash. When the allowed tool runs, the matching `PostToolUse` or `PostToolUseFailure` hook
 returns the Thread to `working` and deletes the marker; any other tool call sends nothing.
 `UserPromptSubmit`, `Stop`, and `SessionEnd` delete the marker first, so a denied request
-cannot match a later identical tool call. Codex runs no `PostToolUse` hook, so a Codex
-permission Thread waits until its next Stop or prompt.
+cannot match a later identical tool call. yui-notify writes no permission marker for Codex,
+so a Codex permission Thread waits until its next Stop or prompt.
 
 Thread ids, payload limits, configuration, and commands are in the
 [plugin README](../../coding-agents/yui-notify/README.md).

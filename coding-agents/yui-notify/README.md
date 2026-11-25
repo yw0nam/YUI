@@ -93,8 +93,8 @@ returns that Thread to `working` and deletes the marker; any other tool call sen
 `UserPromptSubmit`, `Stop`, and `SessionEnd` delete the marker before their PUT, so a denied
 request cannot match a later identical tool call.
 
-Codex runs no `PostToolUse` hook, so a Codex permission Thread stays `input-required` until
-Codex's next `Stop` or `UserPromptSubmit`.
+yui-notify writes no permission marker for Codex, so a Codex permission Thread stays
+`input-required` until Codex's next `Stop` or `UserPromptSubmit`.
 
 ## Suppressions
 

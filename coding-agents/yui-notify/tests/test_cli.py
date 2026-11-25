@@ -2,8 +2,6 @@ import io
 import json
 import os
 import socket
-import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -14,7 +12,8 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-INBOX = {"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/8864.sock"}  # names the pid, never connected
+# Claude Code's messaging socket path, which the hook reads the pid from; never connected
+MESSAGING_SOCKET = {"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/8864.sock"}
 PERMISSION_TEXT = "Bash:\n```\ntouch /Users/dev/projects/demo/hello.txt\n```"
 
 
@@ -151,7 +150,6 @@ def test_probe_with_nothing_listening_reports_the_unreachable_line(tmp_path, cap
 
 def test_the_test_command_posts_one_input_required_thread(tmp_path, server, capsys):
     endpoint, received = server
-    received.status[1] = 410
     assert main(["test", "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 0
     assert capsys.readouterr().out == "sent: HTTP 200; look for it in YUI's Threads window\n"
     assert len(received) == 1
@@ -168,7 +166,6 @@ def test_the_test_command_posts_one_input_required_thread(tmp_path, server, caps
             }
         ],
     }
-    assert "ask" not in body
     assert received.polls == []
 
 
@@ -229,7 +226,6 @@ def permission_marker(tmp_path):
 
 def test_claude_permission_posts_input_required_and_returns_at_once(tmp_path, server):
     endpoint, received = server
-    received.status[1] = 410
     assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
     assert len(received) == 1
     path, body = received[0]
@@ -241,7 +237,6 @@ def test_claude_permission_posts_input_required_and_returns_at_once(tmp_path, se
         "state": "input-required",
         "entries": [{"role": "system", "text": PERMISSION_TEXT}],
     }
-    assert "ask" not in body
     assert received.polls == []
     assert permission_marker(tmp_path).exists()
 
@@ -249,7 +244,6 @@ def test_claude_permission_posts_input_required_and_returns_at_once(tmp_path, se
 @pytest.mark.parametrize("hook", ["PostToolUse", "PostToolUseFailure"])
 def test_the_allowed_tool_returns_the_thread_to_working(tmp_path, server, hook):
     endpoint, received = server
-    received.status[1] = 410
     run_hook(tmp_path, endpoint, "claude-permission.json")
     assert permission_marker(tmp_path).exists(), "the permission hook wrote no marker"
     run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name=hook)
@@ -273,7 +267,6 @@ def test_a_tool_run_with_no_marker_sends_nothing(tmp_path, server):
 )
 def test_a_tool_run_that_matches_no_marker_sends_nothing(tmp_path, server, updates):
     endpoint, received = server
-    received.status[1] = 410
     run_hook(tmp_path, endpoint, "claude-permission.json")
     run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse", **updates)
     assert len(received) == 1
@@ -281,27 +274,16 @@ def test_a_tool_run_that_matches_no_marker_sends_nothing(tmp_path, server, updat
 
 def test_claude_stop_drops_the_permission_marker_before_its_put(tmp_path, server):
     endpoint, received = server
-    received.status[1] = 204  # a waiting permission hook holds its marker here
-
-    def stop_while_the_permission_hook_runs():
-        deadline = time.time() + 10
-        while not (permission_marker(tmp_path).exists() or received.polls) and time.time() < deadline:
-            time.sleep(0.02)
-        run_hook(tmp_path, endpoint, "claude-stop.json")
-        run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
-        received.status[1] = 410
-
-    worker = threading.Thread(target=stop_while_the_permission_hook_runs)
-    worker.start()
     assert run_hook(tmp_path, endpoint, "claude-permission.json") == 0
-    worker.join(10)
+    run_hook(tmp_path, endpoint, "claude-stop.json")
+    run_hook(tmp_path, endpoint, "claude-permission.json", hook_event_name="PostToolUse")
     assert not permission_marker(tmp_path).exists()
     assert len(received) == 2
 
 
-def test_claude_stop_posts_completed_with_an_inbox_socket(tmp_path, server):
+def test_claude_stop_posts_completed_with_a_messaging_socket(tmp_path, server):
     endpoint, received = server
-    assert run_hook(tmp_path, endpoint, "claude-stop.json", extra_env=INBOX) == 0
+    assert run_hook(tmp_path, endpoint, "claude-stop.json", extra_env=MESSAGING_SOCKET) == 0
     assert len(received) == 1
     _, body = received[0]
     assert body["state"] == "completed"
@@ -311,7 +293,6 @@ def test_claude_stop_posts_completed_with_an_inbox_socket(tmp_path, server):
 
 def test_codex_permission_posts_input_required_and_returns_at_once(tmp_path, server):
     endpoint, received = server
-    received.status[1] = 410
     assert run_hook(tmp_path, endpoint, "codex-permission.json") == 0
     assert len(received) == 1
     _, body = received[0]
