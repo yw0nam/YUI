@@ -1,5 +1,6 @@
 /** One stream attempt of a turn: consumes the backend stream, feeds the speech pipeline, and judges how it ended. */
 import type { ControlEnvelope, EndpointsConfig, Usage } from "../../contract";
+import { recordBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type {
   ChatRequest,
   StreamChatOptions,
@@ -120,6 +121,7 @@ export function createStreamAttempt(
             break;
           }
           case "express":
+            if (ev.args.emotion_id) recordBackendEmotion(ev.args.emotion_id, Date.now());
             // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
             deps.turnOutput?.cue(ev.args);
             deps.turnOutput?.activity(turn.id);
