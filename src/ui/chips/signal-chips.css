@@ -197,13 +197,24 @@
   display: none;
 }
 
-/* In a chip column under 9rem (surfaces.css), every chip shows its dot alone and the grouped row adds
-   its batched total; the open button's label still names the group. */
+/* Folded (is-mini): every chip shrinks to its dot. */
+.yui-sigchips.is-mini .yui-sigchip__src,
+.yui-sigchips.is-mini .yui-sigchip__text,
+.yui-sigchips.is-mini .yui-sigchip__x,
+.yui-sigchips.is-mini .yui-sigchip__more {
+  display: none;
+}
+
+.yui-sigchips.is-mini .yui-sigchip__open {
+  padding: 0.3rem 0.4rem;
+}
+
+/* In a chip column under 9rem (surfaces.css), pills show their dot, the grouped row its total, and Collapse a glyph. */
 @container (width < 9rem) {
   .yui-sigchip__src,
   .yui-sigchip__text,
   .yui-sigchip__x,
-  .yui-sigchip__more {
+  .yui-sigchip > .yui-sigchip__more {
     display: none;
   }
 
@@ -222,19 +233,17 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
-}
 
-/* Folded (is-mini): every chip shrinks to its dot. */
-.yui-sigchips.is-mini .yui-sigchip__src,
-.yui-sigchips.is-mini .yui-sigchip__text,
-.yui-sigchips.is-mini .yui-sigchip__x,
-.yui-sigchips.is-mini .yui-sigchip__more {
-  display: none;
-}
+  /* The word gives way to a minus; aria-label keeps the name. */
+  .yui-sigchips__batched > .yui-sigchip__more {
+    padding: 0 0.55rem;
+    font-size: 0;
+  }
 
-.yui-sigchips.is-mini .yui-sigchip__open {
-  gap: 0;
-  padding: 0.3rem 0.4rem;
+  .yui-sigchips__batched > .yui-sigchip__more::before {
+    content: "\2212";
+    font-size: var(--yui-fs-sub);
+  }
 }
 
 /* The details sheet hangs under the whole chip column, its right edge 0.5rem inside the window, lifted or capped by fitSheet to stay inside it. */

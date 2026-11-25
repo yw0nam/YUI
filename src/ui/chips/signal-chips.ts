@@ -221,6 +221,11 @@ export function createSignalChips({
         pill.el.dataset.chipCount = String(batched.length);
         place(pill.el, rows++);
         if (hiddenCount > 0) {
+          // The name carries the "+N" a narrow column hides.
+          pill.open.setAttribute(
+            "aria-label",
+            `${pill.open.getAttribute("aria-label")}. ${t("sigchip.more_aria", { n: hiddenCount })}`,
+          );
           pill.x.hidden = true;
           pill.count.textContent = String(batched.length);
           if (more.parentNode !== pill.el) pill.el.append(more);
