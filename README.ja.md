@@ -187,7 +187,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 大半のクリップは、Shiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)プロジェクトから抽出したもので、Mate Engineの非商用条件のもとで使用しています。Shiny氏のクレジットを表記すれば、個人利用、学習目的、収益を伴わない利用は無料です。商用利用にはShiny氏から別途許可を得る必要があります。
 
-`sulk` クリップ(`suneru.vrma`)は、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)(Unity Humanoid `06_suneru`、「拗ね」)に含まれるもので、necocoya氏のクレジットを表記しています。改変、変換、クレジットを表記したうえでの同梱は許可されています。元ファイル単体での再販売は禁止されています。
+necocoya氏のクリップは、アンテナショップねここや氏の`Emote詰め合わせ(無料版)` / EmoteSet_Free_v130([https://necocoya.booth.pm/](https://necocoya.booth.pm/))に含まれるものです。`suneru.vrma`(`sulk`)のほか、16本(`wave_01`、`wave_02`、`bow`、`excited`、`banzai`、`peace_01`、`peace_02`、`flustered`、`startled`、`yawn`、`gaow`、`peek_in`、`orz`、`shy_01`、`shy_02`、`sleep`)を使っています。配布時には製品名、サークル名、このBoothリンクを表記します。改変、変換、クレジットを表記したうえでの同梱は許可されています。元ファイル単体での再販売は禁止されています。
 
 移動系のクリップ `walk`、`jump`、`falling`、`landing`、よじ登る・降りる動作のモーション一式(`climb_up`、`climb_up_done`、`climb_down`、`climb_down_landing`)は[Mixamo](https://www.mixamo.com/)のもので、Mixamoの規約に基づきロイヤリティフリーです。
 

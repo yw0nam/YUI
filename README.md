@@ -187,7 +187,7 @@ The motion assets (`public/motions/*.vrma`) come from three sources.
 
 Most clips are extracted from the [Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny, used under Mate Engine's non-commercial terms: free for personal, study, and non-revenue use with attribution to Shiny; commercial use requires separate permission from Shiny.
 
-The `sulk` clip (`suneru.vrma`) is from necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) (Unity Humanoid `06_suneru`, 拗ね = sulk/pout), attribution to necocoya. Modification, conversion, and bundling-with-credit are permitted; standalone resale of the raw file is prohibited.
+The necocoya clips are from `Emote詰め合わせ(無料版)` / EmoteSet_Free_v130 by the circle アンテナショップねここや ([https://necocoya.booth.pm/](https://necocoya.booth.pm/)): `suneru.vrma` as `sulk`, and sixteen more (`wave_01`, `wave_02`, `bow`, `excited`, `banzai`, `peace_01`, `peace_02`, `flustered`, `startled`, `yawn`, `gaow`, `peek_in`, `orz`, `shy_01`, `shy_02`, `sleep`). Distribution names the product, the circle and this Booth link. Modification, conversion and bundling with that credit are permitted; standalone resale of the raw file is prohibited.
 
 The locomotion clips `walk`, `jump`, `falling`, `landing` and the climb set (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`) are from [Mixamo](https://www.mixamo.com/), royalty-free under the Mixamo terms.
 

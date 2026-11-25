@@ -193,6 +193,138 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
+  "wave": {
+    "vrma_path": "/motions/wave_01.vrma",
+    "variants": [
+      "/motions/wave_01.vrma",
+      "/motions/wave_02.vrma"
+    ],
+    "variant_policy": "random",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "bow": {
+    "vrma_path": "/motions/bow.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "excited": {
+    "vrma_path": "/motions/excited.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "banzai": {
+    "vrma_path": "/motions/banzai.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "peace": {
+    "vrma_path": "/motions/peace_01.vrma",
+    "variants": [
+      "/motions/peace_01.vrma",
+      "/motions/peace_02.vrma"
+    ],
+    "variant_policy": "random",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "flustered": {
+    "vrma_path": "/motions/flustered.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "startled": {
+    "vrma_path": "/motions/startled.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "yawn": {
+    "vrma_path": "/motions/yawn.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "gaow": {
+    "vrma_path": "/motions/gaow.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "peek_in": {
+    "vrma_path": "/motions/peek_in.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "orz": {
+    "vrma_path": "/motions/orz.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "shy": {
+    "vrma_path": "/motions/shy_01.vrma",
+    "variants": [
+      "/motions/shy_01.vrma",
+      "/motions/shy_02.vrma"
+    ],
+    "variant_policy": "random",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "sleep": {
+    "vrma_path": "/motions/sleep.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "window_sit": {
     "vrma_path": "/motions/sit_01.vrma",
     "variants": [

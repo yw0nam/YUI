@@ -28,7 +28,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 ## Top-level motions
 
-`idle`, `idle_lively`, `window_sit` and `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"`, so each trigger plays a random variant (immediate repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
+`idle`, `idle_lively`, `window_sit`, `dance`, `wave`, `peace` and `shy` are single registry entries with a `variants[]` list and `variant_policy: "random"`, so each trigger plays a random variant (immediate repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
 
 | id | kind | loop | description | source clip | ~len |
 |---|---|---|---|---|---|
@@ -50,6 +50,19 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `peek` | state | yes (cycle) | Held while side-perched. The clip mirrors on its configured side. `crossfade_loop: true`: the clip clamps on its last frame and crossfades back to frame 0 (`fade_ms: 700`) each loop, hiding the wrap seam. `broker_publish: false`. | PET_HIDING/PET_HIDE | 14.0s |
 | `thinking` | state | yes | Looping thinking pose, played by the client as a TTFT latency affordance (see [Thinking](#thinking)). `pingpong: true` (single variant), priority 50. `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
 | `sulk` | oneshot | no | Sulk/pout (拗ね) emotion gesture. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
+| `wave` | oneshot | no | Random hand-wave pool: one hand raised and waved side to side. | necocoya EmoteSet_Free_v130 / `01_tefuri1`, `01_tefuri3` | 5.5s / 5.8s |
+| `bow` | oneshot | no | Polite standing bow. | necocoya EmoteSet_Free_v130 / `02_ojigi` | 7.5s |
+| `excited` | oneshot | no | Buoyant, cheerful bounce on the spot. | necocoya EmoteSet_Free_v130 / `03_ukiuki` | 6.0s |
+| `banzai` | oneshot | no | Banzai cheer with both arms thrown up. | necocoya EmoteSet_Free_v130 / `04_banzai` | 7.0s |
+| `peace` | oneshot | no | Random peace-sign pool: a V-sign held to the camera. | necocoya EmoteSet_Free_v130 / `05_peace1`, `06_peace2` | 6.8s / 6.5s |
+| `flustered` | oneshot | no | Flustered panic, hands waving. | necocoya EmoteSet_Free_v130 / `04_hawawa` | 8.3s |
+| `startled` | oneshot | no | Frightened cower. | necocoya EmoteSet_Free_v130 / `05_obie` | 3.5s |
+| `yawn` | oneshot | no | Long yawn with a stretch. | necocoya EmoteSet_Free_v130 / `07_akubi` | 9.6s |
+| `gaow` | oneshot | no | Playful roar with clawed hands. | necocoya EmoteSet_Free_v130 / `07_gaow` | 5.0s |
+| `peek_in` | oneshot | no | Pops up from the side as if peeking in. | necocoya EmoteSet_Free_v130 / `08_hyokkori` | 14.0s |
+| `orz` | oneshot | no | Despair pose: head down, collapsed forward. | necocoya EmoteSet_Free_v130 / `10_orz` | 5.3s |
+| `shy` | oneshot | no | Random shy pool: bashful fidget, face turned away. | necocoya EmoteSet_Free_v130 / `13_tere1`, `14_tere2` | 6.5s / 6.5s |
+| `sleep` | oneshot | no | Sleepy sway settling into sleep. | necocoya EmoteSet_Free_v130 / `17_sleep` | 10.0s |
 | `walk` | reactive | yes | In-place walk cycle (39 keyframes at 30 FPS), played by the client during an ambient stroll (see [Walk](#walk)). Priority 45. `broker_publish: false`. | Mixamo Walking | 1.27s |
 | `jump` | oneshot | no | Standing jump, played once when a perched stroll crosses a height difference or a gap to an adjacent window's top (see [Jump](#jump)). Priority 45. `broker_publish: false`. | Mixamo "Jump" | 1.6s |
 | `window_sit` | state | yes | Held window-perch (see [Perch states](#perch-states)). `broker_publish: false`. Engaged on every seat entry. | PET_SITTING/* | — |
@@ -238,7 +251,26 @@ Clips come from four origins. Durations are the source clip length.
 
 ### necocoya
 
-[necocoya: EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) supplies `sulk` only (Unity Humanoid `06_suneru`, 拗ね = sulk/pout). Attribution to necocoya is required; modification/conversion and bundling-with-credit are permitted, and standalone resale of the raw file is prohibited.
+`Emote詰め合わせ(無料版)` / EmoteSet_Free_v130 by the circle `アンテナショップねここや` ([https://necocoya.booth.pm/](https://necocoya.booth.pm/)) supplies seventeen Unity Humanoid clips, converted to `.vrma` through the same `YuiExport.YuiVrmaExport` route as the shipped `suneru.vrma`.
+
+| motion id | source clip |
+|---|---|
+| `sulk` | `06_suneru` (拗ね = sulk/pout) |
+| `wave` | `01_tefuri1`, `01_tefuri3` |
+| `bow` | `02_ojigi` |
+| `excited` | `03_ukiuki` |
+| `banzai` | `04_banzai` |
+| `peace` | `05_peace1`, `06_peace2` |
+| `flustered` | `04_hawawa` |
+| `startled` | `05_obie` |
+| `yawn` | `07_akubi` |
+| `gaow` | `07_gaow` |
+| `peek_in` | `08_hyokkori` |
+| `orz` | `10_orz` |
+| `shy` | `13_tere1`, `14_tere2` |
+| `sleep` | `17_sleep` |
+
+Distribution names the product, the circle and the Booth link, as the source manual requires. Modification and conversion are permitted, and so is redistribution bundled with that credit; standalone resale of the raw file is prohibited.
 
 ### もいらんど
 
@@ -280,6 +312,7 @@ The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_liv
 | `jump` | `broker_publish: false`, its window-to-window crossing |
 | `falling`, `landing` | `broker_publish: false`, the client-owned fall chain |
 | `climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing` | `broker_publish: false`, the client-owned climb chain |
+| `wave`, `bow`, `excited`, `banzai`, `peace`, `flustered`, `startled`, `yawn`, `gaow`, `peek_in`, `orz`, `shy`, `sleep` | `broker_publish: false`, client-played stage reactions and entry families |
 
 ## Playback settings
 
@@ -319,7 +352,7 @@ A sole is a skinned vertex whose strongest skin weight is on `leftFoot`, `rightF
 
 No smoothing filter runs while a grounded motion plays. When the playing motion changes between grounded and not grounded, the applied share of the offset follows the mixer's crossfade over the incoming motion's `fade_ms`. A motion that is not grounded keeps the scene height the perch gives it.
 
-The grounded entries are `idle`, `idle_lively`, `head_pat`, `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`, `thinking`, `walk`, `sulk` and `dance`.
+The grounded entries are `idle`, `idle_lively`, `head_pat`, `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`, `thinking`, `walk`, `sulk`, `wave`, `bow`, `excited`, `banzai`, `peace`, `flustered`, `startled`, `yawn`, `gaow`, `peek_in`, `orz`, `shy`, `sleep` and `dance`.
 
 The clips sink without it because `createVRMAnimationClip` scales only the hips translation to the model and copies the leg rotations as authored. A model whose leg length or sole height differs from the clip's source rig sinks or floats.
 
