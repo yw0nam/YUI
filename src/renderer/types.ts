@@ -102,11 +102,11 @@ export interface Renderer {
   /** Replace the fit-to-bounds framing; refits at once when a VRM is loaded. */
   setFraming(framing: FramingConfig): void;
   /**
-   * Draw the reference-size framing — the window size at travel start — at canvas
-   * offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the OS
-   * window over its whole path and uses this to keep the character's on-screen size
-   * and every camera-projected consumer (feet anchor, width, hit test) unchanged while
-   * she moves inside the parked canvas.
+   * Draw the framing of a `width` × `height` window — her window's size in the travel —
+   * at canvas offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the
+   * OS window over its whole path and uses this to keep the character's on-screen size
+   * and every camera-projected consumer (feet anchor, width, hit test) that of her window
+   * while she moves inside the parked canvas.
    */
   setViewWindow(view: { x: number; y: number; width: number; height: number } | null): void;
   /**
@@ -125,6 +125,14 @@ export interface Renderer {
    * Changes whenever camera is refit via resize/zoom — used to pin UI input to feet.
    */
   getCharacterAnchor(): ScreenAnchor | null;
+  /** In a `width` × `height` window at stage framing `k`: her feet's share of its height, and how much larger than now she is drawn; null with no VRM. */
+  getFrameFit(
+    width: number,
+    height: number,
+    k: number,
+  ): { feetShare: number; scale: number } | null;
+  /** Eases her framing from her own (0) to the stage's (1: her height alone, head-on, no zoom); non-finite ignored, others clamped. */
+  setStageFraming(k: number): void;
   /**
    * How wide the character stands on screen (px), measured across the model box at the
    * feet. The box is captured at load, so this is her rest-pose width rather than the

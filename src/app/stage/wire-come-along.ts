@@ -6,11 +6,12 @@ import type { MotionKind } from "../../contract";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { lastBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { HitTestController } from "../../io/window/pet/hit-test";
+import { waitRefit } from "../../io/window/pet/page-refit";
 import {
   attachDock,
   detachDock,
   onSettingsStageEnded,
-  setPetPositionPhysical,
+  setPetFramePhysical,
 } from "../../io/window/pet/window-dock";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -36,8 +37,8 @@ export function wireComeAlong(deps: {
     | "drop"
     | "frame"
     | "getAvatarExecutor"
-    | "onResizeApplied"
     | "onHoldReleased"
+    | "onMoverTakesOver"
     | "isTravelling"
     | "ready"
   >;
@@ -60,8 +61,9 @@ export function wireComeAlong(deps: {
     renderer: deps.renderer,
     hitTest: deps.hitTest,
     dock: { attach: attachDock, detach: detachDock },
-    setPositionPhysical: setPetPositionPhysical,
+    setFramePhysical: setPetFramePhysical,
     followsInPhysicalPx: isWindows(),
+    refitTo: waitRefit,
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,
     lastEmotion: (decayMs) => lastBackendEmotion(Date.now(), decayMs),
@@ -80,9 +82,9 @@ export function wireComeAlong(deps: {
     register(
       await onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)),
     );
-    register(locomotion.onResizeApplied(() => void comeAlong.place().catch(failed)));
     // The Character menu lets go after its parked frame ends: the newest slot applies then.
     register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));
+    register(locomotion.onMoverTakesOver(() => comeAlong.restoreSize()));
     // Both listeners are in place before the answer can arrive.
     await deps.bridgeListening();
     deps.emitSettingsStageAsk();

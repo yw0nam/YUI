@@ -2,9 +2,9 @@
  * view-window — draws the reference-size framing at an offset inside a larger canvas.
  *
  * A travel parks the OS window over its whole path and hands the movers a virtual window
- * inside it; the camera keeps framing the window's size at travel start (the reference
- * size) but draws it at the virtual window's offset within the parked canvas, via
- * three.js's multi-view `camera.setViewOffset`.
+ * inside it; the camera keeps framing the virtual window's size (the reference size) but
+ * draws it at the virtual window's offset within the parked canvas, via three.js's
+ * multi-view `camera.setViewOffset`.
  */
 
 import type * as THREE from "three";
@@ -13,7 +13,7 @@ export interface ViewWindow {
   /** Canvas offset (px) where the reference framing is drawn. */
   x: number;
   y: number;
-  /** The reference framing's own size (px) — the window size at travel start. */
+  /** The reference framing's own size (px) — her window's size in the travel. */
   width: number;
   height: number;
 }

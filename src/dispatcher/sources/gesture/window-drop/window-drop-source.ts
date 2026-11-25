@@ -86,6 +86,8 @@ export interface WindowDropSourceDeps {
   getGestureCues: () => GestureCuesConfig;
   /** A drag release that neither sat nor peeked — the character is left mid-air. */
   onDragMiss?: () => void;
+  /** The dragged window's release, before the drop settles; the settle waits for it. */
+  onDropped?: () => Promise<void>;
   /** The OS drag release settled — the window-geometry store saves the position. */
   onReleased?: () => Promise<void>;
   /** True when this window's drag gesture started and its release is unconsumed. */
@@ -440,15 +442,15 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
           // The Threads window's drop moved no pet window; it settles in its own window.
           if (payload === THREADS_WINDOW_LABEL) return;
           const dragged = deps.wasDragging?.() ?? true;
-          void settle()
-            .then(async (outcome) => {
-              // Only the dragged window saves; every pet window still settles the release.
-              if (dragged) await deps.onReleased?.();
-              if (outcome.kind === "none") deps.onDragMiss?.();
-            })
-            .catch((err) =>
-              log.warn("release_handling_failed", { degrade: true, error: String(err) }),
-            );
+          void (async () => {
+            if (dragged && deps.onDropped) await deps.onDropped();
+            const outcome = await settle();
+            // Only the dragged window saves; every pet window still settles the release.
+            if (dragged) await deps.onReleased?.();
+            if (outcome.kind === "none") deps.onDragMiss?.();
+          })().catch((err) =>
+            log.warn("release_handling_failed", { degrade: true, error: String(err) }),
+          );
         });
       } catch (err) {
         log.warn("listen_subscribe_failed", { degrade: true, error: String(err) });

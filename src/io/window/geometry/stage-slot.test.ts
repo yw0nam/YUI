@@ -7,7 +7,6 @@ const win = vi.hoisted(() => ({
   scaleFactor: vi.fn<() => Promise<number>>(),
   isMinimized: vi.fn<() => Promise<boolean>>(),
   onMoved: vi.fn<(cb: () => void) => Promise<() => void>>(),
-  onResized: vi.fn<(cb: () => void) => Promise<() => void>>(),
 }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => win }));
 
@@ -15,12 +14,24 @@ import { sendStageSlot } from "./stage-slot";
 
 let stage: HTMLElement;
 let moved: () => void;
+let laidOut: () => void;
 let ask: () => void;
 const emitSettingsStage = vi.fn();
 const teardowns: Array<() => void> = [];
 
 beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
+  laidOut = () => {};
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(cb: () => void) {
+        laidOut = cb;
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
   // Her content origin at (200, 150) pt on a scale-2 display.
   win.innerPosition.mockResolvedValue({ x: 400, y: 300 });
   // A 680 pt tall page that fills the inner size: no title bar inside it.
@@ -32,7 +43,6 @@ beforeEach(() => {
     moved = cb;
     return () => {};
   });
-  win.onResized.mockResolvedValue(() => {});
   stage = document.createElement("div");
   stage.style.paddingTop = "600px";
   stage.getBoundingClientRect = () => ({ left: 8, top: 0, width: 400 }) as DOMRect;
@@ -108,6 +118,21 @@ it("sends a moved slot, skips an unchanged one, and answers every ask", async ()
     [{ preset: null, slot: { ...slot, x: 308 } }],
     [{ preset: null, slot: { ...slot, x: 308 } }],
   ]);
+});
+
+it("sends a resized slot once the stage has laid out at its new size", async () => {
+  wire();
+  await vi.waitFor(() => expect(emitSettingsStage).toHaveBeenCalledOnce());
+
+  stage.style.paddingTop = "900px";
+  stage.getBoundingClientRect = () => ({ left: 8, top: 0, width: 600 }) as DOMRect;
+  laidOut();
+
+  await vi.waitFor(() => expect(emitSettingsStage).toHaveBeenCalledTimes(2));
+  expect(emitSettingsStage).toHaveBeenLastCalledWith({
+    preset: null,
+    slot: { ...slot, width: 600, height: 900 },
+  });
 });
 
 it("drops a slot read that a minimise overtook", async () => {

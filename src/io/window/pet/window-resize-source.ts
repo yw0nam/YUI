@@ -99,6 +99,8 @@ interface WindowResizeSourceDeps {
 }
 
 interface WindowResizeSource {
+  /** Settles once the resize writes already accepted have landed and been told to `onApplied`. */
+  settled(): Promise<void>;
   /** Register the wheel listener. Idempotent. */
   start(): void;
   /** Unregister the wheel listener. */
@@ -114,6 +116,7 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
   // so rapid notches coalesce instead of racing stale reads.
   let pendingFactor = 1;
   let inFlight = false;
+  let flushing: Promise<void> = Promise.resolve();
 
   async function flush(): Promise<void> {
     if (inFlight) return;
@@ -163,10 +166,11 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
     if (deps.isLocked?.()) return;
     if (e.deltaY === 0) return;
     pendingFactor *= stepFactor(e.deltaY);
-    void flush();
+    if (!inFlight) flushing = flush();
   }
 
   return {
+    settled: () => flushing,
     start() {
       if (listening) return;
       listening = true;

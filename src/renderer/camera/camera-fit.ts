@@ -25,6 +25,8 @@ interface CameraFitOptions {
 interface CameraFit {
   target: THREE.Vector3;
   distance: number;
+  /** The distance that frames the box's height alone, its width left free. */
+  heightDistance: number;
 }
 
 /** Orbit angles on the view sphere (radians). azimuth θ around +Y, polar φ from +Y. */
@@ -110,7 +112,7 @@ export function computeCameraFit(box: THREE.Box3, opts: CameraFitOptions): Camer
   }
 
   const target = center.clone();
-  return { target, distance };
+  return { target, distance, heightDistance: distHeight * (1 + opts.margin) };
 }
 
 /**

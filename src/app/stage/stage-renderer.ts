@@ -8,7 +8,12 @@ export function createStageRenderer(deps: {
   stage: HTMLElement;
   settings: Pick<SettingsStores, "cameraSettings" | "idleThrottleSettings">;
   register: (dispose: () => void) => void;
-}): { renderer: Renderer; ambient: Tier1Engine } {
+}): {
+  renderer: Renderer;
+  ambient: Tier1Engine;
+  /** Ignores the plain wheel's zoom while `isLocked` holds. */
+  lockWheelZoom(isLocked: () => boolean): void;
+} {
   const renderer = createRenderer({ mount: deps.stage });
   const camera = wireCamera({
     stage: deps.stage,
@@ -23,5 +28,5 @@ export function createStageRenderer(deps: {
   ambient.start();
   deps.register(() => renderer.dispose());
   deps.register(() => ambient.stop());
-  return { renderer, ambient };
+  return { renderer, ambient, lockWheelZoom: camera.lockWheelZoom };
 }

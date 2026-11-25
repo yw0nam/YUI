@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WalkConfig } from "../../../config/validators/avatar/types";
-import type { PetWindow, ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
+import type { ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
+import type { Travel } from "../../../io/window/geometry/travel-frame";
 import type { RenderMotionSignal, TickContext, TickFn } from "../../../renderer";
 import {
   advanceX,
@@ -246,6 +247,8 @@ function makeHarness(
         logicalCalls.push({ x, y });
         positions.push({ x, y });
       },
+      // A travel's virtual window takes a frame too; these movers never set one.
+      setFrameLogical: async (_x: number, _y: number, _width: number, _height: number) => {},
     };
   }
   const realWindow = makeRealWindow();
@@ -680,7 +683,7 @@ describe("createWalker", () => {
       rng: seqRng(0, 0, 1),
     };
     const h = makeHarness(over);
-    let resolveBegin!: (t: { win: PetWindow; end: () => Promise<void> }) => void;
+    let resolveBegin!: (t: Travel) => void;
     h.fakeTravel.begin.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -692,7 +695,7 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
 
     h.walker.cancel();
-    const win = { setPositionLogical: async () => {} } as unknown as PetWindow;
+    const win = { setPositionLogical: async () => {} } as unknown as Travel["win"];
     resolveBegin({ win, end: async () => {} });
     for (let i = 0; i < 10; i++) await h.frame();
 

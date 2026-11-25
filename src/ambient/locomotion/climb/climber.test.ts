@@ -206,6 +206,8 @@ function makeHarness(
         pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
         positions.push({ ...pos });
       },
+      // A travel's virtual window takes a frame too; these movers never set one.
+      setFrameLogical: async (_x: number, _y: number, _width: number, _height: number) => {},
     };
   }
   const realWindow = makeRealWindow();

@@ -74,6 +74,7 @@ describe("wireCamera", () => {
       cameraSettings,
       idleThrottleSettings,
       removeWheel: camera.dispose,
+      lockWheelZoom: camera.lockWheelZoom,
     };
   }
 
@@ -111,6 +112,19 @@ describe("wireCamera", () => {
         sensitivity: CAMERA_WHEEL_SENSITIVITY,
       }),
     );
+  });
+
+  it("leaves the stored zoom alone on a plain wheel while locked, and zooms again once unlocked", () => {
+    const { stage, cameraSettings, lockWheelZoom } = setup();
+    let locked = true;
+    lockWheelZoom(() => locked);
+
+    wheelOn(stage, { deltaY: -240 });
+    expect(cameraSettings.setZoom).not.toHaveBeenCalled();
+    locked = false;
+    wheelOn(stage, { deltaY: -240 });
+
+    expect(cameraSettings.setZoom).toHaveBeenCalledOnce();
   });
 
   it("removes only the wheel listener; the store subscribers die with the stores", () => {

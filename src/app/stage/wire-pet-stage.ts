@@ -23,12 +23,16 @@ export function wireCamera(deps: {
   idleThrottleSettings: Pick<SettingsStores["idleThrottleSettings"], "get" | "subscribe">;
 }): {
   dispose(): void;
+  /** Ignores the plain wheel's zoom while `isLocked` holds; the wheel stays the page's to claim. */
+  lockWheelZoom(isLocked: () => boolean): void;
 } {
+  let wheelLocked = (): boolean => false;
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
   // Drag uses pointerdown only, so no conflict with wheel (gesture/window-drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
     if (e.ctrlKey) return; // ctrl+wheel is window-resize gesture (window-resize-source).
     e.preventDefault();
+    if (wheelLocked()) return;
     const next = nextZoom(deps.cameraSettings.get().zoom, e.deltaY, {
       min: CAMERA_ZOOM_MIN,
       max: CAMERA_ZOOM_MAX,
@@ -48,7 +52,12 @@ export function wireCamera(deps: {
   deps.renderer.setIdleThrottleEnabled(deps.idleThrottleSettings.get().enabled);
   deps.idleThrottleSettings.subscribe((s) => deps.renderer.setIdleThrottleEnabled(s.enabled));
   // Only the wheel listener is ours — the store subscribers die with the stores' own disposal.
-  return { dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom) };
+  return {
+    dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom),
+    lockWheelZoom(isLocked) {
+      wheelLocked = isLocked;
+    },
+  };
 }
 
 export function wireInputAnchor(deps: {

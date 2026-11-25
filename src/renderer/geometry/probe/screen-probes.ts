@@ -18,11 +18,14 @@ export interface ScreenProbeDeps {
   mountHeight: () => number;
   hipsBone: () => THREE.Object3D | null;
   seatDrop: number;
+  /** The camera fit to a window of `aspect` at stage framing `k`, null with nothing to fit. */
+  cameraAt: (aspect: number, k: number) => THREE.PerspectiveCamera | null;
 }
 
 export type ScreenProbes = Pick<
   Renderer,
   | "getCharacterAnchor"
+  | "getFrameFit"
   | "getCharacterWidthPx"
   | "getPerchProbe"
   | "getTapPoints"
@@ -31,7 +34,8 @@ export type ScreenProbes = Pick<
 >;
 
 export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
-  const { camera, getVrm, getModelBox, mountWidth, mountHeight, hipsBone, seatDrop } = deps;
+  const { camera, getVrm, getModelBox, mountWidth, mountHeight, hipsBone, seatDrop, cameraAt } =
+    deps;
   const liveBoxScratch = new THREE.Box3();
   const pxPerMetreScratch = new THREE.Vector3();
   const pxPerMetreForward = new THREE.Vector3();
@@ -53,7 +57,34 @@ export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
     );
   }
 
+  /** Pixels per metre at her feet through `cam` on a canvas `canvasH` tall; null when not finite. */
+  function pxPerMetre(
+    cam: THREE.PerspectiveCamera,
+    box: THREE.Box3,
+    canvasH: number,
+  ): number | null {
+    cam.updateMatrixWorld();
+    // Measured at the feet — the same point the floor gate and the stroll travel on.
+    const { min, max } = box;
+    const depth = pxPerMetreScratch
+      .set((min.x + max.x) / 2, min.y, (min.z + max.z) / 2)
+      .sub(cam.position)
+      .dot(cam.getWorldDirection(pxPerMetreForward));
+    const perPixel = worldYPerPixel(cam, depth, canvasH);
+    return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
+  }
+
   return {
+    getFrameFit(width, height, k) {
+      const modelBox = getModelBox();
+      const at = modelBox && cameraAt(width / height, k);
+      if (!modelBox || !at) return null;
+      const feet = projectFeetAnchor(modelBox, at, 1, 1);
+      const there = pxPerMetre(at, modelBox, height);
+      const now = pxPerMetre(camera, modelBox, mountHeight());
+      if (!feet || there === null || now === null) return null;
+      return { feetShare: feet.y, scale: there / now };
+    },
     getCharacterAnchor() {
       const modelBox = getModelBox();
       if (!modelBox) return null;
@@ -130,18 +161,9 @@ export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
       };
     },
     getPxPerMetre() {
-      const currentVrm = getVrm();
       const modelBox = getModelBox();
-      if (!currentVrm || !modelBox) return null;
-      camera.updateMatrixWorld();
-      // Measured at the feet — the same point the floor gate and the stroll travel on.
-      const { min, max } = modelBox;
-      const depth = pxPerMetreScratch
-        .set((min.x + max.x) / 2, min.y, (min.z + max.z) / 2)
-        .sub(camera.position)
-        .dot(camera.getWorldDirection(pxPerMetreForward));
-      const perPixel = worldYPerPixel(camera, depth, mountHeight());
-      return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
+      if (!getVrm() || !modelBox) return null;
+      return pxPerMetre(camera, modelBox, mountHeight());
     },
   };
 }

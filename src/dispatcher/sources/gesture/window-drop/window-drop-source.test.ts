@@ -2270,6 +2270,37 @@ describe("window-drop-source — geometry save gating", () => {
     expect(order).toEqual(["released", "miss"]);
   });
 
+  it("lets the dragged window take its own size back before the drop settles and saves", async () => {
+    const order: string[] = [];
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: {
+        ...idleRenderer,
+        getPerchProbe: () => {
+          order.push("settle");
+          return null;
+        },
+      },
+      invoke: vi.fn(async () => []),
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+      listen,
+      onDropped: async () => {
+        await Promise.resolve();
+        order.push("dropped");
+      },
+      onReleased: async () => {
+        order.push("released");
+      },
+      wasDragging: () => true,
+    });
+    await source.start();
+    fire("main");
+    await settleRelease();
+
+    expect(order).toEqual(["dropped", "settle", "released"]);
+  });
+
   it("settles nothing on the release of the threads window's drag", async () => {
     const invoke = vi.fn(async () => []);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);

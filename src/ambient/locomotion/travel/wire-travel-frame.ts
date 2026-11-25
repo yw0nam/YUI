@@ -30,7 +30,11 @@ export interface TravelFrameHandle {
   frameWindow(): FrameWindow;
   listMonitors(): Promise<ScreenMonitor[]>;
   travel: {
-    begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+    begin(
+      end: { x: number; y: number },
+      via?: Array<{ x: number; y: number }>,
+      endSize?: { width: number; height: number },
+    ): Promise<Travel>;
     current(): PetWindow | null;
   };
   /** Ends whatever travel is active or being parked right now, deterministically —
@@ -67,12 +71,9 @@ export function wireTravelFrame(deps: {
       return (await availableMonitors()).map(toScreenMonitor);
     },
     travel: {
-      begin: (
-        end: { x: number; y: number },
-        via?: Array<{ x: number; y: number }>,
-      ): Promise<Travel> => {
+      begin: (...args: Parameters<TravelFrameHandle["travel"]["begin"]>): Promise<Travel> => {
         if (!travel) throw new Error("wireTravelFrame: not ready");
-        return travel.begin(end, via);
+        return travel.begin(...args);
       },
       current: (): PetWindow | null => travel?.current() ?? null,
     },
