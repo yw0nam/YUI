@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { avatarFixture } from "../../config/load-test-helpers";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createTravelFrame, type FrameWindow } from "../../io/window/geometry/travel-frame";
@@ -101,6 +102,7 @@ function cycle() {
     setPositionPhysical: async () => {},
     followsInPhysicalPx: false,
     reducedMotion: () => false,
+    stage: () => avatarFixture().stage,
   });
   const walk = async (step: Promise<void>) => {
     await vi.waitFor(() => expect(ticks.size).toBe(1));

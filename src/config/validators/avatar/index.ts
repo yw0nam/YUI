@@ -8,6 +8,7 @@ import { validateDragHoldMs, validateGestureCues } from "./gestures";
 import { validateHitTest } from "./hit-test";
 import { validateJump } from "./jump";
 import { validatePeek } from "./peek";
+import { validateStage } from "./stage";
 import { validateTap } from "./tap";
 import type {
   AvatarConfig,
@@ -22,6 +23,7 @@ import type {
   JumpConfig,
   PeekConfig,
   PerchWalkConfig,
+  StageConfig,
   TapConfig,
   WalkConfig,
 } from "./types";
@@ -63,6 +65,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const descend = validateDescend(raw, ctx);
   const climb = validateClimb(raw, ctx);
   const jump = validateJump(raw, ctx);
+  const stage = validateStage(raw, ctx);
   const drag_hold_ms = validateDragHoldMs(raw, ctx);
   const gesture_cues = validateGestureCues(raw, ctx);
   const gaze = validateGaze(raw, ctx);
@@ -80,6 +83,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     descend: descend as DescendConfig,
     climb: climb as ClimbConfig,
     jump: jump as JumpConfig,
+    stage: stage as StageConfig,
     drag_hold_ms: drag_hold_ms as number,
     gesture_cues: gesture_cues as GestureCuesConfig,
     gaze: gaze as GazeKnobs,

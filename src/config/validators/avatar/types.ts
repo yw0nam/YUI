@@ -194,6 +194,20 @@ export interface GazeKnobs {
   smooth: number;
 }
 
+/** Her travel onto the settings stage and back, and her staying away from it. */
+export interface StageConfig {
+  /** Shortest walk (ms). */
+  walk_ms: number;
+  /** Extra walk time (ms) a walk reaches at `walk_full_pt`. */
+  walk_extra_ms: number;
+  /** Distance (logical pt) at which a walk takes its full time; a longer move vanishes and appears. */
+  walk_full_pt: number;
+  /** Chance [0, 1] that she stays on the desktop while the last backend emotion is angry. */
+  stay_chance: number;
+  /** Minutes after which the last backend emotion counts as neutral. */
+  emotion_decay_min: number;
+}
+
 /** configs/avatar.json — VRM to load (renderer input). */
 export interface AvatarConfig {
   /** vite dev static-serving path (`/vrms/*.vrm`) or absolute URL. Default selection. */
@@ -220,6 +234,8 @@ export interface AvatarConfig {
   climb: ClimbConfig;
   /** Window-to-window jump knobs. */
   jump: JumpConfig;
+  /** Settings-stage travel and staying knobs. */
+  stage: StageConfig;
   /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
   drag_hold_ms: number;
   /** Reflex-gesture speech cues (drag-hold / window-sit / peek / drop). */

@@ -1,6 +1,7 @@
 /** Wires the come-along: her own settings window's stage slots, close and minimise drive it over the locomotion. */
 import { createComeAlong } from "../../ambient/come-along/come-along";
 import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
+import type { StageConfig } from "../../config/validators/avatar/types";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import {
@@ -41,6 +42,7 @@ export function wireComeAlong(deps: {
   peek: { active(): boolean; exit(): Promise<void> };
   renderer: Renderer;
   hitTest: Pick<HitTestController, "setMoving">;
+  getStageConfig: () => StageConfig;
   register: (teardown: () => void) => void;
 }): void {
   if (!isTauri()) return;
@@ -58,6 +60,7 @@ export function wireComeAlong(deps: {
     setPositionPhysical: setPetPositionPhysical,
     followsInPhysicalPx: isWindows(),
     reducedMotion: prefersReducedMotion,
+    stage: deps.getStageConfig,
   });
   const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });
   void (async () => {

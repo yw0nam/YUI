@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { avatarFixture } from "../../config/load-test-helpers";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { HoldOptions } from "../locomotion/hold/holds";
@@ -109,6 +110,7 @@ function harness(
     setPositionPhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
+    stage: () => avatarFixture().stage,
   });
   const tick = (ms: number) => {
     for (const cb of [...ticks]) cb({ dt: ms / 1000 });

@@ -217,6 +217,7 @@ The environment value is read at build time, so restart the dev server after edi
 - `framing.margin` and `framing.fov` set the per-model framing.
 - `hit_test.alpha_threshold` sets the hit-test alpha threshold.
 - `tap.touch_cue_cooldown_ms` sets the gap between touch cues to the agent. The shipped value is `60000` ms, one cue a minute, shared by every touch region and the head pat.
+- `stage` tunes her travel onto the settings stage. A walk takes `walk_ms`, plus up to `walk_extra_ms` by distance, all of it at `walk_full_pt` logical points. A longer move vanishes and appears. While the last backend emotion is `angry` and under `emotion_decay_min` minutes old, she stays on the desktop with `stay_chance` probability.
 - Every tunable section in the file is required. The client reads each value from it and fails the load, naming any key the file leaves out.
 
 `available` lists the models the Body page offers. Each entry has `id`, `label`, `url` and `source` (`"bundled"`), and `id` is limited to `[A-Za-z0-9._-]`.

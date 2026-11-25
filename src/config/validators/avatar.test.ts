@@ -1076,6 +1076,13 @@ const BROKEN_EVERYWHERE = {
     apex_lift_frac: 1,
     flight_timeout_ms: 0,
   },
+  stage: {
+    walk_ms: 0,
+    walk_extra_ms: -1,
+    walk_full_pt: 1200,
+    stay_chance: 2,
+    emotion_decay_min: 30,
+  },
   drag_hold_ms: 0,
   gesture_cues: {
     drag_held: { label: "" },
@@ -1150,6 +1157,9 @@ describe("validateAvatar — characterization", () => {
       "jump.height_up_max_frac must be a finite number > 0 (got: 0)",
       "jump.flight_timeout_ms must be an integer > 0 (got: 0)",
       "jump.takeoff_frac must be < jump.land_frac (got: 0.8 >= 0.5)",
+      "stage.walk_ms must be a finite number > 0 (got: 0)",
+      "stage.walk_extra_ms must be a finite number >= 0 (got: -1)",
+      "stage.stay_chance must be a finite number in [0, 1] (got: 2)",
       "drag_hold_ms must be an integer >= 1 (got: 0)",
       "gesture_cues.extra is an unknown key",
       'gesture_cues.drag_held.label must be a non-empty string (got: "")',

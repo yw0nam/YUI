@@ -9,6 +9,7 @@
  * session storage, so a reload of her window finds the open session again.
  */
 
+import type { StageConfig } from "../../config/validators/avatar/types";
 import type { StageSlot } from "../../io/bridge/settings-bridge";
 import {
   clampToWorkArea,
@@ -25,11 +26,6 @@ import type { HoldOptions } from "../locomotion/hold/holds";
 import { WALK_MOTION_ID, WALK_YAW_EASE_MS, WALK_YAW_RAD } from "../locomotion/walk/walker";
 
 const log = createLogger("come-along");
-
-/** A walk takes 600 ms, and up to 300 ms more by distance, all of it at 1200 pt. */
-const WALK_MS = 600;
-const WALK_EXTRA_MS = 300;
-const WALK_FULL_PT = 1200;
 
 /** Slow at the start, faster through the middle, slow again on arrival. */
 const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
@@ -70,6 +66,8 @@ export interface ComeAlongDeps {
   /** Follows a settings window she is not linked to in its physical px (Windows), else in logical points. */
   followsInPhysicalPx: boolean;
   reducedMotion(): boolean;
+  /** The travel tuning, read at each move. */
+  stage(): StageConfig;
 }
 
 export function createComeAlong(deps: ComeAlongDeps): {
@@ -147,7 +145,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await travel.end();
       return;
     }
-    const durationMs = WALK_MS + WALK_EXTRA_MS * Math.min(1, distance / WALK_FULL_PT);
+    const { walk_ms, walk_extra_ms, walk_full_pt } = deps.stage();
+    const durationMs = walk_ms + walk_extra_ms * Math.min(1, distance / walk_full_pt);
     renderer.playMotion({ id: WALK_MOTION_ID });
     renderer.setBodyYaw(Math.sign(to.x - from.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.hitTest.setMoving(true);
