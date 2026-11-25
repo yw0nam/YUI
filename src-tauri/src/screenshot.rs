@@ -224,4 +224,21 @@ mod tests {
         assert_eq!(v["height"], 1600);
         assert_eq!(v["isPrimary"], true);
     }
+
+    // ── screen_recording_permission ──────────────────────────────────────────
+
+    #[test]
+    fn screen_recording_permission_maps_preflight_to_the_webview_states() {
+        assert_eq!(permission_of(Some(true)), "granted");
+        assert_eq!(permission_of(Some(false)), "denied");
+        // The off-macOS branch feeds None — no preflight API exists there to ask.
+        assert_eq!(permission_of(None), "unknown");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn screen_capture_preflight_is_none_off_macos() {
+        assert_eq!(screen_capture_preflight(), None);
+        assert_eq!(screen_recording_permission(), "unknown");
+    }
 }

@@ -19,6 +19,9 @@ mod log_rotation;
 // Turn-record JSONL append command — speak-rate/suppression analysis source.
 mod turn_log;
 
+// Process facts the webview reads (process start time).
+mod process_state;
+
 // Shared import filesystem helpers (sanitize/collision).
 mod import_fs;
 
