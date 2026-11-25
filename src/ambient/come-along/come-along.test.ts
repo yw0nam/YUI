@@ -830,6 +830,30 @@ describe("createComeAlong", () => {
     expect(h.playMotion.mock.calls).toEqual(calls);
   });
 
+  it("does not idle her when a start fails after a user drag already took her", async () => {
+    const h = harness();
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+    h.travels[0]!.end.mockRejectedValueOnce(new Error("frame gone"));
+
+    await h.abort("drag");
+
+    await expect(done).rejects.toThrow("frame gone");
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }]]);
+  });
+
+  it("does not idle a motion that replaced her pickup when an agent move takes her", async () => {
+    const h = harness();
+    const done = h.comeAlong.onStage(slot);
+    await vi.waitFor(() => expect(h.ticks.size).toBe(1));
+    h.setCurrent("happy");
+
+    await h.abort("agent");
+    await done;
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }]]);
+  });
+
   it.each([
     ["a start", false],
     ["a trip home", true],
