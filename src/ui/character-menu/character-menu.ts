@@ -8,6 +8,7 @@ import { CHECK_SVG } from "../threads/glyphs";
 import { createExit } from "./exit";
 import { CHEVRON, GLYPHS } from "./glyphs";
 import {
+  capped,
   type ListId,
   listItems,
   type MenuItem,
@@ -79,7 +80,7 @@ export function createCharacterMenu(deps: {
   let confirm: string | null = null;
   let placement: MenuPlacement | null = null;
   let widths: Record<ColumnKey, number> | null = null;
-  /** The state at open, whose Body and Voice lists stay drawn until close. */
+  /** The state at open, cut to the Body and Voice options it shows, which stay until close. */
   let opened: MenuState | null = null;
   const menuExit = createExit();
   const swapExit = createExit();
@@ -445,7 +446,12 @@ export function createCharacterMenu(deps: {
     phase = "opening";
     list = null;
     confirm = null;
-    opened = deps.read();
+    const state = deps.read();
+    opened = {
+      ...state,
+      bodies: capped(state.bodies, state.body),
+      voices: capped(state.voices, state.voice),
+    };
     const items = columnItems(opened);
     const measured = measure(items);
     const most = (keys: readonly ColumnKey[]): number =>

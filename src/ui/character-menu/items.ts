@@ -75,7 +75,10 @@ const choice = (
 const LIST_CAP = 5;
 
 /** The first options in list order, the current one in the last slot when it falls past them. */
-function capped<T extends { id: string }>(options: readonly T[], current: string): readonly T[] {
+export function capped<T extends { id: string }>(
+  options: readonly T[],
+  current: string,
+): readonly T[] {
   const shown = options.slice(0, LIST_CAP);
   const chosen = options.find((o) => o.id === current);
   return !chosen || shown.includes(chosen) ? shown : [...shown.slice(0, -1), chosen];
