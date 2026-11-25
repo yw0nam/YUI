@@ -45,5 +45,5 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 
 ## Accessibility & Inclusion
 
-- **Confirmed requirement: respect reduced-motion.** Tier 1 ambient (blink/sway/breathing) and UI transitions run at all times, so they must quietly attenuate under OS `prefers-reduced-motion` (prevents motion sickness / distraction). Under reduced motion, her travel to the settings stage fades, and the Character menu's pills only fade in.
+- **Confirmed requirement: respect reduced-motion.** Tier 1 ambient (blink/sway/breathing) and UI transitions run at all times, so they must quietly attenuate under OS `prefers-reduced-motion` (prevents motion sickness / distraction). Under reduced motion, her travel to the settings stage fades, and the Character menu only fades.
 - **Scope = personal minimum.** Beyond reduced-motion, accessibility is basic-level: emotion/tool-status is not conveyed by color alone, and floating surfaces carry self-contrast (scrim + warm-light text) for legibility on arbitrary backgrounds.
