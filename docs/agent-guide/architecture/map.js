@@ -1255,7 +1255,7 @@ globalThis.YUI_MAP =
       "id": "ui/character-menu",
       "module": "display",
       "label": "character menu",
-      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge, under one top set at open from the tallest list; Body and Voice show five options with the current one, then More…; a list replaces its column in place with Back (a mouse swap crossfades the two columns), Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; the columns enter from her chest; Esc or a closing pick closes it at once, a click outside it or another app sends it back toward her chest, which a reopen takes back, and only its pills take the pointer.",
+      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge, under one top set at open from the tallest list; Body and Voice show at most five options with the current one, then More…; a list replaces its column in place with Back (a mouse swap crossfades the two columns), Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; the columns enter from her chest; Esc or a closing pick closes it at once, a click outside it or another app sends it back toward her chest, which a reopen takes back, and only its pills take the pointer.",
       "paths": [
         "src/ui/character-menu"
       ]
@@ -1447,7 +1447,7 @@ globalThis.YUI_MAP =
       "id": "app/character-menu",
       "module": "wiring",
       "label": "character menu wiring",
-      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame, grown upward when the columns would cross the window or work-area bottom, with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
+      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame, grown upward when the columns, shifted up above the window or work-area bottom, would start less than 8px below its top, with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
       "paths": [
         "src/app/character-menu"
       ]
