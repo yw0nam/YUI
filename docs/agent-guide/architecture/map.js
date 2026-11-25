@@ -2337,7 +2337,7 @@ globalThis.YUI_MAP =
       "id": "chip-column-chips",
       "from": "ui/chips",
       "to": "ui/surfaces",
-      "carries": "the signal chips' and the delegation chip's row roots with data-chip-count and data-chip-urgent → the chip column's plan, which caps the rows that do not fit with is-capped",
+      "carries": "the signal chips' row roots with data-chip-count and, on urgent ones, data-chip-urgent, and the delegation chip's root with data-chip-count → the chip column's plan, which caps the rows that do not fit with is-capped",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -2373,10 +2373,10 @@ globalThis.YUI_MAP =
       "id": "chip-column-menu",
       "from": "ui/character-menu",
       "to": "ui/surfaces",
-      "carries": "the menu root shown → the chip column fades out over 140 ms and its chips leave the hit targets until the root hides",
+      "carries": "the menu root, mounted in the surfaces overlay, shown → surfaces.css's :has rule fades the chip column out over 140 ms and the overlay hit targets drop its chips, until the root hides",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/character-menu/wire-character-menu.ts"
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "feed-tool",
