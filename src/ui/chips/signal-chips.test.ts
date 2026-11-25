@@ -100,6 +100,9 @@ describe("createSignalChips", () => {
     const more = grouped.querySelector<HTMLButtonElement>(".yui-sigchip__more")!;
     expect(more.textContent).toBe("+2");
     expect(more.getAttribute("aria-label")).toBe("Show 2 more signals");
+    expect(opener(2).getAttribute("aria-label")).toBe(
+      "Batched signal from src3: label 3. Show 2 more signals",
+    );
     expect(more.getAttribute("aria-expanded")).toBe("false");
     expect(grouped.querySelector<HTMLButtonElement>(".yui-sigchip__x")!.hidden).toBe(true);
 
@@ -112,6 +115,7 @@ describe("createSignalChips", () => {
       "src1",
     ]);
     expect(region.dataset.chipCount).toBe("3");
+    expect(opener(2).getAttribute("aria-label")).toBe("Batched signal from src3: label 3");
     expect(region.querySelectorAll("[data-chip-count]")).toHaveLength(0);
     expect(region.lastElementChild).toBe(more);
     expect(more.textContent).toBe("Collapse");

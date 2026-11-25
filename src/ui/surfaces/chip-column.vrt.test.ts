@@ -95,7 +95,7 @@ function build({ urgent = true } = {}) {
   store.replace([{ id: "d1", title: "work", started_at: Date.now(), state: "running" }]);
   const detach = attachChipColumn(surfaces.el);
   disposers.push(surfaces.dispose, signals.dispose, threads.dispose, tasks.dispose, detach);
-  return { surfaces, column: mount, threads, typed };
+  return { surfaces, column: mount, threads, typed, collapsed };
 }
 
 async function settle(): Promise<void> {
@@ -282,4 +282,59 @@ it("in a 400x600 window every chip keeps its title", async () => {
     threads: [true, true, "2"],
     task: [true, true, null],
   });
+});
+
+it("in a 190x284 window a held-press fold keeps the grouped row's count apart from its dot", async () => {
+  await page.viewport(190, 284);
+  const { column, collapsed } = build();
+  collapsed.setCollapsed(true);
+  await settle();
+
+  const grouped = column.querySelector('.yui-sigchip[data-chip-count="3"]')!;
+  const dot = grouped.querySelector(".yui-sigchip__dot")!.getBoundingClientRect();
+  const count = grouped.querySelector(".yui-sigchip__count")!;
+  expect([count.textContent, Math.round(count.getBoundingClientRect().left - dot.right)]).toEqual([
+    "3",
+    6,
+  ]);
+});
+
+it("an expanded batched list carried into a 190x284 window keeps an icon-only Collapse pill that closes it", async () => {
+  const { column } = build();
+  await settle();
+  column.querySelector<HTMLElement>(".yui-sigchip > .yui-sigchip__more")!.click();
+  await page.viewport(190, 284);
+  await settle();
+
+  const collapse = column.querySelector<HTMLElement>(
+    ".yui-sigchips__batched > .yui-sigchip__more",
+  )!;
+  const narrow = {
+    drawn: drawn(collapse),
+    name: collapse.getAttribute("aria-label"),
+    glyph: getComputedStyle(collapse, "::before").content,
+    inside: collapse.getBoundingClientRect().right <= 190,
+  };
+  collapse.click();
+
+  expect({ narrow, closed: column.querySelector(".yui-sigchips__batched") }).toEqual({
+    narrow: { drawn: true, name: "Collapse", glyph: '"\u2212"', inside: true },
+    closed: null,
+  });
+});
+
+it("in a 190x284 window the task chip draws its dot then its count in a pill as tall as a signal pill", async () => {
+  await page.viewport(190, 284);
+  const { column } = build();
+  await settle();
+
+  const chip = column.querySelector(".yui-deleg__chip")!.getBoundingClientRect();
+  const dot = column.querySelector(".yui-deleg__dot")!.getBoundingClientRect();
+  const count = column.querySelector(".yui-deleg__count")!.getBoundingClientRect();
+  const pill = column.querySelector(".yui-sigchip")!.getBoundingClientRect();
+  expect({
+    countAfterDot: count.left >= dot.right,
+    countInside: count.top >= chip.top && count.bottom <= chip.bottom && count.right <= chip.right,
+    height: [Math.round(chip.height), Math.round(pill.height)],
+  }).toEqual({ countAfterDot: true, countInside: true, height: [28, 28] });
 });
