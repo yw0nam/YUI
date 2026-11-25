@@ -97,7 +97,7 @@ function wired(
   return { locomotion, end, openSettings, rightClick, talk };
 }
 
-const box = (edge: "left" | "width") => root.style.getPropertyValue(`--yui-box-${edge}`);
+const box = (edge: "left" | "width" | "top") => root.style.getPropertyValue(`--yui-box-${edge}`);
 
 // Her 400px window at logical 300,517; with nothing measured her own half bounds both reaches.
 const tauriWindow = () => ({
@@ -122,6 +122,61 @@ it("opens the menu on a right-click on her, widened around her and holding her s
   ]);
   // Her own box inside the widened window, which the UI layer and the status pill lay out in.
   expect([box("left"), box("width")]).toEqual(["0px", "400px"]);
+});
+
+// Her head y px down her window: the columns start there unless a bottom edge is closer.
+const headAt = (y: number): MenuRenderer => ({
+  getTapPoints: () => ({
+    head: { x: 200, y },
+    chest: { x: 200, y: y + 60 },
+    hips: null,
+    charHpx: 400,
+  }),
+  getSilhouetteBounds: () => null,
+});
+const columnTops = () =>
+  [...overlay.querySelectorAll<HTMLElement>(".yui-cmenu__col")].map((c) => c.style.top);
+
+it("sets both columns' top 8px above the work-area bottom for her tallest list", async () => {
+  const { rightClick, talk } = wired(tauriWindow, headAt(200));
+
+  rightClick();
+
+  await vi.waitFor(() => expect(talk()).not.toBeNull());
+  // The work area ends 383px below her window top; More, six rows, is 256px tall: 383 - 8 - 256.
+  expect(columnTops()).toEqual(["119px", "119px"]);
+  expect(box("top")).toBe("0px");
+});
+
+it("grows the window upward for a column taller than her window, and returns it on close", async () => {
+  // Her 400x284 window at logical -100,517: near the left edge, so all eight items fold into one column.
+  const { locomotion, rightClick, talk } = wired(
+    () => ({
+      outerPosition: async () => ({ x: -200, y: 1034 }),
+      outerSize: async () => ({ width: 800, height: 568 }),
+      scaleFactor: async () => 2,
+    }),
+    headAt(120),
+  );
+
+  rightClick();
+
+  await vi.waitFor(() => expect(talk()).not.toBeNull());
+  // 344px of column needs 360px with both 8px edges, 76px more than her window: 284 - 8 - 344 = -68.
+  expect(overlay.querySelectorAll(".yui-cmenu__col > *")).toHaveLength(8);
+  expect(locomotion.widen).toHaveBeenCalledWith([
+    { x: -100, y: 441 },
+    { x: -100, y: 441 },
+  ]);
+  // Her box starts 76px down the grown window, so the column spans 8px to 352px of its 360px.
+  expect([box("top"), ...columnTops()]).toEqual(["76px", "-68px"]);
+
+  document.activeElement?.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+
+  await vi.waitFor(() => expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false));
+  expect(box("top")).toBe("");
 });
 
 it("restores the window, unpins the overlay and releases her before a closing pick runs", async () => {

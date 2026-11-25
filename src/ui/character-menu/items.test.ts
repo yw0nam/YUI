@@ -80,6 +80,18 @@ it.each([
   expect(items.filter((i) => i.role === "choice").map((i) => i.label)).toEqual(labels);
 });
 
+const options = Array.from({ length: 30 }, (_, i) => ({ id: `o${i + 1}`, label: `O${i + 1}` }));
+
+it.each([
+  ["body", "o30", "bodies", ["o1", "o2", "o3", "o4", "o30"]],
+  ["body", "o3", "bodies", ["o1", "o2", "o3", "o4", "o5"]],
+  ["voice", "o30", "voices", ["o1", "o2", "o3", "o4", "o30"]],
+] as const)("the %s list of 30 shows five with the current %s among them, then More…", (list, current, key, shown) => {
+  const items = listItems(list, "main", state({ [key]: options, [list]: current }));
+
+  expect(ids(items)).toEqual(["back", ...shown.map((id) => `${list}:${id}`), `${list}-more`]);
+});
+
 it("names the Settings, Back and More… pills by what they do", () => {
   const aria = (items: { id: string; aria?: string }[], id: string) =>
     items.find((i) => i.id === id)?.aria;

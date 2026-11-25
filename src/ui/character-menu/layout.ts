@@ -17,6 +17,8 @@ export interface MenuWidths {
   /** The one folded column of every top-level item. */
   all: number;
   lists: readonly number[];
+  /** The most rows any column shows, unfolded and folded. */
+  rows: { none: number; folded: number };
 }
 
 export interface MenuPlan {
@@ -55,4 +57,14 @@ export function planMenu(input: {
   return side === "right"
     ? { fold: "right", reachLeft: half, reachRight: folded }
     : { fold: "left", reachLeft: folded, reachRight: half };
+}
+
+/** Where the columns' shared top goes, in her box's px. */
+export function planTop(_input: {
+  head: number;
+  height: number;
+  windowBottom: number;
+  workBottom: number;
+}): { top: number; growUp: number } {
+  return undefined as never;
 }
