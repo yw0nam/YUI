@@ -3,10 +3,11 @@
  * globals are the host's `yui` API, `help()` and `console.log`, and nothing else reaches the client.
  */
 
-import variant from "@jitl/quickjs-wasmfile-release-sync";
+import releaseSync from "@jitl/quickjs-wasmfile-release-sync";
 import {
   memoizePromiseFactory,
   newQuickJSWASMModuleFromVariant,
+  newVariant,
   type QuickJSDeferredPromise,
   type QuickJSHandle,
 } from "quickjs-emscripten-core";
@@ -41,7 +42,14 @@ const DEFAULT_LIMITS = {
 
 const NEVER_SETTLES = "the script awaited something that never settles";
 
-const loadQuickJS = memoizePromiseFactory(() => newQuickJSWASMModuleFromVariant(variant));
+// The wasm heap is capped at 64 MiB: setMemoryLimit bounds only a single allocation in this build.
+const loadQuickJS = memoizePromiseFactory(() =>
+  newQuickJSWASMModuleFromVariant(
+    newVariant(releaseSync, {
+      wasmMemory: new WebAssembly.Memory({ initial: 256, maximum: 1024 }),
+    }),
+  ),
+);
 
 export async function runScript(
   code: string,
