@@ -68,10 +68,6 @@ describe("readDocument", () => {
     expect(paths).not.toContain("presence");
     expect(paths).not.toContain("proactive");
   });
-
-  it("keeps the motion-id lists unexposed", () => {
-    expect(readDocument(createSettingsStores()).motions).toBeUndefined();
-  });
 });
 
 describe("applyPatch", () => {

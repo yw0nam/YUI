@@ -10,9 +10,6 @@ function fakeSelection(active: string, ids: string[]) {
   return {
     list: () => ids.map((id) => ({ id })),
     getActiveId: () => current,
-    select: vi.fn((id: string) => {
-      current = id;
-    }),
     swap: vi.fn(async (id: string) => {
       current = id;
     }),
@@ -43,13 +40,15 @@ describe("selectionRows", () => {
     });
   });
 
-  it("writes a listed id through the selection's own setter", async () => {
+  it("loads a listed id through the selection's swap and answers ok", async () => {
     const { settings, vrm, speaker } = harness();
     const signal = new AbortController().signal;
 
     expect(
       await settings.write({ character: { body: "kei", voice: "airy" } }, undefined, signal),
     ).toEqual({ "character.body": "ok", "character.voice": "ok" });
+    expect(vrm.swap).toHaveBeenCalledWith("kei");
+    expect(speaker.swap).toHaveBeenCalledWith("airy");
     expect(vrm.getActiveId()).toBe("kei");
     expect(speaker.getActiveId()).toBe("airy");
 
@@ -68,17 +67,7 @@ describe("selectionRows", () => {
         new AbortController().signal,
       ),
     ).toEqual({ "character.body": "error: invalid character.body" });
-    expect(vrm.select).not.toHaveBeenCalled();
-  });
-
-  it("runs the load through the swap before the selection moves", async () => {
-    const { settings, vrm } = harness();
-
-    expect(
-      await settings.write({ character: { body: "kei" } }, undefined, new AbortController().signal),
-    ).toEqual({ "character.body": "ok" });
-    expect(vrm.swap).toHaveBeenCalledWith("kei");
-    expect(vrm.getActiveId()).toBe("kei");
+    expect(vrm.swap).not.toHaveBeenCalled();
   });
 
   it("answers failed to load and keeps the selection when the swap rejects", async () => {

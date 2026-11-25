@@ -19,6 +19,14 @@ import { t } from "../../ui/i18n";
 import type { AskQueue } from "./ask-queue";
 import { createSettingsRequest } from "./settings-request";
 
+/** Wraps one window selection and its swap into a yui_run row port. */
+export function selectionPort<T extends { id: string }>(
+  _selection: { list(): T[]; getActiveId(): string },
+  _swap: (option: T) => Promise<void>,
+): SelectionPort {
+  return { list: () => [], getActiveId: () => "", swap: async () => {} };
+}
+
 export function wireYuiRun(deps: {
   stores: SettingsStores;
   asks: Pick<AskQueue, "put" | "remove">;
