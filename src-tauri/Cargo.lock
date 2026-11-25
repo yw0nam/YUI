@@ -81,6 +81,7 @@ version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
  "block2",
+ "core-graphics",
  "crc32fast",
  "http-body-util",
  "hyper",

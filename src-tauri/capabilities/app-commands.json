@@ -18,6 +18,8 @@
     "allow-list-windows",
     "allow-window-bounds",
     "allow-list-screen-sources",
+    "allow-screen-recording-permission",
+    "allow-app-started-at",
     "allow-capture-screen",
     "allow-capture-screen-at",
     "allow-import-vrm-file",

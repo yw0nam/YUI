@@ -10,6 +10,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
+import { stubYuiRunPorts } from "../tools/run/yui-run-test-ports";
+import { createYuiRunTool } from "../tools/run/yui-run-tool";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { streamChatForTest as streamChat } from "./test-helpers";
 
@@ -616,4 +618,22 @@ it("image results encode SDK function_call_output input_text and input_image par
       ],
     };
   expect(createMock.mock.calls[1]?.[0].input.at(-1)).toEqual(expected);
+});
+
+describe("streamChat — Responses yui_run", () => {
+  it("sends the script's JSON result back as the call's output", async () => {
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([...call("yui_run", "fc_1", '{"code":"return 1+1"}'), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([text("Two."), done("resp_2")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(createYuiRunTool(stubYuiRunPorts()))));
+
+    expect(createMock.mock.calls[1][0].input.at(-1)).toEqual({
+      type: "function_call_output",
+      call_id: "call_fc_1",
+      output: '{"status":"completed","result":2,"logs":[]}',
+    });
+  });
 });

@@ -129,8 +129,8 @@
   rebuilds the gateway's cached agents.
 - Registers the tools the client declares in its `hello.tools` frame and replaces them with each
   later `tools` frame, under the `yui` toolset: `rate_relation` and `address_character` from every
-  pet window, the bridge tools `yui_tool_describe`, `yui_tool_call` and `plugin_skill` from a Tauri
-  pet window, and `body_action` and `look` from `main` alone. Registration is once per schema
+  pet window, the bridge tools `yui_tool_describe`, `yui_tool_call` and `plugin_skill`, and
+  `yui_run`, from a Tauri pet window, and `body_action` and `look` from `main` alone. Registration is once per schema
   fingerprint, and a name whose schema differs per chat is registered again at turn start with
   that chat's schema, because Hermes keeps one schema per tool name. A `tools` frame only replaces
   the tools stored for the chat; the next turn start registers them, so a description that changed
@@ -139,8 +139,8 @@
   Each call sends one `tool_call` frame and blocks the handler's worker thread on
   the `tool_result`: 20 s for `body_action`, 7 s for `look`, `rate_relation`,
   `address_character`, `yui_tool_describe` and `plugin_skill`, and 125 s for
-  `yui_tool_call`, counted from the send; the client's own bound is
-  5 s lower for every tool but `yui_tool_call`, which is
+  `yui_tool_call` and `yui_run`, counted from the send; the client's own bound is
+  5 s lower for every tool but `yui_tool_call` and `yui_run`, which are
   4 s lower. One call runs at a time per chat;
   a second waits for
   the first. A call answers `error: client disconnected` at once when no ready socket can take it,

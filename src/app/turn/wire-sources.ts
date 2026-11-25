@@ -38,6 +38,7 @@ import type { AgentNotifySettings } from "../../settings/backend/agent-notify-se
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
 import type { ScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
+import type { LastTogetherStore } from "../../settings/presence/last-together-settings";
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
@@ -69,6 +70,8 @@ export function wireDispatcherSources(deps: {
   submitUser: UserInputSource["submit"];
   /** This window's preset id — the addressed and routed sources keep only events naming it. */
   selfPresetId: string;
+  /** The window's last-presence store: the milestone source reads it for the payload and records present ticks. */
+  lastTogetherSettings: Pick<LastTogetherStore, "get" | "record">;
   /** Called with each parsed signal group as it arrives. */
   onSignalArrival?: (group: SignalGroup) => void;
 }): {
@@ -94,6 +97,7 @@ export function wireDispatcherSources(deps: {
     pacer,
     dnd,
     paceFactor,
+    lastTogetherSettings,
   } = deps;
   const dndHold = {
     isHolding: () => dnd.get().enabled,
@@ -140,6 +144,7 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => scheduleSettings.get().enabled,
     drainSignals: () => signalsSource.drain(),
+    lastTogether: lastTogetherSettings,
   });
   void milestoneSource.start();
   const screenSource = createScreenSource({

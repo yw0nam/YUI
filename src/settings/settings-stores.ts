@@ -60,6 +60,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "./persisted-store";
+import { createLastTogetherSettings } from "./presence/last-together-settings";
 import { createRelationsSwitch } from "./relations/relations-switch";
 import {
   createThreadReactionThresholdsSettings,
@@ -82,10 +83,13 @@ export const createPresenceStore = (
     { storage },
   );
 
+/** Largest proactive gap the pacer accepts, in ms. */
+export const PACER_GAP_MAX = 10_800_000;
+
 /** Global proactive gap held after any turn start, in ms. 0 disables the pacer; ceiling is 3 h. */
 export const createPacerGapStore = (
   storage: PersistedStorage<{ value: number }> = localStorageStore("yui.proactive-pacer-gap"),
-) => createClampedIntSettings({ default: 600000, floor: 0, ceil: 10800000 }, { storage });
+) => createClampedIntSettings({ default: 600000, floor: 0, ceil: PACER_GAP_MAX }, { storage });
 
 // localStorage-backed settings/state stores. Pure instantiation — no wiring, no renderer,
 // no dispatcher. bootstrap() destructures the bag and owns the wiring (renderer, storage-sync).
@@ -223,6 +227,9 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const relationsSwitch = createRelationsSwitch();
   // Unified chat window on/off. Default OFF. Device-wide: main opens it while two or more presets are open.
   const unifiedChatSwitch = createUnifiedChatSwitch();
+  // The user's last presence (epoch ms) for the milestone payload and yui.state. Each pet window
+  // records its own present ticks, so it stays local: no broadcast per minute.
+  const lastTogetherSettings = createLastTogetherSettings();
 
   return {
     screenshotSettings,
@@ -268,6 +275,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     expressMotionSettings,
     relationsSwitch,
     unifiedChatSwitch,
+    lastTogetherSettings,
   };
 }
 
@@ -327,6 +335,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   expressMotionSettings: "broadcast",
   relationsSwitch: "broadcast",
   unifiedChatSwitch: "broadcast",
+  lastTogetherSettings: "local",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

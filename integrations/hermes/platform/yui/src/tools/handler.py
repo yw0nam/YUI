@@ -14,7 +14,7 @@ from .image_result import ImageResult, model_result
 logger = logging.getLogger(__name__)
 
 # The client bounds its own execution (15 s body action, 2 s query, rate_relation,
-# address_character, yui_tool_describe and plugin_skill, 121 s yui_tool_call);
+# address_character, yui_tool_describe and plugin_skill, 121 s yui_tool_call and yui_run);
 # the Hermes platform plugin waits 5 s past each and 4 s past the on-demand call's.
 WAITS_S = {
     "body_action": 20.0,
@@ -22,6 +22,7 @@ WAITS_S = {
     "rate_relation": 7.0,
     "address_character": 7.0,
     "yui_tool_call": 125.0,
+    "yui_run": 125.0,
     "yui_tool_describe": 7.0,
     "plugin_skill": 7.0,
 }

@@ -3,8 +3,11 @@
  *
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and fires
  * `time_milestone.first_activity` (tier2) on the first tick of the local day that finds
- * the user "present" (OS idle within `present_max_idle_ms`). The day key is persisted
- * across restarts; `isEnabled()` gates firing only, without stopping the
+ * the user "present" (OS idle within `present_max_idle_ms`). Every present tick records
+ * the user's presence into `yui.last-together` through the store's once-a-minute
+ * `record`; the day's first present tick snapshots the store, and the fired payload
+ * carries that snapshot as `last_together` until the fire latches. The day key is
+ * persisted across restarts; `isEnabled()` gates firing only, without stopping the
  * subscription. Buffered `/signals` groups ride the same candidate event.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
@@ -20,6 +23,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../../../settings/persisted-store";
+import type { LastTogetherStore } from "../../../settings/presence/last-together-settings";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("milestone-source");
@@ -39,6 +43,8 @@ interface MilestoneSourceDeps {
   now?: () => number;
   /** Injectable fired-latch persistence; defaults to the `yui.milestone-fired` store. */
   firedStorage?: PersistedStorage<Record<string, string>>;
+  /** The window's last-presence store: read for the payload, written on present ticks. */
+  lastTogether: Pick<LastTogetherStore, "get" | "record">;
 }
 
 export interface FirstActivity {
@@ -64,6 +70,11 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
   const fired: Record<string, string> = isPlainObject(loaded)
     ? (loaded as Record<string, string>)
     : {};
+  const lastTogether = deps.lastTogether;
+
+  // The day's first present tick snapshots the store; the fire carries the snapshot until latched.
+  let snapshotDay: string | null = null;
+  let snapshotAt: number | null = null;
 
   let unlisten: (() => void) | undefined;
 
@@ -89,6 +100,12 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     if (idle > present_max_idle_ms) return;
 
     const ts = now();
+    const dayKey = dayKeyOf(new Date(ts));
+    if (snapshotDay !== dayKey) {
+      snapshotAt = lastTogether.get().at;
+      snapshotDay = dayKey;
+    }
+    lastTogether.record(ts);
     const first = owed(ts);
     if (!first) return;
     let signals: SignalGroup[] = [];
@@ -104,6 +121,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       ts,
       payload: {
         ...first,
+        last_together: snapshotAt,
         ...(signals.length > 0 ? { signals } : {}),
       },
     };

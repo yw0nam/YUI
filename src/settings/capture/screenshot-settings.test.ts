@@ -62,7 +62,7 @@ describe("createScreenshotSettings — malformed/throwing storage", () => {
     const malformed = { enabled: false, source: null } as unknown as ScreenshotSettings;
     const store = createScreenshotSettings({ storage: fakeStorage(malformed) });
     expect(store.get().enabled).toBe(false);
-    expect(store.get().source).toEqual(DEFAULT_SOURCE);
+    expect(store.get()).toEqual({ enabled: false, allowRequests: false, source: DEFAULT_SOURCE });
   });
 });
 
@@ -163,5 +163,22 @@ describe("screenshot request permission", () => {
     reloaded.setAllowRequests(false);
     store.reloadFromStorage();
     expect(store.get()).toEqual({ enabled: true, source: DEFAULT_SOURCE, allowRequests: false });
+  });
+});
+
+describe("createScreenshotSettings — source validation", () => {
+  const INVALID_SOURCES: Array<[string, unknown]> = [
+    ["an unknown kind", { kind: "bogus", index: 0 }],
+    ["a window source without an app", { kind: "window", window_title: "Downloads" }],
+    ["a negative monitor index", { kind: "monitor", index: -1 }],
+    ["a fractional monitor index", { kind: "monitor", index: 1.5 }],
+  ];
+
+  it.each(INVALID_SOURCES)("falls back to the default source on %s", (_name, source) => {
+    const store = createScreenshotSettings({
+      storage: fakeStorage({ enabled: true, source } as unknown as ScreenshotSettings),
+    });
+
+    expect(store.get()).toEqual({ enabled: false, allowRequests: false, source: DEFAULT_SOURCE });
   });
 });

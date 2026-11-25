@@ -15,6 +15,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
+import { stubYuiRunPorts } from "../tools/run/yui-run-test-ports";
+import { createYuiRunTool } from "../tools/run/yui-run-tool";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { streamChatForTest as streamChat } from "./test-helpers";
 
@@ -1035,4 +1037,26 @@ it("image results keep adjacent tool texts before a trailing user image message"
     { role: "tool", tool_call_id: "text_call", content: "42" },
     { role: "user", content: [{ type: "image_url", image_url: { url: image } }] },
   ]);
+});
+
+describe("streamChat — Chat Completions yui_run", () => {
+  it("sends the script's JSON result back as the call's tool message", async () => {
+    const registry = createClientToolRegistry([createYuiRunTool(stubYuiRunPorts())]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "yui_run", '{"code":"return 1+1"}'),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("Two."), finishChunk("stop")]));
+
+    await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock.mock.calls[1][0].messages.at(-1)).toEqual({
+      role: "tool",
+      tool_call_id: "call_1",
+      content: '{"status":"completed","result":2,"logs":[]}',
+    });
+  });
 });

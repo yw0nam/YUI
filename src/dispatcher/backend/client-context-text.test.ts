@@ -852,6 +852,59 @@ describe("renderClientContext — trigger: milestone", () => {
   });
 });
 
+describe("renderClientContext — last together line", () => {
+  // Local wall-clock epoch, so the rendered stamp is stable across timezones.
+  const lastAt = new Date(2026, 8, 10, 22, 3).getTime();
+
+  function firstActivity(last_together?: number | null): ClientContext {
+    return baseContext({
+      kind: "milestone",
+      milestone: {
+        name: "first_activity",
+        local_time: "08:12",
+        ...(last_together === undefined ? {} : { last_together }),
+      },
+    });
+  }
+
+  it("renders the stored time and its age on first_activity with a value", () => {
+    const lines = renderClientContext(firstActivity(lastAt), lastAt + 180 * 60_000).split("\n");
+    const headline = lines.indexOf("trigger: milestone first_activity (fired at 08:12)");
+    expect(lines[headline + 1]).toBe("last together: 2026-09-10 22:03 (3h ago)");
+  });
+
+  it("ages as Nmin ago under an hour and Nd ago past a day", () => {
+    const at5min = renderClientContext(firstActivity(lastAt), lastAt + 5 * 60_000).split("\n");
+    expect(at5min[at5min.indexOf("trigger: milestone first_activity (fired at 08:12)") + 1]).toBe(
+      "last together: 2026-09-10 22:03 (5min ago)",
+    );
+    const at3days = renderClientContext(firstActivity(lastAt), lastAt + 3 * 1440 * 60_000).split(
+      "\n",
+    );
+    expect(at3days[at3days.indexOf("trigger: milestone first_activity (fired at 08:12)") + 1]).toBe(
+      "last together: 2026-09-10 22:03 (3d ago)",
+    );
+  });
+
+  it("no last together line when the value is null", () => {
+    const text = renderClientContext(firstActivity(null), NOW);
+    expect(text).toContain("trigger: milestone first_activity (fired at 08:12)");
+    expect(text).not.toContain("last together:");
+  });
+
+  it("no last together line on other milestones even with a value", () => {
+    const cc = baseContext({
+      kind: "milestone",
+      milestone: { name: "morning_rollup", local_time: "12:00", last_together: lastAt },
+    });
+    expect(renderClientContext(cc, NOW)).not.toContain("last together:");
+  });
+
+  it("no last together line when the field is absent", () => {
+    expect(renderClientContext(firstActivity(), NOW)).not.toContain("last together:");
+  });
+});
+
 describe("renderClientContext — duration math", () => {
   it("rounds to nearest minute and never goes negative", () => {
     const cc = baseContext({ kind: "user" });

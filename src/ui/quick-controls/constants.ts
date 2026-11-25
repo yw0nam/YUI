@@ -81,6 +81,9 @@ export const CHAIN_CAP_FIELD: RateLimitFieldDef = {
   subKey: "reactions.rate_addressed_sub",
 };
 
+/** The Proactive page's wait after a conversation, shown in minutes. */
+export const PACER_GAP_UNIT = { unitMs: 60_000, suffixKey: "reactions.minutes_suffix" } as const;
+
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds
 // (io/screen-settings's ScreenOverrides). Each renders as a numeric row in its own display unit.
 // Clearing a field clears the override,

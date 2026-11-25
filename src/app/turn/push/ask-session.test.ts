@@ -4,6 +4,7 @@ import type { AskAnswer, AskFrame } from "../../../io/chat/push/push-frames";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
 import { createAskCard } from "../../../ui/ask/ask-card";
 import { setLocale } from "../../../ui/i18n";
+import { createAskQueue } from "../ask-queue";
 import { wireAskSession } from "./ask-session";
 
 const frame = (id: string, expires_at?: number): AskFrame => ({
@@ -24,6 +25,14 @@ function build(card = false) {
   const view = card ? createAskCard({ mount }) : undefined;
   view?.onAnswer((a) => answer(a));
   const setAsks = vi.fn((frames: AskFrame[]) => view?.set(frames));
+  const asks = createAskQueue({
+    surfaces: {
+      setAsks,
+      onAskAnswer: (cb) => {
+        answer = cb;
+      },
+    },
+  });
   const dispose = wireAskSession({
     socket: {
       onAsk: (cb) => {
@@ -40,12 +49,7 @@ function build(card = false) {
       },
       sendAnswer,
     },
-    surfaces: {
-      setAsks,
-      onAskAnswer: (cb) => {
-        answer = cb;
-      },
-    },
+    asks,
   });
   return {
     ask: (f: AskFrame) => ask(f),

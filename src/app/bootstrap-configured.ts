@@ -56,6 +56,7 @@ import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
+import { createAskQueue } from "./turn/ask-queue";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import { wireSynthFailureNotice } from "./turn/voice/wire-synth-failure-notice";
@@ -66,6 +67,7 @@ import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 import { wireThreadTurns } from "./turn/wire-thread-turns";
+import { wireYuiRun } from "./turn/wire-yui-run";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
 const log = createLogger("bootstrap");
@@ -177,6 +179,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       climbSettings,
       fallSettings,
       hintSettings,
+      lastTogetherSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
 
@@ -204,6 +207,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     const mcpHost = createMcpHost();
     register(mcpHost.dispose);
     register(mcpHost.subscribe(() => phase1.pushSocket?.sendTools()));
+    const asks = createAskQueue({ surfaces });
+    register(asks.dispose);
     const { declared: windowTools } = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -220,6 +225,13 @@ const realFactories: ConfiguredBootstrapFactories = {
       recordAddressed: addressed.record,
       mcpHost,
       threads: phase1.threads,
+      run: wireYuiRun({
+        stores: settings,
+        asks,
+        lastTogether: lastTogetherSettings,
+        vrm: phase1.vrm,
+        speaker: phase1.speaker,
+      }),
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,
@@ -252,6 +264,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       windowTools,
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
+      asks,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
@@ -299,6 +312,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       scheduleSettings,
       agentNotifySettings,
       screenSettings,
+      lastTogetherSettings,
       getScreenConfig: () => mergeScreen(config.get().screen, screenKnobSettings.get()),
       pipelineBusy: {
         isBusy: dispatcher.isPipelineBusy,

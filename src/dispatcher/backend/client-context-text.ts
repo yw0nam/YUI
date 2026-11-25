@@ -64,6 +64,23 @@ function ageOf(atMs: number, nowMs: number): string {
   return hours < 24 ? `${hours}h ago` : `${Math.round(mins / 1440)}d ago`;
 }
 
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/** Local wall-clock `YYYY-MM-DD HH:MM`, the `time:` line's format without seconds. */
+function localStamp(atMs: number): string {
+  const date = new Date(atMs);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** `last together:` only on the day's first activity, and only when a presence was recorded before it. */
+function lastTogetherOf(
+  m: NonNullable<TriggerMeta["milestone"]>,
+  nowMs: number,
+): string | undefined {
+  if (m.name !== "first_activity" || m.last_together == null) return undefined;
+  return `last together: ${localStamp(m.last_together)} (${ageOf(m.last_together, nowMs)})`;
+}
+
 function renderRelations(relations: ClientContext["relations"], nowMs: number): string[] {
   return (relations ?? []).map(({ target, band, delta, why, at, note }) => {
     const summary = note ? `, "${oneLine(note)}"` : "";
@@ -166,6 +183,8 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else if (trigger.milestone) {
     const m = trigger.milestone;
     lines.push(`trigger: milestone ${oneLine(m.name)} (fired at ${oneLine(m.local_time)})`);
+    const lastTogether = lastTogetherOf(m, nowMs);
+    if (lastTogether) lines.push(lastTogether);
   } else if (trigger.addressed) {
     const a = trigger.addressed;
     lines.push(

@@ -9,7 +9,7 @@ import {
 import type { ClampedIntSettingsStore } from "../../../../settings/persisted-store";
 import { Disclosure } from "../../../controls/disclosure";
 import { t } from "../../../i18n";
-import { PROACTIVE_CAP_FIELDS } from "../../constants";
+import { PACER_GAP_UNIT, PROACTIVE_CAP_FIELDS } from "../../constants";
 import { NumberRow } from "../number-row";
 
 function GapRow({ store }: { store: ClampedIntSettingsStore }) {
@@ -22,9 +22,9 @@ function GapRow({ store }: { store: ClampedIntSettingsStore }) {
       hint={t("reactions.pacer_gap_hint")}
       min={0}
       max={180}
-      unit={t("reactions.minutes_suffix")}
-      value={ms / 60_000}
-      commit={(typed) => store.set(Math.round(typed ?? 0) * 60_000)}
+      unit={t(PACER_GAP_UNIT.suffixKey)}
+      value={ms / PACER_GAP_UNIT.unitMs}
+      commit={(typed) => store.set(Math.round(typed ?? 0) * PACER_GAP_UNIT.unitMs)}
     />
   );
 }

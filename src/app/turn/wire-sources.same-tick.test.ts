@@ -167,6 +167,7 @@ function startPipeline(): {
     onUserTurnRouted: () => () => {},
     submitUser: vi.fn(),
     selfPresetId: "natsume",
+    lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
   });
   schedule = sources.scheduleSource;
   /** Complete the in-flight backend call, freeing the dispatcher's single slot for the next fire. */
