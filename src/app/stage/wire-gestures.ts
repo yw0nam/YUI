@@ -49,7 +49,7 @@ export async function wireStageGestures(deps: {
   hitTest: Pick<HitTestController, "suspend" | "resume">;
   locomotion: Pick<
     ReturnType<typeof wireLocomotion>,
-    "setDragging" | "cancel" | "dropSource" | "abortTravel"
+    "setDragging" | "cancel" | "dropSource" | "abortTravel" | "keepsGeometry"
   >;
   cameraSettings: Pick<ReturnType<typeof createCameraSettings>, "get" | "setAzimuth" | "setPolar">;
   register: (teardown: () => void) => void;
@@ -116,6 +116,8 @@ export async function wireStageGestures(deps: {
     onOrbitStart: hitTest.suspend,
     onOrbitEnd: hitTest.resume,
     onOrbit: (d) => {
+      // On the settings stage her stored angle is never written.
+      if (locomotion.keepsGeometry()) return;
       orbitCamera(cameraSettings, d);
     },
   });

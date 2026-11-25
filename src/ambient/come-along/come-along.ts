@@ -405,13 +405,16 @@ export function createComeAlong(deps: ComeAlongDeps): {
     try {
       const { at, size } = await read();
       const frame = bottomCentred({ ...at, ...size }, to);
-      setFraming(0);
       if (!differs(frame, { ...at, ...size })) return;
       await writeFrame(locomotion.frame.frameWindow(), frame);
+      setFraming(0);
       await deps.refitTo(to.width, to.height);
       log.info("come_along_size_restored", { frame });
     } catch (err) {
       log.warn("come_along_restore_failed", { error: String(err) });
+    } finally {
+      // Off the stage she is at her own framing, whatever became of the write.
+      setFraming(0);
     }
   }
 
