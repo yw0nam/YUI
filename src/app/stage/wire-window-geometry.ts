@@ -9,6 +9,7 @@ import {
 } from "../../io/window/geometry/screen-geometry";
 import { tauriFrameWindow } from "../../io/window/geometry/tauri-frame-window";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
+import { waitRefit } from "../../io/window/pet/page-refit";
 import { createLogger } from "../../logger";
 import {
   createWindowGeometrySettings,
@@ -22,20 +23,6 @@ const log = createLogger("window-geometry");
 export interface WindowGeometryHooks {
   onResizeApplied(bounds: { x: number; y: number; width: number; height: number }): void;
   onDragReleased(): Promise<void>;
-}
-
-const nextFrame = (): Promise<void> =>
-  new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-
-/** One frame past the page reaching `width` × `height`, so the renderer's refit has run. */
-export async function waitRefit(width: number, height: number): Promise<void> {
-  for (let frame = 0; frame < 60; frame += 1) {
-    if (window.innerWidth === Math.round(width) && window.innerHeight === Math.round(height)) {
-      break;
-    }
-    await nextFrame();
-  }
-  await nextFrame();
 }
 
 /** The store-and-frame core: boot apply plus the two producer hooks. Injectable for tests. */

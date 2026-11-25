@@ -21,6 +21,9 @@ import type { ReasoningState } from "./reasoning/reasoning-store";
 
 const log = createLogger("settings-bridge");
 
+/** A stage slot's size becomes her window's: a guard on that IPC input, wider than the slot's 373 × 560 to 600 × 900. */
+const SLOT_PT = { min: 100, max: 2000 };
+
 interface VoiceStateSnapshot {
   state: VoiceInputState;
 }
@@ -297,8 +300,7 @@ export const channels = {
       const { x, y, width, height, scale } = (slot ?? {}) as Record<string, unknown>;
       const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
       if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
-      // Its size becomes her window's size.
-      const sane = (v: number): boolean => v >= 100 && v <= 2000;
+      const sane = (v: number): boolean => v >= SLOT_PT.min && v <= SLOT_PT.max;
       if (!sane(width as number) || !sane(height as number)) {
         log.warn("settings_stage_slot_dropped", { width, height });
         return;

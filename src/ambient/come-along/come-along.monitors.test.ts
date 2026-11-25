@@ -121,7 +121,7 @@ function cycle(at = { x: -48, y: 860 }) {
     setFramePhysical: async () => {},
     followsInPhysicalPx: false,
     pageHeight: () => frame.height,
-    pageAt: async () => {},
+    refitTo: async () => {},
     reducedMotion: () => false,
     stage: () => avatarFixture().stage,
     lastEmotion: () => "neutral",

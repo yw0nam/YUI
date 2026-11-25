@@ -190,7 +190,7 @@ function harness(
     setFramePhysical,
     followsInPhysicalPx: opts.physicalFollow ?? false,
     pageHeight: () => real.height,
-    pageAt: async () => {},
+    refitTo: async () => {},
     reducedMotion: () => reduced,
     stage: () => ({
       ...avatarFixture().stage,

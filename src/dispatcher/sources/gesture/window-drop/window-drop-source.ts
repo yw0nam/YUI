@@ -86,7 +86,7 @@ export interface WindowDropSourceDeps {
   getGestureCues: () => GestureCuesConfig;
   /** A drag release that neither sat nor peeked — the character is left mid-air. */
   onDragMiss?: () => void;
-  /** The dragged window's release, before the drop settles; a mover gives her window back its own size. */
+  /** The dragged window's release, before the drop settles; the settle waits for it. */
   onDropped?: () => Promise<void>;
   /** The OS drag release settled — the window-geometry store saves the position. */
   onReleased?: () => Promise<void>;

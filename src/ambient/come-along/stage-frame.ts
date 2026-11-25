@@ -33,3 +33,9 @@ export function easedFrame(from: Frame, to: Frame, p: number): Frame {
     height: at(from.height, to.height),
   };
 }
+
+/** Whether `a` and `b` are a whole point or more apart on any side. */
+export function differs(a: Frame, b: Frame): boolean {
+  const off = [a.x - b.x, a.y - b.y, a.width - b.width, a.height - b.height];
+  return Math.max(...off.map(Math.abs)) >= 1;
+}

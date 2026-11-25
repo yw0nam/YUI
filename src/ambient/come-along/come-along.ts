@@ -35,7 +35,14 @@ import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { HoldOptions } from "../locomotion/hold/holds";
 import { pickEntry } from "./entry-pick";
-import { bottomCentred, dockFrame, easedFrame, type Frame, type Size } from "./stage-frame";
+import {
+  bottomCentred,
+  differs,
+  dockFrame,
+  easedFrame,
+  type Frame,
+  type Size,
+} from "./stage-frame";
 import { createStagePin } from "./stage-pin";
 
 const log = createLogger("come-along");
@@ -92,7 +99,7 @@ export interface ComeAlongDeps {
   /** Her page's height now, which the renderer's feet anchor and probe are measured in. */
   pageHeight(): number;
   /** Settles once her page is `width` × `height` and the renderer has refit to it. */
-  pageAt(width: number, height: number): Promise<void>;
+  refitTo(width: number, height: number): Promise<void>;
   reducedMotion(): boolean;
   /** The travel and staying tuning, read at use. */
   stage(): StageConfig;
@@ -185,6 +192,13 @@ export function createComeAlong(deps: ComeAlongDeps): {
     return feet === undefined || page <= 0 ? 1 : feet / page;
   }
 
+  /** Sets her window's frame `f` in one call. */
+  const writeFrame = (win: FrameWindow, f: Frame): Promise<void> =>
+    win.setFrameLogical(f.x, f.y, f.width, f.height);
+
+  /** How much taller her window `to` draws her than her page does now. */
+  const heightScale = (to: Frame): number => to.height / deps.pageHeight();
+
   /** Shows her canvas again when a vanish left it invisible. */
   function show(): void {
     if (!hidden) return;
@@ -228,8 +242,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const distance = Math.hypot(to.x - from.x, to.y - from.y);
       const win = locomotion.frame.frameWindow();
       if (distance < 1) {
-        pin.arm(to.width, to.height / deps.pageHeight());
-        return win.setFrameLogical(to.x, to.y, to.width, to.height);
+        pin.arm(to.width, heightScale(to));
+        return writeFrame(win, to);
       }
       const stage = deps.stage();
       const on = monitorAtLogical(monitors, from.x + size.width / 2, from.y + size.height / 2);
@@ -255,8 +269,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await renderer.vanish();
       if (id !== move) return;
       // Measured at her height before the frame changes.
-      pin.arm(to.width, to.height / deps.pageHeight());
-      await win.setFrameLogical(to.x, to.y, to.width, to.height);
+      pin.arm(to.width, heightScale(to));
+      await writeFrame(win, to);
       if (id !== move) return;
       hidden = false;
       const feet = renderer.getCharacterAnchor();
@@ -295,9 +309,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
     await tickUntil((elapsedMs) => {
       frames += 1;
       const at = easedFrame(from, to, easeInOutCubic(Math.min(1, elapsedMs / durationMs)));
-      void parked.win
-        .setFrameLogical(at.x, at.y, at.width, at.height)
-        .catch((err) => log.warn("come_along_move_failed", { error: String(err) }));
+      void writeFrame(parked.win, at).catch((err) =>
+        log.warn("come_along_move_failed", { error: String(err) }),
+      );
       // The view takes the frame at once, so the pin aims in it.
       pin.reaim(at.width, 1);
       return elapsedMs >= durationMs;
@@ -359,12 +373,10 @@ export function createComeAlong(deps: ComeAlongDeps): {
     if (!to) return;
     try {
       const { at, size } = await read();
-      if (Math.max(Math.abs(size.width - to.width), Math.abs(size.height - to.height)) < 1) return;
+      if (!differs({ ...at, ...size }, { ...at, ...to })) return;
       const frame = bottomCentred({ ...at, ...size }, to);
-      await locomotion.frame
-        .frameWindow()
-        .setFrameLogical(frame.x, frame.y, frame.width, frame.height);
-      await deps.pageAt(to.width, to.height);
+      await writeFrame(locomotion.frame.frameWindow(), frame);
+      await deps.refitTo(to.width, to.height);
       log.info("come_along_size_restored", { frame });
     } catch (err) {
       log.warn("come_along_restore_failed", { error: String(err) });
@@ -410,9 +422,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     let entry: { family: string; clip: string } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
-      await locomotion.frame
-        .frameWindow()
-        .setFrameLogical(target.x, target.y, target.width, target.height);
+      await writeFrame(locomotion.frame.frameWindow(), target);
     } else {
       // A trip home that this window interrupted keeps the spot and size she left from.
       home ??= { ...at, ...size };
@@ -461,7 +471,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       : [at, size];
     if (!docked) return;
     const target = dockFrame(rect, feetShare());
-    pin.reaim(target.width, target.height / deps.pageHeight());
+    pin.reaim(target.width, heightScale(target));
     const k = px ? rect.scale : 1;
     const to = {
       x: Math.round(target.x * k),
@@ -469,12 +479,9 @@ export function createComeAlong(deps: ComeAlongDeps): {
       width: Math.round(target.width * k),
       height: Math.round(target.height * k),
     };
-    const off = [to.x - now.x, to.y - now.y, to.width - outer.width, to.height - outer.height];
-    if (Math.max(...off.map(Math.abs)) < 1) return;
+    if (!differs(to, { ...now, ...outer })) return;
     log.info("come_along_placed", { slot: rect, frame: to, ...(px && { px: true }) });
-    const write = px
-      ? deps.setFramePhysical(to.x, to.y, to.width, to.height)
-      : win.setFrameLogical(to.x, to.y, to.width, to.height);
+    const write = px ? deps.setFramePhysical(to.x, to.y, to.width, to.height) : writeFrame(win, to);
     placed = write.catch(() => {});
     await write;
   }

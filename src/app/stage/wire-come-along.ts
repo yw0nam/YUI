@@ -6,6 +6,7 @@ import type { MotionKind } from "../../contract";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { lastBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { HitTestController } from "../../io/window/pet/hit-test";
+import { waitRefit } from "../../io/window/pet/page-refit";
 import {
   attachDock,
   detachDock,
@@ -17,7 +18,6 @@ import type { Renderer } from "../../renderer";
 import { windowLabel } from "../../settings/preset/pet-windows";
 import { isTauri, isWindows } from "../../tauri-env";
 import type { wireLocomotion } from "./wire-locomotion";
-import { waitRefit } from "./wire-window-geometry";
 
 const log = createLogger("wire-come-along");
 
@@ -64,7 +64,7 @@ export function wireComeAlong(deps: {
     setFramePhysical: setPetFramePhysical,
     followsInPhysicalPx: isWindows(),
     pageHeight: () => window.innerHeight,
-    pageAt: waitRefit,
+    refitTo: waitRefit,
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,
     lastEmotion: (decayMs) => lastBackendEmotion(Date.now(), decayMs),

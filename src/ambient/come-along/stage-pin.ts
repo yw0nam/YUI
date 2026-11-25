@@ -84,9 +84,9 @@ export function createStagePin(deps: {
       renderer.setPeekTarget({ targetXpx, holdsPosture: false });
     },
     watch(clip) {
-      const edge = planned;
+      if (!planned) return;
+      const playMs = planned.play_ms;
       planned = null;
-      if (!edge) return;
       // A state clip is the motion controller's return target once whatever replaced it ends.
       const returns = deps.getMotionKind(clip) === "state";
       let replaced = false;
@@ -106,7 +106,7 @@ export function createStagePin(deps: {
           return;
         }
         const playedS = renderer.getCurrentMotionTime();
-        if (edge.play_ms !== undefined && playedS !== null && playedS * 1000 >= edge.play_ms) {
+        if (playMs !== undefined && playedS !== null && playedS * 1000 >= playMs) {
           stop();
           renderer.playMotion(null);
           release();
