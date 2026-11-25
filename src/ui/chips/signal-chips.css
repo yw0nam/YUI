@@ -110,6 +110,11 @@
   cursor: pointer;
 }
 
+/* display: grid beats the UA's [hidden] rule; the grouped row hides its cross for "+N". */
+.yui-sigchip__x[hidden] {
+  display: none;
+}
+
 .yui-sigchip__x:hover {
   color: var(--yui-text);
 }
