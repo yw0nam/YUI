@@ -15,12 +15,12 @@ import {
   topItems,
 } from "./items";
 import { menuKey } from "./keys";
-import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
+import { columnLeft, type Fold, gridWidth, type MenuWidths, ROW_PX } from "./layout";
 
 /** Where the menu draws, in the mount's px. */
 export interface MenuPlacement {
   fold: Fold;
-  /** The columns' top: her shoulder line. */
+  /** The columns' shared top. */
   top: number;
   /** Where the pills pop out from. */
   chest: { x: number; y: number };
@@ -45,8 +45,6 @@ export interface MenuActions {
 
 const log = createLogger("character-menu");
 
-/** A pill row's pitch: 36px tall plus the 8px gap; the stylesheet sets the same. */
-const ROW_PX = 44;
 /** Each pill pops out this long after the one before it, in keyboard order. */
 const STAGGER_MS = 30;
 const LISTS: readonly ListId[] = ["body", "voice", "pace", "more"];
@@ -79,6 +77,8 @@ export function createCharacterMenu(deps: {
   let confirm: string | null = null;
   let placement: MenuPlacement | null = null;
   let widths: Record<ColumnKey, number> | null = null;
+  /** The state at open, whose Body and Voice lists stay drawn until close. */
+  let opened: MenuState | null = null;
 
   function pill(item: MenuItem, measuring = false): HTMLButtonElement {
     const b = document.createElement("button");
@@ -156,9 +156,14 @@ export function createCharacterMenu(deps: {
     };
   }
 
+  /** The state drawn now: the lists as they were at open, every other field as it is. */
+  const drawn = (): MenuState => ({
+    ...deps.read(),
+    ...(opened && { bodies: opened.bodies, voices: opened.voices }),
+  });
+
   /** The widest row of every column state, with every check and On text shown, More with its confirm row. */
-  function measure(): Record<ColumnKey, number> {
-    const items = columnItems(deps.read());
+  function measure(items: Record<ColumnKey, MenuItem[]>): Record<ColumnKey, number> {
     const box = document.createElement("div");
     box.className = "yui-cmenu__measure";
     mount.appendChild(box);
@@ -187,7 +192,7 @@ export function createCharacterMenu(deps: {
 
   function render(pop = false): void {
     if (!placement || !widths) return;
-    const items = columnItems(deps.read());
+    const items = columnItems(drawn());
     const centre = mount.clientWidth / 2;
     root.replaceChildren();
     const name = document.createElement("p");
@@ -263,7 +268,7 @@ export function createCharacterMenu(deps: {
   };
 
   function pick(id: string): void {
-    const state = deps.read();
+    const state = drawn();
     const [chosen, value] = id.split(":") as [string, string | undefined];
     const after = closing[id] ?? (id === "talk" && !state.talk ? () => actions.talk(true) : null);
     if (after) closeThen(after);
@@ -398,7 +403,11 @@ export function createCharacterMenu(deps: {
     phase = "opening";
     list = null;
     confirm = null;
-    const measured = measure();
+    opened = deps.read();
+    const items = columnItems(opened);
+    const measured = measure(items);
+    const most = (keys: readonly ColumnKey[]): number =>
+      Math.max(...keys.map((key) => items[key].length));
     pending = (async () => {
       let placed: MenuPlacement;
       try {
@@ -407,6 +416,7 @@ export function createCharacterMenu(deps: {
           left: measured.left,
           all: measured.all,
           lists: LISTS.map((key) => measured[key]),
+          rows: { none: most(["right", "left", ...LISTS]), folded: most(["all", ...LISTS]) },
         });
       } catch (err) {
         phase = "closed";

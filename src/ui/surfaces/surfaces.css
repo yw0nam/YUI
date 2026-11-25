@@ -8,11 +8,16 @@
    Only the input restores pointer-events. (No data-tauri-drag-region on this layer → input doesn't get dragged) */
 .yui-ui {
   position: absolute;
-  top: 0;
+  /* Her own box: the pet window, or her part of it while the Character menu widens or grows it. */
+  top: var(--yui-box-top, 0px);
   bottom: 0;
-  /* Her own box: the pet window, or her part of it while the Character menu widens it. */
   left: var(--yui-box-left, 0px);
   width: var(--yui-box-width, 100%);
+  /* The bubble's cap reads her own height, not the window the Character menu grows upward. */
+  --yui-bubble-max-h: max(
+    calc((100vh - var(--yui-box-top, 0px)) * 0.34),
+    var(--yui-bubble-three-lines)
+  );
   pointer-events: none;
   /* Own stacking context: above the canvas, guarantees z-order among surfaces */
   isolation: isolate;

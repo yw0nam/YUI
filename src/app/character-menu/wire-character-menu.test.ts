@@ -116,9 +116,10 @@ it("opens the menu on a right-click on her, widened around her and holding her s
   expect(locomotion.hold).toHaveBeenCalledExactlyOnceWith("menu", true, {
     onAbort: expect.any(Function),
   });
+  // Her head reads 0 with no bones, so the window grows 8px upward to keep the columns 8px below its top.
   expect(locomotion.widen).toHaveBeenCalledWith([
-    { x: 300, y: 517 },
-    { x: 300, y: 517 },
+    { x: 300, y: 509 },
+    { x: 300, y: 509 },
   ]);
   // Her own box inside the widened window, which the UI layer and the status pill lay out in.
   expect([box("left"), box("width")]).toEqual(["0px", "400px"]);

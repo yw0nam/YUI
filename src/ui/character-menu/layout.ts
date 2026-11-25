@@ -7,6 +7,10 @@ const GUTTER_PX = 88;
 /** Room past the widest column for its shadow. */
 const MARGIN_PX = 16;
 const GRID_PX = 8;
+/** A pill row's pitch: 36px tall plus the 8px gap; the stylesheet sets the same. */
+export const ROW_PX = 44;
+/** The least room between a column and the edge of her window or the work area. */
+const EDGE_PX = 8;
 
 export type Fold = "none" | "left" | "right";
 
@@ -59,12 +63,20 @@ export function planMenu(input: {
     : { fold: "left", reachLeft: folded, reachRight: half };
 }
 
-/** Where the columns' shared top goes, in her box's px. */
-export function planTop(_input: {
+/** A column of `rows` pills, top of the first to bottom of the last (px). */
+export const columnHeight = (rows: number): number => rows * ROW_PX - GRID_PX;
+
+/**
+ * The columns' shared top in her box's px (0 = her window top, y down): at her head, else
+ * 8px above the nearer bottom edge; `growUp` is how far her window grows upward to keep 8px above it.
+ */
+export function planTop(input: {
   head: number;
   height: number;
   windowBottom: number;
   workBottom: number;
 }): { top: number; growUp: number } {
-  return undefined as never;
+  const { head, height, windowBottom, workBottom } = input;
+  const top = Math.min(head, Math.min(windowBottom, workBottom) - EDGE_PX - height);
+  return { top, growUp: Math.max(0, EDGE_PX - top) };
 }
