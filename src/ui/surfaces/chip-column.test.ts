@@ -32,6 +32,15 @@ describe("planColumn", () => {
       { shift: 32, hide: [2, 3], folded: 3 },
     ],
     [
+      "urgent rows fit but leave no room for the fold row: every other row hides and no fold row shows",
+      {
+        rows: [row(40, 68, 1, true), row(74, 102, 1, true), row(108, 136, 2)],
+        top: 40,
+        limit: 90,
+      },
+      { shift: 32, hide: [2], folded: 0 },
+    ],
+    [
       "urgent rows alone pass the limit: every other row hides and no fold row shows",
       {
         rows: [

@@ -30,8 +30,8 @@ afterEach(() => {
   for (const dispose of disposers.splice(0).reverse()) dispose();
 });
 
-/** Two urgent signals, three batched ones, two waiting Threads and one running task. */
-function build() {
+/** Three batched signals and, unless left out, two urgent ones; two waiting Threads and one running task. */
+function build({ urgent = true } = {}) {
   let allShown!: () => void;
   const typed = new Promise<void>((resolve) => {
     allShown = resolve;
@@ -52,8 +52,12 @@ function build() {
     [1, "batched"],
     [2, "batched"],
     [3, "batched"],
-    [4, "urgent"],
-    [5, "urgent"],
+    ...(urgent
+      ? ([
+          [4, "urgent"],
+          [5, "urgent"],
+        ] as const)
+      : []),
   ] as const) {
     model.add({
       envelope: {
@@ -101,8 +105,9 @@ function build() {
 
 async function settle(): Promise<void> {
   for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame);
+  // Entrances (the Ask card's keyframes, the chips' fades and slides) end here; the endless ones run on.
   for (const animation of document.getAnimations()) {
-    if (animation instanceof CSSTransition) animation.finish();
+    if (animation.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY) animation.finish();
   }
   await new Promise(requestAnimationFrame);
 }
@@ -202,4 +207,17 @@ it("fades out while the Character menu is open, taking no hits, and returns when
     open: { opacity: "0", visibility: "hidden", hit: false, targets: 0 },
     closed: { opacity: "1", visibility: "visible", hit: true, targets: 6 },
   });
+});
+
+it("with no urgent chip and no row that fits over the Ask card, the +N row alone sits at the column's top", async () => {
+  await page.viewport(190, 200);
+  const { surfaces, column } = build({ urgent: false });
+  surfaces.setAsks([ask]);
+  await settle();
+
+  const rows = shown(column);
+  expect([
+    rows.map((el) => el.textContent),
+    Math.round(rows[0]!.getBoundingClientRect().top),
+  ]).toEqual([["+6"], 8]);
 });
