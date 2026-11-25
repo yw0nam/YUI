@@ -3860,7 +3860,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry, the dock origin centred on the slot, or with her window's right edge on the slot's for an edge entry while its pin holds; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; the arrival docks centred on the slot, or with her window's right edge on the slot's when the chosen entry is an edge entry, and placement keeps that aligned origin while its pin holds; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3869,7 +3869,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry, the pin release and her window's eased return from the aligned to the centred dock origin through placement on that release, on the renderer's release curve; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
+      "carries": "onTick drives the pickup hold, the carry, the pin release and, on the renderer's release curve, her eased return from the aligned to the centred dock origin, whose frame-window writes belong to placement; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
