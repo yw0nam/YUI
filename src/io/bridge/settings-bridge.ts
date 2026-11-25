@@ -299,10 +299,14 @@ export const channels = {
       }
       const { x, y, width, height, scale } = (slot ?? {}) as Record<string, unknown>;
       const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-      if (![x, y, width, height, scale].every(finite) || !((scale as number) > 0)) return;
-      const sane = (v: number): boolean => v >= SLOT_PT.min && v <= SLOT_PT.max;
-      if (!sane(width as number) || !sane(height as number)) {
-        log.warn("settings_stage_slot_dropped", { width, height });
+      const sane = (v: unknown): boolean => finite(v) && v >= SLOT_PT.min && v <= SLOT_PT.max;
+      if (
+        ![x, y, scale].every(finite) ||
+        !((scale as number) > 0) ||
+        !sane(width) ||
+        !sane(height)
+      ) {
+        log.warn("settings_stage_slot_dropped", { slot });
         return;
       }
       deliver({ preset, slot: { x, y, width, height, scale } as StageSlot });
