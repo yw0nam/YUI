@@ -129,7 +129,8 @@ function harness(
     followsInPhysicalPx: opts.physicalFollow ?? false,
     reducedMotion: () => reduced,
     stage: () => avatarFixture().stage,
-    lastEmotion: () => opts.emotion ?? "neutral",
+    // The fixture's stage.emotion_decay_min is 30.
+    lastEmotion: (decayMs) => (decayMs === 30 * 60_000 ? (opts.emotion ?? "neutral") : "neutral"),
     random: () => opts.roll ?? 0,
   });
   const tick = (ms: number) => {

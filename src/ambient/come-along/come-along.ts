@@ -82,8 +82,8 @@ export interface ComeAlongDeps {
   reducedMotion(): boolean;
   /** The travel and staying tuning, read at use. */
   stage(): StageConfig;
-  /** The last backend emotion, already decayed to neutral. */
-  lastEmotion(): string;
+  /** The last backend emotion, neutral once older than `decayMs`. */
+  lastEmotion(decayMs: number): string;
   /** A draw in [0, 1) for the stay roll. */
   random(): number;
 }
@@ -293,7 +293,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       log.info("come_along_stayed");
       return;
     }
-    const angry = deps.lastEmotion() === "angry";
+    const angry = deps.lastEmotion(deps.stage().emotion_decay_min * 60_000) === "angry";
     if (angry && deps.random() < deps.stage().stay_chance) {
       session = "staying";
       store({ stays: true });

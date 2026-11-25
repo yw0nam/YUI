@@ -62,8 +62,7 @@ export function wireComeAlong(deps: {
     followsInPhysicalPx: isWindows(),
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,
-    lastEmotion: () =>
-      lastBackendEmotion(Date.now(), deps.getStageConfig().emotion_decay_min * 60_000),
+    lastEmotion: (decayMs) => lastBackendEmotion(Date.now(), decayMs),
     random: Math.random,
   });
   const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });

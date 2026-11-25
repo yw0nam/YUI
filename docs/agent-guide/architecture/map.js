@@ -3815,7 +3815,7 @@ globalThis.YUI_MAP =
       "id": "come-along-last-emotion",
       "from": "ambient/come-along",
       "to": "io/chat/last-emotion",
-      "carries": "lastEmotion() → lastBackendEmotion(now, stage.emotion_decay_min in ms) at a stage slot that starts a session",
+      "carries": "lastEmotion(stage.emotion_decay_min in ms) → lastBackendEmotion(now, that decay) at a stage slot that starts a session",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
