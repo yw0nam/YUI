@@ -16,6 +16,8 @@ const monitor: ScreenMonitor = {
 };
 // The slot is 400 × 600 pt, so her 400 × 600 window docks at the slot's own origin, (100, 80).
 const slot: StageSlot = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
+// The slot the stage peek was measured on, its right edge at 684 pt.
+const wideSlot: StageSlot = { x: 284, y: 158, width: 400, height: 600, scale: 2 };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -44,10 +46,17 @@ function harness(
     pinAccepted?: boolean;
     /** Edge entries in place of the shipped ones. */
     edgeEntries?: StageConfig["edge_entries"];
+    /** Her window's logical size, by default 400 × 600. */
+    size?: { width: number; height: number };
   } = {},
 ) {
   // Her window in logical points; the fakes answer in physical px at scale 2.
-  const real = { x: opts.at?.x ?? 1300, y: opts.at?.y ?? 80, width: 400, height: 600 };
+  const real = {
+    x: opts.at?.x ?? 1300,
+    y: opts.at?.y ?? 80,
+    width: opts.size?.width ?? 400,
+    height: opts.size?.height ?? 600,
+  };
   const scale = 2;
   const ticks = new Set<(ctx: { dt: number }) => void>();
   const walked: Array<[number, number]> = [];
@@ -164,8 +173,9 @@ function harness(
     lastEmotion: (decayMs) => (decayMs === 30 * 60_000 ? (opts.emotion ?? "neutral") : "neutral"),
     random: () => opts.roll ?? 0,
   });
+  // A hook added during a tick runs on that tick, as in the renderer's frame loop.
   const tick = (ms: number) => {
-    for (const cb of [...ticks]) cb({ dt: ms / 1000 });
+    for (const cb of ticks) cb({ dt: ms / 1000 });
   };
   /** Ticks in 10 ms frames until nothing listens, then lets the walk settle. */
   /** Ticks in 10 ms frames until `step` settles, however she travels. */
@@ -241,12 +251,15 @@ function fakeStorage(): Storage {
   };
 }
 
-/** Docks her from (1300, 80) onto `slot` and returns the harness. */
-async function docked(opts: Parameters<typeof harness>[0] = {}) {
+/** Docks her from (1300, 80) onto `rect` and returns the harness. */
+async function docked(opts: Parameters<typeof harness>[0] = {}, rect: StageSlot = slot) {
   const h = harness(opts);
-  await h.finish(h.comeAlong.onStage(slot));
+  await h.finish(h.comeAlong.onStage(rect));
   return h;
 }
+
+/** Lets every pending promise and timer-0 callback run. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("createComeAlong", () => {
   it("picks her up, holds still, carries her slow, then fast, then slow facing front, and docks", async () => {
@@ -732,6 +745,130 @@ describe("createComeAlong", () => {
   });
 
   it.each([
+    // 684 − 827, and her 827-px window's edge plus 0.06 × her 500 px.
+    [827, 1022, [-143, -264], 857],
+    [300, 600, [384, 158], 330],
+  ])("docks an edge clip at width %d with her window's right edge on the slot's, pinned past it", async (width, height, at, targetXpx) => {
+    const h = await docked({ roll: 0.5, size: { width, height } }, wideSlot);
+
+    expect([h.real.x, h.real.y]).toEqual(at);
+    expect(h.setPeekTarget).toHaveBeenCalledWith(expect.objectContaining({ targetXpx }));
+  });
+
+  it.each([
+    // Smoothstep at 1/4, 1/2, 3/4 and 1 of edge_release_ms, from x −143 to the centred 71.
+    [
+      "eases",
+      false,
+      [
+        [-110, -264],
+        [-36, -264],
+        [38, -264],
+        [71, -264],
+      ],
+    ],
+    ["under reduced motion moves", true, [[71, -264]]],
+  ])("on the pin's release %s her window back to the centred origin", async (_, reduced, moves) => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+    h.setReduced(reduced);
+    h.frameWindow.setPositionLogical.mockClear();
+    h.tick(150);
+    await flush();
+    expect(h.frameWindow.setPositionLogical).not.toHaveBeenCalled();
+
+    h.setCurrent("idle");
+    for (let i = 0; i < 6; i++) {
+      h.tick(150);
+      await flush();
+    }
+
+    expect(h.frameWindow.setPositionLogical.mock.calls).toEqual(moves);
+  });
+
+  it.each([
+    [
+      "a drag",
+      false,
+      (h: ReturnType<typeof harness>) => h.abort("drag"),
+      ["move -110,-264", "taken"],
+    ],
+    [
+      "a close",
+      true,
+      (h: ReturnType<typeof harness>) => h.comeAlong.onStage(null),
+      ["move 71,-264", "vanish", "move 1300,80", "appear", "taken"],
+    ],
+  ])("when %s takes her during the release, writes no frame after it and lets her last write land first", async (_, reduced, take, events) => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+    h.setReduced(reduced);
+    const write = deferred<void>();
+    // The write lands, and is recorded, only when the shell settles it.
+    h.frameWindow.setPositionLogical.mockImplementationOnce(async (x, y) => {
+      await write.promise;
+      h.events.push(`move ${x},${y}`);
+      Object.assign(h.real, { x, y });
+    });
+    h.events.length = 0;
+    h.setCurrent("idle");
+    h.tick(150);
+    await flush();
+    h.tick(150);
+    await flush();
+
+    const taken = Promise.resolve(take(h)).then(() => {
+      h.events.push("taken");
+    });
+    await flush();
+    h.tick(150);
+    write.resolve();
+    await h.finish(taken);
+
+    expect(h.events).toEqual(events);
+  });
+
+  it("centres her next dock after a drag took her during the release", async () => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+    h.setCurrent("idle");
+    h.tick(150);
+    await flush();
+    await h.abort("drag");
+    await h.comeAlong.onStage(null);
+
+    await h.finish(h.comeAlong.onStage(wideSlot));
+
+    // plain's last clip, peek_in, is left out, so a neutral pick at 0.5 is calm, no edge clip.
+    expect(h.playMotion).toHaveBeenLastCalledWith({ id: "calm" });
+    expect([h.real.x, h.real.y]).toEqual([71, -264]);
+  });
+
+  it("re-aims the held pin and keeps her right edge on the slot's when her window is resized", async () => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+    Object.assign(h.real, { width: 600, height: 900 });
+
+    await h.comeAlong.place();
+
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith({ targetXpx: 630, holdsPosture: false });
+    expect([h.real.x, h.real.y]).toEqual([84, -142]);
+  });
+
+  it("keeps her right edge on the slot's when the slot moves while the pin holds", async () => {
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 } }, wideSlot);
+
+    await h.comeAlong.onStage({ ...wideSlot, x: 300 });
+
+    expect([h.real.x, h.real.y]).toEqual([-127, -264]);
+  });
+
+  it("on Windows puts her physical right edge on the slot's while the pin holds", async () => {
+    const h = await docked({ native: false, physicalFollow: true, roll: 0.5 });
+
+    await h.comeAlong.onStage({ x: 300, y: 100, width: 400, height: 600, scale: 1.5 });
+
+    // The slot's right edge, 700 pt × 1.5 = 1050 px, less her 800-px window at scale 2.
+    expect(h.setPositionPhysical).toHaveBeenCalledExactlyOnceWith(250, 150);
+  });
+
+  it.each([
     ["a vanish", { x: 1500, y: 80 }, false, 'land {"x":200,"y":600}'],
     ["a fade", { x: 1300, y: 80 }, true, "appear"],
   ])("snaps an edge clip's pin while she is hidden in %s", async (_, at, reduced, shown) => {
@@ -759,6 +896,8 @@ describe("createComeAlong", () => {
 
     expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, release);
     expect(h.playMotion).not.toHaveBeenCalled();
+    // Her window's return to the centre runs for edge_release_ms.
+    h.tick(600);
     expect(h.ticks.size).toBe(0);
   });
 
@@ -813,6 +952,7 @@ describe("createComeAlong", () => {
     h.tick(10);
 
     expect(h.playMotion.mock.calls).toEqual([[null]]);
+    h.tick(600);
     expect(h.ticks.size).toBe(0);
   });
 
@@ -874,12 +1014,14 @@ describe("createComeAlong", () => {
     ["no probe gives her height", { charHpx: null }],
     ["the renderer refuses the pin", { pinAccepted: false }],
   ])("plays an edge clip unpinned when %s", async (_, opts) => {
-    const h = await docked({ roll: 0.5, ...opts });
+    const h = await docked({ roll: 0.5, size: { width: 827, height: 1022 }, ...opts }, wideSlot);
     h.setCurrent("idle");
     h.tick(10);
 
     expect(h.playMotion).toHaveBeenLastCalledWith({ id: "peek_in" });
     expect(h.setPeekTarget).not.toHaveBeenCalledWith(null, expect.anything());
+    // Unpinned, her window stays centred on the slot.
+    expect([h.real.x, h.real.y]).toEqual([71, -264]);
   });
 
   it("snaps the pin when a drag or an agent move takes her mid-carry", async () => {

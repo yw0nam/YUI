@@ -1174,7 +1174,7 @@ globalThis.YUI_MAP =
       "id": "ui/surfaces",
       "module": "display",
       "label": "surfaces",
-      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet.",
+      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet. In the pet window, the chip column moves up to end 8px above a shown Ask card or bubble, the rows that still do not fit, never urgent signal chips, fold into one \"+N\" row, and the column fades out while the Character menu is open.",
       "paths": [
         "src/ui/surfaces"
       ]
@@ -1219,7 +1219,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chips (urgent ones a row each, the batched ones one row whose \"+N\" unfolds the rest in a scroll region) and their details sheet, and the voice-input status model; each chip row carries its count for the chip column.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1256,7 +1256,7 @@ globalThis.YUI_MAP =
       "id": "ui/character-menu",
       "module": "display",
       "label": "character menu",
-      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge; a list replaces its column in place with Back, Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; Esc, a click outside it or another app closes it, and only its pills take the pointer.",
+      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge, under one top set at open from the tallest list; Body and Voice show at most five options with the current one, then More…; a list replaces its column in place with Back (a mouse swap crossfades the two columns), Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; the columns enter from her chest; Esc or a closing pick closes it at once, a click outside it or another app sends it back toward her chest, which a reopen takes back, and only its pills take the pointer.",
       "paths": [
         "src/ui/character-menu"
       ]
@@ -1265,7 +1265,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, and its slot rect, also while hidden) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, its count for the chip column, and its slot rect, also while hidden or capped) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1448,7 +1448,7 @@ globalThis.YUI_MAP =
       "id": "app/character-menu",
       "module": "wiring",
       "label": "character menu wiring",
-      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
+      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame, grown upward when the columns, shifted up above the window or work-area bottom, would start less than 8px below its top, with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
       "paths": [
         "src/app/character-menu"
       ]
@@ -2333,6 +2333,51 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
+    },
+    {
+      "id": "chip-column-chips",
+      "from": "ui/chips",
+      "to": "ui/surfaces",
+      "carries": "the signal chips' row roots with data-chip-count and, on urgent ones, data-chip-urgent, and the delegation chip's root with data-chip-count → the chip column's plan, which caps the rows that do not fit with is-capped",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-threads",
+      "from": "ui/threads",
+      "to": "ui/surfaces",
+      "carries": "the Threads chip's root with data-chip-count → the chip column's plan; slotRect lifts is-capped for its one read",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-bubble",
+      "from": "ui/message",
+      "to": "ui/surfaces",
+      "carries": "the bubble's is-visible, hidden and style, and its box → the chip column ends 8px above it while it shows and has not stepped aside",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-ask",
+      "from": "ui/ask",
+      "to": "ui/surfaces",
+      "carries": "the Ask card's hidden and its box → the chip column ends 8px above it while it shows",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "chip-column-menu",
+      "from": "ui/character-menu",
+      "to": "ui/surfaces",
+      "carries": "the menu root, mounted in the surfaces overlay, shown → surfaces.css's :has rule fades the chip column out over 140 ms and the overlay hit targets drop its chips, until the root hides",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "feed-tool",
@@ -3575,7 +3620,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-widen",
       "from": "app/character-menu",
       "to": "app/stage",
-      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via) parks the travel frame over her position and the via origins; travel.end() then hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort when an agent move ends the widen",
+      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via) parks the travel frame over her position and the via origins, which sit above her window when the menu grows it upward; travel.end() then hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort when an agent move ends the widen",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3951,7 +3996,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; the arrival docks centred on the slot, or with her window's right edge on the slot's when the chosen entry is an edge entry, and placement keeps that aligned origin while its pin holds; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3960,7 +4005,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
+      "carries": "onTick drives the pickup hold, the carry, the pin release and, on the renderer's release curve, her eased return from the aligned to the centred dock origin, whose frame-window writes belong to placement; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -3969,7 +4014,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible; getPerchProbe() for her height and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
+      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible; getPerchProbe() for her height and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it after a resize while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"

@@ -74,29 +74,74 @@ describe("createSignalChips", () => {
   const chipEls = () => [...mount.querySelectorAll<HTMLElement>(".yui-sigchip")];
   const opener = (i: number) =>
     chipEls()[i]!.querySelector<HTMLButtonElement>(".yui-sigchip__open")!;
+  const srcOf = (chip: HTMLElement) => chip.querySelector(".yui-sigchip__src")!.textContent;
   const click = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   const press = (el: Element, type: "pointerdown" | "pointerup") =>
     el.dispatchEvent(new Event(type, { bubbles: true }));
 
-  it("shows three chips and a +2 pill for five, newest first, and +2 expands in place", () => {
-    build([1, 2, 3, 4, 5].map((n) => group(n)));
+  it("urgent chips keep a row each and the batched ones share one +N row that expands in place", () => {
+    build([
+      group(1),
+      group(2),
+      group(3),
+      group(4, { delivery: "urgent" }),
+      group(5, { delivery: "urgent" }),
+    ]);
 
-    expect(chipEls()).toHaveLength(3);
-    expect(chipEls()[0]!.querySelector(".yui-sigchip__src")!.textContent).toBe("src5");
-    expect(chipEls()[0]!.querySelector(".yui-sigchip__text")!.textContent).toBe("label 5");
-    const more = mount.querySelector<HTMLButtonElement>(".yui-sigchip__more")!;
+    expect(chipEls().map(srcOf)).toEqual(["src5", "src4", "src3"]);
+    expect(chipEls().map((c) => [c.dataset.chipCount, c.hasAttribute("data-chip-urgent")])).toEqual(
+      [
+        ["1", true],
+        ["1", true],
+        ["3", false],
+      ],
+    );
+    const grouped = chipEls()[2]!;
+    const more = grouped.querySelector<HTMLButtonElement>(".yui-sigchip__more")!;
     expect(more.textContent).toBe("+2");
+    expect(more.getAttribute("aria-label")).toBe("Show 2 more signals");
+    expect(opener(2).getAttribute("aria-label")).toBe(
+      "Batched signal from src3: label 3. Show 2 more signals",
+    );
     expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(grouped.querySelector<HTMLButtonElement>(".yui-sigchip__x")!.hidden).toBe(true);
 
     click(more);
 
-    expect(chipEls()).toHaveLength(5);
-    expect(more.getAttribute("aria-expanded")).toBe("true");
+    const region = mount.querySelector<HTMLElement>(".yui-sigchips__batched")!;
+    expect([...region.querySelectorAll<HTMLElement>(".yui-sigchip")].map(srcOf)).toEqual([
+      "src3",
+      "src2",
+      "src1",
+    ]);
+    expect(region.dataset.chipCount).toBe("3");
+    expect(opener(2).getAttribute("aria-label")).toBe("Batched signal from src3: label 3");
+    expect(region.querySelectorAll("[data-chip-count]")).toHaveLength(0);
+    expect(region.lastElementChild).toBe(more);
     expect(more.textContent).toBe("Collapse");
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(opener(3));
+
     click(more);
-    expect(chipEls()).toHaveLength(3);
-    expect(more.getAttribute("aria-expanded")).toBe("false");
+
+    expect(chipEls().map(srcOf)).toEqual(["src5", "src4", "src3"]);
     expect(more.textContent).toBe("+2");
+    expect(document.activeElement).toBe(more);
+  });
+
+  it("every urgent chip shows outside the scroll region, ten of them included", () => {
+    build([
+      group(1),
+      group(2),
+      ...[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => group(n, { delivery: "urgent" })),
+    ]);
+    click(mount.querySelector(".yui-sigchip__more")!);
+
+    const root = mount.querySelector(".yui-sigchips")!;
+    expect(root.querySelectorAll(":scope > .yui-sigchip--urgent")).toHaveLength(10);
+    expect(
+      [...mount.querySelectorAll<HTMLElement>(".yui-sigchips__batched .yui-sigchip")].map(srcOf),
+    ).toEqual(["src2", "src1"]);
   });
 
   it("the chip shows the event type when the group has no label, and the urgent class", () => {
@@ -107,7 +152,7 @@ describe("createSignalChips", () => {
   });
 
   it("the cross dismisses its chip", () => {
-    const { model } = build([group(1), group(2)]);
+    const { model } = build([group(1), group(2, { delivery: "urgent" })]);
 
     click(chipEls()[0]!.querySelector(".yui-sigchip__x")!);
 
@@ -157,7 +202,7 @@ describe("createSignalChips", () => {
   });
 
   it("the details say Did not speak while nothing was said, and shows one sheet at a time", () => {
-    build([group(1), group(2)]);
+    build([group(1), group(2, { delivery: "urgent" })]);
 
     click(opener(0));
     expect(mount.querySelector(".yui-sigdetails__said")!.textContent).toBe("Did not speak");
@@ -204,10 +249,10 @@ describe("createSignalChips", () => {
     expect(mount.querySelector(".yui-sigdetails")).toBeNull();
   });
 
-  it("a history update keeps each chip's element, so focus and the pulse survive", () => {
-    build([group(1), group(2)]);
-    const before = chipEls();
-    opener(0).focus();
+  it("a history update and a new signal keep each chip's element, so focus and the pulse survive", () => {
+    const { model } = build([group(1), group(2), group(3, { delivery: "urgent" })]);
+    const [urgent, grouped] = chipEls();
+    opener(1).focus();
 
     history.rows = [
       {
@@ -222,20 +267,28 @@ describe("createSignalChips", () => {
       },
     ];
     for (const cb of history.subs) cb();
+    model.add(group(4, { delivery: "urgent" }));
 
-    expect(chipEls()[0]!.isSameNode(before[0]!)).toBe(true);
-    expect(chipEls()[1]!.isSameNode(before[1]!)).toBe(true);
-    expect(document.activeElement).toBe(opener(0));
+    expect(chipEls().map(srcOf)).toEqual(["src4", "src3", "src2"]);
+    expect([chipEls()[1]!.isSameNode(urgent!), chipEls()[2]!.isSameNode(grouped!)]).toEqual([
+      true,
+      true,
+    ]);
+    expect(document.activeElement).toBe(grouped!.querySelector(".yui-sigchip__open"));
   });
 
-  it("a new signal adds one chip and leaves the others' elements alone", () => {
-    const { model } = build([group(1)]);
-    const first = chipEls()[0]!;
+  it("a second batched signal turns the single chip into the grouped row, urgent chips untouched", () => {
+    const { model } = build([group(1, { delivery: "urgent" }), group(2)]);
+    const urgent = chipEls()[0]!;
+    expect(chipEls()[1]!.dataset.chipCount).toBe("1");
+    expect(chipEls()[1]!.querySelector(".yui-sigchip__more")).toBeNull();
 
-    model.add(group(2));
+    model.add(group(3));
 
-    expect(chipEls()).toHaveLength(2);
-    expect(chipEls()[1]!.isSameNode(first)).toBe(true);
+    expect(chipEls().map(srcOf)).toEqual(["src1", "src3"]);
+    expect(chipEls()[0]!.isSameNode(urgent)).toBe(true);
+    expect(chipEls()[1]!.dataset.chipCount).toBe("2");
+    expect(chipEls()[1]!.querySelector(".yui-sigchip__more")!.textContent).toBe("+1");
   });
 
   it("the details take focus on the close button and give it back to the chip without scrolling", () => {

@@ -11,6 +11,7 @@ import { isWaiting } from "../../../io/threads/threads-waiting";
 import type { DelegationChipSettingsStore } from "../../../settings/panels/delegation-chip-settings";
 import { holdToFold } from "../../chips/hold-to-fold";
 import { subscribe as subscribeLocale, t } from "../../i18n";
+import { CAPPED } from "../../surfaces/chip-column";
 import { threadSource } from "../thread-source";
 
 const MAX_MARKS = 3;
@@ -22,7 +23,7 @@ export interface ThreadsChip {
   updateRequests(requests: AccessRequest[]): void;
   /** Whether the window is open; the chip hides while it is. */
   setWindowOpen(open: boolean): void;
-  /** The chip's rect in this window's viewport: where it is shown, or the slot it would take while hidden. */
+  /** The chip's rect in this window's viewport: where it is shown, or the slot it would take while hidden or capped. */
   slotRect(): ScreenRect;
   dispose(): void;
 }
@@ -82,6 +83,7 @@ export function createThreadsChip({
     labelEl.textContent = t("threads.chip_label");
     countEl.textContent = String(n);
     el.setAttribute("aria-label", t("threads.chip_aria", { n }));
+    el.dataset.chipCount = String(n);
     el.hidden = n === 0 || windowOpen;
   }
 
@@ -136,13 +138,17 @@ export function createThreadsChip({
       render();
     },
     slotRect() {
-      if (!el.hidden) return rect();
-      // Laid out but invisible for one synchronous read; nothing paints before it is hidden again.
+      const { hidden } = el;
+      const capped = el.classList.contains(CAPPED);
+      if (!hidden && !capped) return rect();
+      // Laid out but invisible for one synchronous read; nothing paints before it is put back.
       el.hidden = false;
+      el.classList.remove(CAPPED);
       el.classList.add("is-measuring");
       const slot = rect();
       el.classList.remove("is-measuring");
-      el.hidden = true;
+      el.classList.toggle(CAPPED, capped);
+      el.hidden = hidden;
       return slot;
     },
     dispose() {

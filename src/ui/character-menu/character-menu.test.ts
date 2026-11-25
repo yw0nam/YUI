@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("./character-menu.css", () => ({}));
 
 import { setLocale } from "../i18n";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createCharacterMenu } from "./character-menu";
 import type { MenuState } from "./items";
 
@@ -18,6 +19,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   for (const menu of menus.splice(0)) menu.dispose();
+  vi.useRealTimers();
 });
 
 function build(over: Partial<MenuState> = {}) {
@@ -74,7 +76,7 @@ function build(over: Partial<MenuState> = {}) {
     },
   });
   menus.push(menu);
-  return { menu, actions, restore, order, blur: () => blur() };
+  return { menu, actions, restore, order, state, blur: () => blur() };
 }
 
 const labels = (side: "left" | "right") =>
@@ -86,6 +88,17 @@ const click = (id: string) => pill(id)?.click();
 const focused = () => document.activeElement?.closest("[data-id]")?.getAttribute("data-id") ?? null;
 const press = (key: string) =>
   document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+const menuRoot = () => mount.querySelector<HTMLElement>(".yui-cmenu")!;
+const outside = () =>
+  document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+const leaving = () => [...mount.querySelectorAll<HTMLElement>(".yui-cmenu__col.is-leaving")];
+// A mouse click, which carries a click count; Enter and Space click a button with none.
+const tap = (id: string) =>
+  mount
+    .querySelector(`.yui-cmenu__col:not(.is-leaving) [data-id="${id}"]`)
+    ?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+const opacityEnded = (el: Element) =>
+  el.dispatchEvent(Object.assign(new Event("transitionend"), { propertyName: "opacity" }));
 
 it("opens with focus on Talk and her name above her", async () => {
   const { menu } = build();
@@ -111,6 +124,23 @@ it("replaces the left column in place with a list and Back, and Back returns to 
   click("back");
   expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
   expect(focused()).toBe("body");
+});
+
+it("keeps the five bodies it opened with until it closes, a pick only moving the check", async () => {
+  const bodies = Array.from({ length: 30 }, (_, i) => ({ id: `o${i + 1}`, label: `O${i + 1}` }));
+  const { menu, actions, state } = build({ bodies, body: "o30" });
+  actions.body.mockImplementation((id: string) => {
+    state.body = id;
+  });
+  await menu.open();
+
+  click("body");
+  click("body:o2");
+  click("body");
+
+  // O5 was never drawn, so it was never measured either.
+  expect(labels("left")).toEqual(["Back", "O1", "O2", "O3", "O4", "O30", "More…"]);
+  expect(pill("body:o2")?.getAttribute("aria-checked")).toBe("true");
 });
 
 it("asks before Reset chat with focus on Cancel, and a confirmed reset keeps More open", async () => {
@@ -152,15 +182,111 @@ it.each([
     () => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
   ],
   ["focus leaving the window", (blur: () => void) => blur()],
-])("closes on %s", async (_name, leave) => {
+])("leaves on %s, shown until its exit ends, then restores the window once", async (_name, leave) => {
   const { menu, restore, blur } = build();
   await menu.open();
-  expect(menu.isOpen()).toBe(true);
+  vi.useFakeTimers();
 
   leave(blur);
 
-  await vi.waitFor(() => expect(restore).toHaveBeenCalledOnce());
+  expect(menuRoot().hidden).toBe(false);
+  expect(restore).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(menuRoot().hidden).toBe(true);
+  expect(mount.querySelector(".yui-cmenu__pill")).toBeNull();
+  expect(restore).toHaveBeenCalledOnce();
   expect(menu.isOpen()).toBe(false);
+});
+
+it.each([
+  ["Esc", () => press("Escape")],
+  ["a closing pick", () => click("settings")],
+])("closes at once on %s and restores the window at once", async (_name, act) => {
+  const { menu, restore } = build();
+  await menu.open();
+
+  act();
+
+  expect(menuRoot().hidden).toBe(true);
+  expect(restore).toHaveBeenCalledOnce();
+});
+
+it("takes the menu back when it is opened again during its exit", async () => {
+  const { menu, restore } = build();
+  await menu.open();
+  vi.useFakeTimers();
+  outside();
+  const columns = [...mount.querySelectorAll(".yui-cmenu__col")];
+
+  await menu.open();
+
+  expect(menuRoot().hidden).toBe(false);
+  expect(menuRoot().classList.contains("is-closing")).toBe(false);
+  expect(mount.querySelectorAll(".is-out")).toHaveLength(0);
+  // The cancelled exit's transitions end late, and its fallback timer passes.
+  for (const column of columns) opacityEnded(column);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(menu.isOpen()).toBe(true);
+  expect(restore).not.toHaveBeenCalled();
+});
+
+it("closes at once and restores once when an agent move ends it during its exit", async () => {
+  const { menu, restore } = build();
+  await menu.open();
+  vi.useFakeTimers();
+  outside();
+  expect(menuRoot().hidden).toBe(false);
+
+  void menu.close();
+
+  expect(menuRoot().hidden).toBe(true);
+  expect(restore).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(restore).toHaveBeenCalledOnce();
+});
+
+it("keeps the old column inert and out of reach while a list swap crossfades, until its exit ends", async () => {
+  const { menu } = build();
+  await menu.open();
+
+  tap("more");
+
+  const [old] = leaving();
+  expect(leaving()).toHaveLength(1);
+  expect(old!.hasAttribute("inert")).toBe(true);
+  expect([...old!.querySelectorAll<HTMLElement>("[data-id]")].map((e) => e.dataset.id)).toEqual([
+    "body",
+    "voice",
+    "pace",
+    "more",
+  ]);
+  const targets = INTERACTIVE_OVERLAY_SELECTORS.flatMap((s) => [...mount.querySelectorAll(s)]);
+  expect(targets.filter((el) => old!.contains(el))).toEqual([]);
+  expect(focused()).toBe("threads");
+
+  // A second swap within the exit drops the first old column at once.
+  tap("back");
+  expect(leaving().map((c) => c.dataset.list)).toEqual(["more"]);
+  expect(focused()).toBe("more");
+
+  opacityEnded(leaving()[0]!);
+  expect(leaving()).toEqual([]);
+});
+
+it("acts on the incoming column when Enter picks during a swap, with no crossfade", async () => {
+  const { menu, actions } = build();
+  await menu.open();
+  tap("body");
+  expect(leaving()).toHaveLength(1);
+  expect(focused()).toBe("body:yui");
+
+  // Enter on the focused pill clicks it.
+  (document.activeElement as HTMLElement).click();
+
+  expect(actions.body).toHaveBeenCalledExactlyOnceWith("yui");
+  expect(leaving()).toEqual([]);
+  expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
+  expect(focused()).toBe("body");
 });
 
 it("marks an ON toggle with the On text, and its pick keeps the menu open", async () => {
