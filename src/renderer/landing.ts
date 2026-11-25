@@ -15,9 +15,13 @@ const FRAMES: Keyframe[] = [
 export function createLanding(
   canvas: HTMLElement,
   getSeatPx: () => { x: number; y: number } | null,
-): () => Promise<void> {
+): {
+  land(origin?: { x: number; y: number } | null): Promise<void>;
+  vanish(): Promise<void>;
+  appear(): Promise<void>;
+} {
   let running: Animation | null = null;
-  return async () => {
+  const land = async () => {
     if (running) {
       running.cancel();
       running = null;
@@ -41,4 +45,5 @@ export function createLanding(
     running = null;
     canvas.style.transformOrigin = "";
   };
+  return { land, vanish: async () => {}, appear: async () => {} };
 }

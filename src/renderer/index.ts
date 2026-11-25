@@ -346,7 +346,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       alphaHitTest.setThreshold(threshold);
     },
     getPerchProbe: probes.getPerchProbe,
-    land: createLanding(renderer.domElement, () => probes.getPerchProbe()?.seatPx ?? null),
+    land: createLanding(renderer.domElement, () => probes.getPerchProbe()?.seatPx ?? null).land,
     getTapPoints: probes.getTapPoints,
     getHandAnchors: probes.getHandAnchors,
     setPerchTarget(target) {

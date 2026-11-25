@@ -12,3 +12,7 @@ const MAX_PIXEL_RATIO = 2;
 export function clampPixelRatio(devicePixelRatio: number): number {
   return Math.min(devicePixelRatio, MAX_PIXEL_RATIO);
 }
+
+export function watchPixelRatio(_onChange: (ratio: number) => void): () => void {
+  return () => {};
+}
