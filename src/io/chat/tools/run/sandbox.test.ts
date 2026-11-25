@@ -76,7 +76,10 @@ describe("runScript", () => {
   it.each([
     ["await new Promise(() => {})", "the script awaited something that never settles"],
     ["const f = () => f(); f()", "InternalError: stack overflow"],
-    ["return new ArrayBuffer(40e6).byteLength", "InternalError: out of memory"],
+    [
+      "const a = []; for (let i = 0; i < 40; i++) a.push(new Uint8Array(4e6))",
+      "InternalError: out of memory",
+    ],
     ["await yui.fail()", "Error: nope"],
     ['return "x".repeat(70000)', "result too large"],
     ['for (let i = 0; i < 100; i++) console.log("x".repeat(1000))', "result too large"],
