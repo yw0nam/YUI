@@ -367,7 +367,12 @@ export interface TriggerMeta {
   mention?: "character" | "everyone";
   cue?: CueMeta;
   /** time_milestone.* — a once-per-day client clock fact. */
-  milestone?: { name: string; local_time: string };
+  milestone?: {
+    name: string;
+    local_time: string;
+    /** first_activity only: the user's previous presence, epoch ms; null before the first record. */
+    last_together?: number | null;
+  };
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
   /** addressed.* — another open character's reply named this character through address_character. */

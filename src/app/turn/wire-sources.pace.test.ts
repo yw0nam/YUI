@@ -91,6 +91,7 @@ function wireWithPaceFactor(paceFactor: () => number) {
     onUserTurnRouted: () => () => {},
     submitUser: vi.fn(),
     selfPresetId: "natsume",
+    lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
   });
   const stop = (): void => {
     for (const source of [

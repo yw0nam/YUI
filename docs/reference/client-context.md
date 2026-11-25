@@ -133,7 +133,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 8. `tool switches`
 9. `previous turn`
 10. `overheard`
-11. One or more `trigger:`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
+11. One or more `trigger:`, `last together`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
 12. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
@@ -604,10 +604,13 @@ On Chat Completions and Responses, the receiver's request carries the background
 
 ```text
 trigger: milestone first_activity (fired at 08:12)
+last together: 2026-09-10 22:03 (10h ago)
 signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":"standup","at":"09:30"}
 ```
 
 `time_milestone.first_activity` fires once per local day. It fires on the first `os_idle_tick` that finds the user present, with the schedule setting enabled. The headline names the milestone and the local clock time it fired at.
+
+The `last together:` line follows on `first_activity` when a presence was recorded before it. It names the local `YYYY-MM-DD HH:MM` of that presence and its age. The source stores it in `yui.last-together` on present ticks, at most once a minute.
 
 The day key is latched in `yui.milestone-fired`. So a same-day restart fires nothing. An app left running overnight fires again on the first present tick after midnight.
 

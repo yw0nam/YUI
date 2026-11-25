@@ -1,9 +1,11 @@
 //! Startup work run once the app is built, before the first window event.
 
-use crate::{app_log, os_event_watcher, turn_log, voice_import, window_frame};
+use crate::{app_log, os_event_watcher, process_state, turn_log, voice_import, window_frame};
 use tauri::{App, Manager};
 
 pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    process_state::record_started_at();
+
     // Lets the pet window cross onto a lower-scale monitor mid-move instead of
     // being clamped to whichever screen its frame still overlaps.
     if let Some(main) = app.get_webview_window("main") {

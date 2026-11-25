@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SignalGroup } from "../../../contract";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import type { PersistedStorage } from "../../../settings/persisted-store";
+import type { LastTogetherStore } from "../../../settings/presence/last-together-settings";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 import { createMilestoneSource } from "./milestone-source";
 
@@ -52,6 +53,20 @@ function fakeListen(): {
 
 function idleTick(os_idle_ms: number | null | undefined, ts = 0): OsEventPayload {
   return { event_name: "os_idle_tick", ts, data: { os_idle_ms } };
+}
+
+function fakeLastTogether(initial: { at: number | null } = { at: null }): {
+  store: Pick<LastTogetherStore, "get" | "record">;
+  saved: number[];
+} {
+  const saved: number[] = [];
+  const store: Pick<LastTogetherStore, "get" | "record"> = {
+    get: () => ({ at: saved.at(-1) ?? initial.at }),
+    record: (now) => {
+      saved.push(now);
+    },
+  };
+  return { store, saved };
 }
 
 function fakeFiredStorage(initial: Record<string, string> = {}): {
@@ -96,6 +111,7 @@ describe("milestone_source — first present tick of the day", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -114,6 +130,7 @@ describe("milestone_source — first present tick of the day", () => {
         payload: {
           name: "first_activity",
           local_time: "08:12",
+          last_together: null,
           signals: groups,
         },
       },
@@ -133,6 +150,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -157,6 +175,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -179,6 +198,7 @@ describe("milestone_source — once-per-day latch", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: storage,
@@ -208,6 +228,7 @@ describe("milestone_source — bus rejection", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: storage,
@@ -238,6 +259,7 @@ describe("milestone_source — drained groups", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,
@@ -248,7 +270,11 @@ describe("milestone_source — drained groups", () => {
 
     emit(idleTick(500));
 
-    expect(pushed[0].payload).toEqual({ name: "first_activity", local_time: "08:12" });
+    expect(pushed[0].payload).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: null,
+    });
   });
 
   it("still fires, without signals, when the drain throws", async () => {
@@ -260,6 +286,7 @@ describe("milestone_source — drained groups", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: fakeFiredStorage().storage,
@@ -271,7 +298,148 @@ describe("milestone_source — drained groups", () => {
     expect(() => emit(idleTick(500))).not.toThrow();
     expect(drainSignals).toHaveBeenCalledTimes(1);
     expect(pushed).toHaveLength(1);
-    expect(pushed[0].payload).toEqual({ name: "first_activity", local_time: "08:12" });
+    expect(pushed[0].payload).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: null,
+    });
+  });
+});
+
+describe("milestone_source — last together", () => {
+  it("carries the stored at from before this tick on the fired payload", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const storedAt = at(2026, 5, 14, 22, 3);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      lastTogether: fakeLastTogether({ at: storedAt }).store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => at(2026, 5, 15, 8, 12),
+    });
+    await src.start();
+
+    emit(idleTick(500));
+
+    expect(pushed[0].payload).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: storedAt,
+    });
+  });
+
+  it("fires with last_together null when nothing is stored yet", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      lastTogether: fakeLastTogether().store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => at(2026, 5, 15, 8, 12),
+    });
+    await src.start();
+
+    emit(idleTick(500));
+
+    expect(pushed[0].payload).toEqual({
+      name: "first_activity",
+      local_time: "08:12",
+      last_together: null,
+    });
+  });
+
+  it("records on present ticks and not on absent ticks", async () => {
+    const { bus } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const { store, saved } = fakeLastTogether();
+    let t = at(2026, 5, 15, 8, 12);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      lastTogether: store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    t += 30_000;
+    emit(idleTick(500));
+    t += 31_000;
+    emit(idleTick(500));
+    emit(idleTick(PRESENT_MAX + 1));
+    emit(idleTick(null));
+
+    expect(saved).toEqual([
+      at(2026, 5, 15, 8, 12),
+      at(2026, 5, 15, 8, 12) + 30_000,
+      at(2026, 5, 15, 8, 12) + 61_000,
+    ]);
+  });
+
+  it("carries the day's pre-write at when the first push is rejected and retried", async () => {
+    let accepted = false;
+    const { bus, pushed } = fakeBus(() => accepted);
+    const { listen, emit } = fakeListen();
+    const storedAt = at(2026, 5, 14, 22, 3);
+    const { store } = fakeLastTogether({ at: storedAt });
+    let t = at(2026, 5, 15, 8, 12);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      lastTogether: store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    accepted = true;
+    t = at(2026, 5, 15, 8, 30);
+    emit(idleTick(500));
+
+    expect(pushed[1].payload?.last_together).toBe(storedAt);
+  });
+
+  it("carries the day's pre-write at when the schedule turns on mid-day", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const storedAt = at(2026, 5, 14, 22, 3);
+    const { store } = fakeLastTogether({ at: storedAt });
+    let enabled = false;
+    let t = at(2026, 5, 15, 8, 0);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => enabled,
+      drainSignals: () => [],
+      lastTogether: store,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    enabled = true;
+    t = at(2026, 5, 15, 11, 0);
+    emit(idleTick(500));
+
+    expect(pushed[0].payload?.last_together).toBe(storedAt);
   });
 });
 
@@ -291,6 +459,7 @@ describe("milestone_source — presence gate", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals,
       firedStorage: storage,
@@ -315,6 +484,7 @@ describe("milestone_source — enable gate", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => false,
       drainSignals,
       firedStorage: storage,
@@ -337,6 +507,7 @@ describe("milestone_source — lifecycle", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,
@@ -354,6 +525,7 @@ describe("milestone_source — lifecycle", () => {
     const src = createMilestoneSource({
       bus,
       present_max_idle_ms: PRESENT_MAX,
+      lastTogether: fakeLastTogether().store,
       isEnabled: () => true,
       drainSignals: () => [],
       firedStorage: fakeFiredStorage().storage,

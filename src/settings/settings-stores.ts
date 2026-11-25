@@ -60,6 +60,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "./persisted-store";
+import { createLastTogetherSettings } from "./presence/last-together-settings";
 import { createRelationsSwitch } from "./relations/relations-switch";
 import {
   createThreadReactionThresholdsSettings,
@@ -223,6 +224,9 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const relationsSwitch = createRelationsSwitch();
   // Unified chat window on/off. Default OFF. Device-wide: main opens it while two or more presets are open.
   const unifiedChatSwitch = createUnifiedChatSwitch();
+  // The user's last presence (epoch ms) for the milestone payload and yui.state. Each pet window
+  // records its own present ticks, so it stays local: no broadcast per minute.
+  const lastTogetherSettings = createLastTogetherSettings();
 
   return {
     screenshotSettings,
@@ -268,6 +272,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     expressMotionSettings,
     relationsSwitch,
     unifiedChatSwitch,
+    lastTogetherSettings,
   };
 }
 
@@ -327,6 +332,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   expressMotionSettings: "broadcast",
   relationsSwitch: "broadcast",
   unifiedChatSwitch: "broadcast",
+  lastTogetherSettings: "local",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use tauri::command;
 use xcap::image::{ImageBuffer, Rgba};
 
+#[cfg(target_os = "macos")]
+use core_graphics::access::ScreenCaptureAccess;
+
 // ─── Serialisable DTOs ────────────────────────────────────────────────────────
 
 /// One available display source returned to the webview.
@@ -55,6 +58,33 @@ fn build_screen_source<E: std::fmt::Display>(
         height: height.unwrap_or(0),
         is_primary: is_primary.unwrap_or(false),
     }
+}
+
+// ─── Screen Recording permission ───────────────────────────────────────────────
+
+/// `granted`/`denied` from the macOS preflight; `unknown` where no preflight API exists.
+fn permission_of(preflight: Option<bool>) -> &'static str {
+    match preflight {
+        Some(true) => "granted",
+        Some(false) => "denied",
+        None => "unknown",
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn screen_capture_preflight() -> Option<bool> {
+    Some(ScreenCaptureAccess.preflight())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn screen_capture_preflight() -> Option<bool> {
+    None
+}
+
+/// The Screen Recording permission state, so the backend asks before wasting a capture.
+#[command]
+pub fn screen_recording_permission() -> &'static str {
+    permission_of(screen_capture_preflight())
 }
 
 // ─── Tauri commands ───────────────────────────────────────────────────────────
@@ -223,5 +253,22 @@ mod tests {
         assert_eq!(v["width"], 2560);
         assert_eq!(v["height"], 1600);
         assert_eq!(v["isPrimary"], true);
+    }
+
+    // ── screen_recording_permission ──────────────────────────────────────────
+
+    #[test]
+    fn screen_recording_permission_maps_preflight_to_the_webview_states() {
+        assert_eq!(permission_of(Some(true)), "granted");
+        assert_eq!(permission_of(Some(false)), "denied");
+        // The off-macOS branch feeds None — no preflight API exists there to ask.
+        assert_eq!(permission_of(None), "unknown");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn screen_capture_preflight_is_none_off_macos() {
+        assert_eq!(screen_capture_preflight(), None);
+        assert_eq!(screen_recording_permission(), "unknown");
     }
 }

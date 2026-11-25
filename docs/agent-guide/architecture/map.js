@@ -498,7 +498,8 @@ globalThis.YUI_MAP =
         "src-tauri/src/lib.rs",
         "src-tauri/src/plugins.rs",
         "src-tauri/src/setup.rs",
-        "src-tauri/src/commands.rs"
+        "src-tauri/src/commands.rs",
+        "src-tauri/src/process_state.rs"
       ]
     },
     {

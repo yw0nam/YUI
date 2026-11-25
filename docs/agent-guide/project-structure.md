@@ -359,6 +359,8 @@ YUI/
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
+      presence/                      # The user's last presence
+        last-together-settings.ts    # The device-wide last present tick under yui.last-together, written at most once a minute; the milestone payload's last_together reads it
       avatar/                        # Camera, motion, and lip-sync
         camera-settings.ts           # Camera zoom and orbit viewpoint
         camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
@@ -1017,13 +1019,14 @@ YUI/
       plugins.rs                     # Plugin registration
       setup.rs                       # Startup work: log sink, turn-record log, import sweep, MCP host, OS watcher, tray
       commands.rs                    # IPC command table
+      process_state.rs               # Process facts the webview reads: app_started_at, the epoch ms setup records once
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       threads_window.rs              # The Threads window's native window number, and threads_order_front: an order-front that takes no focus
       window_dock.rs                 # A pet window's native child link into its own settings window (macOS), unlinked on that window's close or miniaturize and the tray's hide
       passthrough.rs                 # Click-through toggle over the transparent overlay
-      screenshot.rs                  # Screen-source enumeration and off-thread display capture
+      screenshot.rs                  # Screen-source enumeration, off-thread display capture, and the Screen Recording permission preflight
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
       mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
         mod.rs                       # The host's behaviour, its setup, and the window and run event hooks
