@@ -79,11 +79,31 @@
     "flight_timeout_ms": 4000
   },
   "stage": {
-    "walk_ms": 600,
-    "walk_extra_ms": 300,
-    "walk_full_pt": 1200,
+    "carry_ms": 600,
+    "carry_extra_ms": 300,
+    "carry_full_pt": 1200,
     "stay_chance": 0.6,
-    "emotion_decay_min": 30
+    "emotion_decay_min": 30,
+    "entry_families": {
+      "glad": {
+        "emotions": ["happy", "surprised"],
+        "clips": ["excited", "wave_1", "peek_in", "gaow"]
+      },
+      "plain": {
+        "emotions": ["neutral", "relaxed", "curious", "thinking"],
+        "clips": ["wave_3", "bow", "peek_in", "calm", "peek"]
+      },
+      "glum": {
+        "emotions": ["sad", "sleepy", "embarrassed"],
+        "clips": ["yawn", "idle_10"]
+      }
+    },
+    "edge_entries": {
+      "peek_in": { "inset": 0.06 },
+      "peek": { "inset": 0.12, "play_ms": 11500 }
+    },
+    "edge_release_ms": 600,
+    "pickup_hold_ms": 200
   },
   "drag_hold_ms": 5000,
   "gesture_cues": {

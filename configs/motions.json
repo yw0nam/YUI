@@ -205,13 +205,26 @@
     "priority": 70,
     "interrupt_policy": "replace"
   },
-  "wave": {
+  "wave_1": {
     "vrma_path": "/motions/wave_01.vrma",
-    "variants": [
-      "/motions/wave_01.vrma",
-      "/motions/wave_02.vrma"
-    ],
-    "variant_policy": "random",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "wave_3": {
+    "vrma_path": "/motions/wave_02.vrma",
+    "grounded": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 70,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "idle_10": {
+    "vrma_path": "/motions/idle_10.vrma",
     "grounded": true,
     "kind": "oneshot",
     "loop": false,

@@ -380,6 +380,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       renderer,
       hitTest,
       getStageConfig: () => config.get().avatar.stage,
+      getMotionKind: (id) => config.get().motions[id]?.kind,
       register,
     });
 

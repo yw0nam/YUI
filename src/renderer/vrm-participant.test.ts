@@ -178,12 +178,12 @@ describe("buildVrmParticipants", () => {
   });
 
   describe("pins participant", () => {
-    it("step forwards to pins.step(camera) — the exact camera reference, not ctx", () => {
+    it("step forwards to pins.step(camera, ctx.dt) — the exact camera reference, not ctx", () => {
       const deps = makeDeps();
       const [pinsParticipant] = buildVrmParticipants(deps);
       pinsParticipant.step(ctx);
       expect(deps.pins.step).toHaveBeenCalledTimes(1);
-      expect(deps.pins.step).toHaveBeenCalledWith(deps.camera);
+      expect(deps.pins.step).toHaveBeenCalledWith(deps.camera, ctx.dt);
     });
 
     it("onVrmLoaded/onVrmDisposed forward to pins.onVrmLoaded/onVrmDisposed", () => {

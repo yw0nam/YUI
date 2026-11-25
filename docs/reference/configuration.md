@@ -217,7 +217,6 @@ The environment value is read at build time, so restart the dev server after edi
 - `framing.margin` and `framing.fov` set the per-model framing.
 - `hit_test.alpha_threshold` sets the hit-test alpha threshold.
 - `tap.touch_cue_cooldown_ms` sets the gap between touch cues to the agent. The shipped value is `60000` ms, one cue a minute, shared by every touch region and the head pat.
-- `stage` tunes her travel onto the settings stage. A walk takes `walk_ms`, plus up to `walk_extra_ms` by distance, all of it at `walk_full_pt` logical points. A longer move vanishes and appears. While the last backend emotion is `angry` and under `emotion_decay_min` minutes old, she stays on the desktop with `stay_chance` probability.
 - Every tunable section in the file is required. The client reads each value from it and fails the load, naming any key the file leaves out.
 
 `available` lists the models the Body page offers. Each entry has `id`, `label`, `url` and `source` (`"bundled"`), and `id` is limited to `[A-Za-z0-9._-]`.
@@ -227,6 +226,15 @@ The environment value is read at build time, so restart the dev server after edi
 From the repo (`pnpm dev` or `pnpm tauri dev`), drop the file into `resources/vrms/`. Vite serves `/vrms/*` from there. That folder is gitignored, except for the bundled default.
 
 Then set `vrm_url` to `/vrms/<file>.vrm` and add a matching `available` entry.
+
+### Settings stage
+
+`stage` in `configs/avatar.json` tunes her travel onto the settings stage and her entry there.
+
+- She is picked up and held still for `pickup_hold_ms`, then carried in `carry_ms`, plus up to `carry_extra_ms` by distance, all of it at `carry_full_pt` logical points. A longer move vanishes and appears.
+- While the last backend emotion is `angry` and under `emotion_decay_min` minutes old, she stays on the desktop with `stay_chance` probability.
+- `entry_families` names each Entry family's `emotions` and entry `clips`. `plain` is required and takes any emotion no family lists.
+- `edge_entries` pins an entry clip's hips `inset` × her height beyond her window's right edge. An optional `play_ms` returns her to idle at that play time, and the pin eases back over `edge_release_ms`.
 
 ## Hotkeys
 

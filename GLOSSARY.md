@@ -99,11 +99,11 @@ A short client-side utterance from a pool, covering the silence between a firing
 _Avoid_: thinking, placeholder, stall
 
 **Come-along**:
-Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family.
+Her travel from her desktop spot onto the settings stage when the settings window opens, and back home when it closes; or her staying on the desktop in the sulking case. Its entry is set by an Entry family. The stage peek pin, which holds her hips beyond her window's edge for an edge entry clip, holds no Posture and is not a Perch.
 _Avoid_: summon, follow
 
 **Entry family**:
-One of four groups (glad, plain, glum, sulking) that a Come-along takes its entry from, picked from the last backend emotion through a fixed client table.
+A named group of backend emotions and entry clips in `stage.entry_families` of `configs/avatar.json` (shipped: glad, plain, glum), from which a Come-along picks its entry clip by the last backend emotion; plain takes any emotion no family lists. An angry emotion takes the sulking case instead.
 _Avoid_: mood, entry type
 
 **Page reaction**:

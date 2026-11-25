@@ -95,6 +95,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     log,
     mountWidth: () => mount.clientWidth || 1,
     mountHeight: () => mount.clientHeight || 1,
+    viewWindow: () => rig.viewWindow(),
   });
   const probes = createScreenProbes({
     camera,
@@ -367,10 +368,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     isPerched() {
       return pins.isPerched();
     },
-    setPeekTarget(target) {
-      const changed = pins.setPeekTarget(target);
-      if (!changed) return;
-      if (target === null) motion.playMotion(null);
+    setPeekTarget(target, release) {
+      const wasPeeking = pins.isPeeking();
+      const accepted = pins.setPeekTarget(target, release);
+      if (target === null && wasPeeking) motion.playMotion(null);
+      return accepted;
     },
     setMotionMirror(on) {
       clips.setMirror(on);

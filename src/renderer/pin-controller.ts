@@ -10,6 +10,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import type { Logger } from "../logger";
+import type { ViewWindow } from "./camera/view-window";
 import {
   peekOffsetIncrement,
   projectToScreen,
@@ -18,9 +19,18 @@ import {
   seatOffsetWorldY,
   worldYPerPixel,
 } from "./geometry/probe/perch-geometry";
+import { yawAt } from "./motion/yaw/body-yaw";
 
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;
+
+/** A side-peek pin: her hips' x in her window's px, an ease-in time, and whether it holds `peeking`. */
+export interface PeekTarget {
+  targetXpx: number;
+  easeMs?: number;
+  /** Defaults to true; a pin that holds no posture lets every motion and idle return play. */
+  holdsPosture?: boolean;
+}
 
 export interface PinController {
   /** Adopt the VRM: cache it and its hips bone for the per-frame pins. */
@@ -34,14 +44,15 @@ export interface PinController {
   hipsBone(): THREE.Object3D | null;
   /** Set or clear the window-sit vertical pin. Returns whether the perched state changed. */
   setPerchTarget(target: { edgeLocalYpx: number } | null): boolean;
-  /** Set or clear the side-peek horizontal pin. Returns whether the peek state changed. */
-  setPeekTarget(target: { targetXpx: number } | null): boolean;
+  /** Set or clear the side-peek pin, easing a clear over `release`; false if a perch refuses it. */
+  setPeekTarget(target: PeekTarget | null, release?: { easeMs: number }): boolean;
   isPerched(): boolean;
+  /** A peek pin that holds the `peeking` posture is set. */
   isPeeking(): boolean;
-  /** True while either pin is still stepping toward its target. */
+  /** True while either pin is still stepping toward its target or easing. */
   isConverging(): boolean;
-  /** One frame of both pins — no-op without an adopted VRM, hips bone, or target. */
-  step(camera: THREE.PerspectiveCamera): void;
+  /** One frame of both pins (`dt` in seconds) — no-op without an adopted VRM, hips bone, or target. */
+  step(camera: THREE.PerspectiveCamera, dt: number): void;
   /** World-Y offset the perch pin wants on vrm.scene; 0 when not perched. */
   perchOffsetY(): number;
 }
@@ -50,6 +61,8 @@ export function createPinController(deps: {
   log: Logger;
   mountWidth: () => number;
   mountHeight: () => number;
+  /** A travel's view window inside the canvas, else null. */
+  viewWindow: () => ViewWindow | null;
 }): PinController {
   const { log, mountHeight, mountWidth } = deps;
 
@@ -71,9 +84,13 @@ export function createPinController(deps: {
   const perchSeatRel = new THREE.Vector3();
 
   // ── Side-peek pin state ─────────────────────────────────────────────────────
-  let peekTarget: { targetXpx: number } | null = null;
+  let peekTarget: PeekTarget | null = null;
+  // The converged offset, and the share of it written to the scene while an ease runs.
   let peekOffset = 0;
+  let peekApplied = 0;
   let peekConverging = false;
+  // The applied share eases from `from` to `to` over `ms`; null once settled at 1.
+  let peekEase: { from: number; to: number; ms: number; elapsedMs: number } | null = null;
   const peekHipsWorld = new THREE.Vector3();
   const peekCamForward = new THREE.Vector3();
   const peekHipsRel = new THREE.Vector3();
@@ -114,29 +131,69 @@ export function createPinController(deps: {
     }
   }
 
-  function stepPeek(camera: THREE.PerspectiveCamera): void {
-    if (peekTarget === null || !currentVrm || !perchHipsBone) return;
-    try {
-      const w = mountWidth();
-      const h = mountHeight();
-      perchHipsBone.getWorldPosition(peekHipsWorld);
-      const hipsPx = projectToScreen(peekHipsWorld, camera, w, h);
-      if (!hipsPx) return;
+  function resetPeek(): void {
+    peekTarget = null;
+    peekOffset = 0;
+    peekApplied = 0;
+    peekConverging = false;
+    peekEase = null;
+    if (currentVrm) {
+      currentVrm.scene.position.x = 0;
+      currentVrm.scene.position.z = 0;
+    }
+  }
 
-      camera.getWorldDirection(peekCamForward);
-      const depth = peekHipsRel.copy(peekHipsWorld).sub(camera.position).dot(peekCamForward);
-      // Perspective world-units-per-pixel is identical on both axes for square pixels.
-      const worldPerPixel = worldYPerPixel(camera, depth, h);
-      const pixelDelta = peekTarget.targetXpx - hipsPx.x;
-      peekConverging = Math.abs(pixelDelta) > 1;
-      peekOffset += peekOffsetIncrement(pixelDelta, worldPerPixel, PERCH_PIN_RATE);
+  /** The eased share of the converged offset after `dt`; 1 with no ease running. */
+  function easeShare(dt: number): number {
+    if (!peekEase) return 1;
+    peekEase.elapsedMs += dt * 1000;
+    const share = yawAt(peekEase.from, peekEase.to, peekEase.elapsedMs, peekEase.ms);
+    if (peekEase.elapsedMs >= peekEase.ms) peekEase = null;
+    return share;
+  }
+
+  function stepPeek(camera: THREE.PerspectiveCamera, dt: number): void {
+    if (!currentVrm || !perchHipsBone || (peekTarget === null && !peekEase)) return;
+    try {
+      if (peekTarget === null) {
+        // A release: the frozen offset eases to 0, then the pin clears.
+        const share = easeShare(dt);
+        if (!peekEase) {
+          resetPeek();
+          return;
+        }
+        peekApplied = peekOffset * share;
+      } else {
+        // A travel draws her window's view at an offset inside a larger canvas.
+        const view = deps.viewWindow();
+        const h = mountHeight();
+        perchHipsBone.getWorldPosition(peekHipsWorld);
+        const hipsPx = projectToScreen(peekHipsWorld, camera, mountWidth(), h);
+        if (!hipsPx) return;
+
+        camera.getWorldDirection(peekCamForward);
+        const depth = peekHipsRel.copy(peekHipsWorld).sub(camera.position).dot(peekCamForward);
+        // Perspective world-units-per-pixel is identical on both axes for square pixels.
+        const worldPerPixel = worldYPerPixel(camera, depth, view?.height ?? h);
+        // Measured against the hips as the full converged offset would place them.
+        const pixelDelta =
+          peekTarget.targetXpx +
+          (view?.x ?? 0) -
+          hipsPx.x -
+          (peekOffset - peekApplied) / worldPerPixel;
+        peekConverging = Math.abs(pixelDelta) > 1;
+        peekOffset += peekOffsetIncrement(pixelDelta, worldPerPixel, PERCH_PIN_RATE);
+        peekApplied = peekOffset * easeShare(dt);
+      }
       peekCameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
-      currentVrm.scene.position.x = peekCameraRight.x * peekOffset;
-      currentVrm.scene.position.z = peekCameraRight.z * peekOffset;
+      currentVrm.scene.position.x = peekCameraRight.x * peekApplied;
+      currentVrm.scene.position.z = peekCameraRight.z * peekApplied;
     } catch (err) {
       log.error("step_peek", { error: String(err) });
     }
   }
+
+  const holdsPosture = (): boolean => peekTarget !== null && peekTarget.holdsPosture !== false;
 
   return {
     onVrmLoaded(vrm) {
@@ -149,13 +206,7 @@ export function createPinController(deps: {
       perchHipsBone = null;
       perchOffsetY = 0;
       perchConverging = false;
-      peekTarget = null;
-      peekOffset = 0;
-      peekConverging = false;
-      if (currentVrm) {
-        currentVrm.scene.position.x = 0;
-        currentVrm.scene.position.z = 0;
-      }
+      resetPeek();
       currentVrm = null;
     },
     hipsBone() {
@@ -176,37 +227,38 @@ export function createPinController(deps: {
       perchTargetYpx = target.edgeLocalYpx;
       return !wasPerched;
     },
-    setPeekTarget(target) {
-      const wasPeeking = peekTarget !== null;
+    setPeekTarget(target, release) {
       if (target === null) {
-        peekTarget = null;
-        peekOffset = 0;
-        peekConverging = false;
-        if (currentVrm) {
-          currentVrm.scene.position.x = 0;
-          currentVrm.scene.position.z = 0;
+        if (release && peekTarget !== null) {
+          peekTarget = null;
+          peekOffset = peekApplied;
+          peekConverging = false;
+          peekEase = { from: 1, to: 0, ms: release.easeMs, elapsedMs: 0 };
+        } else {
+          resetPeek();
         }
-        return wasPeeking;
+        return true;
       }
       if (perchTargetYpx !== null) {
         log.warn("perch_pin_conflict", { active: "perch", requested: "peek" });
         return false;
       }
+      if (peekTarget === null) {
+        peekEase = target.easeMs ? { from: 0, to: 1, ms: target.easeMs, elapsedMs: 0 } : null;
+      }
       peekTarget = target;
-      return !wasPeeking;
+      return true;
     },
     isPerched() {
       return perchTargetYpx !== null;
     },
-    isPeeking() {
-      return peekTarget !== null;
-    },
+    isPeeking: holdsPosture,
     isConverging() {
-      return perchConverging || peekConverging;
+      return perchConverging || peekConverging || peekEase !== null;
     },
-    step(camera) {
+    step(camera, dt) {
       stepPerch(camera);
-      stepPeek(camera);
+      stepPeek(camera, dt);
     },
     perchOffsetY() {
       return perchOffsetY;

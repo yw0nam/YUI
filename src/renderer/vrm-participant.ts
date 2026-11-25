@@ -87,7 +87,7 @@ export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmPar
   const pinsParticipant: VrmParticipant = {
     onVrmLoaded: pins.onVrmLoaded,
     onVrmDisposed: pins.onVrmDisposed,
-    step: () => pins.step(camera),
+    step: (ctx) => pins.step(camera, ctx.dt),
     isConverging: pins.isConverging,
   };
   const gazeParticipant: VrmParticipant = {

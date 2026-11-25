@@ -303,7 +303,8 @@ YUI/
           user-turn-done.ts          # Reports user-turn-done for a closed or dropped turn's send id
     ambient/                         # Backend-independent local liveliness and movement
       come-along/                    # Her come-along onto the settings stage
-        come-along.ts                # One settings window's session: the ease-in-out walk onto the slot, the dock, following the slot, the walk home, and a drag or agent move letting her go
+        come-along.ts                # One settings window's session: the pickup and ease-in-out carry onto the slot, the dock and entry clip, following the slot, the carry home, and a drag or agent move letting her go
+        entry-pick.ts                # Picks her entry clip from the Entry family of her last backend emotion
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
