@@ -216,3 +216,14 @@ it("with no urgent chip and no row that fits over the Ask card, the +N row alone
     Math.round(rows[0]!.getBoundingClientRect().top),
   ]).toEqual([["+6"], 8]);
 });
+
+it("the grouped batched pill shows its +N in place of its cross", async () => {
+  const { column } = build();
+  await settle();
+
+  const grouped = column.querySelector('.yui-sigchip[data-chip-count="3"]')!;
+  expect([
+    getComputedStyle(grouped.querySelector(".yui-sigchip__x")!).display,
+    getComputedStyle(grouped.querySelector(".yui-sigchip__more")!).display,
+  ]).toEqual(["none", "block"]);
+});
