@@ -173,7 +173,9 @@ function harness(
     }
     await step;
   };
-  const abort = () => locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.onAbort?.();
+  /** An agent move, or a user drag, takes her from the come-along's hold. */
+  const abort = (by: "agent" | "drag" = "agent") =>
+    locomotion.hold.mock.calls.findLast(([, on]) => on)?.[2]?.onAbort?.(by);
   /** Waits for her pickup and ticks through its 200 ms hold. */
   const pickUp = async () => {
     await vi.waitFor(() => expect(ticks.size).toBe(1));
@@ -736,7 +738,6 @@ describe("createComeAlong", () => {
 
   it.each([
     ["finishes", "idle", false, { easeMs: 600 }],
-    ["is replaced", "happy", false, { easeMs: 600 }],
     ["finishes under reduced motion", "idle", true, undefined],
   ])("eases the pin back without an idle when the edge clip %s", async (_, next, reduced, release) => {
     const h = await docked({ roll: 0.5 });
@@ -767,6 +768,51 @@ describe("createComeAlong", () => {
 
     expect(h.playMotion.mock.calls).toEqual([[null]]);
     expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, { easeMs: 600 });
+  });
+
+  it("idles her when the motion that replaced a stage peek ends and the controller returns to peek", async () => {
+    const h = await docked({ roll: 0.9 });
+    h.playMotion.mockClear();
+
+    h.setCurrent("happy");
+    h.tick(10);
+    expect(h.setPeekTarget).toHaveBeenLastCalledWith(null, { easeMs: 600 });
+    expect(h.playMotion).not.toHaveBeenCalled();
+    h.setCurrent("peek");
+    h.tick(10);
+
+    expect(h.playMotion.mock.calls).toEqual([[null]]);
+    expect(h.ticks.size).toBe(0);
+  });
+
+  it.each([
+    ["an agent move", "agent", [[{ id: "drag" }], [null]]],
+    ["a user drag", "drag", [[{ id: "drag" }]]],
+  ] as const)("when %s takes her mid-carry, idles her only from the come-along's own pickup", async (_, by, calls) => {
+    const h = harness();
+    const done = h.comeAlong.onStage(slot);
+    await h.pickUp();
+
+    await h.abort(by);
+    await done;
+
+    expect(h.playMotion.mock.calls).toEqual(calls);
+  });
+
+  it.each([
+    ["a start", false],
+    ["a trip home", true],
+  ])("returns her to idle when %s fails after her pickup", async (_, home) => {
+    const h = harness({ at: { x: 1500, y: 80 } });
+    if (home) {
+      await h.finish(h.comeAlong.onStage(slot));
+      h.playMotion.mockClear();
+    }
+    h.frameWindow.setPositionLogical.mockRejectedValueOnce(new Error("window gone"));
+
+    await expect(h.finish(h.comeAlong.onStage(home ? null : slot))).rejects.toThrow("window gone");
+
+    expect(h.playMotion.mock.calls).toEqual([[{ id: "drag" }], [null]]);
   });
 
   it.each([
