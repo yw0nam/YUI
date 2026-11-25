@@ -117,6 +117,8 @@ function cycle(at = { x: -48, y: 860 }) {
     followsInPhysicalPx: false,
     reducedMotion: () => false,
     stage: () => avatarFixture().stage,
+    lastEmotion: () => "neutral",
+    random: () => 0,
   });
   /** Ticks 16 ms frames until `step` settles, however she travels. */
   const walk = async (step: Promise<void>) => {

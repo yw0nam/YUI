@@ -3,6 +3,7 @@ import { createComeAlong } from "../../ambient/come-along/come-along";
 import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
 import type { StageConfig } from "../../config/validators/avatar/types";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import { lastBackendEmotion } from "../../io/chat/last-emotion/last-emotion";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import {
   attachDock,
@@ -61,6 +62,9 @@ export function wireComeAlong(deps: {
     followsInPhysicalPx: isWindows(),
     reducedMotion: prefersReducedMotion,
     stage: deps.getStageConfig,
+    lastEmotion: () =>
+      lastBackendEmotion(Date.now(), deps.getStageConfig().emotion_decay_min * 60_000),
+    random: Math.random,
   });
   const failed = (err: unknown): void => log.warn("come_along_failed", { error: String(err) });
   void (async () => {

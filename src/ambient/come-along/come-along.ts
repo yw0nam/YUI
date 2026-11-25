@@ -9,6 +9,9 @@
  * the window's later slots are ignored until it minimises or closes; a drag or agent command
  * running at the open keeps her where she is the same way. Her home and that opt-out sit in
  * session storage, so a reload of her window finds the open session again.
+ *
+ * While the last backend emotion is angry she sulks: she stays on the desktop with `stay_chance`
+ * probability, the same opt-out as a drag at the open, else she comes along and sulks on the stage.
  */
 
 import type { StageConfig } from "../../config/validators/avatar/types";
@@ -28,6 +31,8 @@ import type { HoldOptions } from "../locomotion/hold/holds";
 import { WALK_MOTION_ID, WALK_YAW_EASE_MS, WALK_YAW_RAD } from "../locomotion/walk/walker";
 
 const log = createLogger("come-along");
+
+const SULK_MOTION_ID = "sulk";
 
 /** Slow at the start, faster through the middle, slow again on arrival. */
 const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
@@ -75,8 +80,12 @@ export interface ComeAlongDeps {
   /** Follows a settings window she is not linked to in its physical px (Windows), else in logical points. */
   followsInPhysicalPx: boolean;
   reducedMotion(): boolean;
-  /** The travel tuning, read at each move. */
+  /** The travel and staying tuning, read at use. */
   stage(): StageConfig;
+  /** The last backend emotion, already decayed to neutral. */
+  lastEmotion(): string;
+  /** A draw in [0, 1) for the stay roll. */
+  random(): number;
 }
 
 export function createComeAlong(deps: ComeAlongDeps): {
@@ -285,6 +294,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
       log.info("come_along_stayed");
       return;
     }
+    const angry = deps.lastEmotion() === "angry";
+    if (angry && deps.random() < deps.stage().stay_chance) {
+      session = "staying";
+      store({ stays: true });
+      renderer.playMotion({ id: SULK_MOTION_ID });
+      log.info("come_along_sulked");
+      return;
+    }
     session = "on-stage";
     const id = takeOver();
     // Whoever moves her owns her; on the stage her bounds are the slot's, not her own spot's.
@@ -329,6 +346,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       origin: target,
       size,
     });
+    if (angry) renderer.playMotion({ id: SULK_MOTION_ID });
     await place();
   }
 
