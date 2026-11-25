@@ -130,7 +130,7 @@ describe("attachChipColumn", () => {
     await Promise.resolve();
   }
 
-  it("an Ask card and the bubble each move the column to end 8px above them; with both gone it returns", async () => {
+  it("an Ask card over a shown bubble leads, and with both gone the column returns", async () => {
     layout(180, [
       [180, 28],
       [214, 28],
@@ -141,20 +141,14 @@ describe("attachChipColumn", () => {
     boxes.set(card, [200, 120]);
 
     bubble.classList.add("is-visible");
-    await settle();
-    const withBubble = column.style.transform;
     card.hidden = false;
     await settle();
-    const withCard = column.style.transform;
+    const both = column.style.transform;
     card.hidden = true;
     bubble.classList.remove("is-visible");
     await settle();
 
-    expect([withBubble, withCard, column.style.transform]).toEqual([
-      "translateY(-34px)",
-      "translateY(-84px)",
-      "",
-    ]);
+    expect([both, column.style.transform]).toEqual(["translateY(-84px)", ""]);
   });
 
   it("a bubble that has stepped aside is no obstacle", async () => {

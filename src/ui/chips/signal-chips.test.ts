@@ -245,10 +245,10 @@ describe("createSignalChips", () => {
     expect(mount.querySelector(".yui-sigdetails")).toBeNull();
   });
 
-  it("the newest batched chip keeps its element across updates, so focus survives", () => {
-    const { model } = build([group(1), group(2)]);
-    const grouped = chipEls()[0]!;
-    opener(0).focus();
+  it("a history update and a new signal keep each chip's element, so focus and the pulse survive", () => {
+    const { model } = build([group(1), group(2), group(3, { delivery: "urgent" })]);
+    const [urgent, grouped] = chipEls();
+    opener(1).focus();
 
     history.rows = [
       {
@@ -263,11 +263,14 @@ describe("createSignalChips", () => {
       },
     ];
     for (const cb of history.subs) cb();
-    model.add(group(3, { delivery: "urgent" }));
+    model.add(group(4, { delivery: "urgent" }));
 
-    expect(chipEls().map(srcOf)).toEqual(["src3", "src2"]);
-    expect(chipEls()[1]!.isSameNode(grouped)).toBe(true);
-    expect(document.activeElement).toBe(grouped.querySelector(".yui-sigchip__open"));
+    expect(chipEls().map(srcOf)).toEqual(["src4", "src3", "src2"]);
+    expect([chipEls()[1]!.isSameNode(urgent!), chipEls()[2]!.isSameNode(grouped!)]).toEqual([
+      true,
+      true,
+    ]);
+    expect(document.activeElement).toBe(grouped!.querySelector(".yui-sigchip__open"));
   });
 
   it("a second batched signal turns the single chip into the grouped row, urgent chips untouched", () => {
