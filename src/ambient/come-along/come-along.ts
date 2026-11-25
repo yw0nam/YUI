@@ -186,6 +186,8 @@ export function createComeAlong(deps: ComeAlongDeps): {
       !on || monitorAtLogical(monitors, to.x + size.width / 2, to.y + size.height / 2) !== on;
     const reduced = deps.reducedMotion();
     if (!reduced && !crosses && distance <= stage.walk_full_pt) {
+      // A walk that took over mid-vanish shows her before she sets off.
+      show();
       return walkOver(
         id,
         from,
