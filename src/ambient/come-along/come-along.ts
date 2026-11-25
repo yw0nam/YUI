@@ -287,19 +287,18 @@ export function createComeAlong(deps: ComeAlongDeps): {
       session = "staying";
       return;
     }
-    if (deps.isBusy()) {
+    /** She stays on the desktop for this window's session. */
+    const stay = (event: "come_along_stayed" | "come_along_sulked"): void => {
       session = "staying";
       store({ stays: true });
-      log.info("come_along_stayed");
-      return;
-    }
-    const angry = deps.lastEmotion(deps.stage().emotion_decay_min * 60_000) === "angry";
-    if (angry && deps.random() < deps.stage().stay_chance) {
-      session = "staying";
-      store({ stays: true });
+      log.info(event);
+    };
+    if (deps.isBusy()) return stay("come_along_stayed");
+    const stage = deps.stage();
+    const angry = deps.lastEmotion(stage.emotion_decay_min * 60_000) === "angry";
+    if (angry && deps.random() < stage.stay_chance) {
       renderer.playMotion({ id: SULK_MOTION_ID });
-      log.info("come_along_sulked");
-      return;
+      return stay("come_along_sulked");
     }
     session = "on-stage";
     const id = takeOver();
