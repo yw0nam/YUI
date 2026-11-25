@@ -884,6 +884,7 @@ const ko: Record<string, string> = {
   "sigchip.close": "닫기",
   "sigchip.more": "+{n}",
   "sigchip.more_aria": "신호 {n}개 더 보기",
+  "chips.folded_hint": "{n}개 더, 자리가 나면 다시 보여요",
   "sigchip.collapse": "접기",
   "sigchip.kind": "종류",
   "sigchip.label": "라벨",

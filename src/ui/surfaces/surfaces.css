@@ -21,7 +21,8 @@
 
 /* ── chip column ──
    A full-width strip at right-shoulder height: the padding keeps the chips beside the
-   character while the strip's right edge anchors their lists inside the window. */
+   character while the strip's right edge anchors their lists inside the window. Over the
+   bubble or an Ask card, chip-column.ts moves it up and caps the rows that still do not fit. */
 .yui-chip-column {
   position: absolute;
   top: 30%;
@@ -33,7 +34,12 @@
   align-items: flex-start;
   gap: 0.4rem;
   pointer-events: none;
-  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+.yui-chip-column .is-capped {
+  display: none;
 }
 /* While the Character menu is open, the column fades out of its way and takes no hits. */
 .yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column {
@@ -71,6 +77,9 @@
 
 /* prefers-reduced-motion: soften transitions to opacity-only, drop choreography (principle ⑤) */
 @media (prefers-reduced-motion: reduce) {
+  .yui-chip-column {
+    transition-property: opacity;
+  }
   .yui-bubble,
   .yui-input {
     transition-duration: var(--yui-dur-fast) !important;

@@ -67,6 +67,7 @@ import { createStatusPill } from "../ui/chips/status-pill";
 import { createTurnNotice } from "../ui/chips/turn-notice";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
+import { attachChipColumn } from "../ui/surfaces/chip-column";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { wireMessageSurfaces } from "../ui/surfaces/wire";
 
@@ -403,6 +404,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,
         chatKeySettings: settingsStores.chatKeySettings,
+      }),
+    );
+    register(
+      attachChipColumn({
+        root: surfaces.el,
+        column: surfaces.chipColumn,
+        bubble: surfaces.el.querySelector<HTMLElement>(".yui-bubble")!,
+        askSlot: surfaces.el.querySelector<HTMLElement>(".yui-ask-slot")!,
       }),
     );
     if (import.meta.env.DEV) {
