@@ -115,19 +115,19 @@ export function guide(now: number, phase: string) {
   } else if (step === "session") {
     hideArc();
     const chipEl = surfaces.chipColumn.querySelector<HTMLElement>(".yui-threadchip");
-    const answer = threadsWin.querySelector(".yui-threads-answer");
+    const answer = threadsWin.querySelector(".yui-answer");
     if (!threadsOpen && chipEl && !chipEl.hidden) {
       const c = deskRect(chipEl);
       label("Click this", c.r + 12, (c.t + c.b) / 2, "right");
       ringOn(c, 3);
       ring.style.borderRadius = "999px";
     } else if (threadsOpen && answer && phase === "asking") {
-      const picked = answer.querySelector('.yui-threads-answer__choices [aria-pressed="true"]');
-      const send = answer.querySelector(".yui-threads-answer__send");
+      const picked = answer.querySelector('.yui-answer__choices [aria-pressed="true"]');
+      const send = answer.querySelector(".yui-answer__send");
       const el =
         picked && !(send as HTMLButtonElement).disabled
           ? send
-          : answer.querySelector(".yui-threads-answer__choices");
+          : answer.querySelector(".yui-answer__choices");
       const r = deskRect(el!);
       ring.style.borderRadius = "12px";
       ringOn(r, 4);

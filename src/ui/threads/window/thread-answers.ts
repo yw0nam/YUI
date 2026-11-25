@@ -3,7 +3,7 @@
  * area so a remount of it keeps them, and the answer area that shows now.
  */
 
-import type { AskAnswer, Thread, ThreadAsk } from "../../../contract";
+import type { Ask, AskAnswer, Thread } from "../../../contract";
 import { type AnswerArea, createAnswerArea, type Draft } from "../../ask/answer-area";
 import { draftKey, pruneDrafts } from "./drafts";
 
@@ -18,7 +18,7 @@ export interface ThreadAnswers {
   /** What the answer area of `threadId`'s ask `askId` starts from. */
   of(threadId: string, askId: string): AnswerStart;
   /** Draws `threadId`'s `ask` from `start` into `host`, keeping a focused field focused; the returned call lets it go. */
-  mount(host: HTMLElement, threadId: string, ask: ThreadAsk, start: AnswerStart): () => void;
+  mount(host: HTMLElement, threadId: string, ask: Ask, start: AnswerStart): () => void;
   /** Drops the drafts and errors of asks no longer open in `threads`. */
   prune(threads: Thread[]): void;
   /** Toggles the shown ask's choice at `index`. */

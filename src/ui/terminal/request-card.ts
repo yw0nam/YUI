@@ -31,7 +31,7 @@ export function createRequestCard(deps: {
   dispose(): void;
 } {
   const el = document.createElement("section");
-  el.className = "yui-threads-answer yui-terminal-request";
+  el.className = "yui-answer yui-terminal-request";
   el.setAttribute("aria-labelledby", "yui-terminal-request-ask");
   el.hidden = true;
   let shownKey: string | null = null;
@@ -84,7 +84,7 @@ export function createRequestCard(deps: {
     left.append(who, ask);
     limitEl = document.createElement("small");
     const head = document.createElement("div");
-    head.className = "yui-threads-answer__head";
+    head.className = "yui-answer__head";
     head.append(left, limitEl);
     const parts: HTMLElement[] = [head];
 
@@ -117,7 +117,7 @@ export function createRequestCard(deps: {
     deny.textContent = t("terminal.deny");
     const allow = document.createElement("button");
     allow.type = "button";
-    allow.className = "yui-threads-answer__send";
+    allow.className = "yui-answer__send";
     allow.textContent = t("terminal.allow");
     for (const [button, yes] of [
       [deny, false],

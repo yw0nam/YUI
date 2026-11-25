@@ -129,8 +129,8 @@ function build(
   });
   views.push(view);
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
-  const field = () => $<HTMLTextAreaElement>(".yui-threads-answer textarea");
-  const send = () => $<HTMLButtonElement>(".yui-threads-answer__send");
+  const field = () => $<HTMLTextAreaElement>(".yui-answer textarea");
+  const send = () => $<HTMLButtonElement>(".yui-answer__send");
   const type = (value: string) => {
     field().value = value;
     field().dispatchEvent(new Event("input"));
@@ -206,7 +206,7 @@ it("keeps 1–9 and the arrows from the answer and the list while the Thread tur
   key({ key: "1" });
   key({ key: "ArrowDown" });
 
-  expect($(".yui-threads-answer__choices button").getAttribute("aria-pressed")).toBe("false");
+  expect($(".yui-answer__choices button").getAttribute("aria-pressed")).toBe("false");
   expect($(".yui-threads-pane__head h2").textContent).toBe("t1");
 });
 
@@ -289,7 +289,7 @@ it("shows a failed send's error and keeps its draft", async () => {
   enter();
 
   await vi.waitFor(() =>
-    expect($(".yui-threads-answer__error").textContent).toBe("Couldn't send: ask is closed"),
+    expect($(".yui-answer__error").textContent).toBe("Couldn't send: ask is closed"),
   );
   expect(field().value).toBe("split it");
 });
@@ -327,7 +327,7 @@ it.each([
     fireEvent.keyDown(target(), { key: "1" });
   });
 
-  expect($(".yui-threads-answer__choices button").getAttribute("aria-pressed")).toBe("false");
+  expect($(".yui-answer__choices button").getAttribute("aria-pressed")).toBe("false");
 });
 
 it("keeps the medium layout's list overlay open through a pointer pick in the kind popup, and applies the kind", async () => {

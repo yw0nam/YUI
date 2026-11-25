@@ -39,13 +39,11 @@ function build(answered = true) {
   const card = createAskCard({ mount });
   card.onAnswer(onAnswer);
   const el = mount.querySelector<HTMLElement>(".yui-ask-card")!;
-  const prompt = () => el.querySelector(".yui-threads-answer__prompt")?.textContent ?? null;
-  const choices = () => [
-    ...el.querySelectorAll<HTMLButtonElement>(".yui-threads-answer__choices button"),
-  ];
+  const prompt = () => el.querySelector(".yui-answer__prompt")?.textContent ?? null;
+  const choices = () => [...el.querySelectorAll<HTMLButtonElement>(".yui-answer__choices button")];
   const answer = (index: number) => {
     choices()[index]!.click();
-    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+    el.querySelector<HTMLButtonElement>(".yui-answer__send")!.click();
   };
   return { card, el, onAnswer, prompt, choices, answer };
 }
@@ -87,9 +85,9 @@ it("keeps an Ask whose answer was not sent and says why", () => {
 
   expect([
     prompt(),
-    el.querySelector(".yui-threads-answer__error")?.textContent,
+    el.querySelector(".yui-answer__error")?.textContent,
     choices()[1]!.getAttribute("aria-pressed"),
-    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled,
+    el.querySelector<HTMLButtonElement>(".yui-answer__send")!.disabled,
   ]).toEqual(["Run a?", "Couldn't send: the connection is down", "true", false]);
 });
 
@@ -163,7 +161,7 @@ it.each(["same object", "equal content"])("keeps focus and draft for a %s head",
 it("marks the prompt while more of it sits below its visible part", () => {
   const { card, el } = build();
   card.set([frame("a")]);
-  const head = el.querySelector<HTMLElement>(".yui-threads-answer__head")!;
+  const head = el.querySelector<HTMLElement>(".yui-answer__head")!;
   Object.defineProperties(head, {
     scrollHeight: { value: 300 },
     clientHeight: { value: 100 },
@@ -184,16 +182,16 @@ it("enables retry with the draft and no error when the answered head is sent aga
   field.value = "my draft";
   field.dispatchEvent(new Event("input", { bubbles: true }));
   answer(0);
-  expect(el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled).toBe(true);
+  expect(el.querySelector<HTMLButtonElement>(".yui-answer__send")!.disabled).toBe(true);
 
   card.set([frame("a")]);
 
   expect([
     el.querySelector("textarea")?.value,
-    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled,
-    el.querySelector(".yui-threads-answer__error"),
+    el.querySelector<HTMLButtonElement>(".yui-answer__send")!.disabled,
+    el.querySelector(".yui-answer__error"),
   ]).toEqual(["my draft", false, null]);
-  el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  el.querySelector<HTMLButtonElement>(".yui-answer__send")!.click();
   expect(onAnswer.mock.calls).toEqual([
     [{ ask_id: "a", choice: "once", text: "my draft" }],
     [{ ask_id: "a", choice: "once", text: "my draft" }],
@@ -211,5 +209,5 @@ it.each([
   answer(0);
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
   expect(next).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
-  expect(el.querySelector(".yui-threads-answer__error")?.textContent).toBe(error);
+  expect(el.querySelector(".yui-answer__error")?.textContent).toBe(error);
 });

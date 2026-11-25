@@ -485,8 +485,8 @@ it("sends the mounted Ask card's picked choice to the registered Answer handler"
       },
     },
   ]);
-  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__choices button")!.click();
-  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  mount.querySelector<HTMLButtonElement>(".yui-answer__choices button")!.click();
+  mount.querySelector<HTMLButtonElement>(".yui-answer__send")!.click();
   expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a1", choice: "once" });
   s.dispose();
   mount.remove();
