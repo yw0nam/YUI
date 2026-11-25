@@ -48,7 +48,8 @@
   }
 }
 
-.yui-plate[data-state="thinking"] .yui-plate__dot {
+.yui-plate[data-state="thinking"] .yui-plate__dot,
+.yui-plate[data-state="waiting"] .yui-plate__dot {
   background: var(--yui-text-dim);
   opacity: 1;
   animation: yui-plate-breathe 2.4s ease-in-out infinite;
@@ -127,10 +128,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .yui-plate[data-state="responding"] .yui-plate__dot,
-  .yui-plate[data-state="thinking"] .yui-plate__dot {
+  .yui-plate[data-state="thinking"] .yui-plate__dot,
+  .yui-plate[data-state="waiting"] .yui-plate__dot {
     animation: none;
   }
-  .yui-plate[data-state="thinking"] .yui-plate__dot {
+  .yui-plate[data-state="thinking"] .yui-plate__dot,
+  .yui-plate[data-state="waiting"] .yui-plate__dot {
     opacity: 1;
   }
   .yui-plate[data-conn="reconnecting"] .yui-plate__dot {

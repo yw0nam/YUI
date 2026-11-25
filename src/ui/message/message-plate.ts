@@ -68,11 +68,12 @@ export function createMessagePlate({
   if (startDragging) el.dataset.draggable = "";
 
   let live = false;
+  let waiting = false;
   let busy = false;
   let conn: "up" | "reconnecting" | "failed" = "up";
 
   function applyState(): void {
-    const state = live ? "responding" : busy ? "thinking" : "idle";
+    const state = live ? "responding" : waiting ? "waiting" : busy ? "thinking" : "idle";
     el.dataset.state = state;
     stateEl.textContent =
       conn === "failed"
@@ -81,9 +82,11 @@ export function createMessagePlate({
           ? t("plate.reconnecting")
           : state === "thinking"
             ? t("plate.thinking")
-            : state === "responding"
-              ? t("plate.responding")
-              : "";
+            : state === "waiting"
+              ? t("plate.waiting")
+              : state === "responding"
+                ? t("plate.responding")
+                : "";
   }
 
   function applyLocaleLabels(): void {
@@ -120,7 +123,10 @@ export function createMessagePlate({
       live = value;
       applyState();
     },
-    setWaiting(_value: boolean) {},
+    setWaiting(value) {
+      waiting = value;
+      applyState();
+    },
     setBusy(value) {
       busy = value;
       applyState();

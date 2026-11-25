@@ -24,6 +24,10 @@ export function withPlateState<S extends Driven>(
       plate.setLive(false);
       surfaces.hideSpeech();
     },
+    setAsks(frames: Parameters<Driven["setAsks"]>[0]) {
+      plate.setWaiting(frames.length > 0);
+      surfaces.setAsks(frames);
+    },
     setBusy(busy: boolean) {
       plate.setBusy(busy);
       surfaces.setBusy(busy);

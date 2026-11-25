@@ -36,7 +36,12 @@ export function createSettingsApi(deps: {
       const answer = await deps.request({ changes: allow, why }, signal);
       for (const change of allow) {
         if (answer !== "allow") {
-          results[change.path] = answer === "deny" ? "denied" : "no answer";
+          results[change.path] =
+            answer === "deny"
+              ? "denied"
+              : answer === "busy"
+                ? "error: a settings request is already waiting"
+                : "no answer";
           continue;
         }
         const row = rows.find((entry) => entry.path === change.path);

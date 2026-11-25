@@ -15,7 +15,7 @@ export interface YuiRunPorts {
 }
 
 const DESCRIPTION =
-  "Run JavaScript against YUI's yui API and get its result. Call help() first: it prints the API. The code is an async function body: use await and return a JSON value.";
+  "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
   return {

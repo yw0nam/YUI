@@ -360,7 +360,7 @@ The JSON of its logs and its result together may total 64 Ki (65 536) characters
 
 ### Result
 
-A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`.
+A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that ends without a return gets `"note": "the script returned nothing; end it with return and a JSON value"` beside `result: null`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`.
 
 A `code` that is not a string answers the same error form with `code must be a string`.
 
@@ -379,6 +379,7 @@ Each settings row is `direct` or `allow`. A `direct` row applies its write at on
 | `ok` | The value is set, applied at once or after Allow |
 | `denied` | The user chose Deny |
 | `no answer` | The card's 60 s passed, or the turn ended before an answer |
+| `error: a settings request is already waiting` | The window already holds one Settings request; put every allow change in one write |
 | `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
 | `error: unknown <path>` | The patch names a path no row holds |
 | `error: <path> failed to load` | A write rejected before it stored the value |
@@ -388,6 +389,8 @@ Each settings row is `direct` or `allow`. A `direct` row applies its write at on
 ### Settings request
 
 An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title names the character.
+
+A window holds one Settings request at a time. A write whose allow paths would ask while one waits raises no card and answers `error: a settings request is already waiting` for every allow path; its direct paths are still written.
 
 Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, a line saying the change applies to every character, and the Deny and Allow choices.
 

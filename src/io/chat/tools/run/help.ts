@@ -46,7 +46,7 @@ const LEGEND =
 
 const RULES = `1. Await every yui call; the returned value is the tool result.
 2. Return a JSON value the model reads; no prose around it.
-3. One write per intent, with a why the user reads on the request card.
+3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.
 4. Rows marked allow wait for the user; denied or no answer changes nothing.
 `;
 

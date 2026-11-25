@@ -10,9 +10,9 @@ YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScr
 
 ## Steps
 
-1. Run `return help()` once before your first other `yui_run` call in a conversation. It prints the API of the installed YUI and every setting you can read or change, with its allowed values and whether it needs Allow. Where help() and this file differ, follow help().
+1. Run `return help()` once before your first other `yui_run` call in a conversation. It returns the API of the installed YUI and every setting you can read or change, with its allowed values and whether it needs Allow. Where help() and this file differ, follow help().
 2. Read the current values with `yui.settings.read()` or `yui.state.read()` before you change or mention them.
-3. Make one write per user intent: `yui.settings.write(patch, { why })`. The patch is a JSON merge patch on the settings document. Write `why` as one short sentence in your own voice: the user reads it on the Allow card.
+3. Put every setting that needs the user's Allow into the same write: `yui.settings.write(patch, { why })`. The patch is a JSON merge patch on the settings document. Write `why` as one short sentence in your own voice: the user reads it on the Allow card. A second such write while one waits answers an error.
 4. Read the result per path:
    - `ok`: the setting has the new value.
    - `denied`: the user pressed Deny. Accept it.

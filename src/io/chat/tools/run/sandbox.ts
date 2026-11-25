@@ -31,7 +31,7 @@ export interface RunLimits {
   outputChars?: number;
 }
 
-type Outcome = { result: unknown } | { error: string };
+type Outcome = { result: unknown; note?: string } | { error: string };
 
 const DEFAULT_LIMITS = {
   cpuMs: 1000,
@@ -41,6 +41,7 @@ const DEFAULT_LIMITS = {
 };
 
 const NEVER_SETTLES = "the script awaited something that never settles";
+const NO_RETURN = "the script returned nothing; end it with return and a JSON value";
 const TOO_LARGE = "result too large";
 const HOST_NOT_JSON = "a host function returned a value that is not JSON";
 
@@ -111,6 +112,7 @@ export async function runScript(
     return { error };
   };
   const complete = (handle: QuickJSHandle): Outcome => {
+    if (context.typeof(handle) === "undefined") return { result: null, note: NO_RETURN };
     const json = context.callFunction(helper.stringify, context.undefined, handle);
     if (json.error) return fail(json.error);
     const text = context.typeof(json.value) === "string" ? context.getString(json.value) : "null";
@@ -150,7 +152,9 @@ export async function runScript(
       finish(
         "error" in ended
           ? { status: "error", error: ended.error, logs }
-          : { status: "completed", result: ended.result, logs },
+          : ended.note === undefined
+            ? { status: "completed", result: ended.result, logs }
+            : { status: "completed", result: ended.result, note: ended.note, logs },
       );
     };
     const onAbort = () => end({ error: "stopped" });

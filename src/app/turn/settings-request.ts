@@ -15,13 +15,20 @@ export function createSettingsRequest(deps: {
   /** The character's name, as the card's title shows it. */
   name: () => string;
 }): RequestSettings {
+  let open = false;
   return ({ changes, why }, signal) =>
     new Promise((resolve) => {
       if (signal.aborted) {
         resolve("no answer");
         return;
       }
+      if (open) {
+        resolve("busy");
+        return;
+      }
+      open = true;
       const finish = (answer: SettingsAnswer): void => {
+        open = false;
         signal.removeEventListener("abort", withdraw);
         resolve(answer);
       };
