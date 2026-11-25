@@ -1,6 +1,6 @@
 /* The Allow card: the answer area's look across the tab's full width at its foot. Tokens in ../tokens.css. */
 
-.yui-threads-answer.yui-terminal-request {
+.yui-answer.yui-terminal-request {
   padding-inline: 28px;
 }
 
@@ -62,7 +62,7 @@
 }
 
 @container threads (max-width: 519.98px) {
-  .yui-threads-answer.yui-terminal-request {
+  .yui-answer.yui-terminal-request {
     padding-inline: 16px;
   }
 

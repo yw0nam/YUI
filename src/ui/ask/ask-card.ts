@@ -4,8 +4,7 @@ import "./ask-card.css";
 import type { AskAnswer, AskFrame } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
 import { markClipped } from "../scroll-fade/scroll-fade";
-import { type AnswerArea, createAnswerArea } from "../threads/window/answer-area";
-import type { Draft } from "../threads/window/drafts";
+import { type AnswerArea, createAnswerArea, type Draft } from "./answer-area";
 
 export interface AskCard {
   /** Keeps DOM, focus and draft for an unchanged head; head changes, local failures and post-answer replay re-render it. */

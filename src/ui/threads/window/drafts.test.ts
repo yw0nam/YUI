@@ -1,10 +1,11 @@
 /** drafts.test.ts — what a new snapshot leaves of each unsent draft, keyed by the ask it answers. */
 
 import { expect, it } from "vitest";
-import type { Thread, ThreadAsk } from "../../../contract";
-import { type Draft, draftKey, pruneDrafts } from "./drafts";
+import type { Ask, Thread } from "../../../contract";
+import type { Draft } from "../../ask/answer-area";
+import { draftKey, pruneDrafts } from "./drafts";
 
-function thread(id: string, ask?: ThreadAsk): Thread {
+function thread(id: string, ask?: Ask): Thread {
   return {
     id,
     source: "codex",
@@ -18,7 +19,7 @@ function thread(id: string, ask?: ThreadAsk): Thread {
   };
 }
 
-const ask = (ask_id: string, text: boolean, choices: string[] = []): ThreadAsk => ({
+const ask = (ask_id: string, text: boolean, choices: string[] = []): Ask => ({
   ask_id,
   prompt: "?",
   choices: choices.map((id) => ({ id, label: id })),

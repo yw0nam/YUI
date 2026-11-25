@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { AskAnswer as AnswerPayload, ExpressArgs, ThreadAsk, Usage } from "../../../contract";
+import type { AskAnswer as AnswerPayload, Ask, ExpressArgs, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -80,7 +80,7 @@ export interface ToolResultFrame {
 /** A question the backend holds open for the user until `expires_at`, epoch ms; absent, it has no deadline. */
 export interface AskFrame {
   type: "ask";
-  ask: ThreadAsk;
+  ask: Ask;
   expires_at?: number;
 }
 
@@ -199,7 +199,7 @@ function choicesReadable(choices: unknown): boolean {
   return ids.size === choices.length;
 }
 
-/** The field that makes an ask frame unreadable, or null: the Ask fields of threads.md (no prompt cap) and an `expires_at` that is absent or finite. */
+/** The field that makes an ask frame unreadable, or null: the Ask fields of push-transport.md (no prompt cap) and an `expires_at` that is absent or finite. */
 export function askFrameFault(v: Record<string, unknown>): string | null {
   const ask = v.ask;
   if (ask === null || typeof ask !== "object" || Array.isArray(ask)) return "ask";

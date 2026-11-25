@@ -5,8 +5,10 @@
 export type {
   // Pending read or write on a terminal — the Allow / Deny card
   AccessRequest,
-  // Ask answers shared by Threads and push
+  // An Ask, its choices, and its Answer, shared by Threads and push
+  Ask,
   AskAnswer,
+  AskChoice,
   // Current posture reported each turn
   BodyState,
   // Flat system-message context (client → backend each turn)
@@ -47,8 +49,6 @@ export type {
   TerminalSnapshot,
   // Threads store snapshot
   Thread,
-  ThreadAsk,
-  ThreadChoice,
   ThreadEntry,
   ThreadsSnapshot,
   ToolStatus,

@@ -674,13 +674,16 @@ YUI/
         window/thread-answers.ts     # Each ask's draft, send error and in-flight send, and the answer area that shows
         window/turns-menu.tsx        # The head's Thread turns button and its popover of the three levels
         window/glyph.tsx             # A Threads line glyph as JSX
-        window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/entry-markdown.ts     # An entry's text as Markdown nodes: https images only, no list formatting whitespace
         window/grow.ts               # The grow out of the chip, with a jelly on an automatic open, and the shrink back
         window/hop.ts                # The panel's hop inside its margin when a Thread reaction raises the window
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
+      ask/                           # The Ask card and its answer area
+        answer-area.ts               # The answer area: numbered choices, the growing field, and the send button
+        ask-card.ts                  # The oldest supplied Ask above the input, with its countdown, choices and draft
+        ask-route.ts                 # Shows the Asks on the one side the target picks, clearing the previous side, and hears answers from every side
       character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches

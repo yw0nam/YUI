@@ -251,9 +251,9 @@ export type SignalGroup = {
   plugin?: string;
 };
 
-// ── Threads (docs/reference/threads.md): the store's snapshot as threads_snapshot and threads-snapshot carry it ──
+// ── Asks (docs/reference/push-transport.md § Asks) ──
 
-export interface ThreadChoice {
+export interface AskChoice {
   id: string;
   label: string;
   tone?: "primary" | "danger";
@@ -266,16 +266,18 @@ export interface AskAnswer {
   text?: string;
 }
 
-export interface ThreadAsk {
+export interface Ask {
   ask_id: string;
   prompt: string;
-  choices: ThreadChoice[];
+  choices: AskChoice[];
   /** Whether several choices may be picked. */
   multiple?: true;
   /** Whether free text is accepted. */
   text: boolean;
   placeholder?: string;
 }
+
+// ── Threads (docs/reference/threads.md): the store's snapshot as threads_snapshot and threads-snapshot carry it ──
 
 export interface ThreadEntry {
   role: "agent" | "user" | "system";
@@ -291,7 +293,7 @@ export interface Thread {
   label?: string;
   state: "working" | "input-required" | "completed" | "failed";
   entries: ThreadEntry[];
-  ask?: ThreadAsk;
+  ask?: Ask;
   created_at: number;
   updated_at: number;
   answered_ask_ids?: string[];

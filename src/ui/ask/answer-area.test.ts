@@ -5,11 +5,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./answer-area.css", () => ({}));
 
-import type { ThreadAsk } from "../../../contract";
-import { setLocale } from "../../i18n";
+import type { Ask } from "../../contract";
+import { setLocale } from "../i18n";
 import { createAnswerArea } from "./answer-area";
 
-const ASK: ThreadAsk = {
+const ASK: Ask = {
   ask_id: "a1",
   prompt: "Allow this command?",
   choices: [
@@ -24,7 +24,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
 });
 
-function build(ask: ThreadAsk = ASK, text = "") {
+function build(ask: Ask = ASK, text = "") {
   const onSend = vi.fn();
   const area = createAnswerArea({
     ask,
@@ -36,7 +36,7 @@ function build(ask: ThreadAsk = ASK, text = "") {
   });
   document.body.append(area.el);
   const field = area.el.querySelector("textarea");
-  const send = area.el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;
+  const send = area.el.querySelector<HTMLButtonElement>(".yui-answer__send")!;
   const type = (value: string) => {
     field!.value = value;
     field!.dispatchEvent(new Event("input"));
@@ -86,7 +86,7 @@ it("takes no text when the ask refuses it", () => {
 
 it("renders the prompt as Markdown under the heading the area is labelled by", () => {
   const { area } = build({ ...ASK, prompt: "**Dangerous** command\n\n```\nrm -rf build\n```" });
-  const prompt = area.el.querySelector("#yui-threads-answer-prompt")!;
+  const prompt = area.el.querySelector("#yui-answer-prompt")!;
 
   expect([
     prompt.getAttribute("role"),
@@ -118,10 +118,10 @@ it("toggles multiple picks with checks, a count and danger feedback", () => {
     "Choose one or more",
   );
   expect([...area.el.children].map((child) => child.className)).toEqual([
-    "yui-threads-answer__head",
-    "yui-threads-answer__multiple",
-    "yui-threads-answer__choices",
-    "yui-threads-answer__composer",
+    "yui-answer__head",
+    "yui-answer__multiple",
+    "yui-answer__choices",
+    "yui-answer__composer",
   ]);
   expect([send.textContent, send.disabled]).toEqual(["Send", true]);
   area.pick(1);

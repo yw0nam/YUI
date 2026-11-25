@@ -1,6 +1,6 @@
 /** The text of a Threads tool result: the Thread rows, one Thread's conversation, and a search snippet. */
 
-import type { Thread, ThreadAsk, ThreadEntry } from "../../../../contract";
+import type { Ask, Thread, ThreadEntry } from "../../../../contract";
 import { oneLine } from "../../one-line";
 
 const LIST_LIMIT = 20;
@@ -60,7 +60,7 @@ function entryText(entry: ThreadEntry): string {
     : entry.text;
 }
 
-function asksDetail(ask: ThreadAsk): string {
+function asksDetail(ask: Ask): string {
   const parts = [oneLine(ask.prompt)];
   if (ask.choices.length > 0) {
     parts.push(`[choices: ${ask.choices.map((choice) => oneLine(choice.label)).join(", ")}]`);

@@ -4,11 +4,15 @@
  */
 
 import "./answer-area.css";
-import type { AskAnswer, ThreadAsk } from "../../../contract";
-import { t } from "../../i18n";
-import { CHECK_SVG } from "../glyphs";
-import type { Draft } from "./drafts";
-import { entryMarkdown } from "./entry-markdown";
+import type { Ask, AskAnswer } from "../../contract";
+import { t } from "../i18n";
+import { CHECK_SVG } from "../threads/glyphs";
+import { entryMarkdown } from "../threads/window/entry-markdown";
+
+export interface Draft {
+  picks: string[];
+  text: string;
+}
 
 /** The field grows with its text up to this height, then scrolls. */
 const FIELD_MAX_PX = 200;
@@ -22,7 +26,7 @@ export interface AnswerArea {
 }
 
 export function createAnswerArea(deps: {
-  ask: ThreadAsk;
+  ask: Ask;
   draft: Draft;
   /** The last send's error, shown until the next send. */
   error: string | null;
@@ -38,30 +42,30 @@ export function createAnswerArea(deps: {
   let sending = deps.sending;
 
   const el = document.createElement("section");
-  el.className = "yui-threads-answer";
-  el.setAttribute("aria-labelledby", "yui-threads-answer-prompt");
+  el.className = "yui-answer";
+  el.setAttribute("aria-labelledby", "yui-answer-prompt");
   el.innerHTML = `
-    <div class="yui-threads-answer__head">
-      <div class="yui-threads-answer__prompt" id="yui-threads-answer-prompt" role="heading" aria-level="3"></div>
+    <div class="yui-answer__head">
+      <div class="yui-answer__prompt" id="yui-answer-prompt" role="heading" aria-level="3"></div>
     </div>
-    <div class="yui-threads-answer__choices" role="group" aria-labelledby="yui-threads-answer-prompt"></div>
-    <div class="yui-threads-answer__composer">
-      <button type="button" class="yui-threads-answer__send"></button>
+    <div class="yui-answer__choices" role="group" aria-labelledby="yui-answer-prompt"></div>
+    <div class="yui-answer__composer">
+      <button type="button" class="yui-answer__send"></button>
     </div>
   `;
-  el.querySelector(".yui-threads-answer__prompt")!.append(...entryMarkdown(ask.prompt));
-  if (deps.head) el.querySelector(".yui-threads-answer__head")!.append(deps.head);
-  const choicesEl = el.querySelector<HTMLElement>(".yui-threads-answer__choices")!;
+  el.querySelector(".yui-answer__prompt")!.append(...entryMarkdown(ask.prompt));
+  if (deps.head) el.querySelector(".yui-answer__head")!.append(deps.head);
+  const choicesEl = el.querySelector<HTMLElement>(".yui-answer__choices")!;
   if (ask.multiple) {
     const hint = document.createElement("small");
-    hint.id = "yui-threads-answer-multiple";
-    hint.className = "yui-threads-answer__multiple";
-    hint.textContent = t("threads.choose_multiple");
+    hint.id = "yui-answer-multiple";
+    hint.className = "yui-answer__multiple";
+    hint.textContent = t("ask.choose_multiple");
     choicesEl.before(hint);
     choicesEl.setAttribute("aria-describedby", hint.id);
   }
-  const composer = el.querySelector<HTMLElement>(".yui-threads-answer__composer")!;
-  const send = el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;
+  const composer = el.querySelector<HTMLElement>(".yui-answer__composer")!;
+  const send = el.querySelector<HTMLButtonElement>(".yui-answer__send")!;
 
   const choiceButtons = ask.choices.map((choice, i) => {
     const button = document.createElement("button");
@@ -72,7 +76,7 @@ export function createAnswerArea(deps: {
     button.append(key, choice.label);
     if (ask.multiple) {
       button.insertAdjacentHTML("beforeend", CHECK_SVG);
-      button.lastElementChild!.classList.add("yui-threads-answer__check");
+      button.lastElementChild!.classList.add("yui-answer__check");
     }
     button.addEventListener("click", () => pick(i));
     return button;
@@ -83,14 +87,14 @@ export function createAnswerArea(deps: {
   let field: HTMLTextAreaElement | null = null;
   if (ask.text) {
     const hint = document.createElement("small");
-    hint.id = "yui-threads-answer-hint";
-    hint.textContent = t("threads.send_hint");
-    el.querySelector(".yui-threads-answer__head")!.append(hint);
+    hint.id = "yui-answer-hint";
+    hint.textContent = t("ask.send_hint");
+    el.querySelector(".yui-answer__head")!.append(hint);
     field = document.createElement("textarea");
     field.rows = 1;
     field.value = draft.text;
     field.placeholder = ask.placeholder ?? "";
-    field.setAttribute("aria-label", t("threads.reply_aria"));
+    field.setAttribute("aria-label", t("ask.reply_aria"));
     field.setAttribute("aria-describedby", hint.id);
     field.addEventListener("input", () => {
       draft.text = field!.value;
@@ -108,9 +112,9 @@ export function createAnswerArea(deps: {
 
   if (deps.error) {
     const error = document.createElement("p");
-    error.className = "yui-threads-answer__error";
+    error.className = "yui-answer__error";
     error.setAttribute("role", "alert");
-    error.textContent = t("threads.send_failed", { error: deps.error });
+    error.textContent = t("ask.send_failed", { error: deps.error });
     el.append(error);
   }
 
@@ -135,8 +139,8 @@ export function createAnswerArea(deps: {
     const choices = picked();
     send.textContent =
       choices.length > 1
-        ? t("threads.send_count", { n: choices.length })
-        : (choices[0]?.label ?? t("threads.send"));
+        ? t("ask.send_count", { n: choices.length })
+        : (choices[0]?.label ?? t("ask.send"));
     send.classList.toggle(
       "is-danger",
       choices.some((choice) => choice.tone === "danger"),

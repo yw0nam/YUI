@@ -1,6 +1,6 @@
-/* The answer area pinned at the thread pane's foot. Tokens in ../../tokens.css. */
+/* The answer area: an Ask's prompt, numbered choices, growing field and send button, in the Ask card and the thread pane. Tokens in ../tokens.css. */
 
-.yui-threads-answer {
+.yui-answer {
   display: grid;
   gap: 8px;
   padding: 12px 28px 16px;
@@ -10,17 +10,17 @@
 
 /* In the thread pane it fills the pane's last row, at most half the pane (thread-pane.css): the choices
    shrink and scroll first, then the field and an error, so the prompt, the field and Send stay. */
-.yui-threads-pane .yui-threads-answer {
+.yui-threads-pane .yui-answer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.yui-threads-answer__head {
+.yui-answer__head {
   flex: none;
 }
 
-.yui-threads-answer__head {
+.yui-answer__head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -28,40 +28,40 @@
   gap: 12px;
 }
 
-.yui-threads-answer__prompt {
+.yui-answer__prompt {
   min-width: 0;
   font-size: var(--yui-fs-head);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.yui-threads-answer__prompt > * {
+.yui-answer__prompt > * {
   margin: 0 0 0.5em;
 }
 
-.yui-threads-answer__prompt > :last-child {
+.yui-answer__prompt > :last-child {
   margin-bottom: 0;
 }
 
 /* The first block heads the prompt; the blocks after it read as its body. */
-.yui-threads-answer__prompt > * + * {
+.yui-answer__prompt > * + * {
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-body);
   font-weight: 400;
 }
 
 /* A line's own newlines show; the markup's newlines between blocks stay collapsed. */
-.yui-threads-answer__prompt :is(p, li) {
+.yui-answer__prompt :is(p, li) {
   white-space: pre-wrap;
 }
 
-.yui-threads-answer__prompt code {
+.yui-answer__prompt code {
   font-family: var(--yui-font-mono);
   font-size: 0.88em;
 }
 
 /* A command wraps inside the prompt rather than scrolling it sideways. */
-.yui-threads-answer__prompt pre {
+.yui-answer__prompt pre {
   padding: 8px 10px;
   border-radius: var(--yui-radius-control);
   background: var(--yui-selected);
@@ -71,14 +71,14 @@
   white-space: pre-wrap;
 }
 
-.yui-threads-answer__head small,
-.yui-threads-answer__multiple {
+.yui-answer__head small,
+.yui-answer__multiple {
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-sub);
 }
 
 /* Gives up its room before the field does. */
-.yui-threads-answer__choices {
+.yui-answer__choices {
   display: flex;
   flex: 0 1000 auto;
   flex-direction: column;
@@ -91,12 +91,12 @@
   overscroll-behavior: contain;
 }
 
-.yui-threads-answer__choices[hidden] {
+.yui-answer__choices[hidden] {
   display: none;
 }
 
 /* Text mute edges read 6.66:1 (Dawn) and 6.23:1 (Hearth) on the Panel. */
-.yui-threads-answer button {
+.yui-answer button {
   position: relative;
   min-height: 36px;
   padding: 8px 12px;
@@ -109,22 +109,22 @@
   cursor: pointer;
 }
 
-.yui-threads-answer button:hover:not(:disabled, [aria-pressed="true"]) {
+.yui-answer button:hover:not(:disabled, [aria-pressed="true"]) {
   background: var(--yui-hover);
 }
 
-.yui-threads-answer__choices button:active:not(:disabled, [aria-pressed="true"]) {
+.yui-answer__choices button:active:not(:disabled, [aria-pressed="true"]) {
   background: var(--yui-selected);
 }
 
-.yui-threads-answer__choices button::before {
+.yui-answer__choices button::before {
   content: "";
   position: absolute;
   inset: -4px;
 }
 
 /* One borderless row per choice, as wide as the area; the pick shows by fill and weight. */
-.yui-threads-answer__choices button {
+.yui-answer__choices button {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -137,7 +137,7 @@
   text-align: left;
 }
 
-.yui-threads-answer__choices kbd {
+.yui-answer__choices kbd {
   color: var(--yui-text-mute);
   font: inherit;
   font-size: var(--yui-fs-sub);
@@ -145,22 +145,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-.yui-threads-answer__choices [aria-pressed="true"] {
+.yui-answer__choices [aria-pressed="true"] {
   background: var(--yui-selected);
   color: var(--yui-accent-ink);
   font-weight: 600;
 }
 
-.yui-threads-answer__choices .is-danger {
+.yui-answer__choices .is-danger {
   color: var(--yui-danger);
 }
 
-.yui-threads-answer__choices .is-danger[aria-pressed="true"] {
+.yui-answer__choices .is-danger[aria-pressed="true"] {
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
 }
 
-.yui-threads-answer__composer {
+.yui-answer__composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: minmax(0, 1fr);
@@ -170,7 +170,7 @@
 }
 
 /* One line that grows with the reply up to 200px or the room left, then scrolls. */
-.yui-threads-answer textarea {
+.yui-answer textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
@@ -187,20 +187,20 @@
 }
 
 /* An empty field is one line, so a long placeholder stays on it rather than showing its next line's top. */
-.yui-threads-answer textarea:placeholder-shown {
+.yui-answer textarea:placeholder-shown {
   overflow: hidden;
   white-space: nowrap;
 }
 
-.yui-threads-answer textarea::placeholder {
+.yui-answer textarea::placeholder {
   color: var(--yui-text-mute);
 }
 
-.yui-threads-answer__composer > :only-child {
+.yui-answer__composer > :only-child {
   grid-column: 2;
 }
 
-.yui-threads-answer .yui-threads-answer__send {
+.yui-answer .yui-answer__send {
   min-height: 44px;
   border-color: var(--yui-text);
   background: var(--yui-text);
@@ -208,20 +208,20 @@
   font-weight: 600;
 }
 
-.yui-threads-answer .yui-threads-answer__send:hover:not(:disabled) {
+.yui-answer .yui-answer__send:hover:not(:disabled) {
   background: var(--yui-text-dim);
 }
 
-.yui-threads-answer .yui-threads-answer__send:active:not(:disabled) {
+.yui-answer .yui-answer__send:active:not(:disabled) {
   opacity: 0.82;
 }
 
-.yui-threads-answer .yui-threads-answer__send.is-danger {
+.yui-answer .yui-answer__send.is-danger {
   border-color: var(--yui-danger);
   background: var(--yui-danger);
 }
 
-.yui-threads-answer .yui-threads-answer__send:disabled {
+.yui-answer .yui-answer__send:disabled {
   opacity: 0.55;
   border-color: var(--yui-edge-strong);
   background: var(--yui-selected);
@@ -230,7 +230,7 @@
 }
 
 /* Shrinks to its first line and scrolls when the area runs out of room. */
-.yui-threads-answer__error {
+.yui-answer__error {
   min-height: 1lh;
   margin: 0;
   overflow-y: auto;
@@ -242,40 +242,40 @@
 }
 
 @container pane (max-width: 559.98px) {
-  .yui-threads-answer {
+  .yui-answer {
     padding-inline: 20px;
   }
 }
 
 /* A pane under 440px keeps Send beside the field. */
 @container pane (max-width: 439.98px) {
-  .yui-threads-answer {
+  .yui-answer {
     padding-inline: 16px;
   }
 }
 
 /* A short pane drops the Enter hint and tightens the answer area. */
 @container pane (max-height: 439.98px) {
-  .yui-threads-answer {
+  .yui-answer {
     padding-block: 8px 10px;
   }
 
-  .yui-threads-answer__head small {
+  .yui-answer__head small {
     display: none;
   }
 }
 
-.yui-threads-answer__multiple {
+.yui-answer__multiple {
   flex: none;
 }
 
-.yui-threads-answer__check {
+.yui-answer__check {
   flex: none;
   width: 14px;
   height: 14px;
   visibility: hidden;
 }
 
-[aria-pressed="true"] > .yui-threads-answer__check {
+[aria-pressed="true"] > .yui-answer__check {
   visibility: visible;
 }
