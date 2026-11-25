@@ -20,6 +20,13 @@
   width: max-content;
 }
 
+/* Each column enters and leaves as one, from and toward her chest (its transform-origin). */
+.yui-cmenu__col {
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+
 .yui-cmenu__pill {
   display: flex;
   align-items: center;
@@ -135,29 +142,43 @@
   font-size: var(--yui-fs-sub);
   font-weight: 600;
   white-space: nowrap;
+  transition: opacity var(--yui-dur) var(--yui-ease);
 }
 
-/* Pills pop out from her chest in keyboard order. */
-.yui-cmenu.is-pop .yui-cmenu__col > * {
-  animation: yui-cmenu-pop 320ms var(--yui-ease) backwards;
-  animation-delay: var(--yui-cmenu-delay);
+/* is-out: before the open and during the exit; is-leaving and is-entering: a list swap's two columns. */
+.yui-cmenu__col.is-out,
+.yui-cmenu__col.is-leaving,
+.yui-cmenu__col.is-entering,
+.yui-cmenu__name.is-out {
+  opacity: 0;
 }
 
-@keyframes yui-cmenu-pop {
-  from {
-    opacity: 0;
-    transform: translate(var(--yui-cmenu-fx), var(--yui-cmenu-fy)) scale(0.4);
+.yui-cmenu__col.is-leaving,
+.yui-cmenu.is-closing .yui-cmenu__col,
+.yui-cmenu.is-closing .yui-cmenu__name {
+  transition-duration: var(--yui-dur-fast);
+}
+
+/* Under reduced motion the same states only fade. */
+@media (prefers-reduced-motion: no-preference) {
+  .yui-cmenu__col.is-out {
+    transform: scale(0.92);
   }
-}
 
-@keyframes yui-cmenu-fade {
-  from {
-    opacity: 0;
+  /* A list opened comes in from the right; Back comes in from the left. */
+  .yui-cmenu__col.is-entering {
+    transform: translateX(8px);
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .yui-cmenu.is-pop .yui-cmenu__col > * {
-    animation: yui-cmenu-fade 160ms linear backwards;
+  .yui-cmenu__col.is-leaving {
+    transform: translateX(-8px);
+  }
+
+  .yui-cmenu.is-back .yui-cmenu__col.is-entering {
+    transform: translateX(-8px);
+  }
+
+  .yui-cmenu.is-back .yui-cmenu__col.is-leaving {
+    transform: translateX(8px);
   }
 }

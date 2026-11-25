@@ -8,7 +8,7 @@ const GUTTER_PX = 88;
 const MARGIN_PX = 16;
 const GRID_PX = 8;
 /** A pill row's pitch: 36px tall plus the 8px gap; the stylesheet sets the same. */
-export const ROW_PX = 44;
+const ROW_PX = 44;
 /** The least room between a column and the edge of her window or the work area. */
 const EDGE_PX = 8;
 

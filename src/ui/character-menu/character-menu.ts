@@ -5,6 +5,7 @@ import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
+import { createExit } from "./exit";
 import { CHEVRON, GLYPHS } from "./glyphs";
 import {
   type ListId,
@@ -15,14 +16,14 @@ import {
   topItems,
 } from "./items";
 import { menuKey } from "./keys";
-import { columnLeft, type Fold, gridWidth, type MenuWidths, ROW_PX } from "./layout";
+import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
 
 /** Where the menu draws, in the mount's px. */
 export interface MenuPlacement {
   fold: Fold;
   /** The columns' shared top. */
   top: number;
-  /** Where the pills pop out from. */
+  /** Where the columns enter from and leave toward. */
   chest: { x: number; y: number };
   /** Her head's top: her name sits above it. */
   head: number;
@@ -45,9 +46,9 @@ export interface MenuActions {
 
 const log = createLogger("character-menu");
 
-/** Each pill pops out this long after the one before it, in keyboard order. */
-const STAGGER_MS = 30;
 const LISTS: readonly ListId[] = ["body", "voice", "pace", "more"];
+/** The columns the menu acts on: a column leaving in a list swap is out of reach. */
+const LIVE = ".yui-cmenu__col:not(.is-leaving)";
 
 type ColumnKey = "right" | "left" | "all" | ListId;
 type Side = "left" | "right";
@@ -71,7 +72,8 @@ export function createCharacterMenu(deps: {
   root.hidden = true;
   mount.appendChild(root);
 
-  let phase: "closed" | "opening" | "open" | "closing" = "closed";
+  // "leaving": the exit toward her chest is running, and a reopen takes it back.
+  let phase: "closed" | "opening" | "open" | "leaving" | "closing" = "closed";
   let pending: Promise<void> = Promise.resolve();
   let list: ListId | null = null;
   let confirm: string | null = null;
@@ -79,6 +81,8 @@ export function createCharacterMenu(deps: {
   let widths: Record<ColumnKey, number> | null = null;
   /** The state at open, whose Body and Voice lists stay drawn until close. */
   let opened: MenuState | null = null;
+  const menuExit = createExit();
+  const swapExit = createExit();
 
   function pill(item: MenuItem, measuring = false): HTMLButtonElement {
     const b = document.createElement("button");
@@ -190,18 +194,17 @@ export function createCharacterMenu(deps: {
     ];
   }
 
-  function render(pop = false): void {
+  /** Redraws the menu; a column leaving in a list swap stays until its exit ends. */
+  function render(): void {
     if (!placement || !widths) return;
     const items = columnItems(drawn());
     const centre = mount.clientWidth / 2;
-    root.replaceChildren();
+    for (const el of [...root.children]) if (!el.classList.contains("is-leaving")) el.remove();
     const name = document.createElement("p");
     name.className = "yui-cmenu__name";
     name.textContent = deps.name();
     name.style.setProperty("top", `${placement.head}px`);
     root.appendChild(name);
-    root.classList.toggle("is-pop", pop);
-    let order = 0;
     for (const { side, key } of columns()) {
       const width = gridWidth(widths[key]);
       const left = columnLeft(side, centre, width);
@@ -212,23 +215,19 @@ export function createCharacterMenu(deps: {
       col.style.setProperty("left", `${left}px`);
       col.style.setProperty("top", `${placement.top}px`);
       if (width > 0) col.style.setProperty("width", `${width}px`);
-      items[key].forEach((item, i) => {
-        const row = confirm === item.id ? confirmRow(item) : pill(item);
-        row.style.setProperty("--yui-cmenu-fx", `${placement!.chest.x - (left + width / 2)}px`);
-        row.style.setProperty(
-          "--yui-cmenu-fy",
-          `${placement!.chest.y - (placement!.top + i * ROW_PX + ROW_PX / 2)}px`,
-        );
-        row.style.setProperty("--yui-cmenu-delay", `${order++ * STAGGER_MS}ms`);
-        col.appendChild(row);
-      });
+      col.style.setProperty(
+        "transform-origin",
+        `${placement.chest.x - left}px ${placement.chest.y - placement.top}px`,
+      );
+      for (const item of items[key])
+        col.appendChild(confirm === item.id ? confirmRow(item) : pill(item));
       root.appendChild(col);
     }
   }
 
   /** The columns left to right, as the keyboard moves between them. */
   const columnsByX = (): HTMLElement[] =>
-    [...root.querySelectorAll<HTMLElement>(".yui-cmenu__col")].sort(
+    [...root.querySelectorAll<HTMLElement>(LIVE)].sort(
       (a, b) => Number.parseFloat(a.style.left) - Number.parseFloat(b.style.left),
     );
 
@@ -239,18 +238,40 @@ export function createCharacterMenu(deps: {
     (target as HTMLElement | null | undefined)?.focus({ preventScroll: true });
   }
 
-  const focusId = (id: string): void => focusRow(root.querySelector(`[data-id="${id}"]`));
+  const focusId = (id: string): void => focusRow(root.querySelector(`${LIVE} [data-id="${id}"]`));
 
-  function show(next: ListId | null, focus: string): void {
+  /** Starts `els` from `state` and lets them transition to how they are drawn. */
+  function enter(els: readonly Element[], state: string): void {
+    for (const el of els) el.classList.add(state);
+    void root.offsetWidth;
+    for (const el of els) el.classList.remove(state);
+  }
+
+  /** Swaps the list column; a mouse swap crossfades the old column out and the new one in. */
+  function show(next: ListId | null, focus: string, animate: boolean): void {
+    swapExit.cancel();
+    for (const el of root.querySelectorAll(".is-leaving")) el.remove();
+    const fold = placement?.fold ?? "none";
+    const side = fold === "none" ? "left" : fold;
+    const old = animate ? root.querySelector<HTMLElement>(`.yui-cmenu__col--${side}`) : null;
+    if (old) {
+      root.classList.toggle("is-back", next === null);
+      old.classList.add("is-leaving");
+      old.setAttribute("inert", "");
+    }
     list = next;
     confirm = null;
     render();
+    if (old) {
+      enter([...root.querySelectorAll(`${LIVE}.yui-cmenu__col--${side}`)], "is-entering");
+      swapExit.run([old], () => old.remove());
+    }
     focusId(focus);
   }
 
-  function back(): void {
+  function back(animate: boolean): void {
     const parent = list;
-    if (parent) show(null, parent);
+    if (parent) show(null, parent, animate);
   }
 
   /** Closes, then runs `after` once the window is restored, or failed to. */
@@ -267,20 +288,20 @@ export function createCharacterMenu(deps: {
     terminal: () => actions.threads("terminal"),
   };
 
-  function pick(id: string): void {
+  function pick(id: string, animate: boolean): void {
     const state = drawn();
     const [chosen, value] = id.split(":") as [string, string | undefined];
     const after = closing[id] ?? (id === "talk" && !state.talk ? () => actions.talk(true) : null);
     if (after) closeThen(after);
-    else if (id === "back") back();
+    else if (id === "back") back(animate);
     else if ((LISTS as readonly string[]).includes(id)) {
       const items = listItems(id as ListId, kind, state);
-      show(id as ListId, (items.find((i) => i.on) ?? items[1] ?? items[0]!).id);
+      show(id as ListId, (items.find((i) => i.on) ?? items[1] ?? items[0]!).id, animate);
     } else if (value !== undefined) {
       if (chosen === "body") actions.body(value);
       if (chosen === "voice") actions.voice(value);
       if (chosen === "pace") actions.pace(value as BasePace);
-      show(null, chosen);
+      show(null, chosen, animate);
     } else {
       if (id === "talk") actions.talk(false);
       if (id === "rest" || id === "listen" || id === "bubble" || id === "unified")
@@ -305,13 +326,14 @@ export function createCharacterMenu(deps: {
   }
 
   function onClick(e: MouseEvent): void {
-    const button = (e.target as Element).closest<HTMLButtonElement>("button");
-    if (!button) return;
+    const button = (e.target as Element).closest<HTMLButtonElement>(`${LIVE} button`);
+    if (phase !== "open" || !button) return;
     if (button.dataset.act) {
       answer(button.dataset.act === "sure");
       return;
     }
-    if (button.dataset.id) pick(button.dataset.id);
+    // Enter and Space click with no click count: a key acts without motion.
+    if (button.dataset.id) pick(button.dataset.id, e.detail > 0);
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -359,13 +381,13 @@ export function createCharacterMenu(deps: {
         );
         return;
       case "tab": {
-        const all = [...root.querySelectorAll<HTMLButtonElement>("button")];
+        const all = [...root.querySelectorAll<HTMLButtonElement>(`${LIVE} button`)];
         const at = all.indexOf(active as HTMLButtonElement);
         all[(at + move.by + all.length) % all.length]?.focus({ preventScroll: true });
         return;
       }
       case "back":
-        back();
+        back(false);
         return;
       case "close":
         void close();
@@ -377,7 +399,7 @@ export function createCharacterMenu(deps: {
 
   // A right-click closes through contextmenu instead, so the press that closes the menu never reopens it.
   function onPointerDown(e: PointerEvent): void {
-    if (phase === "open" && e.button !== 2 && !inMenu(e.target)) void close();
+    if (phase === "open" && e.button !== 2 && !inMenu(e.target)) leave();
   }
 
   function onContextMenu(e: MouseEvent): void {
@@ -385,7 +407,7 @@ export function createCharacterMenu(deps: {
     e.preventDefault();
     if (inMenu(e.target)) return;
     e.stopPropagation();
-    void close();
+    leave();
   }
 
   /** Restores the window; a failed restore still leaves the menu closed, and close() never rejects. */
@@ -398,7 +420,27 @@ export function createCharacterMenu(deps: {
       });
   }
 
+  /** The exit toward her chest that a click elsewhere or a blur starts; a reopen takes it back. */
+  function leave(): void {
+    if (phase === "opening") void close();
+    if (phase !== "open") return;
+    phase = "leaving";
+    root.classList.add("is-closing");
+    const columns = [...root.querySelectorAll(LIVE)];
+    for (const el of [...columns, ...root.querySelectorAll(".yui-cmenu__name")])
+      el.classList.add("is-out");
+    menuExit.run(columns, () => void close());
+  }
+
   async function open(): Promise<void> {
+    if (phase === "leaving") {
+      menuExit.cancel();
+      phase = "open";
+      root.classList.remove("is-closing");
+      for (const el of root.querySelectorAll(".is-out")) el.classList.remove("is-out");
+      if (!inMenu(document.activeElement)) focusRow(root.querySelector(`${LIVE} > *`));
+      return;
+    }
     if (phase !== "closed") return;
     phase = "opening";
     list = null;
@@ -432,18 +474,23 @@ export function createCharacterMenu(deps: {
       phase = "open";
       root.setAttribute("aria-label", t("character_menu.label", { name: deps.name() }));
       root.hidden = false;
-      render(true);
+      render();
+      enter([...root.querySelectorAll(".yui-cmenu__col, .yui-cmenu__name")], "is-out");
       focusId("talk");
     })();
     await pending;
   }
 
+  /** Closes at once, ending any exit still running, and restores the window. */
   async function close(): Promise<void> {
     if (phase === "opening") phase = "closing";
-    if (phase !== "open") return pending;
+    if (phase !== "open" && phase !== "leaving") return pending;
     phase = "closing";
+    menuExit.cancel();
+    swapExit.cancel();
     root.hidden = true;
     root.replaceChildren();
+    root.classList.remove("is-closing", "is-back");
     pending = settle();
     return pending;
   }
@@ -452,13 +499,14 @@ export function createCharacterMenu(deps: {
   document.addEventListener("keydown", onKeydown);
   document.addEventListener("pointerdown", onPointerDown, true);
   document.addEventListener("contextmenu", onContextMenu, true);
-  const offBlur = deps.onBlur(() => void close());
+  const offBlur = deps.onBlur(leave);
 
   return {
     open,
     close,
     isOpen: () => phase === "open",
     dispose() {
+      void close();
       offBlur();
       document.removeEventListener("keydown", onKeydown);
       document.removeEventListener("pointerdown", onPointerDown, true);
