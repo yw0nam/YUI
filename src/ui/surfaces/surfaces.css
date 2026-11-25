@@ -33,6 +33,18 @@
   align-items: flex-start;
   gap: 0.4rem;
   pointer-events: none;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+/* While the Character menu is open, the column fades out of its way and takes no hits. */
+.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    visibility 0s linear var(--yui-dur-fast);
+}
+.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column * {
+  pointer-events: none;
 }
 .yui-chip-column > .yui-deleg,
 .yui-chip-column > .yui-sigchips {
