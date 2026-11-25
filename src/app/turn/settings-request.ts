@@ -1,4 +1,4 @@
-/** A Settings request: the user's Allow or Deny on settings an agent may change only with it, asked in the Ask card. */
+/** A Settings request: the user's Allow or Deny on settings an agent may change only with it, shown in the Ask card's slot. */
 
 import type { SettingsChange } from "../../settings/agent-access/document";
 import { settingsRequestPrompt } from "../../ui/ask/settings-request-prompt";
@@ -20,7 +20,6 @@ export function createSettingsRequest(deps: {
   /** The character's name, as the card's title shows it. */
   name: () => string;
 }): RequestSettings {
-  let count = 0;
   return ({ changes, why }, signal) =>
     new Promise((resolve) => {
       if (signal.aborted) {
@@ -47,7 +46,8 @@ export function createSettingsRequest(deps: {
       deps.asks.put(owner, {
         type: "ask",
         ask: {
-          ask_id: `settings-request-${++count}`,
+          // An id no backend can know, so no push Ask can share its draft or its Answer.
+          ask_id: crypto.randomUUID(),
           prompt: settingsRequestPrompt(deps.name(), changes, why),
           choices: [
             { id: "deny", label: t("settings_request.deny"), tone: "danger" },

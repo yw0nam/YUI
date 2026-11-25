@@ -397,6 +397,11 @@ export const ROWS: readonly SettingRow[] = [
       const source = stores.screenshotSettings.get().source;
       stores.screenshotSettings.setSource({ ...source, kind: value } as ScreenSource);
     },
+    valueLabels: {
+      monitor: "screenshot.kind_monitor",
+      window: "screenshot.kind_window",
+      browser_tab: "screenshot.kind_browser_tab",
+    },
     factory: (storage) => createScreenshotSettings({ storage }),
   }),
   row({
@@ -410,6 +415,7 @@ export const ROWS: readonly SettingRow[] = [
       const source = stores.screenshotSettings.get().source;
       stores.screenshotSettings.setSource({ ...source, index: value } as ScreenSource);
     },
+    ordinalKey: "screenshot.display",
     factory: (storage) => createScreenshotSettings({ storage }),
     check: (document) => getIn(document, ["privacy", "screen_source", "kind"]) === "monitor",
   }),
@@ -431,6 +437,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "screen.prev_dwell_label",
     write: (stores, value) => stores.screenKnobSettings.set({ prev_dwell_ms: value as number }),
+    unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -441,6 +448,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "screen.settle_label",
     write: (stores, value) => stores.screenKnobSettings.set({ settle_ms: value as number }),
+    unit: { per: 1_000, suffixKey: "screen.seconds_suffix" },
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -451,6 +459,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "screen.long_session_label",
     write: (stores, value) => stores.screenKnobSettings.set({ long_session_ms: value as number }),
+    unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -461,6 +470,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "screen.recent_cap_label",
     write: (stores, value) => stores.screenKnobSettings.set({ recent_cap: value as number }),
+    unit: { per: 1, suffixKey: "screen.count_suffix" },
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),
   row({
@@ -481,6 +491,11 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "threadTurns.label",
     write: (stores, value) => stores.threadTurnsSettings.setLevel(value as ThreadTurnsLevel),
+    valueLabels: {
+      off: "threadTurns.off",
+      notable: "threadTurns.notable",
+      every: "threadTurns.every",
+    },
     factory: (storage) => createThreadTurnsSettings({ storage }),
   }),
   row({
@@ -522,6 +537,7 @@ export const ROWS: readonly SettingRow[] = [
     tier: "allow",
     labelKey: "reactions.pacer_gap_label",
     write: (stores, value) => stores.pacerGapSettings.set(value as number),
+    unit: { per: 60_000, suffixKey: "reactions.minutes_suffix" },
     factory: (storage) => createPacerGapStore(storage),
   }),
 ];

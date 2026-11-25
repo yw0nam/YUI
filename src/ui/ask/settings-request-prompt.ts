@@ -2,7 +2,7 @@
 
 import { oneLine } from "../../io/chat/one-line";
 import type { SettingsChange } from "../../settings/agent-access/document";
-import { ROWS } from "../../settings/agent-access/rows";
+import { ROWS, type SettingRow } from "../../settings/agent-access/rows";
 import { t } from "../i18n";
 
 const WHY_MAX = 200;
@@ -12,10 +12,16 @@ function plain(text: string): string {
   return oneLine(text).replace(/[!-/:-@[-`{-~]/g, "\\$&");
 }
 
-function value(v: unknown): string {
-  return typeof v === "boolean"
-    ? t(v ? "settings_request.on" : "settings_request.off")
-    : plain(String(v));
+/** A value as the row's control in the settings window shows it. */
+function value(row: SettingRow | undefined, v: unknown): string {
+  if (typeof v === "boolean") return t(v ? "settings_request.on" : "settings_request.off");
+  const label = row?.valueLabels?.[String(v)];
+  if (label) return t(label);
+  if (typeof v === "number" && row?.ordinalKey) return t(row.ordinalKey, { n: v + 1 });
+  if (typeof v === "number" && row?.unit) {
+    return t("settings_request.amount", { n: v / row.unit.per, unit: t(row.unit.suffixKey) });
+  }
+  return plain(String(v));
 }
 
 export function settingsRequestPrompt(
@@ -23,17 +29,21 @@ export function settingsRequestPrompt(
   changes: readonly SettingsChange[],
   why?: string,
 ): string {
-  const lines = [
-    t("settings_request.title", { name: plain(name) }),
-    ...changes.map((c) => `${t(c.labelKey)}: ${value(c.from)} → ${value(c.to)}`),
-  ];
+  const lines = changes.map((c) => {
+    const row = ROWS.find((r) => r.path === c.path);
+    return t("settings_request.change", {
+      label: t(c.labelKey),
+      from: value(row, c.from),
+      to: value(row, c.to),
+    });
+  });
   if (why !== undefined && oneLine(why)) {
     lines.push(
       t("settings_request.why", { why: plain([...oneLine(why)].slice(0, WHY_MAX).join("")) }),
     );
   }
-  if (changes.some((c) => ROWS.find((row) => row.path === c.path)?.scope === "global")) {
-    lines.push(t("settings_request.shared"));
-  }
-  return lines.join("\n");
+  // Every allow-tier row is global.
+  lines.push(t("settings_request.shared"));
+  // The blank line makes the title the card's head block and the rest its body.
+  return `${t("settings_request.title", { name: plain(name) })}\n\n${lines.join("\n")}`;
 }
