@@ -43,6 +43,7 @@ it.each([
       {
         bound,
         settings,
+        surfaces: { setAsks: () => {}, onAskAnswer: () => {} },
         conversation: { relationsStore: {} },
         vrm: { vrmSelection: {} },
         // Threads belong to the main character; the wiring hands the client to main's window only.
