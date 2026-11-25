@@ -194,18 +194,40 @@ export interface GazeKnobs {
   smooth: number;
 }
 
-/** Her travel onto the settings stage and back, and her staying away from it. */
+/** One Entry family: the backend emotions it answers and the entry clips it picks from. */
+export interface EntryFamily {
+  emotions: string[];
+  clips: string[];
+}
+
+/** An entry clip played with her hips pinned beyond her window's right edge. */
+export interface EdgeEntry {
+  /** Inset past the edge, as a fraction of her height. */
+  inset: number;
+  /** Play time (ms) after which she returns to idle; absent, the clip plays to its end. */
+  play_ms?: number;
+}
+
+/** Her travel onto the settings stage and back, her entry on it, and her staying away from it. */
 export interface StageConfig {
-  /** Shortest walk (ms). */
-  walk_ms: number;
-  /** Extra walk time (ms) a walk reaches at `walk_full_pt`. */
-  walk_extra_ms: number;
-  /** Distance (logical pt) at which a walk takes its full time; a longer move vanishes and appears. */
-  walk_full_pt: number;
+  /** Shortest carry (ms). */
+  carry_ms: number;
+  /** Extra carry time (ms) a carry reaches at `carry_full_pt`. */
+  carry_extra_ms: number;
+  /** Distance (logical pt) at which a carry takes its full time; a longer move vanishes and appears. */
+  carry_full_pt: number;
   /** Chance [0, 1] that she stays on the desktop while the last backend emotion is angry. */
   stay_chance: number;
   /** Minutes after which the last backend emotion counts as neutral. */
   emotion_decay_min: number;
+  /** Entry families by name; an emotion in no family takes `plain`. */
+  entry_families: Record<string, EntryFamily> & { plain: EntryFamily };
+  /** Entry clips that play pinned at her window's right edge, by motion id. */
+  edge_entries: Record<string, EdgeEntry>;
+  /** Time (ms) the edge pin takes to ease back to the centre. */
+  edge_release_ms: number;
+  /** Time (ms) her window holds still after she is picked up. */
+  pickup_hold_ms: number;
 }
 
 /** configs/avatar.json — VRM to load (renderer input). */
