@@ -28,8 +28,8 @@ codex plugin add yui-notify@yui
 Codex requires hook trust at startup. Changed hook definitions require trust again; see
 [Codex setup](skills/setup/references/codex.md). Run `/yui-notify:setup` in Claude Code or
 `$yui-notify:setup` in Codex to configure the endpoint, probe it, and send a test Thread.
-Run `/yui-notify:thread-producer` or `$yui-notify:thread-producer` to build a producer for
-another source, such as a pull request or a mail thread.
+A producer for another source, such as a pull request or a mail thread, is built with the
+backend agent's skill [`skills/thread-producer`](../../skills/thread-producer/SKILL.md).
 
 To update an existing install, refresh the marketplace, update the plugin, then reload
 plugins or start a new session. Claude Code: `/plugin marketplace update yui`,
