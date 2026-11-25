@@ -137,6 +137,53 @@ describe("createYuiRunTool", () => {
     expect(stores.screenshotSettings.get()).toMatchObject({ enabled: false });
   });
 
+  it.each([
+    [
+      "a hand-made return value",
+      "await yui.settings.write({ bubble: { keep: true } }); return { status: 'ok' }",
+      {
+        status: "completed",
+        result: { status: "ok" },
+        writes: [{ "bubble.keep": "ok" }],
+        logs: [],
+      },
+    ],
+    [
+      "no return after a write",
+      "await yui.settings.write({ bubble: { keep: true } })",
+      {
+        status: "completed",
+        result: null,
+        note: "the script returned nothing; end it with return and a JSON value",
+        writes: [{ "bubble.keep": "ok" }],
+        logs: [],
+      },
+    ],
+    [
+      "a throw after a write",
+      "await yui.settings.write({ privacy: { screenshot: true } }, { why: 'look at your screen' }); throw new Error('boom')",
+      {
+        status: "error",
+        error: "Error: boom",
+        writes: [{ "privacy.screenshot": "ok" }],
+        logs: [],
+      },
+    ],
+  ])("lists every write's answers under writes, beside %s", async (_name, code, envelope) => {
+    const { run } = harness();
+
+    expect(await run(code)).toEqual(envelope);
+  });
+
+  it("carries no writes key when the run wrote nothing", async () => {
+    const { run } = harness();
+
+    const result = await run("return 1");
+
+    expect(result).toEqual({ status: "completed", result: 1, logs: [] });
+    expect(result).not.toHaveProperty("writes");
+  });
+
   it("answers invalid for an allowed value the store no longer accepts", async () => {
     const { run, stores, request } = harness();
     request.mockImplementation(async () => {

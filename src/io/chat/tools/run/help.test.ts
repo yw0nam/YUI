@@ -1,4 +1,4 @@
-/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and four rules. */
+/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and five rules. */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { helpText } from "./help";
@@ -269,13 +269,16 @@ describe("helpText", () => {
     >();
   });
 
-  it("declares the yui API and four rules, and stays under 8 KB", () => {
+  it("declares the yui API and five rules, and stays under 8 KB", () => {
     expect(text).toContain("declare const yui:");
     expect(text).toContain("declare function help(): string;");
     expect(text).toContain(
       "3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.",
     );
-    expect(text.match(/^\d\. /gm)).toHaveLength(4);
+    expect(text).toContain(
+      "5. The result always lists every write's answers under writes; tell the user what changed.",
+    );
+    expect(text.match(/^\d\. /gm)).toHaveLength(5);
     expect(text.length).toBeLessThan(8192);
   });
 });
