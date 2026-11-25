@@ -82,7 +82,7 @@
   background: var(--yui-selected);
 }
 
-.yui-threads-pane__attach[aria-pressed="true"] {
+.yui-threads-pane__attach.is-attached {
   border-color: var(--yui-accent);
   background: var(--yui-accent-faint);
   color: var(--yui-accent-ink);

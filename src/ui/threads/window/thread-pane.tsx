@@ -145,8 +145,7 @@ export function ThreadPane({
               )}
               <button
                 type="button"
-                className="yui-threads-pane__attach"
-                aria-pressed={isAttached}
+                className={`yui-threads-pane__attach${isAttached ? " is-attached" : ""}`}
                 onClick={() =>
                   onAttach({ id: thread.id, source: thread.source, title: thread.title })
                 }

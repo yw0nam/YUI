@@ -393,13 +393,11 @@ it("the pane's Attach to chat button shows whether its Thread is attached and as
   const button = () => document.querySelector<HTMLButtonElement>(".yui-threads-pane__attach");
 
   expect(button()?.textContent).toBe("Attach to chat");
-  expect(button()?.getAttribute("aria-pressed")).toBe("false");
   click(button()!);
   expect(onAttach).toHaveBeenCalledExactlyOnceWith({ id: "A", source: "codex", title: "A" });
 
   attach([{ id: "A", source: "codex", title: "A" }]);
   expect(button()?.textContent).toBe("Attached");
-  expect(button()?.getAttribute("aria-pressed")).toBe("true");
 
   click(document.querySelector('.yui-threads-list [data-id="B"]')!);
   expect(button()?.textContent).toBe("Attach to chat");
