@@ -227,3 +227,59 @@ it("the grouped batched pill shows its +N in place of its cross", async () => {
     getComputedStyle(grouped.querySelector(".yui-sigchip__more")!).display,
   ]).toEqual(["none", "block"]);
 });
+
+const drawn = (el: Element | null): boolean => el !== null && el.getClientRects().length > 0;
+
+/** What each chip draws: its title parts as drawn or not, and its count's text where one is drawn. */
+function looks(column: HTMLElement) {
+  const seen = (root: Element, ...selectors: string[]) =>
+    selectors.map((s) => drawn(root.querySelector(s)));
+  const count = (el: Element | null) => (drawn(el) ? el!.textContent : null);
+  const urgent = column.querySelector(".yui-sigchip--urgent")!;
+  const grouped = column.querySelector('.yui-sigchip[data-chip-count="3"]')!;
+  const threads = column.querySelector(".yui-threadchip")!;
+  const task = column.querySelector(".yui-deleg")!;
+  const pill = [".yui-sigchip__dot", ".yui-sigchip__src", ".yui-sigchip__text"];
+  return {
+    urgent: seen(urgent, ...pill, ".yui-sigchip__x"),
+    grouped: [
+      ...seen(grouped, ...pill, ".yui-sigchip__more"),
+      count(grouped.querySelector(".yui-sigchip__count")),
+    ],
+    threads: [
+      ...seen(threads, ".yui-threadchip__marks", ".yui-threadchip__label"),
+      count(threads.querySelector(".yui-threadchip__count")),
+    ],
+    task: [
+      ...seen(task, ".yui-deleg__dot", ".yui-deleg__label"),
+      count(task.querySelector(".yui-deleg__count")),
+    ],
+  };
+}
+
+it("in a 190x284 window every chip shows only its dot and count, inside the window", async () => {
+  await page.viewport(190, 284);
+  const { column } = build();
+  await settle();
+
+  const rights = shown(column).map((el) => el.getBoundingClientRect().right);
+  expect({ ...looks(column), inside: rights.every((right) => right <= 190) }).toEqual({
+    urgent: [true, false, false, false],
+    grouped: [true, false, false, false, "3"],
+    threads: [false, false, "2"],
+    task: [true, false, "1"],
+    inside: true,
+  });
+});
+
+it("in a 400x600 window every chip keeps its title", async () => {
+  const { column } = build();
+  await settle();
+
+  expect(looks(column)).toEqual({
+    urgent: [true, true, true, true],
+    grouped: [true, true, true, true, null],
+    threads: [true, true, "2"],
+    task: [true, true, null],
+  });
+});
