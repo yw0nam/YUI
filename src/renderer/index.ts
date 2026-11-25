@@ -105,7 +105,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     mountHeight: () => mount.clientHeight || 1,
     hipsBone: () => pins.hipsBone(),
     seatDrop: SEAT_DROP,
-    cameraAt: (aspect, framing) => rig.cameraAt(aspect, framing),
+    cameraAt: (aspect, k) => rig.cameraAt(aspect, k),
   });
   const rig = createCameraRig({
     camera,

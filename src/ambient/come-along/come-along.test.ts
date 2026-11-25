@@ -65,9 +65,7 @@ function harness(
   type Size = { width: number; height: number };
   const start: Size = { width: real.width, height: real.height };
   const startHeight = start.height;
-  // As the renderer's camera fit, against the fit by her height alone: below aspect `bound` her
-  // width binds it, her zoom divides it, and the stage framing `k` eases both away. A farther
-  // camera draws her smaller about the window's centre.
+  // Her fit distance over the height-only one: width-bound below `bound`, over her zoom, eased away by stage framing `k`.
   const distance = (s: Size, k: number): number => {
     const own = Math.max(1, ((opts.bound ?? 0) * s.height) / s.width) / (opts.zoom ?? 1);
     return own + (1 - own) * k;
@@ -192,7 +190,7 @@ function harness(
     // Projected with the last fit onto the page as it is now.
     getCharacterAnchor: () =>
       opts.feet === null ? null : { x: 200, y: feetShareAt(drawn, drawnK) * real.height },
-    getFrameFit: (width: number, height: number, k = drawnK) =>
+    getFrameFit: (width: number, height: number, k: number) =>
       opts.feet === null
         ? null
         : {

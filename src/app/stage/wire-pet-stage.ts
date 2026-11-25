@@ -24,7 +24,7 @@ export function wireCamera(deps: {
 }): {
   dispose(): void;
   /** Ignores the plain wheel's zoom while `isLocked` holds; the wheel stays the page's to claim. */
-  lockWheel(isLocked: () => boolean): void;
+  lockWheelZoom(isLocked: () => boolean): void;
 } {
   let wheelLocked = (): boolean => false;
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
@@ -54,7 +54,7 @@ export function wireCamera(deps: {
   // Only the wheel listener is ours — the store subscribers die with the stores' own disposal.
   return {
     dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom),
-    lockWheel(isLocked) {
+    lockWheelZoom(isLocked) {
       wheelLocked = isLocked;
     },
   };

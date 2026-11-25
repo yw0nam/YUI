@@ -39,8 +39,8 @@ export interface CameraRig {
   /** Stores the view window; the caller runs its resize to apply it. */
   setViewWindow(next: ViewWindow | null): void;
   viewWindow(): ViewWindow | null;
-  /** A copy of the camera fit to a window of `aspect` at `framing` (default the current), with no view offset; null with nothing to fit. */
-  cameraAt(aspect: number, framing?: number): THREE.PerspectiveCamera | null;
+  /** A copy of the camera fit to a window of `aspect` at stage framing `k`, with no view offset; null with nothing to fit. */
+  cameraAt(aspect: number, k: number): THREE.PerspectiveCamera | null;
   /** Eases her framing from her own (0) to the stage's (1): fit by her height, head-on, no zoom. */
   setStageFraming(k: number): void;
   setZoom(z: number): void;
@@ -89,7 +89,7 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     // Orbit composes with the radius: orbit sets direction, zoom sets the radius d.
     // effectivePolar is the eased polar (free, or perched-clamped); the stage eases both to head-on.
     const pos = orbitPosition(fit.target, d, {
-      azimuth: lerp(Math.atan2(Math.sin(azimuth), Math.cos(azimuth)), CAMERA_AZIMUTH_DEFAULT, k),
+      azimuth: lerp(azimuth, CAMERA_AZIMUTH_DEFAULT, k),
       polar: lerp(effectivePolar, CAMERA_POLAR_DEFAULT, k),
     });
     cam.position.copy(pos);
@@ -103,11 +103,11 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     fitInto(camera);
   }
 
-  function cameraAt(aspect: number, framing = stageFraming): THREE.PerspectiveCamera | null {
+  function cameraAt(aspect: number, k: number): THREE.PerspectiveCamera | null {
     const cam = camera.clone();
     cam.aspect = aspect;
     cam.clearViewOffset();
-    if (!fitInto(cam, framing)) return null;
+    if (!fitInto(cam, k)) return null;
     cam.updateMatrixWorld();
     return cam;
   }

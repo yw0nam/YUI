@@ -74,7 +74,7 @@ describe("wireCamera", () => {
       cameraSettings,
       idleThrottleSettings,
       removeWheel: camera.dispose,
-      lockWheel: camera.lockWheel,
+      lockWheelZoom: camera.lockWheelZoom,
     };
   }
 
@@ -115,9 +115,9 @@ describe("wireCamera", () => {
   });
 
   it("leaves the stored zoom alone on a plain wheel while locked, and zooms again once unlocked", () => {
-    const { stage, cameraSettings, lockWheel } = setup();
+    const { stage, cameraSettings, lockWheelZoom } = setup();
     let locked = true;
-    lockWheel(() => locked);
+    lockWheelZoom(() => locked);
 
     wheelOn(stage, { deltaY: -240 });
     expect(cameraSettings.setZoom).not.toHaveBeenCalled();

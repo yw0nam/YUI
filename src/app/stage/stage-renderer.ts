@@ -28,5 +28,5 @@ export function createStageRenderer(deps: {
   ambient.start();
   deps.register(() => renderer.dispose());
   deps.register(() => ambient.stop());
-  return { renderer, ambient, lockWheelZoom: camera.lockWheel };
+  return { renderer, ambient, lockWheelZoom: camera.lockWheelZoom };
 }

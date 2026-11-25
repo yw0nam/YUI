@@ -194,7 +194,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     renderer.getFrameFit(size.width, size.height, k)?.feetShare ?? 1;
 
   /** Sets her stage framing to `k` when it is not there already. */
-  function setFraming(k: number): void {
+  function frameStage(k: number): void {
     if (k === framing) return;
     framing = k;
     renderer.setStageFraming(k);
@@ -252,7 +252,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const win = locomotion.frame.frameWindow();
       if (distance < 1) {
         pin.arm(to.width, drawnScale(to, k));
-        setFraming(k);
+        frameStage(k);
         return writeFrame(win, to);
       }
       const stage = deps.stage();
@@ -280,7 +280,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       await renderer.vanish();
       if (id !== move) return;
       pin.arm(to.width, drawnScale(to, k));
-      setFraming(k);
+      frameStage(k);
       await writeFrame(win, to);
       // Her feet are read from the renderer's fit to the new frame.
       await deps.refitTo(to.width, to.height);
@@ -303,11 +303,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     }
   }
 
-  /**
-   * Carries her window to `to` over the parked travel frame, her size and her stage framing eased
-   * with her toward `k`, her feet on the eased line between where they stand and where they will;
-   * she arrives still in `drag`.
-   */
+  /** Carries her window to `to` over the parked travel frame, size, framing `k` and feet eased with her; she arrives still in `drag`. */
   async function carryOver(
     id: number,
     from: Frame,
@@ -339,7 +335,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const kAt = fromK + (k - fromK) * p;
       const feet = fromFeet + (toFeet - fromFeet) * p;
       const at = { ...eased, y: Math.round(feet - feetShare(eased, kAt) * eased.height) };
-      setFraming(kAt);
+      frameStage(kAt);
       void writeFrame(parked.win, at).catch((err) =>
         log.warn("come_along_move_failed", { error: String(err) }),
       );
@@ -407,14 +403,14 @@ export function createComeAlong(deps: ComeAlongDeps): {
       const frame = bottomCentred({ ...at, ...size }, to);
       if (!differs(frame, { ...at, ...size })) return;
       await writeFrame(locomotion.frame.frameWindow(), frame);
-      setFraming(0);
+      frameStage(0);
       await deps.refitTo(to.width, to.height);
       log.info("come_along_size_restored", { frame });
     } catch (err) {
       log.warn("come_along_restore_failed", { error: String(err) });
     } finally {
       // Off the stage she is at her own framing, whatever became of the write.
-      setFraming(0);
+      frameStage(0);
     }
   }
 
@@ -457,7 +453,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     let entry: { family: string; clip: string } | null = null;
     if (stored && "home" in stored) {
       home = stored.home;
-      setFraming(1);
+      frameStage(1);
       await writeFrame(locomotion.frame.frameWindow(), target);
     } else {
       // A trip home that this window interrupted keeps the spot and size she left from.
@@ -594,7 +590,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
       session = "none";
       store(null);
       letGo(true);
-      setFraming(0);
+      frameStage(0);
       throw err;
     }
   }

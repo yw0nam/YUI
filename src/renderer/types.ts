@@ -125,20 +125,13 @@ export interface Renderer {
    * Changes whenever camera is refit via resize/zoom — used to pin UI input to feet.
    */
   getCharacterAnchor(): ScreenAnchor | null;
-  /**
-   * In a `width` × `height` window, with the framing she would have there at stage framing
-   * `framing` (default the current): how far down its height her feet stand (0 to 1), and how much
-   * larger than now she is drawn. null if VRM not loaded.
-   */
+  /** In a `width` × `height` window at stage framing `k`: her feet's share of its height, and how much larger than now she is drawn; null with no VRM. */
   getFrameFit(
     width: number,
     height: number,
-    framing?: number,
+    k: number,
   ): { feetShare: number; scale: number } | null;
-  /**
-   * Eases her framing from her own (0) to the settings stage's (1), which fits her by her height
-   * alone, head-on, with no wheel zoom. Non-finite values are ignored; others clamp to [0, 1].
-   */
+  /** Eases her framing from her own (0) to the stage's (1: her height alone, head-on, no zoom); non-finite ignored, others clamped. */
   setStageFraming(k: number): void;
   /**
    * How wide the character stands on screen (px), measured across the model box at the

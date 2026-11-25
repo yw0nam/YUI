@@ -116,7 +116,7 @@ describe("createCameraRig", () => {
     // Below this box's 0.375 aspect, its width binds the fit.
     const fit = computeCameraFit(BOX, { fov: FRAMING.fov, aspect: 0.3, margin: FRAMING.margin });
 
-    const narrow = rig.cameraAt(0.3);
+    const narrow = rig.cameraAt(0.3, 0);
 
     expect(narrow?.aspect).toBe(0.3);
     expectPosition(
@@ -142,10 +142,10 @@ describe("createCameraRig", () => {
     rig.setOrbit({ azimuth: 0.6, polar: 1.2 });
     stepUntilSettled(rig);
     const target = new THREE.Vector3(0, 0.8, 0);
-    const own = computeCameraFit(box, { fov: FRAMING.fov, aspect: 2 / 3, margin: FRAMING.margin })!;
-    const ownDistance = own.distance / 0.5;
+    // Her width over a 2:3 window binds her own fit, at twice the distance for the 0.5 zoom.
+    const ownDistance = 8.374722;
     // Half her 1.6 height over tan(15°), plus the 10% margin.
-    const stageDistance = (0.8 / Math.tan((15 * Math.PI) / 180)) * 1.1;
+    const stageDistance = 3.2842047;
     const distanceAt = (k: number): number => {
       rig.setStageFraming(k);
       return camera.position.distanceTo(target);
@@ -172,10 +172,8 @@ describe("createCameraRig", () => {
 
     const copy = rig.cameraAt(2 / 3, 1);
 
-    expect(copy!.position.distanceTo(target)).toBeCloseTo(
-      (0.8 / Math.tan((15 * Math.PI) / 180)) * 1.1,
-      6,
-    );
+    // Half the 1.6 box height over tan(15°), plus the 10% margin.
+    expect(copy!.position.distanceTo(target)).toBeCloseTo(3.2842047, 6);
     expectPosition(camera, own);
   });
 
