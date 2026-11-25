@@ -52,7 +52,9 @@ repositories** and optional — see
   written in English (chat in any language). The `pr-title` CI job checks the
   conventional type and that the subject is printable ASCII; English is the
   convention for the rest of the tracker.
-- **UI: review existing → propose → mock → implement.** Read the existing
+- **UI: storyboard → review existing → propose → mock → implement.** Storyboard
+  how the user uses the change in the issue, one frame per step of each journey
+  it touches ([`design-context.md`](docs/agent-guide/design-context.md)). Read the existing
   `src/ui/` screens plus [`DESIGN.md`](DESIGN.md) and [`PRODUCT.md`](PRODUCT.md)
   before any UI work; propose the text structure, get confirmation, build a
   standalone mock HTML in [`mocks/`](mocks/README.md), then implement.
