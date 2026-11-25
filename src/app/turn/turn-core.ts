@@ -30,6 +30,7 @@ import {
   type wireVrmSelection,
 } from "../settings/wire-avatar";
 import { wireThreadsAttach } from "../threads-attach/wire-threads-attach";
+import type { AskQueue } from "./ask-queue";
 import { wireAskSession } from "./push/ask-session";
 import { wirePlayback } from "./push/playback";
 import { wireBackendCommands } from "./push/wire-backend-commands";
@@ -132,6 +133,8 @@ export async function wireTurnCore(
     onTurnClosed?: DispatcherDeps["onTurnClosed"];
     /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
     addressedTo?: (turnId: string) => string | undefined;
+    /** The window's ask queue; the push socket's Asks join it. */
+    asks: Pick<AskQueue, "put" | "remove">;
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -309,7 +312,7 @@ export async function wireTurnCore(
       register(published.subscribe(() => pushSocket?.sendVocabulary()));
       if (pushSocket) {
         register(wirePlayback({ socket: pushSocket, previousTurn }));
-        register(wireAskSession({ socket: pushSocket, surfaces }));
+        register(wireAskSession({ socket: pushSocket, asks: deps.asks }));
         register(
           wireBackendCommands({
             socket: pushSocket,

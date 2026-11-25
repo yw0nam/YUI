@@ -56,6 +56,7 @@ import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
+import { createAskQueue } from "./turn/ask-queue";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import { wireSynthFailureNotice } from "./turn/voice/wire-synth-failure-notice";
@@ -205,6 +206,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     const mcpHost = createMcpHost();
     register(mcpHost.dispose);
     register(mcpHost.subscribe(() => phase1.pushSocket?.sendTools()));
+    const asks = createAskQueue({ surfaces });
+    register(asks.dispose);
     const { declared: windowTools } = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -253,6 +256,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       windowTools,
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
+      asks,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
