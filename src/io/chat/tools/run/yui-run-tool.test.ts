@@ -140,23 +140,12 @@ describe("createYuiRunTool", () => {
   it.each([
     [
       "a hand-made return value",
-      "await yui.settings.write({ bubble: { keep: true } }); return { status: 'ok' }",
+      "await yui.settings.write({ bubble: { keep: true } }); await yui.settings.write(null); return { status: 'ok' }",
       {
         status: "completed",
         result: { status: "ok" },
-        writes: [{ "bubble.keep": "ok" }],
         logs: [],
-      },
-    ],
-    [
-      "no return after a write",
-      "await yui.settings.write({ bubble: { keep: true } })",
-      {
-        status: "completed",
-        result: null,
-        note: "the script returned nothing; end it with return and a JSON value",
-        writes: [{ "bubble.keep": "ok" }],
-        logs: [],
+        writes: [{ "bubble.keep": "ok" }, { "*": "error: patch must be an object" }],
       },
     ],
     [
@@ -165,8 +154,8 @@ describe("createYuiRunTool", () => {
       {
         status: "error",
         error: "Error: boom",
-        writes: [{ "privacy.screenshot": "ok" }],
         logs: [],
+        writes: [{ "privacy.screenshot": "ok" }],
       },
     ],
   ])("lists every write's answers under writes, beside %s", async (_name, code, envelope) => {

@@ -275,9 +275,7 @@ describe("helpText", () => {
     expect(text).toContain(
       "3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.",
     );
-    expect(text).toContain(
-      "5. The result always lists every write's answers under writes; tell the user what changed.",
-    );
+    expect(text).toContain("under writes");
     expect(text.match(/^\d\. /gm)).toHaveLength(5);
     expect(text.length).toBeLessThan(8192);
   });

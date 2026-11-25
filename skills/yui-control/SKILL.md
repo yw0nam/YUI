@@ -6,14 +6,14 @@ license: PolyForm-Noncommercial-1.0.0
 
 # yui-control
 
-YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScript function against the `yui` API and returns `{"status":"completed","result":…}`, with a `note` when the script returned nothing, or `{"status":"error","error":…}`.
+YUI gives you one tool for this: `yui_run`. It runs the body of an async JavaScript function against the `yui` API and returns `{"status":"completed","result":…}`, with a `note` when the script returned nothing and `writes` listing the answers of the writes that finished, or `{"status":"error","error":…}`.
 
 ## Steps
 
 1. Run `return help()` once before your first other `yui_run` call in a conversation. It returns the API of the installed YUI and every setting you can read or change, with its allowed values and whether it needs Allow. Where help() and this file differ, follow help().
 2. Read the current values with `yui.settings.read()` or `yui.state.read()` before you change or mention them.
 3. Put every setting that needs the user's Allow into the same write: `yui.settings.write(patch, { why })`. The patch is a JSON merge patch on the settings document. Write `why` as one short sentence in your own voice: the user reads it on the Allow card. A second such write while one waits answers an error.
-4. Read the answers from `writes`, one entry per write the run made:
+4. Read the answers from `writes`; each entry maps a path to its answer:
    - `ok`: the setting has the new value.
    - `denied`: the user pressed Deny. Accept it.
    - `no answer`: the user did not answer within 60 s of the card showing. You may ask again later, in words first.

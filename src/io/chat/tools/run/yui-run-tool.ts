@@ -50,21 +50,11 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
               const opts = call[1] as { why?: unknown } | undefined;
               const why = opts?.why;
               // Checked here, before any request: a bad shape must not reach the ask queue.
-              if (!isPlainObject(patch)) {
-                const results = { "*": "error: patch must be an object" } as WriteResults;
-                writes.push(results);
-                return results;
-              }
-              if (why !== undefined && typeof why !== "string") {
-                const results = { "*": "error: why must be a string" } as WriteResults;
-                writes.push(results);
-                return results;
-              }
-              const results = await ports.settings.write(
-                patch as object,
-                why as string | undefined,
-                stop,
-              );
+              const results = !isPlainObject(patch)
+                ? ({ "*": "error: patch must be an object" } as WriteResults)
+                : why !== undefined && typeof why !== "string"
+                  ? ({ "*": "error: why must be a string" } as WriteResults)
+                  : await ports.settings.write(patch as object, why as string | undefined, stop);
               writes.push(results);
               return results;
             },
@@ -76,18 +66,7 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
       };
       const outcome = await runScript(code, host, stop);
       // Every write's answers ride the envelope, so a script that drops them still reports the real ones.
-      const writesField = writes.length > 0 ? { writes } : {};
-      return JSON.stringify(
-        outcome.status === "error"
-          ? { status: outcome.status, error: outcome.error, ...writesField, logs: outcome.logs }
-          : {
-              status: outcome.status,
-              result: outcome.result,
-              ...(outcome.note === undefined ? {} : { note: outcome.note }),
-              ...writesField,
-              logs: outcome.logs,
-            },
-      );
+      return JSON.stringify({ ...outcome, ...(writes.length > 0 ? { writes } : {}) });
     },
     failed: (text) => {
       if (text.startsWith("error:")) return true;
