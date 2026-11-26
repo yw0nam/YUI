@@ -5,7 +5,7 @@ process.env.TZ = "UTC";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Thread } from "../../../../contract";
 import { runNamespace } from "../run/namespace-test-run";
-import { createThreadsApi, THREADS_DECLARATION } from "./threads-api";
+import { createThreadsApi } from "./threads-api";
 
 const previousTz = process.env.TZ;
 afterAll(() => {
@@ -274,7 +274,7 @@ describe("yui.threads — argument checks", () => {
 });
 
 it("prints the list and search declarations for help()", () => {
-  expect(THREADS_DECLARATION).toBe(
+  expect(createThreadsApi({ threads: () => [] }).declaration).toBe(
     `  threads: {
     /** The user's Threads newest first as text rows (waiting ones unless state is "all"); with id, that Thread's newest 20 entries. */
     list(opts?: { state?: "waiting" | "all"; source?: string; id?: string }): Promise<string>;

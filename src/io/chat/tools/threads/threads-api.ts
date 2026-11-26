@@ -13,7 +13,7 @@ export type ThreadsApi = {
   declaration: string;
 };
 
-export const THREADS_DECLARATION = `  threads: {
+const THREADS_DECLARATION = `  threads: {
     /** The user's Threads newest first as text rows (waiting ones unless state is "all"); with id, that Thread's newest 20 entries. */
     list(opts?: { state?: "waiting" | "all"; source?: string; id?: string }): Promise<string>;
     /** Threads whose title, label or entry text holds query, newest first, at most 10. */
