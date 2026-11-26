@@ -76,7 +76,10 @@ describe("runClientCall — the turn id", () => {
       "t1",
     );
 
-    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: "t1" });
+    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), {
+      turnId: "t1",
+      status: expect.any(Function),
+    });
   });
 });
 
@@ -139,6 +142,45 @@ describe("runClientCall — tool_status state", () => {
       "echo_args",
       "echo_args",
     ]);
+  });
+
+  it("yields each id a running tool reports while it runs, and ends on the last one", async () => {
+    let report: (id: string) => void = () => {};
+    let open: (result: string) => void = () => {};
+    const registry = createClientToolRegistry([
+      tool({
+        name: "yui_run",
+        execute: (_args, _signal, call) => {
+          report = (id) => call?.status?.(id);
+          report("look");
+          return new Promise((resolve) => {
+            open = resolve;
+          });
+        },
+      }),
+    ]);
+    const running = (tool_id: string) => ({
+      type: "tool_status",
+      status: { state: "running", tool_id },
+    });
+    const gen = runClientCall(registry, "yui_run", "{}");
+
+    expect((await gen.next()).value).toEqual(running("yui_run"));
+    const whileBlocked = await Promise.race([
+      gen.next(),
+      new Promise((resolve) => setTimeout(() => resolve("still blocked"), 0)),
+    ]);
+    expect(whileBlocked).toEqual({ done: false, value: running("look") });
+
+    report("terminal");
+    open("ok");
+    const rest = [(await gen.next()).value, (await gen.next()).value];
+
+    expect(rest).toEqual([
+      running("terminal"),
+      { type: "tool_status", status: { state: "done", tool_id: "terminal" } },
+    ]);
+    expect((await gen.next()).done).toBe(true);
   });
 
   it("yields no tool_status for the express cue", async () => {

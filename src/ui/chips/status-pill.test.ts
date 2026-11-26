@@ -561,7 +561,7 @@ describe("status pill — tool done", () => {
     flushFrames();
 
     expect(p.dot().dataset.tool).toBe("running");
-    expect(p.label().textContent).toBe("Running…");
+    expect(p.label().textContent).toBe("Using a terminal…");
     expect(p.root().hidden).toBe(false);
     expect(p.root().classList.contains("is-visible")).toBe(true);
   });

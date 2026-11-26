@@ -112,6 +112,41 @@ describe("executeClientTool", () => {
     expect(seen?.aborted).toBe(true);
   });
 
+  function reportingTool() {
+    let report: (id: string) => void = () => {};
+    const reporting = tool({
+      execute: (_args, _signal, call) => {
+        report = (id) => call?.status?.(id);
+        return new Promise<string>(() => {});
+      },
+    });
+    return { reporting, report: (id: string) => report(id) };
+  }
+
+  it("hands status no report the tool makes after the caller's signal aborted", async () => {
+    const caller = new AbortController();
+    const status = vi.fn();
+    const { reporting, report } = reportingTool();
+    void executeClientTool(reporting, {}, caller.signal, undefined, undefined, status);
+    report("look");
+    caller.abort();
+    report("terminal");
+
+    expect(status.mock.calls).toEqual([["look"]]);
+  });
+
+  it("hands status no report the tool makes after its wait passed", async () => {
+    const status = vi.fn();
+    const { reporting, report } = reportingTool();
+    const pending = executeClientTool(reporting, {}, undefined, undefined, undefined, status);
+    report("look");
+    await vi.advanceTimersByTimeAsync(2000);
+    await pending;
+    report("terminal");
+
+    expect(status.mock.calls).toEqual([["look"]]);
+  });
+
   it("resolves an error string naming the seconds when a query outlives its wait", async () => {
     const pending = executeClientTool(
       tool({ waitMs: 7000, execute: () => new Promise<string>(() => {}) }),

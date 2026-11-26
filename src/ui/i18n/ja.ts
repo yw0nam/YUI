@@ -19,7 +19,10 @@ const ja: Record<string, string> = {
   // tool labels (English — not translated)
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
-  "tool.terminal": "Running…",
+  "tool.terminal": "Using a terminal…",
+  "tool.look": "Looking…",
+  "tool.threads": "Reading Threads…",
+  "tool.yui_run": "Running a script…",
   "tool.code": "Running…",
   "tool.python": "Running…",
   "tool.file": "Reading…",

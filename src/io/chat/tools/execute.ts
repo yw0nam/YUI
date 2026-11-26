@@ -8,7 +8,8 @@ const log = createLogger("execute");
 /**
  * Runs the call bounded by the tool's own wait. A wait that passes resolves the tool's timeout
  * result, or an error string naming the seconds; the underlying execution keeps running. The
- * execution's signal aborts when the wait passes or the caller's signal aborts.
+ * execution's signal aborts when the wait passes or the caller's signal aborts. `status` hears each
+ * report the tool makes until the call settles, its wait passes or its signal aborts.
  */
 export async function executeClientTool(
   tool: ClientTool,
@@ -16,9 +17,10 @@ export async function executeClientTool(
   signal?: AbortSignal,
   callId?: string,
   turnId?: string,
+  status?: (id: string) => void,
 ): Promise<ClientToolResult> {
   const started = Date.now();
-  const result = await boundedExecute(tool, args, signal, turnId);
+  const result = await boundedExecute(tool, args, signal, turnId, status);
   const text = toolResultText(result);
   const ok = !toolFailed(tool, result);
   log.info("tool_result", {
@@ -37,15 +39,21 @@ async function boundedExecute(
   args: Record<string, unknown>,
   signal: AbortSignal | undefined,
   turnId: string | undefined,
+  status: ((id: string) => void) | undefined,
 ): Promise<ClientToolResult> {
   const execution = new AbortController();
+  let settled = false;
+  // A late report would retake the pill, since a running state always takes it.
+  const report = (id: string): void => {
+    if (!settled && !execution.signal.aborted) status?.(id);
+  };
   const abort = (): void => execution.abort();
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      tool.execute(args, execution.signal, { turnId }),
+      tool.execute(args, execution.signal, { turnId, status: status && report }),
       new Promise<string>((resolve) => {
         timer = setTimeout(() => {
           // Resolved before the abort, so a tool's answer to the abort never wins the race.
@@ -58,6 +66,7 @@ async function boundedExecute(
     // The model owns what a failed tool means — hand it the failure rather than dropping the turn.
     return `error: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
+    settled = true;
     clearTimeout(timer);
     signal?.removeEventListener("abort", abort);
   }
