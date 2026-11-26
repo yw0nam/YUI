@@ -671,7 +671,7 @@ Each choice has a required non-empty `id` and `label`, each at most 64 code poin
 - The client closes the Ask at `expires_at`, when it has one.
 - A second `ask` with an `ask_id` the client holds replaces that Ask in place.
 - Several Asks may be open. The client shows the oldest first and sends an Answer only for the one it shows.
-- The client's own Settings requests share the card with Asks, in arrival order. An Ask that arrives while a Settings request shows waits behind it.
+- The client's own Settings requests share the Ask slot with Asks, in arrival order, each on its own card. An Ask that arrives while a Settings request shows waits behind it.
 - A Settings request closes unanswered 60 s after it shows.
 - The card shows in the message window while it is popped out and unified chat is hidden. Otherwise it shows in the character's (pet) window. The card moves when that changes.
 - Unified chat shows no card.

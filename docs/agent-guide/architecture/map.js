@@ -940,7 +940,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/message",
       "module": "bridge",
       "label": "message bridge",
-      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists with ready replay and ask-answer controls, and the message window's surfaces as a remote half. One surface op table builds the remote half's sender and the message window's receiver.",
+      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists (push Asks and Settings requests) with ready replay and ask-answer controls (Answers and Settings request decisions), and the message window's surfaces as a remote half. One surface op table builds the remote half's sender and the message window's receiver.",
       "paths": [
         "src/io/bridge/message"
       ]
@@ -1274,9 +1274,18 @@ globalThis.YUI_MAP =
       "id": "ui/ask",
       "module": "display",
       "label": "ask card",
-      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window. It owns the answer area (prompt, numbered choices, growing field, send).",
+      "role": "The Ask slot above the input in the pet or popped message window; unified chat leaves the slot in the pet window. slot-cards.ts shows the queue's head on the Ask card or the Settings request card and hides the other. The Ask card keeps the same head's focus and draft and owns the answer area (prompt, numbered choices, growing field, send); countdown.ts is the time left both cards show.",
       "paths": [
         "src/ui/ask"
+      ]
+    },
+    {
+      "id": "ui/settings-request",
+      "module": "display",
+      "label": "settings request card",
+      "role": "The Settings request card in the Ask slot: the character's name, one line per change with its from and to values, the why and the shared line as plain text, the time left in the danger color under 10 s; Deny and Allow answer on one click, several changes show one unchecked checkbox each and Allow N writes the checked paths; Add a note opens a field of up to 200 characters that grows to four lines, and Enter sends Allow N when a change is checked, else Deny. The same request keeps its checks and note.",
+      "paths": [
+        "src/ui/settings-request"
       ]
     },
     {
@@ -2120,7 +2129,7 @@ globalThis.YUI_MAP =
       "id": "surface-asks",
       "from": "ui/surfaces",
       "to": "ui/ask",
-      "carries": "setAsks → AskCard.set with multiple?; onAskAnswer → AskCard.onAnswer {ask_id, choice?, choices?, text?}",
+      "carries": "setAsks → SlotCards.set: an AskFrame head on the Ask card with multiple?, a SettingsRequestFrame head {request_id, name, changes, why?, expires_at?} on the Settings request card; onAskAnswer → an Answer {ask_id, choice?, choices?, text?} or a decision {request_id, allow, note?}",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/surfaces/surfaces.ts"
@@ -2362,10 +2371,19 @@ globalThis.YUI_MAP =
       "wiring": "src/windows/main.ts"
     },
     {
+      "id": "slot-settings-request",
+      "from": "ui/ask",
+      "to": "ui/settings-request",
+      "carries": "SettingsRequestCard.set(the SettingsRequestFrame head, or undefined while the head is an Ask or the queue is empty); onDecision {request_id, allow, note?}",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/ask/slot-cards.ts"
+    },
+    {
       "id": "chip-column-ask",
       "from": "ui/ask",
       "to": "ui/surfaces",
-      "carries": "the Ask card's hidden and its box → the chip column ends 8px above it while it shows",
+      "carries": "the shown card's hidden and its box, the Ask card or the Settings request card → the chip column ends 8px above it while it shows",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -2515,7 +2533,7 @@ globalThis.YUI_MAP =
       "id": "ask-queue-surfaces",
       "from": "app/turn",
       "to": "ui/surfaces",
-      "carries": "setAsks(the queue's frames, oldest first) → AskCard; onAskAnswer → the answer goes to the owner of the head frame: a push Ask's sendAnswer, or a Settings request's Allow or Deny",
+      "carries": "setAsks(the queue's AskFrame and SettingsRequestFrame frames, oldest first) → the Ask slot; onAskAnswer → an Answer, matched by ask_id, only to a push Ask head and its sendAnswer, or a decision {request_id, allow, note?}, matched by request_id, only to a Settings request head, whose owner checks its shape before it takes it",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2533,7 +2551,7 @@ globalThis.YUI_MAP =
       "id": "tools-ask-queue",
       "from": "io/chat/tools",
       "to": "app/turn",
-      "carries": "yui.settings.write's allow paths → one Settings request → the window's Ask queue (put, remove); the card's Allow or Deny answers the write; no answer comes after the card's 60 s once shown, or when the turn stops",
+      "carries": "yui.settings.write's allow paths → one Settings request → the window's Ask queue (put, remove); the user's decision answers the write: allowed paths ok, the rest denied, each as ok: <note> / denied: <note> when the user wrote a note; no answer comes after the card's 60 s once shown, or when the turn stops",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-yui-run.ts"
@@ -4805,7 +4823,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the label and busy flag of each button the bubble shows under its speech, in order; commands and command-reply restated on ready",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the label and busy flag of each button the bubble shows under its speech, in order; asks carries push Ask and Settings request frames; asks, commands and command-reply restated on ready",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4814,7 +4832,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close; ask-answer {answer}",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -7019,28 +7037,28 @@ globalThis.YUI_MAP =
         "id": "message-surface",
         "from": "pet",
         "to": "message",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply, asks {frames} and threads {threads}",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply, asks {frames} (push Asks and Settings requests) and threads {threads}",
         "kind": "bridge"
       },
       {
         "id": "message-surface-companion",
         "from": "pet-<id>",
         "to": "message-<id>",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames}",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames} (push Asks and Settings requests)",
         "kind": "bridge"
       },
       {
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
+        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
         "kind": "bridge"
       },
       {
         "id": "message-control-companion",
         "from": "message-<id>",
         "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
         "kind": "bridge"
       },
       {

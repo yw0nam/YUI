@@ -58,7 +58,7 @@ YUI/
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
         wire-first-conversation.ts   # After Quick start connects, and on its Replay: the greeting on an empty session, then the input and the controls hint with the two guides
         ask-queue.ts                 # The window's Ask queue: the push socket's Asks and the Settings requests, shown oldest first, the user's pick sent to the owner of the one shown
-        settings-request.ts          # A yui_run write's allow paths as one Settings request in the Ask queue, answered Allow, Deny, no answer, or busy when one is already open
+        settings-request.ts          # A yui_run write's allow paths as one Settings request in the Ask queue, answered with a decision, no answer, or busy when one is already open
         wire-yui-run.ts              # Builds the ports a yui_run script reaches from this window's stores, Ask queue, selections and Tauri commands
         session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
@@ -445,7 +445,8 @@ YUI/
             yui-run-tool.ts            # The yui_run tool: runs the script and answers its JSON result
             sandbox.ts                 # Runs a script in a fresh QuickJS module under the CPU, stack and output limits
             help.ts                    # The text help() prints: the yui API, the settings rows, and the usage rules
-            settings-api.ts            # yui.settings: the exposed document, and a patch whose allow paths wait for the user
+            settings-api.ts            # yui.settings: the exposed document, and a patch whose allow paths wait for the user's decision
+            settings-request-frame.ts  # The Settings request frame and its decision, beside the push Ask in the Ask slot's types
             state-api.ts               # yui.state: start time, last presence, open characters, screen recording permission
             info-api.ts                # yui.info: the bodies, voices and monitors a setting can name
             selection-rows.ts          # The io-owned settings rows: the VRM body and the speaker voice
@@ -700,11 +701,15 @@ YUI/
         window/hop.ts                # The panel's hop inside its margin when a Thread reaction raises the window
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
-      ask/                           # The Ask card and its answer area
+      ask/                           # The Ask card, its answer area, and the Ask slot's composer
         answer-area.ts               # The answer area: numbered choices, the growing field, and the send button
         ask-card.ts                  # The oldest supplied Ask above the input, with its countdown, choices and draft
-        ask-route.ts                 # Shows the Asks on the one side the target picks, clearing the previous side, and hears answers from every side
-        settings-request-prompt.ts   # The Settings request card's lines, with every agent-written value escaped as plain text
+        ask-route.ts                 # Shows the Ask slot's frames on the one side the target picks, clearing the previous side, and hears answers from every side
+        countdown.ts                 # A card's time left, ticking where the shown seconds change
+        slot-cards.ts                # The Ask slot's composer: the queue's head on the Ask card or the Settings request card
+      settings-request/              # The Settings request card
+        settings-request-card.ts     # Deny or Allow on one click, a checkbox per change when there are several, and the optional note
+        change-lines.ts              # The card's change and why lines, each agent-written value as one line of plain text
       character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches

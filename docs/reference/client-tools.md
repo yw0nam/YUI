@@ -374,35 +374,45 @@ A patch that is not an object answers `{ "*": "error: patch must be an object" }
 
 ### Direct and allow rows
 
-Each settings row is `direct` or `allow`. A `direct` row applies its write at once. An `allow` row waits for the user: its path answers only after the user's answer to a Settings request. The `yui.settings.write` result has one entry per path:
+Each settings row is `direct` or `allow`. A `direct` row applies its write at once. An `allow` row waits for the user: its path answers only after the user's decision on a Settings request. The `yui.settings.write` result has one entry per path:
 
 | Result | Meaning |
 |---|---|
 | `ok` | The value is set, applied at once or after Allow |
-| `denied` | The user chose Deny |
+| `ok: <note>` | The user allowed the path, the value is set, and the user wrote this note |
+| `denied` | The user did not allow the path |
+| `denied: <note>` | The user did not allow the path and wrote this note |
 | `no answer` | The card's 60 s passed, or the turn ended before an answer |
 | `error: a settings request is already waiting` | The window already holds one Settings request; put every allow change in one write |
 | `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
 | `error: unknown <path>` | The patch names a path no row holds |
 | `error: <path> failed to load` | A write rejected before it stored the value |
 
+A note rides every allow path of its request that answers `ok` or `denied`. An allowed path whose write fails keeps its `error: …` result with no note. Direct paths never carry a note.
+
 `help()` lists each row's access, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
 ### Settings request
 
-An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title names the character.
+An allow write raises one Settings request for all of its allow paths. The window's Ask slot shows it on its own card, whose title names the character.
 
 A window holds one Settings request at a time. A write whose allow paths would ask while one waits raises no card and answers `error: a settings request is already waiting` for every allow path; its direct paths are still written.
 
-Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, a line saying the change applies to every character, and the Deny and Allow choices.
+Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, and a line saying the change applies to every character. Under them sit the "Add a note" link, Deny and Allow.
 
-The window's ask queue holds the card behind the Asks already open, and the oldest shows first. The card waits 60 s once shown ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-prompt.ts`](../../src/ui/ask/settings-request-prompt.ts)).
+The window's ask queue holds the card behind the Asks already open, and the oldest shows first. The card waits 60 s once shown. A card that times out, or whose turn stops, answers `no answer` for every allow path, and a note typed but not sent is dropped ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-card.ts`](../../src/ui/settings-request/settings-request-card.ts)).
 
-After Allow, each allow path answers `ok`, `error: invalid <path>` or `error: <path> failed to load`.
+#### Decision
 
-Deny answers `denied` for every allow path. The direct paths of the same patch are written before the card and answer `ok`.
+The user answers with a decision: the paths they allow, and an optional note.
 
-A card that times out, or whose turn stops, answers `no answer` for every allow path.
+- With one allow path, Deny and Allow each answer on one click.
+- With several, each path has its own checkbox, unchecked at first. Allow is disabled while nothing is checked and reads "Allow N" once N are checked. It writes the checked paths and answers `denied` for the rest.
+- Deny answers `denied` for every allow path.
+
+"Add a note" opens a field of up to 200 characters, which the card trims. Enter in the field sends Allow N when a path is checked, and Deny otherwise; Shift+Enter starts a new line. The note rides whichever button sends.
+
+After Allow, each allowed path answers `ok`, `error: invalid <path>` or `error: <path> failed to load`. The direct paths of the same patch are written before the card and answer `ok`.
 
 ## On-demand tools
 
