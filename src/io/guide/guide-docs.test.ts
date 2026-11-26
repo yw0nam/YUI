@@ -13,13 +13,29 @@ describe("readGuide", () => {
 });
 
 describe("yui.guide.read", () => {
+  it("returns the guide for a name that is a guide", async () => {
+    const result = await runNamespace(
+      "guide",
+      createGuideApi().methods,
+      'return await yui.guide.read("controls")',
+    );
+    expect(result).toEqual({
+      status: "completed",
+      result: readGuide("controls"),
+      logs: [],
+    });
+    expect(result.status === "completed" ? result.result : "").toContain("# Controls");
+  });
+
   it("ends the run with an error for a name that is not a guide", async () => {
     const result = await runNamespace(
       "guide",
       createGuideApi().methods,
       'return await yui.guide.read("x")',
     );
-    expect(result).toMatchObject({ status: "error" });
-    expect(result.status === "error" ? result.error : "").toMatch(/^Error: yui\.guide\.read: /);
+    expect(result).toMatchObject({
+      status: "error",
+      error: expect.stringMatching(/^Error: yui\.guide\.read: /),
+    });
   });
 });
