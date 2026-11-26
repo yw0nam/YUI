@@ -1,4 +1,4 @@
-/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and eight rules. */
+/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and nine rules. */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { createGuideApi } from "../../../guide/guide-docs";
@@ -302,7 +302,7 @@ describe("helpText", () => {
     );
   });
 
-  it("declares the yui API and eight rules, and stays under 9,472 bytes", () => {
+  it("declares the yui API and nine rules, and stays under 9,472 bytes", () => {
     expect(main).toContain("declare const yui:");
     expect(main).not.toContain("declare function help(): string;");
     expect(main).toContain(
@@ -318,7 +318,10 @@ describe("helpText", () => {
     expect(main).toContain(
       "8. A yui call that fails returns its error text; only a wrong argument throws.",
     );
-    expect(main.match(/^\d\. /gm)).toHaveLength(8);
+    expect(main).toContain(
+      `9. Before you call a plugin's tools, read its skill with help("plugin:<name>") when the description lists one.`,
+    );
+    expect(main.match(/^\d\. /gm)).toHaveLength(9);
     expect(new TextEncoder().encode(main).length).toBeLessThan(9472);
   });
 });

@@ -56,6 +56,7 @@ const RULES = `1. Await every yui call; the returned value is the tool result.
 6. After denied or no answer, tell the user in your own words and do not repeat the same write in this turn. Text after ok: or denied: is the user's note to you.
 7. Await one call that waits for the user's Allow (a write with allow rows, terminal.read, terminal.write) before you start another.
 8. A yui call that fails returns its error text; only a wrong argument throws.
+9. Before you call a plugin's tools, read its skill with help("plugin:<name>") when the description lists one.
 `;
 
 function typeOf(row: SettingRow | HelpRow): string {
