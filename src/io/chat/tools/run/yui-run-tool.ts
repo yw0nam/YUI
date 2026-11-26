@@ -30,14 +30,25 @@ export interface YuiRunPorts {
 /** The ports a window builds itself; the namespaces join them where the tool is created. */
 export type YuiRunWindowPorts = Omit<YuiRunPorts, "namespaces">;
 
-const DESCRIPTION =
-  "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
+const HOW =
+  "Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
+
+// Hermes's tool search shows only a description's first sentence, cut at 80 characters, so it names what the window can do.
+const CAN = [
+  ["look", "see the screen and body"],
+  ["threads", "Threads"],
+  ["terminal", "terminals"],
+  ["plugins", "plugins"],
+  ["guide", "guides"],
+] as const;
 
 /** help() prints the namespace blocks in this order. */
 const ORDER = ["guide", "terminal", "plugins", "look", "threads"] as const;
 
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
   const present = ORDER.filter((name) => ports.namespaces[name]);
+  const can = CAN.filter(([name]) => ports.namespaces[name]).map(([, words]) => words);
+  const lead = `YUI: ${[...can, "settings"].join(", ")}.`;
   return {
     name: "yui_run",
     // A getter: each read lists the plugins enabled at that moment.
@@ -47,7 +58,7 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         type: "function",
         function: {
           name: "yui_run",
-          description: listing ? `${DESCRIPTION} ${listing}` : DESCRIPTION,
+          description: [lead, HOW, listing].filter(Boolean).join(" "),
           parameters: {
             type: "object",
             properties: { code: { type: "string" } },

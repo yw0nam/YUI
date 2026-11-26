@@ -248,7 +248,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 The declared function schemas, in the shape of `hello.tools`, sent whenever the declared tools change while connected, and on `ready` when they changed during the handshake. A plugin turned on or off changes the description of `yui_run`. The frame carries the full list, `[]` when the client declares none, and applies to turns the backend starts after it.
 
 ```json
-{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "yui_run", "description": "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.", "parameters": { "type": "object", "properties": { "code": { "type": "string" } }, "additionalProperties": false, "required": ["code"] } } }] }
+{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "yui_run", "description": "YUI: see the screen and body, Threads, terminals, plugins, guides, settings. Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.", "parameters": { "type": "object", "properties": { "code": { "type": "string" } }, "additionalProperties": false, "required": ["code"] } } }] }
 ```
 
 ## Turns

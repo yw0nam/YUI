@@ -309,7 +309,9 @@ The tool has no switch, so `tool switches:` does not list it, and it stays decla
 
 ## yui_run
 
-`yui_run` runs a script the backend writes against the `yui` API: the namespaces its window has, listed under [The yui API](#the-yui-api). `code` is the body of an async function, so the script uses `await` and returns a JSON value. The description tells the backend to call `help()` first. `help()` returns the API as text.
+`yui_run` runs a script the backend writes against the `yui` API: the namespaces its window has, listed under [The yui API](#the-yui-api). `code` is the body of an async function, so the script uses `await` and returns a JSON value.
+
+The description's first sentence names what the window can do, from its namespaces (`YUI: see the screen and body, Threads, terminals, plugins, guides, settings.` in `main`), and stays within 80 characters, because a backend may show only a tool's first sentence (Hermes's tool search cuts it there). The rest tells the backend to call `help()` first, which returns the API as text.
 
 ### Sandbox
 
