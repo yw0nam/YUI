@@ -31,7 +31,7 @@ export interface YuiRunPorts {
 export type YuiRunWindowPorts = Omit<YuiRunPorts, "namespaces">;
 
 const HOW =
-  "Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
+  "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
 // Hermes's tool search shows only a description's first sentence, cut at 80 characters, so it names what the window can do.
 const CAN = [
