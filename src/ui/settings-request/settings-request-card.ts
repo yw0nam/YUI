@@ -7,11 +7,11 @@ import {
   type SettingsRequestDecision,
   type SettingsRequestFrame,
 } from "../../io/chat/tools/run/settings-request-frame";
+import { IME_KEYCODE } from "../ask/answer-area";
 import { countdown } from "../ask/countdown";
 import { t } from "../i18n";
 import { changeLine, whyLine } from "./change-lines";
 
-const IME_KEYCODE = 229;
 // The time left takes the danger color under this many seconds.
 const LOW_S = 10;
 
@@ -41,6 +41,7 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
 
   const el = make("section", "yui-ask-card yui-settings-card");
   el.hidden = true;
+  el.setAttribute("aria-label", t("settings_request.label"));
   deps.mount.append(el);
 
   function render(frame: SettingsRequestFrame): void {
@@ -96,22 +97,27 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
     for (const button of [link, deny, allow]) button.type = "button";
     actions.append(link, deny, allow);
 
-    const checked = (): string[] =>
-      frame.changes.filter((_, i) => boxes[i]!.checked).map((change) => change.path);
+    // What Allow sends now, and whether a change is checked; one change has no checkbox, so Enter sends Deny for it.
+    function allowNow(): { paths: string[]; checked: boolean } {
+      if (!several) return { paths: [frame.changes[0]!.path], checked: false };
+      const paths = frame.changes.filter((_, i) => boxes[i]!.checked).map((c) => c.path);
+      return { paths, checked: paths.length > 0 };
+    }
     function refresh(): void {
-      const n = checked().length;
-      allow.textContent =
-        several && n > 0 ? t("settings_request.allow_count", { n }) : t("settings_request.allow");
-      allow.disabled = several && n === 0;
-      const action = several && n > 0 ? allow.textContent : deny.textContent;
-      hint.textContent = t("settings_request.enter_hint", { action });
+      const { paths, checked } = allowNow();
+      allow.textContent = checked
+        ? t("settings_request.allow_count", { n: paths.length })
+        : t("settings_request.allow");
+      allow.disabled = paths.length === 0;
+      hint.textContent = t("settings_request.enter_hint", {
+        action: checked ? allow.textContent : deny.textContent,
+      });
     }
     function emit(paths: string[]): void {
       const text = field.value.trim();
       const decision = { request_id: frame.request_id, allow: paths };
       for (const cb of handlers) cb(text ? { ...decision, note: text } : decision);
     }
-    const allowed = (): string[] => (several ? checked() : [frame.changes[0]!.path]);
     function grow(): void {
       field.style.height = "auto";
       // An empty field keeps its one-line minimum; the stylesheet caps the height at four lines.
@@ -126,7 +132,7 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
       field.focus();
     });
     deny.addEventListener("click", () => emit([]));
-    allow.addEventListener("click", () => emit(allowed()));
+    allow.addEventListener("click", () => emit(allowNow().paths));
     field.addEventListener("input", () => {
       const cut = [...field.value].slice(0, NOTE_MAX).join("");
       if (cut !== field.value) field.value = cut;
@@ -135,11 +141,11 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
     field.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.keyCode === IME_KEYCODE) return;
       e.preventDefault();
-      emit(several && checked().length > 0 ? checked() : []);
+      const { paths, checked } = allowNow();
+      emit(checked ? paths : []);
     });
 
     refresh();
-    el.setAttribute("aria-label", t("settings_request.label"));
     el.replaceChildren(head, body, note, actions);
   }
 

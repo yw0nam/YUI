@@ -195,7 +195,7 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
-  const card = createSlotCards({ mount: askSlot });
+  const slot = createSlotCards({ mount: askSlot });
   const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
   const commandReply = createCommandReply({ mount: commandSlot });
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
@@ -281,15 +281,15 @@ export function createSurfaces({
     commandInput.dispose();
     input.dispose();
     commandReply.dispose();
-    card.dispose();
+    slot.dispose();
     el.remove();
   }
 
   const surfaces: Surfaces = {
     el,
     chipColumn,
-    setAsks: card.set,
-    onAskAnswer: card.onAnswer,
+    setAsks: slot.set,
+    onAskAnswer: slot.onAnswer,
     beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
     endSpeech: bubble.endSpeech,
