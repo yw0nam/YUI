@@ -21,15 +21,15 @@ class FakeConfig:
         self.extra = extra
 
 
-LOOK_TOOL = {
+YUI_RUN_TOOL = {
     "type": "function",
     "function": {
-        "name": "look",
-        "description": "Read the character's state",
+        "name": "yui_run",
+        "description": "Run JavaScript against YUI's yui API and get its result",
         "parameters": {
             "type": "object",
-            "properties": {"at": {"type": "string", "enum": ["body", "perch_targets"]}},
-            "required": ["at"],
+            "properties": {"code": {"type": "string"}},
+            "required": ["code"],
             "additionalProperties": False,
         },
     },
@@ -74,14 +74,14 @@ def test_registration_registers_each_client_tool_once_per_fingerprint(monkeypatc
     monkeypatch.setattr(registry, "_ctx", Ctx())
     monkeypatch.setattr(registry, "_declared", {})
 
-    registry.declare([LOOK_TOOL], CHAT)
-    registry.declare([LOOK_TOOL], CHAT)
+    registry.declare([YUI_RUN_TOOL], CHAT)
+    registry.declare([YUI_RUN_TOOL], CHAT)
 
     assert len(registered) == 1
-    assert registered[0]["name"] == "look"
+    assert registered[0]["name"] == "yui_run"
     assert registered[0]["toolset"] == "yui"
-    assert registered[0]["schema"]["description"] == "Read the character's state"
-    assert registered[0]["schema"]["parameters"]["required"] == ["at"]
+    assert registered[0]["schema"]["description"] == "Run JavaScript against YUI's yui API and get its result"
+    assert registered[0]["schema"]["parameters"]["required"] == ["code"]
     assert callable(registered[0]["handler"])
 
 
@@ -154,7 +154,7 @@ async def test_the_handler_answers_disconnected_with_no_ready_socket(monkeypatch
     state.set_connected(CHAT, False)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
 
-    result = await asyncio.to_thread(handler.handle("look"), {"at": "body"})
+    result = await asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"})
 
     assert result == "error: client disconnected"
 
@@ -163,9 +163,9 @@ async def test_a_wait_that_passes_answers_no_reply(monkeypatch):
     made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
-    monkeypatch.setitem(handler.WAITS_S, "look", 1.0)
+    monkeypatch.setitem(handler.WAITS_S, "yui_run", 1.0)
 
-    result = await asyncio.to_thread(handler.handle("look"), {"at": "body"})
+    result = await asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"})
 
     assert result == "error: no reply from the client within 1 s"
     assert pending._calls.get(CHAT) is None
@@ -193,7 +193,7 @@ async def test_a_stop_fails_a_call_still_waiting_on_the_chat_lock_and_it_never_s
 
     first = asyncio.create_task(asyncio.to_thread(handler.handle("body_action"), {"action": "stand"}))
     await asyncio.sleep(0.05)
-    second = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    second = asyncio.create_task(asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"}))
     await asyncio.sleep(0.05)
     assert [frame["name"] for frame in sends] == ["body_action"]
 
@@ -211,7 +211,7 @@ async def test_a_close_fails_every_pending_call_of_the_chat(monkeypatch):
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     ws = SimpleNamespace(closed=False)
 
-    task = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    task = asyncio.create_task(asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"}))
     await asyncio.sleep(0.05)
     made._sockets[CHAT] = ws
     made._forget(CHAT, ws)
@@ -226,7 +226,7 @@ async def test_a_replacement_fails_the_replaced_sockets_pending_calls(monkeypatc
     old_ws = SimpleNamespace(closed=False)
     made._sockets[CHAT] = old_ws
 
-    task = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    task = asyncio.create_task(asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"}))
     await asyncio.sleep(0.05)
     new_ws = SimpleNamespace(closed=False, sent=[], send_str=None)
 
@@ -288,7 +288,7 @@ async def test_a_call_that_waited_on_the_lock_does_not_send_after_the_client_is_
     lock = pending.chat_lock(CHAT)
     lock.acquire()
 
-    task = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    task = asyncio.create_task(asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"}))
     await asyncio.sleep(0.05)
     state.set_connected(CHAT, False)
     lock.release()
@@ -316,7 +316,7 @@ async def test_screen_tool_result_images_reach_the_handler_inline(monkeypatch, i
         return True
 
     monkeypatch.setattr(made, "_send_frame", answer)
-    result = await asyncio.to_thread(handler.handle("look"), {"at": "screen"})
+    result = await asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"})
     expected = (
         {
             "_multimodal": True,
@@ -351,13 +351,17 @@ async def test_a_non_string_result_reaches_the_model_as_text(monkeypatch, raw, t
         return True
 
     monkeypatch.setattr(made, "_send_frame", answer)
-    result = await asyncio.to_thread(handler.handle("look"), {"at": "screen"})
+    result = await asyncio.to_thread(handler.handle("yui_run"), {"code": "return 1"})
     assert result["content"][0] == {"type": "text", "text": text}
+
+
+def test_the_waits_name_only_tools_the_client_declares():
+    assert not {"look", "yui_tool_call", "yui_tool_describe", "plugin_skill"} & set(handler.WAITS_S)
 
 
 @pytest.mark.parametrize(
     ("name", "client_wait_s"),
-    [("yui_tool_call", 121.0), ("yui_run", 121.0), ("yui_tool_describe", 2.0)],
+    [("yui_run", 121.0), ("body_action", 15.0)],
 )
 def test_the_wait_outlasts_the_clients_own_wait(name: str, client_wait_s: float):
     assert handler.WAITS_S[name] > client_wait_s
