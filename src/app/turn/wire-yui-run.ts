@@ -6,7 +6,7 @@ import { createInfoApi } from "../../io/chat/tools/run/info-api";
 import { type SelectionPort, selectionRows } from "../../io/chat/tools/run/selection-rows";
 import { createSettingsApi } from "../../io/chat/tools/run/settings-api";
 import { createStateApi } from "../../io/chat/tools/run/state-api";
-import type { YuiRunPorts } from "../../io/chat/tools/run/yui-run-tool";
+import type { YuiRunWindowPorts } from "../../io/chat/tools/run/yui-run-tool";
 import { createTauriScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import {
   presetIdForWindow,
@@ -42,7 +42,7 @@ export function wireYuiRun(deps: {
   lastTogether: { get(): { at: number | null } };
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm">;
   speaker: Pick<ReturnType<typeof wireSpeakerSelection>, "speakerSelection" | "swapSpeaker">;
-}): YuiRunPorts {
+}): YuiRunWindowPorts {
   const monitors = createTauriScreenSourceProvider();
   const rows = selectionRows({
     vrm: selectionPort(deps.vrm.vrmSelection, deps.vrm.swapVrm),
@@ -70,6 +70,6 @@ export function wireYuiRun(deps: {
       voices: () => deps.speaker.speakerSelection.list(),
       monitors: () => monitors.listMonitors(),
     }),
-    help: () => helpText(t, rows),
+    help: (declarations) => helpText(t, rows, declarations),
   };
 }

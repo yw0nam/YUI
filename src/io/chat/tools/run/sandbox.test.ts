@@ -17,7 +17,7 @@ vi.mock("quickjs-emscripten-core", async (importOriginal) => {
 });
 
 const run = (code: string, yui: HostApi = {}, limits?: RunLimits) =>
-  runScript(code, { yui, help: () => "help text" }, new AbortController().signal, limits);
+  runScript(code, { yui, help: async () => "help text" }, new AbortController().signal, limits);
 
 /** The run's result, its rejection, or "did not settle" when it is still pending after 3 s. */
 const settled = (result: Promise<unknown>) =>
@@ -62,6 +62,7 @@ describe("runScript", () => {
     ["return await yui.settings.read()", { theme: "dawn" }],
     ["return await yui.echo({ a: [1, 2] }, 3)", [{ a: [1, 2] }, 3]],
     ["return await yui.echo(Symbol('s'), Promise.resolve(1))", [null, {}]],
+    ["return await yui.echo(undefined)", [null]],
     [
       "return [typeof fetch, typeof window, typeof document, typeof setTimeout]",
       ["undefined", "undefined", "undefined", "undefined"],
@@ -200,7 +201,7 @@ describe("runScript", () => {
     const controller = new AbortController();
     const result = runScript(
       "return await yui.hang()",
-      { yui: { hang: hang.fn }, help: () => "" },
+      { yui: { hang: hang.fn }, help: async () => "" },
       controller.signal,
     );
     await Promise.race([hang.called, result]);
@@ -209,5 +210,15 @@ describe("runScript", () => {
     hang.settle("late");
     await new Promise((r) => setTimeout(r, 0));
     expect(lastRuntime(spy)?.alive).toBe(false);
+  });
+
+  it("starts no host call the script left queued when it returned", async () => {
+    const f = vi.fn(async () => 1);
+
+    const result = await run("yui.f(); return 1", { f });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(result).toEqual({ status: "completed", result: 1, logs: [] });
+    expect(f).not.toHaveBeenCalled();
   });
 });

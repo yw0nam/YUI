@@ -1,8 +1,12 @@
 /** yui_run: runs the backend's JavaScript against the yui API in the sandbox and answers its JSON result. */
 
 import { isPlainObject } from "../../../../settings/persisted-store";
-import type { ClientTool } from "../client-tools";
+import type { ClientTool, ClientToolDefinition } from "../client-tools";
+import { bindNamespace } from "./bind-namespace";
+import { createHelp } from "./help-topic";
+import { createImageTable } from "./images";
 import type { InfoDoc } from "./info-api";
+import type { PluginsNamespace, YuiNamespace } from "./namespace";
 import { runScript, type ScriptHost } from "./sandbox";
 import type { SettingsApi, WriteResults } from "./settings-api";
 import type { StateDoc } from "./state-api";
@@ -11,36 +15,61 @@ export interface YuiRunPorts {
   settings: SettingsApi;
   state(): Promise<StateDoc>;
   info(): Promise<InfoDoc>;
-  help(): string;
+  /** The help() text, holding the blocks of the namespaces present. */
+  help(declarations: readonly string[]): string;
+  /** The namespaces this window has; an absent one is absent from yui and from help(). */
+  namespaces: {
+    guide?: YuiNamespace;
+    terminal?: YuiNamespace;
+    plugins?: PluginsNamespace;
+    look?: YuiNamespace;
+    threads?: YuiNamespace;
+  };
 }
+
+/** The ports a window builds itself; the namespaces join them where the tool is created. */
+export type YuiRunWindowPorts = Omit<YuiRunPorts, "namespaces">;
 
 const DESCRIPTION =
   "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
+/** help() prints the namespace blocks in this order. */
+const ORDER = ["guide", "terminal", "plugins", "look", "threads"] as const;
+
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
+  const present = ORDER.filter((name) => ports.namespaces[name]);
   return {
     name: "yui_run",
-    definition: {
-      type: "function",
-      function: {
-        name: "yui_run",
-        description: DESCRIPTION,
-        parameters: {
-          type: "object",
-          properties: { code: { type: "string" } },
-          required: ["code"],
-          additionalProperties: false,
+    // A getter: each read lists the plugins enabled at that moment.
+    get definition(): ClientToolDefinition {
+      const listing = ports.namespaces.plugins?.listing() ?? "";
+      return {
+        type: "function",
+        function: {
+          name: "yui_run",
+          description: listing ? `${DESCRIPTION} ${listing}` : DESCRIPTION,
+          parameters: {
+            type: "object",
+            properties: { code: { type: "string" } },
+            required: ["code"],
+            additionalProperties: false,
+          },
         },
-      },
+      };
     },
     waitMs: 121_000,
-    execute: async (args, signal) => {
+    localStatus: true,
+    execute: async (args, signal, call) => {
       const code = args.code;
       if (typeof code !== "string") {
         return JSON.stringify({ status: "error", error: "code must be a string", logs: [] });
       }
-      const stop = signal ?? new AbortController().signal;
+      // Aborted when the run ends, so no yui call outlives it.
+      const ended = new AbortController();
+      const stop = signal ? AbortSignal.any([signal, ended.signal]) : ended.signal;
       const writes: WriteResults[] = [];
+      const images = createImageTable();
+      const run = { signal: stop, status: call?.status, keep: images.keep };
       const host: ScriptHost = {
         yui: {
           settings: {
@@ -61,12 +90,24 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
           },
           state: { read: async () => ports.state() },
           info: { read: async () => ports.info() },
+          ...Object.fromEntries(
+            present.map((name) => [name, bindNamespace(name, ports.namespaces[name]!, run)]),
+          ),
         },
-        help: ports.help,
+        help: createHelp(
+          () => ports.help(present.map((name) => ports.namespaces[name]!.declaration)),
+          ports.namespaces.plugins,
+        ),
       };
-      const outcome = await runScript(code, host, stop);
+      const outcome = await runScript(code, host, stop).finally(() => ended.abort());
       // Every write's answers ride the envelope, so a script that drops them still reports the real ones.
-      return JSON.stringify({ ...outcome, ...(writes.length > 0 ? { writes } : {}) });
+      const envelope = { ...outcome, ...(writes.length > 0 ? { writes } : {}) };
+      const attached = outcome.status === "completed" ? images.attach(outcome.result) : undefined;
+      if (!attached || attached.handles.length === 0) return JSON.stringify(envelope);
+      return {
+        text: JSON.stringify({ ...envelope, images: attached.handles }),
+        images: attached.images,
+      };
     },
     failed: (text) => {
       if (text.startsWith("error:")) return true;

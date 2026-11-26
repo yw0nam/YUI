@@ -5,9 +5,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../../../../settings/settings-stores";
+import type { PluginsNamespace, YuiMethod, YuiNamespace } from "./namespace";
 import { createSettingsApi, type RequestSettings, type SettingsDecision } from "./settings-api";
 import { stubYuiRunPorts } from "./yui-run-test-ports";
-import { createYuiRunTool } from "./yui-run-tool";
+import { createYuiRunTool, type YuiRunPorts } from "./yui-run-tool";
 
 /** Without a decision, the user allows every path asked. */
 function harness(decision?: SettingsDecision) {
@@ -23,6 +24,29 @@ function harness(decision?: SettingsDecision) {
     JSON.parse(String(await tool.execute({ code }, signal)));
   return { stores, request, tool, run };
 }
+
+/** A namespace of the given methods, its help() block the given text. */
+const ns = (methods: Record<string, YuiMethod>, declaration = ""): YuiNamespace => ({
+  methods,
+  declaration,
+});
+
+/** A plugins namespace with one tool, whose listing() reads the given text when it is called. */
+function plugins(listing: () => string = () => ""): PluginsNamespace {
+  return {
+    ...ns({ call: async () => ({ text: "ran", images: [] }) }, "PLUGINS"),
+    skill: async (name) => `skill body of ${name}`,
+    listing,
+  };
+}
+
+/** The tool with the stub ports and the given namespaces. */
+const toolWith = (
+  namespaces: YuiRunPorts["namespaces"],
+  ports: Partial<Omit<YuiRunPorts, "namespaces">> = {},
+) => createYuiRunTool({ ...stubYuiRunPorts(), ...ports, namespaces });
+
+const parsed = async (answer: Promise<unknown>) => JSON.parse(String(await answer));
 
 const PRIVACY_PATCH =
   "return await yui.settings.write({ privacy: { screenshot: true, screen_requests: true } }, { why: 'look at your screen' })";
@@ -51,7 +75,7 @@ describe("createYuiRunTool", () => {
     const { run } = harness();
 
     const result = await run(
-      "console.log('hi', 1); return [help(), (await yui.state.read()).permissions, await yui.info.read()]",
+      "console.log('hi', 1); return [await help(), (await yui.state.read()).permissions, await yui.info.read()]",
     );
 
     expect(result).toEqual({
@@ -288,5 +312,128 @@ describe("createYuiRunTool", () => {
     );
 
     expect(result.result).toEqual({ "voice.readings": "error: invalid voice.readings" });
+  });
+
+  it("attaches the images whose handles the result holds, in ascending handle order", async () => {
+    const tool = toolWith({
+      look: ns({ screen: async () => ({ text: "s", images: ["data:a", "data:b"] }) }),
+    });
+
+    const answer = await tool.execute({
+      code: "const s = await yui.look.screen(); return [s.images[1], s.images[0]]",
+    });
+
+    expect(typeof answer).toBe("object");
+    const { text, images } = answer as { text: string; images: string[] };
+    expect(images).toEqual(["data:a", "data:b"]);
+    expect(JSON.parse(text)).toEqual({
+      status: "completed",
+      result: [{ image: 2 }, { image: 1 }],
+      images: [1, 2],
+      logs: [],
+    });
+  });
+
+  it.each([
+    [
+      "only logs a handle",
+      "const s = await yui.look.screen(); console.log(s.images[0]); return 1",
+      { status: "completed", result: 1, logs: ['{"image":1}'] },
+    ],
+    [
+      "ends in an error",
+      "const s = await yui.look.screen(); throw new Error(JSON.stringify(s.images[0]))",
+      { status: "error", error: 'Error: {"image":1}', logs: [] },
+    ],
+  ])("attaches no image when the run %s", async (_case, code, envelope) => {
+    const tool = toolWith({
+      look: ns({ screen: async () => ({ text: "s", images: ["data:a"] }) }),
+    });
+
+    const answer = await tool.execute({ code });
+
+    expect(typeof answer).toBe("string");
+    expect(JSON.parse(answer as string)).toEqual(envelope);
+  });
+
+  it("aborts a yui call still running once the run ends", async () => {
+    let seen: AbortSignal | undefined;
+    const read = vi.fn<YuiMethod>((signal) => {
+      seen = signal;
+      return new Promise(() => {});
+    });
+    const tool = toolWith({ terminal: ns({ read }) });
+
+    const result = await parsed(
+      tool.execute({ code: 'const p = yui.terminal.read("t"); await yui.state.read(); return 1' }),
+    );
+
+    expect(result).toEqual({ status: "completed", result: 1, logs: [] });
+    expect(read).toHaveBeenCalledWith(expect.any(AbortSignal), "t");
+    expect(seen?.aborted).toBe(true);
+  });
+
+  it("hands a namespace call's report to the status pill, and none for settings, state or info", async () => {
+    const tool = toolWith({ look: ns({ body: async () => "ok" }) });
+    const status = vi.fn();
+
+    const result = await parsed(
+      tool.execute(
+        {
+          code: "await yui.settings.read(); await yui.state.read(); await yui.info.read(); await yui.look.body(); return 1",
+        },
+        undefined,
+        { status },
+      ),
+    );
+
+    expect(result.status).toBe("completed");
+    expect(status.mock.calls).toEqual([["look"]]);
+  });
+
+  it("prints in help() the declarations of the namespaces the window has, in order", async () => {
+    const help = (declarations: readonly string[]) => declarations.join("|");
+    const code = { code: "return await help()" };
+    const full = toolWith(
+      {
+        threads: ns({}, "THREADS"),
+        look: ns({}, "LOOK"),
+        plugins: plugins(),
+        terminal: ns({}, "TERMINAL"),
+        guide: ns({}, "GUIDE"),
+      },
+      { help },
+    );
+    const bare = toolWith({}, { help });
+
+    expect((await parsed(full.execute(code))).result).toBe("GUIDE|TERMINAL|PLUGINS|LOOK|THREADS");
+    expect((await parsed(bare.execute(code))).result).toBe("");
+  });
+
+  it("reads a plugin skill through help", async () => {
+    const tool = toolWith({ plugins: plugins() });
+
+    const skill = await parsed(tool.execute({ code: 'return await help("plugin:hello")' }));
+
+    expect(skill.result).toBe("skill body of hello");
+  });
+
+  it("lists the plugins in its description as they are when the definition is read", () => {
+    let listing = "Plugin tools, run with yui.plugins.call: a.";
+    const tool = toolWith({ plugins: plugins(() => listing) });
+    const lead =
+      "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
+
+    const before = tool.definition.function.description;
+    listing = "Plugin tools, run with yui.plugins.call: b.";
+
+    expect(before).toBe(`${lead} Plugin tools, run with yui.plugins.call: a.`);
+    expect(tool.definition.function.description).toBe(
+      `${lead} Plugin tools, run with yui.plugins.call: b.`,
+    );
+  });
+
+  it("shows its status from the client's own run", () => {
+    expect(toolWith({}).localStatus).toBe(true);
   });
 });

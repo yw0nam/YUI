@@ -21,7 +21,7 @@ export type HostApi = { [name: string]: ((...args: unknown[]) => Promise<unknown
 
 export interface ScriptHost {
   yui: HostApi;
-  help(): string;
+  help(...args: unknown[]): Promise<unknown>;
 }
 
 export interface RunLimits {
@@ -209,8 +209,9 @@ export async function runScript(
       packed.value.dispose();
       const deferred = context.newPromise();
       pending.add(deferred);
+      // A call still queued when the run ends never starts.
       Promise.resolve()
-        .then(() => fn(...JSON.parse(json)))
+        .then(() => (done ? undefined : fn(...JSON.parse(json))))
         .then(
           (value) => advance(() => resolve(deferred, value)),
           (reason) => advance(() => reject(deferred, reason)),
@@ -238,7 +239,7 @@ export async function runScript(
       install(yui, host.yui);
       context.setProp(context.global, "yui", yui);
       yui.dispose();
-      const help = context.newFunction("help", () => context.newString(host.help()));
+      const help = context.newFunction("help", (...args) => call(host.help, args));
       context.setProp(context.global, "help", help);
       help.dispose();
       const consoleObject = context.newObject();

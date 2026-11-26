@@ -3,15 +3,8 @@
 import type { Thread } from "../../../../contract";
 import type { ThreadsClient } from "../../../threads/threads-client";
 import { isWaiting } from "../../../threads/threads-waiting";
+import type { YuiMethod, YuiNamespace } from "../run/namespace";
 import { detailText, listText, searchText } from "./thread-text";
-
-export type ThreadsApi = {
-  methods: {
-    list(signal: AbortSignal, opts?: unknown): Promise<string>;
-    search(signal: AbortSignal, query: unknown): Promise<string>;
-  };
-  declaration: string;
-};
 
 const THREADS_DECLARATION = `  threads: {
     /** The user's Threads newest first as text rows (waiting ones unless state is "all"); with id, that Thread's newest 20 entries. */
@@ -36,10 +29,10 @@ function stringOption(method: string, name: string, value: unknown): string | un
   return value;
 }
 
-export function createThreadsApi(client: Pick<ThreadsClient, "threads">): ThreadsApi {
+export function createThreadsApi(client: Pick<ThreadsClient, "threads">): YuiNamespace {
   const threads = (): Thread[] => client.threads();
 
-  const list = async (_signal: AbortSignal, opts?: unknown): Promise<string> => {
+  const list: YuiMethod = async (_signal, opts) => {
     const options = optionsOf(opts);
     const state = options.state ?? undefined;
     if (state !== undefined && state !== "waiting" && state !== "all")
@@ -60,7 +53,7 @@ export function createThreadsApi(client: Pick<ThreadsClient, "threads">): Thread
     return listText(filtered);
   };
 
-  const search = async (_signal: AbortSignal, query: unknown): Promise<string> => {
+  const search: YuiMethod = async (_signal, query) => {
     if (typeof query !== "string" || query.trim() === "")
       throw new TypeError("yui.threads.search: query must be a non-empty string");
     return searchText(threads(), query.trim());
