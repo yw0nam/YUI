@@ -17,7 +17,7 @@ vi.mock("quickjs-emscripten-core", async (importOriginal) => {
 });
 
 const run = (code: string, yui: HostApi = {}, limits?: RunLimits) =>
-  runScript(code, { yui, help: () => "help text" }, new AbortController().signal, limits);
+  runScript(code, { yui, help: async () => "help text" }, new AbortController().signal, limits);
 
 /** The run's result, its rejection, or "did not settle" when it is still pending after 3 s. */
 const settled = (result: Promise<unknown>) =>
@@ -200,7 +200,7 @@ describe("runScript", () => {
     const controller = new AbortController();
     const result = runScript(
       "return await yui.hang()",
-      { yui: { hang: hang.fn }, help: () => "" },
+      { yui: { hang: hang.fn }, help: async () => "" },
       controller.signal,
     );
     await Promise.race([hang.called, result]);

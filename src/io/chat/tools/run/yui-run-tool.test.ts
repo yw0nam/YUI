@@ -351,7 +351,9 @@ describe("createYuiRunTool", () => {
       { status: "error", error: 'Error: {"image":1}', logs: [] },
     ],
   ])("attaches no image when the run %s", async (_case, code, envelope) => {
-    const tool = toolWith({ look: ns({ screen: async () => ({ text: "s", images: ["data:a"] }) }) });
+    const tool = toolWith({
+      look: ns({ screen: async () => ({ text: "s", images: ["data:a"] }) }),
+    });
 
     const answer = await tool.execute({ code });
 

@@ -294,7 +294,7 @@ describe("helpText", () => {
       `  info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };\n${declarations.join("\n")}\n};\n`,
     );
     expect(main).toContain(
-      "};\n/** An image a yui call made; it reaches the model only when the returned value holds it. */\ntype ImageHandle = { image: number };\ndeclare function help(topic?: `plugin:${string}`): Promise<string>;\ndeclare const console: { log(...a: unknown[]): void };\n",
+      `};\n/** An image a yui call made; it reaches the model only when the returned value holds it. */\ntype ImageHandle = { image: number };\ndeclare function help(topic?: \`plugin:\${string}\`): Promise<string>;\ndeclare const console: { log(...a: unknown[]): void };\n`,
     );
   });
 

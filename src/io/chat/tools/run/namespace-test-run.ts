@@ -1,13 +1,11 @@
 /** Runs a script against one yui namespace in the sandbox, for the namespace modules' tests. */
 
 import { type RunResult, runScript } from "./sandbox";
-
-/** A namespace method as its module declares it: the run's signal first, then the script's arguments. */
-export type NamespaceMethod = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
+import type { YuiMethod } from "./yui-run-tool";
 
 export function runNamespace(
   name: string,
-  namespace: Record<string, NamespaceMethod>,
+  namespace: Record<string, YuiMethod>,
   code: string,
   signal: AbortSignal = new AbortController().signal,
 ): Promise<RunResult> {
@@ -17,5 +15,5 @@ export function runNamespace(
       (...args: unknown[]) => method(signal, ...args),
     ]),
   );
-  return runScript(code, { yui: { [name]: bound }, help: () => "" }, signal);
+  return runScript(code, { yui: { [name]: bound }, help: async () => "" }, signal);
 }
