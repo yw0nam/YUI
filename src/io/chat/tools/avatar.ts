@@ -1,10 +1,4 @@
-/**
- * body_action and yui.look: her body as the backend model reaches it.
- *
- * Both are thin adapters over the avatar executor, which the window creates once; a call that
- * lands before the stage created it answers unsupported. body_action's schema speaks the model's
- * words and its execute renders the executor's verdict as the result string.
- */
+/** body_action and yui.look: her body as the backend model reaches it. */
 
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ClientTool } from "./client-tools";
