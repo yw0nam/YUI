@@ -153,7 +153,7 @@ globalThis.YUI_MAP =
       "kind": "module",
       "col": 3,
       "row": 0,
-      "desc": "generate_express, body_action, look, avatar executor, vocabulary",
+      "desc": "generate_express, body_action, yui_run, avatar executor, vocabulary",
       "zone": "logic"
     },
     {
@@ -706,7 +706,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and built-in On-demand tools; bridge/bridge-tools.ts describes and calls Terminal, Threads and Plugin tools; bridge/on-demand-lines.ts builds the tool and skill lists the yui_tool_call and plugin_skill descriptions carry; run/yui-run-tool.ts is the yui_run runner, a script in a QuickJS sandbox over the yui API (settings, state, info), whose settings writes run through run/settings-api.ts. The client runs: generate_express, rate_relation, address_character, body_action, look, yui_run, yui_tool_describe, yui_tool_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
+      "role": "Declared tools and the yui_run runner. run/ runs a script in a QuickJS sandbox over the yui API: settings, state and info in run/, guide in io/guide, terminal in terminal/, plugins in plugins/, and in main look in avatar.ts and threads in threads/. Image handles attach only returned images. The client runs: generate_express, rate_relation, address_character, body_action, yui_run.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -724,7 +724,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the plugin tool summaries and plugin skills the Bridge tool descriptions list.",
+      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the plugin tool summaries and plugin skills the yui_run description lists.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -994,7 +994,7 @@ globalThis.YUI_MAP =
       "id": "io/guide",
       "module": "settings",
       "label": "guide docs",
-      "role": "The bundled guide docs handed to the backend on an Ask press.",
+      "role": "The bundled guide docs: yui.guide.read returns one; the guide: block names it on an Ask press.",
       "paths": [
         "src/io/guide"
       ]
@@ -1769,9 +1769,18 @@ globalThis.YUI_MAP =
       "id": "context-guide",
       "from": "io/guide",
       "to": "dispatcher/backend",
-      "carries": "renderGuideBlock(guide): the guide: block of the client context",
+      "carries": "renderGuideBlock(guide): the guide: block naming the guide and how to read it",
       "kind": "call",
       "transport": "shared"
+    },
+    {
+      "id": "guide-yui-run",
+      "from": "io/guide",
+      "to": "io/chat/tools",
+      "carries": "createGuideApi(): yui.guide.read(name) → the guide's text without its image lines",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
       "id": "conversation-backend",
@@ -2463,7 +2472,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn; the On-demand tool and plugin skill lists ride the descriptions of yui_tool_call and plugin_skill, read per turn; Terminal and Threads tools are reached through yui_tool_describe and yui_tool_call",
+      "carries": "declared tool schemas of the turn; the yui_run description lists the enabled plugin tools and skills, read per turn",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2490,7 +2499,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only; Terminal and Threads tools run through yui_tool_call (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only (rate_relation and address_character in every pet window, yui_run in every pet window under Tauri, body_action in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2499,7 +2508,7 @@ globalThis.YUI_MAP =
       "id": "stream-tools",
       "from": "io/chat/stream",
       "to": "io/chat/tools",
-      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action",
+      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action; tool_status running for each namespace a yui_run script calls",
       "kind": "call",
       "transport": "request"
     },
@@ -2507,7 +2516,7 @@ globalThis.YUI_MAP =
       "id": "push-tools",
       "from": "io/chat/push",
       "to": "io/chat/tools",
-      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal, call id, frame turn_id) → tool_result frame",
+      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal, call id, frame turn_id) → tool_result frame; onStatus running for each namespace a localStatus tool reports",
       "kind": "call",
       "transport": "push"
     },
@@ -2515,7 +2524,7 @@ globalThis.YUI_MAP =
       "id": "tools-executor",
       "from": "io/chat/tools",
       "to": "io/bridge/inbox",
-      "carries": "body_action → executor.command(args); look → executor.state(), perchTargets()",
+      "carries": "body_action → executor.command(args); yui.look.body, perch_targets → executor.state(), perchTargets()",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2524,7 +2533,7 @@ globalThis.YUI_MAP =
       "id": "tools-capture",
       "from": "io/chat/tools",
       "to": "io/window/capture",
-      "carries": "look at screen → capturer.captureAt(point)",
+      "carries": "yui.look.screen → capturer.captureAt(point)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2620,15 +2629,6 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
-      "id": "settings-tool-switches",
-      "from": "settings",
-      "to": "io/chat/tools",
-      "carries": "the look.screen switch, read when a call runs and when the tools line is built",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
       "id": "settings-relation-targets",
       "from": "settings",
       "to": "io/chat/tools",
@@ -2658,7 +2658,7 @@ globalThis.YUI_MAP =
       "id": "tools-mcp-host",
       "from": "io/chat/tools",
       "to": "io/mcp-host",
-      "carries": "snapshot() for a name lookup, plugin_host_call {callId, name, arguments, presetId}, plugin_host_cancel {callId}, plugin_host_skill {name}",
+      "carries": "snapshot() for yui.plugins.list, describe and the yui_run description; plugin_host_call {callId, name, arguments, presetId}; plugin_host_cancel {callId} when the run ends or the turn stops, kept by the host when it arrives before the call; plugin_host_skill {name} for help(\"plugin:<name>\")",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/io/chat/tools/pet-window-tools.ts"
@@ -2701,7 +2701,7 @@ globalThis.YUI_MAP =
       "id": "threads-tools",
       "from": "io/threads",
       "to": "io/chat/tools",
-      "carries": "snapshot(): the Thread list threads_list and threads_search read when a call runs; null outside main's window",
+      "carries": "snapshot(): the Thread list yui.threads.list and search read when a call runs; null outside main's window",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3717,10 +3717,10 @@ globalThis.YUI_MAP =
       "id": "terminal-tool-command",
       "from": "io/chat/tools",
       "to": "shell/terminal",
-      "carries": "terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the turn stops",
+      "carries": "yui.terminal methods call the same commands: terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the run ends or the turn stops",
       "kind": "tauri-command",
       "transport": "shared",
-      "wiring": "src/io/chat/tools/terminal/terminal-tools.ts"
+      "wiring": "src/io/chat/tools/terminal/terminal-api.ts"
     },
     {
       "id": "terminal-chip",
@@ -5948,14 +5948,14 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "body_action and look reach the avatar executor",
+          "label": "body_action and yui.look reach the avatar executor",
           "edges": [
             "tools-executor"
           ]
         },
         {
           "from": "tools",
-          "label": "terminal_open and terminal_close run without asking the user; terminal_read and terminal_write wait for the user's Allow in the Threads window",
+          "label": "yui.terminal.open and close run without asking the user; yui.terminal.read and write wait for the user's Allow in the Threads window",
           "edges": [
             "terminal-tool-command"
           ],
@@ -5963,7 +5963,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "look at screen: capture_screen_at",
+          "label": "yui.look.screen: capture_screen_at",
           "edges": [
             "tools-capture",
             "capture-shell"

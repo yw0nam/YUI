@@ -1,6 +1,6 @@
 # herdr
 
-An MCP server that lets a character watch and answer coding agents running in herdr panes, on this computer and on saved herdr SSH machines. If yui-notify is installed for the same agents, uninstall it: both would report the same session. It speaks MCP over stdio and opens no port. The backend reaches its four tools through `yui_tool_call`, and its skill through `plugin_skill`.
+An MCP server that lets a character watch and answer coding agents running in herdr panes, on this computer and on saved herdr SSH machines. If yui-notify is installed for the same agents, uninstall it: both would report the same session. It speaks MCP over stdio and opens no port. The backend reaches its four tools with `yui.plugins.call` in `yui_run`, and its skill with `help("plugin:<name>")`.
 
 While it is on, the watcher sends one urgent signal group when a pane's agent turns `done` or `blocked`, naming the machine, pane, agent, status, title and cwd. The skill states what the states mean and when to use each tool; what to send stays with the backend.
 

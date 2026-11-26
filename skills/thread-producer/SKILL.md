@@ -77,9 +77,9 @@ Done when: a second run over an unchanged source sends no PUT.
 
 ### 6. When the user tells the character to act
 
-The user names the Thread to the main character. Only the main character offers the Thread
-tools. The backend calls `threads_list` with the Thread's id, through `yui_tool_call`. When
-it has no id, it calls `threads_search` to find candidates. `threads_search` matches title,
+The user names the Thread to the main character. Only the main character has the Thread
+namespace. The backend calls `yui.threads.list({ id })` in `yui_run` with the Thread's id. When
+it has no id, it calls `yui.threads.search(query)` to find candidates. `yui.threads.search` matches title,
 label, and entry text by substring, so with more than one candidate the backend confirms
 the one the user means with the user. Before acting, it checks the exact source item.
 
