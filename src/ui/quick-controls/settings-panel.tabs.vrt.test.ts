@@ -1,10 +1,12 @@
 // The rail, measured in WebKit with the real stylesheets and focus rules: a switch inside a panel's
-// fade shows one panel, and an arrow key after a pointer click shows the next tab's tip.
+// fade shows one panel, an arrow key after a pointer click shows the next tab's tip, and a long
+// character name keeps the rail's width.
 import { act } from "react";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import "../../styles.css";
 import "./settings-window.css";
+import { DEFAULT_PRESET_ID } from "../../settings/preset/preset-keys";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
@@ -67,4 +69,22 @@ it.each([
   await expect
     .poll(() => document.querySelector(".yui-hint-tip[data-open]")?.textContent, { timeout: 1000 })
     .toBe(tip);
+});
+
+it("a long character name leaves the rail's width alone", async () => {
+  const presetRegistry = createPresetRegistry();
+  qc = createQuickControls({
+    ...defaultQcArgs(document.querySelector<HTMLElement>("#app")!),
+    presetRegistry,
+  });
+  await page.viewport(1000, 680);
+  const rail = qc.el.querySelector<HTMLElement>(".yui-rail")!;
+  const before = rail.getBoundingClientRect().width;
+
+  act(() => presetRegistry.rename(DEFAULT_PRESET_ID, "A character name far longer than the rail"));
+
+  const heading = qc.el.querySelector<HTMLElement>("[data-rail-group=character]")!;
+  expect(heading.textContent).toBe("A character name far longer than the rail");
+  expect(heading.scrollWidth).toBeGreaterThan(heading.clientWidth);
+  expect(rail.getBoundingClientRect().width).toBe(before);
 });
