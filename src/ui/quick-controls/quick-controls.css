@@ -104,6 +104,8 @@
   flex: none;
   margin: 0.75rem 0 0.25rem;
   padding: 0 0.625rem;
+  /* The edited character's name ellipsizes at the rail's width instead of widening it. */
+  contain: inline-size;
   overflow: hidden;
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-caption);
