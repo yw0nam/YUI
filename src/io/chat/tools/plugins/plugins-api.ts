@@ -16,8 +16,7 @@ const PLUGINS_DECLARATION = `  plugins: {
     describe(name: string): Promise<{ description: string; input_schema: object } | \`error: \${string}\`>;
     /** Runs the tool; args that break its input schema throw. A failure is text starting with "error:". */
     call(name: string, args?: object): Promise<{ text: string; images: ImageHandle[] }>;
-  };
-`;
+  };`;
 
 /** One tool or skill as a `name — text` entry; the name alone when the text is empty. */
 function listEntry(name: string, text: string): string {
@@ -29,7 +28,7 @@ function listEntry(name: string, text: string): string {
 const failure = (error: unknown): string =>
   `error: ${error instanceof Error ? error.message : String(error)}`;
 
-function checkName(method: string, name: unknown): string {
+function nameOf(method: string, name: unknown): string {
   if (typeof name !== "string") throw new TypeError(`yui.plugins.${method}: name must be a string`);
   return name;
 }
@@ -38,13 +37,13 @@ export function createPluginsApi({ host, presetId }: { host: McpHost; presetId: 
   const list: Method = async () => pluginLines(host.snapshot()).tools;
 
   const describe: Method = async (_signal, name) => {
-    const tool = findPluginTool(host.snapshot(), checkName("describe", name));
+    const tool = findPluginTool(host.snapshot(), nameOf("describe", name));
     if (!tool) return `error: unknown tool: ${name}`;
     return { description: tool.description ?? "", input_schema: tool.inputSchema };
   };
 
   const call: Method = async (signal, name, args) => {
-    const toolName = checkName("call", name);
+    const toolName = nameOf("call", name);
     // The sandbox hands an omitted argument over as null.
     const toolArgs = args ?? {};
     if (typeof toolArgs !== "object" || Array.isArray(toolArgs))
@@ -78,8 +77,11 @@ export function createPluginsApi({ host, presetId }: { host: McpHost; presetId: 
     skill: (name: string): Promise<string> => host.skill(name).catch(failure),
     listing: (): string => {
       const lines = pluginLines(host.snapshot());
-      const sentence = (lead: string, entries: string[]) =>
-        entries.length > 0 ? `${lead}: ${entries.join(" · ")}` : "";
+      const sentence = (lead: string, entries: string[]) => {
+        if (entries.length === 0) return "";
+        const text = `${lead}: ${entries.join(" · ")}`;
+        return /[.!?]$/.test(text) ? text : `${text}.`;
+      };
       return [
         sentence(
           "Plugin tools, run with yui.plugins.call",
