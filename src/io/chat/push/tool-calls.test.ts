@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import type { ClientTool } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
+import { executeClientTool } from "../tools/execute";
 import { stubYuiRunPorts } from "../tools/run/yui-run-test-ports";
 import { createYuiRunTool } from "../tools/run/yui-run-tool";
 import { fitTurnImages } from "./fit-turn-images";
@@ -137,6 +138,7 @@ describe("createPushToolCalls", () => {
       expect.any(AbortSignal),
       "c1",
       "t9",
+      undefined,
     );
   });
 
@@ -341,7 +343,7 @@ describe("createPushToolCalls — local status", () => {
   it("reports running and the terminal state of a tool that shows its own status, by call id", async () => {
     const onStatus = vi.fn();
     const pluginCall: ClientTool = {
-      ...tool("yui_tool_call", async () => "error: the script failed"),
+      ...tool("yui_run", async () => "error: the script failed"),
       localStatus: true,
     };
     const h = harness({
@@ -352,39 +354,71 @@ describe("createPushToolCalls — local status", () => {
       type: "tool_call",
       id: "c1",
       turn_id: "t",
-      name: "yui_tool_call",
-      arguments: { name: "look" },
+      name: "yui_run",
+      arguments: { code: "return 1" },
     });
     h.calls.handle(call("c2", "t", "look"));
     await flush();
 
     expect(onStatus.mock.calls).toEqual([
-      ["c1", "running", "yui_tool_call"],
-      ["c1", "failed", "yui_tool_call"],
+      ["c1", "running", "yui_run"],
+      ["c1", "failed", "yui_run"],
     ]);
   });
 
-  it("names the chip after the id the tool reports for the call", async () => {
-    const onStatus = vi.fn();
-    const pluginCall: ClientTool = {
-      ...tool("yui_tool_call", async () => "ok"),
-      statusId: (args) => String(args.name),
-      localStatus: true,
+  function reportingTool(localStatus: boolean) {
+    const gate = { report: (_id: string) => {}, open: (_result: string) => {} };
+    const run: ClientTool = {
+      ...tool("yui_run", async () => ""),
+      ...(localStatus ? { localStatus: true as const } : {}),
+      execute: (_args, _signal, call) => {
+        gate.report = (id) => call?.status?.(id);
+        gate.report("look");
+        return new Promise((resolve) => {
+          gate.open = resolve;
+        });
+      },
     };
-    const h = harness({ tools: createClientToolRegistry([pluginCall]), onStatus });
-    h.calls.handle({
-      type: "tool_call",
-      id: "c1",
-      turn_id: "t",
-      name: "yui_tool_call",
-      arguments: { name: "echo_args" },
+    return { run, gate };
+  }
+
+  it("reports each id a tool that shows its own status names while it runs, and none after it settles", async () => {
+    const onStatus = vi.fn();
+    const { run, gate } = reportingTool(true);
+    const h = harness({
+      tools: createClientToolRegistry([run]),
+      execute: executeClientTool,
+      onStatus,
     });
+    h.calls.handle({ type: "tool_call", id: "c1", turn_id: "t", name: "yui_run", arguments: {} });
     await flush();
 
     expect(onStatus.mock.calls).toEqual([
-      ["c1", "running", "echo_args"],
-      ["c1", "done", "echo_args"],
+      ["c1", "running", "yui_run"],
+      ["c1", "running", "look"],
     ]);
+
+    gate.open("ok");
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+    gate.report("threads");
+
+    expect(onStatus.mock.calls.slice(2)).toEqual([["c1", "done", "look"]]);
+  });
+
+  it("hands no report of a tool whose status the backend shows to onStatus", async () => {
+    const onStatus = vi.fn();
+    const { run, gate } = reportingTool(false);
+    const h = harness({
+      tools: createClientToolRegistry([run]),
+      execute: executeClientTool,
+      onStatus,
+    });
+    h.calls.handle({ type: "tool_call", id: "c1", turn_id: "t", name: "yui_run", arguments: {} });
+    await flush();
+    gate.open("ok");
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+
+    expect(onStatus).not.toHaveBeenCalled();
   });
 });
 

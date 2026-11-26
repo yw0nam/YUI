@@ -6,7 +6,6 @@ import logging
 from collections.abc import Callable
 
 from ..express import tools
-from ..tools.image_result import result_text
 from ..turns import session
 
 logger = logging.getLogger(__name__)
@@ -45,15 +44,12 @@ def on_post_tool_call(
 
 
 def _failed(tool_name: object, result: object, status: object) -> bool:
-    """The client's own verdicts read as failures: any non-ok body action, any error string."""
+    """The client's own verdicts read as failures: a non-ok body action (a non-string is not ok)."""
     if status == "error":
         return True
     name = str(tool_name or "")
-    text = result_text(result)
     if name == "body_action":
-        return text != "ok"
-    if name == "look":
-        return text.startswith("error:")
+        return result != "ok"
     return False
 
 

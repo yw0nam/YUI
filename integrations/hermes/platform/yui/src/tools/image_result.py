@@ -30,15 +30,3 @@ def model_result(result: str | ImageResult) -> str | dict:
             *[{"type": "image_url", "image_url": {"url": url}} for url in result.images],
         ],
     }
-
-
-def result_text(result: object) -> str:
-    if isinstance(result, str):
-        return result
-    if isinstance(result, dict) and result.get("_multimodal") is True:
-        return " ".join(
-            part["text"]
-            for part in result.get("content", [])
-            if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str)
-        )
-    return ""

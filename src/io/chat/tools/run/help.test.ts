@@ -1,6 +1,12 @@
-/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and six rules. */
+/** help.test.ts — help() prints the yui API, a settings type with one literal line per exposed row, and nine rules. */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { createGuideApi } from "../../../guide/guide-docs";
+import type { McpHost } from "../../../mcp-host/mcp-host";
+import { createLookApi } from "../avatar";
+import { createPluginsApi } from "../plugins/plugins-api";
+import { createTerminalApi } from "../terminal/terminal-api";
+import { createThreadsApi } from "../threads/threads-api";
 import { helpText } from "./help";
 import type { InfoDoc } from "./info-api";
 import { type SelectionPort, selectionRows } from "./selection-rows";
@@ -13,7 +19,19 @@ const pick = (id: string): SelectionPort => ({
   getActiveId: () => id,
   swap: async () => {},
 });
-const text = helpText(label, selectionRows({ vrm: pick("yui"), speaker: pick("soft") }));
+const rows = selectionRows({ vrm: pick("yui"), speaker: pick("soft") });
+const text = helpText(label, rows);
+/** The namespace blocks merged so far, in help()'s order. */
+const declarations = [
+  createGuideApi().declaration,
+  createTerminalApi({ presetId: () => null, invoke: async () => "" }).declaration,
+  createPluginsApi({ host: {} as McpHost, presetId: () => "" }).declaration,
+  createLookApi(() => null).declaration,
+  createThreadsApi({ threads: () => [] }).declaration,
+];
+/** The main window's help() text, whose size the budget pins. */
+const main = helpText(label, rows, declarations);
+const joined = helpText(label, rows, ["  a: {};", "  b: {};"]);
 
 /** The type's leaves, in order: the dotted path of each `name: type;` line and the comment above it. */
 function leaves(help: string) {
@@ -275,17 +293,35 @@ describe("helpText", () => {
     >();
   });
 
-  it("declares the yui API and six rules, and stays under 8 KB", () => {
-    expect(text).toContain("declare const yui:");
-    expect(text).toContain("declare function help(): string;");
-    expect(text).toContain(
+  it("declares the window's namespaces inside yui, then the image handle, help and console", () => {
+    expect(joined).toContain(
+      "  info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };\n  a: {};\n  b: {};\n};\n",
+    );
+    expect(joined).toContain(
+      `};\n/** An image a yui call made; it reaches the model only when the returned value holds it. */\ntype ImageHandle = { image: number };\ndeclare function help(topic?: \`plugin:\${string}\`): Promise<string>;\ndeclare const console: { log(...a: unknown[]): void };\n`,
+    );
+  });
+
+  it("declares the yui API and nine rules, and stays under 9,472 bytes", () => {
+    expect(main).toContain("declare const yui:");
+    expect(main).not.toContain("declare function help(): string;");
+    expect(main).toContain(
       "3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.",
     );
-    expect(text).toContain("under writes");
-    expect(text).toContain(
+    expect(main).toContain("under writes");
+    expect(main).toContain(
       "6. After denied or no answer, tell the user in your own words and do not repeat the same write in this turn. Text after ok: or denied: is the user's note to you.",
     );
-    expect(text.match(/^\d\. /gm)).toHaveLength(6);
-    expect(text.length).toBeLessThan(8192);
+    expect(main).toContain(
+      "7. Await one call that waits for the user's Allow (a write with allow rows, terminal.read, terminal.write) before you start another.",
+    );
+    expect(main).toContain(
+      "8. A yui call that fails returns its error text; only a wrong argument throws.",
+    );
+    expect(main).toContain(
+      `9. Before you call a plugin's tools, read its skill with help("plugin:<name>") when the description lists one.`,
+    );
+    expect(main.match(/^\d\. /gm)).toHaveLength(9);
+    expect(new TextEncoder().encode(main).length).toBeLessThan(9472);
   });
 });

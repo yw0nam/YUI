@@ -672,6 +672,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     expect(weather.execute).toHaveBeenCalledWith({ city: "seoul" }, expect.any(AbortSignal), {
       turnId: "t1",
+      status: expect.any(Function),
     });
     expect(events.slice(0, 2)).toEqual([
       { type: "tool_status", status: { state: "running", tool_id: "get_weather" } },
@@ -819,7 +820,10 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
-    expect(noArg.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: undefined });
+    expect(noArg.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), {
+      turnId: undefined,
+      status: expect.any(Function),
+    });
     expect(events.some((e) => e.type === "error")).toBe(false);
   });
 

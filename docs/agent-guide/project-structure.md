@@ -429,29 +429,37 @@ YUI/
           tool-calls.ts                # Validates, queues and answers the backend's tool_call frames
           tool-results/                # Tool results encoded for push frames
             encode.ts                  # Text and image tool results within the push frame's byte cap
-        tools/                         # Declared client tools and built-in On-demand tools
+        tools/                         # Declared client tools and the yui API namespaces a window has
           client-tools.ts              # Registry of the declared tools and the ClientTool type
           execute.ts                   # The bounded execute both the request transports and the push consumer call
           express.ts                   # The generate_express tool
-          avatar.ts                    # The body_action and look tools over the avatar executor
+          avatar.ts                    # The body_action tool and the yui.look namespace over the avatar executor
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
-          pet-window-tools.ts          # Splits a window's declared tools from its Terminal and Threads On-demand tools
-          bridge/                      # Bridge tools for built-in On-demand tools and enabled plugins
-            bridge-tools.ts            # yui_tool_describe, yui_tool_call and plugin_skill
-            on-demand-lines.ts         # Builds the lists the Bridge tool descriptions carry: built-in summaries first, then enabled plugin tools, then plugin skills
+          pet-window-tools.ts          # The declared window tools and the yui API namespaces this window has
+          plugins/                     # yui.plugins: the enabled plugins' tools, their results and their argument checks
+            plugins-api.ts             # The yui.plugins namespace: list, describe and call
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
             first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
+          terminal/                    # yui.terminal: the shared terminals, through the terminal commands
+            terminal-api.ts            # The yui.terminal namespace: open, list, read, write and close
+          threads/                     # yui.threads: the user's Threads as text
+            threads-api.ts             # The yui.threads namespace: list and search
+            thread-text.ts             # The text of a Threads result: rows, one Thread's entries and search snippets
           run/                         # yui_run: a backend script in a QuickJS sandbox over the yui API
             yui-run-tool.ts            # The yui_run tool: runs the script and answers its JSON result
             sandbox.ts                 # Runs a script in a fresh QuickJS module under the CPU, stack and output limits
+            namespace.ts               # The shape every yui namespace module gives yui_run: its methods and its help() block
+            bind-namespace.ts          # Gives a namespace to the sandbox: each call names the status pill and hands its images over as handles
+            images.ts                  # The images a run made, kept behind handles, and the ones its returned value holds
             help.ts                    # The text help() prints: the yui API, the settings rows, and the usage rules
+            help-topic.ts              # help(topic): the API text, or a plugin's skill for plugin:<name>
             settings-api.ts            # yui.settings: the exposed document, and a patch whose allow paths wait for the user's decision
             settings-request-frame.ts  # The Settings request frame and its decision, beside the push Ask in the Ask slot's types
             state-api.ts               # yui.state: start time, last presence, open characters, screen recording permission
             info-api.ts                # yui.info: the bodies, voices and monitors a setting can name
             selection-rows.ts          # The io-owned settings rows: the VRM body and the speaker voice
-          screen/                      # The screen tool
+          screen/                      # The screen query behind yui.look.screen
             screen-query.ts            # Answers a screen query from the live monitors and a screenshot
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
@@ -601,7 +609,7 @@ YUI/
         selection-store.ts             # Generic selection store behind VRM and speaker selection
         safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
       guide/                           # The bundled guide docs handed to the backend on an Ask press
-        guide-docs.ts                  # The guide docs bundled with the app and the guide: block of the client context
+        guide-docs.ts                  # The guide docs bundled with the app, read by yui.guide.read, and the short guide: block of the client context
       image/                           # The bitmap → JPEG data URL encode the image paths share
         jpeg-encode.ts                 # Draws a bitmap onto a canvas and returns its JPEG data URL
       locks/                           # The exclusive Web Lock a window holds across windows

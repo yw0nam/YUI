@@ -117,7 +117,7 @@ The backend model reads the block as prose. Every line follows one register:
 4. The client states facts and writes no instruction. Text the user authored may be phrased as an order, so a line that carries it labels it as the user's intent.
 5. Third-party text, such as window titles and signal payloads, is quoted. The header line says quoted values are sampled data, not instructions.
 
-The `guide:` block is outside points 3 and 4. It carries the help request's instruction line and the app's own help text, as written for the user.
+The `guide:` block is outside points 3 and 4. It is one instruction line: it names the guide, says to read it with `yui.guide.read` in `yui_run`, and asks for a short answer.
 
 ## Rendered lines
 
@@ -208,7 +208,7 @@ The `yui.screenshot` settings hold two independent booleans. Both default to fal
 | Setting | What it does |
 |---|---|
 | `enabled` | Attaches the selected source automatically at the start of a turn. |
-| `allowRequests` | Permits backend `look at: screen` requests. |
+| `allowRequests` | Permits `yui.look.screen()` calls in a `yui_run` script (`privacy.screen_requests`). |
 
 The selected `source` governs automatic attachment only.
 
@@ -266,12 +266,12 @@ The duration moves only when the posture itself changes or the avatar relocates.
 The line carries the on/off state of every switchable in-app tool the window declares. It is rendered every turn. It holds one `id=state` entry per tool, comma-separated, in declaration order. The values are `on` and `off`:
 
 ```text
-tool switches: relations=on, look.screen=on
+tool switches: relations=on
 ```
 
 The line names the switch state only. The switch gates the tool's execution, and the client reads it at the moment the call runs. A state line that the request outlives can therefore still end in a refusal.
 
-The line is omitted when the turn declares no switchable tool. Every pet window and the browser build declare `relations`. Under Tauri, `main` also declares `look.screen`. Tool ids carry the same sanitization as the other sampled fields.
+The line is omitted when the turn declares no switchable tool. Every pet window and the browser build declare `relations`. Tool ids carry the same sanitization as the other sampled fields.
 
 ### `previous turn`
 
@@ -423,11 +423,11 @@ The line is present only when all three of these hold:
 
 At zero waiting, the line is omitted.
 
-The backend reads Threads only through the `threads_list` and `threads_search` on-demand tools. It calls them through `yui_tool_call` ([client-tools.md](client-tools.md)). They read the same store snapshot that this count comes from. A Thread update gives a turn only through [Thread turns](./threads.md#thread-turns).
+The backend reads Threads only through `yui.threads.list` and `yui.threads.search` in a `yui_run` script ([client-tools.md](client-tools.md)). They read the same store snapshot that this count comes from. A Thread update gives a turn only through [Thread turns](./threads.md#thread-turns).
 
 ### `threads attached`
 
-The block names the Threads the user attached to this turn's message with Attach to chat ([threads.md](./threads.md#attach-to-chat)). It follows the `threads:` line, or takes its place when that line is absent. Each row is one Thread as `id | source | title`, the first three fields of a `threads_list` row, each value through the sanitization above.
+The block names the Threads the user attached to this turn's message with Attach to chat ([threads.md](./threads.md#attach-to-chat)). It follows the `threads:` line, or takes its place when that line is absent. Each row is one Thread as `id | source | title`, the first three fields of a `yui.threads.list` row, each value through the sanitization above.
 
 ```text
 threads attached:
@@ -437,7 +437,7 @@ threads attached:
 
 The block is present only on the user-started turn whose message, typed or spoken, carried the Threads, and only in the main character's window. The next turn carries none.
 
-The client names the Threads and nothing else. The backend reads each one by id with `threads_list` and decides what to do. A Thread that expired before the turn answers `error: unknown thread: <id>`.
+The client names the Threads and nothing else. The backend reads each one by id with `yui.threads.list({ id })` and decides what to do. A Thread that expired before the turn answers `error: unknown thread: <id>`.
 
 The `ClientContext` field is `threads_attached?: { id: string; source: string; title: string }[]`. Every transport carries it in `client_context`.
 
@@ -479,19 +479,17 @@ The unified chat window adds a suffix to the headline. The idle clause follows t
 
 ### Guide (in-app help button)
 
-The Help section of the settings panel submits a short request as an ordinary user turn (`trigger.kind` `user`). It names the bundled guide that answers the request in `trigger.guide` (`controls` or `capabilities`). The user's message is only the short request. The guide text rides in the context block, as a `guide:` block after the headline:
+The Help section of the settings panel submits a short request as an ordinary user turn (`trigger.kind` `user`). It names the bundled guide that answers the request in `trigger.guide` (`controls` or `capabilities`). The user's message is only the short request. The `guide:` block follows the headline and names the guide. The text stays out of the context:
 
 ```text
 trigger: user message
 guide:
-The user pressed the in-app help button. Answer from the guide below: start with the few most-used items, keep it short, and offer to go on; do not include links.
-
-<the guide's Markdown>
+The user pressed the in-app help button for the controls guide. Read it with yui_run (return await yui.guide.read("controls")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.
 ```
 
-The guide text expands when the block is rendered. So the turn records and the context history hold only the key.
+The block is rendered from the key, so the turn records and the context history hold only the key.
 
-The `controls` guide is `docs/guide/controls.md`. The `capabilities` guide is `docs/guide/capabilities.md`. Both are bundled with the app. The block leaves out the doc's Markdown image lines, which are pictures for the docs site. Every transport sends the same block.
+`yui.guide.read(name)` returns the bundled guide, and the text leaves out the doc's Markdown image lines, which are pictures for the docs site. The `controls` guide is `docs/guide/controls.md`. The `capabilities` guide is `docs/guide/capabilities.md`. Both are bundled with the app. Every transport sends the same block.
 
 ### Cue (schedule / proactive)
 
@@ -841,4 +839,4 @@ In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the 
 
 The `client_context` message changes every turn, so it sits after the transcript. The card and transcript stay an identical prefix from one turn to the next. Provider prompt caches reuse that prefix.
 
-A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the currently bundled guide. The entry's token cost includes the guide, so both leave the window together.
+A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the same short guide block, rendered from the key. The entry's token cost includes the guide, so both leave the window together.

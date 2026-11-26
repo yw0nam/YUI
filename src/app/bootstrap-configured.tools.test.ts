@@ -9,32 +9,8 @@ vi.mock("./turn/turn-core", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 it.each([
-  [
-    true,
-    false,
-    [
-      "rate_relation",
-      "address_character",
-      "body_action",
-      "look",
-      "yui_tool_describe",
-      "yui_tool_call",
-      "plugin_skill",
-      "yui_run",
-    ],
-  ],
-  [
-    true,
-    true,
-    [
-      "rate_relation",
-      "address_character",
-      "yui_tool_describe",
-      "yui_tool_call",
-      "plugin_skill",
-      "yui_run",
-    ],
-  ],
+  [true, false, ["rate_relation", "address_character", "body_action", "yui_run"]],
+  [true, true, ["rate_relation", "address_character", "yui_run"]],
   [false, false, ["rate_relation", "address_character"]],
 ])("a pet window (tauri: %s, bound: %s) declares %j", async (tauri, bound, names) => {
   vi.stubGlobal("__TAURI_INTERNALS__", tauri ? {} : undefined);

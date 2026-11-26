@@ -16,13 +16,16 @@ import {
   type ChatHistoryItem,
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
-import { createAvatarTools } from "../../io/chat/tools/avatar";
+import { runClientCall } from "../../io/chat/stream/client-tool-run";
 import {
+  type ClientTool,
   type ClientToolDefinition,
   createClientToolRegistry,
 } from "../../io/chat/tools/client-tools";
+import { createRateRelationTool } from "../../io/chat/tools/relation";
 import type { Logger } from "../../logger";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { getToolLabel } from "../../ui/chips/tool-labels";
 import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
@@ -727,7 +730,9 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const at = msgs.findIndex((m) => m.content === "YUI 조작법 알려줘");
     expect(at).toBeGreaterThan(0);
     expect(msgs[at - 1].role).toBe("system");
-    expect(String(msgs[at - 1].content)).toMatch(/^client_context:\nguide:\n[\s\S]*# Controls/);
+    expect(String(msgs[at - 1].content)).toBe(
+      'client_context:\nguide:\nThe user pressed the in-app help button for the controls guide. Read it with yui_run (return await yui.guide.read("controls")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.',
+    );
     const bad = msgs.findIndex((m) => m.content === "bad key");
     expect(String(msgs[bad - 1].content)).not.toContain("guide:");
   });
@@ -847,7 +852,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     ["Chat Completions", CC_CONFIG],
   ])("%s: a screenshot switch flipped between two turns leaves the request tools identical", async (_name, config) => {
     script.events = [completedEvent({ speech_text: "" }, "")];
-    let allowRequests = true;
+    let enabled = true;
     caller = createBackendCaller({
       config,
       renderer: { applyDirective } as never,
@@ -856,26 +861,77 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       stream: script.stream,
       turnOutput,
       clientTools: () =>
-        createClientToolRegistry(
-          createAvatarTools(() => null, {
-            allowRequests: () => allowRequests,
-            getWindow: () => null,
-            listMonitors: async () => [],
-            pointsAreLogical: true,
-            capturer: { captureAt: vi.fn() },
+        createClientToolRegistry([
+          createRateRelationTool({
+            store: { rate: vi.fn() },
+            targets: () => [],
+            enabled: () => enabled,
           }),
-        ),
+        ]),
     });
 
     await caller.call(turnOf(userEnv()));
-    allowRequests = false;
+    enabled = false;
     await caller.call(turnOf(userEnv()));
 
     const [, , firstOpts] = script.spy.mock.calls[0];
     const [, , secondOpts] = script.spy.mock.calls[1];
     const firstTools = firstOpts?.tools.definitions() as ClientToolDefinition[] | undefined;
     expect(firstTools).toEqual(secondOpts?.tools.definitions());
-    expect(firstTools?.map((d) => d.function.name)).toContain("look");
+    expect(firstTools?.map((d) => d.function.name)).toContain("rate_relation");
+  });
+});
+
+describe("backend_caller — a running tool's reports", () => {
+  it("labels the pill with what a running yui_run reports, until the call settles", async () => {
+    let finish: ((result: string) => void) | undefined;
+    const run: ClientTool = {
+      name: "yui_run",
+      definition: {
+        type: "function",
+        function: {
+          name: "yui_run",
+          description: "dummy",
+          parameters: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+      waitMs: 2000,
+      execute: (_args, _signal, call) => {
+        call?.status?.("look");
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    };
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: async function* (_config, _request, opts) {
+        yield* runClientCall(opts.tools, "yui_run", "{}");
+        yield completedEvent({ speech_text: "" });
+      },
+      turnOutput,
+      turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
+      clientTools: () => createClientToolRegistry([run]),
+    });
+    const pending = caller.call(turnOf(userEnv()));
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const shown = toolStatusSink.mock.lastCall?.[0];
+    expect(shown).toEqual({ state: "running", tool_id: "look" });
+    expect(getToolLabel(shown?.tool_id ?? "")).toBe("Looking…");
+
+    finish?.("ok");
+    await pending;
+
+    expect(toolStatusSink.mock.calls).toEqual([
+      [{ state: "running", tool_id: "yui_run" }],
+      [{ state: "running", tool_id: "look" }],
+      [{ state: "done", tool_id: "look" }],
+    ]);
   });
 });
 

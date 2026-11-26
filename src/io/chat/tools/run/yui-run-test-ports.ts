@@ -13,5 +13,6 @@ export function stubYuiRunPorts(): YuiRunPorts {
     }),
     info: async () => ({ bodies: [], voices: [], monitors: [] }),
     help: () => "help text",
+    namespaces: {},
   };
 }

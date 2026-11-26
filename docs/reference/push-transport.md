@@ -129,13 +129,9 @@ The backend cuts `title` and `summary` to their limits, counting Unicode code po
 | Name | Value |
 |---|---|
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
-| `tool_call` wait, look | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, address_character | 2 s on the client, 7 s on the backend adapter |
-| `tool_call` wait, yui_tool_call | 121 s on the client, 125 s on the backend |
 | `tool_call` wait, yui_run | 121 s on the client, 125 s on the backend |
-| `tool_call` wait, yui_tool_describe | 2 s on the client, 7 s on the backend |
-| `tool_call` wait, plugin_skill | 2 s on the client, 7 s on the backend |
 
 ## Connection
 
@@ -173,15 +169,18 @@ A turn that has not rendered when the socket leaves `ready` also ends as a netwo
     {
       "type": "function",
       "function": {
-        "name": "look",
-        "description": "Read body state, perch targets, or a display screenshot; screen requests require user permission",
+        "name": "body_action",
+        "description": "Move the character's body. sit_on_window: sit on the top edge of that app's window … The result is ok, or one word: not_found, blocked, interrupted, busy, unsupported, or timeout …",
         "parameters": {
           "type": "object",
           "properties": {
-            "at": { "type": "string", "enum": ["body", "perch_targets", "screen"] },
-            "monitor": { "type": "integer", "description": "For screen: the display number used by body_action.monitor; omit for the character's display" }
+            "action": { "type": "string", "enum": ["sit_on_window", "peek", "move_to", "stand"] },
+            "app": { "type": "string" },
+            "side": { "type": "string", "enum": ["left", "right"] },
+            "spot": { "type": "string", "enum": ["center", "top-left", "top-right", "bottom-left", "bottom-right"] },
+            "monitor": { "type": "integer" }
           },
-          "required": ["at"],
+          "required": ["action"],
           "additionalProperties": false
         }
       }
@@ -201,10 +200,10 @@ A turn that has not rendered when the socket leaves `ready` also ends as a netwo
 For `tools`:
 
 - Absent when the client declares none. A `tools` frame replaces the list while connected.
-- The descriptions of `yui_tool_call` and `plugin_skill` carry the window's On-demand tool and plugin skill lists ([client-tools.md](client-tools.md#the-lists-in-the-descriptions)), so they change with the enabled plugins.
+- The `yui_run` description lists the enabled plugin tools and skills ([client-tools.md](client-tools.md#the-lists-in-the-descriptions)), so it changes with the enabled plugins.
 - Every pet window declares `rate_relation` and `address_character`.
-- A pet window under Tauri also declares `yui_tool_describe`, `yui_tool_call`, `plugin_skill` and `yui_run`.
-- `main` also declares `body_action` and `look`.
+- A pet window under Tauri also declares `yui_run`.
+- `main` also declares `body_action`.
 
 #### What `accepts` covers
 
@@ -246,10 +245,10 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 ### `tools` (client → backend)
 
-The declared function schemas, in the shape of `hello.tools`, sent whenever the declared tools change while connected, and on `ready` when they changed during the handshake. A plugin turned on or off changes the descriptions of `yui_tool_call` and `plugin_skill`. The frame carries the full list, `[]` when the client declares none, and applies to turns the backend starts after it.
+The declared function schemas, in the shape of `hello.tools`, sent whenever the declared tools change while connected, and on `ready` when they changed during the handshake. A plugin turned on or off changes the description of `yui_run`. The frame carries the full list, `[]` when the client declares none, and applies to turns the backend starts after it.
 
 ```json
-{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "plugin_skill", "description": "Read a plugin skill: returns its full instructions. No plugin skills are available.", "parameters": { "type": "object", "properties": { "name": { "type": "string", "description": "The plugin skill's name." } }, "additionalProperties": false, "required": ["name"] } } }] }
+{ "type": "tools", "tools": [{ "type": "function", "function": { "name": "yui_run", "description": "YUI: see the screen and body, Threads, terminals, plugins, guides, settings. Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.", "parameters": { "type": "object", "properties": { "code": { "type": "string" } }, "additionalProperties": false, "required": ["code"] } } }] }
 ```
 
 ## Turns
@@ -519,7 +518,7 @@ The frame counts as a frame of the turn for the frame wait. It leaves the runnin
 
 A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
 
-A `tool_status` naming a tool the client declared and runs itself, `yui_tool_call`, leaves the status pill as it is. That tool's status comes from the client's own run. The frame still counts as a frame of the turn for the frame wait.
+A `tool_status` naming a tool the client declared and runs itself, `yui_run`, leaves the status pill as it is. That tool's status comes from the client's own run. The frame still counts as a frame of the turn for the frame wait.
 
 ### `tool_call` (backend → client) and `tool_result` (client → backend)
 
@@ -562,7 +561,7 @@ A call against a tool the client declared in `hello.tools` or a `tools` frame.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line. It gets no `tool_result`, and the backend's wait answers it.
 6. The status pill takes its tool state from the backend's `tool_status` frames. The client emits no `tool_status` of its own for these calls.
-   - `yui_tool_call` is the exception. The client runs it itself and shows its running and terminal state locally, labelled with the On-demand tool its `name` argument names. A backend `tool_status` naming it does not change the status pill. It still counts as a frame of the turn for the frame wait.
+   - `yui_run` is the exception. The client runs it itself and shows its running and terminal state locally, labelled with the namespace its script's yui call started last, or the plugin tool a `yui.plugins.call` names. A backend `tool_status` naming it does not change the status pill. It still counts as a frame of the turn for the frame wait.
 
 #### Image results
 

@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server. The brain reaches its tools through the bridge tools `yui_tool_describe` and `yui_tool_call`, and its skills through `plugin_skill`.
+A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server. The brain reaches its tools with `yui.plugins.call` inside `yui_run`, and its skills with `help("plugin:<name>")`.
 
 To build one with a coding agent, paste this line:
 
@@ -16,7 +16,7 @@ flowchart LR
   folder --> skills["skills/greet/SKILL.md"]
   mcp --> host["YUI MCP host"]
   host -->|"starts"| server
-  brain["Brain"] -->|"bridge tools"| host
+  brain["Brain"] -->|"yui_run"| host
 ```
 
 The work takes four steps:
@@ -86,11 +86,11 @@ On Windows, a process started with `CREATE_BREAKAWAY_FROM_JOB` leaves the tree a
 
 A tool name held by a built-in client tool or by an already enabled plugin is hidden, though the later plugin still runs ([Plugins](./plugins.md)).
 
-These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_skill`, `rate_relation`, `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_write`, `threads_list`, `threads_search`, `yui_run`, `yui_tool_call`, `yui_tool_describe`.
+These names belong to declared client tools: `address_character`, `body_action`, `generate_express`, `rate_relation` and `yui_run`. A plugin tool may take any other name.
 
 | `_meta` key | Where | What it does |
 |---|---|---|
-| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary `yui_tool_call`'s description shows for the tool ([Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions)). |
+| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary the `yui_run` description lists for the tool ([Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions)). |
 | `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the host waits for one call ([Client Tools](../reference/client-tools.md#waits-and-cancel)). |
 | `io.github.yw0nam.yui/preset` | the request `_meta` of every `tools/call` | The preset id of the calling character, so a tool keeps one state per character. |
 
@@ -108,9 +108,9 @@ description: Greets the user in one line.
 | Field | Rule |
 |---|---|
 | `description` | Required. A skill without one is skipped, with a warning in the app log. |
-| `name` | Optional; the folder name when absent. `plugin_skill` and its description use it. |
+| `name` | Optional; the folder name when absent. `help("plugin:<name>")` and the `yui_run` description use it. |
 
-`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction. YUI serves no other file of the skill folder.
+`help("plugin:<name>")` returns the text after the frontmatter and nothing else, so the body carries every instruction. YUI serves no other file of the skill folder.
 
 The body is read on each call. The name and description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
 
@@ -157,7 +157,7 @@ While a server is running, neither button appears.
 
 ## Go deeper
 
-- [Client Tools](../reference/client-tools.md): bridge tools, arguments, waits and consent.
-- [Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions): what the Bridge tool descriptions carry of a plugin's tools and skills.
+- [Client Tools](../reference/client-tools.md): `yui_run`, the yui API, arguments, waits and consent.
+- [Client Tools § The lists in the descriptions](../reference/client-tools.md#the-lists-in-the-descriptions): what the `yui_run` description carries of a plugin's tools and skills.
 
 To share it with other users, see [Contribute a plugin](./contribute-a-plugin.md).

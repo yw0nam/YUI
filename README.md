@@ -86,6 +86,8 @@ YUI is the body; the model or agent you plug in is the brain. YUI notices what h
 
 YUI ships no model of its own. Choose the brain by what it can do.
 
+Her settings, the screen, your Threads, terminals and plugins all go through one tool, `yui_run`, in which the brain writes a short script. That asks a lot of the model's tool calling and coding. Claude Sonnet 5.5 through Hermes Agent handled it in all 40 of our test turns. Models such as GPT-OSS-120B and Gemma-4-26B sometimes lost their results or made up calls, so these features are less reliable with them.
+
 ### An open-source agent (recommended)
 
 Memory, its own persona, chat-history search, and much more come with the agent. That is why we recommend it for your waifu.

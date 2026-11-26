@@ -94,7 +94,7 @@ The Threads window renders each entry's text as Markdown with the speech bubble'
 
 A picked Thread and a fresh open start at the newest entry. A new entry follows a reader at the bottom and leaves a reader above it in place.
 
-The main character's backend reads Threads through the `threads_list` and `threads_search` client tools, the `threads:` client-context line and the `threads attached:` block.
+The main character's backend reads Threads through `yui.threads.list` and `yui.threads.search` in a `yui_run` script, the `threads:` client-context line and the `threads attached:` block.
 
 ### Attach to chat
 
@@ -192,7 +192,7 @@ The reaction reads the Threads window when it runs.
 | Covered | The window is open, and `list_windows` either does not hold it or lists a window in front of it that overlaps it. |
 | Open | Otherwise. |
 
-While it is on screen, the Threads window is a perch target, and its rect is the visible panel, inset by the window's 8-point transparent margin on every side. A hand drop, a stroll jump, a fall and the `look` tool all see it.
+While it is on screen, the Threads window is a perch target, and its rect is the visible panel, inset by the window's 8-point transparent margin on every side. A hand drop, a stroll jump, a fall and `yui.look.perch_targets()` all see it.
 
 ### Steps
 

@@ -27,7 +27,7 @@ const IO_NOTES: Record<string, string> = {
   "privacy.screen_display": "index from yui.info.read().monitors",
 };
 
-const API = `declare const yui: {
+const YUI_HEAD = `declare const yui: {
   settings: {
     /** This character's settings and the global ones, as one JSON document. */
     read(): Promise<SettingsDoc>;
@@ -36,8 +36,12 @@ const API = `declare const yui: {
   };
   state: { read(): Promise<{ running_since: string; last_together: string | null; characters: { name: string; open: boolean; me: boolean }[]; permissions: { screen_recording: "granted" | "denied" | "unknown" } }> };
   info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };
-};
-declare function help(): string;
+`;
+
+const YUI_TAIL = `};
+/** An image a yui call made; it reaches the model only when the returned value holds it. */
+type ImageHandle = { image: number };
+declare function help(topic?: \`plugin:\${string}\`): Promise<string>;
 declare const console: { log(...a: unknown[]): void };
 `;
 
@@ -50,6 +54,9 @@ const RULES = `1. Await every yui call; the returned value is the tool result.
 4. Rows marked allow wait for the user; denied or no answer changes nothing.
 5. The result lists the answers of every write that finished under writes, one entry per write.
 6. After denied or no answer, tell the user in your own words and do not repeat the same write in this turn. Text after ok: or denied: is the user's note to you.
+7. Await one call that waits for the user's Allow (a write with allow rows, terminal.read, terminal.write) before you start another.
+8. A yui call that fails returns its error text; only a wrong argument throws.
+9. Before you call a plugin's tools, read its skill with help("plugin:<name>") when the description lists one.
 `;
 
 function typeOf(row: SettingRow | HelpRow): string {
@@ -120,6 +127,12 @@ function settingsType(t: (key: string) => string, extra: readonly HelpRow[]): st
   return out.join("\n");
 }
 
-export function helpText(t: (key: string) => string, extra: readonly HelpRow[] = []): string {
-  return `${API}${LEGEND}${settingsType(t, extra)}\n${RULES}`;
+/** `declarations` are the window's namespace blocks, each without a trailing newline. */
+export function helpText(
+  t: (key: string) => string,
+  extra: readonly HelpRow[] = [],
+  declarations: readonly string[] = [],
+): string {
+  const blocks = declarations.map((block) => `${block}\n`).join("");
+  return `${YUI_HEAD}${blocks}${YUI_TAIL}${LEGEND}${settingsType(t, extra)}\n${RULES}`;
 }

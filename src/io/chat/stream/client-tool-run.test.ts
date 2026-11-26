@@ -76,7 +76,10 @@ describe("runClientCall — the turn id", () => {
       "t1",
     );
 
-    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: "t1" });
+    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), {
+      turnId: "t1",
+      status: expect.any(Function),
+    });
   });
 });
 
@@ -124,21 +127,43 @@ describe("runClientCall — tool_status state", () => {
     expect(next.value?.run?.oneWay).toBe(false);
   });
 
-  it("names the status chip after the id the tool reports for the call", async () => {
+  it("yields each id a running tool reports while it runs, and ends on the last one", async () => {
+    let report: (id: string) => void = () => {};
+    let open: (result: string) => void = () => {};
     const registry = createClientToolRegistry([
       tool({
-        name: "yui_tool_call",
-        statusId: (args) => String(args.name),
-        localStatus: true,
-        execute: async () => "ok",
+        name: "yui_run",
+        execute: (_args, _signal, call) => {
+          report = (id) => call?.status?.(id);
+          report("look");
+          return new Promise((resolve) => {
+            open = resolve;
+          });
+        },
       }),
     ]);
-    const events = await collect(registry, "yui_tool_call", '{"name":"echo_args"}');
+    const running = (tool_id: string) => ({
+      type: "tool_status",
+      status: { state: "running", tool_id },
+    });
+    const gen = runClientCall(registry, "yui_run", "{}");
 
-    expect(events.flatMap((e) => (e.type === "tool_status" ? [e.status.tool_id] : []))).toEqual([
-      "echo_args",
-      "echo_args",
+    expect((await gen.next()).value).toEqual(running("yui_run"));
+    const whileBlocked = await Promise.race([
+      gen.next(),
+      new Promise((resolve) => setTimeout(() => resolve("still blocked"), 0)),
     ]);
+    expect(whileBlocked).toEqual({ done: false, value: running("look") });
+
+    report("terminal");
+    open("ok");
+    const rest = [(await gen.next()).value, (await gen.next()).value];
+
+    expect(rest).toEqual([
+      running("terminal"),
+      { type: "tool_status", status: { state: "done", tool_id: "terminal" } },
+    ]);
+    expect((await gen.next()).done).toBe(true);
   });
 
   it("yields no tool_status for the express cue", async () => {

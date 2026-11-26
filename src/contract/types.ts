@@ -303,7 +303,7 @@ export interface Thread {
   entry_count: number;
 }
 
-/** A Thread the user attached to the main character's chat input, named the way `threads_list` rows name it. */
+/** A Thread the user attached to the main character's chat input, named the way `yui.threads.list` rows name it. */
 export type AttachedThread = Pick<Thread, "id" | "source" | "title">;
 
 export interface ThreadsSnapshot {

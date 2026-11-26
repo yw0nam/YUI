@@ -1,4 +1,4 @@
-/** The enabled plugins' tools with their summaries and skills with their descriptions, for the Bridge tool descriptions. */
+/** The enabled plugins' tools with their summaries and skills with their descriptions, for the yui_run description and yui.plugins. */
 
 import type { PluginHostSnapshot, PluginHostTool } from "./mcp-host";
 
@@ -20,7 +20,7 @@ function summaryOf(tool: PluginHostTool): string {
   return sentenceSummary(tool.description ?? "");
 }
 
-export function sentenceSummary(description: string): string {
+function sentenceSummary(description: string): string {
   const paragraph = description.split(/\n\s*\n/)[0] ?? "";
   const collapsed = paragraph.replace(/\s+/g, " ").trim();
   const sentence = /^.*?[.!?](?=\s|$)/.exec(collapsed)?.[0] ?? collapsed;

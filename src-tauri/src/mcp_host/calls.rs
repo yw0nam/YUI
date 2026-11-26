@@ -1,4 +1,5 @@
-//! In-flight tool calls keyed by (window label, call id): preset `_meta`, deadline, cancel.
+//! In-flight tool calls keyed by (window label, call id): preset `_meta`, deadline, cancel, and the
+//! cancels that arrived before their call registered.
 
 use super::snapshot::ToolEntry;
 use rmcp::model::{
@@ -17,13 +18,21 @@ const PRESET_META_KEY: &str = "io.github.yw0nam.yui/preset";
 const WAIT_MS_META_KEY: &str = "io.github.yw0nam.yui/wait_ms";
 const DEFAULT_WAIT_MS: u64 = 30_000;
 const MAX_WAIT_MS: u64 = 120_000;
+const EARLY_CANCEL_CAP: usize = 64;
 
 type Key = (String, String);
 
 #[derive(Default)]
 pub struct Calls {
-    pending: Mutex<HashMap<Key, Pending>>,
+    state: Mutex<State>,
     next_token: AtomicU64,
+}
+
+#[derive(Default)]
+struct State {
+    pending: HashMap<Key, Pending>,
+    /// Cancels not yet taken by their call; capped, as a cancel can outlive its call.
+    early: Vec<Key>,
 }
 
 /// A registered call, ready to send.
@@ -43,16 +52,20 @@ struct Pending {
 }
 
 impl Calls {
-    /// Reserves `(window, call_id)` for a call to `server`; a key still in flight is refused.
+    /// Reserves `(window, call_id)` for a call to `server`; a key still in flight or cancelled first is refused.
     pub fn register(&self, window: &str, call_id: &str, server: &str) -> Result<Call, String> {
         let key = (window.to_string(), call_id.to_string());
         let token = self.next_token.fetch_add(1, Ordering::Relaxed);
         let (cancel, cancel_rx) = oneshot::channel();
-        let mut pending = self.lock();
-        if pending.contains_key(&key) {
+        let mut state = self.lock();
+        if let Some(index) = state.early.iter().position(|k| k == &key) {
+            state.early.remove(index);
+            return Err("plugin tool cancelled".into());
+        }
+        if state.pending.contains_key(&key) {
             return Err(format!("duplicate call id: {call_id}"));
         }
-        pending.insert(
+        state.pending.insert(
             key.clone(),
             Pending {
                 token,
@@ -129,31 +142,51 @@ impl Calls {
         }
     }
 
-    /// Cancels the call only when `window` started it.
+    /// Stops the call now, or when it registers if the cancel arrives first.
     pub fn cancel(&self, window: &str, call_id: &str) {
-        self.take(|(w, c), _| w == window && c == call_id);
+        let key = (window.to_string(), call_id.to_string());
+        let mut state = self.lock();
+        if state.pending.contains_key(&key) {
+            let _ = state.take(|k, _| k == &key);
+        } else {
+            state.record_early(key);
+        }
     }
 
     pub fn cancel_window(&self, window: &str) {
-        self.take(|(w, _), _| w == window);
+        let _ = self.lock().take(|(w, _), _| w == window);
     }
 
     /// Cancels every call to the server and waits until each has sent its cancellation.
     pub async fn cancel_server(&self, server_id: &str) {
-        for sent in self.take(|_, p| p.server == server_id) {
+        let sent = self.lock().take(|_, p| p.server == server_id);
+        for sent in sent {
             let _ = sent.await;
         }
     }
 
-    fn take(&self, which: impl Fn(&Key, &Pending) -> bool) -> Vec<oneshot::Receiver<()>> {
-        let mut pending = self.lock();
-        let keys: Vec<Key> = pending
+    fn remove(&self, key: &Key, token: u64) {
+        let mut state = self.lock();
+        if state.pending.get(key).is_some_and(|p| p.token == token) {
+            state.pending.remove(key);
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, State> {
+        self.state.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+impl State {
+    fn take(&mut self, which: impl Fn(&Key, &Pending) -> bool) -> Vec<oneshot::Receiver<()>> {
+        let keys: Vec<Key> = self
+            .pending
             .iter()
             .filter(|(key, p)| which(key, p))
             .map(|(key, _)| key.clone())
             .collect();
         keys.into_iter()
-            .filter_map(|key| pending.remove(&key))
+            .filter_map(|key| self.pending.remove(&key))
             .map(|entry| {
                 let (sent, sent_rx) = oneshot::channel();
                 let _ = entry.cancel.send(sent);
@@ -162,15 +195,11 @@ impl Calls {
             .collect()
     }
 
-    fn remove(&self, key: &Key, token: u64) {
-        let mut pending = self.lock();
-        if pending.get(key).is_some_and(|p| p.token == token) {
-            pending.remove(key);
+    fn record_early(&mut self, key: Key) {
+        if self.early.len() == EARLY_CANCEL_CAP {
+            self.early.remove(0);
         }
-    }
-
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Key, Pending>> {
-        self.pending.lock().unwrap_or_else(|e| e.into_inner())
+        self.early.push(key);
     }
 }
 
@@ -193,6 +222,7 @@ mod tests {
     use super::super::test_support::{
         eventually, require_python, running, server_logged_a_cancel, slow_call,
     };
+    use super::Calls;
     use serde_json::{json, Value};
     use std::time::Duration;
 
@@ -297,5 +327,33 @@ mod tests {
             .await;
         assert_eq!(other_window.unwrap()["isError"], false);
         host.shutdown().await;
+    }
+
+    #[test]
+    fn a_cancel_before_the_call_registers_stops_it_at_once() {
+        let calls = Calls::default();
+        calls.cancel("w", "c1");
+        assert_eq!(
+            calls.register("w", "c1", "s").err(),
+            Some("plugin tool cancelled".to_string())
+        );
+    }
+
+    #[test]
+    fn an_early_cancel_is_used_once() {
+        let calls = Calls::default();
+        calls.cancel("w", "c1");
+        assert_eq!(
+            calls.register("w", "c1", "s").err(),
+            Some("plugin tool cancelled".to_string())
+        );
+        assert_eq!(calls.register("w", "c1", "s").map(|_| ()), Ok(()));
+    }
+
+    #[test]
+    fn an_early_cancel_belongs_to_its_window() {
+        let calls = Calls::default();
+        calls.cancel("w2", "c1");
+        assert_eq!(calls.register("w", "c1", "s").map(|_| ()), Ok(()));
     }
 }

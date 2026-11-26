@@ -549,7 +549,10 @@ describe("streamChat — Responses tool-call round trip", () => {
     await collect(streamChat(CONFIG, req(), optsFor(ping)));
 
     expect(ping.execute).toHaveBeenCalledOnce();
-    expect(ping.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: undefined });
+    expect(ping.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), {
+      turnId: undefined,
+      status: expect.any(Function),
+    });
   });
 
   it("executes id-less calls at the same output_index in consecutive responses separately", async () => {

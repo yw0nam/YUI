@@ -12,10 +12,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
-import { createBridgeTools } from "./bridge/bridge-tools";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
 import { createRateRelationTool } from "./relation";
+import { stubYuiRunPorts } from "./run/yui-run-test-ports";
+import { createYuiRunTool } from "./run/yui-run-tool";
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
 const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
@@ -192,7 +193,6 @@ describe("createClientTools", () => {
     expect(createClientTools(vocab(), avatarTools).map((tool) => tool.name)).toEqual([
       "generate_express",
       "body_action",
-      "look",
     ]);
   });
 
@@ -214,18 +214,11 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    const host = {
-      snapshot: () => null,
-      call: vi.fn(),
-      cancel: vi.fn(),
-      skill: vi.fn(),
-      subscribe: vi.fn(),
-    };
     const names = createClientTools(vocab(), [
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
-      ...createBridgeTools({ host, presetId: () => "p1", onDemand: [] }),
+      createYuiRunTool(stubYuiRunPorts()),
     ]).map((tool) => tool.name);
 
     expect(names).toEqual([
@@ -233,10 +226,7 @@ describe("docs/reference/client-tools.md catalog", () => {
       "rate_relation",
       "address_character",
       "body_action",
-      "look",
-      "yui_tool_describe",
-      "yui_tool_call",
-      "plugin_skill",
+      "yui_run",
     ]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });

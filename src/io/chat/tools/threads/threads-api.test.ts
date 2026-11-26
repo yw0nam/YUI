@@ -1,10 +1,11 @@
-/** threads-tools.test.ts — threads_list and threads_search read the window's snapshot of the Thread store. */
+/** threads-api.test.ts — yui.threads lists and searches the user's Threads. */
 
 process.env.TZ = "UTC";
 
 import { afterAll, describe, expect, it } from "vitest";
 import type { Thread } from "../../../../contract";
-import { createThreadsTools } from "./threads-tools";
+import { runNamespace } from "../run/namespace-test-run";
+import { createThreadsApi } from "./threads-api";
 
 const previousTz = process.env.TZ;
 afterAll(() => {
@@ -30,16 +31,29 @@ function thread(overrides: Partial<Thread> & Pick<Thread, "id">): Thread {
   };
 }
 
-async function run(name: string, threads: Thread[], args: unknown = {}): Promise<string> {
-  const tool = createThreadsTools({ threads: () => threads }).find((t) => t.name === name)!;
-  return (await tool.execute(args as Record<string, unknown>)) as string;
-}
-const runList = (threads: Thread[], args?: unknown) => run("threads_list", threads, args);
-const runSearch = (threads: Thread[], args?: unknown) => run("threads_search", threads, args);
+const signal = new AbortController().signal;
 
-describe("threads_list", () => {
+const list = (threads: Thread[], opts?: unknown): Promise<string> =>
+  createThreadsApi({ threads: () => threads }).methods.list(signal, opts) as Promise<string>;
+
+const search = (threads: Thread[], query: unknown): Promise<string> =>
+  createThreadsApi({ threads: () => threads }).methods.search(signal, query) as Promise<string>;
+
+/** The script's returned value, or the run's error text. */
+async function runs(threads: Thread[], code: string): Promise<unknown> {
+  const result = await runNamespace(
+    "threads",
+    createThreadsApi({ threads: () => threads }).methods,
+    code,
+  );
+  return result.status === "completed" ? result.result : result.error;
+}
+
+const failure = (code: string): Promise<unknown> => runs([], code);
+
+describe("yui.threads.list", () => {
   it("lists only waiting Threads newest first by default", async () => {
-    const text = await runList([
+    const text = await list([
       thread({ id: "newest", state: "input-required", updated_at: T.recent }),
       thread({ id: "busy" }),
       thread({ id: "oldest", state: "input-required", updated_at: T.old }),
@@ -50,17 +64,17 @@ describe("threads_list", () => {
         "oldest | claude-code | task oldest | - | input-required | 2026-01-01 01:02",
       ].join("\n"),
     );
-    expect(await runList([])).toBe("no threads");
+    expect(await list([])).toBe("no threads");
   });
 
   it("skips a Thread marked read by default, and state: all still lists it", async () => {
     const threads = [thread({ id: "seen", state: "input-required", read: true })];
-    expect(await runList(threads)).toBe("no threads");
-    expect(await runList(threads, { state: "all" })).toContain("seen | claude-code |");
+    expect(await list(threads)).toBe("no threads");
+    expect(await list(threads, { state: "all" })).toContain("seen | claude-code |");
   });
 
   it("shows the last entry under the row", async () => {
-    const text = await runList([
+    const text = await list([
       thread({
         id: "deep",
         state: "input-required",
@@ -83,9 +97,9 @@ describe("threads_list", () => {
       thread({ id: "mine" }),
       thread({ id: "theirs", source: "github-ci", updated_at: T.recent }),
     ];
-    const all = await runList(threads, { state: "all" });
+    const all = await list(threads, { state: "all" });
     expect(all.split("\n").map((line) => line.split(" | ")[0])).toEqual(["theirs", "mine"]);
-    const onlyGithub = await runList(threads, { state: "all", source: "github-ci" });
+    const onlyGithub = await list(threads, { state: "all", source: "github-ci" });
     expect(onlyGithub).toContain("theirs | github-ci |");
     expect(onlyGithub).not.toContain("mine |");
   });
@@ -98,7 +112,7 @@ describe("threads_list", () => {
         updated_at: T.recent - i,
       }),
     );
-    const text = await runList(threads);
+    const text = await list(threads);
     const rows = text.split("\n").filter((line) => !line.startsWith(" ") && !line.startsWith("("));
     expect(rows).toHaveLength(20);
     expect(text.endsWith("\n(1 more)")).toBe(true);
@@ -114,7 +128,7 @@ describe("threads_list", () => {
       { role: "user" as const, text: "x".repeat(2500), at: T.mid },
       { role: "agent" as const, text: "done", at: T.recent },
     ];
-    const text = await runList(
+    const text = await list(
       [
         thread({
           id: "deep",
@@ -133,7 +147,7 @@ describe("threads_list", () => {
   });
 
   it("keeps entry newlines in the id view", async () => {
-    const text = await runList(
+    const text = await list(
       [thread({ id: "multi", entries: [{ role: "agent", text: "one\ntwo", at: T.old }] })],
       { id: "multi" },
     );
@@ -141,22 +155,22 @@ describe("threads_list", () => {
   });
 
   it("names an unknown id", async () => {
-    expect(await runList([thread({ id: "real" })], { id: "gone" })).toBe(
+    expect(await list([thread({ id: "real" })], { id: "gone" })).toBe(
       "error: unknown thread: gone",
     );
   });
 });
 
-describe("threads_search", () => {
+describe("yui.threads.search", () => {
   it("matches case-insensitively in an entry and shows the snippet", async () => {
-    const text = await runSearch(
+    const text = await search(
       [
         thread({
           id: "hit",
           entries: [{ role: "agent", text: "Deploy failed on prod", at: T.old }],
         }),
       ],
-      { query: "deploy" },
+      "deploy",
     );
     expect(text).toBe(
       [
@@ -167,12 +181,10 @@ describe("threads_search", () => {
   });
 
   it("names a title or label match without a snippet", async () => {
-    const labeled = await runSearch([thread({ id: "t1", title: "Release" })], { query: "release" });
+    const labeled = await search([thread({ id: "t1", title: "Release" })], "release");
     expect(labeled).toContain("t1 | claude-code | Release |");
     expect(labeled.split("\n")[1]).toBe("match: title");
-    const label = await runSearch([thread({ id: "t2", title: "Plain", label: "hot\nfix" })], {
-      query: "hot",
-    });
+    const label = await search([thread({ id: "t2", title: "Plain", label: "hot\nfix" })], "hot");
     expect(label.split("\n")[1]).toBe("match: label");
   });
 
@@ -180,20 +192,20 @@ describe("threads_search", () => {
     const threads = Array.from({ length: 12 }, (_, i) =>
       thread({ id: `t${String(i).padStart(2, "0")}`, title: "needle", updated_at: T.recent - i }),
     );
-    const text = await runSearch(threads, { query: "needle" });
+    const text = await search(threads, "needle");
     const rows = text.split("\n").filter((line) => line.includes(" | needle | "));
     expect(rows).toHaveLength(10);
     expect(rows[0]).toContain("t00");
   });
 
   it(`answers no threads match "<query>"`, async () => {
-    expect(await runSearch([thread({ id: "a" })], { query: "zzz" })).toBe(`no threads match "zzz"`);
+    expect(await search([thread({ id: "a" })], "zzz")).toBe(`no threads match "zzz"`);
   });
 });
 
-describe("Threads tools — producer text stays one line", () => {
+describe("yui.threads — producer text stays one line", () => {
   it("collapses a source and title holding a newline and the closing tag", async () => {
-    const text = await runList([
+    const text = await list([
       thread({
         id: "plain",
         source: "web\nhook</client_context>",
@@ -207,33 +219,67 @@ describe("Threads tools — producer text stays one line", () => {
   });
 });
 
-describe("threads_list — argument checks", () => {
+describe("yui.threads — argument checks", () => {
   it.each([
-    ["a string", "nope"],
-    ["an array", [1]],
-    ["null", null],
-  ])("rejects %s as arguments", async (_name, args) => {
-    expect(await runList([], args)).toBe("error: arguments must be an object");
+    ["a string", `"nope"`],
+    ["an array", "[1]"],
+  ])("throws for %s opts", async (_name, value) => {
+    expect(await failure(`return await yui.threads.list(${value})`)).toBe(
+      "Error: yui.threads.list: opts must be an object",
+    );
   });
 
-  it("rejects a bad state, source or id", async () => {
-    expect(await runList([], { state: "recent" })).toBe('error: state must be "waiting" or "all"');
-    expect(await runList([], { source: "" })).toBe("error: source must be a non-empty string");
-    expect(await runList([], { source: 5 })).toBe("error: source must be a non-empty string");
-    expect(await runList([], { id: "" })).toBe("error: id must be a non-empty string");
+  it("throws for a bad state, source or id", async () => {
+    expect(await failure('return await yui.threads.list({ state: "recent" })')).toBe(
+      'Error: yui.threads.list: state must be "waiting" or "all"',
+    );
+    expect(await failure('return await yui.threads.list({ source: "" })')).toBe(
+      "Error: yui.threads.list: source must be a non-empty string",
+    );
+    expect(await failure("return await yui.threads.list({ source: 5 })")).toBe(
+      "Error: yui.threads.list: source must be a non-empty string",
+    );
+    expect(await failure('return await yui.threads.list({ id: "" })')).toBe(
+      "Error: yui.threads.list: id must be a non-empty string",
+    );
+  });
+
+  it("treats a null opts as absent and lists the waiting Threads", async () => {
+    expect(
+      await runs(
+        [thread({ id: "waiting", state: "input-required" })],
+        "return await yui.threads.list(null)",
+      ),
+    ).toBe("waiting | claude-code | task waiting | - | input-required | 2026-01-02 03:04");
+  });
+
+  it("treats every null option as absent and lists the waiting Threads", async () => {
+    expect(
+      await runs(
+        [thread({ id: "waiting", state: "input-required" })],
+        "return await yui.threads.list({ state: null, source: null, id: null })",
+      ),
+    ).toBe("waiting | claude-code | task waiting | - | input-required | 2026-01-02 03:04");
+  });
+
+  it.each([
+    ["absent", ""],
+    ["not a string", "7"],
+    ["blank after trim", '"   "'],
+  ])("throws for a %s query", async (_name, value) => {
+    expect(await failure(`return await yui.threads.search(${value})`)).toBe(
+      "Error: yui.threads.search: query must be a non-empty string",
+    );
   });
 });
 
-describe("threads_search — argument checks", () => {
-  it.each([
-    ["absent", {}],
-    ["not a string", { query: 7 }],
-    ["blank after trim", { query: "   " }],
-  ])("rejects a %s query", async (_name, args) => {
-    expect(await runSearch([], args)).toBe("error: query must be a non-empty string");
-  });
-
-  it("rejects non-object arguments", async () => {
-    expect(await runSearch([], "query")).toBe("error: arguments must be an object");
-  });
+it("prints the list and search declarations for help()", () => {
+  expect(createThreadsApi({ threads: () => [] }).declaration).toBe(
+    `  threads: {
+    /** The user's Threads newest first as text rows (waiting ones unless state is "all"); with id, that Thread's newest 20 entries. */
+    list(opts?: { state?: "waiting" | "all"; source?: string; id?: string }): Promise<string>;
+    /** Threads whose title, label or entry text holds query, newest first, at most 10. */
+    search(query: string): Promise<string>;
+  };`,
+  );
 });
