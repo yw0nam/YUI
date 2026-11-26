@@ -9,9 +9,6 @@ const DOCS: Record<GuideKey, string> = { controls, capabilities };
 /** A Markdown image line and the blank line after it: the site's pictures, which the backend cannot see. */
 const IMAGE_LINE = /^!\[[^\]]*\]\([^)]*\)\n\n?/gm;
 
-const INSTRUCTION =
-  "The user pressed the in-app help button. Answer from the guide below: start with the few most-used items, keep it short, and offer to go on; do not include links.";
-
 export function isGuideKey(value: unknown): value is GuideKey {
   return typeof value === "string" && Object.hasOwn(DOCS, value);
 }
@@ -21,9 +18,9 @@ export function readGuide(key: GuideKey): string {
   return DOCS[key].replace(IMAGE_LINE, "").trim();
 }
 
-/** The `guide:` block of the client context: the instruction line, then the doc. */
+/** The `guide:` block of the client context: the instruction that names the guide and how to read it. */
 export function renderGuideBlock(key: GuideKey): string {
-  return `guide:\n${INSTRUCTION}\n\n${readGuide(key)}`;
+  return `guide:\nThe user pressed the in-app help button for the ${key} guide. Read it with yui_run (return await yui.guide.read("${key}")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.`;
 }
 
 const GUIDE_DECLARATION = `  guide: {
