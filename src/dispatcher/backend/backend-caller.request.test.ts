@@ -884,7 +884,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
 
 describe("backend_caller — a running tool's reports", () => {
   it("labels the pill with what a running yui_run reports, until the call settles", async () => {
-    let report: (id: string) => void = () => {};
     let finish: ((result: string) => void) | undefined;
     const run: ClientTool = {
       name: "yui_run",
@@ -898,8 +897,7 @@ describe("backend_caller — a running tool's reports", () => {
       },
       waitMs: 2000,
       execute: (_args, _signal, call) => {
-        report = (id) => call?.status?.(id);
-        report("look");
+        call?.status?.("look");
         return new Promise((resolve) => {
           finish = resolve;
         });
@@ -928,14 +926,12 @@ describe("backend_caller — a running tool's reports", () => {
 
     finish?.("ok");
     await pending;
-    const settled = toolStatusSink.mock.calls.length;
-    report("threads");
 
-    expect(toolStatusSink.mock.calls.slice(settled)).toEqual([]);
-    expect(toolStatusSink.mock.calls.map(([status]) => status)).toContainEqual({
-      state: "done",
-      tool_id: "look",
-    });
+    expect(toolStatusSink.mock.calls).toEqual([
+      [{ state: "running", tool_id: "yui_run" }],
+      [{ state: "running", tool_id: "look" }],
+      [{ state: "done", tool_id: "look" }],
+    ]);
   });
 });
 

@@ -29,7 +29,7 @@ describe("getToolLabel (default English)", () => {
     ["look", "Looking…"],
     ["threads", "Reading Threads…"],
     ["yui_run", "Running a script…"],
-  ])("labels the yui_run area %s", (id, label) => {
+  ])("labels the status id %s", (id, label) => {
     expect(getToolLabel(id)).toBe(label);
   });
 

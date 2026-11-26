@@ -175,7 +175,6 @@ describe("runClientCall — tool_status state", () => {
     report("terminal");
     open("ok");
     const rest = [(await gen.next()).value, (await gen.next()).value];
-    report("threads");
 
     expect(rest).toEqual([
       running("terminal"),
