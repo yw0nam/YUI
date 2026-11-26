@@ -138,8 +138,8 @@ export function createAvatarTools(
 /** One yui namespace method: the run's signal first, then the script's arguments. */
 type NamespaceMethod = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
 
-/** The look block as help() prints it. */
-export const LOOK_DECLARATION = `  look: {
+/** The look block as help() prints it; read through createLookApi's declaration. */
+const LOOK_DECLARATION = `  look: {
     /** Her posture, window origin and monitor, loaded body, and whether a move runs. */
     body(): Promise<{ position: { x: number; y: number; monitor: number | null } | null; posture: string; vrm: { id: string; label: string } | null; moving: boolean } | "error: unsupported">;
     /** Windows she can sit on and the sides of the frontmost window she can peek from. */
