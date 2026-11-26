@@ -83,6 +83,15 @@ it.each([
   expect(c.mount.querySelector("img")).toBeNull();
 });
 
+it.each([
+  ["first\nsecond", "first second"],
+  ["third\u2028fourth", "third fourth"],
+])("prints the name %j on one line as %j", (name, text) => {
+  const c = build();
+  c.card.set(frame({ name, changes: [SCREENSHOT] }));
+  expect(c.texts()[0]).toBe(`${text} wants to change settings`);
+});
+
 it("turns the time left the danger color under 10 s", () => {
   const c = build();
   c.card.set(frame());

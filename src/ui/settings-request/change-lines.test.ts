@@ -72,6 +72,14 @@ it.each([
   expect(changeLine(change)).toBe(line);
 });
 
+it.each([
+  ["first\nsecond", "first second"],
+  ["third\u2028fourth", "third fourth"],
+])("prints a value %j on one line as %j", (to, text) => {
+  const change: SettingsChange = { path: "x.unknown", labelKey: "screenshot.label", from: "a", to };
+  expect(changeLine(change)).toBe(`Attach screenshot (a → ${text})`);
+});
+
 it("prints each duration row in the unit its settings window row uses", () => {
   const unitOf = (path: string) => ROWS.find((row) => row.path === path)?.unit;
   const drift = SCREEN_KNOB_FIELDS.filter((field) => {

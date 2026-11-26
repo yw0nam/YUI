@@ -15,7 +15,9 @@ import { createAskQueue } from "./ask-queue";
 import { buildAskCard, cardButton, SCREENSHOT, shownText } from "./ask-test-helpers";
 import { createSettingsRequest, type SettingsDecision } from "./settings-request";
 
-vi.mock("../../io/window/geometry/companion-column", () => ({ focusWindow: vi.fn() }));
+vi.mock("../../io/window/geometry/companion-column", () => ({
+  focusWindow: vi.fn<typeof import("../../io/window/geometry/companion-column").focusWindow>(),
+}));
 
 const TITLE = "Rin wants to change settings";
 const SHARED = "Applies to every character";
