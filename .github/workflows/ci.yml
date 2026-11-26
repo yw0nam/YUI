@@ -38,6 +38,7 @@ jobs:
   vrt:
     name: vrt (WebKit screenshots)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -47,6 +48,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps webkit
+        timeout-minutes: 10 # a stalled apt or browser download fails here instead of holding the runner
       - run: pnpm test:vrt # a missing reference fails the job and is saved as <name>-reference-webkit-linux.png in the vrt-attachments artifact
       - uses: actions/upload-artifact@v4
         if: failure()

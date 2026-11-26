@@ -7,6 +7,7 @@ jobs:
   update:
     name: vrt references (Linux WebKit)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -16,6 +17,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps webkit
+        timeout-minutes: 10
       - run: pnpm exec vitest run --project vrt --update
       - run: find src -name '*-webkit-linux.png' -path '*__screenshots__*' -print0 | tar --null -czf vrt-references.tgz -T -
       - uses: actions/upload-artifact@v4
