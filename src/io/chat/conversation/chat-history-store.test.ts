@@ -869,6 +869,12 @@ describe("selectSendSuffix — guide cost", () => {
     expect(selectSendSuffix([plain], 50)).toEqual([plain]);
     expect(selectSendSuffix([{ ...plain, guide: "controls" }], 50)).toEqual([]);
   });
+
+  it("a budget that fits the guide block alone but not its frame drops the entry", () => {
+    const guideEntry: ChatHistoryEntry = { ...entry("user", "hi", 1), guide: "controls" };
+
+    expect(selectSendSuffix([guideEntry], 63)).toEqual([]);
+  });
 });
 
 describe("readTranscriptAfterBoundary", () => {
