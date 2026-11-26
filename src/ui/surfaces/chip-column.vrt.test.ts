@@ -95,7 +95,7 @@ function build({ urgent = true } = {}) {
   store.replace([{ id: "d1", title: "work", started_at: Date.now(), state: "running" }]);
   const detach = attachChipColumn(surfaces.el);
   disposers.push(surfaces.dispose, signals.dispose, threads.dispose, tasks.dispose, detach);
-  return { surfaces, column: mount, threads, typed, collapsed };
+  return { surfaces, column: mount, threads, typed, collapsed, model };
 }
 
 async function settle(): Promise<void> {
@@ -337,4 +337,58 @@ it("in a 190x284 window the task chip draws its dot then its count in a pill as 
     countInside: count.top >= chip.top && count.bottom <= chip.bottom && count.right <= chip.right,
     height: [Math.round(chip.height), Math.round(pill.height)],
   }).toEqual({ countAfterDot: true, countInside: true, height: [28, 28] });
+});
+
+/** The open details sheet's top and bottom, rounded to the pixel. */
+function sheetEdges(): { top: number; bottom: number } {
+  const { top, bottom } = document.querySelector(".yui-sigdetails")!.getBoundingClientRect();
+  return { top: Math.round(top), bottom: Math.round(bottom) };
+}
+
+async function showBubble(surfaces: ReturnType<typeof build>["surfaces"], typed: Promise<void>) {
+  surfaces.beginSpeech();
+  surfaces.pushSpeech("- one\n- two\n- three\n- four\n- five\n- six\n- seven\n- eight");
+  surfaces.endSpeech({ defer: true });
+  await typed;
+  await settle();
+}
+
+/** Opens the details sheet of an added urgent signal whose long label makes the sheet taller than the window. */
+async function openTallSheet({ column, model }: ReturnType<typeof build>): Promise<void> {
+  model.add({
+    envelope: {
+      source: "ci6",
+      event_type: "ci.failed",
+      label: "a long label ".repeat(120),
+      delivery: "urgent",
+      event_id: "e6",
+      occurred_at: 1,
+    },
+    items: [],
+  });
+  await settle();
+  [...column.querySelectorAll<HTMLElement>(".yui-sigchip__open")]
+    .find((open) => open.textContent?.includes("ci6"))!
+    .click();
+  await settle();
+}
+
+it("a details sheet taller than the window stays inside it when a bubble moves the column up", async () => {
+  const built = build();
+  await openTallSheet(built);
+
+  await showBubble(built.surfaces, built.typed);
+
+  expect(sheetEdges()).toEqual({ top: 8, bottom: 592 });
+});
+
+it("a details sheet opened over a bubble stays inside the window when the bubble hides", async () => {
+  const built = build();
+  await showBubble(built.surfaces, built.typed);
+  await openTallSheet(built);
+
+  built.surfaces.hideSpeech();
+  await settle();
+
+  expect(sheetEdges()).toEqual({ top: 8, bottom: 592 });
 });
