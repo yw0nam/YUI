@@ -1,14 +1,13 @@
 /** terminal-api.test.ts — yui.terminal over the terminal commands. */
 
 import { describe, expect, it, vi } from "vitest";
-import { TURN_STOPPED } from "../client-tools";
 import { runNamespace } from "../run/namespace-test-run";
-import { createTerminalApi } from "./terminal-api";
+import { createTerminalApi, type TerminalInvoke } from "./terminal-api";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function fakeApi(result = "ok") {
-  const invoke = vi.fn(async (_command: string, _args?: Record<string, unknown>) => result);
+  const invoke = vi.fn<TerminalInvoke>(async () => result);
   const { methods } = createTerminalApi({ presetId: () => "yui", invoke });
   return { invoke, methods, signal: new AbortController().signal };
 }
@@ -46,11 +45,11 @@ describe("read", () => {
   it("cancels the call by its id when the signal aborts while it waits", async () => {
     const abort = new AbortController();
     let callId = "";
-    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+    const invoke = vi.fn<TerminalInvoke>(async (command, args) => {
       if (command === "terminal_tool_cancel") return "";
       callId = String(args?.callId ?? "");
       return new Promise<string>((resolve) =>
-        abort.signal.addEventListener("abort", () => resolve(TURN_STOPPED)),
+        abort.signal.addEventListener("abort", () => resolve("error: turn stopped")),
       );
     });
     const { methods } = createTerminalApi({ presetId: () => "yui", invoke });
@@ -61,7 +60,7 @@ describe("read", () => {
     );
     abort.abort();
 
-    await expect(running).resolves.toBe(TURN_STOPPED);
+    await expect(running).resolves.toBe("error: turn stopped");
     expect(callId).toMatch(UUID);
     expect(invoke).toHaveBeenCalledWith("terminal_tool_cancel", { callId });
   });
@@ -71,7 +70,7 @@ describe("read", () => {
     abort.abort();
     const { invoke, methods } = fakeApi();
 
-    await expect(methods.read(abort.signal, "t1")).resolves.toBe(TURN_STOPPED);
+    await expect(methods.read(abort.signal, "t1")).resolves.toBe("error: turn stopped");
 
     expect(invoke).not.toHaveBeenCalled();
   });
@@ -94,7 +93,7 @@ it("write passes the terminal id, text and enter with a fresh call id", async ()
 });
 
 it("returns the message of a rejected invoke as an error value", async () => {
-  const invoke = vi.fn(async () => {
+  const invoke = vi.fn<TerminalInvoke>(async () => {
     throw "x";
   });
   const { methods } = createTerminalApi({ presetId: () => "yui", invoke });
@@ -143,4 +142,16 @@ describe("arguments through the sandbox", () => {
       lines: undefined,
     });
   });
+});
+
+it("declares the terminal namespace's five methods", () => {
+  const { declaration } = createTerminalApi({
+    presetId: () => "yui",
+    invoke: vi.fn<TerminalInvoke>(),
+  });
+
+  for (const method of ["open", "list", "read", "write", "close"]) {
+    expect(declaration).toContain(`${method}(`);
+  }
+  expect(declaration.endsWith("\n")).toBe(false);
 });
