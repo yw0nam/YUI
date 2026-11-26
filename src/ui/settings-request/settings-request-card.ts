@@ -41,7 +41,6 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
 
   const el = make("section", "yui-ask-card yui-settings-card");
   el.hidden = true;
-  el.setAttribute("aria-label", t("settings_request.label"));
   deps.mount.append(el);
 
   function render(frame: SettingsRequestFrame): void {
@@ -146,6 +145,7 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
     });
 
     refresh();
+    el.setAttribute("aria-label", t("settings_request.label"));
     el.replaceChildren(head, body, note, actions);
   }
 
