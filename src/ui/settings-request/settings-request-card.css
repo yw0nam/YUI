@@ -1,0 +1,232 @@
+/* The Settings request card in the Ask slot; its container, entrance and hidden rules are the Ask card's (../ask/ask-card.css). Tokens in ../tokens.css. */
+
+.yui-ask-card.yui-settings-card {
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+/* The head, the note and the buttons stay whole; the body gives up its room and scrolls. */
+.yui-settings-card__head {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.yui-settings-card__title {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.yui-settings-card__timer.is-low {
+  color: var(--yui-danger);
+}
+
+/* The body reaches into the card's side padding, so the list rows' fill can too without the scroll box overflowing sideways. */
+.yui-settings-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  margin-inline: -8px;
+  padding-inline: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.yui-settings-card__body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.yui-settings-card__change,
+.yui-settings-card__item {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-settings-card__why {
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+}
+
+.yui-settings-card__shared {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-settings-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -8px;
+}
+
+.yui-settings-card__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  border-radius: var(--yui-radius-control);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.yui-settings-card__item:hover {
+  background: var(--yui-hover);
+}
+
+.yui-settings-card__item:has(:checked) {
+  background: var(--yui-selected);
+}
+
+/* Amber stays out of the card: a check is Text, as the Ask card's pick is. */
+.yui-settings-card__check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--yui-text);
+  cursor: pointer;
+}
+
+.yui-settings-card__note {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yui-settings-card__note[hidden] {
+  display: none;
+}
+
+/* The Ask card's field (../ask/answer-area.css), growing to four lines and then scrolling. */
+.yui-settings-card__field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  max-height: calc(4lh + 18px);
+  padding: 8px 12px;
+  resize: none;
+  border: 1px solid var(--yui-text-mute);
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-field);
+  color: inherit;
+  font: inherit;
+  font-size: var(--yui-fs-speech);
+  line-height: 1.6;
+}
+
+/* An empty field is one line, so a long placeholder stays on it. */
+.yui-settings-card__field:placeholder-shown {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.yui-settings-card__field::placeholder {
+  color: var(--yui-text-mute);
+}
+
+.yui-settings-card__field:focus {
+  outline: none;
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-settings-card__hint {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-settings-card__note:not(:focus-within) .yui-settings-card__hint {
+  display: none;
+}
+
+.yui-settings-card__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A quiet text link at the row's left: Text dim, sub size, underlined. */
+.yui-settings-card__link {
+  min-height: 32px;
+  margin-right: auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--yui-edge-strong);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yui-settings-card__link:hover {
+  color: var(--yui-text);
+  text-decoration-color: currentColor;
+}
+
+/* Deny is a neutral outline pill; Allow takes the Text fill, as the Ask card's Send does. */
+.yui-settings-card__button {
+  min-height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--yui-text-mute);
+  border-radius: var(--yui-radius-pill);
+  background: none;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yui-settings-card__button:hover:not(:disabled) {
+  background: var(--yui-hover);
+}
+
+.yui-settings-card__allow {
+  min-width: 76px;
+  border-color: var(--yui-text);
+  background: var(--yui-text);
+  color: var(--yui-panel-bg);
+}
+
+.yui-settings-card__allow:hover:not(:disabled) {
+  background: var(--yui-text-dim);
+}
+
+.yui-settings-card__button:active:not(:disabled) {
+  opacity: 0.82;
+}
+
+.yui-settings-card__button:disabled {
+  opacity: 0.55;
+  border-color: var(--yui-edge-strong);
+  background: var(--yui-selected);
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+}
+
+.yui-settings-card :is(button, input):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-settings-card__link:focus-visible {
+  border-radius: 4px;
+}

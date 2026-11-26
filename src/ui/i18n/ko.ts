@@ -88,6 +88,7 @@ const ko: Record<string, string> = {
 
   // message window name plate
   "plate.thinking": "생각 중",
+  "plate.waiting": "답을 기다리는 중",
   "plate.responding": "응답 중",
   "plate.reconnecting": "재연결 중",
   "plate.key_rejected": "키 거부됨",
@@ -949,6 +950,13 @@ const ko: Record<string, string> = {
   "run.body_label": "몸 (VRM)",
   "run.voice_label": "목소리",
   "settings_request.deny": "거부",
+  "settings_request.label": "답을 기다리는 설정 변경 요청",
+  "settings_request.allow_count": "{n}개 허용",
+  "settings_request.add_note": "메모 남기기",
+  "settings_request.note_placeholder": "이유를 알려 주세요 (선택)",
+  "settings_request.note_aria": "{name}에게 남길 메모",
+  "settings_request.enter_hint": "Enter로 {action}, Shift+Enter로 줄 바꿈",
+  "settings_request.changes_aria": "바꿀 설정",
   "threads.all_count": "전체 {n}개",
   "threads.rail_aria": "스레드 목록, 간단히",
   "threads.rail_empty": "없음",

@@ -8,7 +8,7 @@
  */
 
 import type { AttachedThread } from "../../../contract";
-import type { AskAnswer } from "../../chat/push/push-frames";
+import type { AskSlotAnswer } from "../../chat/tools/run/settings-request-frame";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
 import type { MessageSurfaceOp } from "./surface-ops";
 
@@ -41,7 +41,7 @@ export type CommandReplyState =
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =
-  | { op: "ask-answer"; answer: AskAnswer }
+  | { op: "ask-answer"; answer: AskSlotAnswer }
   | { op: "command-reply-close" }
   | { op: "command"; name: string; args: string }
   | { op: "submit"; text: string; images: string[]; threads: AttachedThread[] }

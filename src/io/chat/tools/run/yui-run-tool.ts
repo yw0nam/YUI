@@ -15,7 +15,7 @@ export interface YuiRunPorts {
 }
 
 const DESCRIPTION =
-  "Run JavaScript against YUI's yui API and get its result. Call help() first: it prints the API. The code is an async function body: use await and return a JSON value.";
+  "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
   return {
@@ -40,6 +40,7 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         return JSON.stringify({ status: "error", error: "code must be a string", logs: [] });
       }
       const stop = signal ?? new AbortController().signal;
+      const writes: WriteResults[] = [];
       const host: ScriptHost = {
         yui: {
           settings: {
@@ -49,12 +50,13 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
               const opts = call[1] as { why?: unknown } | undefined;
               const why = opts?.why;
               // Checked here, before any request: a bad shape must not reach the ask queue.
-              if (!isPlainObject(patch))
-                return { "*": "error: patch must be an object" } as WriteResults;
-              if (why !== undefined && typeof why !== "string") {
-                return { "*": "error: why must be a string" } as WriteResults;
-              }
-              return ports.settings.write(patch as object, why as string | undefined, stop);
+              const results = !isPlainObject(patch)
+                ? ({ "*": "error: patch must be an object" } as WriteResults)
+                : why !== undefined && typeof why !== "string"
+                  ? ({ "*": "error: why must be a string" } as WriteResults)
+                  : await ports.settings.write(patch as object, why as string | undefined, stop);
+              writes.push(results);
+              return results;
             },
           },
           state: { read: async () => ports.state() },
@@ -62,7 +64,9 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
         },
         help: ports.help,
       };
-      return JSON.stringify(await runScript(code, host, stop));
+      const outcome = await runScript(code, host, stop);
+      // Every write's answers ride the envelope, so a script that drops them still reports the real ones.
+      return JSON.stringify({ ...outcome, ...(writes.length > 0 ? { writes } : {}) });
     },
     failed: (text) => {
       if (text.startsWith("error:")) return true;

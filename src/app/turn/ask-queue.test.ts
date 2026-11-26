@@ -41,8 +41,8 @@ it("holds a push Ask behind a shown request, and its Answer then reaches the soc
   const result = w.request([SCREENSHOT]);
   w.push(ask("p1"));
   expect(w.shown()?.[0]).toBe(TITLE);
-  w.choose("Allow");
-  await vi.waitFor(() => expect(result.value).toBe("allow"));
+  w.click("Allow");
+  await vi.waitFor(() => expect(result.value).toEqual({ allow: ["privacy.screenshot"] }));
   expect(w.shown()).toEqual(["Run p1?"]);
   w.choose("Allow Once");
   expect(w.sendAnswer).toHaveBeenCalledExactlyOnceWith({
@@ -54,14 +54,13 @@ it("holds a push Ask behind a shown request, and its Answer then reaches the soc
   w.dispose();
 });
 
-it("shows a request with nothing picked after a push Ask answered before it, and ignores a late Answer to that Ask", async () => {
+it("shows a request after a push Ask answered before it, and ignores a late Answer to that Ask", async () => {
   const w = buildAskCard();
   w.push(ask("settings-request-1", [{ id: "allow", label: "Allow" }]));
   const result = w.request([SCREENSHOT]);
   w.choose("Allow");
   w.end("settings-request-1");
   expect(w.shown()?.[0]).toBe(TITLE);
-  expect(w.choices().map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false"]);
   expect(w.answer({ ask_id: "settings-request-1", choice: "allow" })).toBe(false);
   await Promise.resolve();
   expect(result.value).toBeUndefined();
@@ -90,5 +89,23 @@ it("answers false and sends nothing for a push Ask that is not shown", () => {
   expect(w.answer({ ask_id: "p2", choice: "once" })).toBe(false);
   expect(w.sendAnswer).not.toHaveBeenCalled();
   expect(w.shown()).toEqual(["Run p1?"]);
+  w.dispose();
+});
+
+it("gives a shown Ask no decision and a shown Settings request no Answer, though their ids match", async () => {
+  const w = buildAskCard();
+  w.push(ask("x"));
+  expect(w.shown()).toEqual(["Run x?"]);
+  expect(w.answer({ request_id: "x", allow: [] })).toBe(false);
+  expect([w.sendAnswer.mock.calls, w.shown()]).toEqual([[], ["Run x?"]]);
+  w.end("x");
+
+  const result = w.request([SCREENSHOT]);
+  expect(w.shown()?.[0]).toBe(TITLE);
+  const head = w.setAsks.mock.lastCall?.[0][0];
+  const id = head?.type === "settings_request" ? head.request_id : "";
+  expect(w.answer({ ask_id: id, choice: "allow" })).toBe(false);
+  await Promise.resolve();
+  expect([result.value, w.shown()?.[0]]).toEqual([undefined, TITLE]);
   w.dispose();
 });

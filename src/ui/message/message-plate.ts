@@ -16,9 +16,11 @@ export interface MessagePlate {
   setName(name: string): void;
   /** Shows the preset's face: its photo, else a dot in its hue. */
   setFace(entry: PresetEntry): void;
-  /** Speech streams — "responding" while set, outranking busy. */
+  /** Speech streams — "responding" while set, outranking waiting and busy. */
   setLive(live: boolean): void;
-  /** A turn runs — "thinking" while set, unless speech streams. */
+  /** An Ask or a Settings request card shows — "waiting" while set, above busy. */
+  setWaiting(waiting: boolean): void;
+  /** A turn runs — "thinking" while set, unless speech or a card outranks it. */
   setBusy(busy: boolean): void;
   /** The transport behind this window — a non-"up" state outranks the turn state. */
   setConnection(conn: "up" | "reconnecting" | "failed"): void;
@@ -66,11 +68,12 @@ export function createMessagePlate({
   if (startDragging) el.dataset.draggable = "";
 
   let live = false;
+  let waiting = false;
   let busy = false;
   let conn: "up" | "reconnecting" | "failed" = "up";
 
   function applyState(): void {
-    const state = live ? "responding" : busy ? "thinking" : "idle";
+    const state = live ? "responding" : waiting ? "waiting" : busy ? "thinking" : "idle";
     el.dataset.state = state;
     stateEl.textContent =
       conn === "failed"
@@ -79,9 +82,11 @@ export function createMessagePlate({
           ? t("plate.reconnecting")
           : state === "thinking"
             ? t("plate.thinking")
-            : state === "responding"
-              ? t("plate.responding")
-              : "";
+            : state === "waiting"
+              ? t("plate.waiting")
+              : state === "responding"
+                ? t("plate.responding")
+                : "";
   }
 
   function applyLocaleLabels(): void {
@@ -116,6 +121,10 @@ export function createMessagePlate({
     },
     setLive(value) {
       live = value;
+      applyState();
+    },
+    setWaiting(value) {
+      waiting = value;
       applyState();
     },
     setBusy(value) {

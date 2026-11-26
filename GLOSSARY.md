@@ -135,7 +135,7 @@ The user's reply to one Ask: a choice id, several choice ids for a multi-select 
 _Avoid_: reply, response
 
 **Settings request**:
-An agent's pending change to settings that need the user's Allow, shown as the Allow / Deny card in the Ask card's slot. Unlike an Ask, the client raises it, not the push transport.
+An agent's pending change to settings that need the user's Allow, shown on its own card in the Ask slot. Unlike an Ask, the client raises it, not the push transport. The user answers it with a decision: the paths they allow, and an optional note.
 _Avoid_: permission prompt, approval dialog, access request
 
 **Backend command**:

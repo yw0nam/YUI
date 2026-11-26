@@ -25,7 +25,7 @@ describe("selectionPort", () => {
     );
     const settings = createSettingsApi({
       stores: createSettingsStores(),
-      request: async () => "allow",
+      request: async () => ({ allow: ["character.body"] }),
       rows: selectionRows({ vrm, speaker }),
     });
 

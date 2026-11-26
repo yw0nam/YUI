@@ -99,6 +99,26 @@ describe("createMessagePlate", () => {
     expect(stateLabel().textContent).toBe(t("plate.responding"));
   });
 
+  it("shows waiting while a card waits, above thinking and below responding", () => {
+    plate.setBusy(true);
+    plate.setWaiting(true);
+    expect(el().getAttribute("data-state")).toBe("waiting");
+    expect(stateLabel().textContent).toBe(t("plate.waiting"));
+
+    plate.setLive(true);
+    expect(el().getAttribute("data-state")).toBe("responding");
+    expect(stateLabel().textContent).toBe(t("plate.responding"));
+
+    plate.setLive(false);
+    plate.setWaiting(false);
+    expect(el().getAttribute("data-state")).toBe("thinking");
+    expect(stateLabel().textContent).toBe(t("plate.thinking"));
+
+    plate.setBusy(false);
+    expect(el().getAttribute("data-state")).toBe("idle");
+    expect(stateLabel().textContent).toBe("");
+  });
+
   it("re-applies the state label on locale change", () => {
     plate.setBusy(true);
     setLocale("ja");

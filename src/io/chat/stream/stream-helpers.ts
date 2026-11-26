@@ -60,7 +60,7 @@ export function boundarySeparator(previous: string, next: string): "" | " " {
 }
 
 /** Tool round trips per turn, on either request transport. */
-export const MAX_TOOL_ROUND_TRIPS = 3;
+export const MAX_TOOL_ROUND_TRIPS = 8;
 
 /** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
 export function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error: string } {

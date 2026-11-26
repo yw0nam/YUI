@@ -89,6 +89,7 @@ const en: Record<string, string> = {
 
   // message window name plate
   "plate.thinking": "Thinking",
+  "plate.waiting": "Waiting for you",
   "plate.responding": "Responding",
   "plate.reconnecting": "Reconnecting",
   "plate.key_rejected": "Key rejected",
@@ -957,6 +958,13 @@ const en: Record<string, string> = {
   "run.body_label": "Body (VRM)",
   "run.voice_label": "Voice",
   "settings_request.deny": "Deny",
+  "settings_request.label": "Settings request waiting for your answer",
+  "settings_request.allow_count": "Allow {n}",
+  "settings_request.add_note": "Add a note",
+  "settings_request.note_placeholder": "Tell her why (optional)",
+  "settings_request.note_aria": "Note for {name}",
+  "settings_request.enter_hint": "Enter sends {action}, Shift+Enter starts a new line",
+  "settings_request.changes_aria": "Changes",
   "threads.all_count": "{n} in all",
   "threads.rail_aria": "Thread list, compact",
   "threads.rail_empty": "None",

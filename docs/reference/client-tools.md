@@ -23,7 +23,7 @@ Each row gives one tool's purpose, its arguments and result, the transports that
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets` or `screen`. Result: JSON for the body and perch targets, an image for `screen` ([details](#look)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward`, `delta` and `why`. Result: the band word after the change, `clamped: <band>` when the cap or the range held the value, or a refusal such as `error: unknown target` ([details](#rate-relation)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Arguments `to` (string: a name from the `open characters:` line) and optional boolean `handoff`, which passes the user's message to that character to answer. Result: `ok`, `ignored: already addressed <name>`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
-| `yui_run` | Runs a backend script against the `yui` API: YUI's settings, state and info ([details](#yui_run)) | Argument `code` (string: an async function body). Result: a JSON object with `status` (`completed` or `error`), `result` or `error`, and `logs`; `error: timed out after 121 s` when the wait passes | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createYuiRunTool` in `src/io/chat/tools/run/yui-run-tool.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `yui_run` | Runs a backend script against the `yui` API: YUI's settings, state and info ([details](#yui_run)) | Argument `code` (string: an async function body). Result: a JSON object with `status` (`completed` or `error`), `result` or `error`, an optional `note` when the script returned nothing, `writes` listing the answers of every write that finished before the run ended, in the order they finished, and `logs`; `error: timed out after 121 s` when the wait passes | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createYuiRunTool` in `src/io/chat/tools/run/yui-run-tool.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `yui_tool_describe` | Describes an On-demand tool | Argument `name` (string: the On-demand tool's name). Result: the tool's name, its description and its input schema on three lines, or `error: unknown tool: <name>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | The bridge reads a built-in definition or the MCP host snapshot |
 | `yui_tool_call` | Runs an On-demand tool | Arguments `name` (string: the On-demand tool's name) and `arguments` (object: the tool's arguments). Result: the tool's text and its images as data URLs, or `error: unknown tool: <name>`, or `error: invalid arguments (<violation>)` with the tool's input schema | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | The bridge runs built-ins through `executeClientTool`, or calls the MCP host through `src/io/mcp-host/mcp-host.ts` |
 | `plugin_skill` | Reads a plugin skill the host publishes | Argument `name` (string: the plugin skill's name). Result: the skill's instructions | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBridgeTools` in `src/io/chat/tools/bridge/` | Tauri command `plugin_host_skill` through `src/io/mcp-host/mcp-host.ts` |
@@ -166,7 +166,7 @@ The results go back to the model in two cases:
 
 A model stays silent by answering that round trip with no text, and the turn ends with no speech (firing ≠ judgment).
 
-The cycle repeats while the model keeps asking, up to three round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the turn with the text it has.
+The cycle repeats while the model keeps asking, up to eight round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past eight the client closes the turn with the text it has.
 
 Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or one of `。` `！` `？` or the later text starts with whitespace.
 
@@ -360,7 +360,9 @@ The JSON of its logs and its result together may total 64 Ki (65 536) characters
 
 ### Result
 
-A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`.
+A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that ends without a return gets `"note": "the script returned nothing; end it with return and a JSON value"` beside `result: null`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<message>", "logs": [...] }`.
+
+`"writes"` lists the answers of every `yui.settings.write` that finished before the run ended, in the order they finished, on completed and error results alike. The key is absent when the run wrote nothing.
 
 A `code` that is not a string answers the same error form with `code must be a string`.
 
@@ -372,32 +374,45 @@ A patch that is not an object answers `{ "*": "error: patch must be an object" }
 
 ### Direct and allow rows
 
-Each settings row is `direct` or `allow`. A `direct` row applies its write at once. An `allow` row waits for the user: its path answers only after the user's answer to a Settings request. The `yui.settings.write` result has one entry per path:
+Each settings row is `direct` or `allow`. A `direct` row applies its write at once. An `allow` row waits for the user: its path answers only after the user's decision on a Settings request. The `yui.settings.write` result has one entry per path:
 
 | Result | Meaning |
 |---|---|
 | `ok` | The value is set, applied at once or after Allow |
-| `denied` | The user chose Deny |
+| `ok: <note>` | The user allowed the path, the value is set, and the user wrote this note |
+| `denied` | The user did not allow the path |
+| `denied: <note>` | The user did not allow the path and wrote this note |
 | `no answer` | The card's 60 s passed, or the turn ended before an answer |
+| `error: a settings request is already waiting` | The window already holds one Settings request; put every allow change in one write |
 | `error: invalid <path>` | The row refuses the value, or an allowed write finds the value refused when it runs |
 | `error: unknown <path>` | The patch names a path no row holds |
 | `error: <path> failed to load` | A write rejected before it stored the value |
+
+A note rides every allow path of its request that answers `ok` or `denied`. An allowed path whose write fails keeps its `error: …` result with no note. Direct paths never carry a note.
 
 `help()` lists each row's access, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
 ### Settings request
 
-An allow write raises one Settings request for all of its allow paths, shown in the Ask card's slot of the window. The card's title names the character.
+An allow write raises one Settings request for all of its allow paths. The window's Ask slot shows it on its own card, whose title names the character.
 
-Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, a line saying the change applies to every character, and the Deny and Allow choices.
+A window holds one Settings request at a time. A write whose allow paths would ask while one waits raises no card and answers `error: a settings request is already waiting` for every allow path; its direct paths are still written.
 
-The window's ask queue holds the card behind the Asks already open, and the oldest shows first. The card waits 60 s once shown ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-prompt.ts`](../../src/ui/ask/settings-request-prompt.ts)).
+Each allow path has a line with its label and the value it changes from and to. Then come the `why` text, up to 200 characters, and a line saying the change applies to every character. Under them sit the "Add a note" link, Deny and Allow.
 
-After Allow, each allow path answers `ok`, `error: invalid <path>` or `error: <path> failed to load`.
+The window's ask queue holds the card behind the Asks already open, and the oldest shows first. The card waits 60 s once shown. A card that times out, or whose turn stops, answers `no answer` for every allow path, and a note typed but not sent is dropped ([`settings-request.ts`](../../src/app/turn/settings-request.ts), [`settings-request-card.ts`](../../src/ui/settings-request/settings-request-card.ts)).
 
-Deny answers `denied` for every allow path. The direct paths of the same patch are written before the card and answer `ok`.
+#### Decision
 
-A card that times out, or whose turn stops, answers `no answer` for every allow path.
+The user answers with a decision: the paths they allow, and an optional note.
+
+- With one allow path, Deny and Allow each answer on one click.
+- With several, each path has its own checkbox, unchecked at first. Allow is disabled while nothing is checked and reads "Allow N" once N are checked. It writes the checked paths and answers `denied` for the rest.
+- Deny answers `denied` for every allow path.
+
+"Add a note" opens a field of up to 200 characters, which the card trims. Enter in the field sends Allow N when a path is checked, and Deny otherwise; Shift+Enter starts a new line. The note rides whichever button sends.
+
+After Allow, each allowed path answers `ok`, `ok: <note>` when the user wrote a note, `error: invalid <path>` or `error: <path> failed to load`. The direct paths of the same patch are written before the card and answer `ok`.
 
 ## On-demand tools
 

@@ -5,15 +5,19 @@ import { applyPatch, readDocument, writeRow } from "../../../../settings/agent-a
 import { ROWS } from "../../../../settings/agent-access/rows";
 import type { SettingsStores } from "../../../../settings/settings-stores";
 
-export type SettingsAnswer = "allow" | "deny" | "no answer";
+/** The user's decision on a write's allow paths: the paths allowed and their note, or no answer, or another request already waiting. */
+export type SettingsDecision = { allow: readonly string[]; note?: string } | "no answer" | "busy";
 
 /** Asks the user once for every allow path of a write; the signal withdraws the ask. */
 export type RequestSettings = (
   request: { changes: SettingsChange[]; why?: string },
   signal: AbortSignal,
-) => Promise<SettingsAnswer>;
+) => Promise<SettingsDecision>;
 
-export type WriteResults = Record<string, "ok" | "denied" | "no answer" | `error: ${string}`>;
+export type WriteResults = Record<
+  string,
+  "ok" | "denied" | "no answer" | `ok: ${string}` | `denied: ${string}` | `error: ${string}`
+>;
 
 export interface SettingsApi {
   read(): Record<string, unknown>;
@@ -33,10 +37,16 @@ export function createSettingsApi(deps: {
       const { direct, allow } = await applyPatch(deps.stores, patch, rows);
       const results: WriteResults = { ...direct };
       if (allow.length === 0) return results;
-      const answer = await deps.request({ changes: allow, why }, signal);
+      const decision = await deps.request({ changes: allow, why }, signal);
       for (const change of allow) {
-        if (answer !== "allow") {
-          results[change.path] = answer === "deny" ? "denied" : "no answer";
+        if (typeof decision === "string") {
+          results[change.path] =
+            decision === "busy" ? "error: a settings request is already waiting" : "no answer";
+          continue;
+        }
+        const { note } = decision;
+        if (!decision.allow.includes(change.path)) {
+          results[change.path] = note ? `denied: ${note}` : "denied";
           continue;
         }
         const row = rows.find((entry) => entry.path === change.path);
@@ -44,7 +54,8 @@ export function createSettingsApi(deps: {
           results[change.path] = `error: invalid ${change.path}`;
           continue;
         }
-        results[change.path] = await writeRow(row, deps.stores, change.to);
+        const written = await writeRow(row, deps.stores, change.to);
+        results[change.path] = written === "ok" && note ? `ok: ${note}` : written;
       }
       return results;
     },

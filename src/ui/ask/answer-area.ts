@@ -14,7 +14,7 @@ export interface Draft {
 /** The field grows with its text up to this height, then scrolls. */
 const FIELD_MAX_PX = 200;
 /** The keyCode a keydown carries while an IME composes, where `isComposing` is not set. */
-const IME_KEYCODE = 229;
+export const IME_KEYCODE = 229;
 
 export interface AnswerArea {
   el: HTMLElement;
