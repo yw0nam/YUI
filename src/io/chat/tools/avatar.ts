@@ -134,3 +134,49 @@ export function createAvatarTools(
 ): ClientTool[] {
   return [createBodyActionTool(getExecutor), createLookTool(getExecutor, screen)];
 }
+
+/** One yui namespace method: the run's signal first, then the script's arguments. */
+type NamespaceMethod = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
+
+/** The look block as help() prints it; read through createLookApi's declaration. */
+const LOOK_DECLARATION = `  look: {
+    /** Her posture, window origin and monitor, loaded body, and whether a move runs. */
+    body(): Promise<{ position: { x: number; y: number; monitor: number | null } | null; posture: string; vrm: { id: string; label: string } | null; moving: boolean } | "error: unsupported">;
+    /** Windows she can sit on and the sides of the frontmost window she can peek from. */
+    perch_targets(): Promise<{ windows: { app: string | null; title: string | null; rect: { x: number; y: number; width: number; height: number } }[]; edges: ("left" | "right")[] } | "error: unsupported">;
+    /** A screenshot of the display she is on, or of display monitor (yui.info.read().monitors). Needs privacy.screen_requests. */
+    screen(monitor?: number): Promise<{ text: string; images: ImageHandle[] } | \`error: \${string}\`>;
+  };`;
+
+/** yui.look: her body, perch targets and screen, reached through the run sandbox. */
+export function createLookApi(
+  getExecutor: () => AvatarExecutor | null,
+  screen?: ScreenQueryPorts,
+): {
+  methods: { body: NamespaceMethod; perch_targets: NamespaceMethod; screen: NamespaceMethod };
+  declaration: string;
+} {
+  // An executor read that fails is a value: only a wrong argument throws.
+  const read = async (query: (executor: AvatarExecutor) => Promise<unknown>): Promise<unknown> => {
+    const executor = getExecutor();
+    if (executor === null) return "error: unsupported";
+    try {
+      return await query(executor);
+    } catch (error) {
+      return `error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
+  return {
+    methods: {
+      body: () => read((executor) => executor.state()),
+      perch_targets: () => read((executor) => executor.perchTargets()),
+      screen: async (_signal, monitor?) => {
+        if (monitor !== null && monitor !== undefined && !Number.isInteger(monitor))
+          throw new TypeError("yui.look.screen: monitor must be an integer");
+        if (!screen) return "error: unsupported";
+        return queryScreen(screen, monitor ?? undefined);
+      },
+    },
+    declaration: LOOK_DECLARATION,
+  };
+}
