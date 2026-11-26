@@ -361,6 +361,17 @@ describe("yui.look", () => {
     };
   }
 
+  it("pins the help block to the spec's look declaration, with no trailing newline", () => {
+    expect(createLookApi(() => null).declaration).toBe(`  look: {
+    /** Her posture, window origin and monitor, loaded body, and whether a move runs. */
+    body(): Promise<{ position: { x: number; y: number; monitor: number | null } | null; posture: string; vrm: { id: string; label: string } | null; moving: boolean } | "error: unsupported">;
+    /** Windows she can sit on and the sides of the frontmost window she can peek from. */
+    perch_targets(): Promise<{ windows: { app: string | null; title: string | null; rect: { x: number; y: number; width: number; height: number } }[]; edges: ("left" | "right")[] } | "error: unsupported">;
+    /** A screenshot of the display she is on, or of display monitor (yui.info.read().monitors). Needs privacy.screen_requests. */
+    screen(monitor?: number): Promise<{ text: string; images: ImageHandle[] } | \`error: \${string}\`>;
+  };`);
+  });
+
   it.each([
     [
       "body",
