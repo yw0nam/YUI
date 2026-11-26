@@ -542,7 +542,7 @@ globalThis.YUI_MAP =
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
-      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, opens its plugin log folder, turns a running server's signals notification into a signals-inbox payload for main after the ingress's wire checks, and at start kills the process groups a killed app left behind.",
+      "role": "Installs, updates and removes plugins, runs their MCP servers, keeps each one's enablement and consent, and publishes the plugin snapshot to every window.",
       "paths": [
         "src-tauri/src/mcp_host"
       ]
@@ -551,7 +551,7 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, the Threads window's native number and no-focus order-front, and the pet window's native child link to its settings window (macOS), unlinked when that settings window closes or miniaturizes or the tray hides main.",
+      "role": "Native window control: OS drag, logical window frames, the click-through toggle, and the Threads and pet windows' native links on macOS.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_dock.rs",
@@ -584,7 +584,7 @@ globalThis.YUI_MAP =
       "id": "shell/imports",
       "module": "shell",
       "label": "asset imports",
-      "role": "Native copy of user-picked VRM and voice clip files into app data, and the card file steps: a JSON, PNG or preset file (.yui) read, the PNG kept as the thumbnail copy, a preset file's VRM and voice clip claimed into app data, the VRM license read from its GLB JSON chunk, the preset file zip write (a VRM whose license forbids redistribution left out), and the PNG card write. The files last dropped onto each settings window are recorded from the native drag-drop event and taken once by the dropped-file read, which refuses no file, more than one, or one that is not json, png or yui before it opens anything.",
+      "role": "Native file imports: VRM and voice copies into app data, the card file steps for JSON, PNG and preset files, and the dropped-file read for settings windows.",
       "paths": [
         "src-tauri/src/import_fs.rs",
         "src-tauri/src/vrm_import.rs",
@@ -634,7 +634,7 @@ globalThis.YUI_MAP =
       "id": "renderer",
       "module": "renderer",
       "label": "renderer core",
-      "role": "The three.js scene and frame loop, VRM load and hot swap, the routing of a control envelope into emotion and motion, and the canvas animations: the landing bounce (land()), the fade out (vanish()) and the fade in (appear()). The perch and side-peek pins move the model inside the canvas; the peek pin follows a travel's view window, and a stage peek pin eases in and out and holds no posture.",
+      "role": "The three.js scene and frame loop: VRM load and swap, control envelopes into emotion and motion, and the landing, fade and perch animations.",
       "paths": [
         "src/renderer"
       ]
@@ -643,7 +643,7 @@ globalThis.YUI_MAP =
       "id": "renderer/camera",
       "module": "renderer",
       "label": "camera",
-      "role": "Fit-to-bounds framing, zoom, orbit, the stage framing that eases her from her own fit to one by her height alone, head-on and without her zoom, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
+      "role": "Camera framing: fit to bounds, zoom, orbit, the stage framing, the travel view window and the clamped pixel ratio.",
       "paths": [
         "src/renderer/camera"
       ]
@@ -679,7 +679,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, each preset's edited active-hours spans live in its yui.active-hours key (null while the card's spans apply), the device-wide yui.base-pace holds the base pace (low, normal or high, default normal) that each pet window multiplies with its span pace, the device-wide yui.proactive-pacer-gap holds the proactive gap in ms (0 disables it), the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.thread-turns holds Thread turns (off, notable or every), the device-wide yui.thread-reactions holds the Thread reactions switch (on by default), the device-wide yui.thread-reaction-thresholds holds the Reaction thresholds, the waiting count (off, 2, 3 or 5, default 3) and the wait in minutes (off, 5, 10 or 30, default 10) that start a Thread reaction without a chip tap, the device-wide yui.dnd holds the Do-not-disturb switch (off by default), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position; the device-wide yui.last-together holds the last present tick, written at most once a minute, which the milestone payload's last_together reads; agent-access/ holds the settings rows a backend agent may read and patch through yui_run, each on the direct or allow tier.",
+      "role": "Persisted settings, one localStorage store per setting: per-preset keys such as yui.agent and yui.active-hours, and device-wide keys such as yui.theme and yui.dnd.",
       "paths": [
         "src/settings"
       ]
@@ -706,7 +706,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "Declared tools and the yui_run runner. run/ runs a script in a QuickJS sandbox over the yui API: settings, state and info in run/, guide in io/guide, terminal in terminal/, plugins in plugins/, and in main look in avatar.ts and threads in threads/. Image handles attach only returned images. The client runs: generate_express, rate_relation, address_character, body_action, yui_run.",
+      "role": "Declared chat tools and the yui_run runner in run/, which scripts the yui API in a QuickJS sandbox.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -724,7 +724,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the plugin tool summaries and plugin skills the yui_run description lists.",
+      "role": "Keeps the MCP host's newest snapshot and subscription, forwards plugin commands, and builds the plugin tool summaries that yui_run lists.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -760,7 +760,7 @@ globalThis.YUI_MAP =
       "id": "io/terminal",
       "module": "display",
       "label": "terminal client",
-      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, attach, answer, take_back — listens for the tray's terminal-open, and reads and writes the system clipboard for the Terminal's OSC 52; inert outside Tauri.",
+      "role": "Terminal store snapshots and the user's terminal commands, the tray's terminal-open, and OSC 52 clipboard access; inert outside Tauri.",
       "paths": [
         "src/io/terminal"
       ]
@@ -859,7 +859,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/voices",
       "module": "speech",
       "label": "voices",
-      "role": "The speaker catalogue: selection, the voices API per provider with the reason a list read failed, the voice list refresh and its outcome, voice import, the TTS server check, and the Fish key check that Quick start's voice step runs.",
+      "role": "The speaker catalogue: voice selection, per-provider voice lists, voice import, the TTS server check and the Fish key check.",
       "paths": [
         "src/io/voice/voices"
       ]
@@ -895,7 +895,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, which side of her has more room, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the settings stage slot read once the stage has laid out, the travel frame, whose virtual window takes a size as well as an origin, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, placement and resize of the companion column windows, the Threads window's frame, and the travel frame and keep-on-screen.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -904,7 +904,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, Threads and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id; keeps a request made before the Threads window reports ready, closes those companions and watches their owner window. The Threads window's opener also opens or raises it without focus for a Thread reaction, reports whether it is open, and settles each such request on its presented report, its closed report, or a failed open or dispose.",
+      "role": "Opens and places the message, settings, devtools, unified chat, Threads and pet windows, and holds a Threads request until the window reports ready.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -913,7 +913,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, the dock commands into her own settings window with its close event, and the wait for her page's refit to a new size.",
+      "role": "The pet window's pointer gestures, the shared cursor poll for click-through and gaze, peek state, the summon hotkey and the dock into her settings window.",
       "paths": [
         "src/io/window/pet"
       ]
@@ -922,7 +922,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/core",
       "module": "bridge",
       "label": "bridge core",
-      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, a promise that settles once the listeners registered so far are in place, the channel table helper that builds a bridge's emit and on pairs and mirrors from one entry per channel, and the owner and mirror pattern built on it.",
+      "role": "The cross-window bus transport: the sender-scoped envelope, the ready promise, the channel table helper, and the owner and mirror pattern.",
       "paths": [
         "src/io/bridge/core"
       ]
@@ -931,7 +931,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus whose channels are one table. Each channel is scoped to the sender's preset, except the unscoped settings-changed, preset-changed, pet-windows-changed, voice-set, voice-state, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, settings-stage, settings-stage-ask, open-devtools, threads-open, threads-ready, threads-closed, threads-presented, threads-open-request, threads-attach-request and threads-attached.",
+      "role": "Typed cross-window settings bus; each channel is a row of one table, scoped to the sender's preset unless it is listed as unscoped.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -940,7 +940,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/message",
       "module": "bridge",
       "label": "message bridge",
-      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists (push Asks and Settings requests) with ready replay and ask-answer controls (Answers and Settings request decisions), and the message window's surfaces as a remote half. One surface op table builds the remote half's sender and the message window's receiver.",
+      "role": "Preset-scoped bus between a pet window and its message window: the Asks and Settings requests lists, the answer controls, and the surface op table.",
       "paths": [
         "src/io/bridge/message"
       ]
@@ -976,7 +976,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/inbox",
       "module": "tools",
       "label": "inbox",
-      "role": "Subscriptions to the shell's signals and avatar RPC channels, and the avatar executor that answers body commands addressed to its window, and the relations RPC that answers the relations routes from the window's relation store.",
+      "role": "Subscriptions to the shell's signals and avatar RPC channels, the avatar executor for body commands, and the relations RPC.",
       "paths": [
         "src/io/bridge/inbox"
       ]
@@ -985,7 +985,7 @@ globalThis.YUI_MAP =
       "id": "io/assets",
       "module": "settings",
       "label": "assets",
-      "role": "VRM selection and import, and the card's file steps: the OS picker for a JSON, PNG or preset file import, the import of the file dropped onto the settings window (no path sent), and the cleanup of what an unreadable one claimed, the preset file and PNG card exports with the user VRM's license read before an export, and the thumbnail file URL the preset entry carries.",
+      "role": "VRM selection and import, and the card's file steps: the picker and dropped-file import, card and preset exports, and the thumbnail URL.",
       "paths": [
         "src/io/assets"
       ]
@@ -1093,7 +1093,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id and the same plugin id (or none on both), and on return the batch catch-up goes out first with the urgent catch-up as the next turn; offer routes a client-built group the same way without the arrival callback, so it draws no signal chip; withdraw removes a buffered batched group by event_id and event_type; a held batched group stays out of every catch-up, timer firing and drain until fireHeld sends every held buffered group together as one ungated signals.batch turn, without lifting the holds, or release returns it to normal delivery. External signals gates every group without a plugin id: while it is off such a group is dropped on arrival, offer and restore, stays out of every catch-up, timer firing and drain, and is purged on the next OS idle tick, while a plugin's group is ungated; hold, fireHeld and withdraw match only batched groups without a plugin id. Do-not-disturb reads as busy to both instances, so its end flushes the catch-up.",
+      "role": "Signals firing source: presence-gated buffering, catch-up by delivery class, held and withdrawn batched groups, and the external-signals gate.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1102,7 +1102,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/gesture",
       "module": "sources",
       "label": "gesture sources",
-      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch, the follow of a moved or resized host, and placement. A spam-count tap turn takes the buffered signal groups with it, and takes none while do-not-disturb is on.",
+      "role": "Tap, drag-hold and window-drop firing sources, with the perch watch and the placement of a moved or resized host.",
       "paths": [
         "src/dispatcher/sources/gesture"
       ]
@@ -1120,7 +1120,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/routed",
       "module": "sources",
       "label": "routed user source",
-      "role": "Turns a user-turn-routed bridge event for this preset into a user turn that carries its send id, its mention and whether the user spoke it, and reports the done signal for that send id once the turn closes or is dropped.",
+      "role": "Turns a user-turn-routed bridge event for this preset into a user turn, and reports its done signal when the turn closes.",
       "paths": [
         "src/dispatcher/sources/routed"
       ]
@@ -1129,7 +1129,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/threads",
       "module": "sources",
       "label": "thread turns",
-      "role": "Diffs each Threads snapshot against the last one seen and returns the batched signal groups the Thread turns level asks for: a Thread becoming input-required or failed (notable), or a new agent or system entry (every); the first snapshot is the baseline.",
+      "role": "Diffs each Threads snapshot against the last one and returns the batched Thread signal groups that the Thread turns level asks for.",
       "paths": [
         "src/dispatcher/sources/threads"
       ]
@@ -1138,7 +1138,7 @@ globalThis.YUI_MAP =
       "id": "ambient/come-along",
       "module": "ambient",
       "label": "come-along",
-      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, her window taking the slot's size with her feet on its bottom edge. On her own monitor she is picked up (drag, held still stage.pickup_hold_ms) and carried facing front on an ease-in-out curve over stage.carry_ms to carry_ms + carry_extra_ms, her size easing on the same curve; across monitors or past stage.carry_full_pt she is picked up, vanishes and lands, and under reduced motion she fades, her size set while she is hidden. Docked, she plays one entry clip picked from the Entry family of her last backend emotion, never the family's last one; an edge entry plays with the stage peek pin past her window's right edge, released when the clip ends or at its play_ms. Going home plays no clip. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows), and each slot of a live resize re-sizes her; a null slot, the close or the minimise sends her home at her desktop size, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, giving her desktop size back about her bottom centre at the drop or before the agent's move, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
+      "role": "Her session on her pet window that moves her onto a settings window's stage slot and back, carries her across monitors, and docks or sends her home.",
       "paths": [
         "src/ambient/come-along"
       ]
@@ -1165,7 +1165,7 @@ globalThis.YUI_MAP =
       "id": "ambient/threads-reaction",
       "module": "ambient",
       "label": "thread reactions",
-      "role": "Starts one pending Thread reaction from a Threads-chip tap, the counted Threads' rising edge at N, or one counted Thread waiting out T, and when she is free runs it: a filler line when the window is closed or covered (a tap plays none), the window opened or raised without focus, her seat on it, the landing bounce after a sit, and the curious expression; a count or wait also waits for presence. It holds every snapshot Thread's buffered turn while the switch is on, fires the held ones together after the expression, and releases one when its Thread leaves the snapshot or the switch goes off. A count or wait reaction does not run while do-not-disturb is on, and one that do-not-disturb stops runs again once it is off; a tap's reaction runs during it.",
+      "role": "Starts and runs one pending Thread reaction from a chip tap, a count edge or a waiting Thread, and holds buffered Thread turns while the switch is on.",
       "paths": [
         "src/ambient/threads-reaction"
       ]
@@ -1174,7 +1174,7 @@ globalThis.YUI_MAP =
       "id": "ui/surfaces",
       "module": "display",
       "label": "surfaces",
-      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet. In the pet window, the chip column moves up to end 8px above a shown Ask card or bubble, the rows that still do not fit, never urgent signal chips, fold into one \"+N\" row, and the column fades out while the Character menu is open.",
+      "role": "The speech bubble and text input, and the router between the pet window, message window and speech stream, with the chip column above an Ask card or bubble.",
       "paths": [
         "src/ui/surfaces"
       ]
@@ -1192,7 +1192,7 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the typewriter that types each line at 40 ms per character as text arrives, the quoted user line with its attached Threads as chips, or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
+      "role": "The speech bubble's content: the typewriter, the quoted user line with its Threads chips or signal lines, the reasoning disclosure, the backlog and the name plate.",
       "paths": [
         "src/ui/message"
       ]
@@ -1201,7 +1201,7 @@ globalThis.YUI_MAP =
       "id": "ui/unified",
       "module": "display",
       "label": "unified chat",
-      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, a grip beside them and the box's name plate that drag the window, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop; while main's attached Threads show as chips, a send goes to main and carries them, the other cast chips and everyone are disabled, the @ list offers only main, a hint above the field says why, and a typed @name for anyone else is refused with it, a spoken send leaving that token in the field; the rule lives in one helper beside the routing; a failed send's text comes back to an empty field.",
+      "role": "The unified chat window: cast chips, the dialogue box, the composer, recipient routing, and the Threads-attached send rules.",
       "paths": [
         "src/ui/unified"
       ]
@@ -1219,7 +1219,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, shows a failed turn's notice with its next step and the mic's Open mic settings link, and shows a moon while do-not-disturb is on, the delegation chip, the signal chips (urgent ones a row each, the batched ones one row whose \"+N\" unfolds the rest in a scroll region) and their details sheet, and the voice-input status model; each chip row carries its count for the chip column.",
+      "role": "The status pill, the signal chips and their details sheet, the delegation chip, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1237,7 +1237,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; the Proactive page's pace segment sits over her day, and Thread turns, the port and address, and Workflows sit in its External signals fold; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link that shows Detailed settings and focuses the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset header shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line over a Key row with Replace key, the voice step and Help once connected, the stored key checked when the connected view shows (a refused key swaps the done line for Key rejected, and Replace key writes only the key), and the chat, STT and TTS sections each carrying a status line that says whether that server answers, Reconnect checking it again; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search and page rail per character, the Plugins, Connection and Quick start pages, and the device-wide General page.",
       "paths": [
         "src/ui/quick-controls",
         "src/ui/use-snapshot"
@@ -1247,7 +1247,7 @@ globalThis.YUI_MAP =
       "id": "ui/settings-stage",
       "module": "settings",
       "label": "settings stage",
-      "role": "The settings window's stage on its left, beside the panel, on the stage ground: a column the stage slot's width, the slot the largest 2:3 box that leaves the foot 80px and the panel 480px, from 373 × 560 to 600 × 900 in whole px, sized again on each window resize. Its foot names the window's own character (the bound one, else main, never the one the panel edits) over its transport and window state in the character header's words, and folds to one line in a window under 680px tall; it re-reads the registry and the pet windows on a change, the stored transport on this window's chat type switch, a storage event, another window's settings change and focus, and its words on a new language.",
+      "role": "The settings window's stage column beside the panel: its slot sizing, the foot naming the window's character, and the redraw on each change.",
       "paths": [
         "src/ui/settings-stage"
       ]
@@ -1256,7 +1256,7 @@ globalThis.YUI_MAP =
       "id": "ui/character-menu",
       "module": "display",
       "label": "character menu",
-      "role": "The pill menu a right-click on her opens in the pet window: Talk, Rest, Listen (main only) and Settings beside Body, Voice, Pace and More, folded to one column near a screen edge, under one top set at open from the tallest list; Body and Voice show at most five options with the current one, then More…; a list replaces its column in place with Back (a mouse swap crossfades the two columns), Reset chat and Turn off (bound only) ask Sure? or Cancel in place, ON toggles show amber and On, her name shows above her, and the keyboard moves within it; the columns enter from her chest; Esc or a closing pick closes it at once, a click outside it or another app sends it back toward her chest, which a reopen takes back, and only its pills take the pointer.",
+      "role": "The pill menu a right-click on her opens in the pet window: its columns, Back, Reset chat and Turn off, and how it closes.",
       "paths": [
         "src/ui/character-menu"
       ]
@@ -1265,7 +1265,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads and access requests; hidden at zero and while the window is open, one wiggle on arrival, hold-to-fold, its count for the chip column, and its slot rect, also while hidden or capped) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, a Waiting / All segment and a kind select over waiting-first rows (an automatic open selects the Thread a Thread reaction names), the read-only thread pane with Mark read, Attach to chat (Attached and pressed while main's input holds the Thread's chip) and its scrolling transcript of Markdown entries, held at its newest entry, the head's Thread turns button whose popover picks the level (disabled while External signals is off, and holding ↑/↓ from the list while it shows), and the grow out of the chip, with a jelly on an automatic open, and a hop on an automatic raise; an open without focus focuses no row.",
+      "role": "The Threads chip in main's chip column and the Threads window view: layout, list and rail, the Waiting and All filter, the thread pane and the Thread turns popover.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1274,7 +1274,7 @@ globalThis.YUI_MAP =
       "id": "ui/ask",
       "module": "display",
       "label": "ask card",
-      "role": "The Ask slot above the input in the pet or popped message window; unified chat leaves the slot in the pet window. slot-cards.ts shows the queue's head on the Ask card or the Settings request card and hides the other. The Ask card keeps the same head's focus and draft and owns the answer area (prompt, numbered choices, growing field, send); countdown.ts is the time left both cards show.",
+      "role": "The Ask slot above the input: slot-cards.ts shows the head card, the Ask card owns the answer area, and countdown.ts gives the time left.",
       "paths": [
         "src/ui/ask"
       ]
@@ -1283,7 +1283,7 @@ globalThis.YUI_MAP =
       "id": "ui/settings-request",
       "module": "display",
       "label": "settings request card",
-      "role": "The Settings request card in the Ask slot: the character's name, one line per change with its from and to values, the why and the shared line as plain text, the time left in the danger color under 10 s; Deny and Allow answer on one click, several changes show one unchecked checkbox each and Allow N writes the checked paths; Add a note opens a field of up to 200 characters that grows to four lines, and Enter sends Allow N when a change is checked, else Deny. The same request keeps its checks and note.",
+      "role": "The Settings request card in the Ask slot: one line per change with its values, Deny and Allow answering on one click, and the note field.",
       "paths": [
         "src/ui/settings-request"
       ]
@@ -1292,7 +1292,7 @@ globalThis.YUI_MAP =
       "id": "ui/terminal",
       "module": "display",
       "label": "terminal ui",
-      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, OSC 52 copying and pasting through the system clipboard, an Option drag selecting, Hangul typed through WebKit's in-place IME edits held at the cursor and sent a syllable at a time, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
+      "role": "The Threads window's Terminal tab: the terminal list, one xterm per terminal, clipboard, IME input, font-size keys and the access request card.",
       "paths": [
         "src/ui/terminal"
       ]
@@ -1301,7 +1301,7 @@ globalThis.YUI_MAP =
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
-      "role": "The Developer Tools window as one React root: the Context, Advanced and Motion tabs over their panels, redrawn in place on a new language; the context inspector; the Advanced context-window field, saved when committed; and the motion preview, whose core loads lazily on the Motion panel's first activation, retries after a failed load, and draws into a host React leaves empty, the live status writing the status text each frame and reporting each clip change for the lit row.",
+      "role": "The Developer Tools window as one React root: the Context, Advanced and Motion tabs, and the motion preview that loads on first use.",
       "paths": [
         "src/ui/devtools"
       ]
@@ -1338,7 +1338,7 @@ globalThis.YUI_MAP =
       "id": "app/active-hours",
       "module": "wiring",
       "label": "active hours",
-      "role": "One handle per pet window: the pace factor is the device-wide base pace times the pace of the character's current span (More halves it, Less triples it; an Off span contributes 1), the proactive gap is the device-wide gap times that factor, the idle cues' minutes take the same factor, and the window's do-not-disturb is on while the device switch is on or an Off span holds; the spans come from the character's active-hours store, else her card, and the handle recomputes on each input change and each minute boundary.",
+      "role": "One handle per pet window that combines the device-wide base pace with the character's active-hours span into the pace, gap and do-not-disturb values.",
       "paths": [
         "src/app/active-hours"
       ]
@@ -1356,7 +1356,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page; a synth with no resolved voice fetches the voice list once more before it skips, and a reply the voice server did not answer offers the bubble's Reconnect action once per outage; in main, each Threads snapshot runs through Thread turns, every group it returns is offered to the signals source, and the buffered thread.input_required group of a Thread that left input-required is withdrawn; ask-queue.ts is the window's Ask queue, holding the push socket's Asks and the Settings requests of yui_run, shown oldest first, and settings-request.ts and wire-yui-run.ts build the Settings request and yui_run's ports.",
+      "role": "Connects voice, dispatcher, sources, vocabulary and the push transport into the chat turn, with the Ask queue and the Settings request and yui_run ports.",
       "paths": [
         "src/app/turn"
       ]
@@ -1365,7 +1365,7 @@ globalThis.YUI_MAP =
       "id": "app/card-io",
       "module": "wiring",
       "label": "card io wiring",
-      "role": "The card's settings-panel ports: io's file steps and settings' preset creator, bound to one registry, spread by the settings window's wiring; the import registers a preset file's voice clip with the TTS provider, adds its VRM to the VRM list, names both for the new preset, and rolls back what it created when preset creation fails. The dropped-file port runs the same import, and one import gate per settings window, kept across panel rebuilds, lets one import (picker or drop) run at a time.",
+      "role": "The card's settings-panel ports: file steps and the preset creator bound to one registry, with the import and one import gate per settings window.",
       "paths": [
         "src/app/card-io"
       ]
@@ -1374,7 +1374,7 @@ globalThis.YUI_MAP =
       "id": "app/turn/card",
       "module": "wiring",
       "label": "card wiring",
-      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects or its Replay runs, on an empty session; then opens the input and shows the controls hint with Hear the controls and Hear what she can do, the hint whatever its seen flag says on a replay, each sending its guide's request through submitGuide.",
+      "role": "Binds the card module to the window's stores and runs the card's greeting and controls hint after a session reset or Quick start.",
       "paths": [
         "src/app/turn/wire-card.ts",
         "src/app/turn/wire-first-conversation.ts",
@@ -1394,7 +1394,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, opens the Threads window from its tap, and passes each tap on to the reaction wiring; the chip hides from the open until the window's closed report. The tray's Terminal item and a bound pet window's Character menu Threads or Terminal item open the same window on their tab, with no grow.",
+      "role": "Main only: mounts the Threads chip after the signal chips, feeds it snapshots, and opens the Threads window from its tap.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -1403,7 +1403,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-attach",
       "module": "wiring",
       "label": "attached Threads wiring",
-      "role": "Main only, wired by the chat turn: the list of Threads attached to the main character's chat input, each once. The Threads window's toggle and every chip's × change it; a toggle that adds opens a closed input; every composer draws it; a send, typed or spoken, drops the Threads it carried and keeps any attached since, and a spoken send in main's own window carries the list as it stands; a failed send puts them back; the Threads window hears each change and gets it again on its ready.",
+      "role": "Main only: the list of Threads attached to the main character's chat input, each once, with its change and send rules.",
       "paths": [
         "src/app/threads-attach"
       ]
@@ -1457,7 +1457,7 @@ globalThis.YUI_MAP =
       "id": "app/character-menu",
       "module": "wiring",
       "label": "character menu wiring",
-      "role": "The pet window's right-click on her opening the Character menu: the menu's ports over the window's stores, the hold that keeps her still while it is open, the widen of the window over her through the travel frame, grown upward when the columns, shifted up above the window or work-area bottom, would start less than 8px below its top, with the UI layer pinned to her own box, the window focus, and the restore that ends the widen before a closing pick runs; an agent move that ends the widen closes it.",
+      "role": "Wires the pet window's right-click Character menu: its ports, the hold while it is open, and the window widen over her.",
       "paths": [
         "src/app/character-menu"
       ]
@@ -1466,7 +1466,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, read marks to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or, while it shows, only focusing it (an open for a Thread reaction, with focus false, only raises it and changes no tab or selection, and reports presented once it is shown or raised), its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, the Thread turns pick written to yui.thread-turns and announced by settings-changed, the menu redrawn from the Thread turns and External signals stores, and the stored theme, text size, language, Thread turns and External signals reloaded on settings-changed.",
+      "role": "Wires the Threads window: snapshots into the view, the open and resize requests, the frame saved on move, and the Escape and close behaviour.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -1475,7 +1475,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-reaction",
       "module": "wiring",
       "label": "thread reactions wiring",
-      "role": "Main only: wires the Threads client, the Threads window controller, the chip's slot rect and taps, the presence reader, speech, the turn pipeline, the stage's executor, the renderer, the Thread reactions switch, the Reaction thresholds, the filler pools and the Thread turn handle into the reaction; a window without a Threads client wires nothing.",
+      "role": "Main only: wires the Threads client, window controller, chip taps, presence, speech, turn pipeline and renderer into the Thread reaction.",
       "paths": [
         "src/app/threads-reaction"
       ]
@@ -1484,7 +1484,7 @@ globalThis.YUI_MAP =
       "id": "app/dnd",
       "module": "wiring",
       "label": "do-not-disturb wiring",
-      "role": "Keeps the tray's Do Not Disturb check in step with the do-not-disturb store and writes the store when the tray item is clicked, in main only; marks the window root of every pet window while that window's do-not-disturb is on.",
+      "role": "Keeps the tray's Do Not Disturb item and each pet window's root in step with the do-not-disturb store, in main only.",
       "paths": [
         "src/app/dnd"
       ]
@@ -1511,7 +1511,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) as a row of the stage then the panel, opens it on the page of `?page=` and on later page requests, rebuilds only the panel on a new language, mirrors the voice toggle in main only, and sends the stage's top slot to its pet window.",
+      "role": "Composes the settings window over the stores of the preset it edits (?edit=, else its own): the stage, then the panel, and the page routing.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -1547,7 +1547,7 @@ globalThis.YUI_MAP =
       "id": "shell/terminal",
       "module": "shell",
       "label": "terminal",
-      "role": "Runs each Terminal's login shell in a PTY, parses its output into a screen for reads and attaches, gates preset reads and writes behind the user's Allow, kills every Terminal on quit, publishes a revisioned snapshot, and answers the terminal_tool_* calls with their result text.",
+      "role": "Runs each Terminal's login shell in a PTY, keeps its screen, gates preset reads and writes behind Allow, and publishes the terminal snapshot.",
       "paths": [
         "src-tauri/src/terminal"
       ]
@@ -1592,7 +1592,7 @@ globalThis.YUI_MAP =
       "id": "ui/controls",
       "module": "display",
       "label": "controls",
-      "role": "Shared React controls: the Switch, a boolean switch the caller labels and owns the state of, the Disclosure, a native more fold with a chevron summary, and, built on Base UI, the Slider, a range slider that reports each change and each commit, the Checkbox, a tri-state checkbox drawn as a switch, the Segment, a radio segment the caller labels and owns the value of, which can be disabled and whose options can carry a glyph with an accessible name and a tip, the NumberField, a number field with an optional upper bound and placeholder that reports the value committed on blur, Enter or a step, the Select, a select the caller labels and owns the value of, whose popup lists the items, some of them disabled, in a container the caller can name, and whose closed trigger can show a shorter name or a mark and carry a tip, the Tabs, tabs whose panels stay mounted and hide with the selection, with a handle that selects or focuses a tab from code, and the Tooltip, one tip shared by every trigger under its host, which a focus the code moves does not open.",
+      "role": "Shared React controls: Switch, Disclosure, Slider, Checkbox, Segment, NumberField, Select, Tabs and Tooltip.",
       "paths": [
         "src/ui/controls"
       ]
