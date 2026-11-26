@@ -317,7 +317,9 @@ The rest of the description tells the backend to call `help()` first, which retu
 
 ### Model requirements
 
-`yui_run` works only as well as the model writes scripts. The client does not repair a script that loses its own result. In 40 test turns (120 calls) through Hermes Agent, Claude Sonnet 5.5 always called `help()` first, returned at the top level and returned image handles whole. The test used stub namespaces, so it shows that a returned handle reaches the model, not how well the model reads a real screen.
+`yui_run` works only as well as the model writes scripts. The client does not repair a script that loses its own result.
+
+In 40 test turns (120 calls) through Hermes Agent, Claude Sonnet 5.5 always called `help()` first, returned at the top level and returned image handles whole. The test used stub namespaces, so it shows that a returned handle reaches the model, not how well the model reads a real screen.
 
 Models weaker at tool calling and code lose their results more often. On the same user messages, GPT-OSS-120B sometimes wrapped its code in an async function with no top-level `return`, repeated that shape after it failed, or skipped the tool. Gemma-4-26B-A4B returned a screenshot's `text` instead of its handle and called methods the API does not declare.
 
