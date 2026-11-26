@@ -263,7 +263,7 @@ The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_
 _Avoid_: plugin manager, runtime
 
 **Plugin tool**:
-A tool one of a plugin's MCP servers declares, published in the MCP host's snapshot while the plugin is enabled and run by `yui_tool_call`. Not a Client tool.
+A tool one of a plugin's MCP servers declares, published in the MCP host's snapshot while the plugin is enabled and run by `yui.plugins.call` in `yui_run`. Not a Client tool.
 _Avoid_: MCP tool, plugin function
 
 **Skill**:
@@ -278,20 +278,17 @@ _Avoid_: trigger (a Trigger is a turn's cause)
 Wiring for one backend agent, kept under `integrations/<agent>/` (the Hermes platform plugin, Hermes desire).
 _Avoid_: adapter, connector
 
-**Bridge tool**:
-A Client tool that reaches On-demand tools and plugin skills: `yui_tool_describe` reads a tool's description and input schema, `yui_tool_call` runs it, and `plugin_skill` reads one plugin skill's instructions. Declared in every pet window under Tauri.
-_Avoid_: host tool, relay tool
-
-**On-demand tool**:
-A tool the client does not declare; the backend learns its name and summary from `yui_tool_call`'s description and reaches it through `yui_tool_describe` and `yui_tool_call`: a Plugin tool, or a Terminal or Threads tool the client runs itself.
-
 **Client tool**:
-A tool the client runs itself: one it declares to the backend (generate_express, body_action, look, rate_relation, address_character, yui_tool_describe, yui_tool_call, plugin_skill, yui_run) or a Terminal or Threads On-demand tool.
+A tool the client runs itself and declares to the backend: generate_express, body_action, rate_relation, address_character and yui_run.
 _Avoid_: in-app tool, local tool
 
 **yui API**:
-What a `yui_run` script reaches: settings, state, info.
+What a `yui_run` script reaches: settings, state, info, guide, terminal and plugins in every Tauri pet window; look and threads in main. A yui call is one call a script makes into it.
 _Avoid_: SDK, bridge
+
+**Image handle**:
+An `{ image: n }` value a yui call returns in place of an image; the `yui_run` result attaches the image only when the script's returned value holds its handle.
+_Avoid_: image reference, image id
 
 **Producer**:
 An outside program that posts signals to `/signals` (a scheduled script or a webhook) or conversations to `/threads` (yui-notify's coding-agent hooks), or a plugin's MCP server that sends the signals notification.

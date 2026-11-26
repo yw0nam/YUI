@@ -16,7 +16,7 @@ flowchart TB
   yui <-->|"speech / voice"| voice
   yui <-->|"what happened / words and tool calls"| brain
   yui -->|"runs"| plugins
-  brain -.->|"bridge tools"| yui
+  brain -.->|"yui_run"| yui
 ```
 
 YUI sends the brain what happened, over Chat Completions, Responses or Push, and turns the answer into a face, a voice and gestures.
