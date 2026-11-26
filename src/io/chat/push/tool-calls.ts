@@ -78,7 +78,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, TURN_STOPPED);
         return;
       }
-      let statusId = tool.statusId?.(frame.arguments) ?? frame.name;
+      let statusId = frame.name;
       if (tool.localStatus) deps.onStatus?.(frame.id, "running", statusId);
       // A tool whose status the backend shows reports nothing: the pill comes from its frames.
       const report = tool.localStatus

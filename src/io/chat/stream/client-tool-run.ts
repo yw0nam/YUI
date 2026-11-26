@@ -63,7 +63,7 @@ export async function* runClientCall(
   }
   if (!tool) return outcome;
 
-  let statusId = tool.statusId?.(parsed.args) ?? name;
+  let statusId = name;
   if (!express_call) {
     yield { type: "tool_status", status: { state: "running", tool_id: statusId } };
   }
