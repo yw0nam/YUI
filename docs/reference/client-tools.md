@@ -412,7 +412,7 @@ The user answers with a decision: the paths they allow, and an optional note.
 
 "Add a note" opens a field of up to 200 characters, which the card trims. Enter in the field sends Allow N when a path is checked, and Deny otherwise; Shift+Enter starts a new line. The note rides whichever button sends.
 
-After Allow, each allowed path answers `ok`, `error: invalid <path>` or `error: <path> failed to load`. The direct paths of the same patch are written before the card and answer `ok`.
+After Allow, each allowed path answers `ok`, `ok: <note>` when the user wrote a note, `error: invalid <path>` or `error: <path> failed to load`. The direct paths of the same patch are written before the card and answer `ok`.
 
 ## On-demand tools
 
