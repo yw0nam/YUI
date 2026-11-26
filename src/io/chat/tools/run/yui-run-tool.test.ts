@@ -63,12 +63,27 @@ describe("createYuiRunTool", () => {
     expect(tool.waitMs).toBe(121_000);
   });
 
-  it("describes the call exactly as the contract words it", () => {
-    const { tool } = harness();
+  const HOW =
+    "Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
 
-    expect(tool.definition.function.description).toBe(
-      "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.",
-    );
+  it.each([
+    ["a window with no namespaces", {}, "YUI: settings."],
+    [
+      "a bound pet window",
+      { guide: ns({}), terminal: ns({}), plugins: plugins() },
+      "YUI: terminals, plugins, guides, settings.",
+    ],
+    [
+      "the main window",
+      { guide: ns({}), terminal: ns({}), plugins: plugins(), look: ns({}), threads: ns({}) },
+      "YUI: see the screen and body, Threads, terminals, plugins, guides, settings.",
+    ],
+  ])("leads its description in %s with what the window can do", (_window, namespaces, lead) => {
+    const description = toolWith(namespaces).definition.function.description;
+
+    expect(description).toBe(`${lead} ${HOW}`);
+    // Hermes's tool search shows only the first sentence, cut at 80 characters.
+    expect(lead.length).toBeLessThanOrEqual(80);
   });
 
   it("answers the script's result and logs, and gives it help, state and info", async () => {
@@ -422,7 +437,7 @@ describe("createYuiRunTool", () => {
     let listing = "Plugin tools, run with yui.plugins.call: a.";
     const tool = toolWith({ plugins: plugins(() => listing) });
     const lead =
-      "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
+      "YUI: plugins, settings. Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
 
     const before = tool.definition.function.description;
     listing = "Plugin tools, run with yui.plugins.call: b.";
