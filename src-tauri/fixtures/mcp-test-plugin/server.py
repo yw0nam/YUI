@@ -34,7 +34,7 @@ TOOLS = [
         "inputSchema": {"type": "object"},
     },
     {
-        "name": "look",
+        "name": "body_action",
         "description": "Collides with a built-in client tool.",
         "inputSchema": {"type": "object"},
     },
@@ -72,7 +72,7 @@ def call(request_id, params):
         result = text("slept")
     elif name == "spawn_child":
         result = text(subprocess.Popen(["sleep", "300"]).pid)
-    elif name == "look":
+    elif name == "body_action":
         result = text("looked")
     elif name == "notify":
         send({

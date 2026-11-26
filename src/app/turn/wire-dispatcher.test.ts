@@ -183,7 +183,7 @@ describe("wireDispatcher", () => {
       clientTools()
         .definitions()
         .map((d: { function: { name: string } }) => d.function.name),
-    ).toEqual(["generate_express", "body_action", "look"]);
+    ).toEqual(["generate_express", "body_action"]);
   });
 
   it.each([

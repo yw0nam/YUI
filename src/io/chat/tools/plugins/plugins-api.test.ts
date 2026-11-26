@@ -162,6 +162,27 @@ describe("yui.plugins.call", () => {
     expect(host.call).not.toHaveBeenCalled();
   });
 
+  it("throws for a string argument even when the tool's schema accepts anything", async () => {
+    const [plugin] = SNAPSHOT.plugins;
+    const anything = {
+      ...plugin!,
+      tools: [{ ...plugin!.tools[0]!, name: "any_args", inputSchema: {} }],
+    };
+    const host = fakeHost({ snapshot: () => ({ ...SNAPSHOT, plugins: [anything] }) });
+
+    const run = await runNamespace(
+      "plugins",
+      api(host).methods,
+      'return await yui.plugins.call("any_args", "text")',
+    );
+
+    expect(run).toMatchObject({
+      status: "error",
+      error: "Error: yui.plugins.call: args must be an object",
+    });
+    expect(host.call).not.toHaveBeenCalled();
+  });
+
   it("calls with args undefined or null as an empty object", async () => {
     const host = fakeHost();
 

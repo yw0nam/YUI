@@ -501,7 +501,7 @@ mod tests {
         );
         assert_eq!(
             serde_json::to_value(&a.hidden).unwrap(),
-            json!([{"kind": "tool", "name": "look", "holder": "builtin"}])
+            json!([{"kind": "tool", "name": "body_action", "holder": "builtin"}])
         );
         assert!(b.tools.is_empty() && b.skills.is_empty());
         assert_eq!(
@@ -511,7 +511,7 @@ mod tests {
                 {"kind": "tool", "name": "echo_meta", "holder": "yui-a"},
                 {"kind": "tool", "name": "slow", "holder": "yui-a"},
                 {"kind": "tool", "name": "spawn_child", "holder": "yui-a"},
-                {"kind": "tool", "name": "look", "holder": "builtin"},
+                {"kind": "tool", "name": "body_action", "holder": "builtin"},
                 {"kind": "tool", "name": "notify", "holder": "yui-a"},
                 {"kind": "skill", "name": "hello", "holder": "yui-a"}
             ])
@@ -527,7 +527,7 @@ mod tests {
         assert_eq!(b.skills[0].name, "hello");
         assert_eq!(
             serde_json::to_value(&b.hidden).unwrap(),
-            json!([{"kind": "tool", "name": "look", "holder": "builtin"}])
+            json!([{"kind": "tool", "name": "body_action", "holder": "builtin"}])
         );
         host.shutdown().await;
     }
@@ -612,9 +612,9 @@ mod tests {
             Err("unknown plugin skill: nope".to_string())
         );
         assert_eq!(
-            host.call("pet-a", "c1", "look", json!({}), "preset-1")
+            host.call("pet-a", "c1", "body_action", json!({}), "preset-1")
                 .await,
-            Err("unknown plugin tool: look".to_string())
+            Err("unknown plugin tool: body_action".to_string())
         );
         host.shutdown().await;
     }

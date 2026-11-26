@@ -7,8 +7,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
-import { createAvatarTools } from "../tools/avatar";
 import type { ClientToolDefinition } from "../tools/client-tools";
+import { createRateRelationTool } from "../tools/relation";
 import type { PushTurnFrame, ReasoningFrame, RenderFrame } from "./push-frames";
 import {
   createPushSocket,
@@ -825,19 +825,19 @@ describe("createPushSocket — outbound frames", () => {
   // The declared set is identical in every switch state: the switch gates execution, not the
   // declaration, so hello.tools reads the same after the switch flips.
   it("carries hello.tools unchanged after the screenshot switch flips between connections", async () => {
-    let allowRequests = true;
+    let enabled = true;
     const tools = () =>
-      createAvatarTools(() => null, {
-        allowRequests: () => allowRequests,
-        getWindow: () => null,
-        listMonitors: async () => [],
-        pointsAreLogical: true,
-        capturer: { captureAt: vi.fn() },
-      }).map((tool) => tool.definition);
+      [
+        createRateRelationTool({
+          store: { rate: vi.fn() },
+          targets: () => [],
+          enabled: () => enabled,
+        }),
+      ].map((tool) => tool.definition);
 
     await connected({ tools });
     const first = FakeSocket.last().frames()[0];
-    allowRequests = false;
+    enabled = false;
     FakeSocket.last().drop();
     await vi.advanceTimersByTimeAsync(1_000);
     FakeSocket.last().accept();
@@ -847,7 +847,7 @@ describe("createPushSocket — outbound frames", () => {
     expect(second.tools).toEqual(first.tools);
     expect(
       (second.tools as Array<{ function: { name: string } }>).map((d) => d.function.name),
-    ).toContain("look");
+    ).toContain("rate_relation");
   });
 
   it("drops an outbound frame over the size cap instead of sending it", async () => {

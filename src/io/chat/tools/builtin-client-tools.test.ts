@@ -4,6 +4,7 @@ import { createRelationsStore } from "../../../settings/relations/relations-stor
 import { noopScreenCapturer } from "../../window/capture/screen-source-provider";
 import { createGenerateExpressTool } from "./express";
 import { createPetWindowTools } from "./pet-window-tools";
+import { helpText } from "./run/help";
 import { stubYuiRunPorts } from "./run/yui-run-test-ports";
 
 vi.mock("../../../tauri-env", async (importOriginal) => ({
@@ -11,9 +12,9 @@ vi.mock("../../../tauri-env", async (importOriginal) => ({
   isTauri: () => true,
 }));
 
-function windowTools(relationsEnabled = false) {
+function windowTools(bound = false, relationsEnabled = false) {
   return createPetWindowTools({
-    bound: false,
+    bound,
     getExecutor: () => null,
     screen: {
       allowRequests: () => false,
@@ -33,8 +34,11 @@ function windowTools(relationsEnabled = false) {
       skill: vi.fn(),
       subscribe: vi.fn(),
     },
-    threads: { threads: () => [] },
-    run: stubYuiRunPorts(),
+    threads: bound ? null : { threads: () => [] },
+    run: {
+      ...stubYuiRunPorts(),
+      help: (declarations) => helpText((key) => key, [], declarations),
+    },
   });
 }
 
@@ -47,31 +51,35 @@ describe("builtin-client-tools.json", () => {
       emotionText: { mode: "free", table: null },
     });
 
-    expect([...tools.declared, ...tools.onDemand, express].map((tool) => tool.name).sort()).toEqual(
-      builtinNames,
-    );
+    expect([...tools, express].map((tool) => tool.name).sort()).toEqual(builtinNames);
   });
 
   it.each([true, false])("keeps the declared names across Relations state %s", (enabled) => {
-    const tools = windowTools(enabled);
-    expect(tools.declared.map((tool) => tool.name)).toEqual([
+    expect(windowTools(false, enabled).map((tool) => tool.name)).toEqual([
       "rate_relation",
       "address_character",
       "body_action",
-      "look",
-      "yui_tool_describe",
-      "yui_tool_call",
-      "plugin_skill",
       "yui_run",
     ]);
-    expect(tools.onDemand.map((tool) => tool.name)).toEqual([
-      "threads_list",
-      "threads_search",
-      "terminal_open",
-      "terminal_list",
-      "terminal_read",
-      "terminal_write",
-      "terminal_close",
+    expect(windowTools(true, enabled).map((tool) => tool.name)).toEqual([
+      "rate_relation",
+      "address_character",
+      "yui_run",
     ]);
+  });
+
+  it("gives the main window the look and threads blocks in help() and a bound window neither", async () => {
+    const helpOf = async (bound: boolean) => {
+      const yuiRun = windowTools(bound).find((tool) => tool.name === "yui_run")!;
+      const run = await yuiRun.execute({ code: "return await help()" });
+      return JSON.parse(run as string).result as string;
+    };
+    const main = await helpOf(false);
+    expect(main).toContain("perch_targets()");
+    expect(main).toContain("search(query: string)");
+    const bound = await helpOf(true);
+    expect(bound).not.toContain("perch_targets()");
+    expect(bound).not.toContain("search(query: string)");
+    expect(bound).toContain("  terminal: {");
   });
 });

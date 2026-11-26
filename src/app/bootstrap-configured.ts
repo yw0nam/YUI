@@ -125,7 +125,7 @@ export interface ConfiguredBootstrapHandles {
   sitter: Pick<Sitter, "sitDown">;
   /** The avatar executor and her seat, which Thread reactions read. */
   locomotion: Pick<ReturnType<typeof wireLocomotion>, "getAvatarExecutor" | "armedSit">;
-  /** The tools beside generate_express: the bridge tools, and in main the avatar tools; none outside Tauri. */
+  /** The tools beside generate_express: yui_run, and in main body_action; none outside Tauri. */
   windowTools: readonly ClientTool[];
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
   stopTurn: () => void;
@@ -211,7 +211,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(mcpHost.subscribe(() => phase1.pushSocket?.sendTools()));
     const asks = createAskQueue({ surfaces });
     register(asks.dispose);
-    const { declared: windowTools } = createPetWindowTools({
+    const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
       screen: {

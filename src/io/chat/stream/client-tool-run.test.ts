@@ -127,23 +127,6 @@ describe("runClientCall — tool_status state", () => {
     expect(next.value?.run?.oneWay).toBe(false);
   });
 
-  it("names the status chip after the id the tool reports for the call", async () => {
-    const registry = createClientToolRegistry([
-      tool({
-        name: "yui_tool_call",
-        statusId: (args) => String(args.name),
-        localStatus: true,
-        execute: async () => "ok",
-      }),
-    ]);
-    const events = await collect(registry, "yui_tool_call", '{"name":"echo_args"}');
-
-    expect(events.flatMap((e) => (e.type === "tool_status" ? [e.status.tool_id] : []))).toEqual([
-      "echo_args",
-      "echo_args",
-    ]);
-  });
-
   it("yields each id a running tool reports while it runs, and ends on the last one", async () => {
     let report: (id: string) => void = () => {};
     let open: (result: string) => void = () => {};

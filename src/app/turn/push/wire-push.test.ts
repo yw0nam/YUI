@@ -651,7 +651,7 @@ describe("wirePushTransport — tool calls", () => {
     let finish: ((result: string) => void) | undefined;
     const pluginCall: ClientTool = {
       ...look,
-      name: "yui_tool_call",
+      name: "yui_run",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
@@ -664,23 +664,23 @@ describe("wirePushTransport — tool calls", () => {
     wire(turnFeed, [pluginCall]);
     socket.pushToolCall({
       ...frame("c1", "7"),
-      name: "yui_tool_call",
-      arguments: { name: "look" },
+      name: "yui_run",
+      arguments: { code: "return 1" },
     });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",
       turn_id: "7",
       state: "done",
-      tool_id: "yui_tool_call",
+      tool_id: "yui_run",
     });
 
-    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "yui_tool_call" }]]);
+    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "yui_run" }]]);
     expect(onFrame).toHaveBeenCalledTimes(1);
 
     finish?.("The tool's result text.\n{}");
     await vi.waitFor(() =>
-      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "yui_tool_call" }),
+      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "yui_run" }),
     );
   });
 
@@ -688,7 +688,7 @@ describe("wirePushTransport — tool calls", () => {
     let finish: ((result: string) => void) | undefined;
     const pluginCall: ClientTool = {
       ...look,
-      name: "yui_tool_call",
+      name: "yui_run",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
@@ -698,8 +698,8 @@ describe("wirePushTransport — tool calls", () => {
     wire(turnFeed, [pluginCall]);
     socket.pushToolCall({
       ...frame("c1", "7"),
-      name: "yui_tool_call",
-      arguments: { name: "look" },
+      name: "yui_run",
+      arguments: { code: "return 1" },
     });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
