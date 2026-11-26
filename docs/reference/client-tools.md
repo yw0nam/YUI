@@ -166,7 +166,7 @@ The results go back to the model in two cases:
 
 A model stays silent by answering that round trip with no text, and the turn ends with no speech (firing ≠ judgment).
 
-The cycle repeats while the model keeps asking, up to three round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the turn with the text it has.
+The cycle repeats while the model keeps asking, up to eight round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past eight the client closes the turn with the text it has.
 
 Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or one of `。` `！` `？` or the later text starts with whitespace.
 
