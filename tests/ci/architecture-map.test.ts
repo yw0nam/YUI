@@ -256,6 +256,13 @@ describe("architecture map", () => {
       },
       "enums: edge transport invalid is invalid",
     ],
+    [
+      "a part role over 200 characters",
+      (map) => {
+        map.nodes[0].role = "x".repeat(201);
+      },
+      "role: a/part is longer than 200 characters",
+    ],
   ];
   it.each(cases)("reports %s", (_name, mutate, problem) => {
     const map = fixture();

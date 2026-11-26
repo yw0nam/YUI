@@ -177,6 +177,7 @@ export function checkMap(map, files, scope = MAPS[0]) {
       problems.push(`references: ${node.id} module ${node.module} does not exist`);
     if (node.map !== undefined && (!entries.has(node.map) || entries.get(node.map).directory))
       problems.push(`map: ${node.id} ${node.map} is not a file`);
+    if (node.role.length > 200) problems.push(`role: ${node.id} is longer than 200 characters`);
   }
   for (const module of map.modules) {
     if (module.zone !== undefined && !zoneIds.has(module.zone))

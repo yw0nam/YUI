@@ -86,6 +86,7 @@ the plugin follows the steps below against the plugin map; step 3's
   user, backend agents, and outside services are boxes outside the groups.
 - A part is a folder or file of `src/` or `src-tauri/src` that belongs to one
   module. Every `.ts`, `.tsx` and `.rs` source file is inside the path of some part.
+  A part's `role` is one short sentence of what it owns, and `map:check` caps it at 200 characters.
 - An exchange names what crosses between two parts as the code spells it, its
   kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
   stdio message, localStorage, cross-window bridge, user action), the
