@@ -325,10 +325,12 @@ describe("yui.look", () => {
     });
   });
 
-  it("screen(9) with two displays answers error: invalid field monitor", async () => {
+  it.each([
+    9, -1,
+  ])("screen(%s) with two displays answers error: invalid field monitor", async (monitor) => {
     const capture = vi.fn(shot);
     const { methods } = createLookApi(() => executor(), screenPorts({ capture }));
-    await expect(methods.screen(signal, 9)).resolves.toBe("error: invalid field monitor");
+    await expect(methods.screen(signal, monitor)).resolves.toBe("error: invalid field monitor");
     expect(capture).not.toHaveBeenCalled();
   });
 
