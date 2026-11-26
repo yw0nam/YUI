@@ -428,7 +428,7 @@ async def test_a_tools_frame_replaces_the_declared_tools_the_next_turn_start_reg
     def tool(description):
         return {
             "type": "function",
-            "function": {"name": "yui_tool_call", "description": description, "parameters": {}},
+            "function": {"name": "yui_run", "description": description, "parameters": {}},
         }
 
     monkeypatch.setattr(registry, "_ctx", Ctx())
