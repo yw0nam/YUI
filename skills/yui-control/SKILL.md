@@ -1,6 +1,6 @@
 ---
 name: yui-control
-description: "YUI, the desktop app your character lives in, through the yui_run tool: its settings (voice, look, pace, what it may see), its state, the character's body and the screen, the user's Threads, terminals, plugin tools and skills, and YUI's guides. Use when the user asks for any of these, or when what YUI shows would change what you say."
+description: "YUI: screen, Threads, terminals, plugins, guides, settings. Through the yui_run tool, use the desktop app your character lives in: its settings (voice, look, pace, what it may see), its state, the character's body and the screen, the user's Threads, terminals, plugin tools and skills, and YUI's guides. Use when the user asks for any of these, or when what YUI shows would change what you say."
 license: PolyForm-Noncommercial-1.0.0
 ---
 
