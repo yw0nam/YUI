@@ -11,7 +11,8 @@
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { AttachedThread, UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
-import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
+import type { BackendCommand } from "../../chat/push/push-frames";
+import type { AskSlotAnswer, AskSlotFrame } from "../../chat/tools/run/settings-request-frame";
 import { createCoalescingBridge } from "./coalesce-pushes";
 import type { CommandReplyState, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 import { createSurfaceSender } from "./surface-ops";
@@ -35,8 +36,8 @@ export interface SpeechAction {
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {
-  setAsks(frames: AskFrame[]): void;
-  onAskAnswer(cb: (answer: AskAnswer) => boolean): void;
+  setAsks(frames: AskSlotFrame[]): void;
+  onAskAnswer(cb: (answer: AskSlotAnswer) => boolean): void;
   setCommands(list: BackendCommand[]): void;
   showCommandReply(reply: CommandReplyState): void;
   onCommand(cb: (name: string, args: string) => boolean): void;
@@ -88,7 +89,7 @@ export function createRemoteSurfaces(rawBridge: MessageBridge): RemoteSurfaces {
   const openSettingsHandlers: Array<() => void> = [];
   const commandReplyCloseHandlers: Array<() => void> = [];
   const commandHandlers: Array<(name: string, args: string) => boolean> = [];
-  const askAnswerHandlers: Array<(answer: AskAnswer) => boolean> = [];
+  const askAnswerHandlers: Array<(answer: AskSlotAnswer) => boolean> = [];
   let inputOpen = false;
   let pendingErrorAction: (() => void) | null = null;
   let speechActionClicks: Array<() => void> = [];

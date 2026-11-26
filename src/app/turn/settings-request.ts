@@ -1,14 +1,22 @@
-/** A Settings request: the user's Allow or Deny on settings an agent may change only with it, shown in the Ask card's slot. */
+/** A Settings request: the user's decision on settings an agent may change only with their Allow, shown in the Ask slot. */
 
-import type { RequestSettings, SettingsAnswer } from "../../io/chat/tools/run/settings-api";
-import { settingsRequestPrompt } from "../../ui/ask/settings-request-prompt";
-import { t } from "../../ui/i18n";
+import type { RequestSettings, SettingsDecision } from "../../io/chat/tools/run/settings-api";
+import {
+  NOTE_MAX,
+  type SettingsRequestDecision,
+} from "../../io/chat/tools/run/settings-request-frame";
 import type { AskOwner, AskQueue } from "./ask-queue";
 
-export type { RequestSettings, SettingsAnswer };
+export type { RequestSettings, SettingsDecision };
 
 /** How long the card waits for the user once it shows. */
 const SHOWN_MS = 60_000;
+
+/** The bridge checks only a control op's name, so a decision from the popped window may hold anything. */
+const wellFormed = ({ allow, note }: SettingsRequestDecision): boolean =>
+  Array.isArray(allow) &&
+  allow.every((path) => typeof path === "string") &&
+  (note === undefined || typeof note === "string");
 
 export function createSettingsRequest(deps: {
   asks: Pick<AskQueue, "put" | "remove">;
@@ -27,15 +35,20 @@ export function createSettingsRequest(deps: {
         return;
       }
       open = true;
-      const finish = (answer: SettingsAnswer): void => {
+      const finish = (decision: SettingsDecision): void => {
         open = false;
         signal.removeEventListener("abort", withdraw);
-        resolve(answer);
+        resolve(decision);
       };
-      const owner: AskOwner = {
+      const owner: AskOwner<SettingsRequestDecision> = {
         shownMs: SHOWN_MS,
-        answer: (answer) => {
-          finish(answer.choice === "allow" ? "allow" : "deny");
+        answer: (decision) => {
+          if (!wellFormed(decision)) return false;
+          const note = [...(decision.note?.trim() ?? "")].slice(0, NOTE_MAX).join("");
+          finish({
+            allow: changes.map((c) => c.path).filter((path) => decision.allow.includes(path)),
+            ...(note ? { note } : {}),
+          });
           return true;
         },
         expired: () => finish("no answer"),
@@ -46,17 +59,11 @@ export function createSettingsRequest(deps: {
       };
       signal.addEventListener("abort", withdraw);
       deps.asks.put(owner, {
-        type: "ask",
-        ask: {
-          // An id no backend can know, so no push Ask can share its draft or its Answer.
-          ask_id: crypto.randomUUID(),
-          prompt: settingsRequestPrompt(deps.name(), changes, why),
-          choices: [
-            { id: "deny", label: t("settings_request.deny"), tone: "danger" },
-            { id: "allow", label: t("settings_request.allow"), tone: "primary" },
-          ],
-          text: false,
-        },
+        type: "settings_request",
+        request_id: crypto.randomUUID(),
+        name: deps.name(),
+        changes,
+        why,
       });
     });
 }

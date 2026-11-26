@@ -1,3 +1,4 @@
+import type { AskAnswer } from "../../../io/chat/push/push-frames";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
 import type { AskOwner, AskQueue } from "../ask-queue";
 
@@ -9,7 +10,9 @@ export function wireAskSession({
   socket: Pick<PushSocket, "onAsk" | "onAskEnd" | "onState" | "sendAnswer">;
   asks: Pick<AskQueue, "put" | "remove">;
 }): () => void {
-  const owner: AskOwner = { answer: (value) => socket.sendAnswer({ type: "answer", ...value }) };
+  const owner: AskOwner<AskAnswer> = {
+    answer: (value) => socket.sendAnswer({ type: "answer", ...value }),
+  };
   const offs = [
     socket.onAsk((frame) => asks.put(owner, frame)),
     socket.onAskEnd((id) => asks.remove(owner, id)),

@@ -32,7 +32,7 @@ const API = `declare const yui: {
     /** This character's settings and the global ones, as one JSON document. */
     read(): Promise<SettingsDoc>;
     /** JSON merge patch (RFC 7396) on that document; list rows take the whole list, null resets character.active_hours; a non-object patch or non-string why answers { "*": "error: ..." }; allow paths wait for the user, 60 s once the card shows. */
-    write(patch: object, opts?: { why?: string }): Promise<Record<string, "ok" | "denied" | "no answer" | \`error: \${string}\`>>;
+    write(patch: object, opts?: { why?: string }): Promise<Record<string, "ok" | "denied" | "no answer" | \`ok: \${string}\` | \`denied: \${string}\` | \`error: \${string}\`>>;
   };
   state: { read(): Promise<{ running_since: string; last_together: string | null; characters: { name: string; open: boolean; me: boolean }[]; permissions: { screen_recording: "granted" | "denied" | "unknown" } }> };
   info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };
@@ -49,6 +49,7 @@ const RULES = `1. Await every yui call; the returned value is the tool result.
 3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.
 4. Rows marked allow wait for the user; denied or no answer changes nothing.
 5. The result lists the answers of every write that finished under writes, one entry per write.
+6. After denied or no answer, tell the user in your own words and do not repeat the same write in this turn. Text after ok: or denied: is the user's note to you.
 `;
 
 function typeOf(row: SettingRow | HelpRow): string {

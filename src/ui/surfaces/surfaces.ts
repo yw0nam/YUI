@@ -20,8 +20,9 @@ import type {
   UserQuote,
 } from "../../io/bridge/message/message-bridge";
 import type { SpeechAction } from "../../io/bridge/message/message-remote";
-import type { AskAnswer, AskFrame, BackendCommand } from "../../io/chat/push/push-frames";
-import { createAskCard } from "../ask/ask-card";
+import type { BackendCommand } from "../../io/chat/push/push-frames";
+import type { AskSlotAnswer, AskSlotFrame } from "../../io/chat/tools/run/settings-request-frame";
+import { createSlotCards } from "../ask/slot-cards";
 import type { ToolStatus } from "../chips/status-pill";
 import { createCommandReply } from "../commands/command-reply";
 import { createSurfaceCommands } from "../commands/surface-commands";
@@ -41,8 +42,8 @@ const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
      stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
 export interface Surfaces extends Omit<TextInput, "interceptSubmit"> {
-  setAsks(frames: AskFrame[]): void;
-  onAskAnswer(cb: (answer: AskAnswer) => boolean): void;
+  setAsks(frames: AskSlotFrame[]): void;
+  onAskAnswer(cb: (answer: AskSlotAnswer) => boolean): void;
   setCommands(list: BackendCommand[]): void;
   onCommand(cb: (name: string, args: string) => boolean): void;
   onCommandReplyClose(cb: () => void): void;
@@ -194,7 +195,7 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
-  const card = createAskCard({ mount: askSlot });
+  const card = createSlotCards({ mount: askSlot });
   const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
   const commandReply = createCommandReply({ mount: commandSlot });
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;

@@ -5,6 +5,7 @@ import type { AskAnswer, AskFrame } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
 import { markClipped } from "../scroll-fade/scroll-fade";
 import { type AnswerArea, createAnswerArea, type Draft } from "./answer-area";
+import { countdown } from "./countdown";
 
 export interface AskCard {
   /** Keeps DOM, focus and draft for an unchanged head; head changes, local failures and post-answer replay re-render it. */
@@ -21,7 +22,7 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
   let area: AnswerArea | null = null;
   let shownId: string | null = null;
   let draft: Draft = { picks: [], text: "" };
-  let tick: ReturnType<typeof setTimeout> | undefined;
+  let stopCountdown = (): void => {};
 
   const el = document.createElement("section");
   el.className = "yui-ask-card";
@@ -32,7 +33,7 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
   deps.mount.append(el);
 
   function render(error: string | null = null): void {
-    clearTimeout(tick);
+    stopCountdown();
     answered = false;
     const frame = head;
     el.hidden = !frame;
@@ -61,24 +62,8 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
       head: timer,
     });
     el.replaceChildren(area.el);
-    countDown();
-  }
-
-  // Each tick lands where the shown seconds change, so the last one lands on expires_at.
-  function countDown(): void {
-    const frame = head!;
-    const { expires_at } = frame;
-    timer.hidden = expires_at === undefined;
-    if (expires_at === undefined) {
-      cue();
-      return;
-    }
-    const left = expires_at - Date.now();
-    const s = Math.max(0, Math.ceil(left / 1000));
-    const time = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-    timer.textContent = t("ask.time_left", { time });
-    cue();
-    if (left > 0) tick = setTimeout(countDown, left - (s - 1) * 1000);
+    stopCountdown = countdown(timer, frame.expires_at, cue);
+    if (frame.expires_at === undefined) cue();
   }
 
   // The prompt head, where the timer rides, marks itself while more of it sits below; a render, a scroll and each tick of a deadline re-measure it.
@@ -108,7 +93,7 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
       answerHandlers.push(cb);
     },
     dispose() {
-      clearTimeout(tick);
+      stopCountdown();
       el.remove();
     },
   };

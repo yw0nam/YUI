@@ -15,6 +15,9 @@ export interface SettingsRequestFrame {
   expires_at?: number;
 }
 
+/** Code points a decision's note keeps, the cap the why has on the card. */
+export const NOTE_MAX = 200;
+
 /** The user's pick on one Settings request: the paths they allowed (empty on Deny), and their trimmed note. */
 export interface SettingsRequestDecision {
   request_id: string;

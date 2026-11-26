@@ -1,10 +1,10 @@
-import type { AskFrame } from "../../io/chat/push/push-frames";
+import type { AskSlotFrame } from "../../io/chat/tools/run/settings-request-frame";
 import type { Surfaces } from "../surfaces/surfaces";
 
 type AskSide = Pick<Surfaces, "setAsks" | "onAskAnswer">;
 
 export function createAskRoute(target: () => AskSide, sides: AskSide[]) {
-  let frames: AskFrame[] | undefined;
+  let frames: AskSlotFrame[] | undefined;
   let previous: AskSide | undefined;
   function resend(): void {
     if (frames === undefined) return;
@@ -14,7 +14,7 @@ export function createAskRoute(target: () => AskSide, sides: AskSide[]) {
     side.setAsks(frames);
   }
   return {
-    setAsks(value: AskFrame[]): void {
+    setAsks(value: AskSlotFrame[]): void {
       frames = value;
       resend();
     },

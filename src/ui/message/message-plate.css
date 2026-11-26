@@ -52,6 +52,10 @@
 .yui-plate[data-state="waiting"] .yui-plate__dot {
   background: var(--yui-text-dim);
   opacity: 1;
+}
+
+/* Thinking breathes; waiting on the user holds still. */
+.yui-plate[data-state="thinking"] .yui-plate__dot {
   animation: yui-plate-breathe 2.4s ease-in-out infinite;
 }
 
