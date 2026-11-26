@@ -16,7 +16,18 @@ export function isGuideKey(value: unknown): value is GuideKey {
   return typeof value === "string" && Object.hasOwn(DOCS, value);
 }
 
+export function readGuide(_key: GuideKey): string {
+  return "";
+}
+
 /** The `guide:` block of the client context: the instruction line, then the doc. */
 export function renderGuideBlock(key: GuideKey): string {
   return `guide:\n${INSTRUCTION}\n\n${DOCS[key].replace(IMAGE_LINE, "").trim()}`;
+}
+
+export function createGuideApi(): {
+  methods: Record<string, (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>>;
+  declaration: string;
+} {
+  return { methods: { read: async () => "" }, declaration: "" };
 }
