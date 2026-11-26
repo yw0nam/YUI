@@ -68,7 +68,7 @@
 }
 
 /* A narrow panel wraps the control under its label. */
-@container (width <= 30rem) {
+@container (width <= 39rem) {
   .yui-relations__ctl {
     flex-basis: 100%;
   }

@@ -12,13 +12,20 @@ export async function detachDock(): Promise<void> {
   await invoke("window_dock_detach");
 }
 
-/** Moves her window to a physical origin, the settings window's own px when it follows another scale. */
-export async function setPetPositionPhysical(x: number, y: number): Promise<void> {
-  const [{ getCurrentWindow }, { PhysicalPosition }] = await Promise.all([
+/** Sets her window's physical frame, the settings window's own px when it follows another scale. */
+export async function setPetFramePhysical(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Promise<void> {
+  const [{ getCurrentWindow }, { PhysicalPosition, PhysicalSize }] = await Promise.all([
     import("@tauri-apps/api/window"),
     import("@tauri-apps/api/dpi"),
   ]);
-  await getCurrentWindow().setPosition(new PhysicalPosition(x, y));
+  const win = getCurrentWindow();
+  await win.setSize(new PhysicalSize(width, height));
+  await win.setPosition(new PhysicalPosition(x, y));
 }
 
 /** Calls `cb` when the settings window labelled `label` closes or minimises, after the shell unlinked her; settles with the disposer once listening. */

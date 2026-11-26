@@ -109,6 +109,74 @@ describe("createCameraRig", () => {
     expect(bareCamera.position.equals(new THREE.Vector3(3, 4, 5))).toBe(true);
   });
 
+  it("fits a camera for another window's aspect, leaving its own as it was", () => {
+    const { camera, rig } = makeFixture();
+    rig.fit();
+    const own = camera.position.clone();
+    // Below this box's 0.375 aspect, its width binds the fit.
+    const fit = computeCameraFit(BOX, { fov: FRAMING.fov, aspect: 0.3, margin: FRAMING.margin });
+
+    const narrow = rig.cameraAt(0.3, 0);
+
+    expect(narrow?.aspect).toBe(0.3);
+    expectPosition(
+      narrow!,
+      orbitPosition(fit!.target, fit!.distance, {
+        azimuth: CAMERA_AZIMUTH_DEFAULT,
+        polar: CAMERA_POLAR_DEFAULT,
+      }),
+    );
+    expectPosition(camera, own);
+  });
+
+  it("at stage framing fits her by her height alone, head-on and without her zoom, easing from her own fit", () => {
+    const { camera, rig, setBox } = makeFixture();
+    // Arms spread in the rest pose: wider than 2:3, so her own fit binds on her width.
+    const box = new THREE.Box3(
+      new THREE.Vector3(-0.68, 0, -0.2),
+      new THREE.Vector3(0.68, 1.6, 0.2),
+    );
+    setBox(box);
+    camera.aspect = 2 / 3;
+    rig.setZoom(0.5);
+    rig.setOrbit({ azimuth: 0.6, polar: 1.2 });
+    stepUntilSettled(rig);
+    const target = new THREE.Vector3(0, 0.8, 0);
+    // Her width over a 2:3 window binds her own fit, at twice the distance for the 0.5 zoom.
+    const ownDistance = 8.374722;
+    // Half her 1.6 height over tan(15°), plus the 10% margin.
+    const stageDistance = 3.2842047;
+    const distanceAt = (k: number): number => {
+      rig.setStageFraming(k);
+      return camera.position.distanceTo(target);
+    };
+
+    expect(distanceAt(0)).toBeCloseTo(ownDistance, 6);
+    expect(distanceAt(0.5)).toBeCloseTo((ownDistance + stageDistance) / 2, 6);
+    expect(distanceAt(1)).toBeCloseTo(stageDistance, 6);
+    expectPosition(
+      camera,
+      orbitPosition(target, stageDistance, {
+        azimuth: CAMERA_AZIMUTH_DEFAULT,
+        polar: CAMERA_POLAR_DEFAULT,
+      }),
+    );
+  });
+
+  it("fits a camera copy at the stage framing it is asked for, leaving its own as it was", () => {
+    const { camera, rig } = makeFixture();
+    rig.setZoom(0.5);
+    rig.fit();
+    const own = camera.position.clone();
+    const target = new THREE.Vector3(0, 0.8, 0);
+
+    const copy = rig.cameraAt(2 / 3, 1);
+
+    // Half the 1.6 box height over tan(15°), plus the 10% margin.
+    expect(copy!.position.distanceTo(target)).toBeCloseTo(3.2842047, 6);
+    expectPosition(camera, own);
+  });
+
   it("setOrbit eases the polar", () => {
     const { camera, rig } = makeFixture();
     rig.fit();

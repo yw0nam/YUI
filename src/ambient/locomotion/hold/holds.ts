@@ -6,7 +6,7 @@ export interface HoldOptions {
   onAbort?: (by: "agent" | "drag") => void | Promise<void>;
   /** A drag start ends this hold too. */
   endsOnDrag?: boolean;
-  /** A resize leaves her saved window geometry as it was while this hold lasts. */
+  /** Her window geometry is the holder's while this hold lasts: Ctrl+wheel is ignored and no resize is saved. */
   keepsGeometry?: boolean;
   /** The keep-on-screen guard pauses while this hold lasts. */
   pausesKeepOnScreen?: boolean;

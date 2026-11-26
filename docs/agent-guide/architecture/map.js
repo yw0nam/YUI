@@ -643,7 +643,7 @@ globalThis.YUI_MAP =
       "id": "renderer/camera",
       "module": "renderer",
       "label": "camera",
-      "role": "Fit-to-bounds framing, zoom, orbit, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
+      "role": "Fit-to-bounds framing, zoom, orbit, the stage framing that eases her from her own fit to one by her height alone, head-on and without her zoom, the travel view window, and the clamped pixel ratio, read again when her window moves to a monitor of another scale.",
       "paths": [
         "src/renderer/camera"
       ]
@@ -895,7 +895,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, which side of her has more room, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel frame, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, which side of her has more room, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the settings stage slot read once the stage has laid out, the travel frame, whose virtual window takes a size as well as an origin, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -913,7 +913,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, and the dock commands into her own settings window with its close event.",
+      "role": "The pet window's pointer gestures, one cursor poll shared by the click-through hit-test and the gaze cursor, peek state, summon hotkey, the dock commands into her own settings window with its close event, and the wait for her page's refit to a new size.",
       "paths": [
         "src/io/window/pet"
       ]
@@ -1138,7 +1138,7 @@ globalThis.YUI_MAP =
       "id": "ambient/come-along",
       "module": "ambient",
       "label": "come-along",
-      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, docking with her feet on its bottom edge. On her own monitor she is picked up (drag, held still stage.pickup_hold_ms) and carried facing front on an ease-in-out curve over stage.carry_ms to carry_ms + carry_extra_ms; across monitors or past stage.carry_full_pt she is picked up, vanishes and lands, and under reduced motion she fades. Docked, she plays one entry clip picked from the Entry family of her last backend emotion, never the family's last one; an edge entry plays with the stage peek pin past her window's right edge, released when the clip ends or at its play_ms. Going home plays no clip. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows); a null slot, the close or the minimise sends her home, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
+      "role": "One settings window's session on its pet window: on a stage slot she leaves her spot and travels onto it, her window taking the slot's size with her feet on its bottom edge. On her own monitor she is picked up (drag, held still stage.pickup_hold_ms) and carried facing front on an ease-in-out curve over stage.carry_ms to carry_ms + carry_extra_ms, her size easing on the same curve; across monitors or past stage.carry_full_pt she is picked up, vanishes and lands, and under reduced motion she fades, her size set while she is hidden. Docked, she plays one entry clip picked from the Entry family of her last backend emotion, never the family's last one; an edge entry plays with the stage peek pin past her window's right edge, released when the clip ends or at its play_ms. Going home plays no clip. She docks as a native child where the shell links one, else following each slot (logical points on macOS, the settings window's px on Windows), and each slot of a live resize re-sizes her; a null slot, the close or the minimise sends her home at her desktop size, to the nearest floor when her monitor is gone. A drag or an agent move ends the session where she is dropped, giving her desktop size back about her bottom centre at the drop or before the agent's move, and she stays when one runs at the open. While the last backend emotion is angry she sulks: she stays on the desktop with stage.stay_chance probability, else she comes along and sulks on the stage. Her home and a stay survive a reload.",
       "paths": [
         "src/ambient/come-along"
       ]
@@ -1247,7 +1247,7 @@ globalThis.YUI_MAP =
       "id": "ui/settings-stage",
       "module": "settings",
       "label": "settings stage",
-      "role": "The settings window's 400px stage on its left, beside the panel, on the stage ground. Its foot names the window's own character (the bound one, else main, never the one the panel edits) over its transport and window state in the character header's words, and folds to one line in a window under 680px tall; it re-reads the registry and the pet windows on a change, the stored transport on this window's chat type switch, a storage event, another window's settings change and focus, and its words on a new language.",
+      "role": "The settings window's stage on its left, beside the panel, on the stage ground: a column the stage slot's width, the slot the largest 2:3 box that leaves the foot 80px and the panel 480px, from 373 × 560 to 600 × 900 in whole px, sized again on each window resize. Its foot names the window's own character (the bound one, else main, never the one the panel edits) over its transport and window state in the character header's words, and folds to one line in a window under 680px tall; it re-reads the registry and the pet windows on a change, the stored transport on this window's chat type switch, a storage event, another window's settings change and focus, and its words on a new language.",
       "paths": [
         "src/ui/settings-stage"
       ]
@@ -2878,7 +2878,7 @@ globalThis.YUI_MAP =
       "id": "executor-locomotion",
       "from": "io/bridge/inbox",
       "to": "ambient/locomotion",
-      "carries": "noteAgentMove() cancels the movers; onRelocated() → faller.drop",
+      "carries": "noteAgentMove() cancels the movers and, once the holds let go and any travel unparked, runs the holders' onMoverTakesOver; onRelocated() → faller.drop",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-locomotion.ts"
@@ -3443,7 +3443,7 @@ globalThis.YUI_MAP =
       "id": "drop-fall",
       "from": "dispatcher/sources/gesture",
       "to": "ambient/locomotion",
-      "carries": "onDragMiss → faller.drop({ byUser: true }), onSitLost → faller.drop",
+      "carries": "onDropped → the holders' onMoverTakesOver before the dragged window's drop settles, onDragMiss → faller.drop({ byUser: true }), onSitLost → faller.drop",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-locomotion.ts"
@@ -3978,7 +3978,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-emit",
       "from": "app/settings-window",
       "to": "io/bridge/settings",
-      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: the stage slot in screen logical points below the title bar, and the window's scale, at boot, on a move, resize or visibility change when it changed, and on every ask; null while minimised",
+      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: the stage slot in screen logical points below the title bar, and the window's scale, at boot, on a move, on the stage's layout at a new size or a visibility change when it changed, and on every ask; null while minimised",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -3987,7 +3987,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage",
       "from": "io/bridge/settings",
       "to": "app/stage",
-      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a slot starts or moves the come-along, null sends her home",
+      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a slot starts, moves or resizes the come-along, null sends her home; a slot sized outside 100 to 2000 pt is dropped with a warn",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4014,7 +4014,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, keeps her saved geometry and pauses keep-on-screen; abortTravel, release of her seat, widen([dock origin]) and travel.end() for the carry; the arrival docks centred on the slot, or with her window's right edge on the slot's when the chosen entry is an edge entry, and placement keeps that aligned origin while its pin holds; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; a slot waits while a travel parks her frame and applies when a holder lets go, and a resize on the stage saves no window geometry",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, locks Ctrl+wheel and saves no resize as her geometry, and pauses keep-on-screen; abortTravel (which waits for a Ctrl+wheel resize in flight) before her desktop frame is read, release of her seat, widen([], slot frame or home frame) and travel.end() for the carry, the virtual window's setFrameLogical easing her origin and size; placement writes the slot's frame in one setFrameLogical; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; onMoverTakesOver → restoreSize at a drag's drop before it settles, and on an agent move once the holds let go and any travel unparked, before the move; a slot waits while a travel parks her frame and applies when a holder lets go",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4023,7 +4023,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry, the pin release and, on the renderer's release curve, her eased return from the aligned to the centred dock origin, whose frame-window writes belong to placement; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
+      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4032,7 +4032,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, appear() after a fade or when a stopped vanish left her invisible; getPerchProbe() for her height and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it after a resize while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
+      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height, framing) for her feet share in the slot (framing 1) or home (framing 0) frame she is about to take, at each carry frame's framing, and how much larger she is drawn there; setStageFraming(k) eased with each carry frame toward 1 onto the stage and 0 home from the value last set, set with the frame while hidden in a vanish or fade, 1 on a reload that resumes on the stage, and 0 when a mover takes her off the stage or a start or trip home fails; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4050,7 +4050,7 @@ globalThis.YUI_MAP =
       "id": "come-along-dock-call",
       "from": "ambient/come-along",
       "to": "io/window/pet",
-      "carries": "dock.attach, dock.detach, setPositionPhysical for the Windows follow",
+      "carries": "dock.attach, dock.detach, setPetFramePhysical (setSize then setPosition, physical px) for the Windows follow, refitTo → waitRefit(width, height) after a vanish's frame and a size given back",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4095,7 +4095,7 @@ globalThis.YUI_MAP =
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
-      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit",
+      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired; the Shift-drag orbit writes no angle under the same hold",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-pet-stage.ts"
@@ -4866,7 +4866,7 @@ globalThis.YUI_MAP =
       "id": "user-window",
       "from": "user",
       "to": "io/window/pet",
-      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit; Ctrl-wheel resize",
+      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit, ignored on the settings stage; Ctrl-wheel resize",
       "kind": "user",
       "transport": "shared"
     },

@@ -23,6 +23,7 @@ const monitors: ScreenMonitor[] = logicalMonitors.map((m) => ({
 }));
 // Main's settings window on external B, outer (-662, -965), a 32 pt title bar: the slot's top is -933.
 const slot: StageSlot = { x: -662, y: -933, width: 400, height: 600, scale: 1 };
+// Her feet 257 pt down her 200 × 300 window, 514 down the 400 × 600 slot.
 const FEET = 257;
 
 /** A macOS window: a logical frame whose reads are in the px of the screen it overlaps most. */
@@ -79,10 +80,11 @@ function cycle(at = { x: -48, y: 860 }) {
     locomotion: {
       hold: () => {},
       abortTravel: () => travel.abort(),
-      widen: async (via) => {
+      widen: async (via, end) => {
         events.push("widen");
         const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-        return travel.begin({ x: pos.x / scale, y: pos.y / scale }, via);
+        const start = { x: pos.x / scale, y: pos.y / scale };
+        return travel.begin(end ?? start, via, end && { width: end.width, height: end.height });
       },
       release: () => {},
       drop: async () => {
@@ -103,7 +105,9 @@ function cycle(at = { x: -48, y: 860 }) {
       setPeekTarget: () => true,
       setMotionMirror: () => {},
       getPerchProbe: () => null,
-      getCharacterAnchor: () => ({ x: 100, y: FEET }),
+      getCharacterAnchor: () => ({ x: 100, y: (FEET * frame.height) / 300 }),
+      getFrameFit: (_width, height) => ({ feetShare: FEET / 300, scale: height / frame.height }),
+      setStageFraming: () => {},
       vanish: async () => {
         events.push("vanish");
       },
@@ -116,8 +120,9 @@ function cycle(at = { x: -48, y: 860 }) {
     },
     hitTest: { setMoving: () => {} },
     dock: { attach: async () => true, detach: async () => {} },
-    setPositionPhysical: async () => {},
+    setFramePhysical: async () => {},
     followsInPhysicalPx: false,
+    refitTo: async () => {},
     reducedMotion: () => false,
     stage: () => avatarFixture().stage,
     lastEmotion: () => "neutral",
@@ -150,12 +155,12 @@ describe("come-along across monitors of different scale", () => {
     await walk(comeAlong.onStage(null));
 
     expect([docked, `${frame.x},${frame.y} ${frame.width}x${frame.height}`]).toEqual([
-      "500,463 200x300",
+      "400,206 400x600",
       "-48,860 200x300",
     ]);
   });
 
-  it("docks, goes home, docks again and goes home again at her own size and spot", async () => {
+  it("docks at the slot's size, goes home, docks again and goes home again at her own size and spot", async () => {
     const { frame, comeAlong, walk } = cycle();
     const frames: string[] = [];
     const note = () => frames.push(`${frame.x},${frame.y} ${frame.width}x${frame.height}`);
@@ -170,9 +175,9 @@ describe("come-along across monitors of different scale", () => {
     note();
 
     expect(frames).toEqual([
-      "-562,-590 200x300",
+      "-662,-847 400x600",
       "-48,860 200x300",
-      "-562,-590 200x300",
+      "-662,-847 400x600",
       "-48,860 200x300",
     ]);
   });
@@ -184,8 +189,8 @@ describe("come-along across monitors of different scale", () => {
 
     await walk(comeAlong.onStage(aSlot));
 
-    expect(events).toEqual(["vanish", `land {"x":100,"y":${FEET}}`]);
-    expect(`${frame.x},${frame.y}`).toBe("1100,-357");
+    expect(events).toEqual(["vanish", `land {"x":100,"y":${FEET * 2}}`]);
+    expect(`${frame.x},${frame.y} ${frame.width}x${frame.height}`).toBe("1000,-614 400x600");
   });
 
   it("goes home across monitors by vanishing, landing at her spot, then dropping", async () => {

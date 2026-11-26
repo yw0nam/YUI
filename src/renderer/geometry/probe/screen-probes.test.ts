@@ -70,7 +70,11 @@ function makeFixture() {
   // Mutable locals the probes read through the deps — each case sets its own.
   let currentVrm: VRM | undefined = vrm;
   let box: THREE.Box3 | undefined = modelBox;
-  const make = (overrides?: { hipsBone?: () => THREE.Object3D | null; seatDrop?: number }) =>
+  const make = (overrides?: {
+    hipsBone?: () => THREE.Object3D | null;
+    seatDrop?: number;
+    cameraAt?: (aspect: number, k: number) => THREE.PerspectiveCamera | null;
+  }) =>
     createScreenProbes({
       camera,
       getVrm: () => currentVrm,
@@ -79,6 +83,7 @@ function makeFixture() {
       mountHeight: () => H,
       hipsBone: () => hips,
       seatDrop: 0.1,
+      cameraAt: () => null,
       ...overrides,
     });
   return {
@@ -125,6 +130,34 @@ describe("createScreenProbes", () => {
     const probes = make();
     expect(probes.getCharacterAnchor()).toEqual(projectFeetAnchor(modelBox, camera, W, H));
     expect(probes.getCharacterWidthPx()).toBeCloseTo(projectBoxWidthPx(modelBox, camera, W)!);
+  });
+
+  it("reads her feet share and drawn scale in another window from the camera fit to it", () => {
+    const { make } = makeFixture();
+    // The fit for that window: twice as far from her.
+    const at = makeCamera();
+    at.position.set(0, 1, 10);
+    at.updateMatrixWorld();
+    const probes = make({ cameraAt: () => at });
+
+    const fit = probes.getFrameFit(400, 900, 0);
+
+    expect(fit?.feetShare).toBeCloseTo(0.690411, 6);
+    // Twice as far, in a window 1.5 times as tall: 0.75 of her drawn size now.
+    expect(fit?.scale).toBeCloseTo(0.75, 9);
+  });
+
+  it("reads the fit at the stage framing it is asked for", () => {
+    const { make } = makeFixture();
+    // Her own fit at a 0.5 zoom stands twice as far as the stage's.
+    const stage = makeCamera();
+    const own = makeCamera();
+    own.position.set(0, 1, 10);
+    own.updateMatrixWorld();
+    const probes = make({ cameraAt: (_aspect, k) => (k === 1 ? stage : own) });
+
+    expect(probes.getFrameFit(400, 600, 1)?.feetShare).toBeCloseTo(0.888755, 6);
+    expect(probes.getFrameFit(400, 600, 0)?.feetShare).toBeCloseTo(0.690411, 6);
   });
 
   it("reports a finite positive pixels-per-metre that grows as the model comes closer", () => {

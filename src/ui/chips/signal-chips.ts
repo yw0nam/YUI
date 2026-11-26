@@ -236,7 +236,11 @@ export function createSignalChips({
 
     renderDetails(opened && !collapsed.get().collapsed ? opened : undefined, rows);
     setVisible(true);
-    if (details) fitSheet(details.el);
+    refit();
+  }
+
+  function refit(): void {
+    if (details) fitSheet(details.el, mount);
   }
 
   // The sheet is rebuilt only when what it shows changed, so focus inside it survives.
@@ -274,12 +278,12 @@ export function createSignalChips({
   }
   document.addEventListener("keydown", onKeydown);
 
-  // The column's height and the window size move the sheet's anchor.
-  const resizes = new ResizeObserver(() => {
-    if (details) fitSheet(details.el);
-  });
+  // The column's height, its move, and the window size move the sheet's anchor.
+  const resizes = new ResizeObserver(refit);
   resizes.observe(mount);
   resizes.observe(document.documentElement);
+  const moves = new MutationObserver(refit);
+  moves.observe(mount, { attributes: true, attributeFilter: ["style"] });
 
   function applyCollapsed(isFolded: boolean): void {
     el.classList.toggle("is-mini", isFolded);
@@ -299,6 +303,7 @@ export function createSignalChips({
       cancelHide?.();
       document.removeEventListener("keydown", onKeydown);
       resizes.disconnect();
+      moves.disconnect();
       offModel();
       offCollapsed();
       offLocale();

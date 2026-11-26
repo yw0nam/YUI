@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     onStage: vi.fn<(slot: unknown) => Promise<void>>(),
     goHome: vi.fn<() => Promise<void>>(),
     place: vi.fn<() => Promise<void>>(),
+    restoreSize: vi.fn<() => Promise<void>>(),
   },
   closed: new Map<string, () => void>(),
 }));
@@ -19,7 +20,7 @@ vi.mock("../../ambient/come-along/come-along", () => ({
 vi.mock("../../io/window/pet/window-dock", () => ({
   attachDock: vi.fn(),
   detachDock: vi.fn(),
-  setPetPositionPhysical: vi.fn(),
+  setPetFramePhysical: vi.fn(),
   onSettingsStageEnded: vi.fn<
     typeof import("../../io/window/pet/window-dock").onSettingsStageEnded
   >(async (label, cb) => {
@@ -33,7 +34,7 @@ import { wireComeAlong } from "./wire-come-along";
 
 const slot = { x: 100, y: 80, width: 400, height: 600, scale: 2 };
 let onStage: (stage: SettingsStage) => void;
-let resized: () => void;
+let takenOver: () => Promise<void>;
 let released: () => void;
 const emitSettingsStageAsk = vi.fn();
 const teardowns: Array<() => void> = [];
@@ -42,9 +43,11 @@ beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   onStage = undefined as never;
   released = () => {};
+  takenOver = async () => {};
   mocks.comeAlong.onStage.mockResolvedValue();
   mocks.comeAlong.goHome.mockResolvedValue();
   mocks.comeAlong.place.mockResolvedValue();
+  mocks.comeAlong.restoreSize.mockResolvedValue();
 });
 afterEach(() => {
   for (const teardown of teardowns.splice(0)) teardown();
@@ -63,8 +66,8 @@ async function wire(boundId: string | null, listening: Promise<void> = Promise.r
     bridgeListening: () => listening,
     locomotion: {
       ready: Promise.resolve(),
-      onResizeApplied: (cb: () => void) => {
-        resized = cb;
+      onMoverTakesOver: (cb: () => Promise<void>) => {
+        takenOver = cb;
         return () => {};
       },
       onHoldReleased: (cb: () => void) => {
@@ -139,12 +142,12 @@ it("asks for the stage slot only once its close listener is in place too", async
   await vi.waitFor(() => expect(emitSettingsStageAsk).toHaveBeenCalledOnce());
 });
 
-it("places her on the slot again after a Ctrl+wheel resize", async () => {
+it("gives her desktop size back when a mover takes her window over", async () => {
   await wire(null);
 
-  resized();
+  await takenOver();
 
-  expect(mocks.comeAlong.place).toHaveBeenCalledOnce();
+  expect(mocks.comeAlong.restoreSize).toHaveBeenCalledOnce();
 });
 
 it("places her on the newest slot once another holder, such as the Character menu, lets go", async () => {

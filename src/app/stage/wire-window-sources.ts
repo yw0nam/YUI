@@ -54,10 +54,12 @@ export function wireWindowSources(deps: {
   sitDown: () => Promise<"done" | "lost">;
   /** The applied Ctrl+wheel resize bounds — the window-geometry store's record. */
   onResizeApplied?: (bounds: { x: number; y: number; width: number; height: number }) => void;
+  /** This window's drag release, before the drop settles — the mover that held her gives her size back. */
+  onDropped?: () => Promise<void>;
   /** The OS drag release settled — the window-geometry store saves the position. */
   onDragReleased?: () => Promise<void>;
-  /** True while a travel parks the window — a resize then reads the parked bounding box. */
-  isTravelActive?: () => boolean;
+  /** True while Ctrl+wheel is ignored: a travel parks the window, or a hold keeps her geometry. */
+  isResizeLocked?: () => boolean;
   log: Logger;
 }): Pick<
   WindowDropSource,
@@ -69,6 +71,8 @@ export function wireWindowSources(deps: {
   getAvatarExecutor(): AvatarExecutor | null;
   /** Pause the keep-on-screen guard while a travel parks the window itself, or a hold asks it. */
   setKeepOnScreenPaused(holder: "travel" | "hold", paused: boolean): void;
+  /** Settles once the Ctrl+wheel resizes already accepted have landed. */
+  resizeSettled(): Promise<void>;
   dispose(): void;
 } {
   const {
@@ -112,6 +116,7 @@ export function wireWindowSources(deps: {
     release: () => windowDropSource?.release(),
     setKeepOnScreenPaused: (holder: "travel" | "hold", paused: boolean) =>
       keepOnScreenPause.setPaused(holder, paused),
+    resizeSettled: () => windowResizeSource?.settled() ?? Promise.resolve(),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();
@@ -152,6 +157,7 @@ export function wireWindowSources(deps: {
       getPeekConfig,
       getGestureCues,
       onDragMiss: deps.onDragMiss,
+      onDropped: deps.onDropped,
       onReleased: deps.onDragReleased,
       wasDragging: wasWindowDragging,
       onSitLost: deps.onSitLost,
@@ -175,7 +181,7 @@ export function wireWindowSources(deps: {
           },
         };
       },
-      isLocked: () => deps.isTravelActive?.() ?? false,
+      isLocked: () => deps.isResizeLocked?.() ?? false,
       onApplied: deps.onResizeApplied,
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state

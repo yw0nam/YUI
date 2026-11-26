@@ -105,7 +105,7 @@ describe("wireTravelFrame", () => {
 
     await handle.travel.begin({ x: 5, y: 6 });
 
-    expect(fakeTravel.begin).toHaveBeenCalledWith({ x: 5, y: 6 }, undefined);
+    expect(fakeTravel.begin).toHaveBeenCalledWith({ x: 5, y: 6 });
   });
 
   it("delegates travel.begin's via points to the underlying travel frame", async () => {

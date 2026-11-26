@@ -238,6 +238,36 @@ describe("window-resize-source — wheel handler", () => {
     expect(onApplied).toHaveBeenCalledExactlyOnceWith({ x: -12, y: -36, width: 424, height: 636 });
   });
 
+  it("settles once an accepted resize has landed, its applied bounds told first", async () => {
+    const { win, setBoundsLogical } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
+    let land!: () => void;
+    setBoundsLogical.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          land = resolve;
+        }),
+    );
+    const { target, fire } = makeTarget();
+    const order: string[] = [];
+    const source = createWindowResizeSource({
+      renderer,
+      getWindow: () => win,
+      target,
+      onApplied: () => order.push("applied"),
+    });
+    source.start();
+    fire({ ctrlKey: true, deltaY: -100 });
+    await settle();
+
+    const settled = source.settled().then(() => order.push("settled"));
+    await settle();
+    expect(order).toEqual([]);
+    land();
+    await settled;
+
+    expect(order).toEqual(["applied", "settled"]);
+  });
+
   it("does not throw to the caller when the window seam rejects", async () => {
     const win = {
       outerPosition: vi.fn(async () => {

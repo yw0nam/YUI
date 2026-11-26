@@ -39,9 +39,15 @@ export interface CameraRig {
   /** Stores the view window; the caller runs its resize to apply it. */
   setViewWindow(next: ViewWindow | null): void;
   viewWindow(): ViewWindow | null;
+  /** A copy of the camera fit to a window of `aspect` at stage framing `k`, with no view offset; null with nothing to fit. */
+  cameraAt(aspect: number, k: number): THREE.PerspectiveCamera | null;
+  /** Eases her framing from her own (0) to the stage's (1): fit by her height, head-on, no zoom. */
+  setStageFraming(k: number): void;
   setZoom(z: number): void;
   setOrbit(angles: OrbitAngles): void;
 }
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 export function createCameraRig(deps: CameraRigDeps): CameraRig {
   const { camera, getModelBox, isPerched } = deps;
@@ -64,25 +70,46 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
   let effectivePolar = polar;
   // True while effectivePolar is still easing toward its target (keeps frames uncapped).
   let orbitConverging = false;
+  // How far her framing has eased from her own (0) to the stage's (1).
+  let stageFraming = 0;
+
+  /** Reframes `cam` to the current model box at its aspect and framing `k`; false when no model is loaded. */
+  function fitInto(cam: THREE.PerspectiveCamera, k = stageFraming): boolean {
+    const modelBox = getModelBox();
+    if (!modelBox || !framing) return false;
+    const fit = computeCameraFit(modelBox, {
+      fov: framing.fov,
+      aspect: cam.aspect,
+      margin: framing.margin,
+    });
+    if (!fit) return false;
+    const own = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
+    const d = lerp(own, fit.heightDistance, k);
+    cam.fov = framing.fov;
+    // Orbit composes with the radius: orbit sets direction, zoom sets the radius d.
+    // effectivePolar is the eased polar (free, or perched-clamped); the stage eases both to head-on.
+    const pos = orbitPosition(fit.target, d, {
+      azimuth: lerp(azimuth, CAMERA_AZIMUTH_DEFAULT, k),
+      polar: lerp(effectivePolar, CAMERA_POLAR_DEFAULT, k),
+    });
+    cam.position.copy(pos);
+    cam.lookAt(fit.target);
+    cam.updateProjectionMatrix();
+    return true;
+  }
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
-    const modelBox = getModelBox();
-    if (!modelBox || !framing) return;
-    const fit = computeCameraFit(modelBox, {
-      fov: framing.fov,
-      aspect: camera.aspect,
-      margin: framing.margin,
-    });
-    if (!fit) return;
-    const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
-    camera.fov = framing.fov;
-    // Orbit composes with the radius: orbit sets direction, zoom sets the radius d.
-    // effectivePolar is the eased polar (free, or perched-clamped).
-    const pos = orbitPosition(fit.target, d, { azimuth, polar: effectivePolar });
-    camera.position.copy(pos);
-    camera.lookAt(fit.target);
-    camera.updateProjectionMatrix();
+    fitInto(camera);
+  }
+
+  function cameraAt(aspect: number, k: number): THREE.PerspectiveCamera | null {
+    const cam = camera.clone();
+    cam.aspect = aspect;
+    cam.clearViewOffset();
+    if (!fitInto(cam, k)) return null;
+    cam.updateMatrixWorld();
+    return cam;
   }
 
   /** Target polar the camera should settle at: tightened to the perched band while perched. */
@@ -166,6 +193,14 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     setFraming,
     setViewWindow,
     viewWindow: () => view,
+    cameraAt,
+    setStageFraming(k) {
+      if (!Number.isFinite(k)) return;
+      const next = Math.min(1, Math.max(0, k));
+      if (next === stageFraming) return;
+      stageFraming = next;
+      fitCamera();
+    },
     setZoom,
     setOrbit,
   };

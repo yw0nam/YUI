@@ -627,6 +627,21 @@ describe("createSettingsBridge", () => {
   });
 
   it.each([
+    { x: 1, y: 2, width: 99, height: 600, scale: 1 },
+    { x: 1, y: 2, width: 400, height: 2001, scale: 1 },
+  ])("drops a settings stage slot %j sized outside 100 to 2000 pt", (slot) => {
+    const t = createFakeTransport();
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    pet.onSettingsStage(cb);
+
+    settings.emitSettingsStage({ preset: null, slot });
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it.each([
     { sendId: "s1" },
     { sendId: "s1", preset: 7 },
     "garbage",
