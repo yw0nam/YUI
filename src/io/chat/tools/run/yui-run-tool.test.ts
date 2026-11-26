@@ -64,7 +64,7 @@ describe("createYuiRunTool", () => {
   });
 
   const HOW =
-    "Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
+    "Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
   it.each([
     ["a window with no namespaces", {}, "YUI: settings."],
@@ -437,7 +437,7 @@ describe("createYuiRunTool", () => {
     let listing = "Plugin tools, run with yui.plugins.call: a.";
     const tool = toolWith({ plugins: plugins(() => listing) });
     const lead =
-      "YUI: plugins, settings. Runs an async JavaScript function body against the yui API. Start with return help(): it returns the API as text. Use await, and end with return and a JSON value.";
+      "YUI: plugins, settings. Run JavaScript against YUI's yui API and get its result. Start with return help(): it returns the API as text. The code is an async function body: use await, and end with return and a JSON value.";
 
     const before = tool.definition.function.description;
     listing = "Plugin tools, run with yui.plugins.call: b.";
