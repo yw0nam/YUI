@@ -155,7 +155,8 @@ describe("backend_caller — guide turn", () => {
     await caller.call(turnOf(env));
 
     const [, request] = script.spy.mock.calls[0];
-    expect(JSON.stringify(request)).toContain("# Controls");
+    expect(JSON.stringify(request)).toContain("for the controls guide");
+    expect(JSON.stringify(request)).not.toContain("# Controls");
     expect(contextHistory.append.mock.calls[0][0].client_context.trigger.guide).toBe("controls");
     expect(JSON.stringify(contextHistory.append.mock.calls)).not.toContain("# Controls");
     expect(JSON.stringify(appendTurnRecord.mock.calls)).not.toContain("# Controls");

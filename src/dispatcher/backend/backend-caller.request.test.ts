@@ -727,7 +727,9 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const at = msgs.findIndex((m) => m.content === "YUI 조작법 알려줘");
     expect(at).toBeGreaterThan(0);
     expect(msgs[at - 1].role).toBe("system");
-    expect(String(msgs[at - 1].content)).toMatch(/^client_context:\nguide:\n[\s\S]*# Controls/);
+    expect(String(msgs[at - 1].content)).toBe(
+      'client_context:\nguide:\nThe user pressed the in-app help button for the controls guide. Read it with yui_run (return await yui.guide.read("controls")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.',
+    );
     const bad = msgs.findIndex((m) => m.content === "bad key");
     expect(String(msgs[bad - 1].content)).not.toContain("guide:");
   });

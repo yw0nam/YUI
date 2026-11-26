@@ -1032,26 +1032,17 @@ describe("renderClientContext — exhaustiveness", () => {
 });
 
 describe("renderClientContext — guide block", () => {
-  it("a turn carrying a guide key renders the matching doc after the trigger line", () => {
-    const text = renderClientContext(baseContext({ kind: "user", guide: "controls" }), NOW);
+  it.each([
+    "controls",
+    "capabilities",
+  ] as const)("names the %s guide after the trigger line and carries neither document", (guide) => {
+    const text = renderClientContext(baseContext({ kind: "user", guide }), NOW);
 
-    expect(text).toContain("trigger: user message\nguide:\n");
-    expect(text).toContain("The user pressed the in-app help button.");
-    expect(text).toContain("# Controls");
+    expect(text).toContain(
+      `trigger: user message\nguide:\nThe user pressed the in-app help button for the ${guide} guide. Read it with yui_run (return await yui.guide.read("${guide}")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.`,
+    );
+    expect(text).not.toContain("# Controls");
     expect(text).not.toContain("# What she can do");
-  });
-
-  it("the capabilities key renders the capabilities guide", () => {
-    const text = renderClientContext(baseContext({ kind: "user", guide: "capabilities" }), NOW);
-
-    expect(text).toContain("# What she can do");
-  });
-
-  it("the guide block drops the doc's image lines and keeps the text around them", () => {
-    const text = renderClientContext(baseContext({ kind: "user", guide: "controls" }), NOW);
-
-    expect(text).not.toContain("![");
-    expect(text).toContain("## Unified chat\n\n| Action | What happens |");
   });
 
   it("a turn without a guide key renders no guide block", () => {
