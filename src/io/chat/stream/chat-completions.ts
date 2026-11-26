@@ -8,6 +8,7 @@
 import type { Usage } from "../../../contract";
 import { renderGuideBlock } from "../../guide/guide-docs";
 import type { ChatHistoryEntry } from "../conversation/chat-history-store";
+import { frameClientContext } from "./client-context-frame";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Request messages
@@ -51,7 +52,7 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
     if (entry.guide) {
       messages.push({
         role: "system",
-        content: `client_context:\n${renderGuideBlock(entry.guide)}`,
+        content: frameClientContext(renderGuideBlock(entry.guide)),
       });
     }
     messages.push({ role: entry.role, content: entry.text });
@@ -60,7 +61,7 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
     messages.push({ role: "system", content: opts.postHistoryInstructions });
   }
   // After the transcript: it changes every turn, and provider prompt caches reuse only the unchanged prefix.
-  messages.push({ role: "system", content: `client_context:\n${opts.clientContextText}` });
+  messages.push({ role: "system", content: frameClientContext(opts.clientContextText) });
 
   const images = opts.imageDataUrls ?? [];
   const userContent: string | CCContentPart[] =

@@ -834,9 +834,9 @@ In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the 
 1. a `system` message with the assembled [card](#card) (`chat_instructions` alone when the card is off)
 2. the trimmed conversation transcript
 3. a `system` message with the card's post-history instructions when it has any
-4. a `system` message with `client_context:\n<rendered lines>`
+4. a `system` message with the tagged block: `<client_context>`, the header line, the rendered lines, `</client_context>`
 5. the `user` message carrying the utterance or background marker alone
 
 The `client_context` message changes every turn, so it sits after the transcript. The card and transcript stay an identical prefix from one turn to the next. Provider prompt caches reuse that prefix.
 
-A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the same short guide block, rendered from the key. The entry's token cost includes the guide, so both leave the window together.
+A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message holding that guide block in the same tagged frame sits before that user entry. The entry's token cost includes the framed guide, so both leave the window together.

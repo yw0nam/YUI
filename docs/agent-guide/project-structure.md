@@ -417,6 +417,7 @@ YUI/
           chat-completions.ts          # Pure Chat Completions request builders and stream-chunk reducer
           chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
+          client-context-frame.ts      # Tag, header line and close tag around the client context, for every chat transport
           client-tool-run.ts           # Runs a model's tool call on the client and decides when results go back
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
           tool-results/                # Tool results encoded for each request transport
