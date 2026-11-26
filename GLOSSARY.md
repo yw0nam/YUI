@@ -76,7 +76,7 @@ A gesture-fired turn (head pat, drag-held, window-sit, peek, drop, touch) that s
 The placeholder user-content text on turns with no real user utterance.
 
 **Client context**:
-The per-turn block of plain-text `key: value` lines with the environment and trigger state the client injects ahead of the utterance, inside `<client_context>` tags under a data-not-instructions header line.
+The per-turn block of plain-text `key: value` lines with the environment and trigger state the client injects ahead of the utterance, inside `<client_context>` tags under a header line that marks it client-injected and its quoted values as data.
 
 ### Presence & body
 
