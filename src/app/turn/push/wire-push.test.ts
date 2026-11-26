@@ -25,6 +25,7 @@ import type {
 } from "../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import { type ClientTool, createClientToolRegistry } from "../../../io/chat/tools/client-tools";
+import { getToolLabel } from "../../../ui/chips/tool-labels";
 
 import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
@@ -711,6 +712,36 @@ describe("wirePushTransport — tool calls", () => {
     await vi.waitFor(() => expect(socket.sendToolResult).toHaveBeenCalled());
 
     expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "running", tool_id: "read_file" });
+  });
+
+  it("labels the pill with what a running yui_run reports, until the call settles", async () => {
+    let report: (id: string) => void = () => {};
+    let finish: ((result: string) => void) | undefined;
+    const run: ClientTool = {
+      ...look,
+      name: "yui_run",
+      localStatus: true,
+      execute: (_args, _signal, call) => {
+        report = (id) => call?.status?.(id);
+        report("look");
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    };
+    wire(turnFeed, [run]);
+    socket.pushToolCall({ ...frame("c1", "7"), name: "yui_run", arguments: { code: "" } });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+
+    const shown = toolStatusSink.mock.lastCall?.[0];
+    expect(shown).toEqual({ state: "running", tool_id: "look" });
+    expect(getToolLabel(shown?.tool_id ?? "")).toBe("Looking…");
+
+    finish?.('{"status":"completed","result":null,"logs":[]}');
+    await vi.waitFor(() => expect(socket.sendToolResult).toHaveBeenCalled());
+    report("threads");
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "look" });
   });
 
   it("refuses a tool_call of a turn the user cut", () => {

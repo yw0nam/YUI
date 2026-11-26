@@ -16,13 +16,16 @@ import {
   type ChatHistoryItem,
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
+import { runClientCall } from "../../io/chat/stream/client-tool-run";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
 import {
+  type ClientTool,
   type ClientToolDefinition,
   createClientToolRegistry,
 } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { getToolLabel } from "../../ui/chips/tool-labels";
 import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
@@ -876,6 +879,63 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const firstTools = firstOpts?.tools.definitions() as ClientToolDefinition[] | undefined;
     expect(firstTools).toEqual(secondOpts?.tools.definitions());
     expect(firstTools?.map((d) => d.function.name)).toContain("look");
+  });
+});
+
+describe("backend_caller — a running tool's reports", () => {
+  it("labels the pill with what a running yui_run reports, until the call settles", async () => {
+    let report: (id: string) => void = () => {};
+    let finish: ((result: string) => void) | undefined;
+    const run: ClientTool = {
+      name: "yui_run",
+      definition: {
+        type: "function",
+        function: {
+          name: "yui_run",
+          description: "dummy",
+          parameters: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+      waitMs: 2000,
+      execute: (_args, _signal, call) => {
+        report = (id) => call?.status?.(id);
+        report("look");
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    };
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: async function* (_config, _request, opts) {
+        yield* runClientCall(opts.tools, "yui_run", "{}");
+        yield completedEvent({ speech_text: "" });
+      },
+      turnOutput,
+      turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
+      clientTools: () => createClientToolRegistry([run]),
+    });
+    const pending = caller.call(turnOf(userEnv()));
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const shown = toolStatusSink.mock.lastCall?.[0];
+    expect(shown).toEqual({ state: "running", tool_id: "look" });
+    expect(getToolLabel(shown?.tool_id ?? "")).toBe("Looking…");
+
+    finish?.("ok");
+    await pending;
+    const settled = toolStatusSink.mock.calls.length;
+    report("threads");
+
+    expect(toolStatusSink.mock.calls.slice(settled)).toEqual([]);
+    expect(toolStatusSink.mock.calls.map(([status]) => status)).toContainEqual({
+      state: "done",
+      tool_id: "look",
+    });
   });
 });
 

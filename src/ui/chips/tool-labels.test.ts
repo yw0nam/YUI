@@ -22,7 +22,15 @@ describe("getToolLabel (default English)", () => {
   });
 
   it("returns English label for terminal", () => {
-    expect(getToolLabel("terminal")).toBe("Running…");
+    expect(getToolLabel("terminal")).toBe("Using a terminal…");
+  });
+
+  it.each([
+    ["look", "Looking…"],
+    ["threads", "Reading Threads…"],
+    ["yui_run", "Running a script…"],
+  ])("labels the yui_run area %s", (id, label) => {
+    expect(getToolLabel(id)).toBe(label);
   });
 
   it("humanizes an unmapped snake_case tool id", () => {

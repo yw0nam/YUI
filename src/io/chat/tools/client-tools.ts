@@ -40,12 +40,13 @@ export interface ClientTool {
   definition: ClientToolDefinition;
   /**
    * Runs the call and resolves the text or image result returned to the model. The signal aborts
-   * when the wait passes or the turn stops; a tool that ignores it runs on.
+   * when the wait passes or the turn stops; a tool that ignores it runs on. `call.status` names
+   * what the call does now: the pill shows that id until the next report or the call's end.
    */
   execute(
     args: Record<string, unknown>,
     signal?: AbortSignal,
-    call?: { turnId?: string },
+    call?: { turnId?: string; status?(id: string): void },
   ): Promise<ClientToolResult>;
   /** The wait the call's execution is bounded by; the execution keeps running past it. */
   waitMs: number;
