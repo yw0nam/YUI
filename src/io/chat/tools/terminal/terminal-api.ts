@@ -8,7 +8,7 @@ export type TerminalInvoke = (command: string, args?: Record<string, unknown>) =
 // The line range Rust takes for `lines` (`Option<u32>`).
 const MAX_LINES = 0xffffffff;
 
-export const TERMINAL_DECLARATION = `  terminal: {
+const TERMINAL_DECLARATION = `  terminal: {
     /** Opens a terminal this character owns, without asking: "opened <id> (<title>)" or "error: …". */
     open(opts?: { cwd?: string }): Promise<string>;
     /** One line per terminal: id | owner | title | running or exited <code> | access: <preset id or none>. */
@@ -19,8 +19,7 @@ export const TERMINAL_DECLARATION = `  terminal: {
     write(id: string, text: string, opts?: { enter?: boolean }): Promise<string>;
     /** Closes a terminal this character opened: "closed <id>" or "error: …". */
     close(id: string): Promise<string>;
-  };
-`;
+  };`;
 
 /** The script's options object: null counts as absent, anything but a plain object throws. */
 function optionsOf(method: string, opts: unknown): Record<string, unknown> {
@@ -61,7 +60,7 @@ export function createTerminalApi(deps: {
   invoke: TerminalInvoke;
 }) {
   /** An invoke that rejects anyway is a failure, not a wrong argument: it answers as text. */
-  const run = async (...call: Parameters<TerminalInvoke>): Promise<string> => {
+  const invokeAsText = async (...call: Parameters<TerminalInvoke>): Promise<string> => {
     try {
       return await deps.invoke(...call);
     } catch (error) {
@@ -78,11 +77,11 @@ export function createTerminalApi(deps: {
     if (signal.aborted) return TURN_STOPPED;
     const callId = crypto.randomUUID();
     const onAbort = (): void => {
-      void run("terminal_tool_cancel", { callId });
+      void invokeAsText("terminal_tool_cancel", { callId });
     };
     signal.addEventListener("abort", onAbort, { once: true });
     try {
-      return await run(command, { callId, presetId: deps.presetId(), ...args });
+      return await invokeAsText(command, { callId, presetId: deps.presetId(), ...args });
     } finally {
       signal.removeEventListener("abort", onAbort);
     }
@@ -91,9 +90,9 @@ export function createTerminalApi(deps: {
   const methods = {
     open: async (_signal: AbortSignal, opts?: unknown) => {
       const cwd = optional("open", "cwd", optionsOf("open", opts).cwd, isString, "a string");
-      return run("terminal_tool_open", { presetId: deps.presetId(), cwd });
+      return invokeAsText("terminal_tool_open", { presetId: deps.presetId(), cwd });
     },
-    list: async (_signal: AbortSignal) => run("terminal_tool_list"),
+    list: async (_signal: AbortSignal) => invokeAsText("terminal_tool_list"),
     read: async (signal: AbortSignal, id: unknown, opts?: unknown) => {
       const terminal = stringArg("read", "id", id);
       const lines = optional(
@@ -118,7 +117,10 @@ export function createTerminalApi(deps: {
       return waiting("terminal_tool_write", { id: terminal, text: sent, enter }, signal);
     },
     close: async (_signal: AbortSignal, id: unknown) =>
-      run("terminal_tool_close", { presetId: deps.presetId(), id: stringArg("close", "id", id) }),
+      invokeAsText("terminal_tool_close", {
+        presetId: deps.presetId(),
+        id: stringArg("close", "id", id),
+      }),
   };
 
   return { methods, declaration: TERMINAL_DECLARATION };
