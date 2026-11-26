@@ -315,6 +315,12 @@ The description's first sentence names what the window can do, from its namespac
 
 The rest of the description tells the backend to call `help()` first, which returns the API as text.
 
+### Model requirements
+
+`yui_run` works only as well as the model writes scripts. The client does not repair a script that loses its own result. Measured on 2026-11-26 with the same help() text: Claude Sonnet 5.5 through Hermes Agent ran 40 turns and 120 calls with no failure. It called `help()` first, returned at the top level and returned image handles whole.
+
+GPT-OSS-120B and Gemma-4-26B-A4B, on the same requests, often wrapped the code in an async function with no top-level `return`, returned a screenshot's `text` instead of its handle, called methods the API does not declare, or skipped the tool. A backend running a model that is weaker at tool calling and code reaches the `yui` API less reliably.
+
 ### Sandbox
 
 The script reaches these host globals: `yui`, `help()` and `console.log`. The QuickJS built-ins such as `JSON`, `Math` and `Promise` remain ([`sandbox.ts`](../../src/io/chat/tools/run/sandbox.ts)). Each call runs in a fresh module with 1000 ms of CPU, a 256 KiB stack and a 64 MiB heap.
