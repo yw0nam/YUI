@@ -62,6 +62,7 @@ describe("runScript", () => {
     ["return await yui.settings.read()", { theme: "dawn" }],
     ["return await yui.echo({ a: [1, 2] }, 3)", [{ a: [1, 2] }, 3]],
     ["return await yui.echo(Symbol('s'), Promise.resolve(1))", [null, {}]],
+    ["return await yui.echo(undefined)", [null]],
     [
       "return [typeof fetch, typeof window, typeof document, typeof setTimeout]",
       ["undefined", "undefined", "undefined", "undefined"],

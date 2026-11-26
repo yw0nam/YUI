@@ -20,13 +20,14 @@ const pick = (id: string): SelectionPort => ({
 });
 const rows = selectionRows({ vrm: pick("yui"), speaker: pick("soft") });
 const text = helpText(label, rows);
-/** The namespace blocks merged so far, in help()'s order: the main window's size. */
+/** The namespace blocks merged so far, in help()'s order. */
 const declarations = [
   createGuideApi().declaration,
   createTerminalApi({ presetId: () => null, invoke: async () => "" }).declaration,
   createPluginsApi({ host: {} as McpHost, presetId: () => "" }).declaration,
   createThreadsApi({ threads: () => [] }).declaration,
 ];
+/** The main window's help() text, whose size the budget pins. */
 const main = helpText(label, rows, declarations);
 const joined = helpText(label, rows, ["  a: {};", "  b: {};"]);
 
