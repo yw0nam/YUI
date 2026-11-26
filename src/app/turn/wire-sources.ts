@@ -166,7 +166,10 @@ export function wireDispatcherSources(deps: {
   const routedUserSource = createRoutedUserSource({
     selfPresetId: deps.selfPresetId,
     subscribe: deps.onUserTurnRouted,
-    submit: deps.submitUser,
+    submit: (...args) => {
+      proactiveSource.noteInteraction();
+      deps.submitUser(...args);
+    },
   });
   routedUserSource.start();
   return {

@@ -2,7 +2,7 @@
 
 This page describes the context the client puts in every turn: the `client_context` block, the user item that carries it, and the lines it holds. A backend author or agent reads it to build against YUI and to parse those lines. [client-tools.md](client-tools.md) covers the tools the client declares.
 
-The block is prompt text, not a wire schema. `client_context` rides inside the turn's user message and is written as prose for the backend model.
+The block is prompt text, not a wire schema. `client_context` rides with the turn's user message: inside it on Responses, as the `system` message just before it on Chat Completions, and as the `turn` frame's own field on push. It is written as prose for the backend model.
 
 A backend integration in this repository reads the word after `trigger:` on the headline, and the whole `trigger: user message` line with its idle clause. Those shapes stay stable.
 
@@ -30,7 +30,7 @@ flowchart TB
 
 The same block applies to all three chat protocols YUI supports. The `chat_api` setting in `configs/endpoints.json` selects one of them: Responses, Chat Completions, or push. The sections below describe Responses mode.
 
-Chat Completions mode carries the same rendered lines in a messages array. See [CC mode transport](#cc-mode-transport-chat-completions) at the end of this doc.
+Chat Completions mode carries the same block as a `system` message in a messages array. See [CC mode transport](#cc-mode-transport-chat-completions) at the end of this doc.
 
 On both request transports (Responses and Chat Completions), the client declares the `generate_express` tool itself and answers the call. See [client-tools.md](client-tools.md).
 
@@ -829,14 +829,14 @@ To keep the sentence neutral, stream the text without calling `generate_express`
 
 ## CC mode transport (Chat Completions)
 
-In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the same rendered lines as the CC `messages` array, not as Responses `input[]`. CC keeps a real system slot. The messages hold, in order:
+In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the same `client_context` block in the CC `messages` array, not in Responses `input[]`. CC keeps a real system slot. The messages hold, in order:
 
 1. a `system` message with the assembled [card](#card) (`chat_instructions` alone when the card is off)
 2. the trimmed conversation transcript
 3. a `system` message with the card's post-history instructions when it has any
-4. a `system` message with `client_context:\n<rendered lines>`
+4. a `system` message with the tagged block: `<client_context>`, the header line, the rendered lines, `</client_context>`
 5. the `user` message carrying the utterance or background marker alone
 
 The `client_context` message changes every turn, so it sits after the transcript. The card and transcript stay an identical prefix from one turn to the next. Provider prompt caches reuse that prefix.
 
-A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the same short guide block, rendered from the key. The entry's token cost includes the guide, so both leave the window together.
+A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message sits right before that user entry. It holds the `guide:` block rendered from the key, alone in the same tagged frame. The entry's token cost includes the framed guide, so both leave the window together.

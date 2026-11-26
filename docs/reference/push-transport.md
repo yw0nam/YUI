@@ -635,7 +635,7 @@ The client keeps the latest list. A `done` item leaves the chip 30 minutes after
 
 The client also keeps a history of every item it has seen across backend restarts. Past 200 items, the oldest `done` ones are dropped. A `running` item is never dropped. A `running` item that a later frame leaves out is recorded as `done` with `status: "unknown"`.
 
-The history lives in `localStorage` under `yui.delegation_history`. The settings window's Session section lists it and opens a finished item's `summary` under its row.
+The history lives in `localStorage`, one history per preset: `yui.delegation_history` for the default preset and `yui.<id>.delegation_history` for each other preset. The settings window's Session section lists the history of the preset it edits and opens a finished item's `summary` under its row.
 
 ## Asks
 

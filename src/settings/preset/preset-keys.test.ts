@@ -24,6 +24,7 @@ describe("resolveStorageKey", () => {
     ["yui.relations", "yui.ab12cd34.relations"],
     ["yui.greeting-pending", "yui.ab12cd34.greeting-pending"],
     ["yui.active-hours", "yui.ab12cd34.active-hours"],
+    ["yui.delegation_history", "yui.ab12cd34.delegation_history"],
   ])("prefixes the per-preset key %s with the active preset id", (key, expected) => {
     expect(resolveStorageKey(key, "ab12cd34")).toBe(expected);
   });
@@ -36,7 +37,6 @@ describe("resolveStorageKey", () => {
     "yui.vad",
     "yui.locale",
     "yui.presets",
-    "yui.delegation_history",
   ])("leaves the device-wide key %s unchanged", (key) => {
     expect(resolveStorageKey(key, "ab12cd34")).toBe(key);
   });

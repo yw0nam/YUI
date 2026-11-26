@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { BusEnvelope } from "../../dispatcher/core/event-bus";
+import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import type { ProactiveCue } from "../../settings/cues/proactive-settings";
 import { wireDispatcherSources } from "./wire-sources";
@@ -64,6 +65,7 @@ afterEach(() => {
 });
 
 function wireWithPaceFactor(paceFactor: () => number) {
+  let onRouted: ((event: UserTurnRouted) => void) | null = null;
   const pushed: BusEnvelope[] = [];
   const sources = wireDispatcherSources({
     bus: {
@@ -88,7 +90,10 @@ function wireWithPaceFactor(paceFactor: () => number) {
     dnd: { get: () => ({ enabled: false }), subscribe: () => () => {} },
     paceFactor,
     onCharacterAddressed: () => () => {},
-    onUserTurnRouted: () => () => {},
+    onUserTurnRouted: (cb) => {
+      onRouted = cb;
+      return () => {};
+    },
     submitUser: vi.fn(),
     selfPresetId: "natsume",
     lastTogetherSettings: { get: () => ({ at: null }), record: () => {} },
@@ -105,7 +110,12 @@ function wireWithPaceFactor(paceFactor: () => number) {
     ])
       source.stop();
   };
-  return { pushed, stop, proactiveSource: sources.proactiveSource };
+  return {
+    pushed,
+    stop,
+    proactiveSource: sources.proactiveSource,
+    route: (event: UserTurnRouted) => onRouted?.(event),
+  };
 }
 
 it("a 10-minute idle cue fires after 5 present minutes when the pace factor is 0.5, and not at 4", async () => {
@@ -128,5 +138,40 @@ it("a 10-minute idle cue fires after 5 present minutes when the pace factor is 0
   vi.advanceTimersByTime(60_000);
   channel.emit("os_event", idleTick(500));
   expect(proactive().map((e) => e.event_name)).toEqual(["proactive.mid_check"]);
+  stop();
+});
+
+it("a routed user turn addressed to this preset re-anchors the idle clock, and one addressed to another preset does not", async () => {
+  vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
+  const { pushed, stop, route } = wireWithPaceFactor(() => 1);
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(0);
+  const proactive = () => pushed.filter((e) => e.event_name.startsWith("proactive."));
+
+  // One minute before the cue's old deadline, a unified-chat turn addressed here re-anchors the gap.
+  vi.advanceTimersByTime(9 * 60_000);
+  route({ sendId: "s1", to: "natsume", text: "hello" });
+  vi.advanceTimersByTime(60_000);
+  channel.emit("os_event", idleTick(500));
+  expect(proactive()).toEqual([]);
+
+  vi.advanceTimersByTime(30_000);
+  channel.emit("os_event", idleTick(500));
+  expect(proactive()).toEqual([]);
+
+  // The cue comes due on the re-anchored clock, 10 idle minutes after the routed turn.
+  vi.advanceTimersByTime(9 * 60_000);
+  channel.emit("os_event", idleTick(500));
+  expect(proactive().map((e) => e.event_name)).toEqual(["proactive.mid_check"]);
+
+  // A turn addressed to another preset leaves this clock alone.
+  vi.advanceTimersByTime(9 * 60_000);
+  route({ sendId: "s2", to: "hitomi", text: "for you" });
+  vi.advanceTimersByTime(60_000);
+  channel.emit("os_event", idleTick(500));
+  expect(proactive().map((e) => e.event_name)).toEqual([
+    "proactive.mid_check",
+    "proactive.mid_check",
+  ]);
   stop();
 });

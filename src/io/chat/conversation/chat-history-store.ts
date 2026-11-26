@@ -14,6 +14,7 @@ import {
 } from "../../../settings/persisted-store";
 import { resolveStorageKey } from "../../../settings/preset/preset-keys";
 import { isGuideKey, renderGuideBlock } from "../../guide/guide-docs";
+import { frameClientContext } from "../stream/client-context-frame";
 
 export interface ChatHistoryEntry {
   role: "user" | "assistant";
@@ -308,7 +309,9 @@ export function selectSendSuffix(
   let start = entries.length;
   for (let i = entries.length - 1; i >= 0; i--) {
     const { text, guide } = entries[i];
-    const cost = estimateTokens(text) + (guide ? estimateTokens(renderGuideBlock(guide)) : 0);
+    const cost =
+      estimateTokens(text) +
+      (guide ? estimateTokens(frameClientContext(renderGuideBlock(guide))) : 0);
     if (cost > budget) break;
     budget -= cost;
     start = i;
