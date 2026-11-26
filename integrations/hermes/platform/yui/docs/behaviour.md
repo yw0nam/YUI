@@ -130,13 +130,13 @@
 - Registers the tools the client declares in its `hello.tools` frame and replaces them with each
   later `tools` frame, under the `yui` toolset: `rate_relation` and `address_character` from every
   pet window, `yui_run` from every Tauri pet window, and `body_action` from `main` alone.
-  Registration is once per schema
-  fingerprint, and a name whose schema differs per chat is registered again at turn start with
-  that chat's schema, because Hermes keeps one schema per tool name. A `tools` frame only replaces
-  the tools stored for the chat; the next turn start registers them, so a description that changed
-  while connected reaches the model from the next turn, and a name the new list omits stays
-  registered. So the model calls `body_action` to move the character and `yui_run` to reach her
-  yui API: her state, screenshots, Threads, terminals, plugins and the guides.
+  Registration is once per schema fingerprint, and a name whose schema differs per chat is
+  registered again at turn start with that chat's schema, because Hermes keeps one schema per
+  tool name. A `tools` frame only replaces the tools stored for the chat; the next turn start
+  registers them, so a description that changed while connected reaches the model from the next
+  turn, and a name the new list omits stays registered. So the model calls `body_action` to move
+  the character and `yui_run` to reach her yui API: her state, screenshots, Threads, terminals,
+  plugins and the guides.
   Each call sends one `tool_call` frame and blocks the handler's worker thread on
   the `tool_result`: 20 s for `body_action`, 7 s for `rate_relation` and
   `address_character`, and 125 s for `yui_run`, counted from the send; the client's own bound is
@@ -151,9 +151,8 @@
 
 - Returns a client tool result with images as Hermes's `_multimodal` envelope: a text part followed
   by `image_url` parts carrying the data URLs inline, without file caching. A result without images
-  is a string. The tool-status hook reads the envelope's text for failure classification.
-  A result with images needs an image-capable model and provider; Hermes substitutes a text summary
-  when the model has no vision or the provider rejects list content.
+  is a string. A result with images needs an image-capable model and provider; Hermes substitutes a
+  text summary when the model has no vision or the provider rejects list content.
 
 - States gateway-available built-ins as Backend commands in `ready.commands` only when the client
   accepts `command_reply`. The list excludes `new`, `stop`, `start`, `topic`, and commands whose
