@@ -193,6 +193,7 @@ mod tests {
     use super::super::test_support::{
         eventually, require_python, running, server_logged_a_cancel, slow_call,
     };
+    use super::Calls;
     use serde_json::{json, Value};
     use std::time::Duration;
 
@@ -297,5 +298,33 @@ mod tests {
             .await;
         assert_eq!(other_window.unwrap()["isError"], false);
         host.shutdown().await;
+    }
+
+    #[test]
+    fn a_cancel_before_the_call_registers_stops_it_at_once() {
+        let calls = Calls::default();
+        calls.cancel("w", "c1");
+        assert_eq!(
+            calls.register("w", "c1", "s").err(),
+            Some("plugin tool cancelled".to_string())
+        );
+    }
+
+    #[test]
+    fn an_early_cancel_is_used_once() {
+        let calls = Calls::default();
+        calls.cancel("w", "c1");
+        assert_eq!(
+            calls.register("w", "c1", "s").err(),
+            Some("plugin tool cancelled".to_string())
+        );
+        assert_eq!(calls.register("w", "c1", "s").map(|_| ()), Ok(()));
+    }
+
+    #[test]
+    fn an_early_cancel_belongs_to_its_window() {
+        let calls = Calls::default();
+        calls.cancel("w2", "c1");
+        assert_eq!(calls.register("w", "c1", "s").map(|_| ()), Ok(()));
     }
 }
