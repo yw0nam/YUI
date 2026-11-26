@@ -26,11 +26,14 @@
   color: var(--yui-danger);
 }
 
+/* The body reaches into the card's side padding, so the list rows' fill can too without the scroll box overflowing sideways. */
 .yui-settings-card__body {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 0;
+  margin-inline: -8px;
+  padding-inline: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
