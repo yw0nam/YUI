@@ -129,31 +129,30 @@
   rebuilds the gateway's cached agents.
 - Registers the tools the client declares in its `hello.tools` frame and replaces them with each
   later `tools` frame, under the `yui` toolset: `rate_relation` and `address_character` from every
-  pet window, the bridge tools `yui_tool_describe`, `yui_tool_call` and `plugin_skill`, and
-  `yui_run`, from a Tauri pet window, and `body_action` and `look` from `main` alone. Registration is once per schema
+  pet window, `yui_run` from every Tauri pet window, and `body_action` from `main` alone.
+  Registration is once per schema
   fingerprint, and a name whose schema differs per chat is registered again at turn start with
   that chat's schema, because Hermes keeps one schema per tool name. A `tools` frame only replaces
   the tools stored for the chat; the next turn start registers them, so a description that changed
   while connected reaches the model from the next turn, and a name the new list omits stays
-  registered. So the model calls `body_action` to move the character and `look` to read her state.
+  registered. So the model calls `body_action` to move the character and `yui_run` to reach her
+  yui API: her state, screenshots, Threads, terminals, plugins and the guides.
   Each call sends one `tool_call` frame and blocks the handler's worker thread on
-  the `tool_result`: 20 s for `body_action`, 7 s for `look`, `rate_relation`,
-  `address_character`, `yui_tool_describe` and `plugin_skill`, and 125 s for
-  `yui_tool_call` and `yui_run`, counted from the send; the client's own bound is
-  5 s lower for every tool but `yui_tool_call` and `yui_run`, which are
+  the `tool_result`: 20 s for `body_action`, 7 s for `rate_relation` and
+  `address_character`, and 125 s for `yui_run`, counted from the send; the client's own bound is
+  5 s lower for every tool but `yui_run`, which is
   4 s lower. One call runs at a time per chat;
   a second waits for
   the first. A call answers `error: client disconnected` at once when no ready socket can take it,
   when the socket closes, or when a second hello replaces it, and `error: turn stopped` when the
   client stops the turn the call belongs to; a wait that passes answers
   `error: no reply from the client within <n> s`. The `post_tool_call` hook sends `tool_status`
-  `failed` instead of `done` when the call errored, when a `body_action` result is not `ok`, or
-  when a `look` result starts with `error:`.
+  `failed` instead of `done` when the call errored or a `body_action` result is not `ok`.
 
 - Returns a client tool result with images as Hermes's `_multimodal` envelope: a text part followed
   by `image_url` parts carrying the data URLs inline, without file caching. A result without images
   is a string. The tool-status hook reads the envelope's text for failure classification.
-  `look at: screen` needs an image-capable model and provider; Hermes substitutes a text summary
+  A result with images needs an image-capable model and provider; Hermes substitutes a text summary
   when the model has no vision or the provider rejects list content.
 
 - States gateway-available built-ins as Backend commands in `ready.commands` only when the client

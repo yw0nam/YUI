@@ -45,15 +45,13 @@ def on_post_tool_call(
 
 
 def _failed(tool_name: object, result: object, status: object) -> bool:
-    """The client's own verdicts read as failures: any non-ok body action, any error string."""
+    """The client's own verdicts read as failures: a non-ok body action."""
     if status == "error":
         return True
     name = str(tool_name or "")
     text = result_text(result)
     if name == "body_action":
         return text != "ok"
-    if name == "look":
-        return text.startswith("error:")
     return False
 
 
