@@ -16,18 +16,35 @@ export function isGuideKey(value: unknown): value is GuideKey {
   return typeof value === "string" && Object.hasOwn(DOCS, value);
 }
 
-export function readGuide(_key: GuideKey): string {
-  return "";
+/** A guide document as the user reads it, without the site's pictures. */
+export function readGuide(key: GuideKey): string {
+  return DOCS[key].replace(IMAGE_LINE, "").trim();
 }
 
 /** The `guide:` block of the client context: the instruction line, then the doc. */
 export function renderGuideBlock(key: GuideKey): string {
-  return `guide:\n${INSTRUCTION}\n\n${DOCS[key].replace(IMAGE_LINE, "").trim()}`;
+  return `guide:\n${INSTRUCTION}\n\n${readGuide(key)}`;
 }
 
+const GUIDE_DECLARATION = `  guide: {
+    /** A guide as the user reads it: "controls" (every gesture, key and button) or "capabilities" (what the character can do). */
+    read(name: "controls" | "capabilities"): Promise<string>;
+  };`;
+
+/** The yui.guide namespace: one guide document as text. */
 export function createGuideApi(): {
   methods: Record<string, (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>>;
   declaration: string;
 } {
-  return { methods: { read: async () => "" }, declaration: "" };
+  return {
+    methods: {
+      read: async (_signal, name) => {
+        if (!isGuideKey(name)) {
+          throw new TypeError('yui.guide.read: name must be "controls" or "capabilities"');
+        }
+        return readGuide(name);
+      },
+    },
+    declaration: GUIDE_DECLARATION,
+  };
 }
