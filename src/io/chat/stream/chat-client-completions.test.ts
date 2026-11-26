@@ -628,10 +628,10 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     ]);
   });
 
-  it("caps a model that only ever calls tools at three round trips", async () => {
+  it("caps a model that only ever calls tools at eight round trips", async () => {
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
-    // Exactly the four requests the cap allows — a fifth would find the mock empty and fail loudly.
-    for (let i = 0; i < 4; i++) {
+    // Exactly the nine requests the cap allows — a tenth would find the mock empty and fail loudly.
+    for (let i = 0; i < 9; i++) {
       ccCreateMock.mockResolvedValueOnce(
         streamOf([
           toolCallStart(0, `call_${i}`, "generate_express", GEN_EXPRESS_ARGS),
@@ -642,8 +642,8 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
-    expect(ccCreateMock).toHaveBeenCalledTimes(4);
-    expect(events.filter((e) => e.type === "express")).toHaveLength(4);
+    expect(ccCreateMock).toHaveBeenCalledTimes(9);
+    expect(events.filter((e) => e.type === "express")).toHaveLength(9);
     expect(events.at(-1)).toEqual({
       type: "completed",
       envelope: {

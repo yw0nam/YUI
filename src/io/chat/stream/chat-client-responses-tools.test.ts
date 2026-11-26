@@ -471,7 +471,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     ]);
   });
 
-  it("stops returning results after three round trips", async () => {
+  it("stops returning results after eight round trips", async () => {
     const gen = oneWayStub("generate_express");
     createMock.mockImplementation(async () =>
       streamOf([...call("generate_express", `fc_${createMock.mock.calls.length}`), done("resp_n")]),
@@ -479,10 +479,10 @@ describe("streamChat — Responses tool-call round trip", () => {
 
     const events = await collect(streamChat(CONFIG, req(), optsFor(gen)));
 
-    expect(createMock).toHaveBeenCalledTimes(4);
+    expect(createMock).toHaveBeenCalledTimes(9);
     expect(events.at(-1)).toMatchObject({
       type: "completed",
-      toolOutputs: [{ type: "function_call_output", call_id: "call_fc_4", output: "ok" }],
+      toolOutputs: [{ type: "function_call_output", call_id: "call_fc_9", output: "ok" }],
     });
   });
 
