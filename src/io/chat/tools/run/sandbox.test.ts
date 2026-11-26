@@ -210,4 +210,14 @@ describe("runScript", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(lastRuntime(spy)?.alive).toBe(false);
   });
+
+  it("starts no host call the script left queued when it returned", async () => {
+    const f = vi.fn(async () => 1);
+
+    const result = await run("yui.f(); return 1", { f });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(result).toEqual({ status: "completed", result: 1, logs: [] });
+    expect(f).not.toHaveBeenCalled();
+  });
 });
