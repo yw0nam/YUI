@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import builtinNames from "../../../contract/builtin-client-tools.json";
 import { createRelationsStore } from "../../../settings/relations/relations-store";
 import { noopScreenCapturer } from "../../window/capture/screen-source-provider";
-import type { ClientTool } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
 import { createPetWindowTools } from "./pet-window-tools";
 import { helpText } from "./run/help";
@@ -13,9 +12,8 @@ vi.mock("../../../tauri-env", async (importOriginal) => ({
   isTauri: () => true,
 }));
 
-function windowTools(bound = false, relationsEnabled = false): ClientTool[] {
-  // The result is still { declared, onDemand } until the bridge goes; read its declared tools.
-  const tools = createPetWindowTools({
+function windowTools(bound = false, relationsEnabled = false) {
+  return createPetWindowTools({
     bound,
     getExecutor: () => null,
     screen: {
@@ -42,7 +40,6 @@ function windowTools(bound = false, relationsEnabled = false): ClientTool[] {
       help: (declarations) => helpText((key) => key, [], declarations),
     },
   });
-  return Array.isArray(tools) ? tools : (tools as { declared: ClientTool[] }).declared;
 }
 
 describe("builtin-client-tools.json", () => {

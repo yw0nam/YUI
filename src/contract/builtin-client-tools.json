@@ -1,18 +1,1 @@
-[
-  "address_character",
-  "body_action",
-  "generate_express",
-  "look",
-  "plugin_skill",
-  "rate_relation",
-  "terminal_close",
-  "terminal_list",
-  "terminal_open",
-  "terminal_read",
-  "terminal_write",
-  "threads_list",
-  "threads_search",
-  "yui_run",
-  "yui_tool_call",
-  "yui_tool_describe"
-]
+["address_character", "body_action", "generate_express", "rate_relation", "yui_run"]

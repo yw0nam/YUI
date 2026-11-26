@@ -1,21 +1,22 @@
-/** The declared window tools and the built-in On-demand tools reached through the bridge. */
+/** The declared window tools and the yui API namespaces this window has. */
 
 import { invoke } from "@tauri-apps/api/core";
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { isTauri } from "../../../tauri-env";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
+import { createGuideApi } from "../../guide/guide-docs";
 import type { McpHost } from "../../mcp-host/mcp-host";
 import type { ThreadsClient } from "../../threads/threads-client";
 import { createAddressCharacterTool } from "./address-character";
-import { createAvatarTools } from "./avatar";
-import { createBridgeTools } from "./bridge/bridge-tools";
+import { createAvatarTools, createLookApi } from "./avatar";
 import type { ClientTool } from "./client-tools";
+import { createPluginsApi } from "./plugins/plugins-api";
 import { createRateRelationTool } from "./relation";
 import { createYuiRunTool, type YuiRunWindowPorts } from "./run/yui-run-tool";
 import type { ScreenQueryPorts } from "./screen/screen-query";
-import { createTerminalTools } from "./terminal/terminal-tools";
-import { createThreadsTools } from "./threads/threads-tools";
+import { createTerminalApi } from "./terminal/terminal-api";
+import { createThreadsApi } from "./threads/threads-api";
 
 export function createPetWindowTools(deps: {
   bound: boolean;
@@ -28,13 +29,13 @@ export function createPetWindowTools(deps: {
   targets: () => PresetEntry[];
   /** Records the reply's recipient for the addressed producer; returns the id recorded earlier, if any. */
   recordAddressed: Parameters<typeof createAddressCharacterTool>[0]["record"];
-  /** The MCP host client the bridge tools call. */
+  /** The MCP host client yui.plugins calls. */
   mcpHost: McpHost;
   /** The window's Thread store reader; null outside main's window. */
   threads: Pick<ThreadsClient, "threads"> | null;
   /** What a yui_run script reaches. */
   run: YuiRunWindowPorts;
-}): { declared: ClientTool[]; onDemand: ClientTool[] } {
+}): ClientTool[] {
   const rate = createRateRelationTool({
     store: deps.relations,
     targets: deps.targets,
@@ -44,17 +45,18 @@ export function createPetWindowTools(deps: {
     targets: deps.targets,
     record: deps.recordAddressed,
   });
-  if (!isTauri()) return { declared: [rate, address], onDemand: [] };
-  const onDemand = [
-    ...(deps.threads ? createThreadsTools(deps.threads) : []),
-    ...createTerminalTools({ presetId: presetIdForWindow, invoke }),
-  ];
-  const declared = [
+  if (!isTauri()) return [rate, address];
+  const namespaces = {
+    guide: createGuideApi(),
+    terminal: createTerminalApi({ presetId: presetIdForWindow, invoke }),
+    plugins: createPluginsApi({ host: deps.mcpHost, presetId: presetIdForWindow }),
+    ...(deps.bound ? {} : { look: createLookApi(deps.getExecutor, deps.screen) }),
+    ...(deps.threads ? { threads: createThreadsApi(deps.threads) } : {}),
+  };
+  return [
     rate,
     address,
-    ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
-    ...createBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow, onDemand }),
-    createYuiRunTool({ ...deps.run, namespaces: {} }),
+    ...(deps.bound ? [] : createAvatarTools(deps.getExecutor)),
+    createYuiRunTool({ ...deps.run, namespaces }),
   ];
-  return { declared, onDemand };
 }

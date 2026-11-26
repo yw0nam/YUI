@@ -4,7 +4,7 @@ import type { PluginToolResult } from "../../../mcp-host/mcp-host";
 import type { ClientToolResult } from "../client-tools";
 
 /** Whether a result text carries a failure prefix a plugin wrote itself. */
-export function isFailureText(text: string): boolean {
+function isFailureText(text: string): boolean {
   return text.startsWith("error:") || text.startsWith("unknown:");
 }
 

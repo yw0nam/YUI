@@ -436,7 +436,7 @@ mod tests {
                 "echo_meta",
                 "slow",
                 "spawn_child",
-                "look",
+                "body_action",
                 "notify"
             ]
         );

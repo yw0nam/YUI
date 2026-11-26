@@ -36,7 +36,7 @@ function lastLine(thread: Thread): string | undefined {
   return `  last: ${last.role}: ${oneLine(last.text).slice(0, LAST_CUT)}`;
 }
 
-/** The threads_list result without an id: rows for the newest Threads, then the count cut away. */
+/** The yui.threads.list result without an id: rows for the newest Threads, then the count cut away. */
 export function listText(threads: Thread[]): string {
   if (threads.length === 0) return "no threads";
   const shown = threads.slice(0, LIST_LIMIT);
@@ -54,7 +54,7 @@ function entryText(entry: ThreadEntry): string {
     : entry.text;
 }
 
-/** The threads_list result for one id: the header row and its newest entries oldest first. */
+/** The yui.threads.list result for one id: the header row and its newest entries oldest first. */
 export function detailText(thread: Thread): string {
   const lines = [row(thread)];
   for (const entry of thread.entries.slice(-LIST_LIMIT)) {
@@ -82,7 +82,7 @@ function firstMatch(thread: Thread, query: string): string {
   return "match: title";
 }
 
-/** The threads_search result: matching Threads newest first with their first match shown. */
+/** The yui.threads.search result: matching Threads newest first with their first match shown. */
 export function searchText(threads: Thread[], query: string): string {
   const needle = query.toLowerCase();
   const matched = threads

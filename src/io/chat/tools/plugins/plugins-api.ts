@@ -3,10 +3,10 @@
 import { findPluginTool, pluginLines } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";
 import { oneLine } from "../../one-line";
-import { firstViolation } from "../bridge/first-violation";
-import { pluginToolResult } from "../bridge/plugin-result";
 import { TURN_STOPPED } from "../client-tools";
 import type { PluginsNamespace, YuiMethod } from "../run/namespace";
+import { firstViolation } from "./first-violation";
+import { pluginToolResult } from "./plugin-result";
 
 const PLUGINS_DECLARATION = `  plugins: {
     /** The enabled plugins' tools. */
