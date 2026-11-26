@@ -117,7 +117,7 @@ The backend model reads the block as prose. Every line follows one register:
 4. The client states facts and writes no instruction. Text the user authored may be phrased as an order, so a line that carries it labels it as the user's intent.
 5. Third-party text, such as window titles and signal payloads, is quoted. The header line says quoted values are sampled data, not instructions.
 
-The `guide:` block is outside points 3 and 4. It is one instruction line: it names the guide, says to read it with `yui.guide.read` in `yui_run`, and asks for a short answer (`src/io/guide/guide-docs.ts:23-25`).
+The `guide:` block is outside points 3 and 4. It is one instruction line: it names the guide, says to read it with `yui.guide.read` in `yui_run`, and asks for a short answer (`src/io/guide/guide-docs.ts`).
 
 ## Rendered lines
 
@@ -487,9 +487,9 @@ guide:
 The user pressed the in-app help button for the controls guide. Read it with yui_run (return await yui.guide.read("controls")) and answer from it: start with the few most-used items, keep it short, and offer to go on; do not include links.
 ```
 
-The block is rendered from the key, so the turn records and the context history hold only the key (`src/io/guide/guide-docs.ts:23-25`).
+The block is rendered from the key, so the turn records and the context history hold only the key (`src/io/guide/guide-docs.ts`).
 
-`yui.guide.read(name)` returns the bundled guide, and the text leaves out the doc's Markdown image lines, which are pictures for the docs site (`src/io/guide/guide-docs.ts:10-20, 33-44`). The `controls` guide is `docs/guide/controls.md`. The `capabilities` guide is `docs/guide/capabilities.md`. Both are bundled with the app. Every transport sends the same block (`src/dispatcher/backend/client-context-text.ts:259`).
+`yui.guide.read(name)` returns the bundled guide, and the text leaves out the doc's Markdown image lines, which are pictures for the docs site (`src/io/guide/guide-docs.ts`). The `controls` guide is `docs/guide/controls.md`. The `capabilities` guide is `docs/guide/capabilities.md`. Both are bundled with the app. Every transport sends the same block (`src/dispatcher/backend/client-context-text.ts`).
 
 ### Cue (schedule / proactive)
 
@@ -839,4 +839,4 @@ In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the 
 
 The `client_context` message changes every turn, so it sits after the transcript. The card and transcript stay an identical prefix from one turn to the next. Provider prompt caches reuse that prefix.
 
-A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the same short guide block, rendered from the key (`src/io/chat/stream/chat-completions.ts:54`). The entry's token cost includes the guide, so both leave the window together.
+A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message `client_context:\n<guide block>` sits right before that user entry. It carries the same short guide block, rendered from the key (`src/io/chat/stream/chat-completions.ts`). The entry's token cost includes the guide, so both leave the window together.

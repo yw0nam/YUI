@@ -82,7 +82,7 @@ Chat Completions nests the schema: `{"type":"function","function":{"name","descr
 
 ### Cost per request
 
-Each request of a turn carries the whole declared set again, round trips included. With the default config, the main window's eight schemas come to about 1,800 tokens (o200k). `generate_express` holds about 40% of that, most of it the enum-mode `emotion_text` tag table and its `pattern`.
+Each request of a turn carries the whole declared set again, round trips included. The main window declares five tool schemas: `generate_express`, `rate_relation`, `address_character`, `body_action` and `yui_run`.
 
 The schema bytes change only when the vocabulary does: the emotion registry, the motion catalog or the user's motion selection, or the TTS provider. Between those changes every request repeats the same prefix, which a provider's prompt cache can match.
 
@@ -309,7 +309,7 @@ The tool has no switch, so `tool switches:` does not list it, and it stays decla
 
 ## yui_run
 
-`yui_run` runs a script the backend writes against YUI's own settings, state and info. `code` is the body of an async function, so the script uses `await` and returns a JSON value. The description tells the backend to call `help()` first. `help()` returns the API as text.
+`yui_run` runs a script the backend writes against the `yui` API: the namespaces its window has, listed under [The yui API](#the-yui-api). `code` is the body of an async function, so the script uses `await` and returns a JSON value. The description tells the backend to call `help()` first. `help()` returns the API as text.
 
 ### Sandbox
 
@@ -319,7 +319,7 @@ The JSON of its logs and its result together may total 64 Ki (65 536) characters
 
 ### The yui API
 
-Each window has these namespaces. `help()` prints the blocks of the namespaces the window has, in the order settings, state, info, guide, terminal, plugins, look, threads (`src/io/chat/tools/run/help.ts:30-38`; `src/io/chat/tools/run/yui-run-tool.ts:37`).
+Each window has these namespaces. `help()` prints the blocks of the namespaces the window has, in the order settings, state, info, guide, terminal, plugins, look, threads (`src/io/chat/tools/run/help.ts`; `src/io/chat/tools/run/yui-run-tool.ts`).
 
 | Namespace | Window |
 |---|---|
@@ -334,23 +334,15 @@ The browser build has no `yui_run`, so it has none of these.
 - `yui.state.read()` returns `running_since`, `last_together`, the `characters` with their `open` and `me` flags, and `permissions.screen_recording`.
 - `yui.info.read()` returns the `bodies`, `voices` and `monitors` a setting can name, each with its id or index.
 
-A yui call that fails returns its error text as a value. Only a wrong argument throws: each namespace checks its own arguments and throws a `TypeError` whose message starts `yui.<namespace>.<method>:` (`src/io/chat/tools/threads/threads-api.ts:25-28`). The guest reads that as `Error: yui.<namespace>.<method>: …`, because the sandbox hands a host rejection over as a plain `Error` (`src/io/chat/tools/run/sandbox.ts:55, 198-203`).
+A yui call that fails returns its error text as a value. Only a wrong argument throws: each namespace checks its own arguments and throws a `TypeError` whose message starts `yui.<namespace>.<method>:` (`src/io/chat/tools/threads/threads-api.ts`). The guest reads that as `Error: yui.<namespace>.<method>: …`, because the sandbox hands a host rejection over as a plain `Error` (`src/io/chat/tools/run/sandbox.ts`).
 
 ### Result
 
 A script that returns gives `{ "status": "completed", "result": <value>, "logs": [...] }`. A script that ends without a return gets `"note": "the script returned nothing; end it with return and a JSON value"` beside `result: null`. A script that throws, runs past a limit or never settles gives `{ "status": "error", "error": "<text>", "logs": [...] }`.
 
-An uncaught throw reads `Error: <message>` (`src/io/chat/tools/run/sandbox.ts:55`).
+An uncaught throw reads `Error: <message>` (`src/io/chat/tools/run/sandbox.ts`).
 
 `"writes"` lists the answers of every `yui.settings.write` that finished before the run ended, in the order they finished, on completed and error results alike. The key is absent when the run wrote nothing.
-
-### Image handles
-
-A yui call that yields an image returns `{ "image": n }` in its place. `yui.look.screen()` and `yui.plugins.call()` do. Handles count from 1 within the run (`src/io/chat/tools/run/images.ts:12`).
-
-The result carries only the images whose handles appear in the returned value, in ascending handle order. The envelope names them in `"images"`, and the tool result carries those images beside its text (`src/io/chat/tools/run/yui-run-tool.ts:104-110`; `images.ts:28-29`).
-
-The 64 Ki output cap covers the result and the logs, with each handle counted. Image data is not counted (`src/io/chat/tools/run/sandbox.ts:88-90`).
 
 A `code` that is not a string answers the same error form with `code must be a string`.
 
@@ -360,15 +352,23 @@ The wait covers the whole script, including any Settings request inside it. The 
 
 A patch that is not an object answers `{ "*": "error: patch must be an object" }`. A `why` that is not a string answers `{ "*": "error: why must be a string" }`. Both are refused before any Settings request is raised.
 
+### Image handles
+
+A yui call that yields an image returns `{ "image": n }` in its place. `yui.look.screen()` and `yui.plugins.call()` do. Handles count from 1 within the run (`src/io/chat/tools/run/images.ts`).
+
+The result carries only the images whose handles appear in the returned value, in ascending handle order. The envelope names them in `"images"`, and the tool result carries those images beside its text (`src/io/chat/tools/run/yui-run-tool.ts`; `images.ts`).
+
+The 64 Ki output cap covers the result and the logs, with each handle counted. Image data is not counted (`src/io/chat/tools/run/sandbox.ts`).
+
 ### Status
 
-While a script runs, the status pill names the namespace of the last yui call that reports: `look`, `threads` or `terminal` (`src/io/chat/tools/run/bind-namespace.ts:7-15`). Calls to `settings`, `state`, `info` and `guide` do not report. For `yui.plugins.call(name, …)` the pill names `name`.
+While a script runs, the status pill names the namespace of the last yui call that reports: `look`, `threads` or `terminal` (`src/io/chat/tools/run/bind-namespace.ts`). Calls to `settings`, `state`, `info` and `guide` do not report. For `yui.plugins.call(name, …)` the pill names `name`.
 
-Before the first such call it shows `yui_run`, and it keeps the last name until the call ends. The labels are `tool.look` "Looking…", `tool.threads` "Reading Threads…", `tool.terminal` "Using a terminal…" and `tool.yui_run` "Running a script…" (`src/ui/i18n/en.ts:22-25`).
+Before the first such call it shows `yui_run`, and it keeps the last name until the call ends. The labels are `tool.look` "Looking…", `tool.threads` "Reading Threads…", `tool.terminal` "Using a terminal…" and `tool.yui_run` "Running a script…" (`src/ui/i18n/en.ts`).
 
-Each report reaches the pill while the call runs, on Responses, Chat Completions and Push (`src/io/chat/stream/client-tool-run.ts:89-98`; `src/io/chat/push/tool-calls.ts:84-87`). Reports stop when the call settles or aborts (`src/io/chat/tools/execute.ts:47-49`).
+Each report reaches the pill while the call runs, on Responses, Chat Completions and Push (`src/io/chat/stream/client-tool-run.ts`; `src/io/chat/push/tool-calls.ts`). Reports stop when the call settles or aborts (`src/io/chat/tools/execute.ts`).
 
-On Push, `yui_run` is `localStatus`, so a backend `tool_status` naming `yui_run` does not change the pill (`src/io/chat/tools/run/yui-run-tool.ts:61`; `src/app/turn/push/wire-push.ts:129`).
+On Push, `yui_run` is `localStatus`, so a backend `tool_status` naming `yui_run` does not change the pill (`src/io/chat/tools/run/yui-run-tool.ts`; `src/app/turn/push/wire-push.ts`).
 
 ### Direct and allow rows
 
@@ -412,101 +412,107 @@ The user answers with a decision: the paths they allow, and an optional note.
 
 After Allow, each allowed path answers `ok`, `ok: <note>` when the user wrote a note, `error: invalid <path>` or `error: <path> failed to load`. The direct paths of the same patch are written before the card and answer `ok`.
 
+### yui.guide
+
+`yui.guide.read(name)` returns one guide as the user reads it: `"controls"` (every gesture, key and button) or `"capabilities"` (what the character can do). The text leaves out the doc's Markdown image lines, which are pictures for the docs site (`readGuide` in `src/io/guide/guide-docs.ts`). Any other name throws `TypeError: yui.guide.read: name must be "controls" or "capabilities"` (`createGuideApi` in `src/io/guide/guide-docs.ts`).
+
 ### yui.look
 
 `yui.look` is in `main` only. It reads her body, her perch targets and a screenshot. Her moves stay with the `body_action` tool.
 
-- `body()` returns her body state: her position, posture, loaded body and whether a move runs. Without an executor it answers `error: unsupported`; a failed read answers `error: <message>` (`src/io/chat/tools/avatar.ts:94-105`).
-- `perch_targets()` returns the windows she can sit on and the sides of the frontmost window she can peek from (`avatar.ts:106`).
-- `screen(monitor?)` returns `{ text, images }`: `text` is `screenshot of display <n>`, and `images` holds one handle ([Image handles](#image-handles)). An omitted `monitor` selects the display her window's centre is on (`src/io/chat/tools/screen/screen-query.ts:36, 48`).
-- `screen` answers `error: screen capture is off` while `privacy.screen_requests` is off (`screen-query.ts:41`; `src/settings/agent-access/rows.ts:397`), and `error: invalid field monitor` for an index past the displays (`screen-query.ts:44-46`). A `monitor` that is not an integer throws (`avatar.ts:108-109`).
+- `body()` returns her body state: her position, posture, loaded body and whether a move runs. Without an executor it answers `error: unsupported`; a failed read answers `error: <message>` (`src/io/chat/tools/avatar.ts`).
+- `perch_targets()` returns the windows she can sit on and the sides of the frontmost window she can peek from (`avatar.ts`).
+- `screen(monitor?)` returns `{ text, images }`: `text` is `screenshot of display <n>`, and `images` holds one handle ([Image handles](#image-handles)). An omitted `monitor` selects the display her window's centre is on (`src/io/chat/tools/screen/screen-query.ts`).
+- `screen` answers `error: screen capture is off` while `privacy.screen_requests` is off (`screen-query.ts`; `src/settings/agent-access/rows.ts`), and `error: invalid field monitor` for an index past the displays (`screen-query.ts`). A `monitor` that is not an integer throws (`avatar.ts`).
 
 ### yui.threads
 
-`yui.threads` is in `main` only, the window that creates the Thread client (`src/windows/main.ts:282`).
+`yui.threads` is in `main` only, the window that creates the Thread client (`src/windows/main.ts`).
 
-- `list(opts?)` lists the user's Threads newest first as text rows: the waiting ones by default, every Thread with `state: "all"`, and one source with `source` (`src/io/chat/tools/threads/threads-api.ts:35-53`). It holds 20 rows, then `(N more)`. Each row shows its last entry cut at 160 characters (`src/io/chat/tools/threads/thread-text.ts`).
-- With `id`, it reads one Thread: its newest 20 entries, oldest first, each cut at 2000 characters (`threads-api.ts:43-46`; `thread-text.ts`). An unknown id answers `error: unknown thread: <id>`.
-- `search(query)` lists the Threads whose title, label or entry text holds `query`, case-insensitively, newest first, at most 10, each with a `match:` line (`threads-api.ts:56-60`; `thread-text.ts`).
+- `list(opts?)` lists the user's Threads newest first as text rows: the waiting ones by default, every Thread with `state: "all"`, and one source with `source` (`src/io/chat/tools/threads/threads-api.ts`). It holds 20 rows, then `(N more)`. Each row shows its last entry cut at 160 characters (`src/io/chat/tools/threads/thread-text.ts`).
+- With `id`, it reads one Thread: its newest 20 entries, oldest first, each cut at 2000 characters (`threads-api.ts`; `thread-text.ts`). An unknown id answers `error: unknown thread: <id>`.
+- `search(query)` lists the Threads whose title, label or entry text holds `query`, case-insensitively, newest first, at most 10, each with a `match:` line (`threads-api.ts`; `thread-text.ts`).
 
-A `state` other than `"waiting"` or `"all"`, a `source` or `id` that is not a non-empty string, an `opts` that is not an object, and a `search` query that is not a non-empty string all throw (`threads-api.ts:17-30, 38-39, 57-58`).
+A `state` other than `"waiting"` or `"all"`, a `source` or `id` that is not a non-empty string, an `opts` that is not an object, and a `search` query that is not a non-empty string all throw (`threads-api.ts`).
 
 A turn's [`threads attached:`](client-context.md#threads-attached) block names the ids of the Threads the user attached to the message.
 
 ### yui.plugins
 
-`yui.plugins` reaches the enabled plugins' tools, in every pet window under Tauri (`src/io/chat/tools/pet-window-tools.ts:49-55`).
+`yui.plugins` reaches the enabled plugins' tools, in every pet window under Tauri (`src/io/chat/tools/pet-window-tools.ts`).
 
-- `list()` returns `{ name, summary }` for each enabled tool (`src/io/chat/tools/plugins/plugins-api.ts:42`).
-- `describe(name)` returns the tool's description and JSON input schema, or `error: unknown tool: <name>` (`plugins-api.ts:44-48`).
-- `call(name, args?)` runs the tool and returns `{ text, images }`. A `null` `args` counts as absent, and `args` that is not an object throws (`plugins-api.ts:50-55`).
+- `list()` returns `{ name, summary }` for each enabled tool (`src/io/chat/tools/plugins/plugins-api.ts`).
+- `describe(name)` returns the tool's description and JSON input schema, or `error: unknown tool: <name>` (`plugins-api.ts`).
+- `call(name, args?)` runs the tool and returns `{ text, images }`. A `null` `args` counts as absent, and `args` that is not an object throws (`plugins-api.ts`).
 
-`call` checks `args` against the tool's input schema before it sends the call. A violation throws `yui.plugins.call: invalid arguments (<location>: <message>)`, followed by the schema (`plugins-api.ts:56-62`; `src/io/chat/tools/plugins/first-violation.ts`). A schema the check cannot read is not checked, and the call goes to the server (`first-violation.ts:12-14`).
+`call` checks `args` against the tool's input schema before it sends the call. A violation throws `yui.plugins.call: invalid arguments (<location>: <message>)`, followed by the schema (`plugins-api.ts`; `src/io/chat/tools/plugins/first-violation.ts`). A schema the check cannot read is not checked, and the call goes to the server (`first-violation.ts`).
 
 ### The lists in the descriptions
 
-The `yui_run` description lists the enabled plugin tools and plugin skills, and it changes with the MCP host snapshot (`src/io/chat/tools/run/yui-run-tool.ts:44-50`; `src/io/chat/tools/plugins/plugins-api.ts:83-101`).
+The `yui_run` description lists the enabled plugin tools and plugin skills, and it changes with the MCP host snapshot (`src/io/chat/tools/run/yui-run-tool.ts`; `src/io/chat/tools/plugins/plugins-api.ts`).
 
-- The tools follow `Plugin tools, run with yui.plugins.call:`, and the skills follow `Plugin skills, read with help("plugin:<name>"):`. Each entry reads `<name> — <text>`, or the name alone when the text is empty, and entries are joined with ` · ` (`plugins-api.ts:21-25, 83-101`).
-- A tool's summary is its non-empty `io.github.yw0nam.yui/summary` meta. Without one, it is the first sentence of its description's first paragraph. Every summary is cut at 100 characters (`src/io/mcp-host/enabled-plugins.ts:16-28`).
-- A skill's description is cut at 1024 characters (`enabled-plugins.ts:40`).
+- The tools follow `Plugin tools, run with yui.plugins.call:`, and the skills follow `Plugin skills, read with help("plugin:<name>"):`. Each entry reads `<name> — <text>`, or the name alone when the text is empty, and entries are joined with ` · ` (`plugins-api.ts`).
+- A tool's summary is its non-empty `io.github.yw0nam.yui/summary` meta. Without one, it is the first sentence of its description's first paragraph. Every summary is cut at 100 characters (`src/io/mcp-host/enabled-plugins.ts`).
+- A skill's description is cut at 1024 characters (`enabled-plugins.ts`).
 
-The description is read once per turn, when the turn builds its declared tools, so a plugin turned on or off shows on the next turn (`src/io/chat/tools/client-tools.ts:83-85`). Push sends it in `hello.tools` and again in a `tools` frame on every snapshot change (`src/app/bootstrap-configured.ts:211`).
+The description is read once per turn, when the turn builds its declared tools, so a plugin turned on or off shows on the next turn (`src/io/chat/tools/client-tools.ts`). Push sends it in `hello.tools` and again in a `tools` frame on every snapshot change (`src/app/bootstrap-configured.ts`).
 
 ### Which names resolve
 
-A plugin tool name resolves against the newest snapshot when the call runs (`plugins-api.ts:56`; `src/io/mcp-host/enabled-plugins.ts:46-55`).
+A plugin tool name resolves against the newest snapshot when the call runs (`plugins-api.ts`; `src/io/mcp-host/enabled-plugins.ts`).
 
-Only the five declared names are reserved. `src/contract/builtin-client-tools.json` lists `address_character`, `body_action`, `generate_express`, `rate_relation` and `yui_run`, and the MCP host hides a plugin tool that takes one of them (`src-tauri/src/mcp_host/snapshot.rs:152-160`). Plugins resolve in enable order (`enabled_seq`), so the plugin enabled earlier keeps a name two plugins share.
+Only the five declared names are reserved. `src/contract/builtin-client-tools.json` lists `address_character`, `body_action`, `generate_express`, `rate_relation` and `yui_run`, and the MCP host hides a plugin tool that takes one of them (`src-tauri/src/mcp_host/snapshot.rs`). Plugins resolve in enable order (`enabled_seq`), so the plugin enabled earlier keeps a name two plugins share.
 
 The hidden entry leaves the tools and skills lists, and `yui.plugins.describe` and `call` see it as absent.
 
 ### Result of a plugin call
 
-`yui.plugins.call` answers the MCP `tools/call` result as `{ text, images }`. Text blocks are joined with one newline. An image block becomes a `data:<mimeType>;base64,<data>` URL, which the run turns into a handle, and any other block is its JSON (`src/io/chat/tools/plugins/plugin-result.ts:11-22`; `src/io/chat/tools/run/bind-namespace.ts:34-37`).
+`yui.plugins.call` answers the MCP `tools/call` result as `{ text, images }`. Text blocks are joined with one newline. An image block becomes a `data:<mimeType>;base64,<data>` URL, which the run turns into a handle, and any other block is its JSON (`src/io/chat/tools/plugins/plugin-result.ts`; `src/io/chat/tools/run/bind-namespace.ts`).
 
-`isError: true` prefixes the joined text with `error: ` unless it already starts with `error:` or `unknown:`, so a plugin's own error text keeps one prefix (`plugin-result.ts:7-9, 21`).
+`isError: true` prefixes the joined text with `error: ` unless it already starts with `error:` or `unknown:`, so a plugin's own error text keeps one prefix (`plugin-result.ts`).
 
-A failure of the call itself reaches the script as `error: <text>`: `error: unknown tool: <name>` when no enabled plugin holds the name (`plugins-api.ts:57`), `error: plugin tool timed out after <n> ms`, `error: plugin tool cancelled`, or a server's own error string (`src-tauri/src/mcp_host/calls.rs:127, 140`).
+A failure of the call itself answers `{ text: "error: <text>", images: [] }`: `error: unknown tool: <name>` when no enabled plugin holds the name (`plugins-api.ts`), `error: plugin tool timed out after <n> ms`, `error: plugin tool cancelled`, or a server's own error string (`src-tauri/src/mcp_host/calls.rs`).
 
 ### Waits and cancel
 
 | Call | Client wait | Host deadline |
 |---|---|---|
-| `yui.plugins.call` | none of its own: the run's 121 s bounds it | the tool's `_meta["io.github.yw0nam.yui/wait_ms"]`, 30 s by default and 120 s at most (`src-tauri/src/mcp_host/mod.rs:34-35`) |
+| `yui.plugins.call` | none of its own: the run's 121 s bounds it | the tool's `_meta["io.github.yw0nam.yui/wait_ms"]`, 30 s by default and 120 s at most (`src-tauri/src/mcp_host/mod.rs`) |
 | `yui.plugins.list`, `describe` | none: they read the snapshot | none |
 
-A stopped turn or an ended run cancels the host call. `yui.plugins.call` sends the call's id to `plugin_host_cancel` when its signal aborts (`plugins-api.ts:63-68`), and the host sends `notifications/cancelled` to the server with the reason. A cancel that arrives before the call registers stops it when it registers (`src-tauri/src/mcp_host/calls.rs:59-63, 145-152`).
+A stopped turn or an ended run cancels the host call. `yui.plugins.call` sends the call's id to `plugin_host_cancel` when its signal aborts (`plugins-api.ts`), and the host sends `notifications/cancelled` to the server with the reason. A cancel that arrives before the call registers stops it when it registers (`src-tauri/src/mcp_host/calls.rs`).
 
-A turn stopped before the call started answers `error: turn stopped` and sends nothing (`plugins-api.ts:63`).
+A turn stopped before the call started answers `{ text: "error: turn stopped", images: [] }` and sends nothing (`plugins-api.ts`).
 
 ### Status and consent
 
 For Plugin tools, no call asks the user again: enabling the plugin in settings records consent for its folder, and the host starts its servers and publishes its tools only while that consent holds. A plugin whose folder moved after the user enabled it starts no server, so its names answer `error: unknown tool: <name>`.
 
-Each Plugin tool call carries the preset id of the calling window: the host sends it in the `tools/call` request's `_meta["io.github.yw0nam.yui/preset"]`, so a plugin tool knows which character called it (`plugins-api.ts:70`).
+Each Plugin tool call carries the preset id of the calling window: the host sends it in the `tools/call` request's `_meta["io.github.yw0nam.yui/preset"]`, so a plugin tool knows which character called it (`plugins-api.ts`).
 
 ### `help("plugin:<name>")`
 
-`help` is async, so `return help()` answers the API text, and `help()` returns a Promise to `await`. The text ends with the eight usage rules (`src/io/chat/tools/run/help.ts:51-58`).
+`help` is async, so `return help()` answers the API text, and `help()` returns a Promise to `await`. The text ends with the nine usage rules (`src/io/chat/tools/run/help.ts`).
 
-`help("plugin:<name>")` returns the plugin skill's text, which the host reads through `plugin_host_skill` (`src/io/chat/tools/run/help-topic.ts:12-13`; `src/io/mcp-host/mcp-host.ts:152`). Any other topic throws `help: topic must be plugin:<name>` (`help-topic.ts:15`).
+`help("plugin:<name>")` returns the plugin skill's text, which the host reads through `plugin_host_skill` (`src/io/chat/tools/run/help-topic.ts`; `src/io/mcp-host/mcp-host.ts`). Any other topic throws `help: topic must be plugin:<name>` (`help-topic.ts`).
 
 ### yui.terminal {#terminal-tools}
 
-The Rust shell runs each Terminal in a PTY, and every pet window under Tauri reaches them through `yui.terminal` (`src/io/chat/tools/terminal/terminal-api.ts`). Opening a Terminal and closing one the calling preset opened run without asking the user.
+The Rust shell runs each Terminal in a PTY, and every pet window under Tauri reaches them through `yui.terminal`. Opening a Terminal and closing one the calling preset opened run without asking the user.
 
-- `open({ cwd? })` answers `opened <id> (<title>)`, or an error such as `error: too many terminals (16 open); close one first` (`src-tauri/src/terminal/commands.rs:80-87`; `src-tauri/src/terminal/pty.rs:311`).
-- `list()` answers one line per terminal: `<id> | <owner> | <title> | running or exited <code> | access: <preset id or none>`, or `no terminals` (`src-tauri/src/terminal/screen.rs:44-55`).
-- `read(id, { lines? })` answers the terminal's rendered screen: the last `lines` rows, 100 by default and 500 at most (`screen.rs:4, 10`). The text is cut to 32 KiB, with `[cut]` as its first line when it is cut (`screen.rs:5-6`).
-- `write(id, text, { enter? })` writes `text` as given, so `"\u0003"` sends Ctrl-C, and appends `\r` unless `enter` is false (`src-tauri/src/terminal/commands.rs:124-125`).
-- `close(id)` closes a Terminal the calling preset opened (`src-tauri/src/terminal/store.rs:217`).
+- `open({ cwd? })` answers `opened <id> (<title>)`, or an error such as `error: too many terminals (16 open); close one first`.
+- `list()` answers one line per terminal: `<id> | <owner> | <title> | running or exited <code> | access: <preset id or none>`, or `no terminals`.
+- `read(id, { lines? })` answers the untrusted-content line, then `<id> (<title>), <status>`, then the rendered screen: the last `lines` rows, 100 by default and 500 at most, with trailing blank rows dropped. The text is cut to 32 KiB, and `[cut]` comes first when it is cut (`src-tauri/src/terminal/screen.rs`).
+- `write(id, text, { enter? })` writes `text` as given, so `"\u0003"` sends Ctrl-C, and appends `\r` unless `enter` is false.
+- `close(id)` closes a Terminal the calling preset opened, and answers `error: not your terminal: <id>` for another preset's.
 
 #### Allow and cancel
 
-A read or write on a Terminal the calling preset has no access to asks the user for Allow, and waits up to 60 s (`src-tauri/src/terminal/mod.rs:15`). Deny answers `denied`, and no answer in 60 s answers `denied: no answer in 60 s` (`src-tauri/src/terminal/store.rs:251, 341`). Allow gives that preset access, and one preset holds a Terminal's access at a time (`store.rs:263`).
+A read or write on a Terminal the calling preset has no access to asks the user for Allow. The Allow card counts down its 60 s, and Deny answers `denied`. No answer in 60 s answers `denied: no answer in 60 s` (`src/ui/terminal/request-card.ts`, `src-tauri/src/terminal/store.rs`).
 
-Reads and writes have no client wait of their own, and the run's 121 s bounds them (`src/io/chat/tools/run/yui-run-tool.ts:60`). A stopped turn cancels a waiting read or write through `terminal_tool_cancel` (`src/io/chat/tools/terminal/terminal-api.ts:80-83`), and the call answers `error: turn stopped` (`src-tauri/src/terminal/store.rs:5`).
+Allow gives that preset access until the user presses Take back, or until another preset's request is allowed, which moves the access to that preset. Take back clears the access (`src/ui/terminal/access-line.ts`, `src-tauri/src/terminal/store.rs`). A write records its first line, trimmed, as the Terminal's last command, which the access line shows (`src-tauri/src/terminal/store.rs`).
+
+Reads and writes have no client wait of their own, and the run's 121 s bounds them (`src/io/chat/tools/run/yui-run-tool.ts`). A stopped turn, or a run that ends, cancels a waiting read or write through `terminal_tool_cancel`, and the call answers `error: turn stopped` (`src/io/chat/tools/terminal/terminal-api.ts`, `src-tauri/src/terminal/store.rs`).
 
 ## Backend capability
 
@@ -518,7 +524,7 @@ On Chat Completions and Responses every declared schema rides every request, and
 
 ### Hermes api-server
 
-The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `generate_express`, `body_action` and `yui_run` on the push transport only.
+The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `body_action`, `rate_relation`, `address_character` and `yui_run` on the push transport only. `generate_express` is not declared on push: its cues ride the `render` and `speech` segments.
 
 Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status.
 

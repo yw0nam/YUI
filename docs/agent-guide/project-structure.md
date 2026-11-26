@@ -459,7 +459,7 @@ YUI/
             state-api.ts               # yui.state: start time, last presence, open characters, screen recording permission
             info-api.ts                # yui.info: the bodies, voices and monitors a setting can name
             selection-rows.ts          # The io-owned settings rows: the VRM body and the speaker voice
-          screen/                      # The screen tool
+          screen/                      # The screen query behind yui.look.screen
             screen-query.ts            # Answers a screen query from the live monitors and a screenshot
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection

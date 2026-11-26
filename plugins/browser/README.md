@@ -132,11 +132,11 @@ The guide carries neither the status line nor the untrusted line.
 
 The whole text is capped at the size in [Limits](#limits). The status line, the untrusted line, and the screenshot notes are never cut; output that does not fit is cut, ends with `[truncated]`, and keeps the rest of the result intact.
 
-The model receives this text through the client's `yui.plugins.call` result conversion: an error text that already starts with `error:` or `unknown:` keeps that prefix, and any other error text gets `error: ` in front.
+Inside `yui_run`, `yui.plugins.call` answers `{ text, images }`, and the model receives the text: an error text that already starts with `error:` or `unknown:` keeps that prefix, and any other error text gets `error: ` in front.
 
 ## Screenshots
 
-Each call gets a folder under the OS temp directory named `yui-browser-<pid>-<nanos>-<counter>`, and the prelude receives its absolute path. After the run — success, failure, deadline, or backstop kill — Rust reads the folder's `.png` files in file-name order, keeps the last files up to the cap under [Limits](#limits), resizes each so its long edge is at most the value there without upscaling, encodes it as JPEG, and deletes the folder. A file that does not decode is skipped and named in the text. The client turns the blocks into `{ text, images: [dataUrl] }` when screenshots exist, and the text alone otherwise; `images` is the shape `yui.look.screen()` returns.
+Each call gets a folder under the OS temp directory named `yui-browser-<pid>-<nanos>-<counter>`, and the prelude receives its absolute path. After the run — success, failure, deadline, or backstop kill — Rust reads the folder's `.png` files in file-name order, keeps the last files up to the cap under [Limits](#limits), resizes each so its long edge is at most the value there without upscaling, encodes it as JPEG, and deletes the folder. A file that does not decode is skipped and named in the text. The client turns the blocks into `{ text, images: [dataUrl] }` when screenshots exist, and the text alone otherwise; Inside `yui_run` the script receives the images as `{ image: n }` handles, and the model sees them only if the script returns them.
 
 The text states the count of earlier screenshots dropped by the cap and the names of unreadable files when either is non-zero.
 
