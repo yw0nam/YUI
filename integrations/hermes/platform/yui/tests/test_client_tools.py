@@ -80,7 +80,10 @@ def test_registration_registers_each_client_tool_once_per_fingerprint(monkeypatc
     assert len(registered) == 1
     assert registered[0]["name"] == "yui_run"
     assert registered[0]["toolset"] == "yui"
-    assert registered[0]["schema"]["description"] == "YUI: see the screen and body, Threads, terminals, plugins, guides, settings."
+    assert (
+        registered[0]["schema"]["description"]
+        == "YUI: see the screen and body, Threads, terminals, plugins, guides, settings."
+    )
     assert registered[0]["schema"]["parameters"]["required"] == ["code"]
     assert callable(registered[0]["handler"])
 
