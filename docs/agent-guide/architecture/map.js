@@ -1948,7 +1948,7 @@ globalThis.YUI_MAP =
       "id": "stream-http",
       "from": "io/chat/stream",
       "to": "backend-request",
-      "carries": "Responses or Chat Completions streaming request with client_context, user text, images, tools, and a per-turn `user` id on Chat Completions",
+      "carries": "Responses or Chat Completions streaming request with the framed client_context block, user text, images, tools, and a per-turn `user` id on Chat Completions",
       "kind": "http",
       "transport": "request"
     },
