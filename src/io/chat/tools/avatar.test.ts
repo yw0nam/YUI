@@ -8,8 +8,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ScreenCapture } from "../../window/capture/screenshot-context";
-import { createAvatarTools } from "./avatar";
+import { createAvatarTools, createLookApi } from "./avatar";
 import { type ClientTool, createClientToolRegistry } from "./client-tools";
+import { runNamespace } from "./run/namespace-test-run";
 
 function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
   const base = {
@@ -35,6 +36,23 @@ const toolNamed = (name: string, getExecutor: () => AvatarExecutor | null): Clie
 const createBodyActionTool = (getExecutor: () => AvatarExecutor | null) =>
   toolNamed("body_action", getExecutor);
 const createLookTool = (getExecutor: () => AvatarExecutor | null) => toolNamed("look", getExecutor);
+
+const bounds = (x: number, y: number, width: number, height: number, scaleFactor: number) => ({
+  position: { x, y },
+  size: { width, height },
+  workArea: { position: { x, y }, size: { width, height } },
+  scaleFactor,
+});
+// The layout tao reports on macOS: a 2x built-in and a 1x external at logical x 1512, whose
+// physical rects overlap (0..3024 and 1512..3432).
+const MAC_MONITORS = [bounds(0, 0, 3024, 1964, 2), bounds(1512, 0, 1920, 1080, 1)];
+// Physical rects as Windows reports them: the 1.5x second display starts where the first ends.
+const WINDOWS_MONITORS = [bounds(0, 0, 3840, 2160, 2), bounds(3840, 0, 2880, 1620, 1.5)];
+const pet = (x: number, y: number, width: number, height: number, scale: number) => ({
+  outerPosition: async () => ({ x, y }),
+  outerSize: async () => ({ width, height }),
+  scaleFactor: async () => scale,
+});
 
 describe("createAvatarTools", () => {
   it("declares body_action then look", () => {
@@ -189,23 +207,6 @@ describe("look — switch and declaration", () => {
 });
 
 describe("look — screen requests", () => {
-  const bounds = (x: number, y: number, width: number, height: number, scaleFactor: number) => ({
-    position: { x, y },
-    size: { width, height },
-    workArea: { position: { x, y }, size: { width, height } },
-    scaleFactor,
-  });
-  // The layout tao reports on macOS: a 2x built-in and a 1x external at logical x 1512, whose
-  // physical rects overlap (0..3024 and 1512..3432).
-  const MAC_MONITORS = [bounds(0, 0, 3024, 1964, 2), bounds(1512, 0, 1920, 1080, 1)];
-  // Physical rects as Windows reports them: the 1.5x second display starts where the first ends.
-  const WINDOWS_MONITORS = [bounds(0, 0, 3840, 2160, 2), bounds(3840, 0, 2880, 1620, 1.5)];
-  const pet = (x: number, y: number, width: number, height: number, scale: number) => ({
-    outerPosition: async () => ({ x, y }),
-    outerSize: async () => ({ width, height }),
-    scaleFactor: async () => scale,
-  });
-
   function screenTool(
     allowRequests = true,
     capture = vi.fn(
@@ -341,5 +342,128 @@ describe("look — screen requests", () => {
     expect(typeof result).toBe("string");
     expect(JSON.parse(result as string)).toBeTruthy();
     expect(capture).not.toHaveBeenCalled();
+  });
+});
+
+describe("yui.look", () => {
+  const signal = new AbortController().signal;
+  const shot = async (): Promise<ScreenCapture> => ({ data_url: "data:image/jpeg;base64,YQ==" });
+
+  function screenPorts(
+    over: { allowRequests?: boolean; capture?: () => Promise<ScreenCapture | null> } = {},
+  ) {
+    return {
+      allowRequests: () => over.allowRequests ?? true,
+      getWindow: () => pet(1600, 100, 300, 400, 1),
+      listMonitors: async () => MAC_MONITORS,
+      pointsAreLogical: true,
+      capturer: { captureAt: over.capture ?? shot },
+    };
+  }
+
+  it.each([
+    [
+      "body",
+      {
+        position: { x: 520, y: 740, monitor: 0 },
+        posture: { state: "standing" },
+        vrm: { id: "carlotta", label: "Carlotta" },
+        moving: false,
+      },
+    ],
+    [
+      "perch_targets",
+      {
+        windows: [
+          { app: "Notes", title: "Shopping", rect: { x: 40, y: 50, width: 300, height: 200 } },
+        ],
+        edges: ["left", "right"],
+      },
+    ],
+  ])("%s returns the executor's object, not JSON text", async (method, expected) => {
+    const { methods } = createLookApi(() => executor());
+    const read = methods[method as "body" | "perch_targets"];
+    await expect(read(signal)).resolves.toEqual(expected);
+  });
+
+  it.each([
+    "body",
+    "perch_targets",
+  ])("%s answers error: unsupported with no executor", async (method) => {
+    const { methods } = createLookApi(() => null);
+    await expect(methods[method as "body" | "perch_targets"](signal)).resolves.toBe(
+      "error: unsupported",
+    );
+  });
+
+  it("answers error: <message> when the executor read rejects", async () => {
+    const { methods } = createLookApi(() =>
+      executor({
+        state: vi.fn(async () => {
+          throw new Error("ipc failed");
+        }),
+      }),
+    );
+    await expect(methods.body(signal)).resolves.toBe("error: ipc failed");
+  });
+
+  it("screen answers error: screen capture is off while the permission is off", async () => {
+    const capture = vi.fn(shot);
+    const { methods } = createLookApi(
+      () => executor(),
+      screenPorts({ allowRequests: false, capture }),
+    );
+    await expect(methods.screen(signal)).resolves.toBe("error: screen capture is off");
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it("screen answers error: unsupported with no screen port", async () => {
+    const { methods } = createLookApi(() => executor());
+    await expect(methods.screen(signal)).resolves.toBe("error: unsupported");
+  });
+
+  it("screen returns the screenshot text and its image", async () => {
+    const { methods } = createLookApi(() => executor(), screenPorts());
+    await expect(methods.screen(signal)).resolves.toEqual({
+      text: "screenshot of display 1",
+      images: ["data:image/jpeg;base64,YQ=="],
+    });
+  });
+
+  it("screen(9) with two displays answers error: invalid field monitor", async () => {
+    const capture = vi.fn(shot);
+    const { methods } = createLookApi(() => executor(), screenPorts({ capture }));
+    await expect(methods.screen(signal, 9)).resolves.toBe("error: invalid field monitor");
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    0.5,
+    "1",
+  ])("screen(%s) throws yui.look.screen for a monitor that is not an integer", async (monitor) => {
+    const { methods } = createLookApi(() => executor(), screenPorts());
+    await expect(methods.screen(signal, monitor)).rejects.toThrow(
+      "yui.look.screen: monitor must be an integer",
+    );
+  });
+
+  it('through the sandbox, screen("1") ends the run as an Error naming the call', async () => {
+    const { methods } = createLookApi(() => executor(), screenPorts());
+    const run = await runNamespace("look", methods, 'return await yui.look.screen("1")');
+    expect(run).toEqual({
+      status: "error",
+      error: "Error: yui.look.screen: monitor must be an integer",
+      logs: [],
+    });
+  });
+
+  it("through the sandbox, screen(undefined) captures the window's display", async () => {
+    const { methods } = createLookApi(() => executor(), screenPorts());
+    const run = await runNamespace("look", methods, "return await yui.look.screen(undefined)");
+    expect(run).toEqual({
+      status: "completed",
+      result: { text: "screenshot of display 1", images: ["data:image/jpeg;base64,YQ=="] },
+      logs: [],
+    });
   });
 });

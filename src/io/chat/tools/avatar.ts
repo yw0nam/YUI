@@ -134,3 +134,17 @@ export function createAvatarTools(
 ): ClientTool[] {
   return [createBodyActionTool(getExecutor), createLookTool(getExecutor, screen)];
 }
+
+/** One yui namespace method: the run's signal first, then the script's arguments. */
+type NamespaceMethod = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
+
+export function createLookApi(
+  _getExecutor: () => AvatarExecutor | null,
+  _screen?: ScreenQueryPorts,
+): {
+  methods: { body: NamespaceMethod; perch_targets: NamespaceMethod; screen: NamespaceMethod };
+  declaration: string;
+} {
+  const stub: NamespaceMethod = async () => undefined;
+  return { methods: { body: stub, perch_targets: stub, screen: stub }, declaration: "" };
+}
