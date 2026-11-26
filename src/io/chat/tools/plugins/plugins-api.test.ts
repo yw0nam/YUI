@@ -162,17 +162,22 @@ describe("yui.plugins.call", () => {
     expect(host.call).not.toHaveBeenCalled();
   });
 
-  it("calls with no arguments as an empty object, and null counts as absent", async () => {
+  it("calls with args undefined or null as an empty object", async () => {
     const host = fakeHost();
 
-    const run = await runNamespace(
-      "plugins",
-      api(host).methods,
-      'return await yui.plugins.call("odd_schema", undefined)',
-    );
+    for (const arg of ["undefined", "null"]) {
+      const run = await runNamespace(
+        "plugins",
+        api(host).methods,
+        `return await yui.plugins.call("odd_schema", ${arg})`,
+      );
+      expect(run.status).toBe("completed");
+    }
 
-    expect(run.status).toBe("completed");
-    expect(host.call).toHaveBeenCalledWith(expect.any(String), "odd_schema", {}, "p1");
+    expect(host.call).toHaveBeenCalledTimes(2);
+    for (const [, name, args] of vi.mocked(host.call).mock.calls) {
+      expect([name, args]).toEqual(["odd_schema", {}]);
+    }
   });
 
   it("still calls a tool whose schema the validator cannot use", async () => {
@@ -260,6 +265,17 @@ describe("yui.plugins.call", () => {
 });
 
 describe("yui.plugins skill and listing", () => {
+  it("declaration is the exact help block, with no trailing newline", () => {
+    expect(api().declaration).toBe(`  plugins: {
+    /** The enabled plugins' tools. */
+    list(): Promise<{ name: string; summary: string }[]>;
+    /** The tool's description and JSON input schema, or "error: unknown tool: <name>". */
+    describe(name: string): Promise<{ description: string; input_schema: object } | \`error: \${string}\`>;
+    /** Runs the tool; args that break its input schema throw. A failure is text starting with "error:". */
+    call(name: string, args?: object): Promise<{ text: string; images: ImageHandle[] }>;
+  };`);
+  });
+
   it("skill returns the body, or the error text when the host rejects", async () => {
     await expect(api().skill("hello")).resolves.toBe("# hello");
     const host = fakeHost({ skill: vi.fn(async () => Promise.reject("unknown plugin skill: x")) });
@@ -290,6 +306,32 @@ describe("yui.plugins skill and listing", () => {
 
     expect(plugins.listing()).toBe("");
     snapshot = SNAPSHOT;
-    expect(plugins.listing()).not.toBe("");
+    expect(plugins.listing()).toBe(
+      "Plugin tools, run with yui.plugins.call: echo_args — Echo argv. · odd_schema — Has a schema the validator cannot use." +
+        ' Plugin skills, read with help("plugin:<name>"): hello — Says hello.',
+    );
+  });
+
+  it("listing ends a sentence with a period when its last entry has none", () => {
+    const bare: PluginHostSnapshot = {
+      ...SNAPSHOT,
+      plugins: [
+        {
+          ...SNAPSHOT.plugins[0]!,
+          tools: [
+            {
+              ...SNAPSHOT.plugins[0]!.tools[0]!,
+              meta: { "io.github.yw0nam.yui/summary": "Echo argv" },
+            },
+          ],
+          skills: [{ name: "hello", description: "Says hello" }],
+        },
+      ],
+    };
+
+    expect(api(fakeHost({ snapshot: () => bare })).listing()).toBe(
+      "Plugin tools, run with yui.plugins.call: echo_args — Echo argv." +
+        ' Plugin skills, read with help("plugin:<name>"): hello — Says hello.',
+    );
   });
 });
