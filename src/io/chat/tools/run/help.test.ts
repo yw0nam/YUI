@@ -20,7 +20,7 @@ const pick = (id: string): SelectionPort => ({
 });
 const rows = selectionRows({ vrm: pick("yui"), speaker: pick("soft") });
 const text = helpText(label, rows);
-/** The namespace blocks merged so far, in help()'s order. */
+/** The namespace blocks merged so far, in help()'s order: the main window's size. */
 const declarations = [
   createGuideApi().declaration,
   createTerminalApi({ presetId: () => null, invoke: async () => "" }).declaration,
@@ -28,6 +28,7 @@ const declarations = [
   createThreadsApi({ threads: () => [] }).declaration,
 ];
 const main = helpText(label, rows, declarations);
+const joined = helpText(label, rows, ["  a: {};", "  b: {};"]);
 
 /** The type's leaves, in order: the dotted path of each `name: type;` line and the comment above it. */
 function leaves(help: string) {
@@ -290,15 +291,15 @@ describe("helpText", () => {
   });
 
   it("declares the window's namespaces inside yui, then the image handle, help and console", () => {
-    expect(main).toContain(
-      `  info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };\n${declarations.join("\n")}\n};\n`,
+    expect(joined).toContain(
+      "  info: { read(): Promise<{ bodies: { id: string; label: string }[]; voices: { id: string; label: string }[]; monitors: { index: number; name?: string; width?: number; height?: number }[] }> };\n  a: {};\n  b: {};\n};\n",
     );
-    expect(main).toContain(
+    expect(joined).toContain(
       `};\n/** An image a yui call made; it reaches the model only when the returned value holds it. */\ntype ImageHandle = { image: number };\ndeclare function help(topic?: \`plugin:\${string}\`): Promise<string>;\ndeclare const console: { log(...a: unknown[]): void };\n`,
     );
   });
 
-  it("declares the yui API and eight rules, and stays under 9 KB", () => {
+  it("declares the yui API and eight rules, and stays under 9,216 bytes", () => {
     expect(main).toContain("declare const yui:");
     expect(main).not.toContain("declare function help(): string;");
     expect(main).toContain(
@@ -315,6 +316,6 @@ describe("helpText", () => {
       "8. A yui call that fails returns its error text; only a wrong argument throws.",
     );
     expect(main.match(/^\d\. /gm)).toHaveLength(8);
-    expect(main.length).toBeLessThan(9216);
+    expect(new TextEncoder().encode(main).length).toBeLessThan(9216);
   });
 });

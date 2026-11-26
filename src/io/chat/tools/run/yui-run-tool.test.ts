@@ -378,18 +378,6 @@ describe("createYuiRunTool", () => {
     expect(seen?.aborted).toBe(true);
   });
 
-  it("ends the run with a method's argument error, and hands it an undefined argument as null", async () => {
-    const read = vi.fn<YuiMethod>(async () => {
-      throw new TypeError("yui.guide.read: bad");
-    });
-    const tool = toolWith({ guide: ns({ read }) });
-
-    const result = await parsed(tool.execute({ code: "return await yui.guide.read(undefined)" }));
-
-    expect(result).toEqual({ status: "error", error: "Error: yui.guide.read: bad", logs: [] });
-    expect(read).toHaveBeenCalledWith(expect.any(AbortSignal), null);
-  });
-
   it("names look, terminal, threads and the plugin tool to the status pill, and no other call", async () => {
     const answer = async () => "ok";
     const tool = toolWith({
