@@ -1,6 +1,7 @@
 /** Renders a Settings request in the Ask slot: Deny or Allow on one click, a checkbox per change when there are several, and an optional note; its owner decides when it closes. */
 
 import "./settings-request-card.css";
+import { oneLine } from "../../io/chat/one-line";
 import {
   NOTE_MAX,
   type SettingsRequestDecision,
@@ -44,12 +45,13 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
 
   function render(frame: SettingsRequestFrame): void {
     const several = frame.changes.length > 1;
+    const name = oneLine(frame.name);
 
     const head = make("div", "yui-settings-card__head");
     timer = make("span", "yui-ask-card__timer yui-settings-card__timer");
     timer.setAttribute("role", "timer");
     head.append(
-      make("h3", "yui-settings-card__title", t("settings_request.title", { name: frame.name })),
+      make("h3", "yui-settings-card__title", t("settings_request.title", { name })),
       timer,
     );
 
@@ -81,7 +83,7 @@ export function createSettingsRequestCard(deps: { mount: HTMLElement }): Setting
     const field = make("textarea", "yui-settings-card__field");
     field.rows = 1;
     field.placeholder = t("settings_request.note_placeholder");
-    field.setAttribute("aria-label", t("settings_request.note_aria", { name: frame.name }));
+    field.setAttribute("aria-label", t("settings_request.note_aria", { name }));
     const hint = make("small", "yui-settings-card__hint");
     hint.id = "yui-settings-card-hint";
     field.setAttribute("aria-describedby", hint.id);
