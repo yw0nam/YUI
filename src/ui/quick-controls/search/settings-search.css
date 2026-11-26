@@ -37,7 +37,7 @@
 }
 
 /* Icons only: no room for the field or the counts. */
-@container (width <= 30rem) {
+@container (width <= 39rem) {
   .yui-search__input,
   .yui-tab__count {
     display: none;

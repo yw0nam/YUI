@@ -379,9 +379,8 @@
   color: var(--yui-text-mute);
 }
 
-/* A narrow panel (480px wide or less, as beside the stage in an 880px-wide settings window)
-   keeps its content width: the rail drops to icons. */
-@container (width <= 30rem) {
+/* Icon rail up to 39rem: below 619px the labelled rail (187px in English) leaves less than the icon rail's 432px body at a 480px panel. */
+@container (width <= 39rem) {
   .yui-rail {
     flex-basis: 3rem;
     padding-inline: 0.375rem;

@@ -19,10 +19,10 @@ afterEach(() => {
   qc = undefined;
 });
 
-it("drops the rail to icons at the settings window's 480px minimum", async () => {
+it("drops the rail to icons at the 507px panel of the minimum settings window", async () => {
   qc = createQuickControls(defaultQcArgs(document.querySelector<HTMLElement>("#app")!));
   qc.open({ page: "react" });
-  await page.viewport(480, 680);
+  await page.viewport(507, 680);
   expect(document.querySelector<HTMLElement>(".yui-rail")!.getBoundingClientRect().width).toBe(48);
   expect(getComputedStyle(document.querySelector(".yui-search__input")!).display).toBe("none");
 });
