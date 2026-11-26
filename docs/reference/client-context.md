@@ -839,4 +839,4 @@ In Chat Completions mode (`chat_api: "chat_completions"`), the client sends the 
 
 The `client_context` message changes every turn, so it sits after the transcript. The card and transcript stay an identical prefix from one turn to the next. Provider prompt caches reuse that prefix.
 
-A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message holds the same tagged block around `<guide block>`, before that user entry. It carries the guide block rendered from the key. The entry's token cost includes the framed guide, so both leave the window together.
+A user turn that carried a guide key stores the key in its transcript entry. When the transcript is replayed, a `system` message holding that guide block in the same tagged frame sits before that user entry. The entry's token cost includes the framed guide, so both leave the window together.
