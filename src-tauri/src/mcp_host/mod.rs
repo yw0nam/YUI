@@ -33,8 +33,9 @@
 //!   colliding name is left out of its declared lists and calls and recorded in its `hidden`.
 //! - **Calls.** A call carries the window's preset in `_meta` and ends at the tool's `wait_ms`
 //!   (30 s by default, 120 s at most), when its window cancels it or is destroyed, or when its
-//!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
-//!   call still in flight.
+//!   server stops; each sends `notifications/cancelled`. A cancel that arrives before its call
+//!   registers stops that call when it registers. A window cannot reuse the id of its call still
+//!   in flight.
 //! - **Signals.** A running server's `notifications/io.github.yw0nam.yui/signals` passes the
 //!   ingress's signals checks and goes to `main` on `signals-inbox`, stamped with the plugin's id.
 //!   A refused one is a `signals refused:` line in the plugin log; one that arrives after the
