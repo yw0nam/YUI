@@ -41,6 +41,7 @@ export interface PushToolCallsDeps {
     signal?: AbortSignal,
     callId?: string,
     turnId?: string,
+    status?: (id: string) => void,
   ): Promise<ClientToolResult>;
   getMaxTurnBytes(): number | undefined;
   /** The state of a call whose tool shows its own status, keyed by the call id. */
@@ -77,9 +78,23 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, TURN_STOPPED);
         return;
       }
-      const statusId = tool.statusId?.(frame.arguments) ?? frame.name;
+      let statusId = tool.statusId?.(frame.arguments) ?? frame.name;
       if (tool.localStatus) deps.onStatus?.(frame.id, "running", statusId);
-      const result = await deps.execute(tool, frame.arguments, signal, frame.id, frame.turn_id);
+      // A tool whose status the backend shows reports nothing: the pill comes from its frames.
+      const report = tool.localStatus
+        ? (id: string) => {
+            statusId = id;
+            deps.onStatus?.(frame.id, "running", id);
+          }
+        : undefined;
+      const result = await deps.execute(
+        tool,
+        frame.arguments,
+        signal,
+        frame.id,
+        frame.turn_id,
+        report,
+      );
       if (tool.localStatus)
         deps.onStatus?.(frame.id, toolFailed(tool, result) ? "failed" : "done", statusId);
       await answerResult(frame, result);

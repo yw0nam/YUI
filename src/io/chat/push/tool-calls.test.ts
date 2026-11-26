@@ -138,6 +138,7 @@ describe("createPushToolCalls", () => {
       expect.any(AbortSignal),
       "c1",
       "t9",
+      undefined,
     );
   });
 

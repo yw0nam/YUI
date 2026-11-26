@@ -76,7 +76,10 @@ describe("runClientCall — the turn id", () => {
       "t1",
     );
 
-    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: "t1" });
+    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), {
+      turnId: "t1",
+      status: expect.any(Function),
+    });
   });
 });
 

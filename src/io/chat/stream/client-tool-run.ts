@@ -63,11 +63,40 @@ export async function* runClientCall(
   }
   if (!tool) return outcome;
 
-  const statusId = tool.statusId?.(parsed.args) ?? name;
+  let statusId = tool.statusId?.(parsed.args) ?? name;
   if (!express_call) {
     yield { type: "tool_status", status: { state: "running", tool_id: statusId } };
   }
-  const result = await executeClientTool(tool, parsed.args, signal, callId, turnId);
+  // Each report the tool makes is yielded as it arrives, while the call still runs.
+  const reports: string[] = [];
+  let wake = (): void => {};
+  let settled = false;
+  const report = (id: string): void => {
+    reports.push(id);
+    wake();
+  };
+  const running = executeClientTool(
+    tool,
+    parsed.args,
+    signal,
+    callId,
+    turnId,
+    express_call ? undefined : report,
+  ).finally(() => {
+    settled = true;
+    wake();
+  });
+  for (;;) {
+    for (let id = reports.shift(); id !== undefined; id = reports.shift()) {
+      statusId = id;
+      yield { type: "tool_status", status: { state: "running", tool_id: id } };
+    }
+    if (settled) break;
+    await new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+  }
+  const result = await running;
   if (!express_call)
     yield {
       type: "tool_status",
