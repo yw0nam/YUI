@@ -8,6 +8,6 @@ Skills belong to the brain, not to the app. Install one in the agent you connect
 | --- | --- |
 | [yui-daily-briefing](yui-daily-briefing/SKILL.md) | Speak a daily briefing on the first activity of the day or on request, and build the scheduled producers that write it. |
 | [thread-producer](thread-producer/SKILL.md) | Post outside conversations — pull requests, mail, chat threads — to YUI's Threads, and act on them when the user asks. |
-| [yui-control](yui-control/SKILL.md) | Read and change YUI's settings, state and info through the `yui_run` tool. |
+| [yui-control](yui-control/SKILL.md) | Use YUI through the `yui_run` tool: settings, state, info, look, Threads, terminals, plugins and the guides. |
 
 Skills for a coding agent that extends YUI, such as building a plugin, ship in the `yui-dev` plugin ([Coding agents](../coding-agents/README.md)). For the plugin guide, see [Write a plugin](../docs/guide/write-a-plugin.md).
