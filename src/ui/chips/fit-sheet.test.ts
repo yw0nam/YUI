@@ -19,7 +19,7 @@ describe("fitSheet", () => {
   ])("%s", (_name, vh, top, height, lift, maxHeight) => {
     const sheet = sheetAt(vh, top, height);
 
-    fitSheet(sheet);
+    fitSheet(sheet, document.createElement("div"));
 
     const set = sheet.style.getPropertyValue("--yui-sigdetails-lift");
     if (lift === 0) expect(set).toBe("");
@@ -29,11 +29,11 @@ describe("fitSheet", () => {
 
   it("clears what the previous fit set before measuring again", () => {
     const sheet = sheetAt(200, 60, 245.7);
-    fitSheet(sheet);
+    fitSheet(sheet, document.createElement("div"));
 
     const fits = sheetAt(597, 314.3, 232.7);
     sheet.getBoundingClientRect = fits.getBoundingClientRect;
-    fitSheet(sheet);
+    fitSheet(sheet, document.createElement("div"));
 
     expect(sheet.style.getPropertyValue("--yui-sigdetails-lift")).toBe("");
     expect(sheet.style.maxHeight).toBe("");

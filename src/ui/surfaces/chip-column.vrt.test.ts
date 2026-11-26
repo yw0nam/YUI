@@ -8,6 +8,7 @@ import type { AskFrame } from "../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import { createDelegationChipSettings } from "../../settings/panels/delegation-chip-settings";
 import { createDelegationChip } from "../chips/delegation-chip";
+import { shiftOf } from "../chips/fit-sheet";
 import { createSignalChips } from "../chips/signal-chips";
 import { createSignalChipsModel } from "../chips/signal-chips-model";
 import { setLocale } from "../i18n";
@@ -95,7 +96,7 @@ function build({ urgent = true } = {}) {
   store.replace([{ id: "d1", title: "work", started_at: Date.now(), state: "running" }]);
   const detach = attachChipColumn(surfaces.el);
   disposers.push(surfaces.dispose, signals.dispose, threads.dispose, tasks.dispose, detach);
-  return { surfaces, column: mount, threads, typed, collapsed };
+  return { surfaces, column: mount, threads, typed, collapsed, model };
 }
 
 async function settle(): Promise<void> {
@@ -105,6 +106,18 @@ async function settle(): Promise<void> {
     if (animation.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY) animation.finish();
   }
   await new Promise(requestAnimationFrame);
+}
+
+type Built = ReturnType<typeof build>;
+
+/** Shows a bubble at its cap and waits until its line is typed. */
+async function showBubble({ surfaces, typed }: Built): Promise<void> {
+  surfaces.beginSpeech();
+  surfaces.pushSpeech(
+    "- one\n- two\n- three\n- four\n- five\n- six\n- seven\n- eight\n- nine\n- ten",
+  );
+  surfaces.endSpeech({ defer: true });
+  await typed;
 }
 
 const shown = (column: HTMLElement): HTMLElement[] =>
@@ -133,16 +146,12 @@ const ask: AskFrame = {
 };
 
 it("sits at its place with nothing under it, and ends 8px above a bubble at its cap", async () => {
-  const { surfaces, column, typed } = build();
+  const built = build();
+  const { surfaces, column } = built;
   await settle();
   const alone = { transform: getComputedStyle(column).transform, rows: shown(column).length };
 
-  surfaces.beginSpeech();
-  surfaces.pushSpeech(
-    "- one\n- two\n- three\n- four\n- five\n- six\n- seven\n- eight\n- nine\n- ten",
-  );
-  surfaces.endSpeech({ defer: true });
-  await typed;
+  await showBubble(built);
   await settle();
   const bubbleTop = surfaces.el.querySelector(".yui-bubble")!.getBoundingClientRect().top;
 
@@ -337,4 +346,95 @@ it("in a 190x284 window the task chip draws its dot then its count in a pill as 
     countInside: count.top >= chip.top && count.bottom <= chip.bottom && count.right <= chip.right,
     height: [Math.round(chip.height), Math.round(pill.height)],
   }).toEqual({ countAfterDot: true, countInside: true, height: [28, 28] });
+});
+
+/** The open details sheet's top and bottom, rounded to the pixel. */
+function sheetEdges(): { top: number; bottom: number } {
+  const { top, bottom } = document.querySelector(".yui-sigdetails")!.getBoundingClientRect();
+  return { top: Math.round(top), bottom: Math.round(bottom) };
+}
+
+const TALL = "a long label ".repeat(120);
+
+/** Adds `count` urgent signals labelled `label` and opens the last one's details sheet. */
+async function openSheet(
+  { column, model }: Built,
+  { label, count = 1 }: { label: string; count?: number },
+): Promise<void> {
+  for (let n = 6; n < 6 + count; n++) {
+    model.add({
+      envelope: {
+        source: `ci${n}`,
+        event_type: "ci.failed",
+        label,
+        delivery: "urgent",
+        event_id: `e${n}`,
+        occurred_at: 1,
+      },
+      items: [],
+    });
+  }
+  await settle();
+  const last = `ci${5 + count}`;
+  [...column.querySelectorAll<HTMLElement>(".yui-sigchip__open")]
+    .find((open) => open.textContent?.includes(last))!
+    .click();
+  await settle();
+}
+
+it("a details sheet taller than the window stays inside it when a bubble moves the column up", async () => {
+  const built = build();
+  await openSheet(built, { label: TALL });
+
+  await showBubble(built);
+  await settle();
+
+  expect(sheetEdges()).toEqual({ top: 8, bottom: 592 });
+});
+
+it("a details sheet opened over a bubble stays inside the window when the bubble hides", async () => {
+  const built = build();
+  await showBubble(built);
+  await settle();
+  await openSheet(built, { label: TALL });
+
+  built.surfaces.hideSpeech();
+  await settle();
+
+  expect(sheetEdges()).toEqual({ top: 8, bottom: 592 });
+});
+
+it("a lifted details sheet opened over a bubble stays inside the window when the bubble hides", async () => {
+  const built = build();
+  await showBubble(built);
+  await settle();
+  await openSheet(built, { label: "short", count: 5 });
+
+  built.surfaces.hideSpeech();
+  await settle();
+
+  const { top, bottom } = sheetEdges();
+  expect({ top: top >= 8, bottom: bottom <= 592 }, `sheet at ${top}/${bottom}`).toEqual({
+    top: true,
+    bottom: true,
+  });
+});
+
+it("a details sheet holds still while the column slides down as the bubble hides", async () => {
+  const built = build();
+  await showBubble(built);
+  await settle();
+  await openSheet(built, { label: TALL });
+
+  built.surfaces.hideSpeech();
+  for (let i = 0; i < 2; i++) await new Promise(requestAnimationFrame);
+  // A tenth in: the column's ease-out curve has run about half its move.
+  for (const animation of document.getAnimations()) {
+    animation.pause();
+    animation.currentTime = Number(animation.effect?.getTiming().duration) / 10;
+  }
+  const { column } = built;
+  const sliding = shiftOf(getComputedStyle(column).transform) !== shiftOf(column.style.transform);
+
+  expect({ sliding, ...sheetEdges() }).toEqual({ sliding: true, top: 8, bottom: 592 });
 });

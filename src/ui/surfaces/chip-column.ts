@@ -4,6 +4,7 @@
  * column's `[data-chip-count]` elements, set by the chips; urgent ones carry `data-chip-urgent`.
  */
 
+import { shiftOf } from "../chips/fit-sheet";
 import { t } from "../i18n";
 
 /** The room kept above the surface under the column, and under the window's top edge. */
@@ -74,8 +75,7 @@ const usedTop = (el: Element): number => Number.parseFloat(getComputedStyle(el).
 
 /** `el`'s box in the viewport, less the vertical move of its own transform, such as an entrance. */
 function settledBox(el: Element): { top: number; bottom: number } {
-  const { transform } = getComputedStyle(el);
-  const moved = transform && transform !== "none" ? new DOMMatrixReadOnly(transform).m42 : 0;
+  const moved = shiftOf(getComputedStyle(el).transform);
   const { top, bottom } = el.getBoundingClientRect();
   return { top: top - moved, bottom: bottom - moved };
 }
