@@ -253,6 +253,15 @@ describe("yui.threads — argument checks", () => {
     ).toBe("waiting | claude-code | task waiting | - | input-required | 2026-01-02 03:04");
   });
 
+  it("treats every null option as absent and lists the waiting Threads", async () => {
+    expect(
+      await runs(
+        [thread({ id: "waiting", state: "input-required" })],
+        "return await yui.threads.list({ state: null, source: null, id: null })",
+      ),
+    ).toBe("waiting | claude-code | task waiting | - | input-required | 2026-01-02 03:04");
+  });
+
   it.each([
     ["absent", ""],
     ["not a string", "7"],
