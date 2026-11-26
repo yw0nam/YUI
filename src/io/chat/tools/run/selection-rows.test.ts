@@ -19,7 +19,9 @@ function fakeSelection(active: string, ids: string[]) {
 function harness() {
   const vrm = fakeSelection("yui", ["yui", "kei"]);
   const speaker = fakeSelection("soft", ["soft", "airy"]);
-  const request = vi.fn<RequestSettings>(async () => "allow");
+  const request = vi.fn<RequestSettings>(async () => ({
+    allow: ["character.body", "character.voice"],
+  }));
   const settings = createSettingsApi({
     stores: createSettingsStores(),
     request,

@@ -5,13 +5,16 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../../../../settings/settings-stores";
-import { createSettingsApi, type RequestSettings, type SettingsAnswer } from "./settings-api";
+import { createSettingsApi, type RequestSettings, type SettingsDecision } from "./settings-api";
 import { stubYuiRunPorts } from "./yui-run-test-ports";
 import { createYuiRunTool } from "./yui-run-tool";
 
-function harness(answer: SettingsAnswer = "allow") {
+/** Without a decision, the user allows every path asked. */
+function harness(decision?: SettingsDecision) {
   const stores = createSettingsStores();
-  const request = vi.fn<RequestSettings>(async () => answer);
+  const request = vi.fn<RequestSettings>(
+    async ({ changes }) => decision ?? { allow: changes.map((change) => change.path) },
+  );
   const tool = createYuiRunTool({
     ...stubYuiRunPorts(),
     settings: createSettingsApi({ stores, request }),
@@ -81,7 +84,7 @@ describe("createYuiRunTool", () => {
   });
 
   it("asks once for every allow path of a write and answers each path", async () => {
-    const { run, stores, request } = harness("allow");
+    const { run, stores, request } = harness();
 
     const result = await run(
       "return await yui.settings.write({ bubble: { keep: true }, privacy: { screenshot: true, screen_requests: true } }, { why: 'look at your screen' })",
@@ -112,7 +115,7 @@ describe("createYuiRunTool", () => {
   });
 
   it.each([
-    ["deny", "denied"],
+    [{ allow: [] }, "denied"],
     ["no answer", "no answer"],
   ] as const)("applies no allow path when the user's answer is %s", async (answer, path) => {
     const { run, stores } = harness(answer);
@@ -121,6 +124,32 @@ describe("createYuiRunTool", () => {
 
     expect(result.result).toEqual({ "privacy.screenshot": path, "privacy.screen_requests": path });
     expect(stores.screenshotSettings.get()).toMatchObject({ enabled: false, allowRequests: false });
+  });
+
+  it.each([
+    [
+      { allow: ["privacy.screenshot"], note: "only the bubble" },
+      "ok: only the bubble",
+      "denied: only the bubble",
+      true,
+    ],
+    [{ allow: ["privacy.screenshot"] }, "ok", "denied", true],
+    [
+      { allow: [], note: "only the bubble" },
+      "denied: only the bubble",
+      "denied: only the bubble",
+      false,
+    ],
+  ])("answers the decision %j with %s and %s", async (decision, screenshot, requests, enabled) => {
+    const { run, stores } = harness(decision);
+
+    const result = await run(PRIVACY_PATCH);
+
+    expect(result.result).toEqual({
+      "privacy.screenshot": screenshot,
+      "privacy.screen_requests": requests,
+    });
+    expect(stores.screenshotSettings.get()).toMatchObject({ enabled, allowRequests: false });
   });
 
   it("maps a busy answer to the error for every allow path and keeps the direct paths", async () => {
@@ -173,7 +202,7 @@ describe("createYuiRunTool", () => {
     expect(result).not.toHaveProperty("writes");
   });
 
-  it("answers invalid for an allowed value the store no longer accepts", async () => {
+  it("answers invalid, with no note, for an allowed value the store no longer accepts", async () => {
     const { run, stores, request } = harness();
     request.mockImplementation(async () => {
       vi.spyOn(stores.screenshotSettings, "get").mockReturnValue({
@@ -181,7 +210,7 @@ describe("createYuiRunTool", () => {
         allowRequests: false,
         source: { kind: "monitor", index: -1 },
       });
-      return "allow";
+      return { allow: ["privacy.screenshot"], note: "only the bubble" };
     });
 
     const result = await run("return await yui.settings.write({ privacy: { screenshot: true } })");
