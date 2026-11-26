@@ -2,21 +2,14 @@
 
 import { isPlainObject } from "../../../../settings/persisted-store";
 import type { ClientTool, ClientToolDefinition } from "../client-tools";
+import { bindNamespace } from "./bind-namespace";
+import { createHelp } from "./help-topic";
 import { createImageTable } from "./images";
 import type { InfoDoc } from "./info-api";
-import { type HostApi, runScript, type ScriptHost } from "./sandbox";
+import type { PluginsNamespace, YuiNamespace } from "./namespace";
+import { runScript, type ScriptHost } from "./sandbox";
 import type { SettingsApi, WriteResults } from "./settings-api";
 import type { StateDoc } from "./state-api";
-
-/** A namespace method: the run's signal first, then the script's arguments. */
-export type YuiMethod = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
-/** One yui namespace: its methods and its help() block. */
-export type YuiNamespace = { methods: Record<string, YuiMethod>; declaration: string };
-/** yui.plugins, which also reads a plugin skill for help() and lists the plugins for the description. */
-export type PluginsNamespace = YuiNamespace & {
-  skill(name: string): Promise<string>;
-  listing(): string;
-};
 
 export interface YuiRunPorts {
   settings: SettingsApi;
@@ -42,8 +35,6 @@ const DESCRIPTION =
 
 /** help() prints the namespace blocks in this order. */
 const ORDER = ["guide", "terminal", "plugins", "look", "threads"] as const;
-/** The namespaces whose calls name the status pill. */
-const REPORTED = new Set<string>(["look", "threads", "terminal"]);
 
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
   const present = ORDER.filter((name) => ports.namespaces[name]);
@@ -78,22 +69,7 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
       const stop = signal ? AbortSignal.any([signal, ended.signal]) : ended.signal;
       const writes: WriteResults[] = [];
       const images = createImageTable();
-      const bind = (name: string, namespace: YuiNamespace): HostApi =>
-        Object.fromEntries(
-          Object.entries(namespace.methods).map(([method, fn]) => [
-            method,
-            async (...callArgs: unknown[]) => {
-              if (REPORTED.has(name)) call?.status?.(name);
-              else if (name === "plugins" && method === "call" && typeof callArgs[0] === "string")
-                call?.status?.(callArgs[0]);
-              const result = await fn(stop, ...callArgs);
-              const made = isPlainObject(result) && (result as { images?: unknown }).images;
-              return Array.isArray(made) && made.every((url) => typeof url === "string")
-                ? { ...(result as object), images: images.keep(made) }
-                : result;
-            },
-          ]),
-        );
+      const run = { signal: stop, status: call?.status, keep: images.keep };
       const host: ScriptHost = {
         yui: {
           settings: {
@@ -114,18 +90,14 @@ export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
           },
           state: { read: async () => ports.state() },
           info: { read: async () => ports.info() },
-          ...Object.fromEntries(present.map((name) => [name, bind(name, ports.namespaces[name]!)])),
+          ...Object.fromEntries(
+            present.map((name) => [name, bindNamespace(name, ports.namespaces[name]!, run)]),
+          ),
         },
-        help: async (topic) => {
-          if (topic === undefined || topic === null) {
-            return ports.help(present.map((name) => ports.namespaces[name]!.declaration));
-          }
-          const plugins = ports.namespaces.plugins;
-          if (typeof topic === "string" && topic.startsWith("plugin:") && plugins) {
-            return plugins.skill(topic.slice("plugin:".length));
-          }
-          throw new TypeError("help: topic must be plugin:<name>");
-        },
+        help: createHelp(
+          () => ports.help(present.map((name) => ports.namespaces[name]!.declaration)),
+          ports.namespaces.plugins,
+        ),
       };
       const outcome = await runScript(code, host, stop).finally(() => ended.abort());
       // Every write's answers ride the envelope, so a script that drops them still reports the real ones.

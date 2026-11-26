@@ -5,15 +5,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../../../../settings/settings-stores";
+import type { PluginsNamespace, YuiMethod, YuiNamespace } from "./namespace";
 import { createSettingsApi, type RequestSettings, type SettingsDecision } from "./settings-api";
 import { stubYuiRunPorts } from "./yui-run-test-ports";
-import {
-  createYuiRunTool,
-  type PluginsNamespace,
-  type YuiMethod,
-  type YuiNamespace,
-  type YuiRunPorts,
-} from "./yui-run-tool";
+import { createYuiRunTool, type YuiRunPorts } from "./yui-run-tool";
 
 /** Without a decision, the user allows every path asked. */
 function harness(decision?: SettingsDecision) {
@@ -378,25 +373,14 @@ describe("createYuiRunTool", () => {
     expect(seen?.aborted).toBe(true);
   });
 
-  it("names look, terminal, threads and the plugin tool to the status pill, and no other call", async () => {
-    const answer = async () => "ok";
-    const tool = toolWith({
-      look: ns({ body: answer }),
-      terminal: ns({ list: answer }),
-      threads: ns({ list: answer }),
-      guide: ns({ read: answer }),
-      plugins: plugins(),
-    });
+  it("hands a namespace call's report to the status pill, and none for settings, state or info", async () => {
+    const tool = toolWith({ look: ns({ body: async () => "ok" }) });
     const status = vi.fn();
 
     const result = await parsed(
       tool.execute(
         {
-          code: [
-            "await yui.settings.read(); await yui.state.read(); await yui.info.read();",
-            'await yui.guide.read("controls"); await yui.look.body(); await yui.terminal.list();',
-            'await yui.threads.list(); await yui.plugins.call("hello_tool", {}); return 1',
-          ].join(" "),
+          code: "await yui.settings.read(); await yui.state.read(); await yui.info.read(); await yui.look.body(); return 1",
         },
         undefined,
         { status },
@@ -404,7 +388,7 @@ describe("createYuiRunTool", () => {
     );
 
     expect(result.status).toBe("completed");
-    expect(status.mock.calls).toEqual([["look"], ["terminal"], ["threads"], ["hello_tool"]]);
+    expect(status.mock.calls).toEqual([["look"]]);
   });
 
   it("prints in help() the declarations of the namespaces the window has, in order", async () => {
@@ -426,18 +410,12 @@ describe("createYuiRunTool", () => {
     expect((await parsed(bare.execute(code))).result).toBe("");
   });
 
-  it("reads a plugin skill through help, and ends the run for any other topic", async () => {
+  it("reads a plugin skill through help", async () => {
     const tool = toolWith({ plugins: plugins() });
 
     const skill = await parsed(tool.execute({ code: 'return await help("plugin:hello")' }));
-    const other = await parsed(tool.execute({ code: 'return await help("x")' }));
 
     expect(skill.result).toBe("skill body of hello");
-    expect(other).toEqual({
-      status: "error",
-      error: "Error: help: topic must be plugin:<name>",
-      logs: [],
-    });
   });
 
   it("lists the plugins in its description as they are when the definition is read", () => {

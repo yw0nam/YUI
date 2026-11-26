@@ -1,6 +1,7 @@
 /** yui.terminal: the backend's side of the shared terminals, over the terminal commands. */
 
 import { TURN_STOPPED } from "../client-tools";
+import type { YuiMethod, YuiNamespace } from "../run/namespace";
 
 /** The Tauri invoke the methods run the terminal commands through; a port tests can pass in. */
 export type TerminalInvoke = (command: string, args?: Record<string, unknown>) => Promise<string>;
@@ -58,7 +59,7 @@ export function createTerminalApi(deps: {
   /** The preset of the calling window, sent with each call. */
   presetId: () => string | null;
   invoke: TerminalInvoke;
-}) {
+}): YuiNamespace {
   /** An invoke that rejects anyway is a failure, not a wrong argument: it answers as text. */
   const invokeAsText = async (...call: Parameters<TerminalInvoke>): Promise<string> => {
     try {
@@ -87,13 +88,13 @@ export function createTerminalApi(deps: {
     }
   };
 
-  const methods = {
-    open: async (_signal: AbortSignal, opts?: unknown) => {
+  const methods: Record<string, YuiMethod> = {
+    open: async (_signal, opts) => {
       const cwd = optional("open", "cwd", optionsOf("open", opts).cwd, isString, "a string");
       return invokeAsText("terminal_tool_open", { presetId: deps.presetId(), cwd });
     },
-    list: async (_signal: AbortSignal) => invokeAsText("terminal_tool_list"),
-    read: async (signal: AbortSignal, id: unknown, opts?: unknown) => {
+    list: async () => invokeAsText("terminal_tool_list"),
+    read: async (signal, id, opts) => {
       const terminal = stringArg("read", "id", id);
       const lines = optional(
         "read",
@@ -104,7 +105,7 @@ export function createTerminalApi(deps: {
       );
       return waiting("terminal_tool_read", { id: terminal, lines }, signal);
     },
-    write: async (signal: AbortSignal, id: unknown, text: unknown, opts?: unknown) => {
+    write: async (signal, id, text, opts) => {
       const terminal = stringArg("write", "id", id);
       const sent = stringArg("write", "text", text);
       const enter = optional(
@@ -116,7 +117,7 @@ export function createTerminalApi(deps: {
       );
       return waiting("terminal_tool_write", { id: terminal, text: sent, enter }, signal);
     },
-    close: async (_signal: AbortSignal, id: unknown) =>
+    close: async (_signal, id) =>
       invokeAsText("terminal_tool_close", {
         presetId: deps.presetId(),
         id: stringArg("close", "id", id),

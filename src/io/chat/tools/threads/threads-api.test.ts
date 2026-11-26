@@ -34,10 +34,10 @@ function thread(overrides: Partial<Thread> & Pick<Thread, "id">): Thread {
 const signal = new AbortController().signal;
 
 const list = (threads: Thread[], opts?: unknown): Promise<string> =>
-  createThreadsApi({ threads: () => threads }).methods.list(signal, opts);
+  createThreadsApi({ threads: () => threads }).methods.list(signal, opts) as Promise<string>;
 
 const search = (threads: Thread[], query: unknown): Promise<string> =>
-  createThreadsApi({ threads: () => threads }).methods.search(signal, query);
+  createThreadsApi({ threads: () => threads }).methods.search(signal, query) as Promise<string>;
 
 /** The script's returned value, or the run's error text. */
 async function runs(threads: Thread[], code: string): Promise<unknown> {

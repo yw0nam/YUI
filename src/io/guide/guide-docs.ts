@@ -3,6 +3,7 @@
 import capabilities from "../../../docs/guide/capabilities.md?raw";
 import controls from "../../../docs/guide/controls.md?raw";
 import type { GuideKey } from "../../contract";
+import type { YuiNamespace } from "../chat/tools/run/namespace";
 
 const DOCS: Record<GuideKey, string> = { controls, capabilities };
 
@@ -29,10 +30,7 @@ const GUIDE_DECLARATION = `  guide: {
   };`;
 
 /** The yui.guide namespace: one guide document as text. */
-export function createGuideApi(): {
-  methods: Record<string, (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>>;
-  declaration: string;
-} {
+export function createGuideApi(): YuiNamespace {
   return {
     methods: {
       read: async (_signal, name) => {

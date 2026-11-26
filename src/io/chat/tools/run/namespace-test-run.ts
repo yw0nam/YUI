@@ -1,7 +1,7 @@
 /** Runs a script against one yui namespace in the sandbox, for the namespace modules' tests. */
 
+import type { YuiMethod } from "./namespace";
 import { type RunResult, runScript } from "./sandbox";
-import type { YuiMethod } from "./yui-run-tool";
 
 export function runNamespace(
   name: string,

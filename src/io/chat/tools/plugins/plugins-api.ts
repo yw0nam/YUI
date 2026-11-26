@@ -6,8 +6,7 @@ import { oneLine } from "../../one-line";
 import { firstViolation } from "../bridge/first-violation";
 import { pluginToolResult } from "../bridge/plugin-result";
 import { TURN_STOPPED } from "../client-tools";
-
-type Method = (signal: AbortSignal, ...args: unknown[]) => Promise<unknown>;
+import type { PluginsNamespace, YuiMethod } from "../run/namespace";
 
 const PLUGINS_DECLARATION = `  plugins: {
     /** The enabled plugins' tools. */
@@ -33,16 +32,22 @@ function nameOf(method: string, name: unknown): string {
   return name;
 }
 
-export function createPluginsApi({ host, presetId }: { host: McpHost; presetId: () => string }) {
-  const list: Method = async () => pluginLines(host.snapshot()).tools;
+export function createPluginsApi({
+  host,
+  presetId,
+}: {
+  host: McpHost;
+  presetId: () => string;
+}): PluginsNamespace {
+  const list: YuiMethod = async () => pluginLines(host.snapshot()).tools;
 
-  const describe: Method = async (_signal, name) => {
+  const describe: YuiMethod = async (_signal, name) => {
     const tool = findPluginTool(host.snapshot(), nameOf("describe", name));
     if (!tool) return `error: unknown tool: ${name}`;
     return { description: tool.description ?? "", input_schema: tool.inputSchema };
   };
 
-  const call: Method = async (signal, name, args) => {
+  const call: YuiMethod = async (signal, name, args) => {
     const toolName = nameOf("call", name);
     // The sandbox hands an omitted argument over as null.
     const toolArgs = args ?? {};
