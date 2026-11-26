@@ -3,6 +3,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { createGuideApi } from "../../../guide/guide-docs";
 import type { McpHost } from "../../../mcp-host/mcp-host";
+import { createLookApi } from "../avatar";
 import { createPluginsApi } from "../plugins/plugins-api";
 import { createTerminalApi } from "../terminal/terminal-api";
 import { createThreadsApi } from "../threads/threads-api";
@@ -25,6 +26,7 @@ const declarations = [
   createGuideApi().declaration,
   createTerminalApi({ presetId: () => null, invoke: async () => "" }).declaration,
   createPluginsApi({ host: {} as McpHost, presetId: () => "" }).declaration,
+  createLookApi(() => null).declaration,
   createThreadsApi({ threads: () => [] }).declaration,
 ];
 /** The main window's help() text, whose size the budget pins. */
@@ -300,7 +302,7 @@ describe("helpText", () => {
     );
   });
 
-  it("declares the yui API and eight rules, and stays under 9,216 bytes", () => {
+  it("declares the yui API and eight rules, and stays under 9,472 bytes", () => {
     expect(main).toContain("declare const yui:");
     expect(main).not.toContain("declare function help(): string;");
     expect(main).toContain(
@@ -317,6 +319,6 @@ describe("helpText", () => {
       "8. A yui call that fails returns its error text; only a wrong argument throws.",
     );
     expect(main.match(/^\d\. /gm)).toHaveLength(8);
-    expect(new TextEncoder().encode(main).length).toBeLessThan(9216);
+    expect(new TextEncoder().encode(main).length).toBeLessThan(9472);
   });
 });

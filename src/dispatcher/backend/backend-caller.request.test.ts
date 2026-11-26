@@ -17,12 +17,12 @@ import {
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
 import { runClientCall } from "../../io/chat/stream/client-tool-run";
-import { createAvatarTools } from "../../io/chat/tools/avatar";
 import {
   type ClientTool,
   type ClientToolDefinition,
   createClientToolRegistry,
 } from "../../io/chat/tools/client-tools";
+import { createRateRelationTool } from "../../io/chat/tools/relation";
 import type { Logger } from "../../logger";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import { getToolLabel } from "../../ui/chips/tool-labels";
@@ -852,7 +852,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     ["Chat Completions", CC_CONFIG],
   ])("%s: a screenshot switch flipped between two turns leaves the request tools identical", async (_name, config) => {
     script.events = [completedEvent({ speech_text: "" }, "")];
-    let allowRequests = true;
+    let enabled = true;
     caller = createBackendCaller({
       config,
       renderer: { applyDirective } as never,
@@ -861,26 +861,24 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       stream: script.stream,
       turnOutput,
       clientTools: () =>
-        createClientToolRegistry(
-          createAvatarTools(() => null, {
-            allowRequests: () => allowRequests,
-            getWindow: () => null,
-            listMonitors: async () => [],
-            pointsAreLogical: true,
-            capturer: { captureAt: vi.fn() },
+        createClientToolRegistry([
+          createRateRelationTool({
+            store: { rate: vi.fn() },
+            targets: () => [],
+            enabled: () => enabled,
           }),
-        ),
+        ]),
     });
 
     await caller.call(turnOf(userEnv()));
-    allowRequests = false;
+    enabled = false;
     await caller.call(turnOf(userEnv()));
 
     const [, , firstOpts] = script.spy.mock.calls[0];
     const [, , secondOpts] = script.spy.mock.calls[1];
     const firstTools = firstOpts?.tools.definitions() as ClientToolDefinition[] | undefined;
     expect(firstTools).toEqual(secondOpts?.tools.definitions());
-    expect(firstTools?.map((d) => d.function.name)).toContain("look");
+    expect(firstTools?.map((d) => d.function.name)).toContain("rate_relation");
   });
 });
 

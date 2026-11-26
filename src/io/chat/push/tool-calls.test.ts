@@ -343,7 +343,7 @@ describe("createPushToolCalls — local status", () => {
   it("reports running and the terminal state of a tool that shows its own status, by call id", async () => {
     const onStatus = vi.fn();
     const pluginCall: ClientTool = {
-      ...tool("yui_tool_call", async () => "error: the script failed"),
+      ...tool("yui_run", async () => "error: the script failed"),
       localStatus: true,
     };
     const h = harness({
@@ -354,22 +354,22 @@ describe("createPushToolCalls — local status", () => {
       type: "tool_call",
       id: "c1",
       turn_id: "t",
-      name: "yui_tool_call",
-      arguments: { name: "look" },
+      name: "yui_run",
+      arguments: { code: "return 1" },
     });
     h.calls.handle(call("c2", "t", "look"));
     await flush();
 
     expect(onStatus.mock.calls).toEqual([
-      ["c1", "running", "yui_tool_call"],
-      ["c1", "failed", "yui_tool_call"],
+      ["c1", "running", "yui_run"],
+      ["c1", "failed", "yui_run"],
     ]);
   });
 
   it("names the chip after the id the tool reports for the call", async () => {
     const onStatus = vi.fn();
     const pluginCall: ClientTool = {
-      ...tool("yui_tool_call", async () => "ok"),
+      ...tool("yui_run", async () => "ok"),
       statusId: (args) => String(args.name),
       localStatus: true,
     };
@@ -378,7 +378,7 @@ describe("createPushToolCalls — local status", () => {
       type: "tool_call",
       id: "c1",
       turn_id: "t",
-      name: "yui_tool_call",
+      name: "yui_run",
       arguments: { name: "echo_args" },
     });
     await flush();
