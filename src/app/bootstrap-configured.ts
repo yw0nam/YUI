@@ -244,20 +244,21 @@ const realFactories: ConfiguredBootstrapFactories = {
       getEndpoints: phase1.getEndpoints,
       getConfig: () => config.get(),
     });
-    let signals: Pick<SignalsSource, "restore"> | null = null;
-    let schedule: Pick<ScheduleSource, "restore"> | null = null;
+    // The sources start after the turn core, so the dispatcher reaches them late-bound.
+    let signals: Pick<SignalsSource, "restore" | "drain"> | null = null;
+    let schedule: Pick<ScheduleSource, "markSpoken"> | null = null;
     const restoreSignals = (env: BusEnvelope): void => signals?.restore(env);
     const userTurnDone = createUserTurnDone({
       presetId: presetIdForWindow,
       emit: phase1.emitUserTurnDone,
       onTurnClosed: addressed.onTurnClosed,
-      onTurnDropped: (env, reason) => {
-        restoreSignals(env);
-        schedule?.restore(env, reason);
-      },
+      onTurnDropped: restoreSignals,
     });
     const core = await wireTurnCore(cfg, phase1, {
-      restoreSignals: userTurnDone.onTurnDropped,
+      onTurnDropped: userTurnDone.onTurnDropped,
+      drainSignals: () => signals?.drain() ?? [],
+      restoreSignals,
+      onTurnSpoken: (env) => schedule?.markSpoken(env),
       getCardText: card.getCardText,
       contextProviders: {
         getFrontmost: () => frontmostTracker.get(),

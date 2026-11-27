@@ -8,7 +8,6 @@ const GOOD = {
   prev_dwell_ms: 600000,
   settle_ms: 90000,
   long_session_ms: 2700000,
-  recent_cap: 5,
 };
 
 const KEYS = Object.keys(GOOD) as Array<keyof typeof GOOD>;
@@ -23,7 +22,6 @@ describe("validateScreen — happy path", () => {
       prev_dwell_ms: 600000,
       settle_ms: 90000,
       long_session_ms: 2700000,
-      recent_cap: 5,
     };
     let out: ReturnType<typeof validateScreen> | undefined;
     try {

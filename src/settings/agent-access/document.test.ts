@@ -33,7 +33,6 @@ const EXPOSED_PATHS = [
   "privacy.screen_watch.enabled",
   "privacy.screen_watch.long_session_ms",
   "privacy.screen_watch.prev_dwell_ms",
-  "privacy.screen_watch.recent_cap",
   "privacy.screen_watch.settle_ms",
   "privacy.screenshot",
   "privacy.thread_turns",
@@ -135,15 +134,17 @@ describe("applyPatch", () => {
   it("keeps the sibling field on a nested patch", async () => {
     const stores = createSettingsStores();
 
-    const result = await applyPatch(stores, { privacy: { screen_watch: { recent_cap: 10 } } });
+    const result = await applyPatch(stores, {
+      privacy: { screen_watch: { settle_ms: 30_000 } },
+    });
 
     expect(result.direct).toEqual({});
     expect(result.allow).toEqual([
       {
-        path: "privacy.screen_watch.recent_cap",
-        labelKey: "screen.recent_cap_label",
+        path: "privacy.screen_watch.settle_ms",
+        labelKey: "screen.settle_label",
         from: 0,
-        to: 10,
+        to: 30_000,
       },
     ]);
     expect(stores.screenSettings.get()).toEqual({ enabled: false });

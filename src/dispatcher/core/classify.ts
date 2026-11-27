@@ -129,3 +129,39 @@ export function isDndHeld(env: BusEnvelope): boolean {
     (env.event_name.startsWith("time_milestone.") || env.event_name.startsWith("signals."))
   );
 }
+
+/** A gesture reaction: os_event_watcher's `proactive.*`, the cue a touch or a drag of hers fires. */
+export const isGestureReaction = (env: BusEnvelope): boolean =>
+  env.source === "os_event_watcher" && env.event_name.startsWith("proactive.");
+
+/** A grouped-signals turn; it never waits in the list, its groups stay in their buffers. */
+export const isSignalsEvent = (env: BusEnvelope): boolean => env.event_name.startsWith("signals.");
+
+/** Whether a candidate waits for the user to be present: all but gesture reactions and addressed lines, which speak to her directly. */
+export const waitsForPresence = (env: BusEnvelope): boolean =>
+  env.source !== "addressed_source" && !isGestureReaction(env);
+
+/** Waiting-list rank of a self-started candidate, highest first. */
+export type WaitClass = "now" | "scheduled" | "room";
+
+/**
+ * Ranks by producer and event family, never the bare event name: an idle cue id can equal a
+ * gesture name, and `proactive.*` is an idle cue from timer_scheduler but a gesture reaction from
+ * os_event_watcher.
+ */
+export function waitClassOf(env: BusEnvelope): WaitClass {
+  if (env.source === "addressed_source" || isGestureReaction(env)) return "now";
+  if (env.source === "os_event_watcher" && env.event_name.startsWith("time_milestone.")) {
+    return "now";
+  }
+  if (env.source === "timer_scheduler" && env.event_name.startsWith("schedule."))
+    return "scheduled";
+  return "room";
+}
+
+const USER_GESTURES = new Set(["user.tap", "user.tap_region", "user.pat_start", "user.drag_start"]);
+
+/** A user turn or a gesture on her: the activity that ends the on-activity waiting entries. */
+export function isUserActivity(env: BusEnvelope): boolean {
+  return userTurnSourceOf(env) !== undefined || USER_GESTURES.has(env.event_name);
+}

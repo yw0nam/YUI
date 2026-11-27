@@ -1,4 +1,4 @@
-/** The real sources wired the way bootstrap does: do-not-disturb and the proactive gap hold the schedule and the signals inboxes. */
+/** The real sources wired the way bootstrap does: do-not-disturb and the proactive gap hold the signals inboxes, and the schedule pushes past both for the dispatcher to hold. */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { BusEnvelope } from "../../dispatcher/core/event-bus";
@@ -81,7 +81,6 @@ function wireWithDnd(
       prev_dwell_ms: 600000,
       settle_ms: 90000,
       long_session_ms: 2700000,
-      recent_cap: 5,
     }),
     pipelineBusy: { isBusy: () => false, subscribe: () => () => {} },
     pacer,
@@ -105,34 +104,36 @@ function wireWithDnd(
     ])
       source.stop();
   };
-  return { pushed, stop };
+  return { pushed, stop, sources };
 }
 
-it("pushes no due schedule cue while DND is on, and pushes it on the first tick after", async () => {
+it.each([
+  ["do-not-disturb", true, false],
+  ["the proactive gap", false, true],
+])("pushes a due schedule cue once while %s holds, for the dispatcher to hold", async (_hold, dndOn, holding) => {
   vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
-  const dnd = createFlagSettings(true);
   const schedule: ScheduleSettings = {
     enabled: true,
     entries: [{ id: "morning", label: "Morning", context: "ctx", time: "09:00", enabled: true }],
   };
-  const { pushed, stop } = wireWithDnd(dnd, schedule);
+  const { pushed, stop } = wireWithDnd(createFlagSettings(dndOn), schedule, {
+    isHolding: () => holding,
+    subscribe: () => () => {},
+  });
   // Let the fire-and-forget source starts subscribe to the fake channel.
   await vi.advanceTimersByTimeAsync(0);
   await vi.advanceTimersByTimeAsync(0);
   const scheduled = () => pushed.filter((e) => e.event_name.startsWith("schedule."));
 
   channel.emit("os_event", idleTick(500));
-  expect(scheduled()).toEqual([]);
-
-  dnd.setEnabled(false);
   channel.emit("os_event", idleTick(500));
   expect(scheduled().map((e) => e.event_name)).toEqual(["schedule.morning"]);
   stop();
 });
 
-it("buffers an urgent and a batched group while DND is on, and fires each catch-up once when it turns off", async () => {
+it("buffers an urgent and a batched group while DND is on; turning it off fires the urgent catch-up once and leaves the batched group to the drain", async () => {
   const dnd = createFlagSettings(true);
-  const { pushed, stop } = wireWithDnd(dnd);
+  const { pushed, stop, sources } = wireWithDnd(dnd);
   await vi.advanceTimersByTimeAsync(0);
   await vi.advanceTimersByTimeAsync(0);
   const envelope = (event_id: string, delivery: "batched" | "urgent") => ({
@@ -156,42 +157,19 @@ it("buffers an urgent and a batched group while DND is on, and fires each catch-
   });
   expect(pushed).toEqual([]);
 
+  expect(sources.drainSignals()).toEqual([]);
+
   dnd.setEnabled(false);
-  expect(pushed.map((e) => [e.source, e.event_name]).sort()).toEqual([
-    ["timer_scheduler", "signals.catchup"],
+  expect(pushed.map((e) => [e.source, e.event_name])).toEqual([
     ["urgent_signal_source", "signals.urgent_catchup"],
   ]);
-  expect(pushed.find((e) => e.event_name === "signals.catchup")!.payload).toEqual({
-    signals: [{ envelope: envelope("b2", "batched"), items: [{ id: 2 }] }],
-  });
+  expect(sources.drainSignals()).toEqual([
+    { envelope: envelope("b2", "batched"), items: [{ id: 2 }] },
+  ]);
 
   // A second DND cycle with an empty buffer fires nothing further.
   dnd.setEnabled(true);
   dnd.setEnabled(false);
-  expect(pushed).toHaveLength(2);
-  stop();
-});
-
-it("pushes no due schedule cue while the proactive gap holds, and pushes it on the first tick after", async () => {
-  vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
-  let holding = true;
-  const schedule: ScheduleSettings = {
-    enabled: true,
-    entries: [{ id: "morning", label: "Morning", context: "ctx", time: "09:00", enabled: true }],
-  };
-  const { pushed, stop } = wireWithDnd(createFlagSettings(false), schedule, {
-    isHolding: () => holding,
-    subscribe: () => () => {},
-  });
-  await vi.advanceTimersByTimeAsync(0);
-  await vi.advanceTimersByTimeAsync(0);
-  const scheduled = () => pushed.filter((e) => e.event_name.startsWith("schedule."));
-
-  channel.emit("os_event", idleTick(500));
-  expect(scheduled()).toEqual([]);
-
-  holding = false;
-  channel.emit("os_event", idleTick(500));
-  expect(scheduled().map((e) => e.event_name)).toEqual(["schedule.morning"]);
+  expect(pushed).toHaveLength(1);
   stop();
 });

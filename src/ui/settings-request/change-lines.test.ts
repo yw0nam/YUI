@@ -35,13 +35,6 @@ it.each([
     "New app settles after (Default → 30 s)",
   ],
   [
-    "privacy.screen_watch.recent_cap",
-    "screen.recent_cap_label",
-    1,
-    30,
-    "Remembers up to (1 entry → 30 entries)",
-  ],
-  [
     "limits.tier2_max",
     "reactions.rate_tier2_label",
     0,

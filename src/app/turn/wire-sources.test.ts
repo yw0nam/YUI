@@ -64,7 +64,6 @@ describe("wireDispatcherSources", () => {
     prev_dwell_ms: 600000,
     settle_ms: 90000,
     long_session_ms: 2700000,
-    recent_cap: 5,
   };
 
   /** Pacer stub whose hold state the test drives directly. */
@@ -135,9 +134,9 @@ describe("wireDispatcherSources", () => {
     expect((created.signals as { isEnabled: () => boolean }).isEnabled()).toBe(true);
     // pipelineBusy reaches the signals source (not proactive/schedule).
     const signalsDeps = created.signals as {
-      subscribePipelineBusy: (cb: (busy: boolean) => void) => void;
+      subscribeUrgentPipelineBusy: (cb: (busy: boolean) => void) => void;
     };
-    signalsDeps.subscribePipelineBusy(vi.fn());
+    signalsDeps.subscribeUrgentPipelineBusy(vi.fn());
     expect(pipelineBusy.subscribe).toHaveBeenCalled();
     expect((created.proactive as { isPipelineBusy?: unknown }).isPipelineBusy).toBeUndefined();
     expect(result.signalsSource.drain()).toEqual([]);
@@ -316,41 +315,18 @@ describe("wireDispatcherSources", () => {
     });
   }
 
-  it("hands the screen source the pacer's hold predicate", () => {
-    const pacer = fakePacer(true);
-    wireWithPacer(pacer);
-
-    const screen = created.screen as { isPacerHolding: () => boolean };
-    expect(screen.isPacerHolding()).toBe(true);
-    pacer.setHolding(false);
-    expect(screen.isPacerHolding()).toBe(false);
-  });
-
-  // The buffered-inbox source holds its items instead of skipping them, so the pacer
-  // reaches it as busy rather than as a gate of its own.
+  // The batch timer holds its items instead of skipping them, so the pacer reaches it as busy.
   it("composes the pacer into the busy predicate the signals source receives", () => {
     const pacer = fakePacer(false);
     wireWithPacer(pacer);
 
-    const source = created.signals as {
-      isPipelineBusy: () => boolean;
-      subscribePipelineBusy: (cb: (busy: boolean) => void) => () => void;
-    };
-    const edges: boolean[] = [];
-    const unsubscribe = source.subscribePipelineBusy((busy) => edges.push(busy));
+    const source = created.signals as { isPipelineBusy: () => boolean };
 
     expect(source.isPipelineBusy()).toBe(false);
     pacer.setHolding(true);
     expect(source.isPipelineBusy()).toBe(true);
-    expect(edges).toEqual([true]);
-
     pacer.setHolding(false);
     expect(source.isPipelineBusy()).toBe(false);
-    expect(edges).toEqual([true, false]);
-
-    unsubscribe();
-    pacer.setHolding(true);
-    expect(edges).toEqual([true, false]);
   });
 
   it("hands the signals source the raw busy predicate for its urgent instance beside the paced one", () => {

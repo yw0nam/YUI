@@ -855,10 +855,6 @@ const en: Record<string, string> = {
   "screen.settle_sub": "A quick glance is ignored",
   "screen.long_session_label": "Notices a long stretch every",
   "screen.long_session_sub": "One app held this long counts as a long session",
-  "screen.recent_cap_label": "Remembers up to",
-  "screen.recent_cap_sub":
-    "How many app switches held during a pause carry into the next screen turn",
-  "screen.count_suffix": "entries",
   "screen.foot":
     "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
 
@@ -973,7 +969,6 @@ const en: Record<string, string> = {
   "settings_request.default": "Default",
   "settings_request.none": "None",
   "settings_request.not_display": "A window or tab",
-  "settings_request.entry": "entry",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "Allow",
   "run.body_label": "Body (VRM)",

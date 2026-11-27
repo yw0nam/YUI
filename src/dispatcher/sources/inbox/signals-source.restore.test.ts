@@ -64,6 +64,8 @@ it("restores signals after a failed milestone turn is dropped", async () => {
     addressedChain: createDefaultAddressedChain(),
     logger: makeLogger(),
     onTurnDropped: (env) => signalsSource.restore(env),
+    drainSignals: () => signalsSource.drain(),
+    restoreSignals: (env) => signalsSource.restore(env),
   });
   const pipelineBusy = {
     isBusy: dispatcher.isPipelineBusy,
@@ -80,7 +82,6 @@ it("restores signals after a failed milestone turn is dropped", async () => {
       return () => {};
     },
     isPipelineBusy: paced.isBusy,
-    subscribePipelineBusy: paced.subscribe,
     isUrgentPipelineBusy: pipelineBusy.isBusy,
     subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
   });
@@ -114,7 +115,7 @@ it("restores signals after a failed milestone turn is dropped", async () => {
   pacer.stop();
 });
 
-it("restores a signals catch-up dropped at the global gap", async () => {
+it("sends the batched groups with the turn that takes the free slot, and keeps them buffered while the gap holds", async () => {
   const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = async (_event, handler) => {
     handlers.add(handler);
@@ -144,6 +145,8 @@ it("restores a signals catch-up dropped at the global gap", async () => {
     addressedChain: createDefaultAddressedChain(),
     logger: makeLogger(),
     onTurnDropped: (env) => signalsSource.restore(env),
+    drainSignals: () => signalsSource.drain(),
+    restoreSignals: (env) => signalsSource.restore(env),
   });
   const pipelineBusy = {
     isBusy: dispatcher.isPipelineBusy,
@@ -167,7 +170,6 @@ it("restores a signals catch-up dropped at the global gap", async () => {
       return () => {};
     },
     isPipelineBusy: paced.isBusy,
-    subscribePipelineBusy: paced.subscribe,
     isUrgentPipelineBusy: pipelineBusy.isBusy,
     subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
   });
@@ -181,11 +183,18 @@ it("restores a signals catch-up dropped at the global gap", async () => {
   tick(100);
   await vi.advanceTimersByTimeAsync(50);
   expect(call).toHaveBeenCalledTimes(1);
-  expect(call.mock.calls[0]![0].trigger.event_name).toBe("proactive.mid_check");
-  expect(
-    dispatcher.recentDrops().map(({ event_name, reason }) => ({ event_name, reason })),
-  ).toEqual([{ event_name: "signals.catchup", reason: "global_gap" }]);
-  expect(signalsSource.drain()).toEqual([group]);
+  expect(call.mock.calls[0]![0].trigger).toMatchObject({
+    event_name: "proactive.mid_check",
+    payload: { signals: [group] },
+  });
+
+  // The turn anchored the gap: a group arriving now stays buffered.
+  const later: SignalGroup = { envelope: { ...SIGNAL_ENVELOPE, event_id: "run-2" }, items: [] };
+  acceptSignals?.({ signals: later.items, envelope: later.envelope, ts: NOW + 120_000 });
+  await vi.advanceTimersByTimeAsync(50);
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(dispatcher.recentDrops()).toEqual([]);
+  expect(signalsSource.drain()).toEqual([later]);
   dispatcher.stop();
   proactive.stop();
   signalsSource.stop();
@@ -266,9 +275,9 @@ it("restores groups ahead of existing groups by delivery and keeps newer duplica
   });
   s.emitIdle(100);
   expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
-    ["signals.catchup", [restoredBatch, thirdBatched, firstBatched, secondBatched]],
     ["signals.urgent_catchup", [urgent, bufferedUrgent]],
   ]);
+  expect(s.src.drain()).toEqual([restoredBatch, thirdBatched, firstBatched, secondBatched]);
   s.src.stop();
 });
 

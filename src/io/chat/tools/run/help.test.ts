@@ -216,11 +216,6 @@ describe("helpText", () => {
           "L(screen.long_session_label) [global, allow]; 0 means YUI's default; 0..86400000 integer",
       },
       {
-        path: "privacy.screen_watch.recent_cap",
-        type: "number",
-        comment: "L(screen.recent_cap_label) [global, allow]; 0 means YUI's default; 0..20 integer",
-      },
-      {
         path: "privacy.external_signals",
         type: "boolean",
         comment: "L(agentNotify.label) [global, allow]",

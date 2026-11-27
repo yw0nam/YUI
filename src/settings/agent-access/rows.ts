@@ -21,11 +21,7 @@ import {
   type ReasoningEffort,
 } from "../backend/agent-settings";
 import { createGuardrailsSettings, RATE_LIMIT_MAX } from "../backend/guardrails-settings";
-import {
-  createScreenKnobSettings,
-  SCREEN_MS_MAX,
-  SCREEN_RECENT_CAP_MAX,
-} from "../capture/screen-settings";
+import { createScreenKnobSettings, SCREEN_MS_MAX } from "../capture/screen-settings";
 import { createScreenshotSettings } from "../capture/screenshot-settings";
 import { createUserNameSettings, MAX_LEN } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
@@ -77,8 +73,8 @@ export interface SettingRow {
   factory(storage: PersistedStorage<any>): StoreGetter;
   /** Label key of each enum value, as the settings window names it. */
   valueLabels?: Readonly<Record<string, string>>;
-  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text (`oneKey` for exactly 1). */
-  unit?: { per: number; suffixKey: string; oneKey?: string };
+  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text. */
+  unit?: { per: number; suffixKey: string };
   /** True when a stored 0 means YUI's default rather than zero. */
   zeroIsDefault?: boolean;
   /** What a written 0 means, when it is neither zero nor YUI's default. */
@@ -490,21 +486,6 @@ export const ROWS: readonly SettingRow[] = [
     integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ long_session_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
-    zeroIsDefault: true,
-    factory: (storage) => createScreenKnobSettings({ storage }),
-  }),
-  row({
-    path: "privacy.screen_watch.recent_cap",
-    store: "screenKnobSettings",
-    field: ["recent_cap"],
-    scope: "global",
-    access: "allow",
-    labelKey: "screen.recent_cap_label",
-    min: 0,
-    max: SCREEN_RECENT_CAP_MAX,
-    integer: true,
-    write: (stores, value) => stores.screenKnobSettings.set({ recent_cap: value as number }),
-    unit: { per: 1, suffixKey: "screen.count_suffix", oneKey: "settings_request.entry" },
     zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),

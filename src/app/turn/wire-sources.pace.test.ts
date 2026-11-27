@@ -83,7 +83,6 @@ function wireWithPaceFactor(paceFactor: () => number) {
       prev_dwell_ms: 600000,
       settle_ms: 90000,
       long_session_ms: 2700000,
-      recent_cap: 5,
     }),
     pipelineBusy: { isBusy: () => false, subscribe: () => () => {} },
     pacer: { isHolding: () => false, subscribe: () => () => {} },

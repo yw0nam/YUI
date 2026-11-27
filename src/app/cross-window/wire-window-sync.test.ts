@@ -459,12 +459,16 @@ describe("wireGuardrailsOverrides", () => {
     };
   }
 
-  const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean =>
-    guardrails.evaluate({
-      source: "os_event_watcher",
+  const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean => {
+    const env = {
+      source: "os_event_watcher" as const,
       event_name: "proactive.head_pat",
       ts: 1_717_000_000_000,
-    }).pass;
+    };
+    if (!guardrails.arrive(env).pass || !guardrails.canSpend(env)) return false;
+    guardrails.spend(env);
+    return true;
+  };
 
   function setup() {
     const config = baseConfig();

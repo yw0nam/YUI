@@ -24,7 +24,7 @@ export interface TurnRecord {
   spoke_text: boolean;
 }
 
-export type SkipReason = "disabled" | "not_present" | "global_gap";
+export type SkipReason = "disabled" | "not_present";
 
 /** A screen candidate refused at the source's own gate, named by the transition it would have been. */
 export interface ScreenSkipRecord {
