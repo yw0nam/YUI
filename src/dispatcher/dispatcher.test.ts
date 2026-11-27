@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import { fakeLocks } from "../io/locks/fake-lock-manager";
 import type { Logger } from "../logger";
+import { t } from "../ui/i18n";
 import type { BackendCaller, TurnFailure } from "./backend/backend-caller";
 import { createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
@@ -706,11 +707,12 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
     const surfaces = {
       quoteUser: vi.fn(),
       quoteSignals: vi.fn(),
+      quoteTrigger: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),
     };
-    const quoted = createQuotedTurn({ surfaces, turnLog });
+    const quoted = createQuotedTurn({ surfaces, turnLog, translate: t });
     onAdmitted = quoted.admitted;
     onFailed = (turn) => quoted.failed(turn);
     return surfaces;

@@ -128,7 +128,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       source: "screen_watcher",
       event_name: `proactive.screen_${transition}`,
       ts: t,
-      payload: { transition, dwell_min, ...fromFields, ...recentFields },
+      payload: { transition, app: currentApp, dwell_min, ...fromFields, ...recentFields },
     };
     bus.push(env);
     recent = [];

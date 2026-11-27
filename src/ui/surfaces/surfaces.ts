@@ -34,6 +34,7 @@ import { withPlateState } from "../message/plate-state";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
+import { createTriggerLine } from "../message/trigger-line";
 import { createUserQuote } from "../message/user-quote";
 import { anchorWithInputSlots, liftWithInputSlots } from "./input-slots";
 
@@ -76,6 +77,8 @@ export interface Surfaces extends Omit<TextInput, "interceptSubmit"> {
   quoteUser(quote: UserQuote): void;
   /** A turn ran with signal groups and its first utterance opened: the groups show as source lines on the bubble's first lines. */
   quoteSignals(lines: SourceLine[]): void;
+  /** A turn she started opened its first utterance: why she spoke shows on the bubble's first line. */
+  quoteTrigger(text: string): void;
   /** The quoted turn is over: the line stays and the bubble takes its dwell, or hides when it shows nothing else. */
   settleQuote(): void;
   /** The quoted turn ended before any reply: the line goes and the bubble hides when it shows nothing else. */
@@ -242,6 +245,7 @@ export function createSurfaces({
     : null;
   const quote = createUserQuote({ el: bubbleQuote, bubble, lead: quoteLead });
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
+  const trigger = createTriggerLine({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     liftWithInputSlots([askSlot, commandSlot], bubble),
@@ -298,6 +302,7 @@ export function createSurfaces({
     showSpeechActions: bubble.showSpeechActions,
     quoteUser: quote.show,
     quoteSignals: sources.show,
+    quoteTrigger: trigger.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,
     showTool: tool.showTool,

@@ -609,6 +609,18 @@ describe("unified view — running replies", () => {
   });
 });
 
+describe("unified view — the trigger line", () => {
+  it("draws why she spoke in the quote slot, without the delivery dot", () => {
+    mount();
+
+    stream("perlica", { op: "quote-trigger", text: "09:00 Morning greeting" });
+
+    const quote = document.querySelector(".yui-bubble__quote")!;
+    expect(quote.textContent).toBe("09:00 Morning greeting");
+    expect(quote.querySelector(".yui-signal-line__dot")).toBeNull();
+  });
+});
+
 describe("unified view — the backlog", () => {
   it("labels the user's lines with who they went to", () => {
     transcripts = {

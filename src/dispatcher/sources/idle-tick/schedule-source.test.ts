@@ -601,6 +601,25 @@ describe("schedule_source — payload shape", () => {
     expect(e.payload?.label).toBe("점심");
     expect(e.payload?.context).toBe("밥");
   });
+
+  it("carries the cue's time, so the bubble can name when she spoke", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue({ id: "lunch", label: "점심", context: "밥", time: "09:00" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(pushed[0].payload?.time).toBe("09:00");
+  });
 });
 
 describe("schedule_source — live getCues edits", () => {

@@ -15,12 +15,14 @@ import {
 } from "../backend/context-builder";
 import { mentionOf, routedViaOf, userTurnSourceOf } from "../core/classify";
 import { sourceLinesOf } from "./signal-lines";
+import { type Translate, triggerLineOf } from "./trigger-line";
 import type { Turn, TurnLog } from "./turn";
 
 /** The surface calls the quote drives; the real Surfaces satisfies it. */
 export interface QuoteSurfaces {
   quoteUser(quote: UserQuote): void;
   quoteSignals(lines: SourceLine[]): void;
+  quoteTrigger(text: string): void;
   settleQuote(): void;
   clearQuote(): void;
   restoreInput(text: string, images: string[]): void;
@@ -39,6 +41,8 @@ export interface QuotedTurn {
 export function createQuotedTurn(deps: {
   surfaces: QuoteSurfaces;
   turnLog: Pick<TurnLog, "subscribe">;
+  /** Catalogs the fixed trigger-line phrases. */
+  translate: Translate;
   /** Puts a failed turn's attached Threads back on the chat input. */
   restoreThreads?: (threads: AttachedThread[]) => void;
 }): QuotedTurn {
@@ -54,7 +58,8 @@ export function createQuotedTurn(deps: {
         guide: boolean;
         spoke: boolean;
       }
-    | { kind: "signals"; id: number; lines: SourceLine[]; spoke: boolean };
+    | { kind: "signals"; id: number; lines: SourceLine[]; spoke: boolean }
+    | { kind: "trigger"; id: number; text: string; spoke: boolean };
   let quoted: Quoted | null = null;
 
   const unsubscribe = deps.turnLog.subscribe((over) => {
@@ -71,6 +76,12 @@ export function createQuotedTurn(deps: {
         if (lines.length > 0) {
           // Nothing shows until the utterance opens — the quote holds the lines for it.
           quoted = { kind: "signals", id: turn.id, lines, spoke: false };
+          return;
+        }
+        const trigger = triggerLineOf(turn.trigger, deps.translate);
+        if (trigger !== null) {
+          // Nothing shows until the utterance opens — the quote holds the line for it.
+          quoted = { kind: "trigger", id: turn.id, text: trigger, spoke: false };
           return;
         }
         if (quoted === null) return;
@@ -104,6 +115,7 @@ export function createQuotedTurn(deps: {
     utteranceStart() {
       if (!quoted) return;
       if (quoted.kind === "signals" && !quoted.spoke) surfaces.quoteSignals(quoted.lines);
+      if (quoted.kind === "trigger" && !quoted.spoke) surfaces.quoteTrigger(quoted.text);
       quoted.spoke = true;
     },
     failed(turn) {
@@ -114,8 +126,8 @@ export function createQuotedTurn(deps: {
         surfaces.settleQuote();
         return;
       }
-      // A signal quote never showed, so there is nothing to clear or restore.
-      if (failedQuote.kind === "signals") return;
+      // A non-user quote never showed, so there is nothing to clear or restore.
+      if (failedQuote.kind !== "user") return;
       // Resending the bare request would lose the guide, so a guide turn restores nothing.
       if (failedQuote.via === "text" && !failedQuote.guide)
         surfaces.restoreInput(failedQuote.text, failedQuote.images);

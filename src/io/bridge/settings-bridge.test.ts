@@ -770,6 +770,20 @@ describe("speech stream", () => {
     expect(received).not.toHaveBeenCalled();
   });
 
+  it("carries a trigger line and drops one whose text is not a string", () => {
+    const { pet, received } = pair();
+
+    pet.emitSpeechStream({ preset: "yui", op: { op: "quote-trigger", text: "09:00 Morning" } });
+    pet.emitSpeechStream({
+      preset: "yui",
+      op: { op: "quote-trigger", text: 7 },
+    } as never);
+
+    expect(received.mock.calls).toEqual([
+      [{ preset: "yui", op: { op: "quote-trigger", text: "09:00 Morning" } }],
+    ]);
+  });
+
   it("carries the unified window's click on an error's fix back, stamped with the preset", () => {
     const { pet, unified } = pair();
     const control = vi.fn();

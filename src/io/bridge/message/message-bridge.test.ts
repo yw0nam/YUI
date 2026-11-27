@@ -92,6 +92,20 @@ describe("createMessageBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  it("delivers a trigger line whose text is a string and drops one that is not", () => {
+    const { pet, message } = pair();
+    const cb = vi.fn();
+    message.onSurface(cb);
+
+    pet.emitSurface({ op: "quote-trigger", text: "09:00 Morning greeting" });
+    pet.emitSurface({ op: "quote-trigger", text: 7 } as unknown as MessageSurfaceOp);
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      op: "quote-trigger",
+      text: "09:00 Morning greeting",
+    });
+  });
+
   it.each(["control", "surface"] as const)("isolates message %s by preset", (channel) => {
     const t = createFakeTransport();
     history.replaceState(null, "", "/?preset=a");

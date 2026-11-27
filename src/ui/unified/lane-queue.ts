@@ -9,7 +9,7 @@ import { applySpeechOp, type SpeechOp } from "../surfaces/apply-speech-op";
 
 type Box = Parameters<typeof applySpeechOp>[1];
 
-const SHOWS = new Set<SpeechOp["op"]>(["begin", "quote", "quote-signals"]);
+const SHOWS = new Set<SpeechOp["op"]>(["begin", "quote", "quote-signals", "quote-trigger"]);
 
 export interface LaneQueue {
   /** One bubble op a character's window sent. */
@@ -77,6 +77,7 @@ export function createLaneQueue(deps: { box: Box }): LaneQueue {
         break;
       case "quote":
       case "quote-signals":
+      case "quote-trigger":
         done = false;
         ended = false;
         shownWhole = false;

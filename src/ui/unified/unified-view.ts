@@ -288,6 +288,7 @@ export function createUnifiedView(deps: {
         case "finish":
         case "hide":
         case "quote-signals":
+        case "quote-trigger":
         case "settle-quote":
         case "clear-quote":
           lanes.accept(preset, op);

@@ -58,6 +58,7 @@ const RECEIVER_METHODS = [
   "setAttachmentLimits",
   "quoteUser",
   "quoteSignals",
+  "quoteTrigger",
   "settleQuote",
   "clearQuote",
   "restoreInput",
@@ -274,6 +275,13 @@ const ROWS: Record<keyof typeof surfaceOps, Row[]> = {
       send: (r) => r.quoteSignals(LINES),
       wire: { op: "quote-signals", lines: LINES },
       received: [["quoteSignals", [LINES]]],
+    },
+  ],
+  "quote-trigger": [
+    {
+      send: (r) => r.quoteTrigger("09:00 Morning greeting"),
+      wire: { op: "quote-trigger", text: "09:00 Morning greeting" },
+      received: [["quoteTrigger", ["09:00 Morning greeting"]]],
     },
   ],
   "settle-quote": [

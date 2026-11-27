@@ -16,6 +16,7 @@ import type { Renderer } from "../../../renderer";
 import type { SettingsStores } from "../../../settings/settings-stores";
 import { createVoiceErrorDwell } from "../../../ui/chips/voice-error-dwell";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
+import { t } from "../../../ui/i18n";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
@@ -50,6 +51,7 @@ export function wireTurnVoice(deps: {
     | "finishSpeech"
     | "quoteUser"
     | "quoteSignals"
+    | "quoteTrigger"
     | "settleQuote"
     | "clearQuote"
     | "restoreInput"
@@ -120,7 +122,12 @@ export function wireTurnVoice(deps: {
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
   const previousTurn = createPreviousTurn();
-  const quotedTurn = createQuotedTurn({ surfaces, turnLog, restoreThreads: deps.restoreThreads });
+  const quotedTurn = createQuotedTurn({
+    surfaces,
+    turnLog,
+    translate: t,
+    restoreThreads: deps.restoreThreads,
+  });
   register(quotedTurn.dispose);
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
   let strollingRef: { isStrolling(): boolean } | null = null;

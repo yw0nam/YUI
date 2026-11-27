@@ -405,6 +405,8 @@ function isStreamOp(v: unknown): v is MessageSurfaceOp {
       return isQuote(o.quote);
     case "quote-signals":
       return Array.isArray(o.lines) && o.lines.every(isSourceLine);
+    case "quote-trigger":
+      return isString(o.text);
     case "busy":
       return isBool(o.busy);
     case "threads":
