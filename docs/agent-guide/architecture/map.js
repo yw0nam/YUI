@@ -1707,7 +1707,7 @@ globalThis.YUI_MAP =
       "id": "turn-failure-notice",
       "from": "app/turn",
       "to": "ui/chips",
-      "carries": "a failed user turn with no input open (a typed turn after the input closed, or a spoken one) → turnNotice.show({message, action?}): the status pill holds it 60 s with a keyed action, 3 s without; the action is Connect, Change key or Check connection, and Retry is the composer's own; a new turn or a click on the action clears it",
+      "carries": "failed user turn with no input open → turnNotice.show({message, action?}); the status pill holds it 60 s with an action, 3 s without; actions: Connect, Change key, Check connection",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/report-turn-failure.ts"
@@ -1716,7 +1716,7 @@ globalThis.YUI_MAP =
       "id": "mic-settings-opener",
       "from": "io/voice/stt",
       "to": "shell/core",
-      "carries": "plugin:opener|open_url {x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone}: the status pill's Open mic settings beside a blocked mic on macOS; the default capability allows that one URL beside http, https, mailto and tel",
+      "carries": "plugin:opener|open_url {x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone} from the status pill's Open mic settings (macOS, mic blocked)",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/io/voice/open-mic-settings.ts"
@@ -1904,7 +1904,7 @@ globalThis.YUI_MAP =
       "id": "first-conversation-surfaces",
       "from": "app/turn/card",
       "to": "ui/surfaces",
-      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs, on a replay whatever the seen flag says, carrying the two speech actions Hear the controls and Hear what she can do, each calling submitGuide with its guide key and help request text",
+      "carries": "summonInput(), or hideSpeech() then summonInput(); the controls hint with speech actions Hear the controls and Hear what she can do → submitGuide(guide key, help request text)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-first-conversation.ts"
@@ -2050,7 +2050,7 @@ globalThis.YUI_MAP =
       "id": "push-ws-in",
       "from": "backend-push",
       "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask {ask with multiple?, expires_at?}, ask_end, command_reply; ready.commands states the Backend commands",
+      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask {ask with multiple?, expires_at?}, ask_end, command_reply; ready.commands",
       "kind": "websocket",
       "transport": "push"
     },
@@ -2139,7 +2139,7 @@ globalThis.YUI_MAP =
       "id": "push-ask",
       "from": "io/chat/push",
       "to": "app/turn",
-      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → the window's Ask queue (put, remove); the queue's answer for the push owner → sendAnswer {ask_id, choice?, choices?, text?}",
+      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → the Ask queue (put, remove); the queue's answer → sendAnswer {ask_id, choice?, choices?, text?}",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/ask-session.ts"
@@ -2148,7 +2148,7 @@ globalThis.YUI_MAP =
       "id": "surface-asks",
       "from": "ui/surfaces",
       "to": "ui/ask",
-      "carries": "setAsks → SlotCards.set: an AskFrame head on the Ask card with multiple?, a SettingsRequestFrame head {request_id, name, changes, why?, expires_at?} on the Settings request card; onAskAnswer → an Answer {ask_id, choice?, choices?, text?} or a decision {request_id, allow, note?}",
+      "carries": "setAsks → SlotCards.set: AskFrame on the Ask card, SettingsRequestFrame {request_id, name, changes, why?, expires_at?} on the Settings card; onAskAnswer → Answer or decision {request_id, allow, note?}",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/surfaces/surfaces.ts"
@@ -2260,7 +2260,7 @@ globalThis.YUI_MAP =
       "id": "synth-failure",
       "from": "io/voice/tts",
       "to": "app/turn",
-      "carries": "onSynthFailure(tracked, error) when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure always; a TtsUnreachableError reports the unreachable reach, any other error the synth failure listeners, only for a backend utterance's sentence (tracked)",
+      "carries": "onSynthFailure(tracked, error) when a sentence's synthesis fails (not a skip) → the filler's onSynthFailure; a TtsUnreachableError reports the unreachable reach, others the synth failure listeners",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2269,7 +2269,7 @@ globalThis.YUI_MAP =
       "id": "synth-failure-notice",
       "from": "app/turn",
       "to": "ui/surfaces",
-      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) when a reply with a failed sentence ends (onUtteranceEnd), once per pet window run; a greeting, or a reply while the unified chat window shows, leaves the notice armed",
+      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) when a reply with a failed sentence ends (onUtteranceEnd)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
@@ -2296,7 +2296,7 @@ globalThis.YUI_MAP =
       "id": "voice-list-retry",
       "from": "io/voice/tts",
       "to": "io/voice/voices",
-      "carries": "refreshVoiceList() → VoiceListOutcome when a synth finds no resolved voice and a TTS URL is set; one request shared by its callers, ok or skipped cleared at once, a failure reused until the next utterance starts",
+      "carries": "refreshVoiceList() → VoiceListOutcome when a synth finds no resolved voice and a TTS URL is set; callers share one request",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2323,7 +2323,7 @@ globalThis.YUI_MAP =
       "id": "tts-unreachable-notice",
       "from": "app/turn",
       "to": "ui/surfaces",
-      "carries": "showSpeechActions([\"Voice server not connected · Reconnect\"]) when a reply ends after an unreachable reach, once per outage until an ok reach; a greeting, or a reply while the unified chat window shows, shows nothing",
+      "carries": "showSpeechActions([\"Voice server not connected · Reconnect\"]) when a reply ends after an unreachable reach",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-tts-unreachable-notice.ts"
@@ -2366,7 +2366,7 @@ globalThis.YUI_MAP =
       "id": "chip-column-chips",
       "from": "ui/chips",
       "to": "ui/surfaces",
-      "carries": "the signal chips' row roots with data-chip-count and, on urgent ones, data-chip-urgent, and the delegation chip's root with data-chip-count → the chip column's plan, which caps the rows that do not fit with is-capped",
+      "carries": "signal chips' row roots with data-chip-count and data-chip-urgent; delegation chip root with data-chip-count → the chip column's plan, which caps rows with is-capped",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -2509,7 +2509,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only (rate_relation and address_character in every pet window, yui_run in every pet window under Tauri, body_action in main)",
+      "carries": "hello.tools, and a tools frame when the declared tools change: rate_relation, address_character, yui_run (under Tauri), body_action (in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2518,7 +2518,7 @@ globalThis.YUI_MAP =
       "id": "stream-tools",
       "from": "io/chat/stream",
       "to": "io/chat/tools",
-      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action; tool_status running for each namespace a yui_run script calls",
+      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action; tool_status running per yui_run namespace",
       "kind": "call",
       "transport": "request"
     },
@@ -2526,7 +2526,7 @@ globalThis.YUI_MAP =
       "id": "push-tools",
       "from": "io/chat/push",
       "to": "io/chat/tools",
-      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal, call id, frame turn_id) → tool_result frame; onStatus running for each namespace a localStatus tool reports",
+      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on cut, socket loss, reset or disposal, call id, frame turn_id) → tool_result frame; onStatus running per localStatus namespace",
       "kind": "call",
       "transport": "push"
     },
@@ -2552,7 +2552,7 @@ globalThis.YUI_MAP =
       "id": "ask-queue-surfaces",
       "from": "app/turn",
       "to": "ui/surfaces",
-      "carries": "setAsks(the queue's AskFrame and SettingsRequestFrame frames, oldest first) → the Ask slot; onAskAnswer → an Answer, matched by ask_id, only to a push Ask head and its sendAnswer, or a decision {request_id, allow, note?}, matched by request_id, only to a Settings request head, whose owner checks its shape before it takes it",
+      "carries": "setAsks(the queue's AskFrame and SettingsRequestFrame, oldest first) → the Ask slot; onAskAnswer → Answer by ask_id → sendAnswer, or decision {request_id, allow, note?} for a Settings request head",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2570,7 +2570,7 @@ globalThis.YUI_MAP =
       "id": "tools-ask-queue",
       "from": "io/chat/tools",
       "to": "app/turn",
-      "carries": "yui.settings.write's allow paths → one Settings request → the window's Ask queue (put, remove); the user's decision answers the write: allowed paths ok, the rest denied, each as ok: <note> / denied: <note> when the user wrote a note; no answer comes after the card's 60 s once shown, or when the turn stops",
+      "carries": "yui.settings.write's allow paths → one Settings request → the Ask queue (put, remove); decision → ok / denied: <note> per path; no answer after 60 s once shown, or when the turn stops",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-yui-run.ts"
@@ -2651,7 +2651,7 @@ globalThis.YUI_MAP =
       "id": "relations-tool",
       "from": "io/chat/tools",
       "to": "settings",
-      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it; while the Relations switch is off the call answers error: relations are off and writes nothing",
+      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and range clamp; with Relations off → error: relations are off",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/relations/wire-relations.ts"
@@ -2668,7 +2668,7 @@ globalThis.YUI_MAP =
       "id": "tools-mcp-host",
       "from": "io/chat/tools",
       "to": "io/mcp-host",
-      "carries": "snapshot() for yui.plugins.list, describe and the yui_run description; plugin_host_call {callId, name, arguments, presetId}; plugin_host_cancel {callId} when the run ends or the turn stops, kept by the host when it arrives before the call; plugin_host_skill {name} for help(\"plugin:<name>\")",
+      "carries": "snapshot() for yui.plugins.list, describe and the yui_run description; plugin_host_call {callId, name, arguments, presetId}; plugin_host_cancel {callId}; plugin_host_skill {name}",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/io/chat/tools/pet-window-tools.ts"
@@ -2686,7 +2686,7 @@ globalThis.YUI_MAP =
       "id": "mcp-host-shell",
       "from": "io/mcp-host",
       "to": "shell/mcp-host",
-      "carries": "plugin_host_call, plugin_host_cancel, plugin_host_skill, plugin_host_snapshot, plugin_host_catalog, plugin_host_install, plugin_host_remove, plugin_host_enable, plugin_host_disable, plugin_host_add_local, plugin_host_retry, plugin_host_log_tail, plugin_host_reveal_log",
+      "carries": "plugin_host_{call, cancel, skill, snapshot, catalog, install, remove, enable, disable, add_local, retry, log_tail, reveal_log}",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -2761,7 +2761,7 @@ globalThis.YUI_MAP =
       "id": "relations-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, refused with 400 outside the ranges or for an unknown key; JSON answer, or the same path under /presets/<id>/ answered by that window",
+      "carries": "GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, 400 outside ranges or for an unknown key; JSON answer; /presets/<id>/ answered by that window",
       "kind": "http",
       "transport": "shared"
     },
@@ -2777,7 +2777,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window: bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim, server ts), avatar-rpc (avatar and relations routes), ingress-dead",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2835,7 +2835,7 @@ globalThis.YUI_MAP =
       "id": "relations-set",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): the range clamps, no daily cap; the preset header, the pet window (over the broadcast) and the next turn read the new value",
+      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): range clamps, no daily cap; preset header, pet window and next turn read the value",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/quick-controls.ts"
@@ -3034,7 +3034,7 @@ globalThis.YUI_MAP =
       "id": "threads-reaction-turn",
       "from": "ambient/threads-reaction",
       "to": "dispatcher/sources/inbox",
-      "carries": "hold, fireHeld and release on thread:<id>: held while the switch is on for every Thread in the snapshot, fired together once she sits with the expression set, released when the Thread leaves the snapshot or the switch goes off; a tap's fire carries dnd_override, so it passes do-not-disturb",
+      "carries": "hold, fireHeld, release on thread:<id>: held per snapshot Thread while the switch is on; fired together once she sits with the expression set; tap fire carries dnd_override",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3159,7 +3159,7 @@ globalThis.YUI_MAP =
       "id": "idle-tick-bus",
       "from": "dispatcher/sources/idle-tick",
       "to": "dispatcher/core",
-      "carries": "bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity (its payload's last_together is the day's first present tick's snapshot of yui.last-together, null before the first), proactive.screen_app_switched, proactive.screen_long_session",
+      "carries": "bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity (payload last_together: yui.last-together snapshot, or null), proactive.screen_app_switched, proactive.screen_long_session",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -3177,7 +3177,7 @@ globalThis.YUI_MAP =
       "id": "gesture-bus",
       "from": "dispatcher/sources/gesture",
       "to": "dispatcher/core",
-      "carries": "bus.push: user.tap, user.tap_region, user.pat_*, proactive.touch_<region>, proactive.head_pat, proactive.drag_held, user.window_sit_drop, user.peek_drop, proactive.window_sit, proactive.peek, user.window_sit_exit, user.peek_exit",
+      "carries": "bus.push: user.{tap, tap_region, pat_*, window_sit_drop, peek_drop, window_sit_exit, peek_exit}, proactive.{touch_<region>, head_pat, drag_held, window_sit, peek}",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-gestures.ts"
@@ -3186,7 +3186,7 @@ globalThis.YUI_MAP =
       "id": "settings-dnd-gate",
       "from": "app/active-hours",
       "to": "dispatcher",
-      "carries": "isDndOn: the pet window's do-not-disturb (the device switch, or an off span now), read per envelope; a held self-fired envelope is dropped with reason dnd, and queued or lock-waiting ones too when it turns on",
+      "carries": "isDndOn: the pet window's do-not-disturb, read per envelope; a held self-fired envelope is dropped with reason dnd, queued ones too when it turns on",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -3427,7 +3427,7 @@ globalThis.YUI_MAP =
       "id": "locomotion-bus",
       "from": "ambient/locomotion",
       "to": "dispatcher/core",
-      "carries": "bus.push: avatar.walk_start, avatar.walk_end, avatar.climb_start, avatar.climb_end, avatar.jump, avatar.window_sit, user.fall_land, proactive.dropped (a fall she started herself pushes none while do-not-disturb is on, a drag-release fall still does)",
+      "carries": "bus.push: avatar.{walk_start, walk_end, climb_start, climb_end, jump, window_sit}, user.fall_land, proactive.dropped (not for a self-started fall while do-not-disturb is on)",
       "kind": "call",
       "transport": "shared"
     },
@@ -3559,7 +3559,7 @@ globalThis.YUI_MAP =
       "id": "settings-edit-target",
       "from": "ui/quick-controls",
       "to": "app/settings-window",
-      "carries": "the preset id picked in the preset header's character row; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
+      "carries": "the preset id picked in the preset header's character row → settings.html with `?edit=<id>`; the window rebuilds over that preset's stores and bridge stamp; main and pet windows untouched",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -3568,7 +3568,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-windows",
       "from": "windows",
       "to": "io/window/openers",
-      "carries": "openSettings(page?, focus?): the status pill's capture button opens no page and the delegation chip opens Connection; a new settings window at settings.html with `?preset=<id>`, `&page=<page>` and `&focus=chat_key` when given, else the open one is shown, focused and asked for the page and focus",
+      "carries": "openSettings(page?, focus?) → settings.html with `?preset=<id>`, `&page=<page>`, `&focus=chat_key`; an open one is shown, focused and asked for page and focus",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -3577,7 +3577,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-bootstrap",
       "from": "app/bootstrap",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): a failed turn's Connect and the first-run hint's action, landing on Connection; openSettings(\"conn\", \"chat_key\"): a failed turn's Change key and Check connection, landing on Connection with the key field showing; a window without that page stays where it was",
+      "carries": "openSettings(\"conn\"): a failed turn's Connect and the first-run hint's action; openSettings(\"conn\", \"chat_key\"): a failed turn's Change key and Check connection (key field showing)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3594,7 +3594,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-channel-open",
       "from": "app/character-menu",
       "to": "app/character-menu-window",
-      "carries": "yui://character-menu open {id, kind, name, state, frame, workArea, head, nameTop, chest, hitTest}: the pet window asks the menu window to place and show the menu beside her; state {id, state} refreshes it; close {id} hides it",
+      "carries": "yui://character-menu open {id, kind, name, state, frame, workArea, head, nameTop, chest, hitTest}; state {id, state} refreshes it; close {id} hides it",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/character-menu/wire-character-menu-window.ts"
@@ -3612,7 +3612,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-stores",
       "from": "app/character-menu",
       "to": "settings",
-      "carries": "Rest flips yui.dnd, Pace sets the base pace (Less, Normal, More as low, normal, high), Keep bubble and Unified chat flip their switch rows' stores, a confirmed Turn off → petWindows.close(id), Settings and a trailing More… → openSettings(page)",
+      "carries": "Rest flips yui.dnd; Pace sets the base pace (low, normal, high); Keep bubble and Unified chat flip their store rows; confirmed Turn off → petWindows.close(id); Settings and More… → openSettings(page)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/character-menu/character-menu-ports.ts"
@@ -3684,7 +3684,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-hold",
       "from": "app/character-menu",
       "to": "app/stage",
-      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; abortTravel() waits for a cancelled travel to unpark; hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort closes an open menu",
+      "carries": "hold(\"menu\", true, onAbort) cancels loops and keeps a stroll, climb or perch walk from starting; abortTravel(); hold(\"menu\", false) on close; onAbort closes an open menu",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3709,7 +3709,7 @@ globalThis.YUI_MAP =
       "id": "terminal-shell-command",
       "from": "io/terminal",
       "to": "shell/terminal",
-      "carries": "terminal_snapshot once after the listen; terminal_open {cwd?}; terminal_close {id}; terminal_input {id, data}; terminal_resize {cols, rows}; terminal_attach {id, onOutput}; terminal_answer {requestId, allow}; terminal_take_back {id}",
+      "carries": "terminal_{snapshot, open {cwd?}, close {id}, input {id, data}, resize {cols, rows}, attach {id, onOutput}, answer {requestId, allow}, take_back {id}}",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/io/terminal/terminal-client.ts"
@@ -3763,7 +3763,7 @@ globalThis.YUI_MAP =
       "id": "terminal-tool-command",
       "from": "io/chat/tools",
       "to": "shell/terminal",
-      "carries": "yui.terminal methods call the same commands: terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the run ends or the turn stops",
+      "carries": "yui.terminal → terminal_tool_{open {presetId, cwd?}, list, read {callId, presetId, id, lines?}, write {callId, presetId, id, text, enter?}, close, cancel {callId}}",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/io/chat/tools/terminal/terminal-api.ts"
@@ -3781,7 +3781,7 @@ globalThis.YUI_MAP =
       "id": "threads-tray-open",
       "from": "app/threads-chip",
       "to": "io/window/openers",
-      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a bound Character menu's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
+      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a bound Character menu's request: place, show and focus with no chip rect; while shown, focus and select the tab",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
@@ -3817,7 +3817,7 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\", thread?: string, focus?: false, present?: string}: place, show and focus the window, then grow out of the chip when there is one; select the tab; thread selects that Thread on open; while it shows, focus it and select the tab the request names; focus: false shows or raises the window without keyboard focus, and while it shows changes no tab or selection; present is the id that threads-presented answers",
+      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?, thread?, focus?: false, present?}: place, show, focus, grow from chip; thread selects that Thread; present is the id threads-presented answers",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -3880,7 +3880,7 @@ globalThis.YUI_MAP =
       "id": "threads-attach-surfaces",
       "from": "app/threads-attach",
       "to": "ui/surfaces",
-      "carries": "setThreads(list) on every change, which the router gives the docked input, the message window and the speech stream; summonInput() when a toggle adds while the input is closed; back: onThreadRemove(thread) from the docked chip's ×, onSubmit(text, images, threads) dropping the Threads a send carried",
+      "carries": "setThreads(list) on every change → docked input, message window, speech stream; summonInput() when a toggle adds while closed; onThreadRemove(thread); onSubmit(text, images, threads)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-attach/wire-threads-attach.ts"
@@ -3916,7 +3916,7 @@ globalThis.YUI_MAP =
       "id": "threads-placement",
       "from": "app/threads-window",
       "to": "io/window/geometry",
-      "carries": "threadsWindowRect, restoreThreadsBox, nearestWorkArea and chipInWindow: the first open 12px beside the pet window on its roomier side, the wanted panel narrowed to the room and never below 360 × 420; a stored frame sized into and moved inside the nearest monitor's work area less 12px; the chip-sized rect the grow starts from",
+      "carries": "threadsWindowRect, restoreThreadsBox, nearestWorkArea, chipInWindow: first open 12px beside the pet window; stored frame clamped into the nearest work area less 12px; min 360 × 420; chip-sized rect",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/threads-placement.ts"
@@ -3925,7 +3925,7 @@ globalThis.YUI_MAP =
       "id": "threads-frame",
       "from": "app/threads-window",
       "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed, listWidth?}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the list's dragged width, written at a drag's end, an arrow step and a reset, absent for the default; the frame read on each open, the list choice and width once at boot",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed, listWidth?}: frame in logical px, written on placement, move settle and resize end (floored at 360 × 420); list choice and width on change",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -4015,7 +4015,7 @@ globalThis.YUI_MAP =
       "id": "settings-page",
       "from": "io/bridge/settings",
       "to": "app/settings-window",
-      "carries": "yui://settings-page {preset, page?, focus?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading without `?edit=` when it edits another, selects the page, and focuses the chat key field when focus is chat_key (the Connection view follows the stored chat URL: Quick start for Gemini, Detailed settings otherwise); other windows drop it",
+      "carries": "yui://settings-page {preset, page?, focus?}, unscoped: the window whose preset matches (main's for null) selects the page and focuses the chat key field when focus is chat_key; others drop it",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-page.ts"
@@ -4024,7 +4024,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-emit",
       "from": "app/settings-window",
       "to": "io/bridge/settings",
-      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: the stage slot in screen logical points below the title bar, and the window's scale, at boot, on a move, on the stage's layout at a new size or a visibility change when it changed, and on every ask; null while minimised",
+      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: stage slot in screen points, and window scale; on boot, move, layout change, every ask; null while minimised",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -4033,7 +4033,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage",
       "from": "io/bridge/settings",
       "to": "app/stage",
-      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a slot starts, moves or resizes the come-along, null sends her home; a slot sized outside 100 to 2000 pt is dropped with a warn",
+      "carries": "yui://settings-stage, unscoped: preset null for main's pet window, its id for a bound one; a slot starts, moves or resizes the come-along; null sends her home; sizes outside 100–2000 pt dropped",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4060,7 +4060,7 @@ globalThis.YUI_MAP =
       "id": "come-along-locomotion",
       "from": "ambient/come-along",
       "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, locks Ctrl+wheel and saves no resize as her geometry, and pauses keep-on-screen; abortTravel (which waits for a Ctrl+wheel resize in flight) before her desktop frame is read, release of her seat, widen([], slot frame or home frame) and travel.end() for the carry, the virtual window's setFrameLogical easing her origin and size; placement writes the slot's frame in one setFrameLogical; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; onMoverTakesOver → restoreSize at a drag's drop before it settles, and on an agent move once the holds let go and any travel unparked, before the move; a slot waits while a travel parks her frame and applies when a holder lets go",
+      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}); abortTravel(); widen([], frame); setFrameLogical; drop({landOnSeam: true}); onMoverTakesOver → restoreSize",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4069,7 +4069,7 @@ globalThis.YUI_MAP =
       "id": "come-along-renderer",
       "from": "ambient/come-along",
       "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
+      "carries": "onTick; playMotion drag at pickup, one entry clip once docked, null on arrival home; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime for the edge clip",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4078,7 +4078,7 @@ globalThis.YUI_MAP =
       "id": "come-along-canvas",
       "from": "ambient/come-along",
       "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height, framing) for her feet share in the slot (framing 1) or home (framing 0) frame she is about to take, at each carry frame's framing, and how much larger she is drawn there; setStageFraming(k) eased with each carry frame toward 1 onto the stage and 0 home from the value last set, set with the frame while hidden in a vanish or fade, 1 on a reload that resumes on the stage, and 0 when a mover takes her off the stage or a start or trip home fails; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
+      "carries": "vanish(), land(feet anchor), appear(); getFrameFit(width, height, framing); setStageFraming(k); getPerchProbe(); setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) / (null, {easeMs})",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/stage/wire-come-along.ts"
@@ -4141,7 +4141,7 @@ globalThis.YUI_MAP =
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
-      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired; the Shift-drag orbit writes no angle under the same hold",
+      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; plain wheel zoom ignored while a hold keeps her geometry, bound through lockWheelZoom(locomotion.keepsGeometry)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/stage/wire-pet-stage.ts"
@@ -4158,7 +4158,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the Characters list writes yui.windows, and open returns false with nothing written while 4 presets, main's included, are open; the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent and renames the preset in yui.presets; the General page writes the user name into yui.user-name",
+      "carries": "store commit → localStorage yui.* or yui.<preset-id>.*; Characters writes yui.windows; Use in main writes the active id; Card section writes yui.agent, yui.presets; General writes yui.user-name",
       "kind": "storage",
       "transport": "shared"
     },
@@ -4247,7 +4247,7 @@ globalThis.YUI_MAP =
       "id": "settings-active-hours",
       "from": "settings",
       "to": "app/active-hours",
-      "carries": "activeHoursSettings spans, agentSettings card (null means the UI language's default), the proactive gap store and the device-wide do-not-disturb store: each change, and each minute, recomputes the handle",
+      "carries": "activeHoursSettings spans, agentSettings card, the proactive gap store and the device-wide do-not-disturb store → recomputes the handle on each change and each minute",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -4283,7 +4283,7 @@ globalThis.YUI_MAP =
       "id": "active-hours-edit",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the Persona page's Active hours rows → activeHoursSettings.setSpans(the whole row list) on any edit, add or remove; Reset to default → reset() (null, the card's spans apply); the pet window of that preset reads it over the broadcast",
+      "carries": "Persona page's Active hours rows → activeHoursSettings.setSpans(row list); reset() on Reset to default; the preset's pet window reads it over the broadcast",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/quick-controls/quick-controls.ts"
@@ -4346,7 +4346,7 @@ globalThis.YUI_MAP =
       "id": "user-turn-routed",
       "from": "ui/unified",
       "to": "dispatcher/sources/routed",
-      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message; threads are the attached Threads a send carries, typed or spoken, and while any are attached a send goes to main",
+      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; next waits for user-turn-done; with Threads attached, sends go to main",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4355,7 +4355,7 @@ globalThis.YUI_MAP =
       "id": "voice-segment",
       "from": "app/turn",
       "to": "ui/unified",
-      "carries": "yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; that window routes it like a typed message, or puts it in the field while any turn runs or a line holds or waits for the box",
+      "carries": "yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; routed like a typed message, or put in the field while a turn runs or a line holds",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/turn/turn-core.ts"
@@ -4400,7 +4400,7 @@ globalThis.YUI_MAP =
       "id": "unified-transcripts",
       "from": "io/chat/conversation",
       "to": "ui/unified",
-      "carries": "every open preset's yui.<id>.chat_transcript \u2192 readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
+      "carries": "every open preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4418,7 +4418,7 @@ globalThis.YUI_MAP =
       "id": "mention-trigger",
       "from": "dispatcher/sources/routed",
       "to": "dispatcher/core",
-      "carries": "bus.push: user.text_submitted {text, send_id, mention?} \u2192 client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
+      "carries": "bus.push: user.text_submitted {text, send_id, mention?} → client_context trigger.mention → the `trigger: user message (addressed to the character|everyone)` suffix",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -4498,7 +4498,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
+      "carries": "Import… → importCardFromFile; Export preset → inspectPresetVrm, exportPresetFile; Export card (PNG) → exportCardPng; exports add extensions.yui.filler; photo → loadPhotoSize; drop → importCardFromDrop",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4516,7 +4516,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
+      "carries": "Import… → createPresetFromCard: yui.vrm and yui.speaker from VRM and voice ids, filler from extensions.yui.filler, thumbnail → loadPhotoSize → defaultCrop; failure removes both",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4549,7 +4549,7 @@ globalThis.YUI_MAP =
       "id": "preset-photo",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the manage row's photo button \u2192 the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
+      "carries": "the manage row's photo button → the photo dialog (pickPresetPhoto → pick_preset_photo stores cards/<id>.png) → registry.setThumbnail(file URL with ?v=<time>, crop)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4558,7 +4558,7 @@ globalThis.YUI_MAP =
       "id": "card-thumb-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail and crop \u2192 the preset header's and the card section's face (avatarEl)",
+      "carries": "PresetEntry.thumbnail and crop → the preset header's and the card section's face (avatarEl)",
       "kind": "callback",
       "transport": "shared"
     },
@@ -4642,7 +4642,7 @@ globalThis.YUI_MAP =
       "id": "controls-models",
       "from": "ui/quick-controls",
       "to": "io/chat/models",
-      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
+      "carries": "model list → Connection chat section and Quick start (Connect read); stored-key check on the connected view, window focus, Change key and Check connection; 401, 403 or Gemini's 400 read as refused",
       "kind": "call",
       "transport": "request"
     },
@@ -4650,7 +4650,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-mount",
       "from": "app/settings-window",
       "to": "ui/settings-stage",
-      "carries": "createSettingsStage({ mount, presetRegistry, petWindows, boundId, getDefaultChatApi, endpointsSettings, onSettingsChanged }) → the stage first in the window's row, the panel's host after it; dispose on close",
+      "carries": "createSettingsStage({ mount, presetRegistry, petWindows, boundId, getDefaultChatApi, endpointsSettings, onSettingsChanged }) → stage in the window row, panel host after; dispose on close",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -4659,7 +4659,7 @@ globalThis.YUI_MAP =
       "id": "settings-stage-state",
       "from": "settings",
       "to": "ui/settings-stage",
-      "carries": "presetRegistry.get() and subscribe → presetEntryFor(state, boundId); readChatApiOverride(own id), re-read on the panel's endpointsSettings.subscribe; isPresetOpen(petWindows.get(), id) and petWindows.subscribe",
+      "carries": "presetRegistry.get() and subscribe → presetEntryFor(state, boundId); readChatApiOverride(own id) on endpointsSettings.subscribe; isPresetOpen(petWindows.get(), id) and petWindows.subscribe",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
@@ -4869,7 +4869,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the label and busy flag of each button the bubble shows under its speech, in order; asks carries push Ask and Settings request frames; asks, commands and command-reply restated on ready",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to sender's preset; speech-actions (label, busy per button); asks (Ask and Settings frames); asks, commands, command-reply on ready",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4878,7 +4878,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action {index}, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -5021,7 +5021,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream",
       "from": "ui/surfaces",
       "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, restore-input, threads, commands, command-reply); busy, name, threads and commands always; Command replies go to the issuing window",
+      "carries": "yui://speech-stream {preset, op}, unscoped; op: begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, restore-input, threads, commands",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -5102,7 +5102,7 @@ globalThis.YUI_MAP =
       "id": "settings-theme",
       "from": "settings",
       "to": "ui/theme",
-      "carries": "themeSettings.subscribe → data-theme and textSizeSettings.subscribe → --yui-text-scale on the window root; the pet, settings, message, unified, Threads and devtools windows each call applyTheme and applyTextScale",
+      "carries": "themeSettings.subscribe → data-theme; textSizeSettings.subscribe → --yui-text-scale on the window root; each window calls applyTheme and applyTextScale",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -6710,7 +6710,7 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip?, tab?, thread?, focus?, present?}: place, show and focus the window, grow out of the chip when there is one; select the tab; thread selects that Thread on open; focus: false shows or raises it without focus; while it shows, focus it and select the tab the request names",
+        "carries": "yui://threads-open {chip?, tab?, thread?, focus?, present?}: place, show and focus, grow from the chip; select the tab; thread selects that Thread; focus: false shows without focus",
         "kind": "bridge"
       },
       {
@@ -6836,7 +6836,7 @@ globalThis.YUI_MAP =
         "id": "turn-lock-pet-bound",
         "from": "pet",
         "to": "pet-<id>",
-        "carries": "navigator.locks yui.turn: taken before a turn's backend call while yui.one-voice is on, released when the pipeline is idle (call ended and playback done) or when the window dies; other windows queue in order",
+        "carries": "navigator.locks yui.turn: taken before a turn's backend call while yui.one-voice is on, released when the pipeline is idle or the window dies; other windows queue in order",
         "kind": "storage"
       },
       {
@@ -7130,14 +7130,14 @@ globalThis.YUI_MAP =
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
+        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
         "kind": "bridge"
       },
       {
         "id": "message-control-companion",
         "from": "message-<id>",
         "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
         "kind": "bridge"
       },
       {
@@ -7172,14 +7172,14 @@ globalThis.YUI_MAP =
         "id": "speech-stream-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy, name and the attached Threads always; commands and Command replies for this window",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines while the unified chat window shows; busy, name and attached Threads always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-pet-bound-unified",
         "from": "pet-<id>",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy and name always; commands and Command replies for this window",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines while the unified chat window shows; busy and name always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
