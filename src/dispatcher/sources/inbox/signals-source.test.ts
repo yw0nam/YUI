@@ -111,6 +111,39 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     src.stop();
   });
 
+  it("peek returns both buffers' groups and removes none of them", async () => {
+    const busy = fakePipelineBusy(true);
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isUrgentPipelineBusy: busy.isPipelineBusy,
+    });
+    await src.start();
+
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
+    emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, delivery: "urgent", event_id: "u-1" }));
+
+    const urgent = {
+      envelope: { ...ENVELOPE, delivery: "urgent" as const, event_id: "u-1" },
+      items: [{ id: 2 }],
+    };
+    const batched = { envelope: envelopeOf(1), items: [{ id: 1 }] };
+    expect(src.peek()).toEqual([urgent, batched]);
+    expect(src.peek()).toEqual([urgent, batched]);
+    expect(src.drain()).toEqual([batched]);
+    expect(src.peek()).toEqual([urgent]);
+    expect(pushed).toEqual([]);
+
+    src.stop();
+  });
+
   it("away arrivals are buffered; the present tick pushes no batched catch-up, and drain returns them in arrival order", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
