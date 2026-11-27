@@ -25,3 +25,10 @@ export function createAddressedChain(max: () => number): AddressedChain {
     },
   };
 }
+
+/** Stamps the used count beside the max release stamped, before the context awaits. */
+export function stampExchangeUsed(env: { payload?: Record<string, unknown> }, used: number): void {
+  const exchange = env.payload?.exchange as { max?: unknown } | undefined;
+  if (!exchange || typeof exchange.max !== "number") return;
+  env.payload = { ...env.payload, exchange: { max: exchange.max, used } };
+}

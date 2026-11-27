@@ -40,7 +40,7 @@ import type {
   TurnOutcome,
 } from "./backend/backend-caller";
 import { userTextOf } from "./backend/context-builder";
-import type { AddressedChain } from "./core/addressed-chain";
+import { type AddressedChain, stampExchangeUsed } from "./core/addressed-chain";
 import { createAdmission } from "./core/admission";
 import {
   classify,
@@ -433,14 +433,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (admission.heldByDndAny(env, members)) return "dnd";
         guardrails.spend(env);
         deps.addressedChain.count(addressedIn(env, members));
-        // Stamp the used count beside the max release stamped, before the context awaits.
-        const exchange = env.payload?.exchange as { max?: unknown } | undefined;
-        if (exchange && typeof exchange.max === "number") {
-          env.payload = {
-            ...env.payload,
-            exchange: { max: exchange.max, used: deps.addressedChain.taken() },
-          };
-        }
+        stampExchangeUsed(env, deps.addressedChain.taken());
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
