@@ -274,11 +274,11 @@ The **Thinking interjections** section of the **Voice** page edits these lists p
 | Setting | Shipped default | Meaning |
 | --- | --- | --- |
 | `rate_limit.window_ms` | `3600000` (1 h) | Length of the rolling window every cap counts in |
-| `rate_limit.tier2_max` | `24` | Times she speaks up per hour: proactive, schedule, agent, signal, milestone and addressed turns together |
-| `rate_limit.urgent_max` | `120` | Urgent signal turns per hour, counted apart from `tier2_max` |
+| `rate_limit.tier2_max` | `24` | Times each character speaks up per hour: proactive, schedule, agent, signal, milestone and addressed turns together |
+| `rate_limit.urgent_max` | `120` | Urgent signal turns per hour for each character, counted apart from `tier2_max` |
 | `rate_limit.addressed_chain_max` | `2` | Answers to another character in a row, before you speak again |
 
-The **Wait after a conversation** field under **Advanced** on the **Proactive** page sets the proactive gap: the wait after any turn start before a proactive source speaks up on her own. Its default is `600000` ms (10 minutes), and `0` disables it. It is a device setting, `yui.proactive-pacer-gap`, not a key in this file.
+The **Wait after a conversation** field under **Advanced** on the **Proactive** page sets the proactive gap: the wait after any turn of that character starts before a proactive source speaks up on her own. Its default is `600000` ms (10 minutes), and `0` disables it. It is a per-character setting, `yui.proactive-pacer-gap`, not a key in this file.
 
 The **How often she speaks up** control at the top of the **Proactive** page is the device-wide base pace, `yui.base-pace` (`low`, `normal` or `high`, default `normal`).
 

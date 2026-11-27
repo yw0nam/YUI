@@ -83,7 +83,7 @@ _Avoid_: quiet hours, quiet mode, Rest (for a span)
 The device-wide pace (Less, Normal or More; stored `low`, `normal` or `high`, default Normal) set by "How often she speaks up" at the top of the Proactive page. Every pet window multiplies it by its character's span pace, so it scales the proactive gap and the idle cue minutes the same way a span does.
 
 **Proactive gap**:
-The device-wide wait after any turn starts, user or proactive, spoken or silent, before a proactive source may speak up on her own. Shown as "Wait after a conversation" under Advanced on the Proactive page, stored as `yui.proactive-pacer-gap` (default 10 minutes; 0 disables it). Each pet window scales it by the base pace times the span pace.
+The wait in one character's pet window after any of her turns starts, user or proactive, spoken or silent, before a proactive source may speak up on her own. Another character's turn does not start it. Shown as "Wait after a conversation" under Advanced on the Proactive page, stored per character as `yui.proactive-pacer-gap` (default 10 minutes; 0 disables it). Each pet window scales it by the base pace times the span pace.
 _Avoid_: quiet gap, pacer gap, global gap
 
 **Chain cap**:
