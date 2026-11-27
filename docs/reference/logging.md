@@ -213,8 +213,9 @@ The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_t
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `character-menu-window` | `character_menu_window_create_error` | `error` | The window reported a creation error event. |
-| `character-menu-main` | `boot_failed` | `error` | The Character menu window's entry failed to boot. |
+| `character-menu-window` | `character_menu_window_create_error` | `error` | The window reported a creation error event (`error` level). |
+| `character-menu-main` | `boot_failed` | `error` | The Character menu window's entry failed to boot (`error` level). |
+| `bootstrap` | `character_menu_window_failed` | `error` | Creating the Character menu window at main's boot threw (`error` level). |
 | `wire-character-menu-window` | `boot_hide_failed` | `error` | Hiding the window at its boot threw (`warn` level). |
 
 ## Threads window

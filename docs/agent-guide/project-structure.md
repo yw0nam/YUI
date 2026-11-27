@@ -564,6 +564,7 @@ YUI/
           companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           cursor-source.ts             # One OS-cursor poll shared by gaze and the hit-test, in window-local CSS px
+          over-selectors.ts            # The hit check over DOM targets the pet window and the Character menu window share: a point within a margin of a matching element
           hit-test.ts                  # Click-through hit-test controller for the transparent window
           peek-state.ts                # Holds the current peek side and its lifecycle
           gesture/                     # The three pointer-gesture detectors the stage wires

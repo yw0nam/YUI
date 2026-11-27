@@ -913,7 +913,7 @@ globalThis.YUI_MAP =
       "id": "io/window/pet",
       "module": "window",
       "label": "pet window",
-      "role": "The pet window's pointer gestures, the shared cursor poll for click-through and gaze, peek state, the summon hotkey and the dock into her settings window.",
+      "role": "The pet window's pointer gestures, the shared cursor poll and hit check for click-through and gaze, peek state, the summon hotkey and the dock into her settings window.",
       "paths": [
         "src/io/window/pet"
       ]
@@ -3477,6 +3477,24 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-locomotion.ts"
     },
     {
+      "id": "character-menu-frame-shell",
+      "from": "app/character-menu-window",
+      "to": "shell/window",
+      "carries": "set_frame_logical {x, y, width, height}: the Character menu window's frame, set beside her before the menu shows",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/windows/character-menu-main.ts"
+    },
+    {
+      "id": "character-menu-click-through-shell",
+      "from": "io/window/pet",
+      "to": "shell/window",
+      "carries": "set_click_through {ignore} from the Character menu window's hit-test controller, which polls the cursor and runs while the menu shows",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/windows/character-menu-main.ts"
+    },
+    {
       "id": "pet-drag-shell",
       "from": "io/window/pet",
       "to": "shell/window",
@@ -3648,7 +3666,7 @@ globalThis.YUI_MAP =
       "id": "character-menu-threads",
       "from": "app/character-menu",
       "to": "io/window/openers",
-      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the window is restored; the Threads pill's count is main's waiting Threads",
+      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the menu window is hidden; the Threads pill's count is main's waiting Threads",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/character-menu/character-menu-ports.ts"
