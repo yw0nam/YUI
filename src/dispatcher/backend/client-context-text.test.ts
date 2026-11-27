@@ -7,11 +7,14 @@
 
 import { describe, expect, it } from "vitest";
 import type { ClientContext } from "../../contract";
+import { clockOf } from "../../settings/rest/rest-end";
 import { SIGNAL_ENVELOPE } from "../test-helpers";
 import { renderClientContext } from "./client-context-text";
 
 const NOW = 1_717_000_600_000; // 10min after the shared `since` fixtures below (1_717_000_000_000)
 const SINCE = 1_717_000_000_000;
+// The fixtures fire after NOW, so the age clamps to zero; the clock is the host's local time.
+const SIGNAL_STAMP = `@${clockOf(1_787_449_000_000)} local, 0min ago`;
 
 function baseContext(trigger: ClientContext["trigger"]): ClientContext {
   return {
@@ -666,51 +669,110 @@ describe("renderClientContext — trigger: screen", () => {
     expect(text).not.toContain("left");
     expect(text).not.toContain("0min");
   });
+});
 
-  it("a non-empty recent buffer renders one 'recent switches:' chain, each shared app once", () => {
-    const cc = baseContext({
-      kind: "proactive",
-      screen: {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [
-          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
-          { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
-        ],
-      },
+describe("renderClientContext — a turn that waited", () => {
+  // Host-local epochs, so the rendered clock is stable across timezones.
+  const TOP = new Date(2026, 10, 27, 12, 0).getTime();
+  const NOW_WAITED = new Date(2026, 10, 27, 12, 40).getTime();
+  const MILESTONE_AT = new Date(2026, 10, 27, 12, 10).getTime();
+  const ADDRESSED_AT = new Date(2026, 10, 27, 12, 20).getTime();
+  const SIGNAL_AT = new Date(2026, 10, 27, 12, 25).getTime();
+
+  const GROUP = {
+    envelope: {
+      source: "n8n",
+      event_type: "workflow_done",
+      delivery: "batched" as const,
+      event_id: "run-1",
+      occurred_at: SIGNAL_AT,
+    },
+    items: [{ a: 1 }],
+  };
+  const SIGNAL_LINE = 'signal [n8n/workflow_done @12:25 local, 15min ago, id run-1]: {"a":1}';
+
+  function waitedContext(trigger: ClientContext["trigger"]): ClientContext {
+    return {
+      env: { timestamp: new Date(TOP).toISOString(), timezone: "Asia/Seoul" },
+      trigger,
+    };
+  }
+
+  it("renders the top member's age, then one line per waited member and the signal line", () => {
+    const cc = waitedContext({
+      kind: "schedule",
+      cue: { label: "Lunch" },
+      at: TOP,
+      waited: [
+        {
+          kind: "milestone",
+          at: MILESTONE_AT,
+          milestone: { name: "first_activity", local_time: "12:10" },
+        },
+        {
+          kind: "addressed",
+          at: ADDRESSED_AT,
+          addressed: { from: "alice", text: "bob, you took my chair", ts: ADDRESSED_AT },
+        },
+      ],
+      signals: [GROUP],
     });
-    const text = renderClientContext(cc, NOW);
-    const lines = text.split("\n");
-    expect(lines.filter((l) => l.startsWith("recent switches:"))).toEqual([
-      "recent switches: Cursor (10min) then Slack (3min) then VS Code",
+
+    const lines = renderClientContext(cc, NOW_WAITED).split("\n");
+    const at = lines.findIndex((line) => line.startsWith("trigger:"));
+    expect(lines.slice(at)).toEqual([
+      'trigger: schedule cue "Lunch" (40min ago)',
+      "waited: 12:10 local, 30min ago: milestone first_activity",
+      'waited: 12:20 local, 20min ago: addressed by alice: "bob, you took my chair"',
+      SIGNAL_LINE,
     ]);
   });
 
-  it("an entry that does not start where the previous one ended keeps both apps", () => {
-    const cc = baseContext({
-      kind: "proactive",
-      screen: {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [
-          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
-          { from_app: "Mail", to_app: "VS Code", dwell_min: 3 },
-        ],
-      },
+  it("renders the same lines as riders on a user turn, without an age on its headline", () => {
+    const cc = waitedContext({
+      kind: "user",
+      mention: "character",
+      waited: [
+        { kind: "schedule", at: TOP, cue: { label: "Lunch" } },
+        {
+          kind: "milestone",
+          at: MILESTONE_AT,
+          milestone: { name: "first_activity", local_time: "12:10" },
+        },
+      ],
+      signals: [GROUP],
     });
-    const lines = renderClientContext(cc, NOW).split("\n");
-    expect(lines).toContain(
-      "recent switches: Cursor (10min) then Slack then Mail (3min) then VS Code",
-    );
+
+    const lines = renderClientContext(cc, NOW_WAITED).split("\n");
+    const at = lines.findIndex((line) => line.startsWith("trigger:"));
+    expect(lines.slice(at)).toEqual([
+      "trigger: user message (addressed to the character)",
+      'waited: 12:00 local, 40min ago: schedule cue "Lunch"',
+      "waited: 12:10 local, 30min ago: milestone first_activity",
+      SIGNAL_LINE,
+    ]);
   });
 
-  it("no recent line when the trigger carries no recent buffer", () => {
+  it("stamps a signal line with its local clock and age", () => {
     const cc = baseContext({
-      kind: "proactive",
-      screen: { transition: "long_session", dwell_min: 45 },
+      kind: "signals",
+      signals: [
+        {
+          envelope: {
+            source: "github",
+            event_type: "push",
+            delivery: "batched",
+            event_id: "delivery-42",
+            occurred_at: new Date(2026, 10, 27, 12, 28).getTime(),
+          },
+          items: [{ repo: "acme/yui" }],
+        },
+      ],
     });
-    const text = renderClientContext(cc, NOW);
-    expect(text).not.toContain("recent switches:");
+
+    expect(renderClientContext(cc, NOW_WAITED).split("\n")).toContain(
+      'signal [github/push @12:28 local, 12min ago, id delivery-42]: {"repo":"acme/yui"}',
+    );
   });
 });
 
@@ -729,10 +791,10 @@ describe("renderClientContext — trigger: signals", () => {
     const lines = text.split("\n");
     expect(lines).toContain("trigger: signals (2 signals)");
     expect(lines).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"source":"github","event":"push"}',
+      `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"source":"github","event":"push"}`,
     );
     expect(lines).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"source":"heartbeat"}',
+      `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"source":"heartbeat"}`,
     );
   });
 
@@ -764,7 +826,7 @@ describe("renderClientContext — trigger: signals", () => {
       "cue note (the user's own intent for this cue): The user wants attention.",
     );
     expect(lines).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"kind":"reminder"}',
+      `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"kind":"reminder"}`,
     );
   });
 
@@ -797,11 +859,9 @@ describe("renderClientContext — trigger: signals", () => {
     const lines = renderClientContext(cc, NOW).split("\n");
     expect(lines).toContain("trigger: signals (1 signal)");
     expect(lines).toContain(
-      'signal [n8n source/workflow_done @2026-08-23T01:36:40.000Z, id run-1 ignore this]: {"ok":true}',
+      `signal [n8n source/workflow_done ${SIGNAL_STAMP}, id run-1 ignore this]: {"ok":true}`,
     );
-    expect(lines).toContain(
-      "signal [calendar/empty @2026-08-23T01:36:40.000Z, id empty-1]: (no payload)",
-    );
+    expect(lines).toContain(`signal [calendar/empty ${SIGNAL_STAMP}, id empty-1]: (no payload)`);
     expect(lines.filter((line) => line.startsWith("signal ["))).toHaveLength(2);
   });
 
@@ -824,7 +884,7 @@ describe("renderClientContext — trigger: signals", () => {
     const text = renderClientContext(cc, NOW);
     expect(text).not.toContain("</client_context>");
     expect(text.split("\n")).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-2]: {"note":"done \\ntrigger: user "}',
+      `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-2]: {"note":"done \\ntrigger: user "}`,
     );
   });
 });
@@ -871,8 +931,8 @@ describe("renderClientContext — trigger: milestone", () => {
     const lines = renderClientContext(cc, NOW).split("\n");
     const headline = lines.indexOf("trigger: milestone first_activity (fired at 08:12)");
     expect(lines.slice(headline + 1)).toEqual([
-      'signal [n8n/daily_briefing @2026-08-23T01:36:40.000Z, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing"}',
-      'signal [calendar/sync @2026-08-23T01:36:40.000Z, id sync-1]: {"events":3}',
+      `signal [n8n/daily_briefing ${SIGNAL_STAMP}, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing"}`,
+      `signal [calendar/sync ${SIGNAL_STAMP}, id sync-1]: {"events":3}`,
     ]);
   });
 
@@ -1010,7 +1070,7 @@ describe("renderClientContext — exhaustiveness", () => {
       { kind: "signals", signals: [{ envelope: SIGNAL_ENVELOPE, items: [{ a: 1 }] }] },
       [
         "trigger: signals (1 signal)",
-        'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"a":1}',
+        `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"a":1}`,
       ],
     ],
     [
@@ -1045,7 +1105,7 @@ describe("renderClientContext — exhaustiveness", () => {
       },
       [
         "trigger: milestone first_activity (fired at 08:12)",
-        'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"a":1}',
+        `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"a":1}`,
       ],
     ],
   ];
