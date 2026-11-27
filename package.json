@@ -20,6 +20,7 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "map:check": "node scripts/ci/architecture-map.mjs",
+    "map:fmt": "node scripts/architecture-map-fmt.mjs",
     "css:check": "node scripts/ci/css-selectors.mjs",
     "logger:check": "node scripts/ci/logger-namespace.mjs",
     "commands:check": "node scripts/ci/command-paths.mjs",
