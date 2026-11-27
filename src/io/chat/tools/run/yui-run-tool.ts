@@ -24,6 +24,7 @@ export interface YuiRunPorts {
     plugins?: PluginsNamespace;
     look?: YuiNamespace;
     threads?: YuiNamespace;
+    waiting?: YuiNamespace;
   };
 }
 
@@ -43,7 +44,7 @@ const CAN = [
 ] as const;
 
 /** help() prints the namespace blocks in this order. */
-const ORDER = ["guide", "terminal", "plugins", "look", "threads"] as const;
+const ORDER = ["guide", "terminal", "plugins", "look", "threads", "waiting"] as const;
 
 export function createYuiRunTool(ports: YuiRunPorts): ClientTool {
   const present = ORDER.filter((name) => ports.namespaces[name]);

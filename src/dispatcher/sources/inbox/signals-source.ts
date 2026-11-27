@@ -48,6 +48,8 @@ export interface SignalsSource {
   start(): Promise<void>;
   stop(): void;
   drain(): SignalGroup[];
+  /** The groups in both buffers, urgent first; removes nothing. */
+  peek(): SignalGroup[];
   restore(env: BusEnvelope): void;
   /** Routes a client-built group like an inbox arrival, without `onArrival`. */
   offer(group: SignalGroup): void;
@@ -253,6 +255,10 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     return groups;
   }
 
+  function peek(): SignalGroup[] {
+    return [...urgentBuffer, ...batchBuffer].map(({ group }) => group);
+  }
+
   function withdraw(eventId: string, eventType: string): void {
     const at = batchBuffer.findIndex(
       ({ group }) =>
@@ -362,6 +368,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     start,
     stop,
     drain,
+    peek,
     restore,
     offer,
     withdraw,
