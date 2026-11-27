@@ -479,6 +479,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
           restoreGroups(groupsOf(env));
           return;
         }
+        // signalsOf reads groups from only some tops, so the turn returns its own.
+        restoreGroups(groupsOf(env));
         recordDrop(env, outcome);
         deps.onTurnFailed?.(turn, outcome);
         noteCallFailure();
@@ -488,6 +490,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       .catch((err) => {
         if (openTurn?.id === turn.id) openTurn.outcome = "network_drop";
         log.error("backend_call.unexpected_error", { error: String(err) });
+        restoreGroups(groupsOf(env));
         recordDrop(env, "network_drop");
         deps.onTurnFailed?.(turn, "network_drop");
         noteCallFailure();
@@ -688,8 +691,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       tier1.noteAvatarMoved();
     },
     cancel() {
-      // client-only abort. Don't do bus sweep/tier1 render.
+      // client-only abort: the turn's groups go back, its members do not. Don't do bus sweep/tier1 render.
       if (inFlight) {
+        restoreGroups(groupsOf(inFlight.trigger));
         log.info("abort", {
           event_name: inFlight.trigger.event_name,
           reason: "superseded_by_user",

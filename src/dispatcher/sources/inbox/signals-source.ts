@@ -114,7 +114,9 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   // Thread reactions name groups by event id and never reach a plugin's group.
   const threadMatch = (group: SignalGroup, eventIds: ReadonlySet<string>): boolean =>
     gated(group) && eventIds.has(group.envelope.event_id);
-  const isHeld = (group: SignalGroup): boolean => threadMatch(group, heldIds);
+  // A fired group the dispatcher hands back is ordinary; a newer group of its Thread is held again.
+  const unheld = new WeakSet<SignalGroup>();
+  const isHeld = (group: SignalGroup): boolean => threadMatch(group, heldIds) && !unheld.has(group);
   const batchMayLeave = ({ group }: BufferedGroup): boolean => !isHeld(group) && passesGate(group);
   const urgentMayLeave = ({ group }: BufferedGroup): boolean => passesGate(group);
   const sameGroup = (a: SignalGroup, b: SignalGroup): boolean =>
@@ -299,6 +301,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       const restoredSequence = sequence++;
       if (buffer.some((entry) => sameGroup(entry.group, group))) continue;
       buffer.push({ sequence: restoredSequence, group });
+      unheld.add(group);
       buffer.sort((left, right) => left.sequence - right.sequence);
       if (buffer.length > BUFFER_CAP) buffer.shift();
     }
