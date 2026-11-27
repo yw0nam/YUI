@@ -432,10 +432,10 @@ export interface ClientContext {
   };
   /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
-  /** Present while a Rest, a Focus or an active-hours quiet span holds the character's own turns. */
+  /** Present while a Rest, a Focus or an active-hours off span holds the character's own turns. */
   do_not_disturb?: {
-    kind: "rest" | "focus" | "quiet";
-    /** When the user started it; absent for a quiet span and a Rest with no recorded start. */
+    kind: "rest" | "focus" | "off_span";
+    /** When the user started it; absent for an off span and a Rest with no recorded start. */
     since?: number;
     /** The local wall-clock end, HH:MM; absent when it has none. */
     ends_local?: string;

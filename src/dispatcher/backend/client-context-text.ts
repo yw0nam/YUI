@@ -41,8 +41,8 @@ function renderDoNotDisturb(
   const age = dnd.since === undefined ? "" : ` (for ${minutesSince(dnd.since, nowMs)}min)`;
   const ends = (subject: string) =>
     dnd.ends_local ? `; ${subject} ends at ${dnd.ends_local} local` : "";
-  if (dnd.kind === "quiet")
-    return `do not disturb: an active-hours quiet span holds the character's own turns${ends("it")}`;
+  if (dnd.kind === "off_span")
+    return `do not disturb: an active-hours off span holds the character's own turns${ends("it")}`;
   if (dnd.kind === "focus")
     return `do not disturb: the character is in a focus session the user started${age}${ends("it")}`;
   return `do not disturb: the character is resting at the user's request${age}${ends("the rest")}`;

@@ -40,7 +40,7 @@ export interface ContextProviders {
 /** The context's own projection of what holds her turns. */
 function doNotDisturbOf(rest: RestState): NonNullable<ClientContext["do_not_disturb"]> {
   return {
-    kind: rest.kind,
+    kind: rest.kind === "quiet" ? "off_span" : rest.kind,
     ...(rest.startedAt === undefined || rest.kind === "quiet" ? {} : { since: rest.startedAt }),
     ...(rest.endsAt === undefined ? {} : { ends_local: clockOf(rest.endsAt) }),
   };

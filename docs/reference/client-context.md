@@ -209,16 +209,16 @@ The line says what holds the character's own turns: a Rest or a Focus the user s
 ```text
 do not disturb: the character is resting at the user's request (for 12min); the rest ends at 08:00 local
 do not disturb: the character is in a focus session the user started (for 7min); it ends at 10:25 local
-do not disturb: an active-hours quiet span holds the character's own turns; it ends at 12:00 local
+do not disturb: an active-hours off span holds the character's own turns; it ends at 12:00 local
 ```
 
 #### The duration
 
-The duration counts minutes since the user started the Rest or the Focus (`do_not_disturb.since`). A quiet span and a Rest with no recorded start are states with no duration, so their line carries none.
+The duration counts minutes since the user started the Rest or the Focus (`do_not_disturb.since`). An off span and a Rest with no recorded start are states with no duration, so their line carries none.
 
 #### The end clause
 
-The end clause gives the local wall-clock time the hold ends (`do_not_disturb.ends_local`). A Rest until the user turns it off, and a quiet span that covers the whole day, have no end clause.
+The end clause gives the local wall-clock time the hold ends (`do_not_disturb.ends_local`). A Rest until the user turns it off, and an off span that covers the whole day, have no end clause.
 
 ### `screenshot source`
 
