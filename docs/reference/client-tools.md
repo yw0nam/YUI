@@ -402,6 +402,10 @@ A note rides every allow path of its request that answers `ok` or `denied`. An a
 
 `help()` lists each row's access, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
+`pace.rest` is an allow row that holds a Rest choice: `hour`, `tonight`, `morning`, `until_off`, `focus_25`, `focus_50`, or `off`. It reads the running choice, or `off` while no Rest or Focus runs. An active-hours quiet span belongs to one character and reads `off`.
+
+Writing `off` ends the running Rest or Focus, and writing a choice starts it from now. Writing the value the row already reads changes nothing, so it answers `ok` and raises no Settings request.
+
 ### Settings request
 
 An allow write raises one Settings request for all of its allow paths. The window's Ask slot shows it on its own card, whose title names the character.
