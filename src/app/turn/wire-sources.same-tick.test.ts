@@ -6,13 +6,12 @@
  * bus, dispatcher and proactive pacer. Faked: the Tauri channel, the clock (fake timers)
  * and the backend turn runner.
  *
- * The user-visible behaviour: when the dispatcher starts the check-in first, the greeting
- * held by the gap that turn anchors must still fire on a later tick inside its 120-minute
- * window — not be lost for the day.
+ * The user-visible behaviour: both wait in the dispatcher's list for the same free slot and go
+ * out as one turn, the greeting on top — neither is lost to the gap the other's turn anchors.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { createEventBus } from "../../dispatcher/core/event-bus";
+import { type BusEnvelope, createEventBus } from "../../dispatcher/core/event-bus";
 import { createGuardrails } from "../../dispatcher/core/guardrails";
 import { createProactivePacer } from "../../dispatcher/core/proactive-pacer";
 import { createDispatcher } from "../../dispatcher/dispatcher";
@@ -105,7 +104,7 @@ function startPipeline(): {
   const callDeferred: DeferredCall[] = [];
   const startOrder: string[] = [];
   const drops: Array<{ event_name: string; reason: string }> = [];
-  let schedule: Pick<ScheduleSource, "restore"> | null = null;
+  let schedule: Pick<ScheduleSource, "markSpoken"> | null = null;
   const dispatcher = createDispatcher({
     bus,
     renderer: {
@@ -139,11 +138,19 @@ function startPipeline(): {
     }),
     pacer,
     logger: makeLogger(),
-    onTurnAdmitted: (turn) => startOrder.push(turn.trigger.event_name),
+    onTurnAdmitted: (turn) =>
+      startOrder.push(
+        [
+          turn.trigger.event_name,
+          ...((turn.trigger.payload?.waited as BusEnvelope[] | undefined) ?? []).map(
+            (e) => e.event_name,
+          ),
+        ].join(" + "),
+      ),
     onTurnDropped: (env, reason) => {
       drops.push({ event_name: env.event_name, reason });
-      schedule?.restore(env, reason);
     },
+    onTurnSpoken: (env) => schedule?.markSpoken(env),
   });
   dispatcher.start();
   const sources = wireDispatcherSources({
@@ -157,7 +164,6 @@ function startPipeline(): {
       prev_dwell_ms: 600000,
       settle_ms: 90000,
       long_session_ms: 2700000,
-      recent_cap: 5,
     }),
     pipelineBusy: { isBusy: () => false, subscribe: () => () => {} },
     pacer,
@@ -200,7 +206,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("a greeting due on the same tick as the idle check-in still fires once the gap opens", async () => {
+it("a greeting due on the same tick as the idle check-in goes out with it as one turn", async () => {
   // 09:30 — bootstrap. The check-in cue's idle gap and the greeting's day anchor here.
   vi.setSystemTime(new Date(2026, 5, 15, 9, 30));
   const { startOrder, drops, completeTurn, stop } = startPipeline();
@@ -214,21 +220,15 @@ it("a greeting due on the same tick as the idle check-in still fires once the ga
   channel.emit("os_event", idleTick(500));
   await vi.advanceTimersByTimeAsync(16);
 
-  // Measured, not assumed: the dispatcher starts the check-in first; its turn anchors the
-  // gap, and the greeting — already latched as fired for today at push time — is dropped
-  // as global_gap.
-  expect(startOrder).toEqual(["proactive.check_in"]);
-  expect(drops).toContainEqual({ event_name: "schedule.morning", reason: "global_gap" });
+  expect(startOrder).toEqual(["schedule.morning + proactive.check_in"]);
+  expect(drops).toEqual([]);
 
-  // The check-in ends; the drop cleared the greeting's mark for a later tick.
+  // The turn ends and the gap opens inside the greeting's window: the greeting does not push again.
   completeTurn();
-  await vi.advanceTimersByTimeAsync(0);
-
-  // 10:11 — the gap opens inside the greeting's window; the next tick is the greeting's turn.
   await vi.advanceTimersByTimeAsync(6 * 60_000);
   channel.emit("os_event", idleTick(500));
   await vi.advanceTimersByTimeAsync(16);
 
-  expect(startOrder).toEqual(["proactive.check_in", "schedule.morning"]);
+  expect(startOrder).toEqual(["schedule.morning + proactive.check_in"]);
   stop();
 });

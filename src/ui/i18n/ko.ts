@@ -849,9 +849,6 @@ const ko: Record<string, string> = {
   "screen.settle_sub": "잠깐 들여다본 건 무시해요",
   "screen.long_session_label": "긴 세션 알아채는 간격",
   "screen.long_session_sub": "한 앱을 이만큼 붙잡고 있으면 알아채요",
-  "screen.recent_cap_label": "최대 기억 개수",
-  "screen.recent_cap_sub": "쉬는 동안 쌓인 앱 전환을 다음 화면 턴에 몇 개까지 담을지",
-  "screen.count_suffix": "개",
   "screen.foot":
     "화면 픽셀 전송 여부는 권한 페이지의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
@@ -965,7 +962,6 @@ const ko: Record<string, string> = {
   "settings_request.default": "기본값",
   "settings_request.none": "없음",
   "settings_request.not_display": "창 또는 탭",
-  "settings_request.entry": "개",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "허용",
   "run.body_label": "몸 (VRM)",

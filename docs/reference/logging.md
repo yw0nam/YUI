@@ -46,26 +46,36 @@ A namespace may differ from its file name only in the file that `KNOWN` in `scri
 | `turn_hold` | none | Another window holds the turn lock, so this window waits. |
 | `turn_granted` | `waited_ms` | The waiting window received the lock after that many milliseconds. |
 
+## Waiting list events
+
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs at `info` as self-started candidates wait and go out.
+
+| Event | Fields | When |
+|---|---|---|
+| `waiting_add` | `id`, `event_name`, `cls` | A candidate that cannot speak now entered the waiting list. `id` is its short id (`w1`, `w2`, …). `cls` is its class: `now`, `scheduled` or `room`. |
+| `waiting_release` | `ids`, `signals` | A free slot took the waiting entries `ids` in rank order and `signals` drained batched signal groups as one turn. |
+
 ## Drop events
 
-`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs a `drop` line for every trigger it holds back or supersedes before its backend call. It also logs one for every backend call that failed. Fields: `event_name`, `reason`, `seq_id`.
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs a `drop` line for every trigger it drops before its backend call, and for every waiting entry that leaves the list without speaking. It also logs one for every backend call that failed. Fields: `event_name`, `reason`, `seq_id`.
 
 The level comes from the reason:
 
 | `reason` | Level | When |
 |---|---|---|
-| `guardrail_drop` | `info` | The debounce/rate-limit gate refused the fire. |
+| `guardrail_drop` | `info` | The per-source debounce refused the fire. A candidate the hourly cap refuses waits instead. |
 | `not_configured` | `warn` | The backend call failed: no endpoint is configured. |
 | `parse_error` | `warn` | The backend call failed: the reply could not be parsed. |
 | `network_drop` | `warn` | The backend call failed on the network. |
 | `network_stall` | `warn` | The backend call stalled past its deadline. |
 | `http_4xx_drop` | `error` | The backend answered the call with an HTTP 4xx. |
-| `superseded_by_user` | `info` | The user typed or spoke, so the turn was aborted or dropped. |
-| `stale_pending` | `info` | A second deferred turn arrived, so the older one is dropped. |
+| `superseded_by_user` | `info` | A user message still in the bus when another user message took the turn. |
 | `degraded_drop` | `warn` | A non-user turn reached the gate during the degraded state. |
-| `global_gap` | `info` | The proactive gap held the fire back. |
-| `addressed_cap` | `info` | The third addressed turn in a row without a user turn; the cap is `rate_limit.addressed_chain_max`. |
-| `dnd` | `info` | Do-not-disturb held the trigger: a self-fired one, one still queued when it turned on, or a fire waiting for the turn lock. |
+| `addressed_cap` | `info` | The third addressed turn in a row without a user turn, at arrival or when a waiting one would go out; the cap is `rate_limit.addressed_chain_max`. |
+| `waiting_evicted` | `info` | A keep rule pushed the entry out of the waiting list: a newer idle cue with the same cue id, a fourth screen reaction, or the eleventh entry (the lowest class, then the oldest, leaves). |
+| `waiting_expired` | `info` | The entry's wait ended: an idle cue, gesture reaction or screen reaction at the next user activity, the first meeting or an addressed line at the end of its local day, a schedule cue at the end of its grace window. |
+
+The proactive gap, do-not-disturb, a live turn, playback, absence and the hourly cap no longer drop a self-started candidate: it waits in the list. The reasons `stale_pending`, `global_gap` and `dnd` are gone.
 
 `recentDrops(n)` returns the last n records.
 

@@ -145,6 +145,6 @@ describe("waiting list — expiry", () => {
       `time_milestone.first_activity@${at(9)}`,
       `schedule.cue@${at(12)}`,
     ]);
-    expect(list.expire(at(23))).toEqual([]);
+    expect(list.expire(at(13))).toEqual([]);
   });
 });

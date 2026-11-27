@@ -130,6 +130,30 @@ export function isDndHeld(env: BusEnvelope): boolean {
   );
 }
 
-// Test-commit stubs, replaced in the implementation commit.
-export const waitClassOf = (_env: BusEnvelope): "now" | "scheduled" | "room" => undefined as never;
-export const isUserActivity = (_env: BusEnvelope): boolean => undefined as never;
+/** Waiting-list rank of a self-started candidate, highest first. */
+export type WaitClass = "now" | "scheduled" | "room";
+
+/**
+ * Ranks by producer and event family, never the bare event name: an idle cue id can equal a
+ * gesture name, and `proactive.*` is an idle cue from timer_scheduler but a gesture reaction from
+ * os_event_watcher.
+ */
+export function waitClassOf(env: BusEnvelope): WaitClass {
+  if (env.source === "addressed_source") return "now";
+  if (
+    env.source === "os_event_watcher" &&
+    (env.event_name.startsWith("proactive.") || env.event_name.startsWith("time_milestone."))
+  ) {
+    return "now";
+  }
+  if (env.source === "timer_scheduler" && env.event_name.startsWith("schedule."))
+    return "scheduled";
+  return "room";
+}
+
+const USER_GESTURES = new Set(["user.tap", "user.tap_region", "user.pat_start", "user.drag_start"]);
+
+/** A user turn or a gesture on her: the activity that ends the on-activity waiting entries. */
+export function isUserActivity(env: BusEnvelope): boolean {
+  return userTurnSourceOf(env) !== undefined || USER_GESTURES.has(env.event_name);
+}

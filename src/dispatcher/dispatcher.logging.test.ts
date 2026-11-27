@@ -399,12 +399,12 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     );
   });
 
-  it("emits logger.info('drop', ...) for superseded_by_user via DROP_SEVERITY", async () => {
+  it("emits logger.info('drop', ...) for waiting_expired via DROP_SEVERITY", async () => {
     dispatcher.start();
     // occupy in-flight
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a tier2 behind the in-flight
+    // a gesture reaction waits behind the in-flight call
     bus.push(
       env({
         source: "os_event_watcher",
@@ -413,43 +413,45 @@ describe("dispatcher — structured logging: drop events via logger", () => {
         dnd_override: false,
       }),
     );
-    // new user message supersedes
+    await vi.advanceTimersByTimeAsync(20);
+    // the user's next message ends it
     bus.push(env({ ts: NOW + 2 }));
     await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "drop",
-      expect.objectContaining({ reason: "superseded_by_user", event_name: expect.any(String) }),
-    );
+    expect(logger.info).toHaveBeenCalledWith("drop", {
+      event_name: "proactive.tap_bored",
+      reason: "waiting_expired",
+      seq_id: 2,
+    });
   });
 
-  it("emits logger.info('drop', ...) for stale_pending via DROP_SEVERITY", async () => {
+  it("emits logger.info('drop', ...) for waiting_evicted and 'waiting_add' for each candidate", async () => {
     dispatcher.start();
-    // occupy in-flight with first tier2
+    // occupy in-flight
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    expect(callDeferred).toHaveLength(1);
-    // push two more tier2 while in-flight — oldest pending gets stale_pending drop
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "proactive.tap_bored",
-        ts: NOW + 1,
-        dnd_override: false,
-      }),
-    );
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "proactive.drag_held",
-        ts: NOW + 2,
-        dnd_override: false,
-      }),
-    );
+    // the same idle cue twice while in-flight — the newer replaces the older
+    for (const ts of [NOW + 1, NOW + 2]) {
+      bus.push(
+        env({
+          source: "timer_scheduler",
+          event_name: "proactive.stretch",
+          ts,
+          payload: { cue_id: "stretch" },
+          dnd_override: false,
+        }),
+      );
+    }
     await vi.advanceTimersByTimeAsync(20);
-    expect(logger.info).toHaveBeenCalledWith(
-      "drop",
-      expect.objectContaining({ reason: "stale_pending", event_name: expect.any(String) }),
-    );
+    expect(logger.info).toHaveBeenCalledWith("waiting_add", {
+      id: "w2",
+      event_name: "proactive.stretch",
+      cls: "room",
+    });
+    expect(logger.info).toHaveBeenCalledWith("drop", {
+      event_name: "proactive.stretch",
+      reason: "waiting_evicted",
+      seq_id: 2,
+    });
   });
 });
 

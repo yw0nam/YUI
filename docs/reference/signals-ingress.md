@@ -44,7 +44,7 @@ sequenceDiagram
     B->>K: One urgent catch-up turn on the present or idle edge
   else batched
     C->>B: Hold in the batch buffer, five-minute interval
-    B->>K: One turn at the boundary, on an edge, or on a drain
+    B->>K: One turn at the boundary, or on a drain at a free slot
   end
   K-->>C: Reply
 ```
@@ -129,8 +129,6 @@ An `urgent` group means the user should hear it without delay. It fires at once 
 
 Otherwise it waits in its own buffer. On the away-to-present or busy-to-idle edge, the buffered urgent groups fire together as one urgent catch-up turn.
 
-On the return to present, the batch catch-up goes out first. The urgent catch-up is the next turn, right after it ends.
-
 Urgent groups never share a catch-up turn with `batched` groups. The drains below carry batched groups only, so a buffered urgent group keeps waiting for its own edge.
 
 ### Batched
@@ -139,10 +137,10 @@ A `batched` group always waits in the batch buffer, where the first group starts
 
 At the interval boundary, all pending batched groups that may leave fire together when the user is present and the pipeline is idle.
 
-If those conditions are not met, the groups remain buffered without another timer, and a batched group that misses its deadline leaves on the next edge.
+If those conditions are not met, the groups remain buffered without another timer, and leave on the next drain.
 
 ::: tip
-A batched group that misses its deadline starts no second timer. It leaves on the next edge, or on a drain of the batch buffer.
+A batched group that misses its deadline starts no second timer. It leaves on the next drain of the batch buffer.
 :::
 
 ### Disabled signals
@@ -153,15 +151,17 @@ While signals are disabled, the client drops every gated group that arrives, and
 
 A group a Thread reaction holds survives that removal, and leaves when its reaction fires or releases it while signals are enabled.
 
-### Catch-up and drains
+### Drains
 
-Returning to present or transitioning from busy to idle emits one catch-up containing the batched groups in their original arrival order. Returning before a batched group's deadline therefore includes it in that catch-up.
+The batch buffer has no catch-up of its own: the dispatcher drains it, in arrival order. At every free slot (no call in flight, no speech owed, do-not-disturb off), the drained groups ride the turn that slot starts, beside the self-started lines that waited for it.
 
-Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds, in arrival order, and removes those groups from the batch buffer.
+With no line waiting, they go out alone as one `signals.catchup` turn. That needs the user present, the proactive gap open and room under the hourly cap. A user message drains the buffer too, and the groups ride the user's turn, do-not-disturb included.
 
-A catch-up, a timer firing and a drain carry only the groups that may leave: none that a Thread reaction holds, and no gated group while signals are disabled. Each removes only the groups it carried.
+Two client-fired candidates also drain the buffer when they arise: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds; a candidate that has to wait puts them back.
 
-With the Thread reactions switch on, a Thread reaction holds every Thread turn group. The held groups stay out of every catch-up, timer firing and drain.
+An urgent catch-up, a timer firing and a drain carry only the groups that may leave: none that a Thread reaction holds, and no gated group while signals are disabled. Each removes only the groups it carried.
+
+With the Thread reactions switch on, a Thread reaction holds every Thread turn group. The held groups stay out of every timer firing and drain.
 
 When a reaction finishes, every held, buffered group leaves together as one `signals.batch` turn; a turn the bus refuses leaves them held for the next reaction.
 
@@ -169,17 +169,15 @@ The five-group cap of the batch buffer can still push a held group out, and the 
 
 ### Groups that go back
 
-A turn dropped before its backend call puts its groups back at the front of their buffers, and the next edge or drain delivers them. The drop comes from one of:
+Groups go back to the front of their buffers, and the next urgent edge or drain delivers them, when:
 
-- the proactive gap
-- a guardrail
-- the user's message while it waits
-- a stale queue entry
-- a degraded backend
-
-A push the bus refuses also puts its groups back at the front of their buffers. So does a call that failed in transport or at the backend. The next edge or drain delivers them.
-
-A turn the user's message cancels after its call started does not put its groups back.
+- a candidate that carries groups has to wait
+- a `signals.*` turn cannot go out now
+- the user's message cancels the turn that carries them
+- do-not-disturb turns on while the turn waits for the turn lock
+- a guardrail debounce or a degraded backend drops the turn
+- the bus refuses the push
+- the call fails in transport or at the backend
 
 ### Buffer and rate limits
 

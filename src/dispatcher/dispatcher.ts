@@ -3,33 +3,32 @@
  *
  * Flow:
  *  1. event_bus.pop() → classify → tier.
- *  2. evaluate via guardrails — user_input passes with dnd_override=true.
- *  3. conflict resolution: user.text_submitted arrives → abort in-flight backend +
- *     drop tier2 from the queue (superseded_by_user).
+ *  2. guardrails.arrive — user_input passes with dnd_override=true; a debounce hit drops.
+ *  3. conflict resolution: user.text_submitted arrives → abort in-flight backend; the aborted
+ *     turn's members and the swept bus candidates return to the waiting list, and every waiting
+ *     entry that does not expire on user activity rides the user's turn with the buffered signals.
  *  4. Routing:
  *     · tier1 (drag/window/tap/pat reactions, avatar.* gait cues, user.fall_land) → local
  *       handling (no backend).
- *     · tier2 (user.text_submitted · user.voice_segment_ready · time_milestone.* ·
- *       proactive.* · schedule.* · signals.* · addressed.*) → backend_caller.
+ *     · tier2 user turns → backend_caller at once; signals.* fire if admissible now, else their
+ *       groups return to the buffers; every other self-started candidate joins the waiting list.
  *
- * Single in-flight backend call. Deferred tier2 keeps only one item in local pending
- * (with two or more deferred, the oldest is dropped). With the turn gate on, a call first waits
- * for the cross-window turn lock, which stays held until the call has ended and its playback is done.
- *
- * Every started turn anchors the global proactive gap. A fire from a paced source (loop cues,
- * schedule, signals, screen) that arrives while that window holds is dropped as
- * global_gap before the guardrail sees it; gesture cues and user input pass ungated.
+ * Single in-flight backend call. release() runs at the end of every pump tick and in a call's
+ * finally: at a free slot it takes every admissible waiting entry (not held by do-not-disturb,
+ * the proactive gap, absence or the hourly cap) and the drained batched signal groups as one turn.
+ * With the turn gate on, a call first waits for the cross-window turn lock, which stays held until
+ * the call has ended and its playback is done; the hourly slot is spent once the lock grants.
  *
  * state: booting → (start) → running → (stop) → stopped. degraded is entered when
  *   the backend call fails DEGRADED_FAILURE_THRESHOLD times in a row — during it, tier2
  *   (non-user) is dropped as degraded_drop, while user-initiated (dnd_override) turns keep
  *   going out to backend_caller without a gate (judgment belongs to the backend). A single
  *   successful call immediately returns to running and resets the consecutive-failure counter.
- * observable: queue() / recentDrops(n) / inFlight().
+ * observable: queue() / waiting() / recentDrops(n) / inFlight().
  */
 
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
-import type { BodyState, Posture } from "../contract";
+import type { BodyState, Posture, SignalGroup } from "../contract";
 import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/record/turn-record-log";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
@@ -46,15 +45,18 @@ import {
   classify,
   isAddressedEvent,
   isDndHeld,
+  isUserActivity,
   PACED_SOURCES,
   sendIdOf,
   type UserTurnSource,
   userTurnSourceOf,
+  type WaitClass,
 } from "./core/classify";
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
 import type { ProactivePacer } from "./core/proactive-pacer";
 import type { TurnGate } from "./core/turn-gate";
+import { createWaitingList, type WaitingEntry } from "./core/waiting-list";
 import { createTier1Render } from "./tier1/render";
 import type { Turn, TurnLog } from "./turn/turn";
 
@@ -76,22 +78,28 @@ export interface DispatcherDeps {
   tapConfig: () => TapConfig;
   peek?: { enter(): Promise<void>; exit(): Promise<void> };
   backendCaller: BackendCaller;
-  /** Guardrails — debounce/rate-limit gate (pure). */
+  /** Guardrails — debounce at arrival, the hourly cap at admission (pure). */
   guardrails: Guardrails;
   /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy state from it. */
   turnLog: TurnLog;
   /** Whether the speech pipeline still owes audio — speech the backend started on its own included. */
   hasOutstandingSpeech: () => boolean;
   /**
-   * Global proactive gap. Every turn start anchors its window; a fire from a paced source
-   * (see PACED_SOURCES) that arrives while it holds is dropped at the routing gate, before the
-   * guardrail. The screen source also gates itself, to record the skip with its transition; for
-   * loop cues, schedule and the buffered inboxes this is the only gate.
+   * Global proactive gap. Every turn start anchors its window; a candidate from a paced source
+   * (see PACED_SOURCES) waits while it holds.
    */
   pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
-  /** Whether do-not-disturb is on: holds every self-fired trigger at the routing gate, the deferred queue and the lock wait. */
+  /** Whether do-not-disturb is on: holds every self-fired trigger in the waiting list and at the lock wait. */
   isDndOn?: () => boolean;
-  /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
+  /** Whether the user is present; absent counts as present. Gesture reactions and addressed lines do not wait for it. */
+  isPresent?: () => boolean;
+  /** Takes the deliverable batched signal groups out of their buffer. */
+  drainSignals?: () => SignalGroup[];
+  /** Returns an envelope's signal groups to their buffers. */
+  restoreSignals?: (env: BusEnvelope) => void;
+  /** A turn ended ok, reported with its trigger envelope. */
+  onTurnSpoken?: (env: BusEnvelope) => void;
+  /** Skip-record JSONL sink — best-effort disk log of the candidates the pacer held back. */
   appendSkipRecord?: (record: PacerSkipRecord) => void;
   /**
    * Report a backend call failure of a user-initiated turn (user.text_submitted /
@@ -117,7 +125,7 @@ export interface DispatcherDeps {
   onTurnAdmitted?: (turn: Turn) => void;
   /** Every drop the dispatcher records, with its reason: a trigger held back or superseded before its backend call, or a backend call that failed. */
   onTurnDropped?: (env: BusEnvelope, reason: DropRecord["reason"]) => void;
-  /** The chain cap on addressed turns: an over-cap fire drops at the routing gate, a begun one counts. */
+  /** The chain cap on addressed turns: an over-cap fire drops at the routing gate or at release, an admitted one counts. */
   addressedChain: AddressedChain;
   /** A turn is over — the over edge, or the next begin displacing it — with the facts the `turn` log line holds. */
   onTurnClosed?: (turn: {
@@ -141,11 +149,10 @@ export interface DropRecord {
   reason:
     | TurnFailure
     | "guardrail_drop"
-    | "stale_pending"
     | "degraded_drop"
-    | "global_gap"
     | "addressed_cap"
-    | "dnd";
+    | "waiting_evicted"
+    | "waiting_expired";
   ts: number;
 }
 
@@ -158,11 +165,10 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   network_stall: "warn",
   http_4xx_drop: "error",
   superseded_by_user: "info",
-  stale_pending: "info",
   degraded_drop: "warn",
-  global_gap: "info",
   addressed_cap: "info",
-  dnd: "info",
+  waiting_evicted: "info",
+  waiting_expired: "info",
 };
 
 /** in_flight_backend_call. */
@@ -177,8 +183,10 @@ export interface Dispatcher {
   start(): void;
   /** Stop the processing loop + abort in-flight → stopped. */
   stop(): void;
-  /** Snapshot of the current deferred queue + unprocessed bus items. */
+  /** Snapshot of the waiting list + unprocessed bus items. */
   queue(): BusEnvelope[];
+  /** The waiting entries in rank order. */
+  waiting(): { id: string; env: BusEnvelope; cls: WaitClass }[];
   /** Most recent n drops (reason included). */
   recentDrops(n?: number): DropRecord[];
   /** In-progress backend call (null if none). */
@@ -189,7 +197,7 @@ export interface Dispatcher {
   getBodyState(): BodyState;
   /** The avatar relocated on its own initiative (move_to) — restamps posture to standing/now. */
   noteAvatarMoved(): void;
-  /** Abort the in-progress call + drop deferred tier2 (client-only). Does not sweep the bus or touch tier1. */
+  /** Abort the in-progress call (client-only) and end the on-activity waiting entries, as any user activity does. Does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
@@ -211,10 +219,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let state: DispatcherState = "booting";
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  // Single in-flight backend call (only one; the rest are deferred).
-  let inFlight: { trigger: BusEnvelope; started_at: number; abort: AbortController } | null = null;
-  // Deferred tier2 (with two or more, the oldest is dropped).
-  const pending: BusEnvelope[] = [];
+  // Single in-flight backend call; its members are the waiting entries it carries.
+  let inFlight: {
+    trigger: BusEnvelope;
+    members: WaitingEntry[];
+    started_at: number;
+    abort: AbortController;
+  } | null = null;
+  const list = createWaitingList();
   const drops: DropRecord[] = [];
   /** The turn whose summary line has not been emitted yet. */
   let openTurn: {
@@ -318,20 +330,56 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     return deps.isDndOn?.() === true && isDndHeld(env);
   }
 
-  /** Drop every deferred fire do-not-disturb now holds; what is left drains as before. */
-  function dropDndHeldPending(): void {
-    for (let i = pending.length - 1; i >= 0; i--) {
-      if (heldByDnd(pending[i]!)) recordDrop(pending.splice(i, 1)[0]!, "dnd");
-    }
+  /** Gesture reactions and addressed lines speak to her directly, so they do not wait for presence. */
+  function heldByAbsence(env: BusEnvelope): boolean {
+    const direct =
+      env.source === "addressed_source" ||
+      (env.source === "os_event_watcher" && env.event_name.startsWith("proactive."));
+    return !direct && deps.isPresent?.() === false;
   }
 
-  function dropForPacer(env: BusEnvelope): void {
-    recordDrop(env, "global_gap");
+  /** Whether a candidate may go out now, once the slot is free. */
+  function admissible(env: BusEnvelope): boolean {
+    return !heldByDnd(env) && !heldByPacer(env) && !heldByAbsence(env) && guardrails.canSpend(env);
+  }
+
+  const groupsOf = (env: BusEnvelope): SignalGroup[] =>
+    Array.isArray(env.payload?.signals) ? (env.payload.signals as SignalGroup[]) : [];
+
+  /** The envelope drained batched groups go out on when no waiting entry carries them. */
+  const catchupOf = (signals: SignalGroup[]): BusEnvelope => ({
+    source: "timer_scheduler",
+    event_name: "signals.catchup",
+    ts: Date.now(),
+    payload: { signals },
+  });
+
+  function restoreGroups(groups: SignalGroup[]): void {
+    if (groups.length > 0) deps.restoreSignals?.(catchupOf(groups));
+  }
+
+  /** A candidate joins the waiting list; its own signal groups go back to their buffers. */
+  function enterList(env: BusEnvelope): void {
+    const groups = groupsOf(env);
+    let waiting = env;
+    if (groups.length > 0) {
+      restoreGroups(groups);
+      const { signals: _carried, ...payload } = env.payload ?? {};
+      waiting = { ...env, payload };
+    }
+    const { entry, evicted } = list.add(waiting);
+    log.info("waiting_add", { id: entry.id, event_name: env.event_name, cls: entry.cls });
+    for (const e of evicted) recordDrop(e.env, "waiting_evicted");
+    if (!heldByPacer(env)) return;
     try {
       deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
     } catch (err) {
       log.debug("skip_record_append_failed", { error: String(err) });
     }
+  }
+
+  function expireOnActivity(): void {
+    for (const e of list.expireOnActivity()) recordDrop(e.env, "waiting_expired");
   }
 
   /** Backend call success: reset the consecutive-failure counter + return immediately if degraded. */
@@ -349,45 +397,42 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   }
 
   /**
-   * user.text_submitted arrives → abort in-flight + drop all deferred tier2 +
-   * sweep and drop any tier2 still left in the bus. tier1 is processed immediately and kept.
-   * (Since the bus is a priority queue where user pops first, this also clears trailing tier2
-   * from the same pump here.)
+   * user.text_submitted arrives → abort in-flight; its members return to the waiting list and its
+   * groups to the buffers. Tier2 left in the bus is swept the same way (a user envelope among it
+   * drops as superseded); tier1 is rendered immediately. The bus pops user first, so this also
+   * takes trailing tier2 from the same pump.
    */
   function supersedeByUser(): void {
     if (inFlight) {
       log.info("abort", { event_name: inFlight.trigger.event_name, reason: "superseded_by_user" });
       inFlight.abort.abort();
+      list.putBack(inFlight.members);
+      restoreGroups(groupsOf(inFlight.trigger));
       setInFlight(null);
     }
-    while (pending.length > 0) {
-      recordDrop(pending.shift()!, "superseded_by_user");
-    }
-    // Sweep tier2 left in the bus: drop what would go to the backend, render tier1 immediately to preserve it.
     let env: BusEnvelope | null;
     const tier1Leftover: BusEnvelope[] = [];
     while ((env = bus.pop()) !== null) {
       const { target } = classify(env);
-      if (target === "backend_caller") {
-        recordDrop(env, "superseded_by_user");
-      } else if (target === "tier1") {
-        tier1Leftover.push(env);
-      }
-      // target === "drop": no-op.
+      if (target === "tier1") tier1Leftover.push(env);
+      else if (target !== "backend_caller") continue;
+      else if (userTurnSourceOf(env)) recordDrop(env, "superseded_by_user");
+      else if (env.event_name.startsWith("signals.")) deps.restoreSignals?.(env);
+      else enterList(env);
     }
     for (const t of tier1Leftover) tier1.render(t);
   }
 
-  /** Start a tier2 backend call (occupies in-flight). On completion, free the slot and drain one deferred item. */
-  function startBackendCall(env: BusEnvelope): void {
+  /** Start a tier2 backend call (occupies in-flight). On completion, release the waiting list into the slot. */
+  function startBackendCall(env: BusEnvelope, members: WaitingEntry[]): void {
+    log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: 2 });
     deps.pacer?.noteTurnStart();
     const abort = new AbortController();
     const started_at = Date.now();
-    setInFlight({ trigger: env, started_at, abort });
+    setInFlight({ trigger: env, members, started_at, abort });
     log.debug("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
     closeTurn();
     const turn = deps.turnLog.begin(env);
-    if (isAddressedEvent(env)) deps.addressedChain.count();
     openTurn = {
       id: turn.id,
       trigger: env.event_name,
@@ -407,7 +452,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (abort.signal.aborted) return "superseded_by_user";
         gateHeld = true;
         // Do-not-disturb turned on while the turn waited for the lock.
-        if (heldByDnd(env)) return "dnd";
+        const dndHeld =
+          heldByDnd(env) || (env.dnd_override !== true && members.some((m) => heldByDnd(m.env)));
+        if (dndHeld) return "dnd";
+        guardrails.spend(env);
+        // A user turn resets the chain, so the addressed lines riding it never count.
+        if (userTurnSourceOf(env) === undefined) {
+          for (const m of members) if (isAddressedEvent(m.env)) deps.addressedChain.count();
+        }
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
@@ -416,11 +468,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (openTurn?.id === turn.id) openTurn.outcome = outcome;
         if (outcome === "ok") {
           noteCallSuccess();
+          deps.onTurnSpoken?.(env);
           return;
         }
         if (outcome === "superseded_by_user") return;
         if (outcome === "dnd") {
-          recordDrop(env, "dnd");
+          list.putBack(members);
+          restoreGroups(groupsOf(env));
           return;
         }
         recordDrop(env, outcome);
@@ -439,69 +493,68 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (source) deps.onUserTurnFailed?.("network_drop", source, errorDetail);
       })
       .finally(() => {
-        // Release the slot only if this call is still the current in-flight (leave it if replaced by an abort).
-        // If there is a deferred item to drain right away, replace with the next call instead of freeing the slot,
-        // keeping busy at true→true (no boundary notification).
-        if (inFlight && inFlight.trigger === env) {
-          dropDndHeldPending();
-          if (canDrain()) {
-            if (shouldHoldForPlayback(pending[0]!)) {
-              // Playing — free the slot only and keep pending. pump drains it after playback ends.
-              setInFlight(null);
-            } else {
-              // The next call asks for the lock again, behind any window already waiting for it.
-              releaseGate();
-              startBackendCall(pending.shift()!);
-            }
-          } else if (state === "degraded" && pending.length > 0) {
-            // Non-user turn already deferred at the moment degraded was entered — stale, so drop.
-            recordDrop(pending.shift()!, "degraded_drop");
-            setInFlight(null);
-          } else {
-            setInFlight(null);
-          }
-        }
-        // Settle last: a successor's begin() (if drained above) already replaced the current
+        // Only while this call is still the current in-flight (an abort may have replaced it).
+        // A release that starts the next call replaces the slot, keeping busy at true→true.
+        if (inFlight && inFlight.trigger === env && !release(true)) setInFlight(null);
+        // Settle last: a successor's begin() (if released above) already replaced the current
         // turn, so this hits the ledger's staleness guard instead of firing a spurious edge.
         deps.turnLog.settle(turn.id);
       });
   }
 
   /**
-   * Whether one deferred item can now start as the next call (used to decide slot replacement right after a call completes).
-   * During degraded, only user turns (dnd_override) drain — everything else is a drop target (handled in the finally above).
+   * Sends what may go out now as one turn: the admissible waiting entries (top-ranked envelope
+   * plus `payload.waited`) and, unless do-not-disturb is on, the drained batched groups
+   * (`payload.signals`). Groups alone go out as `signals.catchup`. `replacing` is the finishing
+   * call's finally, whose slot the next call takes over.
    */
-  function canDrain(): boolean {
-    if (pending.length === 0) return false;
-    if (state === "running") return true;
-    if (state === "degraded") return pending[0]?.dnd_override === true;
-    return false;
-  }
-
-  /** Hold a non-user pending turn while playback is ongoing (user supersede is immediate). */
-  function shouldHoldForPlayback(head: BusEnvelope): boolean {
-    return userTurnSourceOf(head) === undefined && deps.hasOutstandingSpeech();
-  }
-
-  /** tier2 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
-  function enqueueBackend(env: BusEnvelope): void {
-    if (!inFlight && pending.length === 0 && !shouldHoldForPlayback(env)) {
-      startBackendCall(env);
-      return;
+  function release(replacing = false): boolean {
+    for (const e of list.expire(Date.now())) recordDrop(e.env, "waiting_expired");
+    if ((inFlight && !replacing) || state !== "running" || deps.hasOutstandingSpeech())
+      return false;
+    for (const e of list.take((w) => isAddressedEvent(w.env) && !deps.addressedChain.canAdmit())) {
+      recordDrop(e.env, "addressed_cap");
     }
-    pending.push(env);
-    // With two or more deferred, drop the oldest (stale).
-    while (pending.length > 1) {
-      recordDrop(pending.shift()!, "stale_pending");
-    }
+    const members = list.take((w) => admissible(w.env));
+    const free = members.length > 0 ? deps.isDndOn?.() !== true : admissible(catchupOf([]));
+    const groups = free ? (deps.drainSignals?.() ?? []) : [];
+    if (members.length === 0 && groups.length === 0) return false;
+    log.info("waiting_release", { ids: members.map((m) => m.id), signals: groups.length });
+    const [top, ...rest] = members;
+    const trigger = !top
+      ? catchupOf(groups)
+      : rest.length === 0 && groups.length === 0
+        ? top.env
+        : {
+            ...top.env,
+            payload: {
+              ...top.env.payload,
+              waited: rest.map((m) => m.env),
+              ...(groups.length > 0 ? { signals: groups } : {}),
+            },
+          };
+    // The next call asks for the lock again, behind any window already waiting for it.
+    if (replacing) releaseGate();
+    startBackendCall(trigger, members);
+    return true;
   }
 
-  /** Start the held pending if it can start (retried on the next tick after playback ends). */
-  function drainPending(): void {
-    dropDndHeldPending();
-    if (inFlight || !canDrain()) return;
-    if (shouldHoldForPlayback(pending[0]!)) return;
-    startBackendCall(pending.shift()!);
+  /** A user turn carries every waiting entry and the buffered batched groups. */
+  function startUserTurn(env: BusEnvelope): void {
+    const riders = list.take(() => true);
+    const groups = deps.drainSignals?.() ?? [];
+    const trigger =
+      riders.length === 0 && groups.length === 0
+        ? env
+        : {
+            ...env,
+            payload: {
+              ...env.payload,
+              ...(riders.length > 0 ? { waited: riders.map((r) => r.env) } : {}),
+              ...(groups.length > 0 ? { signals: groups } : {}),
+            },
+          };
+    startBackendCall(trigger, riders);
   }
 
   function handle(env: BusEnvelope): void {
@@ -510,6 +563,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       supersedeByUser();
       deps.addressedChain.reset();
     }
+    if (isUserActivity(env)) expireOnActivity();
 
     const classified = classify(env);
     if (classified.target === "tier1") {
@@ -524,30 +578,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         recordDrop(env, "degraded_drop");
         return;
       }
-      // Ahead of the guardrail: evaluate() spends a rate-limit slot at fire time and never
-      // refunds it, so a held fire must not reach it. The chain cap drops before it for the
-      // same reason.
       if (isAddressedEvent(env) && !deps.addressedChain.canAdmit()) {
         recordDrop(env, "addressed_cap");
         return;
       }
-      // Before the pacer and the guardrail: a held fire spends no rate-limit slot and writes no skip record.
-      if (heldByDnd(env)) {
-        recordDrop(env, "dnd");
-        return;
-      }
-      if (heldByPacer(env)) {
-        dropForPacer(env);
-        return;
-      }
-      // Evaluate. If drop, don't enqueue.
-      const verdict = guardrails.evaluate(env);
+      const verdict = guardrails.arrive(env);
       if (!verdict.pass) {
         recordDrop(env, verdict.reason);
         return;
       }
-      log.info("fire", { seq_id: env.seq_id, event_name: env.event_name, tier: classified.tier });
-      enqueueBackend(env);
+      if (userTurnSourceOf(env) !== undefined) startUserTurn(env);
+      else if (!env.event_name.startsWith("signals.")) enterList(env);
+      else if (
+        !inFlight &&
+        state === "running" &&
+        !deps.hasOutstandingSpeech() &&
+        admissible(env)
+      ) {
+        startBackendCall(env, []);
+      } else deps.restoreSignals?.(env);
       return;
     }
     // target === "drop": unhandled event (no-op — bus already filters unknown event_name).
@@ -571,7 +620,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     while ((env = bus.pop()) !== null) {
       handle(env);
     }
-    drainPending();
+    release();
   }
 
   return {
@@ -598,14 +647,15 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight.abort.abort();
         setInFlight(null);
       }
-      pending.length = 0;
       releaseGate();
       tier1.dispose();
       setState("stopped");
     },
     queue() {
-      // Expose combined pending + unprocessed bus snapshot.
-      return [...pending, ...bus.snapshot()];
+      return [...list.snapshot().map((e) => e.env), ...bus.snapshot()];
+    },
+    waiting() {
+      return list.snapshot().map(({ id, env, cls }) => ({ id, env, cls }));
     },
     recentDrops(n = 10) {
       return drops.slice(-n);
@@ -623,7 +673,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       tier1.noteAvatarMoved();
     },
     cancel() {
-      // client-only abort: abort in-flight call + drop pending. Don't do bus sweep/tier1 render.
+      // client-only abort. Don't do bus sweep/tier1 render.
       if (inFlight) {
         log.info("abort", {
           event_name: inFlight.trigger.event_name,
@@ -632,9 +682,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight.abort.abort();
         setInFlight(null);
       }
-      while (pending.length > 0) {
-        recordDrop(pending.shift()!, "superseded_by_user");
-      }
+      expireOnActivity();
     },
     subscribeBusy(cb) {
       busySubscribers.add(cb);

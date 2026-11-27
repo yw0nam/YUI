@@ -8,11 +8,10 @@
  * When present AND the pipeline is idle: an inbox arrival fires immediately via
  * `buildLive`; a source with no `buildLive` buffers every arrival. When
  * present-but-busy (backend call in flight or speech playing) OR away: arrivals go to
- * the caller's buffer (`bufferAdd`). The caller owns the buffer's shape, its cap, and
- * which items may leave it (`nothingLeaves`).
- * On the idle→present edge OR the busy→idle edge: unless `nothingLeaves`, fires ONE
- * catchup built by `buildCatchup`, then hands it to `removeCarried`. `onTick` lets the
- * caller purge on every OS idle tick.
+ * the caller's buffer (`bufferAdd`). The caller owns the buffer's shape and its cap.
+ * With a `catchup`: on the idle→present edge OR the busy→idle edge, unless its
+ * `nothingLeaves`, fires ONE catchup it builds, then hands it to its `removeCarried`. A core
+ * without one leaves its buffer to the caller. `onTick` lets the caller purge on every OS idle tick.
  *
  * firing ≠ judgment: this only fires candidate events — the backend decides whether/what
  * to speak. No speak/don't-speak gate and no persona state live here.
@@ -46,7 +45,7 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   now?: () => number;
   /** Whether the dispatcher pipeline is busy (backend call in flight or speech playing). Absent = never busy. */
   isPipelineBusy?: () => boolean;
-  /** Subscribe to pipeline-busy transitions; used to flush the buffer on the busy→idle edge. */
+  /** Subscribe to pipeline-busy transitions; used to flush the catchup on the busy→idle edge. */
   subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
   log: Logger;
   /** Validate/narrow a raw inbox arrival. Return undefined to drop it as malformed (caller logs). */
@@ -57,14 +56,17 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   buildLive?: (item: TItem) => InboxFiring;
   /** Add one arrived item to the buffer — dedup/cap policy owned by the caller. */
   bufferAdd: (item: TItem) => void;
-  /** True iff no buffered item may leave now. */
-  nothingLeaves: () => boolean;
-  /** Remove from the buffer what a pushed catchup carried. */
-  removeCarried: (fired: InboxFiring) => void;
   /** Called on every OS idle tick before the edge check. */
   onTick?: () => void;
-  /** Build the catchup firing from the buffer's current contents — flatten/sort policy owned by the caller. */
-  buildCatchup: () => InboxFiring;
+  /** The edge catch-up; absent when the caller drains the buffer itself. */
+  catchup?: {
+    /** True iff no buffered item may leave now. */
+    nothingLeaves: () => boolean;
+    /** Build the catchup firing from the buffer's current contents — flatten/sort policy owned by the caller. */
+    build: () => InboxFiring;
+    /** Remove from the buffer what a pushed catchup carried. */
+    removeCarried: (fired: InboxFiring) => void;
+  };
 }
 
 export function createBufferedInboxSource<TRaw, TItem = TRaw>(
@@ -107,16 +109,12 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
     return fire(firing);
   }
 
-  function flushCatchup(): void {
-    if (config.nothingLeaves()) return;
-    const firing = config.buildCatchup();
-    if (fire(firing)) config.removeCarried(firing);
-  }
-
   /** Flush iff the buffer holds an eligible item, present, and the pipeline is idle. */
   function maybeFlush(): void {
-    if (config.nothingLeaves() || !isPresent() || isBusy()) return;
-    flushCatchup();
+    const { catchup } = config;
+    if (!catchup || catchup.nothingLeaves() || !isPresent() || isBusy()) return;
+    const firing = catchup.build();
+    if (fire(firing)) catchup.removeCarried(firing);
   }
 
   function onTick(payload: OsEventPayload): void {

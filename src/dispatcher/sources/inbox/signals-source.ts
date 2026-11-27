@@ -2,10 +2,11 @@
  * signals_source — grouped `signals` ingress firing source.
  *
  * Two buffered-inbox cores share the presence, busy, and lifecycle skeleton: the
- * batched core holds `batched` groups behind the paced busy predicate, and the urgent core
- * delivers `urgent` groups (handle now) behind the raw busy predicate — a proactive gap never
+ * batched core holds `batched` groups, which leave through `drain()` (the dispatcher's release)
+ * or the batch timer behind the paced busy predicate, and the urgent core delivers `urgent` groups
+ * (handle now) behind the raw busy predicate with its own edge catch-up — a proactive gap never
  * holds them. Each group routes to exactly one core, so urgent and batched groups never share
- * a catch-up turn.
+ * a turn the sources fire.
  * This module owns envelope validation, delivery routing, buffer caps, the lazy
  * batched-delivery timer, the held batched groups that a caller fires or releases, and the
  * origin gate: a group a plugin sent is ungated, and every other group waits on `isEnabled`.
@@ -36,9 +37,8 @@ interface SignalsSourceDeps {
   /** Called with every parsed group before routing, buffered or not. */
   onArrival?: (group: SignalGroup) => void;
   now?: () => number;
-  /** Paced busy predicate for batched groups — the proactive gap reads as busy. */
+  /** Paced busy predicate for the batch timer — the proactive gap reads as busy. */
   isPipelineBusy?: () => boolean;
-  subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
   /** Raw busy predicate for urgent groups — the proactive gap does not reach them. */
   isUrgentPipelineBusy?: () => boolean;
   subscribeUrgentPipelineBusy?: (cb: (busy: boolean) => void) => () => void;
@@ -55,7 +55,7 @@ export interface SignalsSource {
   withdraw(eventId: string, eventType: string): void;
   /** Keeps the batched group with this event id out of every delivery until `release` or `fireHeld`. */
   hold(eventId: string): void;
-  /** Lifts the hold; the group joins the next catch-up or timer firing. */
+  /** Lifts the hold; the group joins the next drain or timer firing. */
   release(eventId: string): void;
   /** Sends every buffered batched group with these event ids as one ungated turn, without lifting the holds; true when pushed. byUser marks the envelope dnd_override: a user-started fire passes do-not-disturb. */
   fireHeld(eventIds: readonly string[], byUser?: boolean): boolean;
@@ -245,13 +245,6 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (wasEmpty) armBatchTimer();
   }
 
-  function buildCatchup(): InboxFiring {
-    return {
-      event_name: "signals.catchup",
-      payload: { signals: deliverable() },
-    };
-  }
-
   function drain(): SignalGroup[] {
     const groups = deliverable();
     removeGroups(batchBuffer, groups);
@@ -325,13 +318,15 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     buildLive: buildUrgentDelivery,
     busSource: "urgent_signal_source",
     bufferAdd: (item) => appendCapped(urgentBuffer, item.group),
-    nothingLeaves: () => !urgentBuffer.some(urgentMayLeave),
-    removeCarried: (fired) => removeGroups(urgentBuffer, carriedBy(fired)),
-    // appendCapped appends in arrival order — the buffer needs no sort.
-    buildCatchup: () => ({
-      event_name: "signals.urgent_catchup",
-      payload: { signals: urgentBuffer.filter(urgentMayLeave).map(({ group }) => group) },
-    }),
+    catchup: {
+      nothingLeaves: () => !urgentBuffer.some(urgentMayLeave),
+      removeCarried: (fired) => removeGroups(urgentBuffer, carriedBy(fired)),
+      // appendCapped appends in arrival order — the buffer needs no sort.
+      build: () => ({
+        event_name: "signals.urgent_catchup",
+        payload: { signals: urgentBuffer.filter(urgentMayLeave).map(({ group }) => group) },
+      }),
+    },
   });
 
   const core = createBufferedInboxSource<RoutedGroup, RoutedGroup>({
@@ -341,19 +336,14 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     listen: deps.listen,
     now: deps.now,
     isPipelineBusy: deps.isPipelineBusy,
-    subscribePipelineBusy: deps.subscribePipelineBusy,
     log,
     parse: (item) => item,
     bufferAdd,
-    nothingLeaves: () => deliverable().length === 0,
-    removeCarried: (fired) => removeGroups(batchBuffer, carriedBy(fired)),
     // One purge covers both buffers; passesGate keeps a gated group in until it runs.
     onTick: purge,
-    buildCatchup,
   });
 
   async function start(): Promise<void> {
-    // Batched first: an urgent turn opens the pacer gap that would drop the paced catch-up.
     await core.start();
     await urgentCore.start();
     armBatchTimer();

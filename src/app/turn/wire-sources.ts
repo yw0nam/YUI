@@ -56,9 +56,9 @@ export function wireDispatcherSources(deps: {
   screenSettings: { get(): { enabled: boolean } };
   getScreenConfig: () => ScreenConfig;
   pipelineBusy: PacedPipelineBusy;
-  /** This pet window's proactive gap — a hold reads as a skip to the screen source, as busy to the inboxes, and holds the schedule cues. */
+  /** This pet window's proactive gap — a hold reads as busy to the batched signals timer. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
-  /** Do-not-disturb — holds the schedule cues and reads as busy to both signals inboxes. */
+  /** Do-not-disturb — reads as busy to both signals inboxes, and empties the gestures' drain. */
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
   /** This pet window's pace factor now — scales the proactive cues' idle_min, re-read on each call. */
   paceFactor: () => number;
@@ -82,7 +82,7 @@ export function wireDispatcherSources(deps: {
   screenSource: ScreenSource;
   addressedSource: AddressedSource;
   routedUserSource: ReturnType<typeof createRoutedUserSource>;
-  /** The gestures' drain: empty during do-not-disturb, so the held signals wait for the catch-up. */
+  /** The gestures' drain: empty during do-not-disturb, so the held signals wait in their buffer. */
   drainSignals: () => SignalGroup[];
 } {
   const {
@@ -125,7 +125,6 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     getCues: () => scheduleSettings.get().entries,
     isEnabled: () => scheduleSettings.get().enabled,
-    isHeld: () => dnd.get().enabled || pacer.isHolding(),
   });
   void scheduleSource.start();
   const signalsSource = createSignalsSource({
@@ -133,7 +132,6 @@ export function wireDispatcherSources(deps: {
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => agentNotifySettings.get().enabled,
     isPipelineBusy: pacedPipelineBusy.isBusy,
-    subscribePipelineBusy: pacedPipelineBusy.subscribe,
     isUrgentPipelineBusy: urgentPipelineBusy.isBusy,
     subscribeUrgentPipelineBusy: urgentPipelineBusy.subscribe,
     onArrival: deps.onSignalArrival,
@@ -153,7 +151,6 @@ export function wireDispatcherSources(deps: {
     getConfig: getScreenConfig,
     isEnabled: () => screenSettings.get().enabled,
     noteInteraction: proactiveSource.noteInteraction,
-    isPacerHolding: pacer.isHolding,
     appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();

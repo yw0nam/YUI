@@ -81,7 +81,7 @@ describe("wireDispatcher", () => {
       stop: vi.fn(),
       subscribeBusy: vi.fn((_cb: (busy: boolean) => void) => busyUnsubscribe),
     };
-    const guardrails = { setConfig: vi.fn(), evaluate: vi.fn() };
+    const guardrails = { setConfig: vi.fn() };
     const pacer = { stop: vi.fn(), noteIntervalChanged: vi.fn() };
     mocks.createDispatcher.mockImplementation((deps: typeof dispatcherDeps) => {
       dispatcherDeps = deps;
@@ -110,6 +110,7 @@ describe("wireDispatcher", () => {
     };
     const handle = wireDispatcher({
       bus: {} as never,
+      presenceSettings: { get: () => ({ value: 60_000 }) } as never,
       renderer: {} as never,
       surfaces: { isInputOpen: () => inputOpen, showInputError, setBusy: vi.fn() } as never,
       reasoning: {} as never,
@@ -421,6 +422,8 @@ describe("wireDispatcher", () => {
       s.pacer.stop,
       s.pacerGapUnsubscribe,
       s.guardrailsOverrideDisposer,
+      // the window's presence
+      expect.any(Function),
       expect.any(Function),
       s.busyUnsubscribe,
     ]);

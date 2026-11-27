@@ -861,9 +861,6 @@ const ja: Record<string, string> = {
   "screen.settle_sub": "ちょっと覗いただけなら無視します",
   "screen.long_session_label": "長時間作業に気づく間隔",
   "screen.long_session_sub": "ひとつのアプリをこれだけ続けたら気づきます",
-  "screen.recent_cap_label": "記憶する上限",
-  "screen.recent_cap_sub": "保留中に溜まったアプリ切り替えを次の画面ターンに何件まで含めるか",
-  "screen.count_suffix": "件",
   "screen.foot":
     "画面のピクセルを送るかどうかは権限ページのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 
@@ -978,7 +975,6 @@ const ja: Record<string, string> = {
   "settings_request.default": "既定値",
   "settings_request.none": "なし",
   "settings_request.not_display": "ウィンドウかタブ",
-  "settings_request.entry": "件",
   "settings_request.why": "「{why}」",
   "settings_request.allow": "許可",
   "run.body_label": "体（VRM）",

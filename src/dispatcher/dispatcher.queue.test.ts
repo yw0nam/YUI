@@ -151,12 +151,12 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     expect(turnLog.isOver()).toBe(false);
   });
 
-  it("drops queued tier2 events with superseded_by_user when a user message arrives", async () => {
+  it("drops a waiting gesture reaction as waiting_expired when a user message arrives", async () => {
     dispatcher.start();
     // first user text occupies the in-flight slot
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a non-user tier2 behind it (won't run while in-flight)
+    // a gesture reaction waits behind it
     bus.push(
       env({
         source: "os_event_watcher",
@@ -168,8 +168,9 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     // now a new user message supersedes
     bus.push(env({ ts: NOW + 2 }));
     await vi.advanceTimersByTimeAsync(20);
-    const drops = dispatcher.recentDrops(10);
-    expect(drops.some((d) => d.reason === "superseded_by_user")).toBe(true);
+    expect(dispatcher.recentDrops(10)).toEqual([
+      expect.objectContaining({ event_name: "proactive.tap_bored", reason: "waiting_expired" }),
+    ]);
   });
 
   it("aborts the in-flight backend call when a new user.voice_segment_ready arrives", async () => {
@@ -192,12 +193,12 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     expect(first.signal?.aborted).toBe(true);
   });
 
-  it("drops queued tier2 events with superseded_by_user when a voice turn arrives", async () => {
+  it("drops a waiting gesture reaction as waiting_expired when a voice turn arrives", async () => {
     dispatcher.start();
     // first user text occupies the in-flight slot
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a non-user tier2 behind it (won't run while in-flight)
+    // a gesture reaction waits behind it
     bus.push(
       env({
         source: "os_event_watcher",
@@ -215,8 +216,9 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
       }),
     );
     await vi.advanceTimersByTimeAsync(20);
-    const drops = dispatcher.recentDrops(10);
-    expect(drops.some((d) => d.reason === "superseded_by_user")).toBe(true);
+    expect(dispatcher.recentDrops(10)).toEqual([
+      expect.objectContaining({ event_name: "proactive.tap_bored", reason: "waiting_expired" }),
+    ]);
   });
 });
 
@@ -281,7 +283,7 @@ describe("dispatcher — playback-gated drain (§337)", () => {
     expect(dispatcher.recentDrops(10)).toContainEqual(
       expect.objectContaining({
         event_name: queued.event_name,
-        reason: "superseded_by_user",
+        reason: "waiting_expired",
       }),
     );
   });

@@ -186,11 +186,7 @@ describe("signals_source — buffer cap 5 batches (spec §5)", () => {
       emitInbox(batch([{ id: i }], i * 10, envelopeOf(i)));
     }
     expect(pushed).toHaveLength(0);
-
-    emitIdle(idleTick(LOW_IDLE));
-    expect(pushed).toHaveLength(1);
-    const p = pushed[0].payload as { signals: Array<{ items: Array<{ id: number }> }> };
-    expect(p.signals.map((group) => group.items[0].id)).toEqual([3, 4, 5, 6, 7]);
+    expect(src.drain().map((group) => group.items[0]!.id)).toEqual([3, 4, 5, 6, 7]);
 
     src.stop();
   });
@@ -250,11 +246,10 @@ describe("signals_source — isEnabled gate (spec §6)", () => {
     enabled = true;
     emitInbox(batch([{ id: 3 }], 3000));
 
-    // Return to present — exactly ONE catchup, containing only the new item.
+    // Return to present — the buffer holds only the new item.
     emitIdle(idleTick(LOW_IDLE));
-    expect(pushed).toHaveLength(1);
-    const p = pushed[0].payload as { signals: Array<{ items: Array<{ id: number }> }> };
-    expect(p.signals[0]).toEqual({ envelope: ENVELOPE, items: [{ id: 3 }] });
+    expect(pushed).toHaveLength(0);
+    expect(src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 3 }] }]);
 
     src.stop();
   });
@@ -297,7 +292,6 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
       onInbox,
       listen,
       isPipelineBusy: pipelineBusy.isPipelineBusy,
-      subscribePipelineBusy: pipelineBusy.subscribePipelineBusy,
     });
     await src.start();
 
@@ -364,7 +358,6 @@ describe("signals_source — global pacer composed into the busy predicate (#689
       onInbox,
       listen,
       isPipelineBusy: paced.isBusy,
-      subscribePipelineBusy: paced.subscribe,
     });
     return { pushed, emitIdle, emitInbox, pacer, src };
   }
@@ -417,7 +410,6 @@ describe("signals_source — urgent delivery class", () => {
       onInbox,
       listen,
       isPipelineBusy: paced.isBusy,
-      subscribePipelineBusy: paced.subscribe,
       isUrgentPipelineBusy: pipelineBusy.isPipelineBusy,
       subscribeUrgentPipelineBusy: pipelineBusy.subscribePipelineBusy,
     });
@@ -446,7 +438,7 @@ describe("signals_source — urgent delivery class", () => {
     s.src.stop();
   });
 
-  it("three urgent-delivery groups during a busy pipeline fire as one signals.urgent_catchup on the busy→idle edge, while the buffered batched group fires its own signals.catchup", async () => {
+  it("three urgent-delivery groups during a busy pipeline fire as one signals.urgent_catchup on the busy→idle edge, while the buffered batched group stays for drain", async () => {
     const s = setupUrgentDelivery(false);
     await s.src.start();
 
@@ -460,22 +452,15 @@ describe("signals_source — urgent delivery class", () => {
 
     s.pipelineBusy.setBusy(false); // raw busy→idle edge reaches both instances
 
-    expect(s.pushed.map((e) => e.event_name).sort()).toEqual([
-      "signals.catchup",
-      "signals.urgent_catchup",
-    ]);
-    const urgentCatchup = s.pushed.find((e) => e.event_name === "signals.urgent_catchup")!;
+    expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.urgent_catchup"]);
+    const urgentCatchup = s.pushed[0]!;
     expect(urgentCatchup.source).toBe("urgent_signal_source");
     expect(
       (urgentCatchup.payload as { signals: Array<{ items: Array<{ id: number }> }> }).signals.map(
         (g) => g.items[0].id,
       ),
     ).toEqual([1, 2, 3]);
-    const catchup = s.pushed.find((e) => e.event_name === "signals.catchup")!;
-    expect(catchup.source).toBe("timer_scheduler");
-    expect(catchup.payload).toEqual({
-      signals: [{ envelope: ENVELOPE, items: [{ id: 9 }] }],
-    });
+    expect(s.src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 9 }] }]);
 
     s.src.stop();
   });
@@ -574,7 +559,6 @@ describe("signals_source — delivery envelopes", () => {
       onInbox,
       listen,
       isPipelineBusy: options.busy?.isPipelineBusy,
-      subscribePipelineBusy: options.busy?.subscribePipelineBusy,
     });
     return { src, pushed, emitIdle, emitInbox, onInbox };
   }
@@ -633,7 +617,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toHaveLength(2);
   });
 
-  it("an ineligible timer holds batched groups, then one catch-up carries them all in arrival order", async () => {
+  it("an ineligible timer holds batched groups for drain, in arrival order", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -645,16 +629,11 @@ describe("signals_source — delivery envelopes", () => {
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toEqual([]);
     s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0].event_name).toBe("signals.catchup");
-    expect(
-      (s.pushed[0]!.payload!.signals as Array<{ items: Array<{ id: number }> }>).map(
-        (g) => g.items[0]!.id,
-      ),
-    ).toEqual([1, 2, 3]);
+    expect(s.pushed).toEqual([]);
+    expect(s.src.drain().map((g) => g.items[0]!.id)).toEqual([1, 2, 3]);
   });
 
-  it("a busy timer fire holds its batched group for one busy-to-idle catch-up", async () => {
+  it("a busy timer fire leaves its batched group buffered for drain", async () => {
     const busy = fakePipelineBusy(true);
     const s = setup({ busy });
     await s.src.start();
@@ -667,21 +646,8 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toEqual([]);
 
     busy.setBusy(false);
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0]!.event_name).toBe("signals.catchup");
-    expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [{ id: 1 }] }]);
-  });
-
-  it("a batched group arriving away joins catch-up before its deadline", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
-    await vi.advanceTimersByTimeAsync(10_000);
-    s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.catchup"]);
-    await vi.advanceTimersByTimeAsync(300_000);
-    expect(s.pushed).toHaveLength(1);
+    expect(s.pushed).toEqual([]);
+    expect(s.src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 1 }] }]);
   });
 
   it("an empty enveloped batch remains a content-less group", async () => {
@@ -948,7 +914,6 @@ describe("signals_source — a reacting Thread's group", () => {
       listen,
       now: () => 7,
       isPipelineBusy: busy.isPipelineBusy,
-      subscribePipelineBusy: busy.subscribePipelineBusy,
     });
     await src.start();
     return {
@@ -968,7 +933,7 @@ describe("signals_source — a reacting Thread's group", () => {
       (e.payload?.signals as SignalGroup[]).map((g) => g.envelope.event_id),
     ]);
 
-  it("a held group stays out of the busy-to-idle catch-up, the batch timer and drain, while an unheld group goes", async () => {
+  it("a held group stays out of the batch timer and drain, while the unheld groups go", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
     s.src.hold("thread:t1");
@@ -979,10 +944,7 @@ describe("signals_source — a reacting Thread's group", () => {
     await vi.advanceTimersByTimeAsync(300_000);
     s.src.offer(group("run-3"));
     expect(s.src.drain()).toEqual([group("run-3")]);
-    expect(sent(s.pushed)).toEqual([
-      ["signals.catchup", ["run-1"]],
-      ["signals.batch", ["run-2"]],
-    ]);
+    expect(sent(s.pushed)).toEqual([["signals.batch", ["run-1", "run-2"]]]);
   });
 
   it("fireHeld sends the held Thread groups as one signals.batch turn while she is away, and the third group stays", async () => {
@@ -1045,11 +1007,8 @@ describe("signals_source — a reacting Thread's group", () => {
     s.accept(true);
     s.src.release("thread:t1");
     s.src.release("thread:t2");
-    s.busy.setBusy(false);
-    expect(sent(s.pushed)).toEqual([
-      ["signals.batch", ["thread:t1", "thread:t2"]],
-      ["signals.catchup", ["thread:t1", "thread:t2"]],
-    ]);
+    expect(sent(s.pushed)).toEqual([["signals.batch", ["thread:t1", "thread:t2"]]]);
+    expect(s.src.drain()).toEqual([group("thread:t1"), group("thread:t2")]);
   });
 
   it("a group buffered while fireHeld pushes stays buffered after the push", async () => {
@@ -1075,17 +1034,14 @@ describe("signals_source — a reacting Thread's group", () => {
     expect(src.drain()).toEqual([late]);
   });
 
-  it("release returns a held group to the next catch-up", async () => {
+  it("release returns a held group to the next drain", async () => {
     const s = await started();
     s.emitIdle(idleTick(LOW_IDLE));
     s.src.hold("thread:t1");
     s.src.offer(group("thread:t1"));
-    s.busy.setBusy(false);
-    expect(s.pushed).toEqual([]);
-    s.busy.setBusy(true);
+    expect(s.src.drain()).toEqual([]);
     s.src.release("thread:t1");
-    s.busy.setBusy(false);
-    expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t1"]]]);
+    expect(s.src.drain()).toEqual([group("thread:t1")]);
   });
 
   it("withdraw drops the buffered thread.input_required group and keeps a thread.failed group with that event id", async () => {
@@ -1095,8 +1051,7 @@ describe("signals_source — a reacting Thread's group", () => {
     s.src.offer(group("thread:t2", "thread.failed"));
     s.src.withdraw("thread:t1", "thread.input_required");
     s.src.withdraw("thread:t2", "thread.input_required");
-    s.busy.setBusy(false);
-    expect(sent(s.pushed)).toEqual([["signals.catchup", ["thread:t2"]]]);
+    expect(s.src.drain()).toEqual([group("thread:t2", "thread.failed")]);
   });
 });
 
@@ -1121,7 +1076,6 @@ describe("signals_source — a plugin's group is ungated", () => {
       onInbox,
       listen,
       isPipelineBusy: busy?.isPipelineBusy,
-      subscribePipelineBusy: busy?.subscribePipelineBusy,
     });
     return { src, pushed, emitIdle, emitInbox };
   }
@@ -1162,7 +1116,7 @@ describe("signals_source — a plugin's group is ungated", () => {
     ]);
   });
 
-  it("turning off while away purges the gated groups of both buffers on the next tick and the return catch-up carries only the plugin's group", async () => {
+  it("turning off while away purges the gated groups of both buffers on the next tick, and only the plugin's batched group stays for drain", async () => {
     let enabled = true;
     const s = setup(() => enabled);
     await s.src.start();
@@ -1174,9 +1128,8 @@ describe("signals_source — a plugin's group is ungated", () => {
     s.emitIdle(idleTick(HIGH_IDLE));
     enabled = true;
     s.emitIdle(idleTick(LOW_IDLE));
-    expect(fired(s.pushed)).toEqual([
-      ["signals.catchup", [{ envelope: envelopeOf(2), items: [{ id: 2 }], plugin: "p" }]],
-    ]);
+    expect(s.pushed).toEqual([]);
+    expect(s.src.drain()).toEqual([{ envelope: envelopeOf(2), items: [{ id: 2 }], plugin: "p" }]);
   });
 
   it("while off, drain takes only the plugin's group and the gated group stays buffered until a tick", async () => {
