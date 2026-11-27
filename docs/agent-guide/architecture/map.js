@@ -2,7291 +2,914 @@ globalThis.YUI_MAP =
 {
   "title": "YUI client",
   "zones": [
-    {
-      "id": "io",
-      "title": "User I/O",
-      "note": "touch, screen, and voice"
-    },
-    {
-      "id": "logic",
-      "title": "Core logic",
-      "note": "fires candidates and runs the turn; the backend decides what to say"
-    },
-    {
-      "id": "outside",
-      "title": "Outside communication",
-      "note": "doors to the OS and network"
-    },
-    {
-      "id": "shared",
-      "title": "Shared state and wiring",
-      "note": "read, mirrored, or used to connect the modules above; no lines drawn"
-    }
+    {"id":"io","title":"User I/O","note":"touch, screen, and voice"},
+    {"id":"logic","title":"Core logic","note":"fires candidates and runs the turn; the backend decides what to say"},
+    {"id":"outside","title":"Outside communication","note":"doors to the OS and network"},
+    {"id":"shared","title":"Shared state and wiring","note":"read, mirrored, or used to connect the modules above; no lines drawn"}
   ],
   "modules": [
-    {
-      "id": "user",
-      "label": "User",
-      "kind": "person",
-      "col": 0,
-      "row": 0,
-      "desc": "Types or speaks, touches and drags the character, changes settings. Sees the character and the bubble, hears the voice."
-    },
-    {
-      "id": "senders",
-      "label": "Outside senders",
-      "kind": "external",
-      "col": 5,
-      "row": 0,
-      "desc": "coding-agent hooks, signal producers, plugin MCP servers, the verification driver"
-    },
-    {
-      "id": "shell",
-      "label": "Rust shell",
-      "kind": "shell",
-      "col": 4,
-      "row": 0,
-      "desc": "OS polling, loopback HTTP listener, window control, screen capture, logs",
-      "zone": "outside"
-    },
-    {
-      "id": "window",
-      "label": "Window I/O",
-      "kind": "module",
-      "col": 1,
-      "row": 0,
-      "desc": "Pointer gestures, click-through, OS event seam, window geometry",
-      "zone": "io"
-    },
-    {
-      "id": "sources",
-      "label": "Firing sources",
-      "kind": "module",
-      "col": 2,
-      "row": 0,
-      "desc": "Idle-tick, inbox, and gesture sources that raise speech candidates",
-      "zone": "logic"
-    },
-    {
-      "id": "ambient",
-      "label": "Ambient",
-      "kind": "module",
-      "col": 2,
-      "row": 2,
-      "desc": "Liveliness and locomotion, independent of the backend",
-      "zone": "logic"
-    },
-    {
-      "id": "input",
-      "label": "Input",
-      "kind": "module",
-      "col": 1,
-      "row": 1,
-      "desc": "Composer text and images, voice capture and STT",
-      "zone": "io"
-    },
-    {
-      "id": "dispatcher",
-      "label": "Dispatcher",
-      "kind": "module",
-      "col": 2,
-      "row": 1,
-      "desc": "Event bus, tier classification, guardrails, pacer, turn gate, tier-1 reactions",
-      "zone": "logic"
-    },
-    {
-      "id": "backend-call",
-      "label": "Backend call",
-      "kind": "module",
-      "col": 3,
-      "row": 1,
-      "desc": "Client context, the call on the selected transport, reply settling, turn record",
-      "zone": "logic"
-    },
-    {
-      "id": "transport",
-      "label": "Transport",
-      "kind": "module",
-      "col": 4,
-      "row": 1,
-      "desc": "Request streaming loops and the push WebSocket",
-      "zone": "outside"
-    },
-    {
-      "id": "backend",
-      "label": "Backend agent",
-      "kind": "external",
-      "col": 5,
-      "row": 1,
-      "desc": "Judges whether and what to speak"
-    },
-    {
-      "id": "display",
-      "label": "Display",
-      "kind": "module",
-      "col": 1,
-      "row": 2,
-      "desc": "Speech bubble, status pill, delegation chip, notices",
-      "zone": "io"
-    },
-    {
-      "id": "speech",
-      "label": "Speech output",
-      "kind": "module",
-      "col": 1,
-      "row": 3,
-      "desc": "Sentence TTS, in-order playback, filler, speaker catalogue",
-      "zone": "io"
-    },
-    {
-      "id": "turn",
-      "label": "Turn state and output",
-      "kind": "module",
-      "col": 3,
-      "row": 2,
-      "desc": "Turn ledger, TurnOutput and TurnFeed ports, push reply player",
-      "zone": "logic"
-    },
-    {
-      "id": "tools",
-      "label": "Client tools",
-      "kind": "module",
-      "col": 3,
-      "row": 0,
-      "desc": "generate_express, body_action, yui_run, avatar executor, vocabulary",
-      "zone": "logic"
-    },
-    {
-      "id": "voice-svc",
-      "label": "Voice services",
-      "kind": "external",
-      "col": 5,
-      "row": 3,
-      "desc": "STT and TTS HTTP endpoints"
-    },
-    {
-      "id": "catalog",
-      "label": "Plugin catalog",
-      "kind": "external",
-      "col": 5,
-      "row": 2,
-      "desc": "plugins/catalog.json and plugin release assets on GitHub"
-    },
-    {
-      "id": "renderer",
-      "label": "Renderer",
-      "kind": "module",
-      "col": 1,
-      "row": 4,
-      "desc": "three.js scene, VRM, emotion, mouth, motion, camera, hit-test",
-      "zone": "io"
-    },
-    {
-      "id": "settings",
-      "label": "Settings and config",
-      "kind": "module",
-      "col": 2,
-      "row": 4,
-      "desc": "Persisted settings stores, configs/*.json, quick controls, asset selection",
-      "zone": "shared"
-    },
-    {
-      "id": "conversation",
-      "label": "Conversation stores",
-      "kind": "module",
-      "col": 3,
-      "row": 4,
-      "desc": "Transcript, response-id session, context history, turn-record log",
-      "zone": "shared"
-    },
-    {
-      "id": "bridge",
-      "label": "Cross-window bridge",
-      "kind": "module",
-      "col": 4,
-      "row": 4,
-      "desc": "Settings signal, message-window surfaces, push state and delegation mirrors",
-      "zone": "shared"
-    },
-    {
-      "id": "wiring",
-      "label": "Wiring and base",
-      "kind": "module",
-      "col": 5,
-      "row": 4,
-      "desc": "src/app and the window entries wire modules by callbacks; contract types, logger",
-      "zone": "shared"
-    }
+    {"id":"user","label":"User","kind":"person","col":0,"row":0,"desc":"Types or speaks, touches and drags the character, changes settings. Sees the character and the bubble, hears the voice."},
+    {"id":"senders","label":"Outside senders","kind":"external","col":5,"row":0,"desc":"coding-agent hooks, signal producers, plugin MCP servers, the verification driver"},
+    {"id":"shell","label":"Rust shell","kind":"shell","col":4,"row":0,"desc":"OS polling, loopback HTTP listener, window control, screen capture, logs","zone":"outside"},
+    {"id":"window","label":"Window I/O","kind":"module","col":1,"row":0,"desc":"Pointer gestures, click-through, OS event seam, window geometry","zone":"io"},
+    {"id":"sources","label":"Firing sources","kind":"module","col":2,"row":0,"desc":"Idle-tick, inbox, and gesture sources that raise speech candidates","zone":"logic"},
+    {"id":"ambient","label":"Ambient","kind":"module","col":2,"row":2,"desc":"Liveliness and locomotion, independent of the backend","zone":"logic"},
+    {"id":"input","label":"Input","kind":"module","col":1,"row":1,"desc":"Composer text and images, voice capture and STT","zone":"io"},
+    {"id":"dispatcher","label":"Dispatcher","kind":"module","col":2,"row":1,"desc":"Event bus, tier classification, guardrails, pacer, turn gate, tier-1 reactions","zone":"logic"},
+    {"id":"backend-call","label":"Backend call","kind":"module","col":3,"row":1,"desc":"Client context, the call on the selected transport, reply settling, turn record","zone":"logic"},
+    {"id":"transport","label":"Transport","kind":"module","col":4,"row":1,"desc":"Request streaming loops and the push WebSocket","zone":"outside"},
+    {"id":"backend","label":"Backend agent","kind":"external","col":5,"row":1,"desc":"Judges whether and what to speak"},
+    {"id":"display","label":"Display","kind":"module","col":1,"row":2,"desc":"Speech bubble, status pill, delegation chip, notices","zone":"io"},
+    {"id":"speech","label":"Speech output","kind":"module","col":1,"row":3,"desc":"Sentence TTS, in-order playback, filler, speaker catalogue","zone":"io"},
+    {"id":"turn","label":"Turn state and output","kind":"module","col":3,"row":2,"desc":"Turn ledger, TurnOutput and TurnFeed ports, push reply player","zone":"logic"},
+    {"id":"tools","label":"Client tools","kind":"module","col":3,"row":0,"desc":"generate_express, body_action, yui_run, avatar executor, vocabulary","zone":"logic"},
+    {"id":"voice-svc","label":"Voice services","kind":"external","col":5,"row":3,"desc":"STT and TTS HTTP endpoints"},
+    {"id":"catalog","label":"Plugin catalog","kind":"external","col":5,"row":2,"desc":"plugins/catalog.json and plugin release assets on GitHub"},
+    {"id":"renderer","label":"Renderer","kind":"module","col":1,"row":4,"desc":"three.js scene, VRM, emotion, mouth, motion, camera, hit-test","zone":"io"},
+    {"id":"settings","label":"Settings and config","kind":"module","col":2,"row":4,"desc":"Persisted settings stores, configs/*.json, quick controls, asset selection","zone":"shared"},
+    {"id":"conversation","label":"Conversation stores","kind":"module","col":3,"row":4,"desc":"Transcript, response-id session, context history, turn-record log","zone":"shared"},
+    {"id":"bridge","label":"Cross-window bridge","kind":"module","col":4,"row":4,"desc":"Settings signal, message-window surfaces, push state and delegation mirrors","zone":"shared"},
+    {"id":"wiring","label":"Wiring and base","kind":"module","col":5,"row":4,"desc":"src/app and the window entries wire modules by callbacks; contract types, logger","zone":"shared"}
   ],
   "links": [
-    {
-      "from": "user",
-      "to": "window",
-      "label": "taps, pats, drags",
-      "fromPort": [
-        1,
-        0.06
-      ],
-      "toPort": [
-        0,
-        0.5
-      ]
-    },
-    {
-      "from": "user",
-      "to": "input",
-      "label": "text, images, voice",
-      "fromPort": [
-        1,
-        0.28
-      ],
-      "toPort": [
-        0,
-        0.5
-      ]
-    },
-    {
-      "from": "display",
-      "to": "user",
-      "label": "bubble, status",
-      "fromPort": [
-        0,
-        0.5
-      ],
-      "toPort": [
-        1,
-        0.5
-      ]
-    },
-    {
-      "from": "speech",
-      "to": "user",
-      "label": "voice",
-      "fromPort": [
-        0,
-        0.5
-      ],
-      "toPort": [
-        1,
-        0.72
-      ]
-    },
-    {
-      "from": "renderer",
-      "to": "user",
-      "label": "face, mouth, motion",
-      "fromPort": [
-        0,
-        0.5
-      ],
-      "toPort": [
-        1,
-        0.94
-      ]
-    },
-    {
-      "from": "window",
-      "to": "sources",
-      "label": "idle samples, gestures"
-    },
-    {
-      "from": "input",
-      "to": "dispatcher",
-      "label": "user text or voice envelope"
-    },
-    {
-      "from": "sources",
-      "to": "dispatcher",
-      "label": "candidate envelopes"
-    },
-    {
-      "from": "ambient",
-      "to": "dispatcher",
-      "label": "avatar.* events"
-    },
-    {
-      "from": "dispatcher",
-      "to": "backend-call",
-      "label": "tier-2 turn to call"
-    },
-    {
-      "from": "backend-call",
-      "to": "transport",
-      "label": "request or turn frame"
-    },
-    {
-      "from": "transport",
-      "to": "backend-call",
-      "label": "stream events"
-    },
-    {
-      "from": "transport",
-      "to": "backend",
-      "label": "HTTP stream, WebSocket frames"
-    },
-    {
-      "from": "backend",
-      "to": "transport",
-      "label": "reply frames"
-    },
-    {
-      "from": "backend-call",
-      "to": "turn",
-      "label": "TurnOutput, TurnFeed"
-    },
-    {
-      "from": "transport",
-      "to": "turn",
-      "label": "push reply frames"
-    },
-    {
-      "from": "transport",
-      "to": "tools",
-      "label": "tool call to run"
-    },
-    {
-      "from": "turn",
-      "to": "speech",
-      "label": "deltas, cues, thinking"
-    },
-    {
-      "from": "speech",
-      "to": "display",
-      "label": "bubble text"
-    },
-    {
-      "from": "speech",
-      "to": "renderer",
-      "label": "cue per sentence, mouth amplitude"
-    },
-    {
-      "from": "display",
-      "to": "input",
-      "label": "submit, stop"
-    },
-    {
-      "from": "speech",
-      "to": "voice-svc",
-      "label": "synthesis request"
-    },
-    {
-      "from": "shell",
-      "to": "catalog",
-      "label": "catalog, plugin release downloads"
-    },
-    {
-      "from": "senders",
-      "to": "shell",
-      "label": "signals, avatar commands, WebDriver session (verify feature)"
-    },
-    {
-      "from": "shell",
-      "to": "tools",
-      "label": "signal, avatar-rpc events"
-    },
-    {
-      "from": "tools",
-      "to": "sources",
-      "label": "signal events"
-    },
-    {
-      "from": "tools",
-      "to": "shell",
-      "label": "plugin host calls, plugin snapshot"
-    },
-    {
-      "from": "settings",
-      "to": "tools",
-      "label": "plugin page commands, plugin snapshot"
-    },
-    {
-      "from": "shell",
-      "to": "window",
-      "label": "os_event every 5 s, drop release, tray",
-      "arc": true
-    }
+    {"from":"user","to":"window","label":"taps, pats, drags","fromPort":[1,0.06],"toPort":[0,0.5]},
+    {"from":"user","to":"input","label":"text, images, voice","fromPort":[1,0.28],"toPort":[0,0.5]},
+    {"from":"display","to":"user","label":"bubble, status","fromPort":[0,0.5],"toPort":[1,0.5]},
+    {"from":"speech","to":"user","label":"voice","fromPort":[0,0.5],"toPort":[1,0.72]},
+    {"from":"renderer","to":"user","label":"face, mouth, motion","fromPort":[0,0.5],"toPort":[1,0.94]},
+    {"from":"window","to":"sources","label":"idle samples, gestures"},
+    {"from":"input","to":"dispatcher","label":"user text or voice envelope"},
+    {"from":"sources","to":"dispatcher","label":"candidate envelopes"},
+    {"from":"ambient","to":"dispatcher","label":"avatar.* events"},
+    {"from":"dispatcher","to":"backend-call","label":"tier-2 turn to call"},
+    {"from":"backend-call","to":"transport","label":"request or turn frame"},
+    {"from":"transport","to":"backend-call","label":"stream events"},
+    {"from":"transport","to":"backend","label":"HTTP stream, WebSocket frames"},
+    {"from":"backend","to":"transport","label":"reply frames"},
+    {"from":"backend-call","to":"turn","label":"TurnOutput, TurnFeed"},
+    {"from":"transport","to":"turn","label":"push reply frames"},
+    {"from":"transport","to":"tools","label":"tool call to run"},
+    {"from":"turn","to":"speech","label":"deltas, cues, thinking"},
+    {"from":"speech","to":"display","label":"bubble text"},
+    {"from":"speech","to":"renderer","label":"cue per sentence, mouth amplitude"},
+    {"from":"display","to":"input","label":"submit, stop"},
+    {"from":"speech","to":"voice-svc","label":"synthesis request"},
+    {"from":"shell","to":"catalog","label":"catalog, plugin release downloads"},
+    {"from":"senders","to":"shell","label":"signals, avatar commands, WebDriver session (verify feature)"},
+    {"from":"shell","to":"tools","label":"signal, avatar-rpc events"},
+    {"from":"tools","to":"sources","label":"signal events"},
+    {"from":"tools","to":"shell","label":"plugin host calls, plugin snapshot"},
+    {"from":"settings","to":"tools","label":"plugin page commands, plugin snapshot"},
+    {"from":"shell","to":"window","label":"os_event every 5 s, drop release, tray","arc":true}
   ],
   "nodes": [
-    {
-      "id": "user",
-      "module": "user",
-      "label": "user",
-      "role": "The person at the desktop.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "backend-request",
-      "module": "backend",
-      "label": "backend (request)",
-      "role": "The backend agent on a request transport: one HTTP streaming call per turn, Responses or Chat Completions.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "backend-push",
-      "module": "backend",
-      "label": "backend (push)",
-      "role": "The backend agent on the push transport: one WebSocket that carries turns in and replies out, and holds the conversation under a chat id.",
-      "paths": [],
-      "external": true,
-      "map": "integrations/hermes/platform/yui/docs/map.js"
-    },
-    {
-      "id": "stt-service",
-      "module": "voice-svc",
-      "label": "STT service",
-      "role": "The speech-to-text HTTP endpoint that turns a voice segment into text.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "tts-service",
-      "module": "voice-svc",
-      "label": "TTS service",
-      "role": "The speech synthesis HTTP endpoint and its voices API.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "plugin-catalog",
-      "module": "catalog",
-      "label": "Catalog on GitHub",
-      "role": "plugins/catalog.json on main, each community plugin's plugin.json on its repo's default branch, and the release zips and checksums.txt the MCP host downloads.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "agent-hooks",
-      "module": "senders",
-      "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks post view-only Threads; a Claude Code permission Thread returns to working after the allowed tool runs.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "signal-producers",
-      "module": "senders",
-      "label": "signal producers",
-      "role": "Outside producers that post signals for the character to speak about.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "plugin-mcp-server",
-      "module": "senders",
-      "label": "plugin MCP server",
-      "role": "A YUI-hosted MCP server of an enabled plugin; it sends signal groups to the MCP host as a notification.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "verifier",
-      "module": "senders",
-      "label": "verification driver",
-      "role": "A WebdriverIO session that drives a bundle built with the `verify` feature over `127.0.0.1:4445`.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "shell/core",
-      "module": "shell",
-      "label": "shell core",
-      "role": "Builds the Tauri app: plugins, startup work, and the IPC command table.",
-      "paths": [
-        "src-tauri/src/main.rs",
-        "src-tauri/src/lib.rs",
-        "src-tauri/src/plugins.rs",
-        "src-tauri/src/setup.rs",
-        "src-tauri/src/commands.rs",
-        "src-tauri/src/process_state.rs"
-      ]
-    },
-    {
-      "id": "shell/os-event-watcher",
-      "module": "shell",
-      "label": "os_event_watcher",
-      "role": "Polls OS idle time and the frontmost window, lists windows (YUI's Threads window among them, flagged, and YUI's other windows left out), probes the drag release, and writes the witness log.",
-      "paths": [
-        "src-tauri/src/os_event_watcher"
-      ]
-    },
-    {
-      "id": "shell/agent-ingress",
-      "module": "shell",
-      "label": "agent_ingress",
-      "role": "Loopback HTTP listener for signals and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset and refuses a signals request holding an item over 16 KiB.",
-      "paths": [
-        "src-tauri/src/agent_ingress"
-      ]
-    },
-    {
-      "id": "shell/screenshot",
-      "module": "shell",
-      "label": "screenshot",
-      "role": "Enumerates screen sources and captures a display off the main thread.",
-      "paths": [
-        "src-tauri/src/screenshot.rs"
-      ]
-    },
-    {
-      "id": "shell/image",
-      "module": "shell",
-      "label": "image encode",
-      "role": "Resizes an image to a long-edge limit and encodes it as a JPEG data URL.",
-      "paths": [
-        "src-tauri/src/image_encode.rs"
-      ]
-    },
-    {
-      "id": "shell/mcp-host",
-      "module": "shell",
-      "label": "mcp_host",
-      "role": "Installs, updates and removes plugins, runs their MCP servers, keeps each one's enablement and consent, and publishes the plugin snapshot to every window.",
-      "paths": [
-        "src-tauri/src/mcp_host"
-      ]
-    },
-    {
-      "id": "shell/window",
-      "module": "shell",
-      "label": "window control",
-      "role": "Native window control: OS drag, logical window frames, the click-through toggle, and the Threads and pet windows' native links on macOS.",
-      "paths": [
-        "src-tauri/src/drag.rs",
-        "src-tauri/src/window_dock.rs",
-        "src-tauri/src/window_frame.rs",
-        "src-tauri/src/passthrough.rs",
-        "src-tauri/src/threads_window.rs"
-      ]
-    },
-    {
-      "id": "shell/logs",
-      "module": "shell",
-      "label": "logs",
-      "role": "The app log sink with date rotation and the turn-record JSONL file.",
-      "paths": [
-        "src-tauri/src/app_log.rs",
-        "src-tauri/src/log_rotation.rs",
-        "src-tauri/src/turn_log.rs"
-      ]
-    },
-    {
-      "id": "shell/tray",
-      "module": "shell",
-      "label": "tray",
-      "role": "System tray menu with its show, hide, settings, and quit actions, and a Do Not Disturb check item that mirrors the do-not-disturb store.",
-      "paths": [
-        "src-tauri/src/tray.rs"
-      ]
-    },
-    {
-      "id": "shell/imports",
-      "module": "shell",
-      "label": "asset imports",
-      "role": "Native file imports: VRM and voice copies into app data, the card file steps for JSON, PNG and preset files, and the dropped-file read for settings windows.",
-      "paths": [
-        "src-tauri/src/import_fs.rs",
-        "src-tauri/src/vrm_import.rs",
-        "src-tauri/src/voice_import.rs",
-        "src-tauri/src/card_import.rs",
-        "src-tauri/src/dropped_files.rs",
-        "src-tauri/src/preset_file"
-      ]
-    },
-    {
-      "id": "contract",
-      "module": "wiring",
-      "label": "contract",
-      "role": "TypeScript types of the wire schema between YUI and the backend.",
-      "paths": [
-        "src/contract"
-      ]
-    },
-    {
-      "id": "tauri-env",
-      "module": "wiring",
-      "label": "tauri-env",
-      "role": "Detects whether the page runs inside the Tauri runtime.",
-      "paths": [
-        "src/tauri-env.ts"
-      ]
-    },
-    {
-      "id": "logger",
-      "module": "wiring",
-      "label": "logger",
-      "role": "Namespaced frontend logger with a runtime level.",
-      "paths": [
-        "src/logger.ts"
-      ]
-    },
-    {
-      "id": "config",
-      "module": "settings",
-      "label": "config",
-      "role": "Loads and validates configs/*.json, holds the reactive snapshot with hot reload, and names the secrets.",
-      "paths": [
-        "src/config"
-      ]
-    },
-    {
-      "id": "renderer",
-      "module": "renderer",
-      "label": "renderer core",
-      "role": "The three.js scene and frame loop: VRM load and swap, control envelopes into emotion and motion, and the landing, fade and perch animations.",
-      "paths": [
-        "src/renderer"
-      ]
-    },
-    {
-      "id": "renderer/camera",
-      "module": "renderer",
-      "label": "camera",
-      "role": "Camera framing: fit to bounds, zoom, orbit, the stage framing, the travel view window and the clamped pixel ratio.",
-      "paths": [
-        "src/renderer/camera"
-      ]
-    },
-    {
-      "id": "renderer/expression",
-      "module": "renderer",
-      "label": "expression",
-      "role": "Emotion crossfade, amplitude lip sync, and cursor gaze on the face.",
-      "paths": [
-        "src/renderer/expression"
-      ]
-    },
-    {
-      "id": "renderer/motion",
-      "module": "renderer",
-      "label": "motion",
-      "role": "Clip cache, motion scheduling and playback, holds, root yaw, and sole grounding.",
-      "paths": [
-        "src/renderer/motion"
-      ]
-    },
-    {
-      "id": "renderer/geometry",
-      "module": "renderer",
-      "label": "geometry",
-      "role": "Silhouette hit-testing, tap regions, and read-only screen probes of the model.",
-      "paths": [
-        "src/renderer/geometry"
-      ]
-    },
-    {
-      "id": "settings",
-      "module": "settings",
-      "label": "settings",
-      "role": "Persisted settings, one localStorage store per setting: per-preset keys such as yui.agent and yui.active-hours, and device-wide keys such as yui.theme and yui.dnd.",
-      "paths": [
-        "src/settings"
-      ]
-    },
-    {
-      "id": "io/chat/stream",
-      "module": "transport",
-      "label": "chat stream",
-      "role": "Request-transport streaming loops that turn a Responses or Chat Completions stream into chat stream events, with the client tool round trips.",
-      "paths": [
-        "src/io/chat/stream"
-      ]
-    },
-    {
-      "id": "io/chat/push",
-      "module": "transport",
-      "label": "push socket",
-      "role": "The push transport's WebSocket, its frame shapes, and the queue that answers tool_call frames.",
-      "paths": [
-        "src/io/chat/push"
-      ]
-    },
-    {
-      "id": "io/chat/tools",
-      "module": "tools",
-      "label": "client tools",
-      "role": "Declared chat tools and the yui_run runner in run/, which scripts the yui API in a QuickJS sandbox.",
-      "paths": [
-        "src/io/chat/tools"
-      ]
-    },
-    {
-      "id": "io/chat/one-line",
-      "module": "backend-call",
-      "label": "one line",
-      "role": "Collapses a sampled or producer-authored string to one line without the client_context tags, the sanitisation the client context block and the yui.threads results share.",
-      "paths": [
-        "src/io/chat/one-line.ts"
-      ]
-    },
-    {
-      "id": "io/mcp-host",
-      "module": "tools",
-      "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot and subscription, forwards plugin commands, and builds the plugin tool summaries that yui_run lists.",
-      "paths": [
-        "src/io/mcp-host"
-      ]
-    },
-    {
-      "id": "io/snapshot-feed",
-      "module": "display",
-      "label": "snapshot feed",
-      "role": "Keeps a Rust store's highest-revision snapshot from its event and its snapshot command, listening before it reads; the Threads and terminal clients build on it; inert outside Tauri.",
-      "paths": [
-        "src/io/snapshot-feed"
-      ]
-    },
-    {
-      "id": "io/threads",
-      "module": "display",
-      "label": "threads client",
-      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends a Thread the user marked read through thread_read; inert outside Tauri.",
-      "paths": [
-        "src/io/threads"
-      ]
-    },
-    {
-      "id": "io/presence",
-      "module": "display",
-      "label": "presence",
-      "role": "Reads the last os_idle_tick's idle ms against the away threshold for main's pet window; inert outside Tauri.",
-      "paths": [
-        "src/io/presence"
-      ]
-    },
-    {
-      "id": "io/terminal",
-      "module": "display",
-      "label": "terminal client",
-      "role": "Terminal store snapshots and the user's terminal commands, the tray's terminal-open, and OSC 52 clipboard access; inert outside Tauri.",
-      "paths": [
-        "src/io/terminal"
-      ]
-    },
-    {
-      "id": "io/chat/vocabulary",
-      "module": "tools",
-      "label": "express vocabulary",
-      "role": "Derives the emotion, motion, and voice-tone ids the agent may cue with.",
-      "paths": [
-        "src/io/chat/vocabulary"
-      ]
-    },
-    {
-      "id": "io/chat/conversation",
-      "module": "conversation",
-      "label": "conversation stores",
-      "role": "Transcript, signal history, context history, response-id session, session diagnostics, and the overheard store and reader that hand a turn the other open presets' unheard lines.",
-      "paths": [
-        "src/io/chat/conversation"
-      ]
-    },
-    {
-      "id": "io/chat/record",
-      "module": "conversation",
-      "label": "turn record",
-      "role": "Appends one JSONL record per completed turn or skipped fire.",
-      "paths": [
-        "src/io/chat/record"
-      ]
-    },
-    {
-      "id": "io/chat/last-emotion",
-      "module": "conversation",
-      "label": "last backend emotion",
-      "role": "The last emotion id a backend cue carried in this window and when, in memory only; it reads as neutral when none is recorded or the record is older than the decay the reader passes.",
-      "paths": [
-        "src/io/chat/last-emotion"
-      ]
-    },
-    {
-      "id": "io/chat/models",
-      "module": "transport",
-      "label": "model list",
-      "role": "Reads the model list of a chat endpoint, and checks whether a server answers at all.",
-      "paths": [
-        "src/io/chat/models"
-      ]
-    },
-    {
-      "id": "io/chat/secrets",
-      "module": "transport",
-      "label": "secret provider",
-      "role": "Resolves each secret from its runtime store, then the build-time fallback.",
-      "paths": [
-        "src/io/chat/secret-provider.ts"
-      ]
-    },
-    {
-      "id": "io/chat/card",
-      "module": "backend-call",
-      "label": "card",
-      "role": "Resolves a preset's card and its effective name, assembles the first system message and the post-history text with the {{char}}, {{user}}, {{original}} macros, and picks a greeting.",
-      "paths": [
-        "src/io/chat/card"
-      ]
-    },
-    {
-      "id": "io/voice/stt",
-      "module": "input",
-      "label": "voice input",
-      "role": "Microphone capture, VAD segmentation, the STT upload of each segment, and the Connection page's STT server check.",
-      "paths": [
-        "src/io/voice"
-      ]
-    },
-    {
-      "id": "io/voice/tts",
-      "module": "speech",
-      "label": "speech output",
-      "role": "Sentence segmentation, synthesis, in-order playback held to one voice across pet windows, the reading dictionary applied to the TTS text, and the glue to the mouth and the bubble.",
-      "paths": [
-        "src/io/voice/tts"
-      ]
-    },
-    {
-      "id": "io/voice/filler",
-      "module": "speech",
-      "label": "filler",
-      "role": "Filler phrases spoken while a turn is thinking, the failure lines, and the Thread reaction lines (threads_open, threads_raise).",
-      "paths": [
-        "src/io/voice/filler"
-      ]
-    },
-    {
-      "id": "io/voice/voices",
-      "module": "speech",
-      "label": "voices",
-      "role": "The speaker catalogue: voice selection, per-provider voice lists, voice import, the TTS server check and the Fish key check.",
-      "paths": [
-        "src/io/voice/voices"
-      ]
-    },
-    {
-      "id": "io/window/os-events",
-      "module": "window",
-      "label": "os events",
-      "role": "The os_event listen seam, the frontmost-window tracker, and the own-origin fetch rule.",
-      "paths": [
-        "src/io/window"
-      ]
-    },
-    {
-      "id": "io/window/capture",
-      "module": "tools",
-      "label": "screen capture",
-      "role": "Screen enumeration and screenshot capture through the shell.",
-      "paths": [
-        "src/io/window/capture"
-      ]
-    },
-    {
-      "id": "io/window/file-drop",
-      "module": "window",
-      "label": "file drop",
-      "role": "This webview's native file drag events as enter, drop and leave with the dragged paths.",
-      "paths": [
-        "src/io/window/file-drop"
-      ]
-    },
-    {
-      "id": "io/window/geometry",
-      "module": "window",
-      "label": "window geometry",
-      "role": "Monitor and floor math, placement and resize of the companion column windows, the Threads window's frame, and the travel frame and keep-on-screen.",
-      "paths": [
-        "src/io/window/geometry"
-      ]
-    },
-    {
-      "id": "io/window/openers",
-      "module": "window",
-      "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, Threads, Character menu and pet windows, and holds a Threads request until the window reports ready.",
-      "paths": [
-        "src/io/window/openers"
-      ]
-    },
-    {
-      "id": "io/window/pet",
-      "module": "window",
-      "label": "pet window",
-      "role": "The pet window's pointer gestures, the shared cursor poll and hit check for click-through and gaze, peek state, the summon hotkey and the dock into her settings window.",
-      "paths": [
-        "src/io/window/pet"
-      ]
-    },
-    {
-      "id": "io/bridge/core",
-      "module": "bridge",
-      "label": "bridge core",
-      "role": "The cross-window bus transport: the sender-scoped envelope, the ready promise, the channel table helper, and the owner and mirror pattern.",
-      "paths": [
-        "src/io/bridge/core"
-      ]
-    },
-    {
-      "id": "io/bridge/settings",
-      "module": "bridge",
-      "label": "settings bridge",
-      "role": "Typed cross-window settings bus; each channel is a row of one table, scoped to the sender's preset unless it is listed as unscoped.",
-      "paths": [
-        "src/io/bridge/settings-bridge.ts"
-      ]
-    },
-    {
-      "id": "io/bridge/message",
-      "module": "bridge",
-      "label": "message bridge",
-      "role": "Preset-scoped bus between a pet window and its message window: the Asks and Settings requests lists, the answer controls, and the surface op table.",
-      "paths": [
-        "src/io/bridge/message"
-      ]
-    },
-    {
-      "id": "io/bridge/delegations",
-      "module": "bridge",
-      "label": "delegations",
-      "role": "The backend's background-work list: live store, persisted history, and its mirror.",
-      "paths": [
-        "src/io/bridge/delegations"
-      ]
-    },
-    {
-      "id": "io/bridge/reasoning",
-      "module": "bridge",
-      "label": "reasoning",
-      "role": "The backend's reasoning text as the current turn writes it, and its mirror.",
-      "paths": [
-        "src/io/bridge/reasoning"
-      ]
-    },
-    {
-      "id": "io/bridge/push",
-      "module": "bridge",
-      "label": "push state bridge",
-      "role": "Push socket state published to the windows that do not own the socket.",
-      "paths": [
-        "src/io/bridge/push"
-      ]
-    },
-    {
-      "id": "io/bridge/inbox",
-      "module": "tools",
-      "label": "inbox",
-      "role": "Subscriptions to the shell's signals and avatar RPC channels, the avatar executor for body commands, and the relations RPC.",
-      "paths": [
-        "src/io/bridge/inbox"
-      ]
-    },
-    {
-      "id": "io/assets",
-      "module": "settings",
-      "label": "assets",
-      "role": "VRM selection and import, and the card's file steps: the picker and dropped-file import, card and preset exports, and the thumbnail URL.",
-      "paths": [
-        "src/io/assets"
-      ]
-    },
-    {
-      "id": "io/guide",
-      "module": "settings",
-      "label": "guide docs",
-      "role": "The bundled guide docs: yui.guide.read returns one; the guide: block names it on an Ask press.",
-      "paths": [
-        "src/io/guide"
-      ]
-    },
-    {
-      "id": "io/image",
-      "module": "transport",
-      "label": "image encode",
-      "role": "JPEG encoding of images sent to the backend.",
-      "paths": [
-        "src/io/image"
-      ]
-    },
-    {
-      "id": "io/locks",
-      "module": "window",
-      "label": "window locks",
-      "role": "The exclusive Web Lock a window holds, shared by the voice gate and the turn gate.",
-      "paths": [
-        "src/io/locks"
-      ]
-    },
-    {
-      "id": "io/stage",
-      "module": "input",
-      "label": "stage pointer",
-      "role": "Press travel every stage surface shares.",
-      "paths": [
-        "src/io/stage"
-      ]
-    },
-    {
-      "id": "dispatcher",
-      "module": "dispatcher",
-      "label": "dispatcher",
-      "role": "The router: pumps the bus, classifies each envelope, drops the self-fired ones that do-not-disturb holds, and runs one backend call at a time, taking the cross-window turn lock first.",
-      "paths": [
-        "src/dispatcher"
-      ]
-    },
-    {
-      "id": "dispatcher/core",
-      "module": "dispatcher",
-      "label": "bus and gates",
-      "role": "The event bus, tier classification and the do-not-disturb source table, guardrails, the proactive pacer, and the turn gate.",
-      "paths": [
-        "src/dispatcher/core"
-      ]
-    },
-    {
-      "id": "dispatcher/tier1",
-      "module": "dispatcher",
-      "label": "tier 1",
-      "role": "Local reactions that need no backend: directives, the posture ledger, and pin targets.",
-      "paths": [
-        "src/dispatcher/tier1"
-      ]
-    },
-    {
-      "id": "dispatcher/turn",
-      "module": "turn",
-      "label": "turn",
-      "role": "The turn ledger, the TurnOutput and TurnFeed ports, push-turn ids, and the player of push reply frames.",
-      "paths": [
-        "src/dispatcher/turn"
-      ]
-    },
-    {
-      "id": "dispatcher/backend",
-      "module": "backend-call",
-      "label": "backend call",
-      "role": "Builds the client context, sends a tier-2 event on the selected transport, settles the reply, and records the turn.",
-      "paths": [
-        "src/dispatcher/backend"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/user-input",
-      "module": "input",
-      "label": "user input source",
-      "role": "Turns typed text and STT results into bus envelopes.",
-      "paths": [
-        "src/dispatcher/sources"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/idle-tick",
-      "module": "sources",
-      "label": "idle-tick sources",
-      "role": "Proactive, schedule, milestone, and screen firing sources driven by the OS idle tick.",
-      "paths": [
-        "src/dispatcher/sources/idle-tick"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/inbox",
-      "module": "sources",
-      "label": "inbox sources",
-      "role": "Signals firing source: presence-gated buffering, catch-up by delivery class, held and withdrawn batched groups, and the external-signals gate.",
-      "paths": [
-        "src/dispatcher/sources/inbox"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/gesture",
-      "module": "sources",
-      "label": "gesture sources",
-      "role": "Tap, drag-hold and window-drop firing sources, with the perch watch and the placement of a moved or resized host.",
-      "paths": [
-        "src/dispatcher/sources/gesture"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/addressed",
-      "module": "sources",
-      "label": "addressed source",
-      "role": "Turns a character-addressed bridge event for this preset into the addressed.character candidate, and emits that event for this window's reply once it is over.",
-      "paths": [
-        "src/dispatcher/sources/addressed"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/routed",
-      "module": "sources",
-      "label": "routed user source",
-      "role": "Turns a user-turn-routed bridge event for this preset into a user turn, and reports its done signal when the turn closes.",
-      "paths": [
-        "src/dispatcher/sources/routed"
-      ]
-    },
-    {
-      "id": "dispatcher/sources/threads",
-      "module": "sources",
-      "label": "thread turns",
-      "role": "Diffs each Threads snapshot against the last one and returns the batched Thread signal groups that the Thread turns level asks for.",
-      "paths": [
-        "src/dispatcher/sources/threads"
-      ]
-    },
-    {
-      "id": "ambient/come-along",
-      "module": "ambient",
-      "label": "come-along",
-      "role": "Her session on her pet window that moves her onto a settings window's stage slot and back, carries her across monitors, and docks or sends her home.",
-      "paths": [
-        "src/ambient/come-along"
-      ]
-    },
-    {
-      "id": "ambient/liveliness",
-      "module": "ambient",
-      "label": "liveliness",
-      "role": "Blink, idle sway, breath, and look-around, independent of the backend.",
-      "paths": [
-        "src/ambient/liveliness"
-      ]
-    },
-    {
-      "id": "ambient/locomotion",
-      "module": "ambient",
-      "label": "locomotion",
-      "role": "Movement loops over the real window: stroll, perch, climb, jump, fall, and sit transitions.",
-      "paths": [
-        "src/ambient/locomotion"
-      ]
-    },
-    {
-      "id": "ambient/threads-reaction",
-      "module": "ambient",
-      "label": "thread reactions",
-      "role": "Starts and runs one pending Thread reaction from a chip tap, a count edge or a waiting Thread, and holds buffered Thread turns while the switch is on.",
-      "paths": [
-        "src/ambient/threads-reaction"
-      ]
-    },
-    {
-      "id": "ui/surfaces",
-      "module": "display",
-      "label": "surfaces",
-      "role": "The speech bubble and text input, and the router between the pet window, message window and speech stream, with the chip column above an Ask card or bubble.",
-      "paths": [
-        "src/ui/surfaces"
-      ]
-    },
-    {
-      "id": "ui/input",
-      "module": "input",
-      "label": "text input",
-      "role": "The composer: submit, stop, mic button, image attachments, and a row of attached Thread chips above them, each with its ×; a message of chips alone sends.",
-      "paths": [
-        "src/ui/input"
-      ]
-    },
-    {
-      "id": "ui/message",
-      "module": "display",
-      "label": "bubble and plate",
-      "role": "The speech bubble's content: the typewriter, the quoted user line with its Threads chips or signal lines, the reasoning disclosure, the backlog and the name plate.",
-      "paths": [
-        "src/ui/message"
-      ]
-    },
-    {
-      "id": "ui/unified",
-      "module": "display",
-      "label": "unified chat",
-      "role": "The unified chat window: cast chips, the dialogue box, the composer, recipient routing, and the Threads-attached send rules.",
-      "paths": [
-        "src/ui/unified"
-      ]
-    },
-    {
-      "id": "ui/signals",
-      "module": "display",
-      "label": "source line",
-      "role": "The source line of a signal group: delivery-class dot, source, label; drawn by the bubble and by History.",
-      "paths": [
-        "src/ui/signals"
-      ]
-    },
-    {
-      "id": "ui/chips",
-      "module": "display",
-      "label": "chips",
-      "role": "The status pill, the signal chips and their details sheet, the delegation chip, and the voice-input status model.",
-      "paths": [
-        "src/ui/chips"
-      ]
-    },
-    {
-      "id": "ui/notices",
-      "module": "display",
-      "label": "notices",
-      "role": "One-off and error notices, and the failure-to-next-step mapping (failureAction), which the failure reporter (src/app/turn/report-turn-failure.ts) reads.",
-      "paths": [
-        "src/ui/notices"
-      ]
-    },
-    {
-      "id": "ui/quick-controls",
-      "module": "settings",
-      "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search and page rail per character, the Plugins, Connection and Quick start pages, and the device-wide General page.",
-      "paths": [
-        "src/ui/quick-controls",
-        "src/ui/use-snapshot"
-      ]
-    },
-    {
-      "id": "ui/settings-stage",
-      "module": "settings",
-      "label": "settings stage",
-      "role": "The settings window's stage column beside the panel: its slot sizing, the foot naming the window's character, and the redraw on each change.",
-      "paths": [
-        "src/ui/settings-stage"
-      ]
-    },
-    {
-      "id": "ui/character-menu",
-      "module": "display",
-      "label": "character menu",
-      "role": "The pill menu a right-click on her opens, drawn in the Character menu window beside her: its columns, Back, Reset chat and Turn off, and how it closes.",
-      "paths": [
-        "src/ui/character-menu"
-      ]
-    },
-    {
-      "id": "ui/threads",
-      "module": "display",
-      "label": "threads ui",
-      "role": "The Threads chip in main's chip column and the Threads window view: layout, list and rail, the Waiting and All filter, the thread pane and the Thread turns popover.",
-      "paths": [
-        "src/ui/threads"
-      ]
-    },
-    {
-      "id": "ui/ask",
-      "module": "display",
-      "label": "ask card",
-      "role": "The Ask slot above the input: slot-cards.ts shows the head card, the Ask card owns the answer area, and countdown.ts gives the time left.",
-      "paths": [
-        "src/ui/ask"
-      ]
-    },
-    {
-      "id": "ui/settings-request",
-      "module": "display",
-      "label": "settings request card",
-      "role": "The Settings request card in the Ask slot: one line per change with its values, Deny and Allow answering on one click, and the note field.",
-      "paths": [
-        "src/ui/settings-request"
-      ]
-    },
-    {
-      "id": "ui/terminal",
-      "module": "display",
-      "label": "terminal ui",
-      "role": "The Threads window's Terminal tab: the terminal list, one xterm per terminal, clipboard, IME input, font-size keys and the access request card.",
-      "paths": [
-        "src/ui/terminal"
-      ]
-    },
-    {
-      "id": "ui/devtools",
-      "module": "settings",
-      "label": "devtools ui",
-      "role": "The Developer Tools window as one React root: the Context, Advanced and Motion tabs, and the motion preview that loads on first use.",
-      "paths": [
-        "src/ui/devtools"
-      ]
-    },
-    {
-      "id": "ui/i18n",
-      "module": "settings",
-      "label": "i18n",
-      "role": "The persisted locale and its string catalogs.",
-      "paths": [
-        "src/ui/i18n.ts",
-        "src/ui/i18n"
-      ]
-    },
-    {
-      "id": "ui/theme",
-      "module": "settings",
-      "label": "theme",
-      "role": "Writes the theme the store resolves, `system` through the OS appearance, as `data-theme` on each window's root, and the text size as `--yui-text-scale`, which every text token multiplies by.",
-      "paths": [
-        "src/ui/theme"
-      ]
-    },
-    {
-      "id": "app/bootstrap",
-      "module": "wiring",
-      "label": "pet bootstrap",
-      "role": "The pet window's config-derived composition root and the shared teardown bag.",
-      "paths": [
-        "src/app"
-      ]
-    },
-    {
-      "id": "app/active-hours",
-      "module": "wiring",
-      "label": "active hours",
-      "role": "One handle per pet window that combines the device-wide base pace with the character's active-hours span into the pace, gap and do-not-disturb values.",
-      "paths": [
-        "src/app/active-hours"
-      ]
-    },
-    {
-      "id": "app/relations",
-      "module": "wiring",
-      "label": "relations wiring",
-      "role": "Wires rate_relation's open-preset targets and the ingress relations RPC to this window's relation store.",
-      "paths": [
-        "src/app/relations"
-      ]
-    },
-    {
-      "id": "app/turn",
-      "module": "wiring",
-      "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary and the push transport into the chat turn, with the Ask queue and the Settings request and yui_run ports.",
-      "paths": [
-        "src/app/turn"
-      ]
-    },
-    {
-      "id": "app/card-io",
-      "module": "wiring",
-      "label": "card io wiring",
-      "role": "The card's settings-panel ports: file steps and the preset creator bound to one registry, with the import and one import gate per settings window.",
-      "paths": [
-        "src/app/card-io"
-      ]
-    },
-    {
-      "id": "app/turn/card",
-      "module": "wiring",
-      "label": "card wiring",
-      "role": "Binds the card module to the window's stores and runs the card's greeting and controls hint after a session reset or Quick start.",
-      "paths": [
-        "src/app/turn/wire-card.ts",
-        "src/app/turn/wire-first-conversation.ts",
-        "src/app/turn/wire-greeting.ts"
-      ]
-    },
-    {
-      "id": "app/signal-chips",
-      "module": "wiring",
-      "label": "signal chips wiring",
-      "role": "Creates the signal chips and the fold store they share with the delegation chip, and hands the signals source its arrival callback.",
-      "paths": [
-        "src/app/signal-chips"
-      ]
-    },
-    {
-      "id": "app/threads-chip",
-      "module": "wiring",
-      "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips, feeds it snapshots, and opens the Threads window from its tap.",
-      "paths": [
-        "src/app/threads-chip"
-      ]
-    },
-    {
-      "id": "app/threads-attach",
-      "module": "wiring",
-      "label": "attached Threads wiring",
-      "role": "Main only: the list of Threads attached to the main character's chat input, each once, with its change and send rules.",
-      "paths": [
-        "src/app/threads-attach"
-      ]
-    },
-    {
-      "id": "app/stage",
-      "module": "wiring",
-      "label": "stage wiring",
-      "role": "Binds the renderer, gestures, locomotion, the window sources and the come-along to the pet stage.",
-      "paths": [
-        "src/app/stage"
-      ]
-    },
-    {
-      "id": "app/cross-window",
-      "module": "wiring",
-      "label": "cross-window wiring",
-      "role": "Per-window settings sync over the bridge and storage events.",
-      "paths": [
-        "src/app/cross-window"
-      ]
-    },
-    {
-      "id": "app/settings",
-      "module": "wiring",
-      "label": "settings wiring",
-      "role": "Store bags, the config store with its live merges and reload, avatar selection, and the settings side of the settings window.",
-      "paths": [
-        "src/app/settings"
-      ]
-    },
-    {
-      "id": "app/pet-windows",
-      "module": "wiring",
-      "label": "bound pet windows",
-      "role": "The open-window list kept in step across windows, main's reconcile and open, the live key each window holds until it closes, the companions a bound pet window opens, and the orphan close.",
-      "paths": [
-        "src/app/pet-windows"
-      ]
-    },
-    {
-      "id": "app/controls",
-      "module": "wiring",
-      "label": "controls wiring",
-      "role": "The pet window's popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.",
-      "paths": [
-        "src/app/controls"
-      ]
-    },
-    {
-      "id": "app/character-menu",
-      "module": "wiring",
-      "label": "character menu wiring",
-      "role": "The pet side of the Character menu: the right-click, its ports for the picks, the hold while it is open, and the data-menu-open mark.",
-      "paths": [
-        "src/app/character-menu"
-      ]
-    },
-    {
-      "id": "app/character-menu-window",
-      "module": "wiring",
-      "label": "character menu window wiring",
-      "role": "Wires the Character menu window: its open sessions fed by the pet windows' requests, its theme and language, and its shown, pick and closed reports.",
-      "paths": [
-        "src/app/character-menu/wire-character-menu-window.ts",
-        "src/app/character-menu/menu-window-session.ts"
-      ]
-    },
-    {
-      "id": "app/threads-window",
-      "module": "wiring",
-      "label": "threads window wiring",
-      "role": "Wires the Threads window: snapshots into the view, the open and resize requests, the frame saved on move, and the Escape and close behaviour.",
-      "paths": [
-        "src/app/threads-window"
-      ]
-    },
-    {
-      "id": "app/threads-reaction",
-      "module": "wiring",
-      "label": "thread reactions wiring",
-      "role": "Main only: wires the Threads client, window controller, chip taps, presence, speech, turn pipeline and renderer into the Thread reaction.",
-      "paths": [
-        "src/app/threads-reaction"
-      ]
-    },
-    {
-      "id": "app/dnd",
-      "module": "wiring",
-      "label": "do-not-disturb wiring",
-      "role": "Keeps the tray's Do Not Disturb item and each pet window's root in step with the do-not-disturb store, in main only.",
-      "paths": [
-        "src/app/dnd"
-      ]
-    },
-    {
-      "id": "app/message",
-      "module": "wiring",
-      "label": "message-window wiring",
-      "role": "Draws surface ops from the pet window; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.",
-      "paths": [
-        "src/app/message"
-      ]
-    },
-    {
-      "id": "app/unified",
-      "module": "wiring",
-      "label": "unified-window wiring",
-      "role": "Main opens the unified chat window while it shows and destroys it otherwise, and the window closing itself turns the Unified chat switch off.",
-      "paths": [
-        "src/app/unified"
-      ]
-    },
-    {
-      "id": "app/settings-window",
-      "module": "wiring",
-      "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (?edit=, else its own): the stage, then the panel, and the page routing.",
-      "paths": [
-        "src/app/settings-window"
-      ]
-    },
-    {
-      "id": "app/dev",
-      "module": "wiring",
-      "label": "dev globals",
-      "role": "DEV-only console handles.",
-      "paths": [
-        "src/app/dev"
-      ]
-    },
-    {
-      "id": "windows",
-      "module": "wiring",
-      "label": "window entries",
-      "role": "One entry file per window, loaded by the matching HTML file.",
-      "paths": [
-        "src/windows"
-      ]
-    },
-    {
-      "id": "shell/threads",
-      "module": "shell",
-      "label": "threads",
-      "role": "Keeps Threads and their read marks, appends each change to a dated JSONL file kept 14 days, and publishes a revisioned snapshot to every window.",
-      "paths": [
-        "src-tauri/src/threads"
-      ]
-    },
-    {
-      "id": "shell/terminal",
-      "module": "shell",
-      "label": "terminal",
-      "role": "Runs each Terminal's login shell in a PTY, keeps its screen, gates preset reads and writes behind Allow, and publishes the terminal snapshot.",
-      "paths": [
-        "src-tauri/src/terminal"
-      ]
-    },
-    {
-      "id": "ui/commands",
-      "module": "display",
-      "label": "backend commands",
-      "role": "The backend-stated command list with wrapping descriptions and captured drag scrolling, and the Markdown Command reply with drag scrolling and an in-window resize handle above the input.",
-      "paths": [
-        "src/ui/commands"
-      ]
-    },
-    {
-      "id": "ui/scroll-fade",
-      "module": "display",
-      "label": "scroll fade",
-      "role": "Marks a scroll box while more of it sits below its visible part, so its bottom edge fades; the Ask card's prompt and the Command reply use it.",
-      "paths": [
-        "src/ui/scroll-fade"
-      ]
-    },
-    {
-      "id": "ui/listbox",
-      "module": "display",
-      "label": "listbox",
-      "role": "Shared combobox ARIA, keyboard navigation, active option and one open list per field for the mention and Backend command lists.",
-      "paths": [
-        "src/ui/listbox"
-      ]
-    },
-    {
-      "id": "ui/keyed-rows",
-      "module": "display",
-      "label": "keyed rows",
-      "role": "Keeps each list row's element across snapshots by key, moves only rows whose place changed, and hands focus of a removed row to its neighbour.",
-      "paths": [
-        "src/ui/keyed-rows"
-      ]
-    },
-    {
-      "id": "ui/controls",
-      "module": "display",
-      "label": "controls",
-      "role": "Shared React controls: Switch, Disclosure, Slider, Checkbox, Segment, NumberField, Select, Tabs and Tooltip.",
-      "paths": [
-        "src/ui/controls"
-      ]
-    },
-    {
-      "id": "ui/ref-mount",
-      "module": "display",
-      "label": "ref mount",
-      "role": "The host element a React view gives a vanilla piece: it mounts the piece into the host after the commit, again when its dependencies change, and cleans it up before the next mount and on unmount.",
-      "paths": [
-        "src/ui/ref-mount"
-      ]
-    }
+    {"id":"user","module":"user","label":"user","role":"The person at the desktop.","paths":[],"external":true},
+    {"id":"backend-request","module":"backend","label":"backend (request)","role":"The backend agent on a request transport: one HTTP streaming call per turn, Responses or Chat Completions.","paths":[],"external":true},
+    {"id":"backend-push","module":"backend","label":"backend (push)","role":"The backend agent on the push transport: one WebSocket that carries turns in and replies out, and holds the conversation under a chat id.","paths":[],"external":true,"map":"integrations/hermes/platform/yui/docs/map.js"},
+    {"id":"stt-service","module":"voice-svc","label":"STT service","role":"The speech-to-text HTTP endpoint that turns a voice segment into text.","paths":[],"external":true},
+    {"id":"tts-service","module":"voice-svc","label":"TTS service","role":"The speech synthesis HTTP endpoint and its voices API.","paths":[],"external":true},
+    {"id":"plugin-catalog","module":"catalog","label":"Catalog on GitHub","role":"plugins/catalog.json on main, each community plugin's plugin.json on its repo's default branch, and the release zips and checksums.txt the MCP host downloads.","paths":[],"external":true},
+    {"id":"agent-hooks","module":"senders","label":"coding-agent hooks","role":"The yui-notify plugin's Claude Code and Codex hooks post view-only Threads; a Claude Code permission Thread returns to working after the allowed tool runs.","paths":[],"external":true},
+    {"id":"signal-producers","module":"senders","label":"signal producers","role":"Outside producers that post signals for the character to speak about.","paths":[],"external":true},
+    {"id":"plugin-mcp-server","module":"senders","label":"plugin MCP server","role":"A YUI-hosted MCP server of an enabled plugin; it sends signal groups to the MCP host as a notification.","paths":[],"external":true},
+    {"id":"verifier","module":"senders","label":"verification driver","role":"A WebdriverIO session that drives a bundle built with the `verify` feature over `127.0.0.1:4445`.","paths":[],"external":true},
+    {"id":"shell/core","module":"shell","label":"shell core","role":"Builds the Tauri app: plugins, startup work, and the IPC command table.","paths":["src-tauri/src/main.rs","src-tauri/src/lib.rs","src-tauri/src/plugins.rs","src-tauri/src/setup.rs","src-tauri/src/commands.rs","src-tauri/src/process_state.rs"]},
+    {"id":"shell/os-event-watcher","module":"shell","label":"os_event_watcher","role":"Polls OS idle time and the frontmost window, lists windows (YUI's Threads window among them, flagged, and YUI's other windows left out), probes the drag release, and writes the witness log.","paths":["src-tauri/src/os_event_watcher"]},
+    {"id":"shell/agent-ingress","module":"shell","label":"agent_ingress","role":"Loopback HTTP listener for signals and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset and refuses a signals request holding an item over 16 KiB.","paths":["src-tauri/src/agent_ingress"]},
+    {"id":"shell/screenshot","module":"shell","label":"screenshot","role":"Enumerates screen sources and captures a display off the main thread.","paths":["src-tauri/src/screenshot.rs"]},
+    {"id":"shell/image","module":"shell","label":"image encode","role":"Resizes an image to a long-edge limit and encodes it as a JPEG data URL.","paths":["src-tauri/src/image_encode.rs"]},
+    {"id":"shell/mcp-host","module":"shell","label":"mcp_host","role":"Installs, updates and removes plugins, runs their MCP servers, keeps each one's enablement and consent, and publishes the plugin snapshot to every window.","paths":["src-tauri/src/mcp_host"]},
+    {"id":"shell/window","module":"shell","label":"window control","role":"Native window control: OS drag, logical window frames, the click-through toggle, and the Threads and pet windows' native links on macOS.","paths":["src-tauri/src/drag.rs","src-tauri/src/window_dock.rs","src-tauri/src/window_frame.rs","src-tauri/src/passthrough.rs","src-tauri/src/threads_window.rs"]},
+    {"id":"shell/logs","module":"shell","label":"logs","role":"The app log sink with date rotation and the turn-record JSONL file.","paths":["src-tauri/src/app_log.rs","src-tauri/src/log_rotation.rs","src-tauri/src/turn_log.rs"]},
+    {"id":"shell/tray","module":"shell","label":"tray","role":"System tray menu with its show, hide, settings, and quit actions, and a Do Not Disturb check item that mirrors the do-not-disturb store.","paths":["src-tauri/src/tray.rs"]},
+    {"id":"shell/imports","module":"shell","label":"asset imports","role":"Native file imports: VRM and voice copies into app data, the card file steps for JSON, PNG and preset files, and the dropped-file read for settings windows.","paths":["src-tauri/src/import_fs.rs","src-tauri/src/vrm_import.rs","src-tauri/src/voice_import.rs","src-tauri/src/card_import.rs","src-tauri/src/dropped_files.rs","src-tauri/src/preset_file"]},
+    {"id":"contract","module":"wiring","label":"contract","role":"TypeScript types of the wire schema between YUI and the backend.","paths":["src/contract"]},
+    {"id":"tauri-env","module":"wiring","label":"tauri-env","role":"Detects whether the page runs inside the Tauri runtime.","paths":["src/tauri-env.ts"]},
+    {"id":"logger","module":"wiring","label":"logger","role":"Namespaced frontend logger with a runtime level.","paths":["src/logger.ts"]},
+    {"id":"config","module":"settings","label":"config","role":"Loads and validates configs/*.json, holds the reactive snapshot with hot reload, and names the secrets.","paths":["src/config"]},
+    {"id":"renderer","module":"renderer","label":"renderer core","role":"The three.js scene and frame loop: VRM load and swap, control envelopes into emotion and motion, and the landing, fade and perch animations.","paths":["src/renderer"]},
+    {"id":"renderer/camera","module":"renderer","label":"camera","role":"Camera framing: fit to bounds, zoom, orbit, the stage framing, the travel view window and the clamped pixel ratio.","paths":["src/renderer/camera"]},
+    {"id":"renderer/expression","module":"renderer","label":"expression","role":"Emotion crossfade, amplitude lip sync, and cursor gaze on the face.","paths":["src/renderer/expression"]},
+    {"id":"renderer/motion","module":"renderer","label":"motion","role":"Clip cache, motion scheduling and playback, holds, root yaw, and sole grounding.","paths":["src/renderer/motion"]},
+    {"id":"renderer/geometry","module":"renderer","label":"geometry","role":"Silhouette hit-testing, tap regions, and read-only screen probes of the model.","paths":["src/renderer/geometry"]},
+    {"id":"settings","module":"settings","label":"settings","role":"Persisted settings, one localStorage store per setting: per-preset keys such as yui.agent and yui.active-hours, and device-wide keys such as yui.theme and yui.dnd.","paths":["src/settings"]},
+    {"id":"io/chat/stream","module":"transport","label":"chat stream","role":"Request-transport streaming loops that turn a Responses or Chat Completions stream into chat stream events, with the client tool round trips.","paths":["src/io/chat/stream"]},
+    {"id":"io/chat/push","module":"transport","label":"push socket","role":"The push transport's WebSocket, its frame shapes, and the queue that answers tool_call frames.","paths":["src/io/chat/push"]},
+    {"id":"io/chat/tools","module":"tools","label":"client tools","role":"Declared chat tools and the yui_run runner in run/, which scripts the yui API in a QuickJS sandbox.","paths":["src/io/chat/tools"]},
+    {"id":"io/chat/one-line","module":"backend-call","label":"one line","role":"Collapses a sampled or producer-authored string to one line without the client_context tags, the sanitisation the client context block and the yui.threads results share.","paths":["src/io/chat/one-line.ts"]},
+    {"id":"io/mcp-host","module":"tools","label":"mcp host client","role":"Keeps the MCP host's newest snapshot and subscription, forwards plugin commands, and builds the plugin tool summaries that yui_run lists.","paths":["src/io/mcp-host"]},
+    {"id":"io/snapshot-feed","module":"display","label":"snapshot feed","role":"Keeps a Rust store's highest-revision snapshot from its event and its snapshot command, listening before it reads; the Threads and terminal clients build on it; inert outside Tauri.","paths":["src/io/snapshot-feed"]},
+    {"id":"io/threads","module":"display","label":"threads client","role":"Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends a Thread the user marked read through thread_read; inert outside Tauri.","paths":["src/io/threads"]},
+    {"id":"io/presence","module":"display","label":"presence","role":"Reads the last os_idle_tick's idle ms against the away threshold for main's pet window; inert outside Tauri.","paths":["src/io/presence"]},
+    {"id":"io/terminal","module":"display","label":"terminal client","role":"Terminal store snapshots and the user's terminal commands, the tray's terminal-open, and OSC 52 clipboard access; inert outside Tauri.","paths":["src/io/terminal"]},
+    {"id":"io/chat/vocabulary","module":"tools","label":"express vocabulary","role":"Derives the emotion, motion, and voice-tone ids the agent may cue with.","paths":["src/io/chat/vocabulary"]},
+    {"id":"io/chat/conversation","module":"conversation","label":"conversation stores","role":"Transcript, signal history, context history, response-id session, session diagnostics, and the overheard store and reader that hand a turn the other open presets' unheard lines.","paths":["src/io/chat/conversation"]},
+    {"id":"io/chat/record","module":"conversation","label":"turn record","role":"Appends one JSONL record per completed turn or skipped fire.","paths":["src/io/chat/record"]},
+    {"id":"io/chat/last-emotion","module":"conversation","label":"last backend emotion","role":"The last emotion id a backend cue carried in this window and when, in memory only; it reads as neutral when none is recorded or the record is older than the decay the reader passes.","paths":["src/io/chat/last-emotion"]},
+    {"id":"io/chat/models","module":"transport","label":"model list","role":"Reads the model list of a chat endpoint, and checks whether a server answers at all.","paths":["src/io/chat/models"]},
+    {"id":"io/chat/secrets","module":"transport","label":"secret provider","role":"Resolves each secret from its runtime store, then the build-time fallback.","paths":["src/io/chat/secret-provider.ts"]},
+    {"id":"io/chat/card","module":"backend-call","label":"card","role":"Resolves a preset's card and its effective name, assembles the first system message and the post-history text with the {{char}}, {{user}}, {{original}} macros, and picks a greeting.","paths":["src/io/chat/card"]},
+    {"id":"io/voice/stt","module":"input","label":"voice input","role":"Microphone capture, VAD segmentation, the STT upload of each segment, and the Connection page's STT server check.","paths":["src/io/voice"]},
+    {"id":"io/voice/tts","module":"speech","label":"speech output","role":"Sentence segmentation, synthesis, in-order playback held to one voice across pet windows, the reading dictionary applied to the TTS text, and the glue to the mouth and the bubble.","paths":["src/io/voice/tts"]},
+    {"id":"io/voice/filler","module":"speech","label":"filler","role":"Filler phrases spoken while a turn is thinking, the failure lines, and the Thread reaction lines (threads_open, threads_raise).","paths":["src/io/voice/filler"]},
+    {"id":"io/voice/voices","module":"speech","label":"voices","role":"The speaker catalogue: voice selection, per-provider voice lists, voice import, the TTS server check and the Fish key check.","paths":["src/io/voice/voices"]},
+    {"id":"io/window/os-events","module":"window","label":"os events","role":"The os_event listen seam, the frontmost-window tracker, and the own-origin fetch rule.","paths":["src/io/window"]},
+    {"id":"io/window/capture","module":"tools","label":"screen capture","role":"Screen enumeration and screenshot capture through the shell.","paths":["src/io/window/capture"]},
+    {"id":"io/window/file-drop","module":"window","label":"file drop","role":"This webview's native file drag events as enter, drop and leave with the dragged paths.","paths":["src/io/window/file-drop"]},
+    {"id":"io/window/geometry","module":"window","label":"window geometry","role":"Monitor and floor math, placement and resize of the companion column windows, the Threads window's frame, and the travel frame and keep-on-screen.","paths":["src/io/window/geometry"]},
+    {"id":"io/window/openers","module":"window","label":"window openers","role":"Opens and places the message, settings, devtools, unified chat, Threads, Character menu and pet windows, and holds a Threads request until the window reports ready.","paths":["src/io/window/openers"]},
+    {"id":"io/window/pet","module":"window","label":"pet window","role":"The pet window's pointer gestures, the shared cursor poll and hit check for click-through and gaze, peek state, the summon hotkey and the dock into her settings window.","paths":["src/io/window/pet"]},
+    {"id":"io/bridge/core","module":"bridge","label":"bridge core","role":"The cross-window bus transport: the sender-scoped envelope, the ready promise, the channel table helper, and the owner and mirror pattern.","paths":["src/io/bridge/core"]},
+    {"id":"io/bridge/settings","module":"bridge","label":"settings bridge","role":"Typed cross-window settings bus; each channel is a row of one table, scoped to the sender's preset unless it is listed as unscoped.","paths":["src/io/bridge/settings-bridge.ts"]},
+    {"id":"io/bridge/message","module":"bridge","label":"message bridge","role":"Preset-scoped bus between a pet window and its message window: the Asks and Settings requests lists, the answer controls, and the surface op table.","paths":["src/io/bridge/message"]},
+    {"id":"io/bridge/delegations","module":"bridge","label":"delegations","role":"The backend's background-work list: live store, persisted history, and its mirror.","paths":["src/io/bridge/delegations"]},
+    {"id":"io/bridge/reasoning","module":"bridge","label":"reasoning","role":"The backend's reasoning text as the current turn writes it, and its mirror.","paths":["src/io/bridge/reasoning"]},
+    {"id":"io/bridge/push","module":"bridge","label":"push state bridge","role":"Push socket state published to the windows that do not own the socket.","paths":["src/io/bridge/push"]},
+    {"id":"io/bridge/inbox","module":"tools","label":"inbox","role":"Subscriptions to the shell's signals and avatar RPC channels, the avatar executor for body commands, and the relations RPC.","paths":["src/io/bridge/inbox"]},
+    {"id":"io/assets","module":"settings","label":"assets","role":"VRM selection and import, and the card's file steps: the picker and dropped-file import, card and preset exports, and the thumbnail URL.","paths":["src/io/assets"]},
+    {"id":"io/guide","module":"settings","label":"guide docs","role":"The bundled guide docs: yui.guide.read returns one; the guide: block names it on an Ask press.","paths":["src/io/guide"]},
+    {"id":"io/image","module":"transport","label":"image encode","role":"JPEG encoding of images sent to the backend.","paths":["src/io/image"]},
+    {"id":"io/locks","module":"window","label":"window locks","role":"The exclusive Web Lock a window holds, shared by the voice gate and the turn gate.","paths":["src/io/locks"]},
+    {"id":"io/stage","module":"input","label":"stage pointer","role":"Press travel every stage surface shares.","paths":["src/io/stage"]},
+    {"id":"dispatcher","module":"dispatcher","label":"dispatcher","role":"The router: pumps the bus, classifies each envelope, drops the self-fired ones that do-not-disturb holds, and runs one backend call at a time, taking the cross-window turn lock first.","paths":["src/dispatcher"]},
+    {"id":"dispatcher/core","module":"dispatcher","label":"bus and gates","role":"The event bus, tier classification and the do-not-disturb source table, guardrails, the proactive pacer, and the turn gate.","paths":["src/dispatcher/core"]},
+    {"id":"dispatcher/tier1","module":"dispatcher","label":"tier 1","role":"Local reactions that need no backend: directives, the posture ledger, and pin targets.","paths":["src/dispatcher/tier1"]},
+    {"id":"dispatcher/turn","module":"turn","label":"turn","role":"The turn ledger, the TurnOutput and TurnFeed ports, push-turn ids, and the player of push reply frames.","paths":["src/dispatcher/turn"]},
+    {"id":"dispatcher/backend","module":"backend-call","label":"backend call","role":"Builds the client context, sends a tier-2 event on the selected transport, settles the reply, and records the turn.","paths":["src/dispatcher/backend"]},
+    {"id":"dispatcher/sources/user-input","module":"input","label":"user input source","role":"Turns typed text and STT results into bus envelopes.","paths":["src/dispatcher/sources"]},
+    {"id":"dispatcher/sources/idle-tick","module":"sources","label":"idle-tick sources","role":"Proactive, schedule, milestone, and screen firing sources driven by the OS idle tick.","paths":["src/dispatcher/sources/idle-tick"]},
+    {"id":"dispatcher/sources/inbox","module":"sources","label":"inbox sources","role":"Signals firing source: presence-gated buffering, catch-up by delivery class, held and withdrawn batched groups, and the external-signals gate.","paths":["src/dispatcher/sources/inbox"]},
+    {"id":"dispatcher/sources/gesture","module":"sources","label":"gesture sources","role":"Tap, drag-hold and window-drop firing sources, with the perch watch and the placement of a moved or resized host.","paths":["src/dispatcher/sources/gesture"]},
+    {"id":"dispatcher/sources/addressed","module":"sources","label":"addressed source","role":"Turns a character-addressed bridge event for this preset into the addressed.character candidate, and emits that event for this window's reply once it is over.","paths":["src/dispatcher/sources/addressed"]},
+    {"id":"dispatcher/sources/routed","module":"sources","label":"routed user source","role":"Turns a user-turn-routed bridge event for this preset into a user turn, and reports its done signal when the turn closes.","paths":["src/dispatcher/sources/routed"]},
+    {"id":"dispatcher/sources/threads","module":"sources","label":"thread turns","role":"Diffs each Threads snapshot against the last one and returns the batched Thread signal groups that the Thread turns level asks for.","paths":["src/dispatcher/sources/threads"]},
+    {"id":"ambient/come-along","module":"ambient","label":"come-along","role":"Her session on her pet window that moves her onto a settings window's stage slot and back, carries her across monitors, and docks or sends her home.","paths":["src/ambient/come-along"]},
+    {"id":"ambient/liveliness","module":"ambient","label":"liveliness","role":"Blink, idle sway, breath, and look-around, independent of the backend.","paths":["src/ambient/liveliness"]},
+    {"id":"ambient/locomotion","module":"ambient","label":"locomotion","role":"Movement loops over the real window: stroll, perch, climb, jump, fall, and sit transitions.","paths":["src/ambient/locomotion"]},
+    {"id":"ambient/threads-reaction","module":"ambient","label":"thread reactions","role":"Starts and runs one pending Thread reaction from a chip tap, a count edge or a waiting Thread, and holds buffered Thread turns while the switch is on.","paths":["src/ambient/threads-reaction"]},
+    {"id":"ui/surfaces","module":"display","label":"surfaces","role":"The speech bubble and text input, and the router between the pet window, message window and speech stream, with the chip column above an Ask card or bubble.","paths":["src/ui/surfaces"]},
+    {"id":"ui/input","module":"input","label":"text input","role":"The composer: submit, stop, mic button, image attachments, and a row of attached Thread chips above them, each with its ×; a message of chips alone sends.","paths":["src/ui/input"]},
+    {"id":"ui/message","module":"display","label":"bubble and plate","role":"The speech bubble's content: the typewriter, the quoted user line with its Threads chips or signal lines, the reasoning disclosure, the backlog and the name plate.","paths":["src/ui/message"]},
+    {"id":"ui/unified","module":"display","label":"unified chat","role":"The unified chat window: cast chips, the dialogue box, the composer, recipient routing, and the Threads-attached send rules.","paths":["src/ui/unified"]},
+    {"id":"ui/signals","module":"display","label":"source line","role":"The source line of a signal group: delivery-class dot, source, label; drawn by the bubble and by History.","paths":["src/ui/signals"]},
+    {"id":"ui/chips","module":"display","label":"chips","role":"The status pill, the signal chips and their details sheet, the delegation chip, and the voice-input status model.","paths":["src/ui/chips"]},
+    {"id":"ui/notices","module":"display","label":"notices","role":"One-off and error notices, and the failure-to-next-step mapping (failureAction), which the failure reporter (src/app/turn/report-turn-failure.ts) reads.","paths":["src/ui/notices"]},
+    {"id":"ui/quick-controls","module":"settings","label":"quick controls","role":"The settings panel that fills the settings window: a search and page rail per character, the Plugins, Connection and Quick start pages, and the device-wide General page.","paths":["src/ui/quick-controls","src/ui/use-snapshot"]},
+    {"id":"ui/settings-stage","module":"settings","label":"settings stage","role":"The settings window's stage column beside the panel: its slot sizing, the foot naming the window's character, and the redraw on each change.","paths":["src/ui/settings-stage"]},
+    {"id":"ui/character-menu","module":"display","label":"character menu","role":"The pill menu a right-click on her opens, drawn in the Character menu window beside her: its columns, Back, Reset chat and Turn off, and how it closes.","paths":["src/ui/character-menu"]},
+    {"id":"ui/threads","module":"display","label":"threads ui","role":"The Threads chip in main's chip column and the Threads window view: layout, list and rail, the Waiting and All filter, the thread pane and the Thread turns popover.","paths":["src/ui/threads"]},
+    {"id":"ui/ask","module":"display","label":"ask card","role":"The Ask slot above the input: slot-cards.ts shows the head card, the Ask card owns the answer area, and countdown.ts gives the time left.","paths":["src/ui/ask"]},
+    {"id":"ui/settings-request","module":"display","label":"settings request card","role":"The Settings request card in the Ask slot: one line per change with its values, Deny and Allow answering on one click, and the note field.","paths":["src/ui/settings-request"]},
+    {"id":"ui/terminal","module":"display","label":"terminal ui","role":"The Threads window's Terminal tab: the terminal list, one xterm per terminal, clipboard, IME input, font-size keys and the access request card.","paths":["src/ui/terminal"]},
+    {"id":"ui/devtools","module":"settings","label":"devtools ui","role":"The Developer Tools window as one React root: the Context, Advanced and Motion tabs, and the motion preview that loads on first use.","paths":["src/ui/devtools"]},
+    {"id":"ui/i18n","module":"settings","label":"i18n","role":"The persisted locale and its string catalogs.","paths":["src/ui/i18n.ts","src/ui/i18n"]},
+    {"id":"ui/theme","module":"settings","label":"theme","role":"Writes the theme the store resolves, `system` through the OS appearance, as `data-theme` on each window's root, and the text size as `--yui-text-scale`, which every text token multiplies by.","paths":["src/ui/theme"]},
+    {"id":"app/bootstrap","module":"wiring","label":"pet bootstrap","role":"The pet window's config-derived composition root and the shared teardown bag.","paths":["src/app"]},
+    {"id":"app/active-hours","module":"wiring","label":"active hours","role":"One handle per pet window that combines the device-wide base pace with the character's active-hours span into the pace, gap and do-not-disturb values.","paths":["src/app/active-hours"]},
+    {"id":"app/relations","module":"wiring","label":"relations wiring","role":"Wires rate_relation's open-preset targets and the ingress relations RPC to this window's relation store.","paths":["src/app/relations"]},
+    {"id":"app/turn","module":"wiring","label":"turn wiring","role":"Connects voice, dispatcher, sources, vocabulary and the push transport into the chat turn, with the Ask queue and the Settings request and yui_run ports.","paths":["src/app/turn"]},
+    {"id":"app/card-io","module":"wiring","label":"card io wiring","role":"The card's settings-panel ports: file steps and the preset creator bound to one registry, with the import and one import gate per settings window.","paths":["src/app/card-io"]},
+    {"id":"app/turn/card","module":"wiring","label":"card wiring","role":"Binds the card module to the window's stores and runs the card's greeting and controls hint after a session reset or Quick start.","paths":["src/app/turn/wire-card.ts","src/app/turn/wire-first-conversation.ts","src/app/turn/wire-greeting.ts"]},
+    {"id":"app/signal-chips","module":"wiring","label":"signal chips wiring","role":"Creates the signal chips and the fold store they share with the delegation chip, and hands the signals source its arrival callback.","paths":["src/app/signal-chips"]},
+    {"id":"app/threads-chip","module":"wiring","label":"threads chip wiring","role":"Main only: mounts the Threads chip after the signal chips, feeds it snapshots, and opens the Threads window from its tap.","paths":["src/app/threads-chip"]},
+    {"id":"app/threads-attach","module":"wiring","label":"attached Threads wiring","role":"Main only: the list of Threads attached to the main character's chat input, each once, with its change and send rules.","paths":["src/app/threads-attach"]},
+    {"id":"app/stage","module":"wiring","label":"stage wiring","role":"Binds the renderer, gestures, locomotion, the window sources and the come-along to the pet stage.","paths":["src/app/stage"]},
+    {"id":"app/cross-window","module":"wiring","label":"cross-window wiring","role":"Per-window settings sync over the bridge and storage events.","paths":["src/app/cross-window"]},
+    {"id":"app/settings","module":"wiring","label":"settings wiring","role":"Store bags, the config store with its live merges and reload, avatar selection, and the settings side of the settings window.","paths":["src/app/settings"]},
+    {"id":"app/pet-windows","module":"wiring","label":"bound pet windows","role":"The open-window list kept in step across windows, main's reconcile and open, the live key each window holds until it closes, the companions a bound pet window opens, and the orphan close.","paths":["src/app/pet-windows"]},
+    {"id":"app/controls","module":"wiring","label":"controls wiring","role":"The pet window's popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.","paths":["src/app/controls"]},
+    {"id":"app/character-menu","module":"wiring","label":"character menu wiring","role":"The pet side of the Character menu: the right-click, its ports for the picks, the hold while it is open, and the data-menu-open mark.","paths":["src/app/character-menu"]},
+    {"id":"app/character-menu-window","module":"wiring","label":"character menu window wiring","role":"Wires the Character menu window: its open sessions fed by the pet windows' requests, its theme and language, and its shown, pick and closed reports.","paths":["src/app/character-menu/wire-character-menu-window.ts","src/app/character-menu/menu-window-session.ts"]},
+    {"id":"app/threads-window","module":"wiring","label":"threads window wiring","role":"Wires the Threads window: snapshots into the view, the open and resize requests, the frame saved on move, and the Escape and close behaviour.","paths":["src/app/threads-window"]},
+    {"id":"app/threads-reaction","module":"wiring","label":"thread reactions wiring","role":"Main only: wires the Threads client, window controller, chip taps, presence, speech, turn pipeline and renderer into the Thread reaction.","paths":["src/app/threads-reaction"]},
+    {"id":"app/dnd","module":"wiring","label":"do-not-disturb wiring","role":"Keeps the tray's Do Not Disturb item and each pet window's root in step with the do-not-disturb store, in main only.","paths":["src/app/dnd"]},
+    {"id":"app/message","module":"wiring","label":"message-window wiring","role":"Draws surface ops from the pet window; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.","paths":["src/app/message"]},
+    {"id":"app/unified","module":"wiring","label":"unified-window wiring","role":"Main opens the unified chat window while it shows and destroys it otherwise, and the window closing itself turns the Unified chat switch off.","paths":["src/app/unified"]},
+    {"id":"app/settings-window","module":"wiring","label":"settings-window wiring","role":"Composes the settings window over the stores of the preset it edits (?edit=, else its own): the stage, then the panel, and the page routing.","paths":["src/app/settings-window"]},
+    {"id":"app/dev","module":"wiring","label":"dev globals","role":"DEV-only console handles.","paths":["src/app/dev"]},
+    {"id":"windows","module":"wiring","label":"window entries","role":"One entry file per window, loaded by the matching HTML file.","paths":["src/windows"]},
+    {"id":"shell/threads","module":"shell","label":"threads","role":"Keeps Threads and their read marks, appends each change to a dated JSONL file kept 14 days, and publishes a revisioned snapshot to every window.","paths":["src-tauri/src/threads"]},
+    {"id":"shell/terminal","module":"shell","label":"terminal","role":"Runs each Terminal's login shell in a PTY, keeps its screen, gates preset reads and writes behind Allow, and publishes the terminal snapshot.","paths":["src-tauri/src/terminal"]},
+    {"id":"ui/commands","module":"display","label":"backend commands","role":"The backend-stated command list with wrapping descriptions and captured drag scrolling, and the Markdown Command reply with drag scrolling and an in-window resize handle above the input.","paths":["src/ui/commands"]},
+    {"id":"ui/scroll-fade","module":"display","label":"scroll fade","role":"Marks a scroll box while more of it sits below its visible part, so its bottom edge fades; the Ask card's prompt and the Command reply use it.","paths":["src/ui/scroll-fade"]},
+    {"id":"ui/listbox","module":"display","label":"listbox","role":"Shared combobox ARIA, keyboard navigation, active option and one open list per field for the mention and Backend command lists.","paths":["src/ui/listbox"]},
+    {"id":"ui/keyed-rows","module":"display","label":"keyed rows","role":"Keeps each list row's element across snapshots by key, moves only rows whose place changed, and hands focus of a removed row to its neighbour.","paths":["src/ui/keyed-rows"]},
+    {"id":"ui/controls","module":"display","label":"controls","role":"Shared React controls: Switch, Disclosure, Slider, Checkbox, Segment, NumberField, Select, Tabs and Tooltip.","paths":["src/ui/controls"]},
+    {"id":"ui/ref-mount","module":"display","label":"ref mount","role":"The host element a React view gives a vanilla piece: it mounts the piece into the host after the commit, again when its dependencies change, and cleans it up before the next mount and on unmount.","paths":["src/ui/ref-mount"]}
   ],
   "edges": [
-    {
-      "id": "input-submit",
-      "from": "ui/input",
-      "to": "ui/surfaces",
-      "carries": "submit(text, images, threads) and stop handlers, threads being the Thread chips shown; interceptSubmit(text, images) returns whether handled; setThreads(list) and the chip's onThreadRemove(thread)",
-      "kind": "callback",
-      "transport": "shared"
-    },
-    {
-      "id": "surfaces-submit",
-      "from": "ui/surfaces",
-      "to": "dispatcher/sources/user-input",
-      "carries": "userInput.submit(text, images, undefined, threads)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "stt-http",
-      "from": "io/voice/stt",
-      "to": "stt-service",
-      "carries": "POST {stt_base_url}/audio/transcriptions, transcript text back",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "stt-submit",
-      "from": "io/voice/stt",
-      "to": "dispatcher/sources/user-input",
-      "carries": "onVoiceSegment(text) → submitVoice(text, main's attached Threads, which it then drops) while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "user-input-bus",
-      "from": "dispatcher/sources/user-input",
-      "to": "dispatcher/core",
-      "carries": "bus.push(BusEnvelope): user.text_submitted and user.voice_segment_ready, each with payload.threads_attached when Threads came with it",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "bus-dispatcher",
-      "from": "dispatcher/core",
-      "to": "dispatcher",
-      "carries": "bus.pop() in the pump, classify(env), guardrails.evaluate(env), proactive gap",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "dispatcher-ledger",
-      "from": "dispatcher",
-      "to": "dispatcher/turn",
-      "carries": "turnLog.begin(env) → Turn, settle(id)",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "ledger-quote",
-      "from": "dispatcher/turn",
-      "to": "ui/surfaces",
-      "carries": "onTurnAdmitted, utteranceStart → quoteUser (with the attached Threads' titles), quoteSignals, settleQuote, clearQuote; a failed text turn → restoreInput(text, images)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "dispatcher-busy",
-      "from": "dispatcher",
-      "to": "ui/surfaces",
-      "carries": "subscribeBusy → setBusy",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "dispatcher-failure",
-      "from": "dispatcher",
-      "to": "ui/surfaces",
-      "carries": "onUserTurnFailed → the failure reporter: showInputError while the input is open, else the status pill's turn notice (turn-failure-notice); a spoken turn also sets the pill's voice error",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "turn-failure-notice",
-      "from": "app/turn",
-      "to": "ui/chips",
-      "carries": "a failed user turn with no input open (a typed turn after the input closed, or a spoken one) → turnNotice.show({message, action?}): the status pill holds it 60 s with a keyed action, 3 s without; the action is Connect, Change key or Check connection, and Retry is the composer's own; a new turn or a click on the action clears it",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/report-turn-failure.ts"
-    },
-    {
-      "id": "mic-settings-opener",
-      "from": "io/voice/stt",
-      "to": "shell/core",
-      "carries": "plugin:opener|open_url {x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone}: the status pill's Open mic settings beside a blocked mic on macOS; the default capability allows that one URL beside http, https, mailto and tel",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/io/voice/open-mic-settings.ts"
-    },
-    {
-      "id": "dispatcher-backend",
-      "from": "dispatcher",
-      "to": "dispatcher/backend",
-      "carries": "backendCaller.call(turn, signal) → TurnOutcome",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "context-posture",
-      "from": "dispatcher/tier1",
-      "to": "dispatcher/backend",
-      "carries": "getBodyState(): posture and since",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "context-frontmost",
-      "from": "io/window/os-events",
-      "to": "dispatcher/backend",
-      "carries": "getFrontmost(): app and title",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "context-screenshot",
-      "from": "io/window/capture",
-      "to": "dispatcher/backend",
-      "carries": "getScreenshot(): image attachment",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "context-settings",
-      "from": "settings",
-      "to": "dispatcher/backend",
-      "carries": "agent and screenshot settings read per turn",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "context-endpoints",
-      "from": "config",
-      "to": "dispatcher/backend",
-      "carries": "getEndpoints(): config endpoints merged with the settings override",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-config.ts"
-    },
-    {
-      "id": "context-guide",
-      "from": "io/guide",
-      "to": "dispatcher/backend",
-      "carries": "renderGuideBlock(guide): the guide: block naming the guide and how to read it",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "guide-yui-run",
-      "from": "io/guide",
-      "to": "io/chat/tools",
-      "carries": "createGuideApi(): yui.guide.read(name) → the guide's text without its image lines",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
-    },
-    {
-      "id": "conversation-backend",
-      "from": "io/chat/conversation",
-      "to": "dispatcher/backend",
-      "carries": "previous response id, pending tool outputs, transcript entries after the last boundary; the greeting entries among them on a fresh Responses chain",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "card-config",
-      "from": "config",
-      "to": "io/chat/card",
-      "carries": "config.persona: the framing, the {{user}} fallback word, and the default card of each UI language",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-card.ts"
-    },
-    {
-      "id": "card-settings",
-      "from": "settings",
-      "to": "io/chat/card",
-      "carries": "agentSettings.get(): card (null means the UI language's default) and send_card; userNameSettings.get().name for {{user}}",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-card.ts"
-    },
-    {
-      "id": "card-backend",
-      "from": "io/chat/card",
-      "to": "dispatcher/backend",
-      "carries": "getCardText(): {system, postHistory}, null on push or with the switch off; read per turn",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "greeting-transcript",
-      "from": "app/turn/card",
-      "to": "io/chat/conversation",
-      "carries": "greetLocal: one greeting with its macros substituted → append({role: assistant, greeting: true}) while the session after the last boundary is empty",
-      "kind": "call",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-greeting.ts"
-    },
-    {
-      "id": "greeting-speech",
-      "from": "app/turn/card",
-      "to": "io/voice/tts",
-      "carries": "greetLocal → turnOutput.speak(text, {turn_id: greeting:<ts>, event_name: greeting})",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-greeting.ts"
-    },
-    {
-      "id": "session-reset-announce",
-      "from": "ui/quick-controls",
-      "to": "io/bridge/settings",
-      "carries": "Start fresh → announceSessionReset → yui://session-reset {presetId}, scoped to the preset; the pet window also greets directly",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-greeting.ts"
-    },
-    {
-      "id": "first-conversation-connected",
-      "from": "ui/quick-controls",
-      "to": "io/bridge/settings",
-      "carries": "Quick start's confirmed key → yui://first-conversation-connected, scoped to the preset",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "first-conversation-replay",
-      "from": "ui/quick-controls",
-      "to": "io/bridge/settings",
-      "carries": "Quick start's Help row Replay → yui://first-conversation-replay, scoped to the preset",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "first-conversation-greet",
-      "from": "io/bridge/settings",
-      "to": "app/turn/card",
-      "carries": "yui://first-conversation-connected for this window's preset → greetLocal when the session is empty",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-first-conversation.ts"
-    },
-    {
-      "id": "first-conversation-replay-greet",
-      "from": "io/bridge/settings",
-      "to": "app/turn/card",
-      "carries": "yui://first-conversation-replay for this window's preset → greetLocal when the session is empty, else the hint at once",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-first-conversation.ts"
-    },
-    {
-      "id": "first-conversation-utterance-end",
-      "from": "io/voice/tts",
-      "to": "app/turn/card",
-      "carries": "onUtteranceEnd(identity) through the voice handle's listeners; event_name greeting ends the wait",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "first-conversation-surfaces",
-      "from": "app/turn/card",
-      "to": "ui/surfaces",
-      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs, on a replay whatever the seen flag says, carrying the two speech actions Hear the controls and Hear what she can do, each calling submitGuide with its guide key and help request text",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-first-conversation.ts"
-    },
-    {
-      "id": "session-reset-stop",
-      "from": "io/bridge/settings",
-      "to": "dispatcher/turn",
-      "carries": "yui://session-reset for this window's preset → stopTurn() before the greeting",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-greeting.ts"
-    },
-    {
-      "id": "overheard-backend",
-      "from": "io/chat/conversation",
-      "to": "dispatcher/backend",
-      "carries": "other presets' entries after the per-pair cursor; the cursor commits after a turn ends ok",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "relations-context",
-      "from": "settings",
-      "to": "dispatcher/backend",
-      "carries": "readRelationLines(store.all(), this window's preset, the registry list, the Relations switch) → ClientContext.relations, read per turn; none while the switch is off",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "open-characters-context",
-      "from": "settings",
-      "to": "dispatcher/backend",
-      "carries": "readOpenPresetEntries(this window's preset) names → ClientContext.open_characters, read per turn; none when no other preset is open",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "backend-stream",
-      "from": "dispatcher/backend",
-      "to": "io/chat/stream",
-      "carries": "stream(config, request, {apiKey, tools})",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "stream-http",
-      "from": "io/chat/stream",
-      "to": "backend-request",
-      "carries": "Responses or Chat Completions streaming request with the framed client_context block, user text, images, tools, and a per-turn `user` id on Chat Completions",
-      "kind": "http",
-      "transport": "request"
-    },
-    {
-      "id": "stream-events",
-      "from": "io/chat/stream",
-      "to": "dispatcher/backend",
-      "carries": "ChatStreamEvent: speech_delta, express, tool_status, reasoning, usage, completed",
-      "kind": "call",
-      "transport": "request"
-    },
-    {
-      "id": "backend-output",
-      "from": "dispatcher/backend",
-      "to": "dispatcher/turn",
-      "carries": "TurnOutput: interrupt, thinkingStart, thinkingEnd; on request also delta, cue, end, speak, abort",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "backend-feed",
-      "from": "dispatcher/backend",
-      "to": "dispatcher/turn",
-      "carries": "TurnFeed: toolStatus, reasoning, replied, ended",
-      "kind": "call",
-      "transport": "request"
-    },
-    {
-      "id": "settle-renderer",
-      "from": "dispatcher/backend",
-      "to": "renderer",
-      "carries": "applyDirective(envelope) when no cue was streamed with speech",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "backend-record",
-      "from": "dispatcher/backend",
-      "to": "io/chat/conversation",
-      "carries": "recordSentTurn: transcript entries, signal records, context history, response id; usage",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "backend-turn-record",
-      "from": "dispatcher/backend",
-      "to": "io/chat/record",
-      "carries": "appendRecord(turn record)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "record-shell",
-      "from": "io/chat/record",
-      "to": "shell/logs",
-      "carries": "append_turn_record {line}",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "backend-push-send",
-      "from": "dispatcher/backend",
-      "to": "io/chat/push",
-      "carries": "pushTurn(PushTurnFrame {turn_id, client_context, text, images})",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "backend-push-wait",
-      "from": "dispatcher/backend",
-      "to": "dispatcher/turn",
-      "carries": "pushTurns.opened, awaitTurnEnd, abandon",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "push-ws",
-      "from": "io/chat/push",
-      "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, tools, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
-      "kind": "websocket",
-      "transport": "push"
-    },
-    {
-      "id": "push-ws-in",
-      "from": "backend-push",
-      "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask {ask with multiple?, expires_at?}, ask_end, command_reply; ready.commands states the Backend commands",
-      "kind": "websocket",
-      "transport": "push"
-    },
-    {
-      "id": "push-render",
-      "from": "io/chat/push",
-      "to": "dispatcher/turn",
-      "carries": "speech, render, turn_end, error → renderTurn.stream, render, close; pushTurns.ended",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-push.ts"
-    },
-    {
-      "id": "push-feed",
-      "from": "io/chat/push",
-      "to": "dispatcher/turn",
-      "carries": "tool_status, reasoning → TurnFeed.toolStatus, reasoning; a client-run tool's own running, done, failed by call id, and the backend's tool_status for it dropped",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-push.ts"
-    },
-    {
-      "id": "render-output",
-      "from": "dispatcher/turn",
-      "to": "io/voice/tts",
-      "carries": "render-turn → TurnOutput: releaseMute, cueWithSpeech, delta, silentCue, end",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/voice/speak-turn.ts"
-    },
-    {
-      "id": "render-conversation",
-      "from": "dispatcher/turn",
-      "to": "io/chat/conversation",
-      "carries": "assistant transcript entry of a rendered reply, and what the turn said into its signal records",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "render-last-emotion",
-      "from": "dispatcher/turn",
-      "to": "io/chat/last-emotion",
-      "carries": "recordBackendEmotion(emotion_id, now) for each played segment's merged cue that names one; a frame of a cut turn records none",
-      "kind": "call",
-      "transport": "push",
-      "wiring": "src/dispatcher/turn/render-turn.ts"
-    },
-    {
-      "id": "stream-last-emotion",
-      "from": "dispatcher/backend",
-      "to": "io/chat/last-emotion",
-      "carries": "recordBackendEmotion(emotion_id, now) for each express cue that names one; a stopped turn records none",
-      "kind": "call",
-      "transport": "request",
-      "wiring": "src/dispatcher/backend/stream-attempt.ts"
-    },
-    {
-      "id": "render-record",
-      "from": "dispatcher/turn",
-      "to": "io/chat/record",
-      "carries": "RenderRecord",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "push-usage",
-      "from": "io/chat/push",
-      "to": "io/chat/conversation",
-      "carries": "turn_end usage → sessionDiagnostics.setUsage",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "push-delegations",
-      "from": "io/chat/push",
-      "to": "io/bridge/delegations",
-      "carries": "delegations frame → delegationHistory.merge, delegations.replace",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-push.ts"
-    },
-    {
-      "id": "push-ask",
-      "from": "io/chat/push",
-      "to": "app/turn",
-      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → the window's Ask queue (put, remove); the queue's answer for the push owner → sendAnswer {ask_id, choice?, choices?, text?}",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/ask-session.ts"
-    },
-    {
-      "id": "surface-asks",
-      "from": "ui/surfaces",
-      "to": "ui/ask",
-      "carries": "setAsks → SlotCards.set: an AskFrame head on the Ask card with multiple?, a SettingsRequestFrame head {request_id, name, changes, why?, expires_at?} on the Settings request card; onAskAnswer → an Answer {ask_id, choice?, choices?, text?} or a decision {request_id, allow, note?}",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/surfaces.ts"
-    },
-    {
-      "id": "previous-playback",
-      "from": "dispatcher/backend",
-      "to": "io/chat/push",
-      "carries": "previous-turn record that ended failed → sendPlayback({turn_id, ended})",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/playback.ts"
-    },
-    {
-      "id": "output-speech",
-      "from": "dispatcher/turn",
-      "to": "io/voice/tts",
-      "carries": "TurnOutput implemented over speech playback: delta, cue, end, interrupt",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/speak-turn.ts"
-    },
-    {
-      "id": "output-filler",
-      "from": "dispatcher/turn",
-      "to": "io/voice/filler",
-      "carries": "thinkingStart → fillerLoop.start, thinkingEnd → stop, toolStatus → onToolRunning",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/speak-turn.ts"
-    },
-    {
-      "id": "filler-speech",
-      "from": "io/voice/filler",
-      "to": "io/voice/tts",
-      "carries": "speechPlayback.speakAside(text)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "catalog-http",
-      "from": "shell/mcp-host",
-      "to": "plugin-catalog",
-      "carries": "GET catalog.json, plugin.json, release zips and checksums.txt",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "tts-http",
-      "from": "io/voice/tts",
-      "to": "tts-service",
-      "carries": "POST {tts_base_url}/v1/audio/speech or /v1/tts per sentence, audio back",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "speech-bubble",
-      "from": "io/voice/tts",
-      "to": "ui/surfaces",
-      "carries": "beginSpeech, pushSpeech, endSpeech, finishSpeech",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "surfaces-bubble",
-      "from": "ui/surfaces",
-      "to": "ui/message",
-      "carries": "speech bubble text, user quote, signal source lines, reasoning disclosure",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "speech-renderer",
-      "from": "io/voice/tts",
-      "to": "renderer",
-      "carries": "applyDirective at each sentence start; setMouthOpen by amplitude; stopMouth and easeEmotionToNeutral at playback end",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "renderer-expression",
-      "from": "renderer",
-      "to": "renderer/expression",
-      "carries": "setEmotion, setMouthOpen, stopMouth, easeEmotionToNeutral, gaze",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "renderer-motion",
-      "from": "renderer",
-      "to": "renderer/motion",
-      "carries": "playMotion, setIdleVariants, setBodyYaw, grounding participant (reads perchOffsetY)",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "speech-ledger",
-      "from": "io/voice/tts",
-      "to": "dispatcher/turn",
-      "carries": "reportAudioOwed → turnLog.setAudioOwed",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "synth-failure",
-      "from": "io/voice/tts",
-      "to": "app/turn",
-      "carries": "onSynthFailure(tracked, error) when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure always; a TtsUnreachableError reports the unreachable reach, any other error the synth failure listeners, only for a backend utterance's sentence (tracked)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "synth-failure-notice",
-      "from": "app/turn",
-      "to": "ui/surfaces",
-      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) when a reply with a failed sentence ends (onUtteranceEnd), once per pet window run; a greeting, or a reply while the unified chat window shows, leaves the notice armed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
-    },
-    {
-      "id": "synth-failure-action",
-      "from": "ui/surfaces",
-      "to": "app/turn",
-      "carries": "the notice's action clicked → hideSpeech(), then openSettings(\"voice\")",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
-    },
-    {
-      "id": "synth-failure-open",
-      "from": "app/turn",
-      "to": "io/window/openers",
-      "carries": "openSettings(\"voice\"): the Voice page of the settings window",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
-    },
-    {
-      "id": "voice-list-retry",
-      "from": "io/voice/tts",
-      "to": "io/voice/voices",
-      "carries": "refreshVoiceList() → VoiceListOutcome when a synth finds no resolved voice and a TTS URL is set; one request shared by its callers, ok or skipped cleared at once, a failure reused until the next utterance starts",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "tts-reach",
-      "from": "io/voice/tts",
-      "to": "app/turn",
-      "carries": "onTtsReach(\"ok\" | \"unreachable\"): a voice list retry's outcome, a network synth that resolves or throws TtsUnreachableError, and reconnectTts()'s check",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "tts-reconnect-check",
-      "from": "app/turn",
-      "to": "io/voice/voices",
-      "carries": "reconnectTts() → the voice list retry in flight, else checkTtsServer() → ServerCheck or null; false only for unreachable or timeout",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "tts-unreachable-notice",
-      "from": "app/turn",
-      "to": "ui/surfaces",
-      "carries": "showSpeechActions([\"Voice server not connected · Reconnect\"]) when a reply ends after an unreachable reach, once per outage until an ok reach; a greeting, or a reply while the unified chat window shows, shows nothing",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-tts-unreachable-notice.ts"
-    },
-    {
-      "id": "tts-unreachable-action",
-      "from": "ui/surfaces",
-      "to": "app/turn",
-      "carries": "the notice's action clicked → showSpeechActions([Connecting…, busy]) and reconnectTts(); reached → showSpeechActions([]), else the action again; nothing when new speech started during the check",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-tts-unreachable-notice.ts"
-    },
-    {
-      "id": "tts-server-check",
-      "from": "io/voice/voices",
-      "to": "io/chat/models",
-      "carries": "checkServer({tts_base_url}/v1) for a provider whose voice list is built in → ServerCheck; any other provider answers with its voice list refresh",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "server-check-http",
-      "from": "io/chat/models",
-      "to": "tts-service",
-      "carries": "GET {tts_base_url}/v1/models: any answer, a 404 or an unparsed body included, counts as reachable",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "speech-previous",
-      "from": "io/voice/tts",
-      "to": "dispatcher/backend",
-      "carries": "onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn, then the voice handle's listeners",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "chip-column-chips",
-      "from": "ui/chips",
-      "to": "ui/surfaces",
-      "carries": "the signal chips' row roots with data-chip-count and, on urgent ones, data-chip-urgent, and the delegation chip's root with data-chip-count → the chip column's plan, which caps the rows that do not fit with is-capped",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "chip-column-threads",
-      "from": "ui/threads",
-      "to": "ui/surfaces",
-      "carries": "the Threads chip's root with data-chip-count → the chip column's plan; slotRect lifts is-capped for its one read",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "chip-column-bubble",
-      "from": "ui/message",
-      "to": "ui/surfaces",
-      "carries": "the bubble's is-visible, hidden and style, and its box → the chip column ends 8px above it while it shows and has not stepped aside",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "slot-settings-request",
-      "from": "ui/ask",
-      "to": "ui/settings-request",
-      "carries": "SettingsRequestCard.set(the SettingsRequestFrame head, or undefined while the head is an Ask or the queue is empty); onDecision {request_id, allow, note?}",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/ask/slot-cards.ts"
-    },
-    {
-      "id": "chip-column-ask",
-      "from": "ui/ask",
-      "to": "ui/surfaces",
-      "carries": "the shown card's hidden and its box, the Ask card or the Settings request card → the chip column ends 8px above it while it shows",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "chip-column-menu",
-      "from": "app/character-menu",
-      "to": "ui/surfaces",
-      "carries": "data-menu-open on the UI layer, set while the menu shows and removed when it ends → surfaces.css fades the chip column out over 140 ms and the overlay hit targets drop its chips",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/pet-menu-opener.ts"
-    },
-    {
-      "id": "feed-tool",
-      "from": "ui/surfaces",
-      "to": "ui/chips",
-      "carries": "showTool(toolId, action), finishTool, hideTool → status pill",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "feed-surfaces",
-      "from": "dispatcher/turn",
-      "to": "ui/surfaces",
-      "carries": "TurnFeed.onToolStatus {state, tool_id} → showTool, finishTool, hideTool",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "feed-reasoning",
-      "from": "dispatcher/turn",
-      "to": "io/bridge/reasoning",
-      "carries": "TurnFeed: append, finish, interrupt",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "reasoning-bubble",
-      "from": "io/bridge/reasoning",
-      "to": "ui/message",
-      "carries": "ReasoningState {text, live} → reasoning disclosure",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "vocabulary-derive",
-      "from": "config",
-      "to": "io/chat/vocabulary",
-      "carries": "deriveExpressVocabulary(config, emotion_text table, express-motion selection)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/vocabulary/wire-vocabulary.ts"
-    },
-    {
-      "id": "vocabulary-settings",
-      "from": "settings",
-      "to": "io/chat/vocabulary",
-      "carries": "expressMotionSettings change → announce",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/vocabulary/wire-vocabulary.ts"
-    },
-    {
-      "id": "vocabulary-tools",
-      "from": "io/chat/vocabulary",
-      "to": "io/chat/tools",
-      "carries": "createClientTools(vocabulary, windowTools) per turn",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "tools-backend",
-      "from": "io/chat/tools",
-      "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn; the yui_run description lists the enabled plugin tools and skills, read per turn",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "tool-switches-backend",
-      "from": "io/chat/tools",
-      "to": "dispatcher/backend",
-      "carries": "switch states of the declared tools, read per turn",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "vocabulary-push",
-      "from": "io/chat/vocabulary",
-      "to": "io/chat/push",
-      "carries": "hello.vocabulary; sendVocabulary on each announce",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "tools-push",
-      "from": "io/chat/tools",
-      "to": "io/chat/push",
-      "carries": "hello.tools, and a tools frame when the declared tools change: declared window tools only (rate_relation and address_character in every pet window, yui_run in every pet window under Tauri, body_action in main)",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/push-stores.ts"
-    },
-    {
-      "id": "stream-tools",
-      "from": "io/chat/stream",
-      "to": "io/chat/tools",
-      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action; tool_status running for each namespace a yui_run script calls",
-      "kind": "call",
-      "transport": "request"
-    },
-    {
-      "id": "push-tools",
-      "from": "io/chat/push",
-      "to": "io/chat/tools",
-      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal, call id, frame turn_id) → tool_result frame; onStatus running for each namespace a localStatus tool reports",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "tools-executor",
-      "from": "io/chat/tools",
-      "to": "io/bridge/inbox",
-      "carries": "body_action → executor.command(args); yui.look.body, perch_targets → executor.state(), perchTargets()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "tools-capture",
-      "from": "io/chat/tools",
-      "to": "io/window/capture",
-      "carries": "yui.look.screen → capturer.captureAt(point)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "ask-queue-surfaces",
-      "from": "app/turn",
-      "to": "ui/surfaces",
-      "carries": "setAsks(the queue's AskFrame and SettingsRequestFrame frames, oldest first) → the Ask slot; onAskAnswer → an Answer, matched by ask_id, only to a push Ask head and its sendAnswer, or a decision {request_id, allow, note?}, matched by request_id, only to a Settings request head, whose owner checks its shape before it takes it",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "settings-agent-access",
-      "from": "settings",
-      "to": "io/chat/tools",
-      "carries": "yui.settings.read: the exposed rows read as one document; yui.settings.write: a JSON merge patch applied to the rows, direct rows written at once and allow rows written only after the user's Allow",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "tools-ask-queue",
-      "from": "io/chat/tools",
-      "to": "app/turn",
-      "carries": "yui.settings.write's allow paths → one Settings request → the window's Ask queue (put, remove); the user's decision answers the write: allowed paths ok, the rest denied, each as ok: <note> / denied: <note> when the user wrote a note; no answer comes after the card's 60 s once shown, or when the turn stops",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "tools-shell-screenshot",
-      "from": "io/chat/tools",
-      "to": "shell/screenshot",
-      "carries": "screen_recording_permission → yui.state permissions.screen_recording",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "tools-shell-core",
-      "from": "io/chat/tools",
-      "to": "shell/core",
-      "carries": "app_started_at → yui.state running_since",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "yui-run-vrm",
-      "from": "io/assets",
-      "to": "io/chat/tools",
-      "carries": "VRM selection list and active id → yui.info bodies and the body row's value; swapVrm → the body row's write",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "yui-run-speaker",
-      "from": "io/voice/voices",
-      "to": "io/chat/tools",
-      "carries": "speaker selection list and active id → yui.info voices and the voice row's value; swapSpeaker → the voice row's write",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "yui-run-monitors",
-      "from": "io/window/capture",
-      "to": "io/chat/tools",
-      "carries": "createTauriScreenSourceProvider monitors → yui.info monitors",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "yui-run-presets",
-      "from": "settings",
-      "to": "io/chat/tools",
-      "carries": "readPresetList and readOpenPresetIds → yui.state characters, each with its open and me flags",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-yui-run.ts"
-    },
-    {
-      "id": "idle-tick-presence",
-      "from": "dispatcher/sources/idle-tick",
-      "to": "settings",
-      "carries": "lastTogether.record(ts) on each present tick, written to yui.last-together at most once a minute",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "settings-relation-targets",
-      "from": "settings",
-      "to": "io/chat/tools",
-      "carries": "yui.presets names and the open presets (active and yui.windows) → the name lookup of rate_relation and address_character when a call runs, without this window's preset",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/relations/wire-relations.ts"
-    },
-    {
-      "id": "relations-tool",
-      "from": "io/chat/tools",
-      "to": "settings",
-      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it; while the Relations switch is off the call answers error: relations are off and writes nothing",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/relations/wire-relations.ts"
-    },
-    {
-      "id": "capture-shell",
-      "from": "io/window/capture",
-      "to": "shell/screenshot",
-      "carries": "list_screen_sources, capture_screen, capture_screen_at",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "tools-mcp-host",
-      "from": "io/chat/tools",
-      "to": "io/mcp-host",
-      "carries": "snapshot() for yui.plugins.list, describe and the yui_run description; plugin_host_call {callId, name, arguments, presetId}; plugin_host_cancel {callId} when the run ends or the turn stops, kept by the host when it arrives before the call; plugin_host_skill {name} for help(\"plugin:<name>\")",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
-    },
-    {
-      "id": "settings-mcp-host",
-      "from": "ui/quick-controls",
-      "to": "io/mcp-host",
-      "carries": "snapshot() and subscribe() for the Plugins page; catalog, install, remove, enable, disable, addLocal, retry, logTail, revealLog",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "mcp-host-shell",
-      "from": "io/mcp-host",
-      "to": "shell/mcp-host",
-      "carries": "plugin_host_call, plugin_host_cancel, plugin_host_skill, plugin_host_snapshot, plugin_host_catalog, plugin_host_install, plugin_host_remove, plugin_host_enable, plugin_host_disable, plugin_host_add_local, plugin_host_retry, plugin_host_log_tail, plugin_host_reveal_log",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "shell-mcp-host",
-      "from": "shell/mcp-host",
-      "to": "io/mcp-host",
-      "carries": "plugin-host-snapshot: the revisioned snapshot on every change",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "mcp-host-push",
-      "from": "io/mcp-host",
-      "to": "io/chat/push",
-      "carries": "snapshot subscribe → sendTools(), wired in bootstrap-configured.ts",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "threads-tools",
-      "from": "io/threads",
-      "to": "io/chat/tools",
-      "carries": "snapshot(): the Thread list yui.threads.list and search read when a call runs; null outside main's window",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "threads-waiting-context",
-      "from": "io/threads",
-      "to": "dispatcher/backend",
-      "carries": "threadsWaiting(snapshot.threads) → ClientContext.threads_waiting, read per turn on user-started turns; absent at zero waiting",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "push-image",
-      "from": "io/chat/push",
-      "to": "io/image",
-      "carries": "fitTurnImages → JPEG re-encode of turn and tool-result images",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "input-image",
-      "from": "ui/input",
-      "to": "io/image",
-      "carries": "JPEG re-encode of composer attachments",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "agent-hooks-threads",
-      "from": "agent-hooks",
-      "to": "shell/agent-ingress",
-      "carries": "PUT /threads/<id> {source, title, label, state, entries}; the SessionStart probe GET /threads/yui-notify-probe, whose 405 means the listener is up",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "signals-ingress",
-      "from": "signal-producers",
-      "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope {delivery: urgent|batched, event_id, label?}}, or the same path under /presets/<id>/; a missing envelope or an item over 16 KiB refuses the request",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "relations-ingress",
-      "from": "signal-producers",
-      "to": "shell/agent-ingress",
-      "carries": "GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, refused with 400 outside the ranges or for an unknown key; JSON answer, or the same path under /presets/<id>/ answered by that window",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "avatar-ingress",
-      "from": "signal-producers",
-      "to": "shell/agent-ingress",
-      "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "ingress-inbox",
-      "from": "shell/agent-ingress",
-      "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "plugin-signals-notification",
-      "from": "plugin-mcp-server",
-      "to": "shell/mcp-host",
-      "carries": "notifications/io.github.yw0nam.yui/signals {signals, envelope}",
-      "kind": "stdio",
-      "transport": "shared"
-    },
-    {
-      "id": "mcp-host-plugin-server",
-      "from": "shell/mcp-host",
-      "to": "plugin-mcp-server",
-      "carries": "tools/list at start, tools/call with the io.github.yw0nam.yui/preset _meta, notifications/cancelled",
-      "kind": "stdio",
-      "transport": "shared"
-    },
-    {
-      "id": "mcp-host-signals-inbox",
-      "from": "shell/mcp-host",
-      "to": "io/bridge/inbox",
-      "carries": "signals-inbox to main (plugin set): the payload agent_ingress emits, stamped with the sending plugin's id",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "inbox-rpc-response",
-      "from": "io/bridge/inbox",
-      "to": "shell/agent-ingress",
-      "carries": "avatar_rpc_response {id, result} for state, perch_targets, command, relations_get and relations_put; accepted only from the window the request was emitted to",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "relations-rpc",
-      "from": "io/bridge/inbox",
-      "to": "settings",
-      "carries": "relations_get → store.all(); relations_put → store.replace(body) → the stored body",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/relations/wire-relations.ts"
-    },
-    {
-      "id": "relations-ui",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write, and again on a cross-window reload of the store",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "relations-set",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): the range clamps, no daily cap; the preset header, the pet window (over the broadcast) and the next turn read the new value",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/quick-controls.ts"
-    },
-    {
-      "id": "ingress-start",
-      "from": "settings",
-      "to": "shell/agent-ingress",
-      "carries": "start_agent_ingress {port} at boot when External signals is on; main only, a bound window starts no ingress",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-sources.ts"
-    },
-    {
-      "id": "preset-ids-sync",
-      "from": "settings",
-      "to": "shell/agent-ingress",
-      "carries": "sync_preset_ids {ids}: the registry's preset ids, so a prefixed route tells a closed window (503) from an unknown id (404); main only, a bound window is refused",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/pet-windows/wire-preset-ids-sync.ts"
-    },
-    {
-      "id": "inbox-sources",
-      "from": "io/bridge/inbox",
-      "to": "dispatcher/sources/inbox",
-      "carries": "onSignals(SignalsPayload)",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "inbox-notice",
-      "from": "io/bridge/inbox",
-      "to": "ui/notices",
-      "carries": "onIngressDead({port}) → speech-bubble notice",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "executor-perch",
-      "from": "io/bridge/inbox",
-      "to": "dispatcher/sources/gesture",
-      "carries": "perch.placeOn, perch.release, perch.perchTargets",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-sources.ts"
-    },
-    {
-      "id": "executor-locomotion",
-      "from": "io/bridge/inbox",
-      "to": "ambient/locomotion",
-      "carries": "noteAgentMove() cancels the movers and, once the holds let go and any travel unparked, runs the holders' onMoverTakesOver; onRelocated() → faller.drop",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "executor-posture",
-      "from": "io/bridge/inbox",
-      "to": "dispatcher",
-      "carries": "noteAvatarMoved(); reads getPosture()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "os-event",
-      "from": "shell/os-event-watcher",
-      "to": "io/window/os-events",
-      "carries": "os_event {event_name: \"os_idle_tick\", ts, data: {os_idle_ms, frontmost_app, frontmost_title}} every 5 s",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "os-idle-tick",
-      "from": "io/window/os-events",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "subscribeOsEvent: idle and frontmost samples",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "os-presence",
-      "from": "io/window/os-events",
-      "to": "dispatcher/sources/inbox",
-      "carries": "subscribeOsEvent: presence for buffered delivery",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "os-reaction-presence",
-      "from": "io/window/os-events",
-      "to": "io/presence",
-      "carries": "subscribeOsEvent: presence for the Thread reactions",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "drop-release-pet",
-      "from": "shell/os-event-watcher",
-      "to": "io/window/pet",
-      "carries": "window_drop_release: the dragged window's label, heard by every window",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "drop-release-source",
-      "from": "shell/os-event-watcher",
-      "to": "dispatcher/sources/gesture",
-      "carries": "window_drop_release: the dragged window's label; the Threads window's release settles nothing in a pet window",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-sources.ts"
-    },
-    {
-      "id": "threads-window-label",
-      "from": "dispatcher/sources/gesture",
-      "to": "io/window/openers",
-      "carries": "THREADS_WINDOW_LABEL: the window whose drag settles in its own window and never perches the character",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "gesture-list-windows",
-      "from": "dispatcher/sources/gesture",
-      "to": "shell/os-event-watcher",
-      "carries": "list_windows → WindowAtPoint[]",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "gesture-window-bounds",
-      "from": "dispatcher/sources/gesture",
-      "to": "shell/os-event-watcher",
-      "carries": "window_bounds(windowNumber) → WindowAtPoint | null",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-sources.ts"
-    },
-    {
-      "id": "threads-reaction-snapshot",
-      "from": "io/threads",
-      "to": "ambient/threads-reaction",
-      "carries": "subscribe and snapshot(): each Threads snapshot, the first one as the baseline",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-list-windows",
-      "from": "ambient/threads-reaction",
-      "to": "shell/os-event-watcher",
-      "carries": "list_windows → WindowRect[], with the Threads window flagged threadsWindow",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-openers",
-      "from": "ambient/threads-reaction",
-      "to": "io/window/openers",
-      "carries": "isOpen(); present(chip?, {thread?}) → presented or closed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-speech",
-      "from": "ambient/threads-reaction",
-      "to": "io/voice/tts",
-      "carries": "speakAsideAndWait(line) → spoken or cut; the line is drawn from the threads_open or threads_raise filler pool",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-executor",
-      "from": "ambient/threads-reaction",
-      "to": "io/bridge/inbox",
-      "carries": "isBusy(); command sit_on_window with app YUI, ok or failure",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-renderer",
-      "from": "ambient/threads-reaction",
-      "to": "renderer",
-      "carries": "setEmotion (always curious); easeEmotionToNeutral after touch_emotion_hold_ms; land() after a sit, unless reduced motion",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-reaction-turn",
-      "from": "ambient/threads-reaction",
-      "to": "dispatcher/sources/inbox",
-      "carries": "hold, fireHeld and release on thread:<id>: held while the switch is on for every Thread in the snapshot, fired together once she sits with the expression set, released when the Thread leaves the snapshot or the switch goes off; a tap's fire carries dnd_override, so it passes do-not-disturb",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "threads-reaction-pipeline",
-      "from": "dispatcher",
-      "to": "ambient/threads-reaction",
-      "carries": "isPipelineBusy() read when a reaction is due; a waiting reaction checks again each second",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "reaction-presence",
-      "from": "io/presence",
-      "to": "ambient/threads-reaction",
-      "carries": "isPresent(): the last idle tick against the away threshold; a count or wait reaction waits for it, a tap does not",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "threads-chip-tap",
-      "from": "app/threads-chip",
-      "to": "app/threads-reaction",
-      "carries": "each Threads-chip tap, after the chip's open: the reaction starts from the tap with no line",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "settings-reaction-thresholds",
-      "from": "settings",
-      "to": "ambient/threads-reaction",
-      "carries": "threadReactionThresholdsSettings: the yui.thread-reaction-thresholds count and wait, subscribed to for a recheck",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "settings-reaction-presence",
-      "from": "settings",
-      "to": "io/presence",
-      "carries": "presenceSettings.value: the away threshold in ms, read on each check",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "locomotion-list-windows",
-      "from": "ambient/locomotion",
-      "to": "shell/os-event-watcher",
-      "carries": "list_windows → WindowAtPoint[]",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "settings-thread-reactions",
-      "from": "settings",
-      "to": "ambient/threads-reaction",
-      "carries": "threadReactionsSettings: the yui.thread-reactions switch, read on each check and subscribed to",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "settings-idle-tick",
-      "from": "settings",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "cue lists, presence threshold, and screen-watch thresholds",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "settings-inbox",
-      "from": "settings",
-      "to": "dispatcher/sources/inbox",
-      "carries": "agentNotifySettings.enabled",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "settings-thread-turns",
-      "from": "settings",
-      "to": "dispatcher/sources/threads",
-      "carries": "threadTurnsSettings.level (yui.thread-turns), read per snapshot",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "thread-turns-snapshot",
-      "from": "io/threads",
-      "to": "dispatcher/sources/threads",
-      "carries": "snapshot() once as the baseline, then every snapshot; main only",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-thread-turns.ts"
-    },
-    {
-      "id": "thread-turns-offer",
-      "from": "dispatcher/sources/threads",
-      "to": "dispatcher/sources/inbox",
-      "carries": "offer(group): one batched thread.input_required, thread.failed or thread.entry group per Thread, event_id thread:<id>",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-thread-turns.ts"
-    },
-    {
-      "id": "thread-turns-withdraw",
-      "from": "dispatcher/sources/threads",
-      "to": "dispatcher/sources/inbox",
-      "carries": "withdraw(thread:<id>, thread.input_required) for each Thread that left input-required or is gone",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-thread-turns.ts"
-    },
-    {
-      "id": "idle-tick-bus",
-      "from": "dispatcher/sources/idle-tick",
-      "to": "dispatcher/core",
-      "carries": "bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity (its payload's last_together is the day's first present tick's snapshot of yui.last-together, null before the first), proactive.screen_app_switched, proactive.screen_long_session",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "inbox-bus",
-      "from": "dispatcher/sources/inbox",
-      "to": "dispatcher/core",
-      "carries": "bus.push: signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "gesture-bus",
-      "from": "dispatcher/sources/gesture",
-      "to": "dispatcher/core",
-      "carries": "bus.push: user.tap, user.tap_region, user.pat_*, proactive.touch_<region>, proactive.head_pat, proactive.drag_held, user.window_sit_drop, user.peek_drop, proactive.window_sit, proactive.peek, user.window_sit_exit, user.peek_exit",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-gestures.ts"
-    },
-    {
-      "id": "settings-dnd-gate",
-      "from": "app/active-hours",
-      "to": "dispatcher",
-      "carries": "isDndOn: the pet window's do-not-disturb (the device switch, or an off span now), read per envelope; a held self-fired envelope is dropped with reason dnd, and queued or lock-waiting ones too when it turns on",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "settings-dnd-inbox",
-      "from": "app/active-hours",
-      "to": "dispatcher/sources/inbox",
-      "carries": "dnd as a hold in composePacedPipelineBusy for both inbox instances: busy while on, so its end flushes the catch-up",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "settings-dnd-reaction",
-      "from": "app/active-hours",
-      "to": "ambient/threads-reaction",
-      "carries": "isDndOn: the pet window's do-not-disturb, read when a count or wait reaction is due, mid-run and when it stops; a tap does not read it",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-reaction/wire-thread-reactions.ts"
-    },
-    {
-      "id": "settings-dnd-pill",
-      "from": "app/active-hours",
-      "to": "ui/chips",
-      "carries": "dnd get and subscribe → the status pill's moon segment while on",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "signals-drain-gesture",
-      "from": "dispatcher/sources/inbox",
-      "to": "dispatcher/sources/gesture",
-      "carries": "drainSignals(): the buffered signal groups for a spam-count tap turn; none while do-not-disturb is on",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "tray-dnd",
-      "from": "shell/tray",
-      "to": "app/dnd",
-      "carries": "tray-dnd (boolean): the Do Not Disturb item's new checked state, sent to the main window, which writes the store",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/app/dnd/wire-tray-dnd.ts"
-    },
-    {
-      "id": "set-tray-dnd",
-      "from": "app/dnd",
-      "to": "shell/tray",
-      "carries": "set_tray_dnd {on}: the check follows the store on start and on each change; a failed call is logged",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/dnd/wire-tray-dnd.ts"
-    },
-    {
-      "id": "settings-dnd-root",
-      "from": "app/active-hours",
-      "to": "ui/chips",
-      "carries": "the pet window's do-not-disturb → data-yui-dnd on its own root, which stops the urgent signal chip's dot pulse",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/dnd/wire-dnd-root.ts"
-    },
-    {
-      "id": "settings-dnd-threads-chip",
-      "from": "app/active-hours",
-      "to": "ui/threads",
-      "carries": "isDndOn: the pet window's do-not-disturb, read when a Thread arrives; an arrival during it does not wiggle the Threads chip",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "signals-drain",
-      "from": "dispatcher/sources/inbox",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "signalsSource.drain(): signal groups that ride the milestone envelope",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "drop-restore",
-      "from": "dispatcher",
-      "to": "dispatcher/sources/inbox",
-      "carries": "onTurnDropped(env) → restore",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "drop-restore-schedule",
-      "from": "dispatcher",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "onTurnDropped(env, reason) → restore (a fire held by the gap or do-not-disturb)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "bus-drop-restore",
-      "from": "dispatcher/core",
-      "to": "dispatcher/sources/inbox",
-      "carries": "onDrop(env) of a refused push → restore",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "pacer-inbox",
-      "from": "dispatcher/core",
-      "to": "dispatcher/sources/inbox",
-      "carries": "composePacedPipelineBusy: proactive gap and dispatcher busy hold delivery",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "pacer-schedule-hold",
-      "from": "dispatcher/core",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "pacer.isHolding as the schedule source's hold (isHeld), beside do-not-disturb: a cue due inside the gap is not latched and fires on the first tick after it opens, inside its window",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "busy-inbox-urgent",
-      "from": "dispatcher/core",
-      "to": "dispatcher/sources/inbox",
-      "carries": "raw dispatcher busy state for the urgent inbox instance (no pacer)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "screen-skip-record",
-      "from": "dispatcher/sources/idle-tick",
-      "to": "io/chat/record",
-      "carries": "skip record of a screen fire the pacer held",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "pet-gestures",
-      "from": "io/window/pet",
-      "to": "dispatcher/sources/gesture",
-      "carries": "onClick(pos), pat start and end, drag start and end → tap source, drag-hold source",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-gestures.ts"
-    },
-    {
-      "id": "pet-drag-bus",
-      "from": "io/window/pet",
-      "to": "dispatcher/core",
-      "carries": "bus.push: user.drag_start, user.drag_end",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-gestures.ts"
-    },
-    {
-      "id": "dispatcher-tier1",
-      "from": "dispatcher",
-      "to": "dispatcher/tier1",
-      "carries": "tier1.render(env)",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "tier1-renderer",
-      "from": "dispatcher/tier1",
-      "to": "renderer",
-      "carries": "applyDirective(ControlEnvelope), setPerchTarget, setPeekTarget, setMotionMirror, easeEmotionToNeutral, getCurrentMotion",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "tier1-peek",
-      "from": "dispatcher/tier1",
-      "to": "io/window/pet",
-      "carries": "peek.enter(), peek.exit()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "tap-renderer",
-      "from": "renderer/geometry",
-      "to": "dispatcher/sources/gesture",
-      "carries": "getTapPoints(), getPerchProbe(), getCurrentMotion()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-gestures.ts"
-    },
-    {
-      "id": "liveliness-renderer",
-      "from": "ambient/liveliness",
-      "to": "renderer",
-      "carries": "onTick: head, spine, and chest rotation, blink",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/stage-renderer.ts"
-    },
-    {
-      "id": "locomotion-renderer",
-      "from": "ambient/locomotion",
-      "to": "renderer/motion",
-      "carries": "playMotion, preloadMotion, setBodyYaw; reads anchors and motion time",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "locomotion-frame",
-      "from": "ambient/locomotion",
-      "to": "io/window/geometry",
-      "carries": "travel frame: setPosition, setViewWindow, keep-on-screen pause",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "frame-shell",
-      "from": "ambient/locomotion",
-      "to": "shell/window",
-      "carries": "set_frame_logical {x, y, width, height} for the travel frame",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/ambient/locomotion/travel/wire-travel-frame.ts"
-    },
-    {
-      "id": "locomotion-bus",
-      "from": "ambient/locomotion",
-      "to": "dispatcher/core",
-      "carries": "bus.push: avatar.walk_start, avatar.walk_end, avatar.climb_start, avatar.climb_end, avatar.jump, avatar.window_sit, user.fall_land, proactive.dropped (a fall she started herself pushes none while do-not-disturb is on, a drag-release fall still does)",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "settings-dnd-fall",
-      "from": "app/active-hours",
-      "to": "ambient/locomotion",
-      "carries": "isDndOn: the pet window's do-not-disturb, read when a fall's dropped cue is due; a fall she started herself then pushes no dropped cue, a drag-release fall still does",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "locomotion-hit-test",
-      "from": "ambient/locomotion",
-      "to": "io/window/pet",
-      "carries": "hitTest.setMoving(bool)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "drop-fall",
-      "from": "dispatcher/sources/gesture",
-      "to": "ambient/locomotion",
-      "carries": "onDropped → the holders' onMoverTakesOver before the dragged window's drop settles, onDragMiss → faller.drop({ byUser: true }), onSitLost → faller.drop",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "locomotion-perch",
-      "from": "ambient/locomotion",
-      "to": "dispatcher/sources/gesture",
-      "carries": "adoptSit, armedSit, suspendSit, resumeSit, abandonSit, release",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-sources.ts"
-    },
-    {
-      "id": "dispatcher-walk",
-      "from": "dispatcher",
-      "to": "ambient/locomotion",
-      "carries": "subscribeBusy and isReflexTurn cancel a stroll; isPipelineBusy gates the movers",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
-    },
-    {
-      "id": "character-menu-frame-shell",
-      "from": "app/character-menu-window",
-      "to": "shell/window",
-      "carries": "set_frame_logical {x, y, width, height}: the Character menu window's frame, set beside her before the menu shows",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/windows/character-menu-main.ts"
-    },
-    {
-      "id": "character-menu-click-through-shell",
-      "from": "io/window/pet",
-      "to": "shell/window",
-      "carries": "set_click_through {ignore} from the Character menu window's hit-test controller, which polls the cursor and runs while the menu shows",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/windows/character-menu-main.ts"
-    },
-    {
-      "id": "pet-drag-shell",
-      "from": "io/window/pet",
-      "to": "shell/window",
-      "carries": "drag_window, set_click_through {ignore}",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "hit-test-renderer",
-      "from": "renderer/geometry",
-      "to": "io/window/pet",
-      "carries": "renderer.hitTest(point) → click-through decision",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-stage.ts"
-    },
-    {
-      "id": "cursor-gaze",
-      "from": "io/window/pet",
-      "to": "renderer/expression",
-      "carries": "setGazeCursor(pos)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-stage.ts"
-    },
-    {
-      "id": "tray-pet",
-      "from": "shell/tray",
-      "to": "io/window/pet",
-      "carries": "tray_toggle → peek exit; the summon hotkey from the same wiring registers in main only",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-summon.ts"
-    },
-    {
-      "id": "tray-message",
-      "from": "shell/tray",
-      "to": "io/window/openers",
-      "carries": "tray_toggle → hide or reopen main's message window",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "tray-terminal",
-      "from": "shell/tray",
-      "to": "io/terminal",
-      "carries": "terminal-open: no payload, on the tray's Terminal item; main's window then opens the Threads window on the Terminal tab",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "window-geometry",
-      "from": "app/stage",
-      "to": "settings",
-      "carries": "yui.window.<label> {x,y,width,height}: written after the OS drag ends and after a Ctrl+wheel resize; applied once at boot, clamped on screen, before the faller places the window",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-window-geometry.ts"
-    },
-    {
-      "id": "settings-edit-target",
-      "from": "ui/quick-controls",
-      "to": "app/settings-window",
-      "carries": "the preset id picked in the preset header's character row; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "settings-open-windows",
-      "from": "windows",
-      "to": "io/window/openers",
-      "carries": "openSettings(page?, focus?): the status pill's capture button opens no page and the delegation chip opens Connection; a new settings window at settings.html with `?preset=<id>`, `&page=<page>` and `&focus=chat_key` when given, else the open one is shown, focused and asked for the page and focus",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "settings-open-bootstrap",
-      "from": "app/bootstrap",
-      "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): a failed turn's Connect and the first-run hint's action, landing on Connection; openSettings(\"conn\", \"chat_key\"): a failed turn's Change key and Check connection, landing on Connection with the key field showing; a window without that page stays where it was",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "user-character-menu",
-      "from": "user",
-      "to": "ui/character-menu",
-      "carries": "a right-click on her opens the menu; a pill pick, ↑ ↓ ← →, Home, End, Tab, Enter or Space; Esc cancels a confirm, goes back or closes; a click outside it or in another app closes it",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "character-menu-channel-open",
-      "from": "app/character-menu",
-      "to": "app/character-menu-window",
-      "carries": "yui://character-menu open {id, kind, name, state, frame, workArea, head, nameTop, chest, hitTest}: the pet window asks the menu window to place and show the menu beside her; state {id, state} refreshes it; close {id} hides it",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/wire-character-menu-window.ts"
-    },
-    {
-      "id": "character-menu-channel-picks",
-      "from": "app/character-menu-window",
-      "to": "app/character-menu",
-      "carries": "yui://character-menu shown {id} once the menu is up; action {id, action, value} for each pick, which the pet window runs on her ports; closed {id, refocus} once the window is hidden",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/wire-character-menu.ts"
-    },
-    {
-      "id": "character-menu-stores",
-      "from": "app/character-menu",
-      "to": "settings",
-      "carries": "Rest flips yui.dnd, Pace sets the base pace (Less, Normal, More as low, normal, high), Keep bubble and Unified chat flip their switch rows' stores, a confirmed Turn off → petWindows.close(id), Settings and a trailing More… → openSettings(page)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-vrm",
-      "from": "io/assets",
-      "to": "app/character-menu",
-      "carries": "vrmSelection list and active id → the Body list; a pick → swapVrm(option)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-voice",
-      "from": "io/voice/voices",
-      "to": "app/character-menu",
-      "carries": "speakerSelection list and active id → the Voice list; a pick → swapSpeaker(option)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-listen",
-      "from": "ui/chips",
-      "to": "app/character-menu",
-      "carries": "main only: voiceInputStatus get and set(listening or idle) → Listen",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-talk",
-      "from": "app/character-menu",
-      "to": "ui/surfaces",
-      "carries": "Talk → summonInput once the menu has closed, or dismissInput while the input is open; isInputOpen marks Talk ON",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-reset",
-      "from": "app/character-menu",
-      "to": "io/chat/conversation",
-      "carries": "Reset chat, once confirmed → resetConversation: the turn stopped, the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-threads",
-      "from": "app/character-menu",
-      "to": "io/window/openers",
-      "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the menu window is hidden; the Threads pill's count is main's waiting Threads",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/character-menu/character-menu-ports.ts"
-    },
-    {
-      "id": "character-menu-threads-request",
-      "from": "app/character-menu",
-      "to": "app/threads-chip",
-      "carries": "yui://threads-open-request {tab: \"threads\" | \"terminal\"}: a bound pet window's Threads or Terminal pick; main opens the Threads window",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
-    },
-    {
-      "id": "character-menu-hold",
-      "from": "app/character-menu",
-      "to": "app/stage",
-      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; abortTravel() waits for a cancelled travel to unpark; hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort closes an open menu",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "threads-shell-event",
-      "from": "shell/threads",
-      "to": "io/threads",
-      "carries": "threads-snapshot {revision, threads}: every change; the client keeps the highest revision",
-      "kind": "tauri-event",
-      "transport": "shared"
-    },
-    {
-      "id": "threads-shell-command",
-      "from": "io/threads",
-      "to": "shell/threads",
-      "carries": "threads_snapshot once after the listen; thread_read {id}",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "terminal-shell-command",
-      "from": "io/terminal",
-      "to": "shell/terminal",
-      "carries": "terminal_snapshot once after the listen; terminal_open {cwd?}; terminal_close {id}; terminal_input {id, data}; terminal_resize {cols, rows}; terminal_attach {id, onOutput}; terminal_answer {requestId, allow}; terminal_take_back {id}",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/io/terminal/terminal-client.ts"
-    },
-    {
-      "id": "terminal-shell-event",
-      "from": "shell/terminal",
-      "to": "io/terminal",
-      "carries": "terminal-snapshot {revision, terminals, requests}: every change; the client keeps the highest revision",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/io/terminal/terminal-client.ts"
-    },
-    {
-      "id": "terminal-output",
-      "from": "shell/terminal",
-      "to": "io/terminal",
-      "carries": "terminal_attach's onOutput Channel: the formatted screen state that redraws the terminal, then its live PTY bytes",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/io/terminal/terminal-client.ts"
-    },
-    {
-      "id": "terminal-view-snapshot",
-      "from": "io/terminal",
-      "to": "ui/terminal",
-      "carries": "subscribe → the snapshot into the list, rail, pane head, access line and Allow card; attach(id, onBytes) → the terminal's xterm",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
-    },
-    {
-      "id": "terminal-view-actions",
-      "from": "ui/terminal",
-      "to": "io/terminal",
-      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id); the clipboard provider's readText(selection) and writeText(selection, text)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
-    },
-    {
-      "id": "terminal-clipboard",
-      "from": "io/terminal",
-      "to": "shell/core",
-      "carries": "plugin:clipboard-manager|read_text; plugin:clipboard-manager|write_text {text}",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/io/terminal/terminal-clipboard.ts"
-    },
-    {
-      "id": "terminal-tool-command",
-      "from": "io/chat/tools",
-      "to": "shell/terminal",
-      "carries": "yui.terminal methods call the same commands: terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the run ends or the turn stops",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/io/chat/tools/terminal/terminal-api.ts"
-    },
-    {
-      "id": "terminal-chip",
-      "from": "io/terminal",
-      "to": "ui/threads",
-      "carries": "the snapshot's requests → the chip's waiting count and pending ids; a tap while one waits opens the Terminal tab",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
-    },
-    {
-      "id": "threads-tray-open",
-      "from": "app/threads-chip",
-      "to": "io/window/openers",
-      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a bound Character menu's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
-    },
-    {
-      "id": "threads-chip-snapshot",
-      "from": "io/threads",
-      "to": "ui/threads",
-      "carries": "the snapshot's Threads → the chip's waiting count, newest source marks and arrival wiggle",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
-    },
-    {
-      "id": "threads-window-snapshot",
-      "from": "io/threads",
-      "to": "ui/threads",
-      "carries": "the snapshot → the list and the thread pane",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-chip-open",
-      "from": "ui/threads",
-      "to": "io/window/openers",
-      "carries": "the chip's tap → open(the chip's viewport rect, \"terminal\" while an access request waits), sent as screen logical px once the window reports ready",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
-    },
-    {
-      "id": "threads-open-request",
-      "from": "io/window/openers",
-      "to": "app/threads-window",
-      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\", thread?: string, focus?: false, present?: string}: place, show and focus the window, then grow out of the chip when there is one; select the tab; thread selects that Thread on open; while it shows, focus it and select the tab the request names; focus: false shows or raises the window without keyboard focus, and while it shows changes no tab or selection; present is the id that threads-presented answers",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-presented",
-      "from": "app/threads-window",
-      "to": "io/window/openers",
-      "carries": "yui://threads-presented {present}: the window finished the open or raise that the request with that id names, shown and grown or raised",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-ready",
-      "from": "app/threads-window",
-      "to": "io/window/openers",
-      "carries": "yui://threads-ready: the window has booted; the controller sends a request it held since the create",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-attach-request",
-      "from": "app/threads-window",
-      "to": "app/threads-attach",
-      "carries": "yui://threads-attach-request {op: \"toggle\", thread: {id, source, title}}, unscoped: the pane's Attach to chat adds the Thread, or takes it off while attached",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-attach-remove-message",
-      "from": "ui/surfaces",
-      "to": "app/threads-attach",
-      "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the popped message window",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/message-main.ts"
-    },
-    {
-      "id": "threads-attach-remove-unified",
-      "from": "ui/unified",
-      "to": "app/threads-attach",
-      "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the unified composer",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "threads-attached",
-      "from": "app/threads-attach",
-      "to": "app/threads-window",
-      "carries": "yui://threads-attached {threads: {id, source, title}[]}, unscoped: on every change and on threads-ready; the pane's button reads Attached for a listed Thread",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
-    },
-    {
-      "id": "threads-attach-surfaces",
-      "from": "app/threads-attach",
-      "to": "ui/surfaces",
-      "carries": "setThreads(list) on every change, which the router gives the docked input, the message window and the speech stream; summonInput() when a toggle adds while the input is closed; back: onThreadRemove(thread) from the docked chip's ×, onSubmit(text, images, threads) dropping the Threads a send carried",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
-    },
-    {
-      "id": "threads-attach-routed",
-      "from": "ui/unified",
-      "to": "app/threads-attach",
-      "carries": "yui://user-turn-routed {to: main, threads}: a unified chat send drops the Threads it carried",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/threads-attach/wire-threads-attach.ts"
-    },
-    {
-      "id": "threads-attach-restore",
-      "from": "dispatcher/turn",
-      "to": "app/threads-attach",
-      "carries": "restoreThreads(threads): a user turn that failed before any utterance puts its attached Threads back, each once",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "threads-closed",
-      "from": "app/threads-window",
-      "to": "io/window/openers",
-      "carries": "yui://threads-closed: the window hid after its close or a failed open; the controller reports it through onShown(false), and the chip leaves its open state and hides at zero waiting",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "threads-placement",
-      "from": "app/threads-window",
-      "to": "io/window/geometry",
-      "carries": "threadsWindowRect, restoreThreadsBox, nearestWorkArea and chipInWindow: the first open 12px beside the pet window on its roomier side, the wanted panel narrowed to the room and never below 360 × 420; a stored frame sized into and moved inside the nearest monitor's work area less 12px; the chip-sized rect the grow starts from",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/threads-placement.ts"
-    },
-    {
-      "id": "threads-frame",
-      "from": "app/threads-window",
-      "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed, listWidth?}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the list's dragged width, written at a drag's end, an arrow step and a reset, absent for the default; the frame read on each open, the list choice and width once at boot",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-turns-level",
-      "from": "app/threads-window",
-      "to": "settings",
-      "carries": "the Thread turns pick → yui.thread-turns {level: off | notable | every}, then yui://settings-changed; yui.thread-turns and yui.agentNotify read at boot, on each store change and on settings-changed",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-turns-menu.ts"
-    },
-    {
-      "id": "terminal-font-size",
-      "from": "app/threads-window",
-      "to": "settings",
-      "carries": "yui.threads-window terminalFontSize? (10–24 px): written by the terminal font-size keys; read once at boot through terminalFontSize(), which gives 13 px while none is stored",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
-    },
-    {
-      "id": "threads-resize-handles",
-      "from": "ui/threads",
-      "to": "app/threads-window",
-      "carries": "resize {start, move(edge, dx, dy), end}: an edge or corner drag in screen px from the pointerdown; a release, a cancel or a lost capture ends it",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-resize-box",
-      "from": "app/threads-window",
-      "to": "io/window/geometry",
-      "carries": "resizeThreadsBox(box, workArea, edge, dx, dy): the dragged sides moved, between the 376 × 436 minimum box and the work area less 12px on every side",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/threads-resize.ts"
-    },
-    {
-      "id": "threads-head-pointerdown",
-      "from": "ui/threads",
-      "to": "app/threads-window",
-      "carries": "onHeadPointerDown: a pointerdown on the head, not on its buttons",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/wire-threads-window.ts"
-    },
-    {
-      "id": "threads-head-drag",
-      "from": "app/threads-window",
-      "to": "io/window/pet",
-      "carries": "invokeDragWindow from the head's pointerdown (not on its buttons): the window's native drag",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/threads-window/threads-placement.ts"
-    },
-    {
-      "id": "threads-min-panel",
-      "from": "io/window/geometry",
-      "to": "settings",
-      "carries": "THREADS_MIN_PANEL {width 360, height 420}: the smallest panel the placement and the resize keep",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/io/window/geometry/threads-position.ts"
-    },
-    {
-      "id": "settings-open-controls",
-      "from": "app/controls",
-      "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the message window's settings button",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
-    },
-    {
-      "id": "settings-page-emit",
-      "from": "io/window/openers",
-      "to": "io/bridge/settings",
-      "carries": "an open settings window shown → yui://settings-page {preset: id or null, page?, focus?: \"chat_key\"}",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "settings-page",
-      "from": "io/bridge/settings",
-      "to": "app/settings-window",
-      "carries": "yui://settings-page {preset, page?, focus?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading without `?edit=` when it edits another, selects the page, and focuses the chat key field when focus is chat_key (the Connection view follows the stored chat URL: Quick start for Gemini, Detailed settings otherwise); other windows drop it",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-page.ts"
-    },
-    {
-      "id": "settings-stage-emit",
-      "from": "app/settings-window",
-      "to": "io/bridge/settings",
-      "carries": "yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: the stage slot in screen logical points below the title bar, and the window's scale, at boot, on a move, on the stage's layout at a new size or a visibility change when it changed, and on every ask; null while minimised",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "settings-stage",
-      "from": "io/bridge/settings",
-      "to": "app/stage",
-      "carries": "yui://settings-stage, unscoped: main's pet window acts on preset null, a bound pet window on its own id; a slot starts, moves or resizes the come-along, null sends her home; a slot sized outside 100 to 2000 pt is dropped with a warn",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "settings-stage-ask-emit",
-      "from": "app/stage",
-      "to": "io/bridge/settings",
-      "carries": "yui://settings-stage-ask, no payload: sent once at boot, after the settings-stage and settings-stage-ended listeners are in place",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "settings-stage-ask",
-      "from": "io/bridge/settings",
-      "to": "app/settings-window",
-      "carries": "yui://settings-stage-ask, unscoped: every settings window sends its stage slot again",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "come-along-locomotion",
-      "from": "ambient/come-along",
-      "to": "app/stage",
-      "carries": "hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}) holds her still, locks Ctrl+wheel and saves no resize as her geometry, and pauses keep-on-screen; abortTravel (which waits for a Ctrl+wheel resize in flight) before her desktop frame is read, release of her seat, widen([], slot frame or home frame) and travel.end() for the carry, the virtual window's setFrameLogical easing her origin and size; placement writes the slot's frame in one setFrameLogical; drop({ landOnSeam: true }) after the carry home; onAbort(by) when a drag or an agent move takes her, idling her own pickup unless a user drag took her and settling once her last placement write lands; onMoverTakesOver → restoreSize at a drag's drop before it settles, and on an agent move once the holds let go and any travel unparked, before the move; a slot waits while a travel parks her frame and applies when a holder lets go",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "come-along-renderer",
-      "from": "ambient/come-along",
-      "to": "renderer/motion",
-      "carries": "onTick drives the pickup hold, the carry and the pin release; playMotion drag at the pickup, one entry clip once docked (sulk while the last backend emotion is angry), null on arrival home or at an edge entry's play_ms; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime watch the edge clip, idling her when a replaced state clip comes back",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "come-along-canvas",
-      "from": "ambient/come-along",
-      "to": "renderer",
-      "carries": "vanish() before a move across monitors, past stage.carry_full_pt or under reduced motion; land(feet anchor) after a vanish, once her page has refit to the new frame, appear() after a fade or when a stopped vanish left her invisible; getFrameFit(width, height, framing) for her feet share in the slot (framing 1) or home (framing 0) frame she is about to take, at each carry frame's framing, and how much larger she is drawn there; setStageFraming(k) eased with each carry frame toward 1 onto the stage and 0 home from the value last set, set with the frame while hidden in a vanish or fade, 1 on a reload that resumes on the stage, and 0 when a mover takes her off the stage or a start or trip home fails; getPerchProbe() for her height, scaled by that, and setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) arming the stage peek pin and re-aiming it at each carry frame and each new slot size while it holds, setPeekTarget(null, {easeMs: stage.edge_release_ms}) releasing it, setPeekTarget(null) snapping it when she is taken or goes home",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "come-along-last-emotion",
-      "from": "ambient/come-along",
-      "to": "io/chat/last-emotion",
-      "carries": "lastEmotion(stage.emotion_decay_min in ms) → lastBackendEmotion(now, that decay) at a stage slot that starts a session",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "come-along-dock-call",
-      "from": "ambient/come-along",
-      "to": "io/window/pet",
-      "carries": "dock.attach, dock.detach, setPetFramePhysical (setSize then setPosition, physical px) for the Windows follow, refitTo → waitRefit(width, height) after a vanish's frame and a size given back",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "come-along-dock",
-      "from": "io/window/pet",
-      "to": "shell/window",
-      "carries": "window_dock_attach → whether a native child link to her own settings window is in effect, at normal level; window_dock_detach removes it and restores her level",
-      "kind": "tauri-command",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "settings-stage-ended",
-      "from": "shell/window",
-      "to": "io/window/pet",
-      "carries": "yui://settings-stage-ended, the settings window's label: its close request or, on macOS, its miniaturize, after the shell unlinked its pet window; that pet window sends her home",
-      "kind": "tauri-event",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-come-along.ts"
-    },
-    {
-      "id": "settings-devtools-request",
-      "from": "ui/quick-controls",
-      "to": "io/bridge/settings",
-      "carries": "the General page's Developer Tools button → yui://open-devtools, no payload",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "devtools-open",
-      "from": "io/bridge/settings",
-      "to": "io/window/openers",
-      "carries": "yui://open-devtools, unscoped: main's pet window opens the devtools window; a bound pet window does not listen",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/controls/wire-devtools-request.ts"
-    },
-    {
-      "id": "settings-camera",
-      "from": "settings",
-      "to": "renderer/camera",
-      "carries": "camera zoom and orbit, idle throttle → setZoom, setOrbit; the plain wheel's zoom is ignored while a hold keeps her geometry (the come-along on the settings stage), bound through lockWheelZoom(locomotion.keepsGeometry) before the come-along is wired; the Shift-drag orbit writes no angle under the same hold",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-pet-stage.ts"
-    },
-    {
-      "id": "renderer-camera",
-      "from": "renderer",
-      "to": "renderer/camera",
-      "carries": "setFraming, setViewWindow",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "controls-settings",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the Characters list writes yui.windows, and open returns false with nothing written while 4 presets, main's included, are open; the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent and renames the preset in yui.presets; the General page writes the user name into yui.user-name",
-      "kind": "storage",
-      "transport": "shared"
-    },
-    {
-      "id": "settings-broadcast",
-      "from": "settings",
-      "to": "io/bridge/settings",
-      "carries": "subscribe(broadcastSettings) → emitSettingsChanged after 200 ms",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/cross-window/wire-window-sync.ts"
-    },
-    {
-      "id": "settings-reload",
-      "from": "io/bridge/settings",
-      "to": "settings",
-      "carries": "yui://settings-changed → reloadFromStorage on every broadcast store; the preset registry is not one: it rides yui://preset-changed, with its storage event as the fallback",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/cross-window/wire-window-sync.ts"
-    },
-    {
-      "id": "preset-changed",
-      "from": "settings",
-      "to": "io/bridge/settings",
-      "carries": "registry edit → yui://preset-changed {active}; the receiving window rereads the registry and reloads when the active preset changed; a bound window rereads and keeps its preset instead",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-preset.ts"
-    },
-    {
-      "id": "preset-stop",
-      "from": "settings",
-      "to": "dispatcher/turn",
-      "carries": "active preset change → stopTurn() before the pet window reloads; main only, a bound window neither follows the active preset nor reloads",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-preset.ts"
-    },
-    {
-      "id": "pet-windows-changed",
-      "from": "settings",
-      "to": "io/bridge/settings",
-      "carries": "open-list edit → yui://pet-windows-changed, no payload; the receiving window reloads yui.windows and the live keys from storage and sends nothing back",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/pet-windows/wire-pet-windows-sync.ts"
-    },
-    {
-      "id": "pet-windows-reconcile",
-      "from": "settings",
-      "to": "io/window/openers",
-      "carries": "main only: yui.windows and the live keys → prune against the registry and the windows that exist, then open each wanted preset that has no window",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/pet-windows/wire-pet-windows-reconcile.ts"
-    },
-    {
-      "id": "bound-window-close",
-      "from": "settings",
-      "to": "io/window/openers",
-      "carries": "bound window only: its id leaves yui.windows → close its companions, dispose its stores, clear the live key, emit the change, and close",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/pet-windows/wire-bound-window.ts"
-    },
-    {
-      "id": "settings-guardrails",
-      "from": "settings",
-      "to": "dispatcher/core",
-      "carries": "guardrail caps, addressed_chain_max included → guardrails.setConfig(getGuardrails())",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/cross-window/wire-window-sync.ts"
-    },
-    {
-      "id": "settings-pacer",
-      "from": "app/active-hours",
-      "to": "dispatcher/core",
-      "carries": "gapMs() as the pacer's interval, the proactive gap store × the pace factor (base pace × the current span's pace); subscribeGap → pacer.noteIntervalChanged()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "settings-active-hours",
-      "from": "settings",
-      "to": "app/active-hours",
-      "carries": "activeHoursSettings spans, agentSettings card (null means the UI language's default), the proactive gap store and the device-wide do-not-disturb store: each change, and each minute, recomputes the handle",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "settings-base-pace",
-      "from": "settings",
-      "to": "app/active-hours",
-      "carries": "basePaceSettings.get().pace (yui.base-pace), subscribed: each change recomputes the pace factor, base pace × the current span's pace",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "config-active-hours",
-      "from": "config",
-      "to": "app/active-hours",
-      "carries": "setPersona(config.persona): the default card of each UI language, read while the agent card is null",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "active-hours-idle-tick",
-      "from": "app/active-hours",
-      "to": "dispatcher/sources/idle-tick",
-      "carries": "paceFactor() (base pace × span pace): multiplies each proactive cue's idle_min on every getCues() call; dnd as the schedule source's hold (isHeld)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "active-hours-edit",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "the Persona page's Active hours rows → activeHoursSettings.setSpans(the whole row list) on any edit, add or remove; Reset to default → reset() (null, the card's spans apply); the pet window of that preset reads it over the broadcast",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/quick-controls.ts"
-    },
-    {
-      "id": "base-pace-edit",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "How often she speaks up's segment → basePaceSettings.setPace(pace), the device-wide yui.base-pace; the pet windows read it over the broadcast",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/proactive/pace/pace-section.tsx"
-    },
-    {
-      "id": "proactive-day-strip",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "activeHoursSettings spans and the agentSettings card through spansInUse, basePaceSettings pace, and the schedule and proactive cue lists → the Proactive page's day strip, redrawn on each change",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/proactive/pace/day-strip.tsx"
-    },
-    {
-      "id": "active-hours-card-export",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "activeHoursSettings spans → the card export's extensions.yui.active_hours (extensionsWithActiveHours; null keeps the card's own key)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/persona/persona-page.ts"
-    },
-    {
-      "id": "settings-turn-gate",
-      "from": "settings",
-      "to": "dispatcher/core",
-      "carries": "yui.one-voice flag → turnGate enabled(), read on each acquire",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "settings-overheard",
-      "from": "settings",
-      "to": "io/chat/conversation",
-      "carries": "yui.presets names and active id, yui.windows open list → the overheard reader's preset names and other preset ids",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "transcripts-overheard",
-      "from": "settings",
-      "to": "io/chat/conversation",
-      "carries": "another preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "user-turn-routed",
-      "from": "ui/unified",
-      "to": "dispatcher/sources/routed",
-      "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done; via \"voice\" marks a spoken message; threads are the attached Threads a send carries, typed or spoken, and while any are attached a send goes to main",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "voice-segment",
-      "from": "app/turn",
-      "to": "ui/unified",
-      "carries": "yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; that window routes it like a typed message, or puts it in the field while any turn runs or a line holds or waits for the box",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "speech-onset",
-      "from": "app/turn",
-      "to": "ui/unified",
-      "carries": "yui://speech-onset, unscoped, when the user starts speaking while the unified chat window shows and barge-in is on: that window answers like its stop button while a character runs",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "user-turn-done",
-      "from": "dispatcher/sources/routed",
-      "to": "ui/unified",
-      "carries": "yui://user-turn-done {sendId, preset}, unscoped, when the turn for a send id closed or was dropped before it began",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "backlog-transcript-pet",
-      "from": "io/chat/conversation",
-      "to": "ui/message",
-      "carries": "the pet window's chat-history store: entriesAfterLastBoundary → the backlog, read on each open",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/wire.ts"
-    },
-    {
-      "id": "backlog-transcript-message",
-      "from": "io/chat/conversation",
-      "to": "ui/message",
-      "carries": "yui.<id>.chat_transcript → readTranscriptAfterBoundary → the message window's backlog, read on each open",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/windows/message-main.ts"
-    },
-    {
-      "id": "unified-transcripts",
-      "from": "io/chat/conversation",
-      "to": "ui/unified",
-      "carries": "every open preset's yui.<id>.chat_transcript \u2192 readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "unified-open",
-      "from": "app/unified",
-      "to": "io/window/openers",
-      "carries": "open() while the unified chat window shows, close() otherwise, which destroys the window without a close request; one frameless 340 px window labelled unified",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "mention-trigger",
-      "from": "dispatcher/sources/routed",
-      "to": "dispatcher/core",
-      "carries": "bus.push: user.text_submitted {text, send_id, mention?} \u2192 client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "settings-push",
-      "from": "settings",
-      "to": "io/chat/push",
-      "carries": "endpoints override or chat key change → socket open, close, retarget",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-push.ts"
-    },
-    {
-      "id": "settings-speech",
-      "from": "settings",
-      "to": "io/voice/tts",
-      "carries": "TTS on or off, speaker, lip-sync gain, read per utterance",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "settings-stt",
-      "from": "settings",
-      "to": "io/voice/stt",
-      "carries": "VAD silence window and barge-in, read per segment",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "settings-idle-motion",
-      "from": "settings",
-      "to": "renderer/motion",
-      "carries": "idle-motion selection → setIdleVariants",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-avatar.ts"
-    },
-    {
-      "id": "config-renderer",
-      "from": "config",
-      "to": "renderer",
-      "carries": "hot reload: emotionRegistry, motions, avatar sections",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-config.ts"
-    },
-    {
-      "id": "config-guardrails",
-      "from": "config",
-      "to": "dispatcher/core",
-      "carries": "hot reload: guardrails section",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-config.ts"
-    },
-    {
-      "id": "assets-renderer",
-      "from": "io/assets",
-      "to": "renderer",
-      "carries": "VRM selection → loadVRM(url)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/wire-avatar.ts"
-    },
-    {
-      "id": "assets-shell",
-      "from": "io/assets",
-      "to": "shell/imports",
-      "carries": "import_vrm_file, remove_user_vrm",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "card-io-ui",
-      "from": "ui/quick-controls",
-      "to": "io/assets",
-      "carries": "Import\u2026 \u2192 importPreset \u2192 importCardFromFile (preset file, JSON or PNG in); Export preset (.yui) \u2192 inspectPresetVrm (a user VRM's license) and exportPresetFile (V2 card JSON, the thumbnail's preset id and crop, the active VRM when it is a user or bundled one, and the user voice); Export card only (PNG)\u2026 \u2192 exportCardPng; both exports carry extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty; the photo dialog \u2192 loadPhotoSize (a photo's natural size); the drop cover \u2192 importDroppedPreset \u2192 importCardFromDrop (import_dropped_card, no path sent); importBusy disables Import\u2026 while an import runs",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/card-io/wire-card-io.ts"
-    },
-    {
-      "id": "file-drop-ui",
-      "from": "io/window/file-drop",
-      "to": "ui/quick-controls",
-      "carries": "subscribeFileDrop: enter and drop with the dragged paths, and leave, into the drop cover, which refuses a drop by count and extension before importDropped",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "card-preset-ui",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "Import\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, a preset file's VRM and voice ids written to the new preset's yui.vrm and yui.speaker (null clears the copied key), the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/card-io/wire-card-io.ts"
-    },
-    {
-      "id": "card-shell",
-      "from": "io/assets",
-      "to": "shell/imports",
-      "carries": "import_card_file, import_dropped_card, retain_card_thumbnail, pick_preset_photo, remove_card_thumbnail",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "preset-file-shell",
-      "from": "io/assets",
-      "to": "shell/imports",
-      "carries": "import_card_file and import_dropped_card (a .yui read, its thumbnail, VRM and voice clip claimed), inspect_preset_vrm, export_preset_file, export_card_png",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "greeting-pending",
-      "from": "settings",
-      "to": "app/turn/card",
-      "carries": "yui.greeting-pending written by a card import; the preset's next boot consumes it and greets once",
-      "kind": "storage",
-      "transport": "shared"
-    },
-    {
-      "id": "preset-photo",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "the manage row's photo button \u2192 the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/card-io/wire-card-io.ts"
-    },
-    {
-      "id": "card-thumb-ui",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail and crop \u2192 the preset header's and the card section's face (avatarEl)",
-      "kind": "callback",
-      "transport": "shared"
-    },
-    {
-      "id": "voices-shell",
-      "from": "io/voice/voices",
-      "to": "shell/imports",
-      "carries": "import_voice_file, rename_user_voice, remove_user_voice",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "voices-http",
-      "from": "io/voice/voices",
-      "to": "tts-service",
-      "carries": "voices list, upload, delete per provider",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "voices-speech",
-      "from": "io/voice/voices",
-      "to": "io/voice/tts",
-      "carries": "speakerSelection.getActive() per utterance",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "voice-step-key",
-      "from": "ui/quick-controls",
-      "to": "io/voice/voices",
-      "carries": "Turn on voice: checkFishKey(pasted key) → ok, refused or failed; ok → the app language's default voice joins the list unless listed, and is selected",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
-    },
-    {
-      "id": "voice-key-check-http",
-      "from": "io/voice/voices",
-      "to": "tts-service",
-      "carries": "GET {Fish URL}/model?self=true&page_size=1&page_number=1 with the key as a Bearer token: 200 ok, 401 or 403 refused, anything else failed",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "voice-step-settings",
-      "from": "ui/quick-controls",
-      "to": "settings",
-      "carries": "ok only: endpoints tts_provider fish, tts_base_url and tts_model, the TTS key, and TTS on",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.tsx"
-    },
-    {
-      "id": "default-voices-config",
-      "from": "app/settings",
-      "to": "ui/quick-controls",
-      "carries": "getDefaultVoices(): endpoints tts_default_voices, undefined hides the voice step",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings/config-defaults.ts"
-    },
-    {
-      "id": "logger-shell",
-      "from": "logger",
-      "to": "shell/logs",
-      "carries": "log records through the log plugin",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "models-http",
-      "from": "io/chat/models",
-      "to": "backend-request",
-      "carries": "GET {baseUrl}/models",
-      "kind": "http",
-      "transport": "request"
-    },
-    {
-      "id": "controls-models",
-      "from": "ui/quick-controls",
-      "to": "io/chat/models",
-      "carries": "read the model list for the Connection page's chat section and for Quick start: its Connect read; its stored-key check when the connected view shows, when the window regains focus, and when Change key or Check connection opens the key field, reusing an answer on the same key from the last minute and dropping one whose key is no longer stored; a 401 or 403, or the 400 Gemini answers for a bad key, reads as refused",
-      "kind": "call",
-      "transport": "request"
-    },
-    {
-      "id": "settings-stage-mount",
-      "from": "app/settings-window",
-      "to": "ui/settings-stage",
-      "carries": "createSettingsStage({ mount, presetRegistry, petWindows, boundId, getDefaultChatApi, endpointsSettings, onSettingsChanged }) → the stage first in the window's row, the panel's host after it; dispose on close",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "settings-stage-state",
-      "from": "settings",
-      "to": "ui/settings-stage",
-      "carries": "presetRegistry.get() and subscribe → presetEntryFor(state, boundId); readChatApiOverride(own id), re-read on the panel's endpointsSettings.subscribe; isPresetOpen(petWindows.get(), id) and petWindows.subscribe",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "settings-stage-meta",
-      "from": "ui/settings-stage",
-      "to": "ui/quick-controls",
-      "carries": "characterMeta({ id, main, isOpen, chatApiOverride, defaultChatApi }) → { state, line }: the stage foot's \"{transport} · {state}\" in the character header's words",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/settings-stage/stage-foot.tsx"
-    },
-    {
-      "id": "stt-models-check",
-      "from": "app/settings-window",
-      "to": "stt-service",
-      "carries": "the Connection page's STT line: GET {stt_base_url}/models, a 401/403 is a refused key; any other HTTP answer counts as answered",
-      "kind": "http",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "tts-line-check",
-      "from": "app/settings",
-      "to": "ui/quick-controls",
-      "carries": "speaker.checkTtsServer() → ServerCheck or null: the Connection page's TTS line check and its Reconnect",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "controls-guide",
-      "from": "ui/quick-controls",
-      "to": "dispatcher/sources/user-input",
-      "carries": "the settings window's Ask press → yui://help-guide {guide, text} → the pet window's submitGuide(guide, text)",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/controls/wire-help-guide.ts"
-    },
-    {
-      "id": "stt-status",
-      "from": "io/voice/stt",
-      "to": "ui/chips",
-      "carries": "onState → voiceInputStatus.set",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
-    },
-    {
-      "id": "status-stt",
-      "from": "ui/chips",
-      "to": "io/voice/stt",
-      "carries": "voiceInputStatus toggle → start or stop STT",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "stop-dispatcher",
-      "from": "ui/surfaces",
-      "to": "dispatcher",
-      "carries": "onStop → stopTurn: dispatcher.cancel()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "stop-push-turns",
-      "from": "ui/surfaces",
-      "to": "dispatcher/turn",
-      "carries": "stopTurn: pushTurns.cut()",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "stop-speech",
-      "from": "ui/surfaces",
-      "to": "io/voice/tts",
-      "carries": "stopTurn: speechPlayback.interrupt()",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
-    },
-    {
-      "id": "stop-push",
-      "from": "ui/surfaces",
-      "to": "io/chat/push",
-      "carries": "sendStop(turnIds)",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-push.ts"
-    },
-    {
-      "id": "barge-in-speech",
-      "from": "io/voice/stt",
-      "to": "io/voice/tts",
-      "carries": "onSpeechActive with speech outstanding → speechPlayback.interrupt({muteCurrentTurn}), fillerLoop.stop(); while the unified chat window shows and barge-in is on, onSpeechActive → speech-onset",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/voice/speak-turn.ts"
-    },
-    {
-      "id": "barge-in-push",
-      "from": "io/voice/stt",
-      "to": "dispatcher/turn",
-      "carries": "onBargeIn → pushTurns.cut()",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/voice/wire-voice.ts"
-    },
-    {
-      "id": "user-supersede",
-      "from": "dispatcher",
-      "to": "dispatcher/backend",
-      "carries": "supersedeByUser: abort the call in flight, drop pending",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "push-publish",
-      "from": "io/chat/push",
-      "to": "io/bridge/push",
-      "carries": "publishPushSocket: PushSocketState, scoped to the sender's preset",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/push-stores.ts"
-    },
-    {
-      "id": "push-requests",
-      "from": "io/bridge/push",
-      "to": "io/chat/push",
-      "carries": "yui://push-reset → stopTurn and sendReset; yui://push-reconnect → reconnectNow; scoped to the sender's preset",
-      "kind": "bridge",
-      "transport": "push",
-      "wiring": "src/app/turn/push/push-stores.ts"
-    },
-    {
-      "id": "push-state-controls",
-      "from": "io/bridge/push",
-      "to": "ui/quick-controls",
-      "carries": "push socket state in the Connection tab",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "delegations-chip",
-      "from": "io/bridge/delegations",
-      "to": "ui/chips",
-      "carries": "delegations store or mirror → delegation chip",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "signals-chips",
-      "from": "dispatcher/sources/inbox",
-      "to": "ui/chips",
-      "carries": "each parsed signal group, buffered or not → signal chip (onArrival, passed from bootstrap-configured through wireDispatcherSources)",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "history-chips",
-      "from": "io/chat/conversation",
-      "to": "ui/chips",
-      "carries": "signal records → what YUI said on a chip's card, by event_id",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
-    },
-    {
-      "id": "chips-fold",
-      "from": "settings",
-      "to": "ui/chips",
-      "carries": "the per-device fold choice → signal chips and delegation chip",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
-    },
-    {
-      "id": "delegations-controls",
-      "from": "io/bridge/delegations",
-      "to": "ui/quick-controls",
-      "carries": "delegations and delegation history → Session section",
-      "kind": "call",
-      "transport": "push"
-    },
-    {
-      "id": "conversation-controls",
-      "from": "io/chat/conversation",
-      "to": "ui/quick-controls",
-      "carries": "transcript items, signal records and session diagnostics, read as current() → History page and its Session section",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "conversation-devtools",
-      "from": "io/chat/conversation",
-      "to": "ui/devtools",
-      "carries": "contextHistory → context inspector",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "surfaces-remote",
-      "from": "ui/surfaces",
-      "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the label and busy flag of each button the bubble shows under its speech, in order; asks carries push Ask and Settings request frames; asks, commands and command-reply restated on ready",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/wire.ts"
-    },
-    {
-      "id": "remote-surfaces",
-      "from": "io/bridge/message",
-      "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/wire.ts"
-    },
-    {
-      "id": "surfaces-openers",
-      "from": "ui/surfaces",
-      "to": "io/window/openers",
-      "carries": "message-window mode popped or docked → open, hide",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/wire.ts"
-    },
-    {
-      "id": "user-input",
-      "from": "user",
-      "to": "ui/input",
-      "carries": "typed text, attached images, the send and stop button",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "user-voice",
-      "from": "user",
-      "to": "io/voice/stt",
-      "carries": "microphone audio",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "user-window",
-      "from": "user",
-      "to": "io/window/pet",
-      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit, ignored on the settings stage; Ctrl-wheel resize",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "user-settings",
-      "from": "user",
-      "to": "ui/quick-controls",
-      "carries": "quick-controls and settings-window edits",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "message-source-line",
-      "from": "ui/message",
-      "to": "ui/signals",
-      "carries": "renderSourceLine for each source line in the bubble's quote slot",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "history-source-line",
-      "from": "ui/quick-controls",
-      "to": "ui/signals",
-      "carries": "renderSourceLine for each signal record of a History row",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "bubble-user",
-      "from": "ui/message",
-      "to": "user",
-      "carries": "speech bubble text, the quoted user line, the signal source lines, reasoning",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "chips-user",
-      "from": "ui/chips",
-      "to": "user",
-      "carries": "status pill, delegation chip, signal chips and their details sheet",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "voice-user",
-      "from": "io/voice/tts",
-      "to": "user",
-      "carries": "synthesized voice and filler phrases",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "character-user",
-      "from": "renderer",
-      "to": "user",
-      "carries": "the character on screen: expression, mouth, motion",
-      "kind": "user",
-      "transport": "shared"
-    },
-    {
-      "id": "address-character",
-      "from": "io/chat/tools",
-      "to": "dispatcher/sources/addressed",
-      "carries": "address_character → record(turnId, to, handoff); refused for an unknown or closed target and for a second call in one turn",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "turn-closed-addressed",
-      "from": "dispatcher/core",
-      "to": "dispatcher/sources/addressed",
-      "carries": "onTurnClosed {id, outcome, spokeText, sendId?, userText?} once per turn, at the over edge or when the next turn displaces it",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-dispatcher.ts"
-    },
-    {
-      "id": "character-addressed-emit",
-      "from": "dispatcher/sources/addressed",
-      "to": "io/bridge/settings",
-      "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, after the reply's turn ended with speech and its playback finished",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "character-addressed-receive",
-      "from": "io/bridge/settings",
-      "to": "dispatcher/sources/addressed",
-      "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, filtered on `to`",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "addressed-bus",
-      "from": "dispatcher/sources/addressed",
-      "to": "dispatcher/core",
-      "carries": "bus.push: addressed.character {from, name, line, user_message?}; the chain cap addressed_chain_max drops the third in a row without a user turn",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "speech-stream",
-      "from": "ui/surfaces",
-      "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, restore-input, threads, commands, command-reply); busy, name, threads and commands always; Command replies go to the issuing window",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/ui/surfaces/wire.ts"
-    },
-    {
-      "id": "speech-stream-ask",
-      "from": "ui/unified",
-      "to": "ui/surfaces",
-      "carries": "yui://speech-stream-ask: each pet restates its name, busy, commands and cached Command reply",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "stop-turns",
-      "from": "ui/unified",
-      "to": "app/turn",
-      "carries": "yui://stop-turns, unscoped, from the unified chat window's stop button or its answer to speech onset: every pet window runs the stop button's stopTurn",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "unified-shown",
-      "from": "settings",
-      "to": "ui/surfaces",
-      "carries": "the shown predicate (get, subscribe): the router's suppression, getMode docked and the message window hidden while it shows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "unified-shown-settings-controls",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "the settings window's own shown predicate: the Separate message window row disabled with its reason while it shows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/settings-window/wire-settings-window.ts"
-    },
-    {
-      "id": "unified-shown-open",
-      "from": "settings",
-      "to": "app/unified",
-      "carries": "the shown predicate main opens and destroys the window on",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "speech-stream-control",
-      "from": "ui/unified",
-      "to": "io/bridge/message",
-      "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "unified-close-switch",
-      "from": "app/unified",
-      "to": "settings",
-      "carries": "the window's close request (×) → yui.unified-chat {enabled: false}, then yui://settings-changed",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "unified-window-position",
-      "from": "settings",
-      "to": "io/window/openers",
-      "carries": "yui.unified-window {x, y} physical px, written as the unified window moves and read when main creates it",
-      "kind": "storage",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "settings-theme",
-      "from": "settings",
-      "to": "ui/theme",
-      "carries": "themeSettings.subscribe → data-theme and textSizeSettings.subscribe → --yui-text-scale on the window root; the pet, settings, message, unified, Threads and devtools windows each call applyTheme and applyTextScale",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "threads-ingress",
-      "from": "signal-producers",
-      "to": "shell/agent-ingress",
-      "kind": "http",
-      "transport": "shared",
-      "carries": "PUT /threads/<id> {source, title, label?, state, entries?} → {updated_at}",
-      "wiring": "src-tauri/src/agent_ingress/mod.rs"
-    },
-    {
-      "id": "ingress-threads",
-      "from": "shell/agent-ingress",
-      "to": "shell/threads",
-      "kind": "call",
-      "transport": "shared",
-      "carries": "upsert",
-      "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
-    },
-    {
-      "id": "surfaces-commands",
-      "from": "ui/surfaces",
-      "to": "ui/commands",
-      "carries": "showCommandReply pending, settled, clear; onCommandReplyClose reports a close",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/ui/surfaces/surfaces.ts"
-    },
-    {
-      "id": "surfaces-command-input",
-      "from": "ui/surfaces",
-      "to": "ui/commands",
-      "carries": "createCommandInput: setCommands, onCommand, interceptSubmit; command routing in pet, message and unified surfaces",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/ui/surfaces/surfaces.ts"
-    },
-    {
-      "id": "command-list-input",
-      "from": "ui/commands",
-      "to": "ui/input",
-      "carries": "completed /name text and input event; interceptSubmit(text, images) handles listed commands",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/ui/surfaces/surfaces.ts"
-    },
-    {
-      "id": "backend-commands",
-      "from": "io/chat/push",
-      "to": "ui/surfaces",
-      "carries": "getCommands, onCommands → setCommands; onCommandReply → showCommandReply; leaving ready clears; send failure shows command.not_sent",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-backend-commands.ts"
-    },
-    {
-      "id": "backend-command-send",
-      "from": "ui/surfaces",
-      "to": "io/chat/push",
-      "carries": "onCommand(name, args) → sendCommand while dispatcher idle; one pending command per chat; reply stays on the issuing side; close clears all sides and cached replies",
-      "kind": "callback",
-      "transport": "push",
-      "wiring": "src/app/turn/push/wire-backend-commands.ts"
-    },
-    {
-      "id": "unified-commands",
-      "from": "ui/unified",
-      "to": "ui/commands",
-      "carries": "createCommandInput: picked recipient commands; refused command keeps text; Command reply names the speaker",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/unified/composer.ts"
-    },
-    {
-      "id": "mention-listbox",
-      "from": "ui/unified",
-      "to": "ui/listbox",
-      "carries": "createListbox: mention options, keyboard, ARIA and pick dispatch",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/unified/mention-picker.ts"
-    },
-    {
-      "id": "command-listbox",
-      "from": "ui/commands",
-      "to": "ui/listbox",
-      "carries": "createListbox: command options, keyboard, ARIA and pick dispatch",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/commands/command-list.ts"
-    },
-    {
-      "id": "threads-window-tabs",
-      "from": "ui/threads",
-      "to": "ui/controls",
-      "carries": "Tabs: the Threads and Terminal tabs, the selected one and each selection by click, key or open; TooltipHost: the one tip of the window's triggers",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/threads-window.tsx"
-    },
-    {
-      "id": "threads-list-controls",
-      "from": "ui/threads",
-      "to": "ui/controls",
-      "carries": "Segment: Waiting / All with their counts and the picked filter; Select: the kinds with their counts, zero ones disabled, the picked kind, its popup inside the list",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-list.tsx"
-    },
-    {
-      "id": "threads-rail-controls",
-      "from": "ui/threads",
-      "to": "ui/controls",
-      "carries": "Segment: Waiting / All as marks over counts, named and tipped by their counts; Select: the kinds behind the funnel or source mark, with its tip; Tip: each rail item's title and state",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-rail.tsx"
-    },
-    {
-      "id": "threads-pane-ref-mount",
-      "from": "ui/threads",
-      "to": "ui/ref-mount",
-      "carries": "RefMount: each entry's Markdown nodes, mounted again only when its text changed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/thread-pane.tsx"
-    },
-    {
-      "id": "threads-terminal-tab",
-      "from": "ui/threads",
-      "to": "ui/terminal",
-      "carries": "TabShell {back, selected, focusSelected, headChanged} into the Terminal view; its TabBody back: el mounted in the Terminal panel's RefMount host, list, head, the keys' moves and shown",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/threads/window/threads-view.ts"
-    },
-    {
-      "id": "terminal-nav-rows",
-      "from": "ui/terminal",
-      "to": "ui/keyed-rows",
-      "carries": "reconcileRows: Terminal list and rail rows kept by key, reordered only when their place changed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/terminal/terminal-nav.ts"
-    },
-    {
-      "id": "delegation-rows-keyed",
-      "from": "ui/chips",
-      "to": "ui/keyed-rows",
-      "carries": "reconcileRows: delegation rows and opened summary panels kept by key, reordered only when their place changed",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/chips/delegation-rows.ts"
-    },
-    {
-      "id": "perms-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: checked state, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/perms/perms-page-view.tsx"
-    },
-    {
-      "id": "general-segment",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Segment: the options, the checked value and the chosen value on click or key",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/general/general-page-view.tsx"
-    },
-    {
-      "id": "listening-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: checked state, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/listening/listening-page-view.tsx"
-    },
-    {
-      "id": "descriptor-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: a Together, Voice or Motion switch row's checked state, disabled while locked, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/switches/descriptor-row.tsx"
-    },
-    {
-      "id": "idle-motion-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: an idle variant's checked state, label, the baseline's disabled state and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/motion/idle-motion/idle-motion-section.tsx"
-    },
-    {
-      "id": "express-motion-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: an express motion's checked state, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"
-    },
-    {
-      "id": "silence-slider",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Slider: the silence wait, its range and label; each change and each commit",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/listening/silence/silence-slider.tsx"
-    },
-    {
-      "id": "relations-slider",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Slider: a relation's value, range, label, spoken band and data-band; each change and each commit",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/body/relations/relation-row.tsx"
-    },
-    {
-      "id": "gain-slider",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Slider: the mouth gain, its range and label; each change, each commit with its reason, and the blur",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/motion/gain/gain-row.tsx"
-    },
-    {
-      "id": "number-row-field",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "NumberField: the value, range and unit slot; the committed value on blur, Enter or a step",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/proactive/number-row.tsx"
-    },
-    {
-      "id": "devtools-window-tabs",
-      "from": "ui/devtools",
-      "to": "ui/controls",
-      "carries": "Tabs: the Context, Advanced and Motion tabs and the selected one; each selection by click, Up and Down, Home and End, or the facade's activate",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/devtools/devtools-window.tsx"
-    },
-    {
-      "id": "devtools-context-window-field",
-      "from": "ui/devtools",
-      "to": "ui/controls",
-      "carries": "NumberField: the stored context window, its minimum and the configured default as placeholder; the committed value on blur, Enter or a step",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/devtools/advanced-settings.tsx"
-    },
-    {
-      "id": "devtools-motion-sliders",
-      "from": "ui/devtools",
-      "to": "ui/controls",
-      "carries": "Slider: speed, fade, intensity and transition, each with its range, label and readout; each change",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/devtools/motion-preview/rail-row.tsx"
-    },
-    {
-      "id": "devtools-playback-controls",
-      "from": "ui/devtools",
-      "to": "ui/controls",
-      "carries": "Checkbox: loop on or off; Select: the crossfade clip among the registry's ids",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/devtools/motion-preview/playback-controls.tsx"
-    },
-    {
-      "id": "devtools-inspector-snapshot",
-      "from": "ui/devtools",
-      "to": "ui/quick-controls",
-      "carries": "useSnapshot: the context history's entries, read again on each notify",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/devtools/context-inspector.tsx"
-    },
-    {
-      "id": "settings-rail-tabs",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Tabs: the rail's pages and the selected one; each selection by click, Up and Down, Home and End, or the handle's select, and the handle's focus",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/settings-panel.tsx"
-    },
-    {
-      "id": "settings-tip",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Tooltip: each trigger's text; hover, keyboard focus, a press and Escape open or close the one tip, and the panel's close hides it",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/settings-panel.tsx"
-    },
-    {
-      "id": "conn-views-segment",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Segment: Quick start and Detailed settings, the view shown, and the one chosen",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/connection-page-view.tsx"
-    },
-    {
-      "id": "chat-type-select",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Select: the chat types with their long names, the short name on the closed trigger, and the picked type",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/chat/chat-type.tsx"
-    },
-    {
-      "id": "chat-preset-select",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Select: the chat provider presets and Custom, the matched preset, and the picked one",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/chat/chat-section.tsx"
-    },
-    {
-      "id": "tts-provider-select",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Select: the TTS providers, the override or bundled provider, and the picked one",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/detail/tts-section.tsx"
-    },
-    {
-      "id": "stt-type-select",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Select, disabled: the one STT type the protocol names",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/detail/stt-section.tsx"
-    },
-    {
-      "id": "effort-segment",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Segment, disabled on push: the reasoning efforts, the stored one and the chosen one",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/connection/detail/effort-row.tsx"
-    },
-    {
-      "id": "pace-select",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Select: a span's paces, its pace, and the picked one into the span list's write",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/persona/active-hours/span-row.tsx"
-    },
-    {
-      "id": "chain-cap-field",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "NumberField: the chain cap's override over the bundled default; the committed cap",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/together/chain-cap/chain-cap-row.tsx"
-    },
-    {
-      "id": "advanced-disclosure",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Disclosure: the fold's summary label and its folded rows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/proactive/advanced/advanced-section.tsx"
-    },
-    {
-      "id": "filler-disclosure",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Disclosure: the fold's summary label and its folded rows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
-    },
-    {
-      "id": "card-disclosure",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Disclosure: the fold's summary label and its folded rows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/persona/card/card-section.tsx"
-    },
-    {
-      "id": "express-checkbox",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Checkbox: an express motion group's checked and mixed state, label, and a click or Space",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"
-    },
-    {
-      "id": "filler-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: checked state, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
-    },
-    {
-      "id": "filler-segment",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Segment: the options, the checked value and the chosen value on click or key",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/voice/filler/filler-section.tsx"
-    },
-    {
-      "id": "plugins-switch",
-      "from": "ui/quick-controls",
-      "to": "ui/controls",
-      "carries": "Switch: checked state, label and the flipped value on click",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/ui/quick-controls/plugins/plugin-group.tsx"
-    }
+    {"id":"input-submit","from":"ui/input","to":"ui/surfaces","carries":"submit(text, images, threads) and stop handlers, threads being the Thread chips shown; interceptSubmit(text, images) returns whether handled; setThreads(list) and the chip's onThreadRemove(thread)","kind":"callback","transport":"shared"},
+    {"id":"surfaces-submit","from":"ui/surfaces","to":"dispatcher/sources/user-input","carries":"userInput.submit(text, images, undefined, threads)","kind":"callback","transport":"shared","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"stt-http","from":"io/voice/stt","to":"stt-service","carries":"POST {stt_base_url}/audio/transcriptions, transcript text back","kind":"http","transport":"shared"},
+    {"id":"stt-submit","from":"io/voice/stt","to":"dispatcher/sources/user-input","carries":"onVoiceSegment(text) → submitVoice(text, main's attached Threads, which it then drops) while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"user-input-bus","from":"dispatcher/sources/user-input","to":"dispatcher/core","carries":"bus.push(BusEnvelope): user.text_submitted and user.voice_segment_ready, each with payload.threads_attached when Threads came with it","kind":"call","transport":"shared"},
+    {"id":"bus-dispatcher","from":"dispatcher/core","to":"dispatcher","carries":"bus.pop() in the pump, classify(env), guardrails.evaluate(env), proactive gap","kind":"call","transport":"shared"},
+    {"id":"dispatcher-ledger","from":"dispatcher","to":"dispatcher/turn","carries":"turnLog.begin(env) → Turn, settle(id)","kind":"call","transport":"shared"},
+    {"id":"ledger-quote","from":"dispatcher/turn","to":"ui/surfaces","carries":"onTurnAdmitted, utteranceStart → quoteUser (with the attached Threads' titles), quoteSignals, settleQuote, clearQuote; a failed text turn → restoreInput(text, images)","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"dispatcher-busy","from":"dispatcher","to":"ui/surfaces","carries":"subscribeBusy → setBusy","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"dispatcher-failure","from":"dispatcher","to":"ui/surfaces","carries":"onUserTurnFailed → the failure reporter: showInputError while the input is open, else the status pill's turn notice (turn-failure-notice); a spoken turn also sets the pill's voice error","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"turn-failure-notice","from":"app/turn","to":"ui/chips","carries":"failed user turn with no input open → turnNotice.show({message, action?}); the status pill holds it 60 s with an action, 3 s without; actions: Connect, Change key, Check connection","kind":"callback","transport":"shared","wiring":"src/app/turn/report-turn-failure.ts"},
+    {"id":"mic-settings-opener","from":"io/voice/stt","to":"shell/core","carries":"plugin:opener|open_url {x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone} from the status pill's Open mic settings (macOS, mic blocked)","kind":"tauri-command","transport":"shared","wiring":"src/io/voice/open-mic-settings.ts"},
+    {"id":"dispatcher-backend","from":"dispatcher","to":"dispatcher/backend","carries":"backendCaller.call(turn, signal) → TurnOutcome","kind":"call","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"context-posture","from":"dispatcher/tier1","to":"dispatcher/backend","carries":"getBodyState(): posture and since","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"context-frontmost","from":"io/window/os-events","to":"dispatcher/backend","carries":"getFrontmost(): app and title","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"context-screenshot","from":"io/window/capture","to":"dispatcher/backend","carries":"getScreenshot(): image attachment","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"context-settings","from":"settings","to":"dispatcher/backend","carries":"agent and screenshot settings read per turn","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"context-endpoints","from":"config","to":"dispatcher/backend","carries":"getEndpoints(): config endpoints merged with the settings override","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-config.ts"},
+    {"id":"context-guide","from":"io/guide","to":"dispatcher/backend","carries":"renderGuideBlock(guide): the guide: block naming the guide and how to read it","kind":"call","transport":"shared"},
+    {"id":"guide-yui-run","from":"io/guide","to":"io/chat/tools","carries":"createGuideApi(): yui.guide.read(name) → the guide's text without its image lines","kind":"call","transport":"shared","wiring":"src/io/chat/tools/pet-window-tools.ts"},
+    {"id":"conversation-backend","from":"io/chat/conversation","to":"dispatcher/backend","carries":"previous response id, pending tool outputs, transcript entries after the last boundary; the greeting entries among them on a fresh Responses chain","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"card-config","from":"config","to":"io/chat/card","carries":"config.persona: the framing, the {{user}} fallback word, and the default card of each UI language","kind":"callback","transport":"request","wiring":"src/app/turn/wire-card.ts"},
+    {"id":"card-settings","from":"settings","to":"io/chat/card","carries":"agentSettings.get(): card (null means the UI language's default) and send_card; userNameSettings.get().name for {{user}}","kind":"callback","transport":"request","wiring":"src/app/turn/wire-card.ts"},
+    {"id":"card-backend","from":"io/chat/card","to":"dispatcher/backend","carries":"getCardText(): {system, postHistory}, null on push or with the switch off; read per turn","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"greeting-transcript","from":"app/turn/card","to":"io/chat/conversation","carries":"greetLocal: one greeting with its macros substituted → append({role: assistant, greeting: true}) while the session after the last boundary is empty","kind":"call","transport":"request","wiring":"src/app/turn/wire-greeting.ts"},
+    {"id":"greeting-speech","from":"app/turn/card","to":"io/voice/tts","carries":"greetLocal → turnOutput.speak(text, {turn_id: greeting:<ts>, event_name: greeting})","kind":"callback","transport":"request","wiring":"src/app/turn/wire-greeting.ts"},
+    {"id":"session-reset-announce","from":"ui/quick-controls","to":"io/bridge/settings","carries":"Start fresh → announceSessionReset → yui://session-reset {presetId}, scoped to the preset; the pet window also greets directly","kind":"bridge","transport":"shared","wiring":"src/app/turn/wire-greeting.ts"},
+    {"id":"first-conversation-connected","from":"ui/quick-controls","to":"io/bridge/settings","carries":"Quick start's confirmed key → yui://first-conversation-connected, scoped to the preset","kind":"bridge","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"first-conversation-replay","from":"ui/quick-controls","to":"io/bridge/settings","carries":"Quick start's Help row Replay → yui://first-conversation-replay, scoped to the preset","kind":"bridge","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"first-conversation-greet","from":"io/bridge/settings","to":"app/turn/card","carries":"yui://first-conversation-connected for this window's preset → greetLocal when the session is empty","kind":"bridge","transport":"shared","wiring":"src/app/turn/wire-first-conversation.ts"},
+    {"id":"first-conversation-replay-greet","from":"io/bridge/settings","to":"app/turn/card","carries":"yui://first-conversation-replay for this window's preset → greetLocal when the session is empty, else the hint at once","kind":"bridge","transport":"shared","wiring":"src/app/turn/wire-first-conversation.ts"},
+    {"id":"first-conversation-utterance-end","from":"io/voice/tts","to":"app/turn/card","carries":"onUtteranceEnd(identity) through the voice handle's listeners; event_name greeting ends the wait","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"first-conversation-surfaces","from":"app/turn/card","to":"ui/surfaces","carries":"summonInput(), or hideSpeech() then summonInput(); the controls hint with speech actions Hear the controls and Hear what she can do → submitGuide(guide key, help request text)","kind":"call","transport":"shared","wiring":"src/app/turn/wire-first-conversation.ts"},
+    {"id":"session-reset-stop","from":"io/bridge/settings","to":"dispatcher/turn","carries":"yui://session-reset for this window's preset → stopTurn() before the greeting","kind":"bridge","transport":"shared","wiring":"src/app/turn/wire-greeting.ts"},
+    {"id":"overheard-backend","from":"io/chat/conversation","to":"dispatcher/backend","carries":"other presets' entries after the per-pair cursor; the cursor commits after a turn ends ok","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"relations-context","from":"settings","to":"dispatcher/backend","carries":"readRelationLines(store.all(), this window's preset, the registry list, the Relations switch) → ClientContext.relations, read per turn; none while the switch is off","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"open-characters-context","from":"settings","to":"dispatcher/backend","carries":"readOpenPresetEntries(this window's preset) names → ClientContext.open_characters, read per turn; none when no other preset is open","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"backend-stream","from":"dispatcher/backend","to":"io/chat/stream","carries":"stream(config, request, {apiKey, tools})","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"stream-http","from":"io/chat/stream","to":"backend-request","carries":"Responses or Chat Completions streaming request with the framed client_context block, user text, images, tools, and a per-turn `user` id on Chat Completions","kind":"http","transport":"request"},
+    {"id":"stream-events","from":"io/chat/stream","to":"dispatcher/backend","carries":"ChatStreamEvent: speech_delta, express, tool_status, reasoning, usage, completed","kind":"call","transport":"request"},
+    {"id":"backend-output","from":"dispatcher/backend","to":"dispatcher/turn","carries":"TurnOutput: interrupt, thinkingStart, thinkingEnd; on request also delta, cue, end, speak, abort","kind":"call","transport":"shared"},
+    {"id":"backend-feed","from":"dispatcher/backend","to":"dispatcher/turn","carries":"TurnFeed: toolStatus, reasoning, replied, ended","kind":"call","transport":"request"},
+    {"id":"settle-renderer","from":"dispatcher/backend","to":"renderer","carries":"applyDirective(envelope) when no cue was streamed with speech","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"backend-record","from":"dispatcher/backend","to":"io/chat/conversation","carries":"recordSentTurn: transcript entries, signal records, context history, response id; usage","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"backend-turn-record","from":"dispatcher/backend","to":"io/chat/record","carries":"appendRecord(turn record)","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"record-shell","from":"io/chat/record","to":"shell/logs","carries":"append_turn_record {line}","kind":"tauri-command","transport":"shared"},
+    {"id":"backend-push-send","from":"dispatcher/backend","to":"io/chat/push","carries":"pushTurn(PushTurnFrame {turn_id, client_context, text, images})","kind":"callback","transport":"push","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"backend-push-wait","from":"dispatcher/backend","to":"dispatcher/turn","carries":"pushTurns.opened, awaitTurnEnd, abandon","kind":"call","transport":"push"},
+    {"id":"push-ws","from":"io/chat/push","to":"backend-push","carries":"frames out: hello, turn, vocabulary, tools, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command","kind":"websocket","transport":"push"},
+    {"id":"push-ws-in","from":"backend-push","to":"io/chat/push","carries":"frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask {ask with multiple?, expires_at?}, ask_end, command_reply; ready.commands","kind":"websocket","transport":"push"},
+    {"id":"push-render","from":"io/chat/push","to":"dispatcher/turn","carries":"speech, render, turn_end, error → renderTurn.stream, render, close; pushTurns.ended","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-push.ts"},
+    {"id":"push-feed","from":"io/chat/push","to":"dispatcher/turn","carries":"tool_status, reasoning → TurnFeed.toolStatus, reasoning; a client-run tool's own running, done, failed by call id, and the backend's tool_status for it dropped","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-push.ts"},
+    {"id":"render-output","from":"dispatcher/turn","to":"io/voice/tts","carries":"render-turn → TurnOutput: releaseMute, cueWithSpeech, delta, silentCue, end","kind":"callback","transport":"push","wiring":"src/app/turn/voice/speak-turn.ts"},
+    {"id":"render-conversation","from":"dispatcher/turn","to":"io/chat/conversation","carries":"assistant transcript entry of a rendered reply, and what the turn said into its signal records","kind":"callback","transport":"push","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"render-last-emotion","from":"dispatcher/turn","to":"io/chat/last-emotion","carries":"recordBackendEmotion(emotion_id, now) for each played segment's merged cue that names one; a frame of a cut turn records none","kind":"call","transport":"push","wiring":"src/dispatcher/turn/render-turn.ts"},
+    {"id":"stream-last-emotion","from":"dispatcher/backend","to":"io/chat/last-emotion","carries":"recordBackendEmotion(emotion_id, now) for each express cue that names one; a stopped turn records none","kind":"call","transport":"request","wiring":"src/dispatcher/backend/stream-attempt.ts"},
+    {"id":"render-record","from":"dispatcher/turn","to":"io/chat/record","carries":"RenderRecord","kind":"callback","transport":"push","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"push-usage","from":"io/chat/push","to":"io/chat/conversation","carries":"turn_end usage → sessionDiagnostics.setUsage","kind":"callback","transport":"push","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"push-delegations","from":"io/chat/push","to":"io/bridge/delegations","carries":"delegations frame → delegationHistory.merge, delegations.replace","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-push.ts"},
+    {"id":"push-ask","from":"io/chat/push","to":"app/turn","carries":"ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → the Ask queue (put, remove); the queue's answer → sendAnswer {ask_id, choice?, choices?, text?}","kind":"callback","transport":"push","wiring":"src/app/turn/push/ask-session.ts"},
+    {"id":"surface-asks","from":"ui/surfaces","to":"ui/ask","carries":"setAsks → SlotCards.set: AskFrame on the Ask card, SettingsRequestFrame {request_id, name, changes, why?, expires_at?} on the Settings card; onAskAnswer → Answer or decision {request_id, allow, note?}","kind":"call","transport":"shared","wiring":"src/ui/surfaces/surfaces.ts"},
+    {"id":"previous-playback","from":"dispatcher/backend","to":"io/chat/push","carries":"previous-turn record that ended failed → sendPlayback({turn_id, ended})","kind":"callback","transport":"push","wiring":"src/app/turn/push/playback.ts"},
+    {"id":"output-speech","from":"dispatcher/turn","to":"io/voice/tts","carries":"TurnOutput implemented over speech playback: delta, cue, end, interrupt","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/speak-turn.ts"},
+    {"id":"output-filler","from":"dispatcher/turn","to":"io/voice/filler","carries":"thinkingStart → fillerLoop.start, thinkingEnd → stop, toolStatus → onToolRunning","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/speak-turn.ts"},
+    {"id":"filler-speech","from":"io/voice/filler","to":"io/voice/tts","carries":"speechPlayback.speakAside(text)","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"catalog-http","from":"shell/mcp-host","to":"plugin-catalog","carries":"GET catalog.json, plugin.json, release zips and checksums.txt","kind":"http","transport":"shared"},
+    {"id":"tts-http","from":"io/voice/tts","to":"tts-service","carries":"POST {tts_base_url}/v1/audio/speech or /v1/tts per sentence, audio back","kind":"http","transport":"shared"},
+    {"id":"speech-bubble","from":"io/voice/tts","to":"ui/surfaces","carries":"beginSpeech, pushSpeech, endSpeech, finishSpeech","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"surfaces-bubble","from":"ui/surfaces","to":"ui/message","carries":"speech bubble text, user quote, signal source lines, reasoning disclosure","kind":"call","transport":"shared"},
+    {"id":"speech-renderer","from":"io/voice/tts","to":"renderer","carries":"applyDirective at each sentence start; setMouthOpen by amplitude; stopMouth and easeEmotionToNeutral at playback end","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"renderer-expression","from":"renderer","to":"renderer/expression","carries":"setEmotion, setMouthOpen, stopMouth, easeEmotionToNeutral, gaze","kind":"call","transport":"shared"},
+    {"id":"renderer-motion","from":"renderer","to":"renderer/motion","carries":"playMotion, setIdleVariants, setBodyYaw, grounding participant (reads perchOffsetY)","kind":"call","transport":"shared"},
+    {"id":"speech-ledger","from":"io/voice/tts","to":"dispatcher/turn","carries":"reportAudioOwed → turnLog.setAudioOwed","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"synth-failure","from":"io/voice/tts","to":"app/turn","carries":"onSynthFailure(tracked, error) when a sentence's synthesis fails (not a skip) → the filler's onSynthFailure; a TtsUnreachableError reports the unreachable reach, others the synth failure listeners","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"synth-failure-notice","from":"app/turn","to":"ui/surfaces","carries":"showSpeechActions([\"Can't speak with this voice · Choose another\"]) when a reply with a failed sentence ends (onUtteranceEnd)","kind":"call","transport":"shared","wiring":"src/app/turn/voice/wire-synth-failure-notice.ts"},
+    {"id":"synth-failure-action","from":"ui/surfaces","to":"app/turn","carries":"the notice's action clicked → hideSpeech(), then openSettings(\"voice\")","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-synth-failure-notice.ts"},
+    {"id":"synth-failure-open","from":"app/turn","to":"io/window/openers","carries":"openSettings(\"voice\"): the Voice page of the settings window","kind":"call","transport":"shared","wiring":"src/app/turn/voice/wire-synth-failure-notice.ts"},
+    {"id":"voice-list-retry","from":"io/voice/tts","to":"io/voice/voices","carries":"refreshVoiceList() → VoiceListOutcome when a synth finds no resolved voice and a TTS URL is set; callers share one request","kind":"call","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"tts-reach","from":"io/voice/tts","to":"app/turn","carries":"onTtsReach(\"ok\" | \"unreachable\"): a voice list retry's outcome, a network synth that resolves or throws TtsUnreachableError, and reconnectTts()'s check","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"tts-reconnect-check","from":"app/turn","to":"io/voice/voices","carries":"reconnectTts() → the voice list retry in flight, else checkTtsServer() → ServerCheck or null; false only for unreachable or timeout","kind":"call","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"tts-unreachable-notice","from":"app/turn","to":"ui/surfaces","carries":"showSpeechActions([\"Voice server not connected · Reconnect\"]) when a reply ends after an unreachable reach","kind":"call","transport":"shared","wiring":"src/app/turn/voice/wire-tts-unreachable-notice.ts"},
+    {"id":"tts-unreachable-action","from":"ui/surfaces","to":"app/turn","carries":"the notice's action clicked → showSpeechActions([Connecting…, busy]) and reconnectTts(); reached → showSpeechActions([]), else the action again; nothing when new speech started during the check","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-tts-unreachable-notice.ts"},
+    {"id":"tts-server-check","from":"io/voice/voices","to":"io/chat/models","carries":"checkServer({tts_base_url}/v1) for a provider whose voice list is built in → ServerCheck; any other provider answers with its voice list refresh","kind":"call","transport":"shared"},
+    {"id":"server-check-http","from":"io/chat/models","to":"tts-service","carries":"GET {tts_base_url}/v1/models: any answer, a 404 or an unparsed body included, counts as reachable","kind":"http","transport":"shared"},
+    {"id":"speech-previous","from":"io/voice/tts","to":"dispatcher/backend","carries":"onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn, then the voice handle's listeners","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"chip-column-chips","from":"ui/chips","to":"ui/surfaces","carries":"signal chips' row roots with data-chip-count and data-chip-urgent; delegation chip root with data-chip-count → the chip column's plan, which caps rows with is-capped","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"chip-column-threads","from":"ui/threads","to":"ui/surfaces","carries":"the Threads chip's root with data-chip-count → the chip column's plan; slotRect lifts is-capped for its one read","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"chip-column-bubble","from":"ui/message","to":"ui/surfaces","carries":"the bubble's is-visible, hidden and style, and its box → the chip column ends 8px above it while it shows and has not stepped aside","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"slot-settings-request","from":"ui/ask","to":"ui/settings-request","carries":"SettingsRequestCard.set(the SettingsRequestFrame head, or undefined while the head is an Ask or the queue is empty); onDecision {request_id, allow, note?}","kind":"call","transport":"shared","wiring":"src/ui/ask/slot-cards.ts"},
+    {"id":"chip-column-ask","from":"ui/ask","to":"ui/surfaces","carries":"the shown card's hidden and its box, the Ask card or the Settings request card → the chip column ends 8px above it while it shows","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"chip-column-menu","from":"app/character-menu","to":"ui/surfaces","carries":"data-menu-open on the UI layer, set while the menu shows and removed when it ends → surfaces.css fades the chip column out over 140 ms and the overlay hit targets drop its chips","kind":"callback","transport":"shared","wiring":"src/app/character-menu/pet-menu-opener.ts"},
+    {"id":"feed-tool","from":"ui/surfaces","to":"ui/chips","carries":"showTool(toolId, action), finishTool, hideTool → status pill","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"feed-surfaces","from":"dispatcher/turn","to":"ui/surfaces","carries":"TurnFeed.onToolStatus {state, tool_id} → showTool, finishTool, hideTool","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"feed-reasoning","from":"dispatcher/turn","to":"io/bridge/reasoning","carries":"TurnFeed: append, finish, interrupt","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"reasoning-bubble","from":"io/bridge/reasoning","to":"ui/message","carries":"ReasoningState {text, live} → reasoning disclosure","kind":"call","transport":"shared"},
+    {"id":"vocabulary-derive","from":"config","to":"io/chat/vocabulary","carries":"deriveExpressVocabulary(config, emotion_text table, express-motion selection)","kind":"callback","transport":"shared","wiring":"src/app/turn/vocabulary/wire-vocabulary.ts"},
+    {"id":"vocabulary-settings","from":"settings","to":"io/chat/vocabulary","carries":"expressMotionSettings change → announce","kind":"callback","transport":"shared","wiring":"src/app/turn/vocabulary/wire-vocabulary.ts"},
+    {"id":"vocabulary-tools","from":"io/chat/vocabulary","to":"io/chat/tools","carries":"createClientTools(vocabulary, windowTools) per turn","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"tools-backend","from":"io/chat/tools","to":"dispatcher/backend","carries":"declared tool schemas of the turn; the yui_run description lists the enabled plugin tools and skills, read per turn","kind":"callback","transport":"request","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"tool-switches-backend","from":"io/chat/tools","to":"dispatcher/backend","carries":"switch states of the declared tools, read per turn","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"vocabulary-push","from":"io/chat/vocabulary","to":"io/chat/push","carries":"hello.vocabulary; sendVocabulary on each announce","kind":"callback","transport":"push","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"tools-push","from":"io/chat/tools","to":"io/chat/push","carries":"hello.tools, and a tools frame when the declared tools change: rate_relation, address_character, yui_run (under Tauri), body_action (in main)","kind":"callback","transport":"push","wiring":"src/app/turn/push/push-stores.ts"},
+    {"id":"stream-tools","from":"io/chat/stream","to":"io/chat/tools","carries":"runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action; tool_status running per yui_run namespace","kind":"call","transport":"request"},
+    {"id":"push-tools","from":"io/chat/push","to":"io/chat/tools","carries":"tool_call frame → executeClientTool(tool, args, signal aborted on cut, socket loss, reset or disposal, call id, frame turn_id) → tool_result frame; onStatus running per localStatus namespace","kind":"call","transport":"push"},
+    {"id":"tools-executor","from":"io/chat/tools","to":"io/bridge/inbox","carries":"body_action → executor.command(args); yui.look.body, perch_targets → executor.state(), perchTargets()","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"tools-capture","from":"io/chat/tools","to":"io/window/capture","carries":"yui.look.screen → capturer.captureAt(point)","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"ask-queue-surfaces","from":"app/turn","to":"ui/surfaces","carries":"setAsks(the queue's AskFrame and SettingsRequestFrame, oldest first) → the Ask slot; onAskAnswer → Answer by ask_id → sendAnswer, or decision {request_id, allow, note?} for a Settings request head","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"settings-agent-access","from":"settings","to":"io/chat/tools","carries":"yui.settings.read: the exposed rows read as one document; yui.settings.write: a JSON merge patch applied to the rows, direct rows written at once and allow rows written only after the user's Allow","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"tools-ask-queue","from":"io/chat/tools","to":"app/turn","carries":"yui.settings.write's allow paths → one Settings request → the Ask queue (put, remove); decision → ok / denied: <note> per path; no answer after 60 s once shown, or when the turn stops","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"tools-shell-screenshot","from":"io/chat/tools","to":"shell/screenshot","carries":"screen_recording_permission → yui.state permissions.screen_recording","kind":"tauri-command","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"tools-shell-core","from":"io/chat/tools","to":"shell/core","carries":"app_started_at → yui.state running_since","kind":"tauri-command","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"yui-run-vrm","from":"io/assets","to":"io/chat/tools","carries":"VRM selection list and active id → yui.info bodies and the body row's value; swapVrm → the body row's write","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"yui-run-speaker","from":"io/voice/voices","to":"io/chat/tools","carries":"speaker selection list and active id → yui.info voices and the voice row's value; swapSpeaker → the voice row's write","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"yui-run-monitors","from":"io/window/capture","to":"io/chat/tools","carries":"createTauriScreenSourceProvider monitors → yui.info monitors","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"yui-run-presets","from":"settings","to":"io/chat/tools","carries":"readPresetList and readOpenPresetIds → yui.state characters, each with its open and me flags","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-yui-run.ts"},
+    {"id":"idle-tick-presence","from":"dispatcher/sources/idle-tick","to":"settings","carries":"lastTogether.record(ts) on each present tick, written to yui.last-together at most once a minute","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"settings-relation-targets","from":"settings","to":"io/chat/tools","carries":"yui.presets names and the open presets (active and yui.windows) → the name lookup of rate_relation and address_character when a call runs, without this window's preset","kind":"storage","transport":"shared","wiring":"src/app/relations/wire-relations.ts"},
+    {"id":"relations-tool","from":"io/chat/tools","to":"settings","carries":"rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and range clamp; with Relations off → error: relations are off","kind":"call","transport":"shared","wiring":"src/app/relations/wire-relations.ts"},
+    {"id":"capture-shell","from":"io/window/capture","to":"shell/screenshot","carries":"list_screen_sources, capture_screen, capture_screen_at","kind":"tauri-command","transport":"shared"},
+    {"id":"tools-mcp-host","from":"io/chat/tools","to":"io/mcp-host","carries":"snapshot() for yui.plugins.list, describe and the yui_run description; plugin_host_call {callId, name, arguments, presetId}; plugin_host_cancel {callId}; plugin_host_skill {name}","kind":"callback","transport":"shared","wiring":"src/io/chat/tools/pet-window-tools.ts"},
+    {"id":"settings-mcp-host","from":"ui/quick-controls","to":"io/mcp-host","carries":"snapshot() and subscribe() for the Plugins page; catalog, install, remove, enable, disable, addLocal, retry, logTail, revealLog","kind":"callback","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"mcp-host-shell","from":"io/mcp-host","to":"shell/mcp-host","carries":"plugin_host_{call, cancel, skill, snapshot, catalog, install, remove, enable, disable, add_local, retry, log_tail, reveal_log}","kind":"tauri-command","transport":"shared"},
+    {"id":"shell-mcp-host","from":"shell/mcp-host","to":"io/mcp-host","carries":"plugin-host-snapshot: the revisioned snapshot on every change","kind":"tauri-event","transport":"shared"},
+    {"id":"mcp-host-push","from":"io/mcp-host","to":"io/chat/push","carries":"snapshot subscribe → sendTools(), wired in bootstrap-configured.ts","kind":"callback","transport":"push","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"threads-tools","from":"io/threads","to":"io/chat/tools","carries":"snapshot(): the Thread list yui.threads.list and search read when a call runs; null outside main's window","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"threads-waiting-context","from":"io/threads","to":"dispatcher/backend","carries":"threadsWaiting(snapshot.threads) → ClientContext.threads_waiting, read per turn on user-started turns; absent at zero waiting","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"push-image","from":"io/chat/push","to":"io/image","carries":"fitTurnImages → JPEG re-encode of turn and tool-result images","kind":"call","transport":"push"},
+    {"id":"input-image","from":"ui/input","to":"io/image","carries":"JPEG re-encode of composer attachments","kind":"call","transport":"shared"},
+    {"id":"agent-hooks-threads","from":"agent-hooks","to":"shell/agent-ingress","carries":"PUT /threads/<id> {source, title, label, state, entries}; the SessionStart probe GET /threads/yui-notify-probe, whose 405 means the listener is up","kind":"http","transport":"shared"},
+    {"id":"signals-ingress","from":"signal-producers","to":"shell/agent-ingress","carries":"POST /signals {signals, envelope {delivery: urgent|batched, event_id, label?}}, or the same path under /presets/<id>/; a missing envelope or an item over 16 KiB refuses the request","kind":"http","transport":"shared"},
+    {"id":"relations-ingress","from":"signal-producers","to":"shell/agent-ingress","carries":"GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, 400 outside ranges or for an unknown key; JSON answer; /presets/<id>/ answered by that window","kind":"http","transport":"shared"},
+    {"id":"avatar-ingress","from":"signal-producers","to":"shell/agent-ingress","carries":"GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window","kind":"http","transport":"shared"},
+    {"id":"ingress-inbox","from":"shell/agent-ingress","to":"io/bridge/inbox","carries":"targeted emit_to per window: bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim, server ts), avatar-rpc (avatar and relations routes), ingress-dead","kind":"tauri-event","transport":"shared"},
+    {"id":"plugin-signals-notification","from":"plugin-mcp-server","to":"shell/mcp-host","carries":"notifications/io.github.yw0nam.yui/signals {signals, envelope}","kind":"stdio","transport":"shared"},
+    {"id":"mcp-host-plugin-server","from":"shell/mcp-host","to":"plugin-mcp-server","carries":"tools/list at start, tools/call with the io.github.yw0nam.yui/preset _meta, notifications/cancelled","kind":"stdio","transport":"shared"},
+    {"id":"mcp-host-signals-inbox","from":"shell/mcp-host","to":"io/bridge/inbox","carries":"signals-inbox to main (plugin set): the payload agent_ingress emits, stamped with the sending plugin's id","kind":"tauri-event","transport":"shared"},
+    {"id":"inbox-rpc-response","from":"io/bridge/inbox","to":"shell/agent-ingress","carries":"avatar_rpc_response {id, result} for state, perch_targets, command, relations_get and relations_put; accepted only from the window the request was emitted to","kind":"tauri-command","transport":"shared"},
+    {"id":"relations-rpc","from":"io/bridge/inbox","to":"settings","carries":"relations_get → store.all(); relations_put → store.replace(body) → the stored body","kind":"call","transport":"shared","wiring":"src/app/relations/wire-relations.ts"},
+    {"id":"relations-ui","from":"settings","to":"ui/quick-controls","carries":"this preset's store.all() and subscribe, re-rendered with motion on a write, and again on a cross-window reload of the store","kind":"callback","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"relations-set","from":"ui/quick-controls","to":"settings","carries":"the Relations section's slider → store.set(target, value, \"set by the user\", now): range clamps, no daily cap; preset header, pet window and next turn read the value","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/quick-controls.ts"},
+    {"id":"ingress-start","from":"settings","to":"shell/agent-ingress","carries":"start_agent_ingress {port} at boot when External signals is on; main only, a bound window starts no ingress","kind":"tauri-command","transport":"shared","wiring":"src/app/stage/wire-window-sources.ts"},
+    {"id":"preset-ids-sync","from":"settings","to":"shell/agent-ingress","carries":"sync_preset_ids {ids}: the registry's preset ids, so a prefixed route tells a closed window (503) from an unknown id (404); main only, a bound window is refused","kind":"tauri-command","transport":"shared","wiring":"src/app/pet-windows/wire-preset-ids-sync.ts"},
+    {"id":"inbox-sources","from":"io/bridge/inbox","to":"dispatcher/sources/inbox","carries":"onSignals(SignalsPayload)","kind":"call","transport":"shared"},
+    {"id":"inbox-notice","from":"io/bridge/inbox","to":"ui/notices","carries":"onIngressDead({port}) → speech-bubble notice","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"executor-perch","from":"io/bridge/inbox","to":"dispatcher/sources/gesture","carries":"perch.placeOn, perch.release, perch.perchTargets","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-window-sources.ts"},
+    {"id":"executor-locomotion","from":"io/bridge/inbox","to":"ambient/locomotion","carries":"noteAgentMove() cancels the movers and, once the holds let go and any travel unparked, runs the holders' onMoverTakesOver; onRelocated() → faller.drop","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"executor-posture","from":"io/bridge/inbox","to":"dispatcher","carries":"noteAvatarMoved(); reads getPosture()","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"os-event","from":"shell/os-event-watcher","to":"io/window/os-events","carries":"os_event {event_name: \"os_idle_tick\", ts, data: {os_idle_ms, frontmost_app, frontmost_title}} every 5 s","kind":"tauri-event","transport":"shared"},
+    {"id":"os-idle-tick","from":"io/window/os-events","to":"dispatcher/sources/idle-tick","carries":"subscribeOsEvent: idle and frontmost samples","kind":"call","transport":"shared"},
+    {"id":"os-presence","from":"io/window/os-events","to":"dispatcher/sources/inbox","carries":"subscribeOsEvent: presence for buffered delivery","kind":"call","transport":"shared"},
+    {"id":"os-reaction-presence","from":"io/window/os-events","to":"io/presence","carries":"subscribeOsEvent: presence for the Thread reactions","kind":"call","transport":"shared"},
+    {"id":"drop-release-pet","from":"shell/os-event-watcher","to":"io/window/pet","carries":"window_drop_release: the dragged window's label, heard by every window","kind":"tauri-event","transport":"shared"},
+    {"id":"drop-release-source","from":"shell/os-event-watcher","to":"dispatcher/sources/gesture","carries":"window_drop_release: the dragged window's label; the Threads window's release settles nothing in a pet window","kind":"tauri-event","transport":"shared","wiring":"src/app/stage/wire-window-sources.ts"},
+    {"id":"threads-window-label","from":"dispatcher/sources/gesture","to":"io/window/openers","carries":"THREADS_WINDOW_LABEL: the window whose drag settles in its own window and never perches the character","kind":"call","transport":"shared"},
+    {"id":"gesture-list-windows","from":"dispatcher/sources/gesture","to":"shell/os-event-watcher","carries":"list_windows → WindowAtPoint[]","kind":"tauri-command","transport":"shared"},
+    {"id":"gesture-window-bounds","from":"dispatcher/sources/gesture","to":"shell/os-event-watcher","carries":"window_bounds(windowNumber) → WindowAtPoint | null","kind":"tauri-command","transport":"shared","wiring":"src/app/stage/wire-window-sources.ts"},
+    {"id":"threads-reaction-snapshot","from":"io/threads","to":"ambient/threads-reaction","carries":"subscribe and snapshot(): each Threads snapshot, the first one as the baseline","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-list-windows","from":"ambient/threads-reaction","to":"shell/os-event-watcher","carries":"list_windows → WindowRect[], with the Threads window flagged threadsWindow","kind":"tauri-command","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-openers","from":"ambient/threads-reaction","to":"io/window/openers","carries":"isOpen(); present(chip?, {thread?}) → presented or closed","kind":"call","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-speech","from":"ambient/threads-reaction","to":"io/voice/tts","carries":"speakAsideAndWait(line) → spoken or cut; the line is drawn from the threads_open or threads_raise filler pool","kind":"call","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-executor","from":"ambient/threads-reaction","to":"io/bridge/inbox","carries":"isBusy(); command sit_on_window with app YUI, ok or failure","kind":"call","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-renderer","from":"ambient/threads-reaction","to":"renderer","carries":"setEmotion (always curious); easeEmotionToNeutral after touch_emotion_hold_ms; land() after a sit, unless reduced motion","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-reaction-turn","from":"ambient/threads-reaction","to":"dispatcher/sources/inbox","carries":"hold, fireHeld, release on thread:<id>: held per snapshot Thread while the switch is on; fired together once she sits with the expression set; tap fire carries dnd_override","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"threads-reaction-pipeline","from":"dispatcher","to":"ambient/threads-reaction","carries":"isPipelineBusy() read when a reaction is due; a waiting reaction checks again each second","kind":"call","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"reaction-presence","from":"io/presence","to":"ambient/threads-reaction","carries":"isPresent(): the last idle tick against the away threshold; a count or wait reaction waits for it, a tap does not","kind":"call","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"threads-chip-tap","from":"app/threads-chip","to":"app/threads-reaction","carries":"each Threads-chip tap, after the chip's open: the reaction starts from the tap with no line","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"settings-reaction-thresholds","from":"settings","to":"ambient/threads-reaction","carries":"threadReactionThresholdsSettings: the yui.thread-reaction-thresholds count and wait, subscribed to for a recheck","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"settings-reaction-presence","from":"settings","to":"io/presence","carries":"presenceSettings.value: the away threshold in ms, read on each check","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"locomotion-list-windows","from":"ambient/locomotion","to":"shell/os-event-watcher","carries":"list_windows → WindowAtPoint[]","kind":"tauri-command","transport":"shared"},
+    {"id":"settings-thread-reactions","from":"settings","to":"ambient/threads-reaction","carries":"threadReactionsSettings: the yui.thread-reactions switch, read on each check and subscribed to","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"settings-idle-tick","from":"settings","to":"dispatcher/sources/idle-tick","carries":"cue lists, presence threshold, and screen-watch thresholds","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"settings-inbox","from":"settings","to":"dispatcher/sources/inbox","carries":"agentNotifySettings.enabled","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"settings-thread-turns","from":"settings","to":"dispatcher/sources/threads","carries":"threadTurnsSettings.level (yui.thread-turns), read per snapshot","kind":"callback","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"thread-turns-snapshot","from":"io/threads","to":"dispatcher/sources/threads","carries":"snapshot() once as the baseline, then every snapshot; main only","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-thread-turns.ts"},
+    {"id":"thread-turns-offer","from":"dispatcher/sources/threads","to":"dispatcher/sources/inbox","carries":"offer(group): one batched thread.input_required, thread.failed or thread.entry group per Thread, event_id thread:<id>","kind":"call","transport":"shared","wiring":"src/app/turn/wire-thread-turns.ts"},
+    {"id":"thread-turns-withdraw","from":"dispatcher/sources/threads","to":"dispatcher/sources/inbox","carries":"withdraw(thread:<id>, thread.input_required) for each Thread that left input-required or is gone","kind":"call","transport":"shared","wiring":"src/app/turn/wire-thread-turns.ts"},
+    {"id":"idle-tick-bus","from":"dispatcher/sources/idle-tick","to":"dispatcher/core","carries":"bus.push: proactive.<cue>, schedule.<cue>, time_milestone.first_activity (payload last_together: yui.last-together snapshot, or null), proactive.screen_app_switched, proactive.screen_long_session","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"inbox-bus","from":"dispatcher/sources/inbox","to":"dispatcher/core","carries":"bus.push: signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"gesture-bus","from":"dispatcher/sources/gesture","to":"dispatcher/core","carries":"bus.push: user.{tap, tap_region, pat_*, window_sit_drop, peek_drop, window_sit_exit, peek_exit}, proactive.{touch_<region>, head_pat, drag_held, window_sit, peek}","kind":"call","transport":"shared","wiring":"src/app/stage/wire-gestures.ts"},
+    {"id":"settings-dnd-gate","from":"app/active-hours","to":"dispatcher","carries":"isDndOn: the pet window's do-not-disturb, read per envelope; a held self-fired envelope is dropped with reason dnd, queued ones too when it turns on","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"settings-dnd-inbox","from":"app/active-hours","to":"dispatcher/sources/inbox","carries":"dnd as a hold in composePacedPipelineBusy for both inbox instances: busy while on, so its end flushes the catch-up","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"settings-dnd-reaction","from":"app/active-hours","to":"ambient/threads-reaction","carries":"isDndOn: the pet window's do-not-disturb, read when a count or wait reaction is due, mid-run and when it stops; a tap does not read it","kind":"callback","transport":"shared","wiring":"src/app/threads-reaction/wire-thread-reactions.ts"},
+    {"id":"settings-dnd-pill","from":"app/active-hours","to":"ui/chips","carries":"dnd get and subscribe → the status pill's moon segment while on","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"signals-drain-gesture","from":"dispatcher/sources/inbox","to":"dispatcher/sources/gesture","carries":"drainSignals(): the buffered signal groups for a spam-count tap turn; none while do-not-disturb is on","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"tray-dnd","from":"shell/tray","to":"app/dnd","carries":"tray-dnd (boolean): the Do Not Disturb item's new checked state, sent to the main window, which writes the store","kind":"tauri-event","transport":"shared","wiring":"src/app/dnd/wire-tray-dnd.ts"},
+    {"id":"set-tray-dnd","from":"app/dnd","to":"shell/tray","carries":"set_tray_dnd {on}: the check follows the store on start and on each change; a failed call is logged","kind":"tauri-command","transport":"shared","wiring":"src/app/dnd/wire-tray-dnd.ts"},
+    {"id":"settings-dnd-root","from":"app/active-hours","to":"ui/chips","carries":"the pet window's do-not-disturb → data-yui-dnd on its own root, which stops the urgent signal chip's dot pulse","kind":"callback","transport":"shared","wiring":"src/app/dnd/wire-dnd-root.ts"},
+    {"id":"settings-dnd-threads-chip","from":"app/active-hours","to":"ui/threads","carries":"isDndOn: the pet window's do-not-disturb, read when a Thread arrives; an arrival during it does not wiggle the Threads chip","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"signals-drain","from":"dispatcher/sources/inbox","to":"dispatcher/sources/idle-tick","carries":"signalsSource.drain(): signal groups that ride the milestone envelope","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"drop-restore","from":"dispatcher","to":"dispatcher/sources/inbox","carries":"onTurnDropped(env) → restore","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"drop-restore-schedule","from":"dispatcher","to":"dispatcher/sources/idle-tick","carries":"onTurnDropped(env, reason) → restore (a fire held by the gap or do-not-disturb)","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"bus-drop-restore","from":"dispatcher/core","to":"dispatcher/sources/inbox","carries":"onDrop(env) of a refused push → restore","kind":"call","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"pacer-inbox","from":"dispatcher/core","to":"dispatcher/sources/inbox","carries":"composePacedPipelineBusy: proactive gap and dispatcher busy hold delivery","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"pacer-schedule-hold","from":"dispatcher/core","to":"dispatcher/sources/idle-tick","carries":"pacer.isHolding as the schedule source's hold (isHeld), beside do-not-disturb: a cue due inside the gap is not latched and fires on the first tick after it opens, inside its window","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"busy-inbox-urgent","from":"dispatcher/core","to":"dispatcher/sources/inbox","carries":"raw dispatcher busy state for the urgent inbox instance (no pacer)","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"screen-skip-record","from":"dispatcher/sources/idle-tick","to":"io/chat/record","carries":"skip record of a screen fire the pacer held","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"pet-gestures","from":"io/window/pet","to":"dispatcher/sources/gesture","carries":"onClick(pos), pat start and end, drag start and end → tap source, drag-hold source","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-gestures.ts"},
+    {"id":"pet-drag-bus","from":"io/window/pet","to":"dispatcher/core","carries":"bus.push: user.drag_start, user.drag_end","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-gestures.ts"},
+    {"id":"dispatcher-tier1","from":"dispatcher","to":"dispatcher/tier1","carries":"tier1.render(env)","kind":"call","transport":"shared"},
+    {"id":"tier1-renderer","from":"dispatcher/tier1","to":"renderer","carries":"applyDirective(ControlEnvelope), setPerchTarget, setPeekTarget, setMotionMirror, easeEmotionToNeutral, getCurrentMotion","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"tier1-peek","from":"dispatcher/tier1","to":"io/window/pet","carries":"peek.enter(), peek.exit()","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"tap-renderer","from":"renderer/geometry","to":"dispatcher/sources/gesture","carries":"getTapPoints(), getPerchProbe(), getCurrentMotion()","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-gestures.ts"},
+    {"id":"liveliness-renderer","from":"ambient/liveliness","to":"renderer","carries":"onTick: head, spine, and chest rotation, blink","kind":"callback","transport":"shared","wiring":"src/app/stage/stage-renderer.ts"},
+    {"id":"locomotion-renderer","from":"ambient/locomotion","to":"renderer/motion","carries":"playMotion, preloadMotion, setBodyYaw; reads anchors and motion time","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"locomotion-frame","from":"ambient/locomotion","to":"io/window/geometry","carries":"travel frame: setPosition, setViewWindow, keep-on-screen pause","kind":"call","transport":"shared"},
+    {"id":"frame-shell","from":"ambient/locomotion","to":"shell/window","carries":"set_frame_logical {x, y, width, height} for the travel frame","kind":"tauri-command","transport":"shared","wiring":"src/ambient/locomotion/travel/wire-travel-frame.ts"},
+    {"id":"locomotion-bus","from":"ambient/locomotion","to":"dispatcher/core","carries":"bus.push: avatar.{walk_start, walk_end, climb_start, climb_end, jump, window_sit}, user.fall_land, proactive.dropped (not for a self-started fall while do-not-disturb is on)","kind":"call","transport":"shared"},
+    {"id":"settings-dnd-fall","from":"app/active-hours","to":"ambient/locomotion","carries":"isDndOn: the pet window's do-not-disturb, read when a fall's dropped cue is due; a fall she started herself then pushes no dropped cue, a drag-release fall still does","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"locomotion-hit-test","from":"ambient/locomotion","to":"io/window/pet","carries":"hitTest.setMoving(bool)","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"drop-fall","from":"dispatcher/sources/gesture","to":"ambient/locomotion","carries":"onDropped → the holders' onMoverTakesOver before the dragged window's drop settles, onDragMiss → faller.drop({ byUser: true }), onSitLost → faller.drop","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"locomotion-perch","from":"ambient/locomotion","to":"dispatcher/sources/gesture","carries":"adoptSit, armedSit, suspendSit, resumeSit, abandonSit, release","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-window-sources.ts"},
+    {"id":"dispatcher-walk","from":"dispatcher","to":"ambient/locomotion","carries":"subscribeBusy and isReflexTurn cancel a stroll; isPipelineBusy gates the movers","kind":"call","transport":"shared","wiring":"src/app/stage/wire-locomotion.ts"},
+    {"id":"character-menu-frame-shell","from":"app/character-menu-window","to":"shell/window","carries":"set_frame_logical {x, y, width, height}: the Character menu window's frame, set beside her before the menu shows","kind":"tauri-command","transport":"shared","wiring":"src/windows/character-menu-main.ts"},
+    {"id":"character-menu-click-through-shell","from":"io/window/pet","to":"shell/window","carries":"set_click_through {ignore} from the Character menu window's hit-test controller, which polls the cursor and runs while the menu shows","kind":"tauri-command","transport":"shared","wiring":"src/windows/character-menu-main.ts"},
+    {"id":"pet-drag-shell","from":"io/window/pet","to":"shell/window","carries":"drag_window, set_click_through {ignore}","kind":"tauri-command","transport":"shared"},
+    {"id":"hit-test-renderer","from":"renderer/geometry","to":"io/window/pet","carries":"renderer.hitTest(point) → click-through decision","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-stage.ts"},
+    {"id":"cursor-gaze","from":"io/window/pet","to":"renderer/expression","carries":"setGazeCursor(pos)","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-stage.ts"},
+    {"id":"tray-pet","from":"shell/tray","to":"io/window/pet","carries":"tray_toggle → peek exit; the summon hotkey from the same wiring registers in main only","kind":"tauri-event","transport":"shared","wiring":"src/app/stage/wire-summon.ts"},
+    {"id":"tray-message","from":"shell/tray","to":"io/window/openers","carries":"tray_toggle → hide or reopen main's message window","kind":"tauri-event","transport":"shared"},
+    {"id":"tray-terminal","from":"shell/tray","to":"io/terminal","carries":"terminal-open: no payload, on the tray's Terminal item; main's window then opens the Threads window on the Terminal tab","kind":"tauri-event","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"window-geometry","from":"app/stage","to":"settings","carries":"yui.window.<label> {x,y,width,height}: written after the OS drag ends and after a Ctrl+wheel resize; applied once at boot, clamped on screen, before the faller places the window","kind":"storage","transport":"shared","wiring":"src/app/stage/wire-window-geometry.ts"},
+    {"id":"settings-edit-target","from":"ui/quick-controls","to":"app/settings-window","carries":"the preset id picked in the preset header's character row → settings.html with `?edit=<id>`; the window rebuilds over that preset's stores and bridge stamp; main and pet windows untouched","kind":"callback","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"settings-open-windows","from":"windows","to":"io/window/openers","carries":"openSettings(page?, focus?) → settings.html with `?preset=<id>`, `&page=<page>`, `&focus=chat_key`; an open one is shown, focused and asked for page and focus","kind":"call","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"settings-open-bootstrap","from":"app/bootstrap","to":"io/window/openers","carries":"openSettings(\"conn\"): a failed turn's Connect and the first-run hint's action; openSettings(\"conn\", \"chat_key\"): a failed turn's Change key and Check connection (key field showing)","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"user-character-menu","from":"user","to":"ui/character-menu","carries":"a right-click on her opens the menu; a pill pick, ↑ ↓ ← →, Home, End, Tab, Enter or Space; Esc cancels a confirm, goes back or closes; a click outside it or in another app closes it","kind":"user","transport":"shared"},
+    {"id":"character-menu-channel-open","from":"app/character-menu","to":"app/character-menu-window","carries":"yui://character-menu open {id, kind, name, state, frame, workArea, head, nameTop, chest, hitTest}; state {id, state} refreshes it; close {id} hides it","kind":"bridge","transport":"shared","wiring":"src/app/character-menu/wire-character-menu-window.ts"},
+    {"id":"character-menu-channel-picks","from":"app/character-menu-window","to":"app/character-menu","carries":"yui://character-menu shown {id} once the menu is up; action {id, action, value} for each pick, which the pet window runs on her ports; closed {id, refocus} once the window is hidden","kind":"bridge","transport":"shared","wiring":"src/app/character-menu/wire-character-menu.ts"},
+    {"id":"character-menu-stores","from":"app/character-menu","to":"settings","carries":"Rest flips yui.dnd; Pace sets the base pace (low, normal, high); Keep bubble and Unified chat flip their store rows; confirmed Turn off → petWindows.close(id); Settings and More… → openSettings(page)","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-vrm","from":"io/assets","to":"app/character-menu","carries":"vrmSelection list and active id → the Body list; a pick → swapVrm(option)","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-voice","from":"io/voice/voices","to":"app/character-menu","carries":"speakerSelection list and active id → the Voice list; a pick → swapSpeaker(option)","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-listen","from":"ui/chips","to":"app/character-menu","carries":"main only: voiceInputStatus get and set(listening or idle) → Listen","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-talk","from":"app/character-menu","to":"ui/surfaces","carries":"Talk → summonInput once the menu has closed, or dismissInput while the input is open; isInputOpen marks Talk ON","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-reset","from":"app/character-menu","to":"io/chat/conversation","carries":"Reset chat, once confirmed → resetConversation: the turn stopped, the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-threads","from":"app/character-menu","to":"io/window/openers","carries":"main: Threads or Terminal → threadsWindow.open(undefined, tab) once the menu window is hidden; the Threads pill's count is main's waiting Threads","kind":"call","transport":"shared","wiring":"src/app/character-menu/character-menu-ports.ts"},
+    {"id":"character-menu-threads-request","from":"app/character-menu","to":"app/threads-chip","carries":"yui://threads-open-request {tab: \"threads\" | \"terminal\"}: a bound pet window's Threads or Terminal pick; main opens the Threads window","kind":"bridge","transport":"shared","wiring":"src/app/threads-chip/wire-threads-open-requests.ts"},
+    {"id":"character-menu-hold","from":"app/character-menu","to":"app/stage","carries":"hold(\"menu\", true, onAbort) cancels loops and keeps a stroll, climb or perch walk from starting; abortTravel(); hold(\"menu\", false) on close; onAbort closes an open menu","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"threads-shell-event","from":"shell/threads","to":"io/threads","carries":"threads-snapshot {revision, threads}: every change; the client keeps the highest revision","kind":"tauri-event","transport":"shared"},
+    {"id":"threads-shell-command","from":"io/threads","to":"shell/threads","carries":"threads_snapshot once after the listen; thread_read {id}","kind":"tauri-command","transport":"shared"},
+    {"id":"terminal-shell-command","from":"io/terminal","to":"shell/terminal","carries":"terminal_{snapshot, open {cwd?}, close {id}, input {id, data}, resize {cols, rows}, attach {id, onOutput}, answer {requestId, allow}, take_back {id}}","kind":"tauri-command","transport":"shared","wiring":"src/io/terminal/terminal-client.ts"},
+    {"id":"terminal-shell-event","from":"shell/terminal","to":"io/terminal","carries":"terminal-snapshot {revision, terminals, requests}: every change; the client keeps the highest revision","kind":"tauri-event","transport":"shared","wiring":"src/io/terminal/terminal-client.ts"},
+    {"id":"terminal-output","from":"shell/terminal","to":"io/terminal","carries":"terminal_attach's onOutput Channel: the formatted screen state that redraws the terminal, then its live PTY bytes","kind":"tauri-event","transport":"shared","wiring":"src/io/terminal/terminal-client.ts"},
+    {"id":"terminal-view-snapshot","from":"io/terminal","to":"ui/terminal","carries":"subscribe → the snapshot into the list, rail, pane head, access line and Allow card; attach(id, onBytes) → the terminal's xterm","kind":"callback","transport":"shared","wiring":"src/app/threads-window/wire-terminal-tab.ts"},
+    {"id":"terminal-view-actions","from":"ui/terminal","to":"io/terminal","carries":"open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id); the clipboard provider's readText(selection) and writeText(selection, text)","kind":"call","transport":"shared","wiring":"src/app/threads-window/wire-terminal-tab.ts"},
+    {"id":"terminal-clipboard","from":"io/terminal","to":"shell/core","carries":"plugin:clipboard-manager|read_text; plugin:clipboard-manager|write_text {text}","kind":"tauri-command","transport":"shared","wiring":"src/io/terminal/terminal-clipboard.ts"},
+    {"id":"terminal-tool-command","from":"io/chat/tools","to":"shell/terminal","carries":"yui.terminal → terminal_tool_{open {presetId, cwd?}, list, read {callId, presetId, id, lines?}, write {callId, presetId, id, text, enter?}, close, cancel {callId}}","kind":"tauri-command","transport":"shared","wiring":"src/io/chat/tools/terminal/terminal-api.ts"},
+    {"id":"terminal-chip","from":"io/terminal","to":"ui/threads","carries":"the snapshot's requests → the chip's waiting count and pending ids; a tap while one waits opens the Terminal tab","kind":"callback","transport":"shared","wiring":"src/app/threads-chip/wire-threads-chip.ts"},
+    {"id":"threads-tray-open","from":"app/threads-chip","to":"io/window/openers","carries":"open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a bound Character menu's request: place, show and focus with no chip rect; while shown, focus and select the tab","kind":"call","transport":"shared","wiring":"src/app/threads-chip/wire-threads-open-requests.ts"},
+    {"id":"threads-chip-snapshot","from":"io/threads","to":"ui/threads","carries":"the snapshot's Threads → the chip's waiting count, newest source marks and arrival wiggle","kind":"callback","transport":"shared","wiring":"src/app/threads-chip/wire-threads-chip.ts"},
+    {"id":"threads-window-snapshot","from":"io/threads","to":"ui/threads","carries":"the snapshot → the list and the thread pane","kind":"callback","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-chip-open","from":"ui/threads","to":"io/window/openers","carries":"the chip's tap → open(the chip's viewport rect, \"terminal\" while an access request waits), sent as screen logical px once the window reports ready","kind":"call","transport":"shared","wiring":"src/app/threads-chip/wire-threads-chip.ts"},
+    {"id":"threads-open-request","from":"io/window/openers","to":"app/threads-window","carries":"yui://threads-open {chip?: {x, y, width, height}, tab?, thread?, focus?: false, present?}: place, show, focus, grow from chip; thread selects that Thread; present is the id threads-presented answers","kind":"bridge","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-presented","from":"app/threads-window","to":"io/window/openers","carries":"yui://threads-presented {present}: the window finished the open or raise that the request with that id names, shown and grown or raised","kind":"bridge","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-ready","from":"app/threads-window","to":"io/window/openers","carries":"yui://threads-ready: the window has booted; the controller sends a request it held since the create","kind":"bridge","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-attach-request","from":"app/threads-window","to":"app/threads-attach","carries":"yui://threads-attach-request {op: \"toggle\", thread: {id, source, title}}, unscoped: the pane's Attach to chat adds the Thread, or takes it off while attached","kind":"bridge","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-attach-remove-message","from":"ui/surfaces","to":"app/threads-attach","carries":"yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the popped message window","kind":"bridge","transport":"shared","wiring":"src/windows/message-main.ts"},
+    {"id":"threads-attach-remove-unified","from":"ui/unified","to":"app/threads-attach","carries":"yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's × in the unified composer","kind":"bridge","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"threads-attached","from":"app/threads-attach","to":"app/threads-window","carries":"yui://threads-attached {threads: {id, source, title}[]}, unscoped: on every change and on threads-ready; the pane's button reads Attached for a listed Thread","kind":"bridge","transport":"shared","wiring":"src/app/threads-attach/wire-threads-attach.ts"},
+    {"id":"threads-attach-surfaces","from":"app/threads-attach","to":"ui/surfaces","carries":"setThreads(list) on every change → docked input, message window, speech stream; summonInput() when a toggle adds while closed; onThreadRemove(thread); onSubmit(text, images, threads)","kind":"callback","transport":"shared","wiring":"src/app/threads-attach/wire-threads-attach.ts"},
+    {"id":"threads-attach-routed","from":"ui/unified","to":"app/threads-attach","carries":"yui://user-turn-routed {to: main, threads}: a unified chat send drops the Threads it carried","kind":"bridge","transport":"shared","wiring":"src/app/threads-attach/wire-threads-attach.ts"},
+    {"id":"threads-attach-restore","from":"dispatcher/turn","to":"app/threads-attach","carries":"restoreThreads(threads): a user turn that failed before any utterance puts its attached Threads back, each once","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"threads-closed","from":"app/threads-window","to":"io/window/openers","carries":"yui://threads-closed: the window hid after its close or a failed open; the controller reports it through onShown(false), and the chip leaves its open state and hides at zero waiting","kind":"bridge","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"threads-placement","from":"app/threads-window","to":"io/window/geometry","carries":"threadsWindowRect, restoreThreadsBox, nearestWorkArea, chipInWindow: first open 12px beside the pet window; stored frame clamped into the nearest work area less 12px; min 360 × 420; chip-sized rect","kind":"call","transport":"shared","wiring":"src/app/threads-window/threads-placement.ts"},
+    {"id":"threads-frame","from":"app/threads-window","to":"settings","carries":"yui.threads-window {x?, y?, width, height, listCollapsed, listWidth?}: frame in logical px, written on placement, move settle and resize end (floored at 360 × 420); list choice and width on change","kind":"storage","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-turns-level","from":"app/threads-window","to":"settings","carries":"the Thread turns pick → yui.thread-turns {level: off | notable | every}, then yui://settings-changed; yui.thread-turns and yui.agentNotify read at boot, on each store change and on settings-changed","kind":"storage","transport":"shared","wiring":"src/app/threads-window/wire-turns-menu.ts"},
+    {"id":"terminal-font-size","from":"app/threads-window","to":"settings","carries":"yui.threads-window terminalFontSize? (10–24 px): written by the terminal font-size keys; read once at boot through terminalFontSize(), which gives 13 px while none is stored","kind":"storage","transport":"shared","wiring":"src/app/threads-window/wire-terminal-tab.ts"},
+    {"id":"threads-resize-handles","from":"ui/threads","to":"app/threads-window","carries":"resize {start, move(edge, dx, dy), end}: an edge or corner drag in screen px from the pointerdown; a release, a cancel or a lost capture ends it","kind":"callback","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-resize-box","from":"app/threads-window","to":"io/window/geometry","carries":"resizeThreadsBox(box, workArea, edge, dx, dy): the dragged sides moved, between the 376 × 436 minimum box and the work area less 12px on every side","kind":"call","transport":"shared","wiring":"src/app/threads-window/threads-resize.ts"},
+    {"id":"threads-head-pointerdown","from":"ui/threads","to":"app/threads-window","carries":"onHeadPointerDown: a pointerdown on the head, not on its buttons","kind":"callback","transport":"shared","wiring":"src/app/threads-window/wire-threads-window.ts"},
+    {"id":"threads-head-drag","from":"app/threads-window","to":"io/window/pet","carries":"invokeDragWindow from the head's pointerdown (not on its buttons): the window's native drag","kind":"call","transport":"shared","wiring":"src/app/threads-window/threads-placement.ts"},
+    {"id":"threads-min-panel","from":"io/window/geometry","to":"settings","carries":"THREADS_MIN_PANEL {width 360, height 420}: the smallest panel the placement and the resize keep","kind":"call","transport":"shared","wiring":"src/io/window/geometry/threads-position.ts"},
+    {"id":"settings-open-controls","from":"app/controls","to":"io/window/openers","carries":"openSettings(\"conn\"): the message window's settings button","kind":"call","transport":"shared","wiring":"src/app/controls/wire-pet-controls.ts"},
+    {"id":"settings-page-emit","from":"io/window/openers","to":"io/bridge/settings","carries":"an open settings window shown → yui://settings-page {preset: id or null, page?, focus?: \"chat_key\"}","kind":"call","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"settings-page","from":"io/bridge/settings","to":"app/settings-window","carries":"yui://settings-page {preset, page?, focus?}, unscoped: the window whose preset matches (main's for null) selects the page and focuses the chat key field when focus is chat_key; others drop it","kind":"bridge","transport":"shared","wiring":"src/app/settings-window/wire-settings-page.ts"},
+    {"id":"settings-stage-emit","from":"app/settings-window","to":"io/bridge/settings","carries":"yui://settings-stage {preset: id or null, slot: {x, y, width, height, scale} or null}: stage slot in screen points, and window scale; on boot, move, layout change, every ask; null while minimised","kind":"call","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"settings-stage","from":"io/bridge/settings","to":"app/stage","carries":"yui://settings-stage, unscoped: preset null for main's pet window, its id for a bound one; a slot starts, moves or resizes the come-along; null sends her home; sizes outside 100–2000 pt dropped","kind":"bridge","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"settings-stage-ask-emit","from":"app/stage","to":"io/bridge/settings","carries":"yui://settings-stage-ask, no payload: sent once at boot, after the settings-stage and settings-stage-ended listeners are in place","kind":"call","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"settings-stage-ask","from":"io/bridge/settings","to":"app/settings-window","carries":"yui://settings-stage-ask, unscoped: every settings window sends its stage slot again","kind":"bridge","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"come-along-locomotion","from":"ambient/come-along","to":"app/stage","carries":"hold(\"come-along\", on, {onAbort, endsOnDrag, keepsGeometry, pausesKeepOnScreen}); abortTravel(); widen([], frame); setFrameLogical; drop({landOnSeam: true}); onMoverTakesOver → restoreSize","kind":"call","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"come-along-renderer","from":"ambient/come-along","to":"renderer/motion","carries":"onTick; playMotion drag at pickup, one entry clip once docked, null on arrival home; setMotionMirror(false) for an edge entry; getCurrentMotion and getCurrentMotionTime for the edge clip","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"come-along-canvas","from":"ambient/come-along","to":"renderer","carries":"vanish(), land(feet anchor), appear(); getFrameFit(width, height, framing); setStageFraming(k); getPerchProbe(); setPeekTarget({targetXpx, easeMs?, holdsPosture: false}) / (null, {easeMs})","kind":"call","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"come-along-last-emotion","from":"ambient/come-along","to":"io/chat/last-emotion","carries":"lastEmotion(stage.emotion_decay_min in ms) → lastBackendEmotion(now, that decay) at a stage slot that starts a session","kind":"call","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"come-along-dock-call","from":"ambient/come-along","to":"io/window/pet","carries":"dock.attach, dock.detach, setPetFramePhysical (setSize then setPosition, physical px) for the Windows follow, refitTo → waitRefit(width, height) after a vanish's frame and a size given back","kind":"call","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"come-along-dock","from":"io/window/pet","to":"shell/window","carries":"window_dock_attach → whether a native child link to her own settings window is in effect, at normal level; window_dock_detach removes it and restores her level","kind":"tauri-command","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"settings-stage-ended","from":"shell/window","to":"io/window/pet","carries":"yui://settings-stage-ended, the settings window's label: its close request or, on macOS, its miniaturize, after the shell unlinked its pet window; that pet window sends her home","kind":"tauri-event","transport":"shared","wiring":"src/app/stage/wire-come-along.ts"},
+    {"id":"settings-devtools-request","from":"ui/quick-controls","to":"io/bridge/settings","carries":"the General page's Developer Tools button → yui://open-devtools, no payload","kind":"call","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"devtools-open","from":"io/bridge/settings","to":"io/window/openers","carries":"yui://open-devtools, unscoped: main's pet window opens the devtools window; a bound pet window does not listen","kind":"bridge","transport":"shared","wiring":"src/app/controls/wire-devtools-request.ts"},
+    {"id":"settings-camera","from":"settings","to":"renderer/camera","carries":"camera zoom and orbit, idle throttle → setZoom, setOrbit; plain wheel zoom ignored while a hold keeps her geometry, bound through lockWheelZoom(locomotion.keepsGeometry)","kind":"callback","transport":"shared","wiring":"src/app/stage/wire-pet-stage.ts"},
+    {"id":"renderer-camera","from":"renderer","to":"renderer/camera","carries":"setFraming, setViewWindow","kind":"call","transport":"shared"},
+    {"id":"controls-settings","from":"ui/quick-controls","to":"settings","carries":"store commit → localStorage yui.* or yui.<preset-id>.*; Characters writes yui.windows; Use in main writes the active id; Card section writes yui.agent, yui.presets; General writes yui.user-name","kind":"storage","transport":"shared"},
+    {"id":"settings-broadcast","from":"settings","to":"io/bridge/settings","carries":"subscribe(broadcastSettings) → emitSettingsChanged after 200 ms","kind":"callback","transport":"shared","wiring":"src/app/cross-window/wire-window-sync.ts"},
+    {"id":"settings-reload","from":"io/bridge/settings","to":"settings","carries":"yui://settings-changed → reloadFromStorage on every broadcast store; the preset registry is not one: it rides yui://preset-changed, with its storage event as the fallback","kind":"bridge","transport":"shared","wiring":"src/app/cross-window/wire-window-sync.ts"},
+    {"id":"preset-changed","from":"settings","to":"io/bridge/settings","carries":"registry edit → yui://preset-changed {active}; the receiving window rereads the registry and reloads when the active preset changed; a bound window rereads and keeps its preset instead","kind":"bridge","transport":"shared","wiring":"src/app/settings/wire-preset.ts"},
+    {"id":"preset-stop","from":"settings","to":"dispatcher/turn","carries":"active preset change → stopTurn() before the pet window reloads; main only, a bound window neither follows the active preset nor reloads","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-preset.ts"},
+    {"id":"pet-windows-changed","from":"settings","to":"io/bridge/settings","carries":"open-list edit → yui://pet-windows-changed, no payload; the receiving window reloads yui.windows and the live keys from storage and sends nothing back","kind":"bridge","transport":"shared","wiring":"src/app/pet-windows/wire-pet-windows-sync.ts"},
+    {"id":"pet-windows-reconcile","from":"settings","to":"io/window/openers","carries":"main only: yui.windows and the live keys → prune against the registry and the windows that exist, then open each wanted preset that has no window","kind":"callback","transport":"shared","wiring":"src/app/pet-windows/wire-pet-windows-reconcile.ts"},
+    {"id":"bound-window-close","from":"settings","to":"io/window/openers","carries":"bound window only: its id leaves yui.windows → close its companions, dispose its stores, clear the live key, emit the change, and close","kind":"callback","transport":"shared","wiring":"src/app/pet-windows/wire-bound-window.ts"},
+    {"id":"settings-guardrails","from":"settings","to":"dispatcher/core","carries":"guardrail caps, addressed_chain_max included → guardrails.setConfig(getGuardrails())","kind":"callback","transport":"shared","wiring":"src/app/cross-window/wire-window-sync.ts"},
+    {"id":"settings-pacer","from":"app/active-hours","to":"dispatcher/core","carries":"gapMs() as the pacer's interval, the proactive gap store × the pace factor (base pace × the current span's pace); subscribeGap → pacer.noteIntervalChanged()","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"settings-active-hours","from":"settings","to":"app/active-hours","carries":"activeHoursSettings spans, agentSettings card, the proactive gap store and the device-wide do-not-disturb store → recomputes the handle on each change and each minute","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"settings-base-pace","from":"settings","to":"app/active-hours","carries":"basePaceSettings.get().pace (yui.base-pace), subscribed: each change recomputes the pace factor, base pace × the current span's pace","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"config-active-hours","from":"config","to":"app/active-hours","carries":"setPersona(config.persona): the default card of each UI language, read while the agent card is null","kind":"callback","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"active-hours-idle-tick","from":"app/active-hours","to":"dispatcher/sources/idle-tick","carries":"paceFactor() (base pace × span pace): multiplies each proactive cue's idle_min on every getCues() call; dnd as the schedule source's hold (isHeld)","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"active-hours-edit","from":"ui/quick-controls","to":"settings","carries":"Persona page's Active hours rows → activeHoursSettings.setSpans(row list); reset() on Reset to default; the preset's pet window reads it over the broadcast","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/quick-controls.ts"},
+    {"id":"base-pace-edit","from":"ui/quick-controls","to":"settings","carries":"How often she speaks up's segment → basePaceSettings.setPace(pace), the device-wide yui.base-pace; the pet windows read it over the broadcast","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/proactive/pace/pace-section.tsx"},
+    {"id":"proactive-day-strip","from":"settings","to":"ui/quick-controls","carries":"activeHoursSettings spans and the agentSettings card through spansInUse, basePaceSettings pace, and the schedule and proactive cue lists → the Proactive page's day strip, redrawn on each change","kind":"callback","transport":"shared","wiring":"src/ui/quick-controls/proactive/pace/day-strip.tsx"},
+    {"id":"active-hours-card-export","from":"settings","to":"ui/quick-controls","carries":"activeHoursSettings spans → the card export's extensions.yui.active_hours (extensionsWithActiveHours; null keeps the card's own key)","kind":"callback","transport":"shared","wiring":"src/ui/quick-controls/persona/persona-page.ts"},
+    {"id":"settings-turn-gate","from":"settings","to":"dispatcher/core","carries":"yui.one-voice flag → turnGate enabled(), read on each acquire","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"settings-overheard","from":"settings","to":"io/chat/conversation","carries":"yui.presets names and active id, yui.windows open list → the overheard reader's preset names and other preset ids","kind":"storage","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"transcripts-overheard","from":"settings","to":"io/chat/conversation","carries":"another preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only","kind":"storage","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"user-turn-routed","from":"ui/unified","to":"dispatcher/sources/routed","carries":"yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}, unscoped, one per target in sequence, filtered on `to`; next waits for user-turn-done; with Threads attached, sends go to main","kind":"bridge","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"voice-segment","from":"app/turn","to":"ui/unified","carries":"yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; routed like a typed message, or put in the field while a turn runs or a line holds","kind":"bridge","transport":"shared","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"speech-onset","from":"app/turn","to":"ui/unified","carries":"yui://speech-onset, unscoped, when the user starts speaking while the unified chat window shows and barge-in is on: that window answers like its stop button while a character runs","kind":"bridge","transport":"shared","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"user-turn-done","from":"dispatcher/sources/routed","to":"ui/unified","carries":"yui://user-turn-done {sendId, preset}, unscoped, when the turn for a send id closed or was dropped before it began","kind":"bridge","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"backlog-transcript-pet","from":"io/chat/conversation","to":"ui/message","carries":"the pet window's chat-history store: entriesAfterLastBoundary → the backlog, read on each open","kind":"call","transport":"shared","wiring":"src/ui/surfaces/wire.ts"},
+    {"id":"backlog-transcript-message","from":"io/chat/conversation","to":"ui/message","carries":"yui.<id>.chat_transcript → readTranscriptAfterBoundary → the message window's backlog, read on each open","kind":"storage","transport":"shared","wiring":"src/windows/message-main.ts"},
+    {"id":"unified-transcripts","from":"io/chat/conversation","to":"ui/unified","carries":"every open preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage","kind":"storage","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"unified-open","from":"app/unified","to":"io/window/openers","carries":"open() while the unified chat window shows, close() otherwise, which destroys the window without a close request; one frameless 340 px window labelled unified","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"mention-trigger","from":"dispatcher/sources/routed","to":"dispatcher/core","carries":"bus.push: user.text_submitted {text, send_id, mention?} → client_context trigger.mention → the `trigger: user message (addressed to the character|everyone)` suffix","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"settings-push","from":"settings","to":"io/chat/push","carries":"endpoints override or chat key change → socket open, close, retarget","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-push.ts"},
+    {"id":"settings-speech","from":"settings","to":"io/voice/tts","carries":"TTS on or off, speaker, lip-sync gain, read per utterance","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"settings-stt","from":"settings","to":"io/voice/stt","carries":"VAD silence window and barge-in, read per segment","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"settings-idle-motion","from":"settings","to":"renderer/motion","carries":"idle-motion selection → setIdleVariants","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-avatar.ts"},
+    {"id":"config-renderer","from":"config","to":"renderer","carries":"hot reload: emotionRegistry, motions, avatar sections","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-config.ts"},
+    {"id":"config-guardrails","from":"config","to":"dispatcher/core","carries":"hot reload: guardrails section","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-config.ts"},
+    {"id":"assets-renderer","from":"io/assets","to":"renderer","carries":"VRM selection → loadVRM(url)","kind":"callback","transport":"shared","wiring":"src/app/settings/wire-avatar.ts"},
+    {"id":"assets-shell","from":"io/assets","to":"shell/imports","carries":"import_vrm_file, remove_user_vrm","kind":"tauri-command","transport":"shared"},
+    {"id":"card-io-ui","from":"ui/quick-controls","to":"io/assets","carries":"Import… → importPreset → importCardFromFile; Export preset → inspectPresetVrm, exportPresetFile; Export card (PNG) → exportCardPng; exports add extensions.yui.filler; drop → importCardFromDrop","kind":"call","transport":"shared","wiring":"src/app/card-io/wire-card-io.ts"},
+    {"id":"file-drop-ui","from":"io/window/file-drop","to":"ui/quick-controls","carries":"subscribeFileDrop: enter and drop with the dragged paths, and leave, into the drop cover, which refuses a drop by count and extension before importDropped","kind":"callback","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"card-preset-ui","from":"ui/quick-controls","to":"settings","carries":"Import… → settings/preset/import-card-preset.ts createPresetFromCard: yui.vrm and yui.speaker from VRM and voice ids, filler from extensions.yui.filler, thumbnail → loadPhotoSize → defaultCrop","kind":"call","transport":"shared","wiring":"src/app/card-io/wire-card-io.ts"},
+    {"id":"card-shell","from":"io/assets","to":"shell/imports","carries":"import_card_file, import_dropped_card, retain_card_thumbnail, pick_preset_photo, remove_card_thumbnail","kind":"tauri-command","transport":"shared"},
+    {"id":"preset-file-shell","from":"io/assets","to":"shell/imports","carries":"import_card_file and import_dropped_card (a .yui read, its thumbnail, VRM and voice clip claimed), inspect_preset_vrm, export_preset_file, export_card_png","kind":"tauri-command","transport":"shared"},
+    {"id":"greeting-pending","from":"settings","to":"app/turn/card","carries":"yui.greeting-pending written by a card import; the preset's next boot consumes it and greets once","kind":"storage","transport":"shared"},
+    {"id":"preset-photo","from":"ui/quick-controls","to":"settings","carries":"the manage row's photo button → the photo dialog (pickPresetPhoto → pick_preset_photo stores cards/<id>.png) → registry.setThumbnail(file URL with ?v=<time>, crop)","kind":"call","transport":"shared","wiring":"src/app/card-io/wire-card-io.ts"},
+    {"id":"card-thumb-ui","from":"settings","to":"ui/quick-controls","carries":"PresetEntry.thumbnail and crop → the preset header's and the card section's face (avatarEl)","kind":"callback","transport":"shared"},
+    {"id":"voices-shell","from":"io/voice/voices","to":"shell/imports","carries":"import_voice_file, rename_user_voice, remove_user_voice","kind":"tauri-command","transport":"shared"},
+    {"id":"voices-http","from":"io/voice/voices","to":"tts-service","carries":"voices list, upload, delete per provider","kind":"http","transport":"shared"},
+    {"id":"voices-speech","from":"io/voice/voices","to":"io/voice/tts","carries":"speakerSelection.getActive() per utterance","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"voice-step-key","from":"ui/quick-controls","to":"io/voice/voices","carries":"Turn on voice: checkFishKey(pasted key) → ok, refused or failed; ok → the app language's default voice joins the list unless listed, and is selected","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/quick-start/voice-step.tsx"},
+    {"id":"voice-key-check-http","from":"io/voice/voices","to":"tts-service","carries":"GET {Fish URL}/model?self=true&page_size=1&page_number=1 with the key as a Bearer token: 200 ok, 401 or 403 refused, anything else failed","kind":"http","transport":"shared"},
+    {"id":"voice-step-settings","from":"ui/quick-controls","to":"settings","carries":"ok only: endpoints tts_provider fish, tts_base_url and tts_model, the TTS key, and TTS on","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/quick-start/voice-step.tsx"},
+    {"id":"default-voices-config","from":"app/settings","to":"ui/quick-controls","carries":"getDefaultVoices(): endpoints tts_default_voices, undefined hides the voice step","kind":"callback","transport":"shared","wiring":"src/app/settings/config-defaults.ts"},
+    {"id":"logger-shell","from":"logger","to":"shell/logs","carries":"log records through the log plugin","kind":"tauri-command","transport":"shared"},
+    {"id":"models-http","from":"io/chat/models","to":"backend-request","carries":"GET {baseUrl}/models","kind":"http","transport":"request"},
+    {"id":"controls-models","from":"ui/quick-controls","to":"io/chat/models","carries":"model list → Connection chat section and Quick start (Connect read); stored-key check on the connected view, window focus, Change key and Check connection; 401, 403 or Gemini's 400 read as refused","kind":"call","transport":"request"},
+    {"id":"settings-stage-mount","from":"app/settings-window","to":"ui/settings-stage","carries":"createSettingsStage({ mount, presetRegistry, petWindows, boundId, getDefaultChatApi, endpointsSettings, onSettingsChanged }) → stage in the window row, panel host after; dispose on close","kind":"call","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"settings-stage-state","from":"settings","to":"ui/settings-stage","carries":"presetRegistry.get() and subscribe → presetEntryFor(state, boundId); readChatApiOverride(own id) on endpointsSettings.subscribe; isPresetOpen(petWindows.get(), id) and petWindows.subscribe","kind":"callback","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"settings-stage-meta","from":"ui/settings-stage","to":"ui/quick-controls","carries":"characterMeta({ id, main, isOpen, chatApiOverride, defaultChatApi }) → { state, line }: the stage foot's \"{transport} · {state}\" in the character header's words","kind":"call","transport":"shared","wiring":"src/ui/settings-stage/stage-foot.tsx"},
+    {"id":"stt-models-check","from":"app/settings-window","to":"stt-service","carries":"the Connection page's STT line: GET {stt_base_url}/models, a 401/403 is a refused key; any other HTTP answer counts as answered","kind":"http","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"tts-line-check","from":"app/settings","to":"ui/quick-controls","carries":"speaker.checkTtsServer() → ServerCheck or null: the Connection page's TTS line check and its Reconnect","kind":"call","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"controls-guide","from":"ui/quick-controls","to":"dispatcher/sources/user-input","carries":"the settings window's Ask press → yui://help-guide {guide, text} → the pet window's submitGuide(guide, text)","kind":"bridge","transport":"shared","wiring":"src/app/controls/wire-help-guide.ts"},
+    {"id":"stt-status","from":"io/voice/stt","to":"ui/chips","carries":"onState → voiceInputStatus.set","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice-pipeline.ts"},
+    {"id":"status-stt","from":"ui/chips","to":"io/voice/stt","carries":"voiceInputStatus toggle → start or stop STT","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"stop-dispatcher","from":"ui/surfaces","to":"dispatcher","carries":"onStop → stopTurn: dispatcher.cancel()","kind":"callback","transport":"shared","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"stop-push-turns","from":"ui/surfaces","to":"dispatcher/turn","carries":"stopTurn: pushTurns.cut()","kind":"callback","transport":"push","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"stop-speech","from":"ui/surfaces","to":"io/voice/tts","carries":"stopTurn: speechPlayback.interrupt()","kind":"callback","transport":"shared","wiring":"src/app/turn/turn-core.ts"},
+    {"id":"stop-push","from":"ui/surfaces","to":"io/chat/push","carries":"sendStop(turnIds)","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-push.ts"},
+    {"id":"barge-in-speech","from":"io/voice/stt","to":"io/voice/tts","carries":"onSpeechActive with speech outstanding → speechPlayback.interrupt({muteCurrentTurn}), fillerLoop.stop(); while the unified chat window shows and barge-in is on, onSpeechActive → speech-onset","kind":"callback","transport":"shared","wiring":"src/app/turn/voice/speak-turn.ts"},
+    {"id":"barge-in-push","from":"io/voice/stt","to":"dispatcher/turn","carries":"onBargeIn → pushTurns.cut()","kind":"callback","transport":"push","wiring":"src/app/turn/voice/wire-voice.ts"},
+    {"id":"user-supersede","from":"dispatcher","to":"dispatcher/backend","carries":"supersedeByUser: abort the call in flight, drop pending","kind":"call","transport":"shared"},
+    {"id":"push-publish","from":"io/chat/push","to":"io/bridge/push","carries":"publishPushSocket: PushSocketState, scoped to the sender's preset","kind":"callback","transport":"push","wiring":"src/app/turn/push/push-stores.ts"},
+    {"id":"push-requests","from":"io/bridge/push","to":"io/chat/push","carries":"yui://push-reset → stopTurn and sendReset; yui://push-reconnect → reconnectNow; scoped to the sender's preset","kind":"bridge","transport":"push","wiring":"src/app/turn/push/push-stores.ts"},
+    {"id":"push-state-controls","from":"io/bridge/push","to":"ui/quick-controls","carries":"push socket state in the Connection tab","kind":"call","transport":"push"},
+    {"id":"delegations-chip","from":"io/bridge/delegations","to":"ui/chips","carries":"delegations store or mirror → delegation chip","kind":"call","transport":"push"},
+    {"id":"signals-chips","from":"dispatcher/sources/inbox","to":"ui/chips","carries":"each parsed signal group, buffered or not → signal chip (onArrival, passed from bootstrap-configured through wireDispatcherSources)","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"history-chips","from":"io/chat/conversation","to":"ui/chips","carries":"signal records → what YUI said on a chip's card, by event_id","kind":"call","transport":"shared","wiring":"src/app/signal-chips/wire-signal-chips.ts"},
+    {"id":"chips-fold","from":"settings","to":"ui/chips","carries":"the per-device fold choice → signal chips and delegation chip","kind":"call","transport":"shared","wiring":"src/app/signal-chips/wire-signal-chips.ts"},
+    {"id":"delegations-controls","from":"io/bridge/delegations","to":"ui/quick-controls","carries":"delegations and delegation history → Session section","kind":"call","transport":"push"},
+    {"id":"conversation-controls","from":"io/chat/conversation","to":"ui/quick-controls","carries":"transcript items, signal records and session diagnostics, read as current() → History page and its Session section","kind":"call","transport":"shared"},
+    {"id":"conversation-devtools","from":"io/chat/conversation","to":"ui/devtools","carries":"contextHistory → context inspector","kind":"call","transport":"shared"},
+    {"id":"surfaces-remote","from":"ui/surfaces","to":"io/bridge/message","carries":"RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to sender's preset; speech-actions (label, busy per button); asks (Ask and Settings frames); asks, commands, command-reply on ready","kind":"bridge","transport":"shared","wiring":"src/ui/surfaces/wire.ts"},
+    {"id":"remote-surfaces","from":"io/bridge/message","to":"ui/surfaces","carries":"MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action {index}, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer","kind":"bridge","transport":"shared","wiring":"src/ui/surfaces/wire.ts"},
+    {"id":"surfaces-openers","from":"ui/surfaces","to":"io/window/openers","carries":"message-window mode popped or docked → open, hide","kind":"call","transport":"shared","wiring":"src/ui/surfaces/wire.ts"},
+    {"id":"user-input","from":"user","to":"ui/input","carries":"typed text, attached images, the send and stop button","kind":"user","transport":"shared"},
+    {"id":"user-voice","from":"user","to":"io/voice/stt","carries":"microphone audio","kind":"user","transport":"shared"},
+    {"id":"user-window","from":"user","to":"io/window/pet","carries":"taps, pats, drags, and drops on the character; Shift-drag orbit, ignored on the settings stage; Ctrl-wheel resize","kind":"user","transport":"shared"},
+    {"id":"user-settings","from":"user","to":"ui/quick-controls","carries":"quick-controls and settings-window edits","kind":"user","transport":"shared"},
+    {"id":"message-source-line","from":"ui/message","to":"ui/signals","carries":"renderSourceLine for each source line in the bubble's quote slot","kind":"call","transport":"shared"},
+    {"id":"history-source-line","from":"ui/quick-controls","to":"ui/signals","carries":"renderSourceLine for each signal record of a History row","kind":"call","transport":"shared"},
+    {"id":"bubble-user","from":"ui/message","to":"user","carries":"speech bubble text, the quoted user line, the signal source lines, reasoning","kind":"user","transport":"shared"},
+    {"id":"chips-user","from":"ui/chips","to":"user","carries":"status pill, delegation chip, signal chips and their details sheet","kind":"user","transport":"shared"},
+    {"id":"voice-user","from":"io/voice/tts","to":"user","carries":"synthesized voice and filler phrases","kind":"user","transport":"shared"},
+    {"id":"character-user","from":"renderer","to":"user","carries":"the character on screen: expression, mouth, motion","kind":"user","transport":"shared"},
+    {"id":"address-character","from":"io/chat/tools","to":"dispatcher/sources/addressed","carries":"address_character → record(turnId, to, handoff); refused for an unknown or closed target and for a second call in one turn","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"turn-closed-addressed","from":"dispatcher/core","to":"dispatcher/sources/addressed","carries":"onTurnClosed {id, outcome, spokeText, sendId?, userText?} once per turn, at the over edge or when the next turn displaces it","kind":"callback","transport":"shared","wiring":"src/app/turn/wire-dispatcher.ts"},
+    {"id":"character-addressed-emit","from":"dispatcher/sources/addressed","to":"io/bridge/settings","carries":"yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, after the reply's turn ended with speech and its playback finished","kind":"bridge","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"character-addressed-receive","from":"io/bridge/settings","to":"dispatcher/sources/addressed","carries":"yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, filtered on `to`","kind":"bridge","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"addressed-bus","from":"dispatcher/sources/addressed","to":"dispatcher/core","carries":"bus.push: addressed.character {from, name, line, user_message?}; the chain cap addressed_chain_max drops the third in a row without a user turn","kind":"call","transport":"shared","wiring":"src/app/turn/wire-sources.ts"},
+    {"id":"speech-stream","from":"ui/surfaces","to":"ui/unified","carries":"yui://speech-stream {preset, op}, unscoped; op: begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, restore-input, threads, commands","kind":"bridge","transport":"shared","wiring":"src/ui/surfaces/wire.ts"},
+    {"id":"speech-stream-ask","from":"ui/unified","to":"ui/surfaces","carries":"yui://speech-stream-ask: each pet restates its name, busy, commands and cached Command reply","kind":"bridge","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"stop-turns","from":"ui/unified","to":"app/turn","carries":"yui://stop-turns, unscoped, from the unified chat window's stop button or its answer to speech onset: every pet window runs the stop button's stopTurn","kind":"bridge","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"unified-shown","from":"settings","to":"ui/surfaces","carries":"the shown predicate (get, subscribe): the router's suppression, getMode docked and the message window hidden while it shows","kind":"call","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"unified-shown-settings-controls","from":"settings","to":"ui/quick-controls","carries":"the settings window's own shown predicate: the Separate message window row disabled with its reason while it shows","kind":"call","transport":"shared","wiring":"src/app/settings-window/wire-settings-window.ts"},
+    {"id":"unified-shown-open","from":"settings","to":"app/unified","carries":"the shown predicate main opens and destroys the window on","kind":"call","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"speech-stream-control","from":"ui/unified","to":"io/bridge/message","carries":"yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control","kind":"bridge","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"unified-close-switch","from":"app/unified","to":"settings","carries":"the window's close request (×) → yui.unified-chat {enabled: false}, then yui://settings-changed","kind":"storage","transport":"shared","wiring":"src/windows/unified-main.ts"},
+    {"id":"unified-window-position","from":"settings","to":"io/window/openers","carries":"yui.unified-window {x, y} physical px, written as the unified window moves and read when main creates it","kind":"storage","transport":"shared","wiring":"src/app/bootstrap-configured.ts"},
+    {"id":"settings-theme","from":"settings","to":"ui/theme","carries":"themeSettings.subscribe → data-theme; textSizeSettings.subscribe → --yui-text-scale on the window root; each window calls applyTheme and applyTextScale","kind":"call","transport":"shared","wiring":"src/windows/main.ts"},
+    {"id":"threads-ingress","from":"signal-producers","to":"shell/agent-ingress","kind":"http","transport":"shared","carries":"PUT /threads/<id> {source, title, label?, state, entries?} → {updated_at}","wiring":"src-tauri/src/agent_ingress/mod.rs"},
+    {"id":"ingress-threads","from":"shell/agent-ingress","to":"shell/threads","kind":"call","transport":"shared","carries":"upsert","wiring":"src-tauri/src/agent_ingress/threads/requests.rs"},
+    {"id":"surfaces-commands","from":"ui/surfaces","to":"ui/commands","carries":"showCommandReply pending, settled, clear; onCommandReplyClose reports a close","kind":"callback","transport":"push","wiring":"src/ui/surfaces/surfaces.ts"},
+    {"id":"surfaces-command-input","from":"ui/surfaces","to":"ui/commands","carries":"createCommandInput: setCommands, onCommand, interceptSubmit; command routing in pet, message and unified surfaces","kind":"callback","transport":"push","wiring":"src/ui/surfaces/surfaces.ts"},
+    {"id":"command-list-input","from":"ui/commands","to":"ui/input","carries":"completed /name text and input event; interceptSubmit(text, images) handles listed commands","kind":"callback","transport":"push","wiring":"src/ui/surfaces/surfaces.ts"},
+    {"id":"backend-commands","from":"io/chat/push","to":"ui/surfaces","carries":"getCommands, onCommands → setCommands; onCommandReply → showCommandReply; leaving ready clears; send failure shows command.not_sent","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-backend-commands.ts"},
+    {"id":"backend-command-send","from":"ui/surfaces","to":"io/chat/push","carries":"onCommand(name, args) → sendCommand while dispatcher idle; one pending command per chat; reply stays on the issuing side; close clears all sides and cached replies","kind":"callback","transport":"push","wiring":"src/app/turn/push/wire-backend-commands.ts"},
+    {"id":"unified-commands","from":"ui/unified","to":"ui/commands","carries":"createCommandInput: picked recipient commands; refused command keeps text; Command reply names the speaker","kind":"call","transport":"shared","wiring":"src/ui/unified/composer.ts"},
+    {"id":"mention-listbox","from":"ui/unified","to":"ui/listbox","carries":"createListbox: mention options, keyboard, ARIA and pick dispatch","kind":"call","transport":"shared","wiring":"src/ui/unified/mention-picker.ts"},
+    {"id":"command-listbox","from":"ui/commands","to":"ui/listbox","carries":"createListbox: command options, keyboard, ARIA and pick dispatch","kind":"call","transport":"shared","wiring":"src/ui/commands/command-list.ts"},
+    {"id":"threads-window-tabs","from":"ui/threads","to":"ui/controls","carries":"Tabs: the Threads and Terminal tabs, the selected one and each selection by click, key or open; TooltipHost: the one tip of the window's triggers","kind":"call","transport":"shared","wiring":"src/ui/threads/window/threads-window.tsx"},
+    {"id":"threads-list-controls","from":"ui/threads","to":"ui/controls","carries":"Segment: Waiting / All with their counts and the picked filter; Select: the kinds with their counts, zero ones disabled, the picked kind, its popup inside the list","kind":"call","transport":"shared","wiring":"src/ui/threads/window/thread-list.tsx"},
+    {"id":"threads-rail-controls","from":"ui/threads","to":"ui/controls","carries":"Segment: Waiting / All as marks over counts, named and tipped by their counts; Select: the kinds behind the funnel or source mark, with its tip; Tip: each rail item's title and state","kind":"call","transport":"shared","wiring":"src/ui/threads/window/thread-rail.tsx"},
+    {"id":"threads-pane-ref-mount","from":"ui/threads","to":"ui/ref-mount","carries":"RefMount: each entry's Markdown nodes, mounted again only when its text changed","kind":"call","transport":"shared","wiring":"src/ui/threads/window/thread-pane.tsx"},
+    {"id":"threads-terminal-tab","from":"ui/threads","to":"ui/terminal","carries":"TabShell {back, selected, focusSelected, headChanged} into the Terminal view; its TabBody back: el mounted in the Terminal panel's RefMount host, list, head, the keys' moves and shown","kind":"call","transport":"shared","wiring":"src/ui/threads/window/threads-view.ts"},
+    {"id":"terminal-nav-rows","from":"ui/terminal","to":"ui/keyed-rows","carries":"reconcileRows: Terminal list and rail rows kept by key, reordered only when their place changed","kind":"call","transport":"shared","wiring":"src/ui/terminal/terminal-nav.ts"},
+    {"id":"delegation-rows-keyed","from":"ui/chips","to":"ui/keyed-rows","carries":"reconcileRows: delegation rows and opened summary panels kept by key, reordered only when their place changed","kind":"call","transport":"shared","wiring":"src/ui/chips/delegation-rows.ts"},
+    {"id":"perms-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: checked state, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/perms/perms-page-view.tsx"},
+    {"id":"general-segment","from":"ui/quick-controls","to":"ui/controls","carries":"Segment: the options, the checked value and the chosen value on click or key","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/general/general-page-view.tsx"},
+    {"id":"listening-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: checked state, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/listening/listening-page-view.tsx"},
+    {"id":"descriptor-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: a Together, Voice or Motion switch row's checked state, disabled while locked, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/switches/descriptor-row.tsx"},
+    {"id":"idle-motion-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: an idle variant's checked state, label, the baseline's disabled state and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/motion/idle-motion/idle-motion-section.tsx"},
+    {"id":"express-motion-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: an express motion's checked state, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"},
+    {"id":"silence-slider","from":"ui/quick-controls","to":"ui/controls","carries":"Slider: the silence wait, its range and label; each change and each commit","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/listening/silence/silence-slider.tsx"},
+    {"id":"relations-slider","from":"ui/quick-controls","to":"ui/controls","carries":"Slider: a relation's value, range, label, spoken band and data-band; each change and each commit","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/body/relations/relation-row.tsx"},
+    {"id":"gain-slider","from":"ui/quick-controls","to":"ui/controls","carries":"Slider: the mouth gain, its range and label; each change, each commit with its reason, and the blur","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/motion/gain/gain-row.tsx"},
+    {"id":"number-row-field","from":"ui/quick-controls","to":"ui/controls","carries":"NumberField: the value, range and unit slot; the committed value on blur, Enter or a step","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/proactive/number-row.tsx"},
+    {"id":"devtools-window-tabs","from":"ui/devtools","to":"ui/controls","carries":"Tabs: the Context, Advanced and Motion tabs and the selected one; each selection by click, Up and Down, Home and End, or the facade's activate","kind":"call","transport":"shared","wiring":"src/ui/devtools/devtools-window.tsx"},
+    {"id":"devtools-context-window-field","from":"ui/devtools","to":"ui/controls","carries":"NumberField: the stored context window, its minimum and the configured default as placeholder; the committed value on blur, Enter or a step","kind":"call","transport":"shared","wiring":"src/ui/devtools/advanced-settings.tsx"},
+    {"id":"devtools-motion-sliders","from":"ui/devtools","to":"ui/controls","carries":"Slider: speed, fade, intensity and transition, each with its range, label and readout; each change","kind":"call","transport":"shared","wiring":"src/ui/devtools/motion-preview/rail-row.tsx"},
+    {"id":"devtools-playback-controls","from":"ui/devtools","to":"ui/controls","carries":"Checkbox: loop on or off; Select: the crossfade clip among the registry's ids","kind":"call","transport":"shared","wiring":"src/ui/devtools/motion-preview/playback-controls.tsx"},
+    {"id":"devtools-inspector-snapshot","from":"ui/devtools","to":"ui/quick-controls","carries":"useSnapshot: the context history's entries, read again on each notify","kind":"call","transport":"shared","wiring":"src/ui/devtools/context-inspector.tsx"},
+    {"id":"settings-rail-tabs","from":"ui/quick-controls","to":"ui/controls","carries":"Tabs: the rail's pages and the selected one; each selection by click, Up and Down, Home and End, or the handle's select, and the handle's focus","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/settings-panel.tsx"},
+    {"id":"settings-tip","from":"ui/quick-controls","to":"ui/controls","carries":"Tooltip: each trigger's text; hover, keyboard focus, a press and Escape open or close the one tip, and the panel's close hides it","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/settings-panel.tsx"},
+    {"id":"conn-views-segment","from":"ui/quick-controls","to":"ui/controls","carries":"Segment: Quick start and Detailed settings, the view shown, and the one chosen","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/connection-page-view.tsx"},
+    {"id":"chat-type-select","from":"ui/quick-controls","to":"ui/controls","carries":"Select: the chat types with their long names, the short name on the closed trigger, and the picked type","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/chat/chat-type.tsx"},
+    {"id":"chat-preset-select","from":"ui/quick-controls","to":"ui/controls","carries":"Select: the chat provider presets and Custom, the matched preset, and the picked one","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/chat/chat-section.tsx"},
+    {"id":"tts-provider-select","from":"ui/quick-controls","to":"ui/controls","carries":"Select: the TTS providers, the override or bundled provider, and the picked one","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/detail/tts-section.tsx"},
+    {"id":"stt-type-select","from":"ui/quick-controls","to":"ui/controls","carries":"Select, disabled: the one STT type the protocol names","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/detail/stt-section.tsx"},
+    {"id":"effort-segment","from":"ui/quick-controls","to":"ui/controls","carries":"Segment, disabled on push: the reasoning efforts, the stored one and the chosen one","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/connection/detail/effort-row.tsx"},
+    {"id":"pace-select","from":"ui/quick-controls","to":"ui/controls","carries":"Select: a span's paces, its pace, and the picked one into the span list's write","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/persona/active-hours/span-row.tsx"},
+    {"id":"chain-cap-field","from":"ui/quick-controls","to":"ui/controls","carries":"NumberField: the chain cap's override over the bundled default; the committed cap","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/together/chain-cap/chain-cap-row.tsx"},
+    {"id":"advanced-disclosure","from":"ui/quick-controls","to":"ui/controls","carries":"Disclosure: the fold's summary label and its folded rows","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/proactive/advanced/advanced-section.tsx"},
+    {"id":"filler-disclosure","from":"ui/quick-controls","to":"ui/controls","carries":"Disclosure: the fold's summary label and its folded rows","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/voice/filler/filler-section.tsx"},
+    {"id":"card-disclosure","from":"ui/quick-controls","to":"ui/controls","carries":"Disclosure: the fold's summary label and its folded rows","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/persona/card/card-section.tsx"},
+    {"id":"express-checkbox","from":"ui/quick-controls","to":"ui/controls","carries":"Checkbox: an express motion group's checked and mixed state, label, and a click or Space","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/motion/express-motion/express-motion-section.tsx"},
+    {"id":"filler-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: checked state, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/voice/filler/filler-section.tsx"},
+    {"id":"filler-segment","from":"ui/quick-controls","to":"ui/controls","carries":"Segment: the options, the checked value and the chosen value on click or key","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/voice/filler/filler-section.tsx"},
+    {"id":"plugins-switch","from":"ui/quick-controls","to":"ui/controls","carries":"Switch: checked state, label and the flipped value on click","kind":"call","transport":"shared","wiring":"src/ui/quick-controls/plugins/plugin-group.tsx"}
   ],
   "flows": [
     {
       "id": "turn",
       "title": "A user turn",
       "steps": [
-        {
-          "from": "user",
-          "label": "types text or speaks",
-          "edges": [
-            "user-input",
-            "user-voice"
-          ],
-          "to": "input"
-        },
-        {
-          "from": "input",
-          "label": "user.text_submitted or user.voice_segment_ready",
-          "edges": [
-            "user-input-bus"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "dispatcher",
-          "label": "A user turn aborts the call in flight, classifies as tier 2, and opens in the ledger",
-          "edges": [
-            "bus-dispatcher",
-            "user-supersede",
-            "dispatcher-ledger"
-          ]
-        },
-        {
-          "from": "dispatcher",
-          "label": "send button becomes stop",
-          "edges": [
-            "dispatcher-busy"
-          ],
-          "to": "display"
-        },
-        {
-          "from": "turn",
-          "label": "quote the user",
-          "edges": [
-            "ledger-quote"
-          ],
-          "to": "display"
-        },
-        {
-          "from": "dispatcher",
-          "label": "backendCaller.call(turn)",
-          "edges": [
-            "dispatcher-backend"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "backend-call",
-          "label": "interrupt previous speech, thinkingStart",
-          "edges": [
-            "backend-output"
-          ],
-          "to": "turn"
-        },
-        {
-          "from": "turn",
-          "label": "filler loop starts",
-          "edges": [
-            "output-filler"
-          ],
-          "to": "speech"
-        },
-        {
-          "from": "backend-call",
-          "label": "Builds the client context: posture, frontmost app, screenshot, settings, previous turn",
-          "edges": [
-            "context-posture",
-            "context-frontmost",
-            "context-screenshot",
-            "context-settings",
-            "context-endpoints"
-          ]
-        },
-        {
-          "from": "backend-call",
-          "label": "stream(request) with tool schemas and conversation state",
-          "edges": [
-            "backend-stream"
-          ],
-          "to": "transport",
-          "transport": "request"
-        },
-        {
-          "from": "transport",
-          "label": "Responses or Chat Completions streaming request",
-          "edges": [
-            "stream-http"
-          ],
-          "to": "backend",
-          "transport": "request"
-        },
-        {
-          "from": "backend",
-          "label": "stream chunks",
-          "edges": [
-            "stream-http"
-          ],
-          "to": "transport",
-          "transport": "request"
-        },
-        {
-          "from": "transport",
-          "label": "ChatStreamEvent: speech_delta, express, tool_status, reasoning, usage",
-          "edges": [
-            "stream-events"
-          ],
-          "to": "backend-call",
-          "transport": "request"
-        },
-        {
-          "from": "backend-call",
-          "label": "TurnOutput delta and cue; TurnFeed tool status and reasoning",
-          "edges": [
-            "backend-output",
-            "backend-feed"
-          ],
-          "to": "turn",
-          "transport": "request"
-        },
-        {
-          "from": "backend-call",
-          "label": "pushTurn(turn frame)",
-          "edges": [
-            "backend-push-send"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "backend-call",
-          "label": "pushTurns.opened, awaitTurnEnd",
-          "edges": [
-            "backend-push-wait"
-          ],
-          "to": "turn",
-          "transport": "push"
-        },
-        {
-          "from": "transport",
-          "label": "turn frame",
-          "edges": [
-            "push-ws"
-          ],
-          "to": "backend",
-          "transport": "push"
-        },
-        {
-          "from": "backend",
-          "label": "speech, render, tool_status, reasoning, turn_end frames",
-          "edges": [
-            "push-ws-in"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "transport",
-          "label": "render-turn plays speech and render frames; TurnFeed tool status and reasoning",
-          "edges": [
-            "push-render",
-            "push-feed"
-          ],
-          "to": "turn",
-          "transport": "push"
-        },
-        {
-          "from": "turn",
-          "label": "TurnOutput: delta, cue, end",
-          "edges": [
-            "output-speech"
-          ],
-          "to": "speech"
-        },
-        {
-          "from": "turn",
-          "label": "tool status on the pill, reasoning",
-          "edges": [
-            "feed-surfaces"
-          ],
-          "to": "display"
-        },
-        {
-          "from": "speech",
-          "label": "Segments sentences and synthesizes each one through the TTS service",
-          "edges": [
-            "tts-http"
-          ]
-        },
-        {
-          "from": "speech",
-          "label": "beginSpeech, pushSpeech, endSpeech",
-          "edges": [
-            "speech-bubble"
-          ],
-          "to": "display"
-        },
-        {
-          "from": "speech",
-          "label": "applyDirective per sentence, setMouthOpen by amplitude",
-          "edges": [
-            "speech-renderer"
-          ],
-          "to": "renderer"
-        },
-        {
-          "from": "display",
-          "label": "reads the bubble",
-          "edges": [
-            "bubble-user",
-            "chips-user"
-          ],
-          "to": "user"
-        },
-        {
-          "from": "speech",
-          "label": "hears the voice",
-          "edges": [
-            "voice-user"
-          ],
-          "to": "user"
-        },
-        {
-          "from": "renderer",
-          "label": "sees the expression and the mouth move",
-          "edges": [
-            "character-user"
-          ],
-          "to": "user"
-        },
-        {
-          "from": "backend-call",
-          "label": "Records the turn: transcript, context history, turn-record log",
-          "edges": [
-            "backend-record",
-            "backend-turn-record"
-          ]
-        },
-        {
-          "from": "turn",
-          "label": "assistant transcript entry and render record of a rendered reply",
-          "edges": [
-            "render-conversation",
-            "render-record"
-          ],
-          "to": "conversation",
-          "transport": "push"
-        },
-        {
-          "from": "speech",
-          "label": "audio owed cleared: the turn is over",
-          "edges": [
-            "speech-ledger"
-          ],
-          "to": "turn"
-        },
-        {
-          "from": "speech",
-          "label": "how the utterance ended, kept for the next turn",
-          "edges": [
-            "speech-previous"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "backend-call",
-          "label": "playback frame for a turn that failed before speaking",
-          "edges": [
-            "previous-playback"
-          ],
-          "to": "transport",
-          "transport": "push"
-        }
+        {"from":"user","label":"types text or speaks","edges":["user-input","user-voice"],"to":"input"},
+        {"from":"input","label":"user.text_submitted or user.voice_segment_ready","edges":["user-input-bus"],"to":"dispatcher"},
+        {"from":"dispatcher","label":"A user turn aborts the call in flight, classifies as tier 2, and opens in the ledger","edges":["bus-dispatcher","user-supersede","dispatcher-ledger"]},
+        {"from":"dispatcher","label":"send button becomes stop","edges":["dispatcher-busy"],"to":"display"},
+        {"from":"turn","label":"quote the user","edges":["ledger-quote"],"to":"display"},
+        {"from":"dispatcher","label":"backendCaller.call(turn)","edges":["dispatcher-backend"],"to":"backend-call"},
+        {"from":"backend-call","label":"interrupt previous speech, thinkingStart","edges":["backend-output"],"to":"turn"},
+        {"from":"turn","label":"filler loop starts","edges":["output-filler"],"to":"speech"},
+        {"from":"backend-call","label":"Builds the client context: posture, frontmost app, screenshot, settings, previous turn","edges":["context-posture","context-frontmost","context-screenshot","context-settings","context-endpoints"]},
+        {"from":"backend-call","label":"stream(request) with tool schemas and conversation state","edges":["backend-stream"],"to":"transport","transport":"request"},
+        {"from":"transport","label":"Responses or Chat Completions streaming request","edges":["stream-http"],"to":"backend","transport":"request"},
+        {"from":"backend","label":"stream chunks","edges":["stream-http"],"to":"transport","transport":"request"},
+        {"from":"transport","label":"ChatStreamEvent: speech_delta, express, tool_status, reasoning, usage","edges":["stream-events"],"to":"backend-call","transport":"request"},
+        {"from":"backend-call","label":"TurnOutput delta and cue; TurnFeed tool status and reasoning","edges":["backend-output","backend-feed"],"to":"turn","transport":"request"},
+        {"from":"backend-call","label":"pushTurn(turn frame)","edges":["backend-push-send"],"to":"transport","transport":"push"},
+        {"from":"backend-call","label":"pushTurns.opened, awaitTurnEnd","edges":["backend-push-wait"],"to":"turn","transport":"push"},
+        {"from":"transport","label":"turn frame","edges":["push-ws"],"to":"backend","transport":"push"},
+        {"from":"backend","label":"speech, render, tool_status, reasoning, turn_end frames","edges":["push-ws-in"],"to":"transport","transport":"push"},
+        {"from":"transport","label":"render-turn plays speech and render frames; TurnFeed tool status and reasoning","edges":["push-render","push-feed"],"to":"turn","transport":"push"},
+        {"from":"turn","label":"TurnOutput: delta, cue, end","edges":["output-speech"],"to":"speech"},
+        {"from":"turn","label":"tool status on the pill, reasoning","edges":["feed-surfaces"],"to":"display"},
+        {"from":"speech","label":"Segments sentences and synthesizes each one through the TTS service","edges":["tts-http"]},
+        {"from":"speech","label":"beginSpeech, pushSpeech, endSpeech","edges":["speech-bubble"],"to":"display"},
+        {"from":"speech","label":"applyDirective per sentence, setMouthOpen by amplitude","edges":["speech-renderer"],"to":"renderer"},
+        {"from":"display","label":"reads the bubble","edges":["bubble-user","chips-user"],"to":"user"},
+        {"from":"speech","label":"hears the voice","edges":["voice-user"],"to":"user"},
+        {"from":"renderer","label":"sees the expression and the mouth move","edges":["character-user"],"to":"user"},
+        {"from":"backend-call","label":"Records the turn: transcript, context history, turn-record log","edges":["backend-record","backend-turn-record"]},
+        {"from":"turn","label":"assistant transcript entry and render record of a rendered reply","edges":["render-conversation","render-record"],"to":"conversation","transport":"push"},
+        {"from":"speech","label":"audio owed cleared: the turn is over","edges":["speech-ledger"],"to":"turn"},
+        {"from":"speech","label":"how the utterance ended, kept for the next turn","edges":["speech-previous"],"to":"backend-call"},
+        {"from":"backend-call","label":"playback frame for a turn that failed before speaking","edges":["previous-playback"],"to":"transport","transport":"push"}
       ]
     },
     {
       "id": "backend-turn",
       "title": "A backend-started turn",
       "steps": [
-        {
-          "from": "backend",
-          "label": "speech or render frame with a turn id the client never opened",
-          "edges": [
-            "push-ws-in"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "transport",
-          "label": "render-turn takes it under the backend event name",
-          "edges": [
-            "push-render"
-          ],
-          "to": "turn",
-          "transport": "push"
-        },
-        {
-          "from": "turn",
-          "label": "The bus, the gates, the ledger, and the context builder take no part",
-          "edges": [],
-          "transport": "push"
-        },
-        {
-          "from": "turn",
-          "label": "TurnOutput: cueWithSpeech, delta, end, queued behind current speech",
-          "edges": [
-            "render-output",
-            "output-speech"
-          ],
-          "to": "speech",
-          "transport": "push"
-        },
-        {
-          "from": "speech",
-          "label": "Segments sentences and synthesizes each one through the TTS service",
-          "edges": [
-            "tts-http"
-          ],
-          "transport": "push"
-        },
-        {
-          "from": "speech",
-          "label": "beginSpeech, pushSpeech, endSpeech",
-          "edges": [
-            "speech-bubble"
-          ],
-          "to": "display",
-          "transport": "push"
-        },
-        {
-          "from": "speech",
-          "label": "applyDirective per sentence, setMouthOpen by amplitude",
-          "edges": [
-            "speech-renderer"
-          ],
-          "to": "renderer",
-          "transport": "push"
-        },
-        {
-          "from": "display",
-          "label": "reads the bubble",
-          "edges": [
-            "bubble-user"
-          ],
-          "to": "user",
-          "transport": "push"
-        },
-        {
-          "from": "speech",
-          "label": "hears the voice",
-          "edges": [
-            "voice-user"
-          ],
-          "to": "user",
-          "transport": "push"
-        },
-        {
-          "from": "renderer",
-          "label": "sees the expression and the mouth move",
-          "edges": [
-            "character-user"
-          ],
-          "to": "user",
-          "transport": "push"
-        },
-        {
-          "from": "turn",
-          "label": "assistant transcript entry, render record",
-          "edges": [
-            "render-conversation",
-            "render-record"
-          ],
-          "to": "conversation",
-          "transport": "push"
-        }
+        {"from":"backend","label":"speech or render frame with a turn id the client never opened","edges":["push-ws-in"],"to":"transport","transport":"push"},
+        {"from":"transport","label":"render-turn takes it under the backend event name","edges":["push-render"],"to":"turn","transport":"push"},
+        {"from":"turn","label":"The bus, the gates, the ledger, and the context builder take no part","edges":[],"transport":"push"},
+        {"from":"turn","label":"TurnOutput: cueWithSpeech, delta, end, queued behind current speech","edges":["render-output","output-speech"],"to":"speech","transport":"push"},
+        {"from":"speech","label":"Segments sentences and synthesizes each one through the TTS service","edges":["tts-http"],"transport":"push"},
+        {"from":"speech","label":"beginSpeech, pushSpeech, endSpeech","edges":["speech-bubble"],"to":"display","transport":"push"},
+        {"from":"speech","label":"applyDirective per sentence, setMouthOpen by amplitude","edges":["speech-renderer"],"to":"renderer","transport":"push"},
+        {"from":"display","label":"reads the bubble","edges":["bubble-user"],"to":"user","transport":"push"},
+        {"from":"speech","label":"hears the voice","edges":["voice-user"],"to":"user","transport":"push"},
+        {"from":"renderer","label":"sees the expression and the mouth move","edges":["character-user"],"to":"user","transport":"push"},
+        {"from":"turn","label":"assistant transcript entry, render record","edges":["render-conversation","render-record"],"to":"conversation","transport":"push"}
       ]
     },
     {
       "id": "tool-call",
       "title": "A tool call and an avatar command",
       "steps": [
-        {
-          "from": "tools",
-          "label": "tool schemas rebuilt from the vocabulary for the turn",
-          "edges": [
-            "tools-backend"
-          ],
-          "to": "backend-call",
-          "transport": "request"
-        },
-        {
-          "from": "tools",
-          "label": "hello.tools and hello.vocabulary, tools frame on a change; expression arrives as cues on reply segments",
-          "edges": [
-            "tools-push",
-            "vocabulary-push"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "backend",
-          "label": "function call in the stream, or a tool_call frame",
-          "edges": [
-            "stream-http",
-            "push-ws-in"
-          ],
-          "to": "transport"
-        },
-        {
-          "from": "transport",
-          "label": "executeClientTool(tool, args)",
-          "edges": [
-            "stream-tools",
-            "push-tools"
-          ],
-          "to": "tools"
-        },
-        {
-          "from": "tools",
-          "label": "rate_relation moves this preset's relation; the daily cap and the range clamp it",
-          "edges": [
-            "relations-tool"
-          ],
-          "to": "settings"
-        },
-        {
-          "from": "settings",
-          "label": "the next turn carries the relation line",
-          "edges": [
-            "relations-context"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "tools",
-          "label": "body_action and yui.look reach the avatar executor",
-          "edges": [
-            "tools-executor"
-          ]
-        },
-        {
-          "from": "tools",
-          "label": "yui.terminal.open and close run without asking the user; yui.terminal.read and write wait for the user's Allow in the Threads window",
-          "edges": [
-            "terminal-tool-command"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "tools",
-          "label": "yui.look.screen: capture_screen_at",
-          "edges": [
-            "tools-capture",
-            "capture-shell"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "senders",
-          "label": "GET /avatar/state, POST /avatar/command",
-          "edges": [
-            "avatar-ingress"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "senders",
-          "label": "GET or PUT /relations",
-          "edges": [
-            "relations-ingress"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "shell",
-          "label": "avatar-rpc event, answered on avatar_rpc_response",
-          "edges": [
-            "ingress-inbox",
-            "inbox-rpc-response"
-          ],
-          "to": "tools"
-        },
-        {
-          "from": "tools",
-          "label": "relations_get reads the store; relations_put replaces it",
-          "edges": [
-            "relations-rpc"
-          ],
-          "to": "settings"
-        },
-        {
-          "from": "tools",
-          "label": "cancel the movers",
-          "edges": [
-            "executor-locomotion"
-          ],
-          "to": "ambient"
-        },
-        {
-          "from": "tools",
-          "label": "perch.placeOn, perch.release",
-          "edges": [
-            "executor-perch"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "sources",
-          "label": "user.window_sit_drop or user.peek_drop, without the gesture cue",
-          "edges": [
-            "gesture-bus"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "dispatcher",
-          "label": "tier 1: posture directive, perch or peek pin",
-          "edges": [
-            "dispatcher-tier1",
-            "tier1-renderer"
-          ],
-          "to": "renderer"
-        },
-        {
-          "from": "dispatcher",
-          "label": "peek.enter(), peek.exit()",
-          "edges": [
-            "tier1-peek"
-          ],
-          "to": "window"
-        },
-        {
-          "from": "tools",
-          "label": "ClientToolResult as function_call_output or a tool_result frame",
-          "edges": [
-            "stream-tools",
-            "push-tools",
-            "push-image"
-          ],
-          "to": "transport"
-        },
-        {
-          "from": "transport",
-          "label": "tool result",
-          "edges": [
-            "stream-http",
-            "push-ws"
-          ],
-          "to": "backend"
-        }
+        {"from":"tools","label":"tool schemas rebuilt from the vocabulary for the turn","edges":["tools-backend"],"to":"backend-call","transport":"request"},
+        {"from":"tools","label":"hello.tools and hello.vocabulary, tools frame on a change; expression arrives as cues on reply segments","edges":["tools-push","vocabulary-push"],"to":"transport","transport":"push"},
+        {"from":"backend","label":"function call in the stream, or a tool_call frame","edges":["stream-http","push-ws-in"],"to":"transport"},
+        {"from":"transport","label":"executeClientTool(tool, args)","edges":["stream-tools","push-tools"],"to":"tools"},
+        {"from":"tools","label":"rate_relation moves this preset's relation; the daily cap and the range clamp it","edges":["relations-tool"],"to":"settings"},
+        {"from":"settings","label":"the next turn carries the relation line","edges":["relations-context"],"to":"backend-call"},
+        {"from":"tools","label":"body_action and yui.look reach the avatar executor","edges":["tools-executor"]},
+        {"from":"tools","label":"yui.terminal.open and close run without asking the user; yui.terminal.read and write wait for the user's Allow in the Threads window","edges":["terminal-tool-command"],"to":"shell"},
+        {"from":"tools","label":"yui.look.screen: capture_screen_at","edges":["tools-capture","capture-shell"],"to":"shell"},
+        {"from":"senders","label":"GET /avatar/state, POST /avatar/command","edges":["avatar-ingress"],"to":"shell"},
+        {"from":"senders","label":"GET or PUT /relations","edges":["relations-ingress"],"to":"shell"},
+        {"from":"shell","label":"avatar-rpc event, answered on avatar_rpc_response","edges":["ingress-inbox","inbox-rpc-response"],"to":"tools"},
+        {"from":"tools","label":"relations_get reads the store; relations_put replaces it","edges":["relations-rpc"],"to":"settings"},
+        {"from":"tools","label":"cancel the movers","edges":["executor-locomotion"],"to":"ambient"},
+        {"from":"tools","label":"perch.placeOn, perch.release","edges":["executor-perch"],"to":"sources"},
+        {"from":"sources","label":"user.window_sit_drop or user.peek_drop, without the gesture cue","edges":["gesture-bus"],"to":"dispatcher"},
+        {"from":"dispatcher","label":"tier 1: posture directive, perch or peek pin","edges":["dispatcher-tier1","tier1-renderer"],"to":"renderer"},
+        {"from":"dispatcher","label":"peek.enter(), peek.exit()","edges":["tier1-peek"],"to":"window"},
+        {"from":"tools","label":"ClientToolResult as function_call_output or a tool_result frame","edges":["stream-tools","push-tools","push-image"],"to":"transport"},
+        {"from":"transport","label":"tool result","edges":["stream-http","push-ws"],"to":"backend"}
       ]
     },
     {
       "id": "stop",
       "title": "Stop",
       "steps": [
-        {
-          "from": "user",
-          "label": "presses stop",
-          "edges": [
-            "user-input"
-          ],
-          "to": "input"
-        },
-        {
-          "from": "input",
-          "label": "stop handler",
-          "edges": [
-            "input-submit"
-          ],
-          "to": "display"
-        },
-        {
-          "from": "display",
-          "label": "stopTurn: dispatcher.cancel()",
-          "edges": [
-            "stop-dispatcher"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "dispatcher",
-          "label": "abort the call in flight, drop pending",
-          "edges": [
-            "user-supersede"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "display",
-          "label": "pushTurns.cut(): open push turn ids move to stopped",
-          "edges": [
-            "stop-push-turns"
-          ],
-          "to": "turn",
-          "transport": "push"
-        },
-        {
-          "from": "display",
-          "label": "speechPlayback.interrupt()",
-          "edges": [
-            "stop-speech"
-          ],
-          "to": "speech"
-        },
-        {
-          "from": "speech",
-          "label": "utterance ended interrupted, with the spoken split",
-          "edges": [
-            "speech-previous"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "display",
-          "label": "sendStop(turnIds)",
-          "edges": [
-            "stop-push"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "transport",
-          "label": "stop frame",
-          "edges": [
-            "push-ws"
-          ],
-          "to": "backend",
-          "transport": "push"
-        },
-        {
-          "from": "dispatcher",
-          "label": "A new user turn reaches the same end: it aborts the call in flight before its own call starts",
-          "edges": [
-            "user-supersede"
-          ]
-        },
-        {
-          "from": "input",
-          "label": "barge-in: speech into the microphone interrupts playback",
-          "edges": [
-            "barge-in-speech"
-          ],
-          "to": "speech"
-        },
-        {
-          "from": "input",
-          "label": "barge-in cuts push turns",
-          "edges": [
-            "barge-in-push"
-          ],
-          "to": "turn",
-          "transport": "push"
-        }
+        {"from":"user","label":"presses stop","edges":["user-input"],"to":"input"},
+        {"from":"input","label":"stop handler","edges":["input-submit"],"to":"display"},
+        {"from":"display","label":"stopTurn: dispatcher.cancel()","edges":["stop-dispatcher"],"to":"dispatcher"},
+        {"from":"dispatcher","label":"abort the call in flight, drop pending","edges":["user-supersede"],"to":"backend-call"},
+        {"from":"display","label":"pushTurns.cut(): open push turn ids move to stopped","edges":["stop-push-turns"],"to":"turn","transport":"push"},
+        {"from":"display","label":"speechPlayback.interrupt()","edges":["stop-speech"],"to":"speech"},
+        {"from":"speech","label":"utterance ended interrupted, with the spoken split","edges":["speech-previous"],"to":"backend-call"},
+        {"from":"display","label":"sendStop(turnIds)","edges":["stop-push"],"to":"transport","transport":"push"},
+        {"from":"transport","label":"stop frame","edges":["push-ws"],"to":"backend","transport":"push"},
+        {"from":"dispatcher","label":"A new user turn reaches the same end: it aborts the call in flight before its own call starts","edges":["user-supersede"]},
+        {"from":"input","label":"barge-in: speech into the microphone interrupts playback","edges":["barge-in-speech"],"to":"speech"},
+        {"from":"input","label":"barge-in cuts push turns","edges":["barge-in-push"],"to":"turn","transport":"push"}
       ]
     },
     {
       "id": "firing",
       "title": "Firing and classification of a speech candidate",
       "steps": [
-        {
-          "from": "shell",
-          "label": "os_event: idle time and frontmost app, every 5 s",
-          "edges": [
-            "os-event"
-          ],
-          "to": "window"
-        },
-        {
-          "from": "window",
-          "label": "idle and frontmost samples",
-          "edges": [
-            "os-idle-tick",
-            "os-presence"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "sources",
-          "label": "Proactive, schedule, milestone, and screen sources fire from the sample and their settings",
-          "edges": [
-            "settings-idle-tick"
-          ]
-        },
-        {
-          "from": "senders",
-          "label": "POST /signals",
-          "edges": [
-            "signals-ingress"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "shell",
-          "label": "signals-inbox events",
-          "edges": [
-            "ingress-inbox"
-          ],
-          "to": "tools"
-        },
-        {
-          "from": "tools",
-          "label": "signal events",
-          "edges": [
-            "inbox-sources"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "dispatcher",
-          "label": "proactive gap and busy state hold inbox delivery",
-          "edges": [
-            "pacer-inbox",
-            "busy-inbox-urgent"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "user",
-          "label": "taps, pats, drags",
-          "edges": [
-            "user-window"
-          ],
-          "to": "window"
-        },
-        {
-          "from": "window",
-          "label": "click, pat, and drag callbacks",
-          "edges": [
-            "pet-gestures"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "sources",
-          "label": "candidate envelopes on the bus",
-          "edges": [
-            "idle-tick-bus",
-            "inbox-bus",
-            "gesture-bus"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "ambient",
-          "label": "avatar.* movement events",
-          "edges": [
-            "locomotion-bus"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "window",
-          "label": "user.drag_start, user.drag_end",
-          "edges": [
-            "pet-drag-bus"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "dispatcher",
-          "label": "Classifies each envelope as tier 1 or tier 2; tier 2 passes the do-not-disturb hold, the proactive gap and the guardrails",
-          "edges": [
-            "bus-dispatcher"
-          ]
-        },
-        {
-          "from": "wiring",
-          "label": "the pet window's do-not-disturb on (device switch or off span): the gate drops self-fired envelopes before the pacer",
-          "edges": [
-            "settings-dnd-gate"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "dispatcher",
-          "label": "tier 1: local directive, posture, pins",
-          "edges": [
-            "dispatcher-tier1",
-            "tier1-renderer"
-          ],
-          "to": "renderer"
-        },
-        {
-          "from": "dispatcher",
-          "label": "tier 2: the backend judges whether and what to speak",
-          "edges": [
-            "dispatcher-backend"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "sources",
-          "label": "skip record of a screen fire the pacer held",
-          "edges": [
-            "screen-skip-record"
-          ],
-          "to": "conversation"
-        }
+        {"from":"shell","label":"os_event: idle time and frontmost app, every 5 s","edges":["os-event"],"to":"window"},
+        {"from":"window","label":"idle and frontmost samples","edges":["os-idle-tick","os-presence"],"to":"sources"},
+        {"from":"sources","label":"Proactive, schedule, milestone, and screen sources fire from the sample and their settings","edges":["settings-idle-tick"]},
+        {"from":"senders","label":"POST /signals","edges":["signals-ingress"],"to":"shell"},
+        {"from":"shell","label":"signals-inbox events","edges":["ingress-inbox"],"to":"tools"},
+        {"from":"tools","label":"signal events","edges":["inbox-sources"],"to":"sources"},
+        {"from":"dispatcher","label":"proactive gap and busy state hold inbox delivery","edges":["pacer-inbox","busy-inbox-urgent"],"to":"sources"},
+        {"from":"user","label":"taps, pats, drags","edges":["user-window"],"to":"window"},
+        {"from":"window","label":"click, pat, and drag callbacks","edges":["pet-gestures"],"to":"sources"},
+        {"from":"sources","label":"candidate envelopes on the bus","edges":["idle-tick-bus","inbox-bus","gesture-bus"],"to":"dispatcher"},
+        {"from":"ambient","label":"avatar.* movement events","edges":["locomotion-bus"],"to":"dispatcher"},
+        {"from":"window","label":"user.drag_start, user.drag_end","edges":["pet-drag-bus"],"to":"dispatcher"},
+        {"from":"dispatcher","label":"Classifies each envelope as tier 1 or tier 2; tier 2 passes the do-not-disturb hold, the proactive gap and the guardrails","edges":["bus-dispatcher"]},
+        {"from":"wiring","label":"the pet window's do-not-disturb on (device switch or off span): the gate drops self-fired envelopes before the pacer","edges":["settings-dnd-gate"],"to":"dispatcher"},
+        {"from":"dispatcher","label":"tier 1: local directive, posture, pins","edges":["dispatcher-tier1","tier1-renderer"],"to":"renderer"},
+        {"from":"dispatcher","label":"tier 2: the backend judges whether and what to speak","edges":["dispatcher-backend"],"to":"backend-call"},
+        {"from":"sources","label":"skip record of a screen fire the pacer held","edges":["screen-skip-record"],"to":"conversation"}
       ]
     },
     {
       "id": "settings",
       "title": "Settings propagation",
       "steps": [
-        {
-          "from": "user",
-          "label": "edits a control",
-          "edges": [
-            "user-settings"
-          ],
-          "to": "settings"
-        },
-        {
-          "from": "settings",
-          "label": "The store commits and saves to localStorage",
-          "edges": [
-            "controls-settings"
-          ]
-        },
-        {
-          "from": "settings",
-          "label": "settings-changed signal after 200 ms",
-          "edges": [
-            "settings-broadcast"
-          ],
-          "to": "bridge"
-        },
-        {
-          "from": "bridge",
-          "label": "each other window reloads its stores from localStorage",
-          "edges": [
-            "settings-reload"
-          ],
-          "to": "settings"
-        },
-        {
-          "from": "settings",
-          "label": "subscribed: endpoint or key change reopens the push socket",
-          "edges": [
-            "settings-push"
-          ],
-          "to": "transport",
-          "transport": "push"
-        },
-        {
-          "from": "settings",
-          "label": "subscribed: guardrail caps",
-          "edges": [
-            "settings-guardrails"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "settings",
-          "label": "subscribed: active-hours spans, card, base pace and proactive gap recompute each pet window's active hours",
-          "edges": [
-            "settings-active-hours",
-            "settings-base-pace"
-          ],
-          "to": "wiring"
-        },
-        {
-          "from": "wiring",
-          "label": "subscribed: proactive gap",
-          "edges": [
-            "settings-pacer"
-          ],
-          "to": "dispatcher"
-        },
-        {
-          "from": "settings",
-          "label": "subscribed: camera, idle motions",
-          "edges": [
-            "settings-camera",
-            "settings-idle-motion"
-          ],
-          "to": "renderer"
-        },
-        {
-          "from": "settings",
-          "label": "subscribed: express-motion selection announces the vocabulary",
-          "edges": [
-            "vocabulary-settings",
-            "vocabulary-derive"
-          ],
-          "to": "tools"
-        },
-        {
-          "from": "settings",
-          "label": "read per turn: endpoints, agent and screenshot settings",
-          "edges": [
-            "context-settings",
-            "context-endpoints"
-          ],
-          "to": "backend-call"
-        },
-        {
-          "from": "settings",
-          "label": "read per utterance: TTS switch, speaker, lip-sync gain",
-          "edges": [
-            "settings-speech"
-          ],
-          "to": "speech"
-        },
-        {
-          "from": "settings",
-          "label": "read per segment: VAD silence, barge-in",
-          "edges": [
-            "settings-stt"
-          ],
-          "to": "input"
-        },
-        {
-          "from": "settings",
-          "label": "read per tick: cue lists, thresholds",
-          "edges": [
-            "settings-idle-tick",
-            "settings-inbox"
-          ],
-          "to": "sources"
-        },
-        {
-          "from": "settings",
-          "label": "read once at boot: agent ingress switch and port",
-          "edges": [
-            "ingress-start"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "settings",
-          "label": "config hot reload: emotion registry, motions, avatar",
-          "edges": [
-            "config-renderer"
-          ],
-          "to": "renderer"
-        },
-        {
-          "from": "settings",
-          "label": "config hot reload: guardrails",
-          "edges": [
-            "config-guardrails"
-          ],
-          "to": "dispatcher"
-        }
+        {"from":"user","label":"edits a control","edges":["user-settings"],"to":"settings"},
+        {"from":"settings","label":"The store commits and saves to localStorage","edges":["controls-settings"]},
+        {"from":"settings","label":"settings-changed signal after 200 ms","edges":["settings-broadcast"],"to":"bridge"},
+        {"from":"bridge","label":"each other window reloads its stores from localStorage","edges":["settings-reload"],"to":"settings"},
+        {"from":"settings","label":"subscribed: endpoint or key change reopens the push socket","edges":["settings-push"],"to":"transport","transport":"push"},
+        {"from":"settings","label":"subscribed: guardrail caps","edges":["settings-guardrails"],"to":"dispatcher"},
+        {"from":"settings","label":"subscribed: active-hours spans, card, base pace and proactive gap recompute each pet window's active hours","edges":["settings-active-hours","settings-base-pace"],"to":"wiring"},
+        {"from":"wiring","label":"subscribed: proactive gap","edges":["settings-pacer"],"to":"dispatcher"},
+        {"from":"settings","label":"subscribed: camera, idle motions","edges":["settings-camera","settings-idle-motion"],"to":"renderer"},
+        {"from":"settings","label":"subscribed: express-motion selection announces the vocabulary","edges":["vocabulary-settings","vocabulary-derive"],"to":"tools"},
+        {"from":"settings","label":"read per turn: endpoints, agent and screenshot settings","edges":["context-settings","context-endpoints"],"to":"backend-call"},
+        {"from":"settings","label":"read per utterance: TTS switch, speaker, lip-sync gain","edges":["settings-speech"],"to":"speech"},
+        {"from":"settings","label":"read per segment: VAD silence, barge-in","edges":["settings-stt"],"to":"input"},
+        {"from":"settings","label":"read per tick: cue lists, thresholds","edges":["settings-idle-tick","settings-inbox"],"to":"sources"},
+        {"from":"settings","label":"read once at boot: agent ingress switch and port","edges":["ingress-start"],"to":"shell"},
+        {"from":"settings","label":"config hot reload: emotion registry, motions, avatar","edges":["config-renderer"],"to":"renderer"},
+        {"from":"settings","label":"config hot reload: guardrails","edges":["config-guardrails"],"to":"dispatcher"}
       ]
     }
   ],
   "windows": {
     "nodes": [
-      {
-        "id": "pet",
-        "label": "pet",
-        "role": "Runs the turn core and owns the renderer, the push socket, the delegations and reasoning stores, and the real voice state."
-      },
-      {
-        "id": "pet-<id>",
-        "label": "pet-<id>",
-        "role": "A bound pet window, index.html?preset=<id>: one preset's stores, local surfaces, push socket, and delegations, which opens settings-<id> and message-<id> and keeps none of main's global resources."
-      },
-      {
-        "id": "settings",
-        "label": "settings",
-        "role": "The settings panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."
-      },
-      {
-        "id": "settings-<id>",
-        "label": "settings-<id>",
-        "role": "The settings window of one bound pet window, settings.html?preset=<id>: the same panel over that preset's stores and mirrors of pet-<id>'s push state and delegations, with no voice switch, and an edit target like main's settings window."
-      },
-      {
-        "id": "message",
-        "label": "message",
-        "role": "The speech bubble, text input, and plate popped out of the pet window, drawn from surface ops."
-      },
-      {
-        "id": "message-<id>",
-        "label": "message-<id>",
-        "role": "The message window of one bound pet window, message.html?preset=<id>: the same bubble, input, and plate, drawn from pet-<id>'s surface ops."
-      },
-      {
-        "id": "unified",
-        "label": "unified",
-        "role": "The unified chat window, unified.html: a frameless 340 px column that is the only chat path while it shows; the cast chips, one dialogue box showing one character's line at a time, and the composer that routes a message to one preset or, in sequence, to all"
-      },
-      {
-        "id": "threads",
-        "label": "threads",
-        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip or ordered front without focus for a Thread reaction, and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
-      },
-      {
-        "id": "character-menu",
-        "label": "character-menu",
-        "role": "The Character menu window, character-menu.html: one app-wide frameless window, created hidden at main's boot; it draws the menu beside the right-clicked character, takes keyboard focus, lets clicks outside its pills through, and hides on close."
-      },
-      {
-        "id": "devtools",
-        "label": "devtools",
-        "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
-      },
-      {
-        "id": "ingress",
-        "label": "agent ingress",
-        "role": "The loopback HTTP listener in the main process, one port for every window: it chooses the recipient by path."
-      },
-      {
-        "id": "mcp-host",
-        "label": "MCP host",
-        "role": "The plugin MCP host in the main process: it emits a plugin server's signal groups to main."
-      }
+      {"id":"pet","label":"pet","role":"Runs the turn core and owns the renderer, the push socket, the delegations and reasoning stores, and the real voice state."},
+      {"id":"pet-<id>","label":"pet-<id>","role":"A bound pet window, index.html?preset=<id>: one preset's stores, local surfaces, push socket, and delegations, which opens settings-<id> and message-<id> and keeps none of main's global resources."},
+      {"id":"settings","label":"settings","role":"The settings panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."},
+      {"id":"settings-<id>","label":"settings-<id>","role":"The settings window of one bound pet window, settings.html?preset=<id>: the same panel over that preset's stores and mirrors of pet-<id>'s push state and delegations, with no voice switch, and an edit target like main's settings window."},
+      {"id":"message","label":"message","role":"The speech bubble, text input, and plate popped out of the pet window, drawn from surface ops."},
+      {"id":"message-<id>","label":"message-<id>","role":"The message window of one bound pet window, message.html?preset=<id>: the same bubble, input, and plate, drawn from pet-<id>'s surface ops."},
+      {"id":"unified","label":"unified","role":"The unified chat window, unified.html: a frameless 340 px column that is the only chat path while it shows; the cast chips, one dialogue box showing one character's line at a time, and the composer that routes a message to one preset or, in sequence, to all"},
+      {"id":"threads","label":"threads","role":"The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip or ordered front without focus for a Thread reaction, and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."},
+      {"id":"character-menu","label":"character-menu","role":"The Character menu window, character-menu.html: one app-wide frameless window, created hidden at main's boot; it draws the menu beside the right-clicked character, takes keyboard focus, lets clicks outside its pills through, and hides on close."},
+      {"id":"devtools","label":"devtools","role":"Context inspector, advanced settings, and motion preview over reloaded stores."},
+      {"id":"ingress","label":"agent ingress","role":"The loopback HTTP listener in the main process, one port for every window: it chooses the recipient by path."},
+      {"id":"mcp-host","label":"MCP host","role":"The plugin MCP host in the main process: it emits a plugin server's signal groups to main."}
     ],
     "edges": [
-      {
-        "id": "character-menu-open-pet",
-        "from": "pet",
-        "to": "character-menu",
-        "carries": "yui://character-menu open, state and close: a right-click's open of the menu beside her, its refresh and its close",
-        "kind": "bridge"
-      },
-      {
-        "id": "character-menu-shown-pet",
-        "from": "character-menu",
-        "to": "pet",
-        "carries": "yui://character-menu shown, action and closed: the menu is up, a pick to run on her, and the menu is hidden",
-        "kind": "bridge"
-      },
-      {
-        "id": "character-menu-open-pet-companion",
-        "from": "pet-<id>",
-        "to": "character-menu",
-        "carries": "yui://character-menu open, state and close: a bound pet window's right-click, its refresh and its close",
-        "kind": "bridge"
-      },
-      {
-        "id": "character-menu-shown-pet-companion",
-        "from": "character-menu",
-        "to": "pet-<id>",
-        "carries": "yui://character-menu shown, action and closed: the menu is up, a pick to run on that pet window, and the menu is hidden",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-settings",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://settings-changed: reload stores from localStorage",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-pet",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://settings-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-devtools",
-        "from": "devtools",
-        "to": "pet",
-        "carries": "yui://settings-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-to-devtools",
-        "from": "pet",
-        "to": "devtools",
-        "carries": "yui://settings-changed: reload stores and context history",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-message",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-settings-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://settings-changed: reload stores from localStorage",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-pet-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://settings-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-message-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://preset-changed {active}: reread the registry; another active preset stops the turn and reloads; a bound pet window keeps its preset and does not reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://preset-changed {active}: reread the registry; another active preset reloads; a bound pet window emits it too and never reloads on it",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings-bound",
-        "from": "settings",
-        "to": "pet-<id>",
-        "carries": "yui://preset-changed {active}: reread the registry; no reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "yui://preset-changed {active}: reread the registry; no reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings-pet-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://preset-changed {active}: reread the registry; no reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-settings-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://preset-changed {active}: reread the registry; no reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-message-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://preset-changed {active}: reread the registry; no reload",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-open-pet",
-        "from": "pet",
-        "to": "threads",
-        "carries": "yui://threads-open {chip?, tab?, thread?, focus?, present?}: place, show and focus the window, grow out of the chip when there is one; select the tab; thread selects that Thread on open; focus: false shows or raises it without focus; while it shows, focus it and select the tab the request names",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-open-request-bound",
-        "from": "pet-<id>",
-        "to": "pet",
-        "carries": "yui://threads-open-request {tab}: unscoped, so a bound character's Character menu Threads or Terminal item reaches main, which owns the Threads window",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-attach-request-threads",
-        "from": "threads",
-        "to": "pet",
-        "carries": "yui://threads-attach-request {op: \"toggle\", thread}: the pane's Attach to chat",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-attach-request-message",
-        "from": "message",
-        "to": "pet",
-        "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-attach-request-unified",
-        "from": "unified",
-        "to": "pet",
-        "carries": "yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-attached-pet",
-        "from": "pet",
-        "to": "threads",
-        "carries": "yui://threads-attached {threads}: on every change and on threads-ready",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-ready-pet",
-        "from": "threads",
-        "to": "pet",
-        "carries": "yui://threads-ready: the controller sends a request it held since the create",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-presented-pet",
-        "from": "threads",
-        "to": "pet",
-        "carries": "yui://threads-presented {present}: the request with that id finished, shown and grown or raised",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-threads",
-        "from": "threads",
-        "to": "pet",
-        "carries": "yui://settings-changed after a Thread turns pick: reload stores from localStorage",
-        "kind": "bridge"
-      },
-      {
-        "id": "threads-closed-pet",
-        "from": "threads",
-        "to": "pet",
-        "carries": "yui://threads-closed: the chip leaves its open state",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-settings",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-pet",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://pet-windows-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-settings-bound",
-        "from": "settings",
-        "to": "pet-<id>",
-        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-bound-settings",
-        "from": "pet-<id>",
-        "to": "settings",
-        "carries": "yui://pet-windows-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-bound-pet",
-        "from": "pet-<id>",
-        "to": "pet",
-        "carries": "yui://pet-windows-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-lock-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "navigator.locks yui.speaking: taken before an utterance's first sentence plays while yui.one-voice is on, released at the utterance's end or when the window dies; other windows queue in order",
-        "kind": "storage"
-      },
-      {
-        "id": "voice-lock-bound-pet",
-        "from": "pet-<id>",
-        "to": "pet",
-        "carries": "navigator.locks yui.speaking",
-        "kind": "storage"
-      },
-      {
-        "id": "turn-lock-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "navigator.locks yui.turn: taken before a turn's backend call while yui.one-voice is on, released when the pipeline is idle (call ended and playback done) or when the window dies; other windows queue in order",
-        "kind": "storage"
-      },
-      {
-        "id": "turn-lock-bound-pet",
-        "from": "pet-<id>",
-        "to": "pet",
-        "carries": "navigator.locks yui.turn",
-        "kind": "storage"
-      },
-      {
-        "id": "pet-windows-changed-settings-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
-        "kind": "bridge"
-      },
-      {
-        "id": "pet-windows-changed-pet-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://pet-windows-changed",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-message",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings-message",
-        "from": "settings",
-        "to": "message",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-pet-devtools",
-        "from": "pet",
-        "to": "devtools",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "preset-changed-settings-devtools",
-        "from": "settings",
-        "to": "devtools",
-        "carries": "yui://preset-changed {active}: another active preset reloads",
-        "kind": "bridge"
-      },
-      {
-        "id": "mouth-preview",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://mouth-preview: number or null; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "mouth-preview-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://mouth-preview: number or null; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-set",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://voice-set: boolean; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-state",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://voice-state: {state}; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "help-guide",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://help-guide: {guide, text}",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-page-window",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
-        "kind": "bridge"
-      },
-      {
-        "id": "open-devtools-window",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window",
-        "kind": "bridge"
-      },
-      {
-        "id": "open-devtools-companion",
-        "from": "settings-<id>",
-        "to": "pet",
-        "carries": "yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-stage-window",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://settings-stage: {preset: null, rect}; unscoped, main's pet window comes along onto the stage or goes home on null",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-stage-ask-window",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://settings-stage-ask: no payload; the settings window sends its rect again",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-stage-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://settings-stage: {preset: id, rect}; unscoped, the pet window of that preset comes along onto the stage or goes home on null",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-stage-ask-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://settings-stage-ask: no payload; the settings window sends its rect again",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-page-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
-        "kind": "bridge"
-      },
-      {
-        "id": "help-guide-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://help-guide: {guide, text}",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-settings",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-settings-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-message",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-state-message-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "session-reset",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://session-reset: {presetId}; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "session-reset-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://session-reset: {presetId}; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "first-conversation",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://first-conversation-connected; scoped to the preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "first-conversation-replay",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://first-conversation-replay; scoped to the preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "first-conversation-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://first-conversation-connected; scoped to the preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "first-conversation-replay-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://first-conversation-replay; scoped to the preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-reset",
-        "from": "settings",
-        "to": "pet",
-        "carries": "yui://push-reset, yui://push-reconnect; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "push-reset-companion",
-        "from": "settings-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://push-reset, yui://push-reconnect; filtered by preset id",
-        "kind": "bridge"
-      },
-      {
-        "id": "delegations-settings",
-        "from": "pet",
-        "to": "settings",
-        "carries": "yui://delegations, answered on yui://delegations-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "delegations-settings-companion",
-        "from": "pet-<id>",
-        "to": "settings-<id>",
-        "carries": "yui://delegations, answered on yui://delegations-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "delegations-message",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://delegations, answered on yui://delegations-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "delegations-message-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://delegations, answered on yui://delegations-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "reasoning-message",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://reasoning, answered on yui://reasoning-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "reasoning-message-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://reasoning, answered on yui://reasoning-ask",
-        "kind": "bridge"
-      },
-      {
-        "id": "message-surface",
-        "from": "pet",
-        "to": "message",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply, asks {frames} (push Asks and Settings requests) and threads {threads}",
-        "kind": "bridge"
-      },
-      {
-        "id": "message-surface-companion",
-        "from": "pet-<id>",
-        "to": "message-<id>",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames} (push Asks and Settings requests)",
-        "kind": "bridge"
-      },
-      {
-        "id": "message-control",
-        "from": "message",
-        "to": "pet",
-        "carries": "yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
-        "kind": "bridge"
-      },
-      {
-        "id": "message-control-companion",
-        "from": "message-<id>",
-        "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}, an Answer or a Settings request decision",
-        "kind": "bridge"
-      },
-      {
-        "id": "ingress-inbox-pet",
-        "from": "ingress",
-        "to": "pet",
-        "carries": "bare /signals and /avatar/* → signals-inbox, avatar-rpc, ingress-dead",
-        "kind": "tauri-event"
-      },
-      {
-        "id": "mcp-host-inbox-pet",
-        "from": "mcp-host",
-        "to": "pet",
-        "carries": "a plugin server's signals notification → signals-inbox (plugin set)",
-        "kind": "tauri-event"
-      },
-      {
-        "id": "ingress-inbox-pet-bound",
-        "from": "ingress",
-        "to": "pet-<id>",
-        "carries": "/presets/<id>/signals and /presets/<id>/avatar/* → signals-inbox, avatar-rpc, to the window bound to <id> and no other",
-        "kind": "tauri-event"
-      },
-      {
-        "id": "character-addressed-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-pet-unified",
-        "from": "pet",
-        "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy, name and the attached Threads always; commands and Command replies for this window",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-pet-bound-unified",
-        "from": "pet-<id>",
-        "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons, input errors and failed-send restores while the unified chat window shows; busy and name always; commands and Command replies for this window",
-        "kind": "bridge"
-      },
-      {
-        "id": "user-turn-routed-unified-pet",
-        "from": "unified",
-        "to": "pet",
-        "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}; unscoped: every pet window receives it and keeps the one naming its preset; main drops the Threads it carried",
-        "kind": "bridge"
-      },
-      {
-        "id": "user-turn-routed-unified-pet-bound",
-        "from": "unified",
-        "to": "pet-<id>",
-        "carries": "yui://user-turn-routed {sendId, to, text, mention?, via?}; unscoped: every pet window receives it and keeps the one naming its preset",
-        "kind": "bridge"
-      },
-      {
-        "id": "user-turn-done-pet-unified",
-        "from": "pet",
-        "to": "unified",
-        "carries": "yui://user-turn-done {sendId, preset}",
-        "kind": "bridge"
-      },
-      {
-        "id": "user-turn-done-pet-bound-unified",
-        "from": "pet-<id>",
-        "to": "unified",
-        "carries": "yui://user-turn-done {sendId, preset}",
-        "kind": "bridge"
-      },
-      {
-        "id": "settings-changed-pet-unified",
-        "from": "pet",
-        "to": "unified",
-        "carries": "yui://settings-changed, preset-changed and pet-windows-changed: the unified chat window re-reads the open presets' transcripts",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-ask-unified-pet",
-        "from": "unified",
-        "to": "pet",
-        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-ask-unified-pet-bound",
-        "from": "unified",
-        "to": "pet-<id>",
-        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-control-unified-pet",
-        "from": "unified",
-        "to": "pet",
-        "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-stream-control-unified-pet-bound",
-        "from": "unified",
-        "to": "pet-<id>",
-        "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
-        "kind": "bridge"
-      },
-      {
-        "id": "stop-turns-unified-pet",
-        "from": "unified",
-        "to": "pet",
-        "carries": "yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech",
-        "kind": "bridge"
-      },
-      {
-        "id": "stop-turns-unified-pet-bound",
-        "from": "unified",
-        "to": "pet-<id>",
-        "carries": "yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech",
-        "kind": "bridge"
-      },
-      {
-        "id": "voice-segment-pet-unified",
-        "from": "pet",
-        "to": "unified",
-        "carries": "yui://voice-segment {text}: main's recognized speech while the unified chat window shows",
-        "kind": "bridge"
-      },
-      {
-        "id": "speech-onset-pet-unified",
-        "from": "pet",
-        "to": "unified",
-        "carries": "yui://speech-onset when the user starts speaking with barge-in on: the unified chat window answers like its stop button while a character runs",
-        "kind": "bridge"
-      },
-      {
-        "id": "unified-open-pet",
-        "from": "pet",
-        "to": "unified",
-        "carries": "WebviewWindow unified: created at its stored position or shown and focused while the unified chat window shows, destroyed otherwise",
-        "kind": "tauri-command"
-      },
-      {
-        "id": "character-addressed-bound-pet",
-        "from": "pet-<id>",
-        "to": "pet",
-        "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset",
-        "kind": "bridge"
-      }
+      {"id":"character-menu-open-pet","from":"pet","to":"character-menu","carries":"yui://character-menu open, state and close: a right-click's open of the menu beside her, its refresh and its close","kind":"bridge"},
+      {"id":"character-menu-shown-pet","from":"character-menu","to":"pet","carries":"yui://character-menu shown, action and closed: the menu is up, a pick to run on her, and the menu is hidden","kind":"bridge"},
+      {"id":"character-menu-open-pet-companion","from":"pet-<id>","to":"character-menu","carries":"yui://character-menu open, state and close: a bound pet window's right-click, its refresh and its close","kind":"bridge"},
+      {"id":"character-menu-shown-pet-companion","from":"character-menu","to":"pet-<id>","carries":"yui://character-menu shown, action and closed: the menu is up, a pick to run on that pet window, and the menu is hidden","kind":"bridge"},
+      {"id":"settings-changed-settings","from":"settings","to":"pet","carries":"yui://settings-changed: reload stores from localStorage","kind":"bridge"},
+      {"id":"settings-changed-pet","from":"pet","to":"settings","carries":"yui://settings-changed","kind":"bridge"},
+      {"id":"settings-changed-devtools","from":"devtools","to":"pet","carries":"yui://settings-changed","kind":"bridge"},
+      {"id":"settings-changed-to-devtools","from":"pet","to":"devtools","carries":"yui://settings-changed: reload stores and context history","kind":"bridge"},
+      {"id":"settings-changed-message","from":"pet","to":"message","carries":"yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors","kind":"bridge"},
+      {"id":"settings-changed-settings-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://settings-changed: reload stores from localStorage","kind":"bridge"},
+      {"id":"settings-changed-pet-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://settings-changed","kind":"bridge"},
+      {"id":"settings-changed-message-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors","kind":"bridge"},
+      {"id":"preset-changed-settings","from":"settings","to":"pet","carries":"yui://preset-changed {active}: reread the registry; another active preset stops the turn and reloads; a bound pet window keeps its preset and does not reload","kind":"bridge"},
+      {"id":"preset-changed-pet","from":"pet","to":"settings","carries":"yui://preset-changed {active}: reread the registry; another active preset reloads; a bound pet window emits it too and never reloads on it","kind":"bridge"},
+      {"id":"preset-changed-settings-bound","from":"settings","to":"pet-<id>","carries":"yui://preset-changed {active}: reread the registry; no reload","kind":"bridge"},
+      {"id":"preset-changed-pet-bound","from":"pet","to":"pet-<id>","carries":"yui://preset-changed {active}: reread the registry; no reload","kind":"bridge"},
+      {"id":"preset-changed-settings-pet-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://preset-changed {active}: reread the registry; no reload","kind":"bridge"},
+      {"id":"preset-changed-pet-settings-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://preset-changed {active}: reread the registry; no reload","kind":"bridge"},
+      {"id":"preset-changed-pet-message-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://preset-changed {active}: reread the registry; no reload","kind":"bridge"},
+      {"id":"threads-open-pet","from":"pet","to":"threads","carries":"yui://threads-open {chip?, tab?, thread?, focus?, present?}: place, show and focus, grow from the chip; select the tab; thread selects that Thread; focus: false shows without focus","kind":"bridge"},
+      {"id":"threads-open-request-bound","from":"pet-<id>","to":"pet","carries":"yui://threads-open-request {tab}: unscoped, so a bound character's Character menu Threads or Terminal item reaches main, which owns the Threads window","kind":"bridge"},
+      {"id":"threads-attach-request-threads","from":"threads","to":"pet","carries":"yui://threads-attach-request {op: \"toggle\", thread}: the pane's Attach to chat","kind":"bridge"},
+      {"id":"threads-attach-request-message","from":"message","to":"pet","carries":"yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×","kind":"bridge"},
+      {"id":"threads-attach-request-unified","from":"unified","to":"pet","carries":"yui://threads-attach-request {op: \"remove\", thread}: a Thread chip's ×","kind":"bridge"},
+      {"id":"threads-attached-pet","from":"pet","to":"threads","carries":"yui://threads-attached {threads}: on every change and on threads-ready","kind":"bridge"},
+      {"id":"threads-ready-pet","from":"threads","to":"pet","carries":"yui://threads-ready: the controller sends a request it held since the create","kind":"bridge"},
+      {"id":"threads-presented-pet","from":"threads","to":"pet","carries":"yui://threads-presented {present}: the request with that id finished, shown and grown or raised","kind":"bridge"},
+      {"id":"settings-changed-threads","from":"threads","to":"pet","carries":"yui://settings-changed after a Thread turns pick: reload stores from localStorage","kind":"bridge"},
+      {"id":"threads-closed-pet","from":"threads","to":"pet","carries":"yui://threads-closed: the chip leaves its open state","kind":"bridge"},
+      {"id":"pet-windows-changed-settings","from":"settings","to":"pet","carries":"yui://pet-windows-changed: reload yui.windows and the live keys","kind":"bridge"},
+      {"id":"pet-windows-changed-pet","from":"pet","to":"settings","carries":"yui://pet-windows-changed","kind":"bridge"},
+      {"id":"pet-windows-changed-settings-bound","from":"settings","to":"pet-<id>","carries":"yui://pet-windows-changed: reload yui.windows and the live keys","kind":"bridge"},
+      {"id":"pet-windows-changed-bound-settings","from":"pet-<id>","to":"settings","carries":"yui://pet-windows-changed","kind":"bridge"},
+      {"id":"pet-windows-changed-pet-bound","from":"pet","to":"pet-<id>","carries":"yui://pet-windows-changed: reload yui.windows and the live keys","kind":"bridge"},
+      {"id":"pet-windows-changed-bound-pet","from":"pet-<id>","to":"pet","carries":"yui://pet-windows-changed","kind":"bridge"},
+      {"id":"voice-lock-pet-bound","from":"pet","to":"pet-<id>","carries":"navigator.locks yui.speaking: taken before an utterance's first sentence plays while yui.one-voice is on, released at the utterance's end or when the window dies; other windows queue in order","kind":"storage"},
+      {"id":"voice-lock-bound-pet","from":"pet-<id>","to":"pet","carries":"navigator.locks yui.speaking","kind":"storage"},
+      {"id":"turn-lock-pet-bound","from":"pet","to":"pet-<id>","carries":"navigator.locks yui.turn: taken before a turn's backend call while yui.one-voice is on, released when the pipeline is idle or the window dies; other windows queue in order","kind":"storage"},
+      {"id":"turn-lock-bound-pet","from":"pet-<id>","to":"pet","carries":"navigator.locks yui.turn","kind":"storage"},
+      {"id":"pet-windows-changed-settings-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://pet-windows-changed: reload yui.windows and the live keys","kind":"bridge"},
+      {"id":"pet-windows-changed-pet-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://pet-windows-changed","kind":"bridge"},
+      {"id":"preset-changed-pet-message","from":"pet","to":"message","carries":"yui://preset-changed {active}: another active preset reloads","kind":"bridge"},
+      {"id":"preset-changed-settings-message","from":"settings","to":"message","carries":"yui://preset-changed {active}: another active preset reloads","kind":"bridge"},
+      {"id":"preset-changed-pet-devtools","from":"pet","to":"devtools","carries":"yui://preset-changed {active}: another active preset reloads","kind":"bridge"},
+      {"id":"preset-changed-settings-devtools","from":"settings","to":"devtools","carries":"yui://preset-changed {active}: another active preset reloads","kind":"bridge"},
+      {"id":"mouth-preview","from":"settings","to":"pet","carries":"yui://mouth-preview: number or null; filtered by preset id","kind":"bridge"},
+      {"id":"mouth-preview-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://mouth-preview: number or null; filtered by preset id","kind":"bridge"},
+      {"id":"voice-set","from":"settings","to":"pet","carries":"yui://voice-set: boolean; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset","kind":"bridge"},
+      {"id":"voice-state","from":"pet","to":"settings","carries":"yui://voice-state: {state}; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset","kind":"bridge"},
+      {"id":"help-guide","from":"settings","to":"pet","carries":"yui://help-guide: {guide, text}","kind":"bridge"},
+      {"id":"settings-page-window","from":"pet","to":"settings","carries":"yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it","kind":"bridge"},
+      {"id":"open-devtools-window","from":"settings","to":"pet","carries":"yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window","kind":"bridge"},
+      {"id":"open-devtools-companion","from":"settings-<id>","to":"pet","carries":"yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window","kind":"bridge"},
+      {"id":"settings-stage-window","from":"settings","to":"pet","carries":"yui://settings-stage: {preset: null, rect}; unscoped, main's pet window comes along onto the stage or goes home on null","kind":"bridge"},
+      {"id":"settings-stage-ask-window","from":"pet","to":"settings","carries":"yui://settings-stage-ask: no payload; the settings window sends its rect again","kind":"bridge"},
+      {"id":"settings-stage-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://settings-stage: {preset: id, rect}; unscoped, the pet window of that preset comes along onto the stage or goes home on null","kind":"bridge"},
+      {"id":"settings-stage-ask-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://settings-stage-ask: no payload; the settings window sends its rect again","kind":"bridge"},
+      {"id":"settings-page-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it","kind":"bridge"},
+      {"id":"help-guide-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://help-guide: {guide, text}","kind":"bridge"},
+      {"id":"push-state-settings","from":"pet","to":"settings","carries":"yui://push-state, answered on yui://push-state-ask; filtered by preset id","kind":"bridge"},
+      {"id":"push-state-settings-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://push-state, answered on yui://push-state-ask; filtered by preset id","kind":"bridge"},
+      {"id":"push-state-message","from":"pet","to":"message","carries":"yui://push-state, answered on yui://push-state-ask; filtered by preset id","kind":"bridge"},
+      {"id":"push-state-message-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://push-state, answered on yui://push-state-ask; filtered by preset id","kind":"bridge"},
+      {"id":"session-reset","from":"settings","to":"pet","carries":"yui://session-reset: {presetId}; filtered by preset id","kind":"bridge"},
+      {"id":"session-reset-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://session-reset: {presetId}; filtered by preset id","kind":"bridge"},
+      {"id":"first-conversation","from":"settings","to":"pet","carries":"yui://first-conversation-connected; scoped to the preset","kind":"bridge"},
+      {"id":"first-conversation-replay","from":"settings","to":"pet","carries":"yui://first-conversation-replay; scoped to the preset","kind":"bridge"},
+      {"id":"first-conversation-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://first-conversation-connected; scoped to the preset","kind":"bridge"},
+      {"id":"first-conversation-replay-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://first-conversation-replay; scoped to the preset","kind":"bridge"},
+      {"id":"push-reset","from":"settings","to":"pet","carries":"yui://push-reset, yui://push-reconnect; filtered by preset id","kind":"bridge"},
+      {"id":"push-reset-companion","from":"settings-<id>","to":"pet-<id>","carries":"yui://push-reset, yui://push-reconnect; filtered by preset id","kind":"bridge"},
+      {"id":"delegations-settings","from":"pet","to":"settings","carries":"yui://delegations, answered on yui://delegations-ask","kind":"bridge"},
+      {"id":"delegations-settings-companion","from":"pet-<id>","to":"settings-<id>","carries":"yui://delegations, answered on yui://delegations-ask","kind":"bridge"},
+      {"id":"delegations-message","from":"pet","to":"message","carries":"yui://delegations, answered on yui://delegations-ask","kind":"bridge"},
+      {"id":"delegations-message-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://delegations, answered on yui://delegations-ask","kind":"bridge"},
+      {"id":"reasoning-message","from":"pet","to":"message","carries":"yui://reasoning, answered on yui://reasoning-ask","kind":"bridge"},
+      {"id":"reasoning-message-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://reasoning, answered on yui://reasoning-ask","kind":"bridge"},
+      {"id":"message-surface","from":"pet","to":"message","carries":"yui://message-surface: MessageSurfaceOp; commands, command-reply, asks {frames} (push Asks and Settings requests) and threads {threads}","kind":"bridge"},
+      {"id":"message-surface-companion","from":"pet-<id>","to":"message-<id>","carries":"yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames} (push Asks and Settings requests)","kind":"bridge"},
+      {"id":"message-control","from":"message","to":"pet","carries":"yui://message-control: submit {text, images, threads}, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}","kind":"bridge"},
+      {"id":"message-control-companion","from":"message-<id>","to":"pet-<id>","carries":"yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}","kind":"bridge"},
+      {"id":"ingress-inbox-pet","from":"ingress","to":"pet","carries":"bare /signals and /avatar/* → signals-inbox, avatar-rpc, ingress-dead","kind":"tauri-event"},
+      {"id":"mcp-host-inbox-pet","from":"mcp-host","to":"pet","carries":"a plugin server's signals notification → signals-inbox (plugin set)","kind":"tauri-event"},
+      {"id":"ingress-inbox-pet-bound","from":"ingress","to":"pet-<id>","carries":"/presets/<id>/signals and /presets/<id>/avatar/* → signals-inbox, avatar-rpc, to the window bound to <id> and no other","kind":"tauri-event"},
+      {"id":"character-addressed-pet-bound","from":"pet","to":"pet-<id>","carries":"yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset","kind":"bridge"},
+      {"id":"speech-stream-pet-unified","from":"pet","to":"unified","carries":"yui://speech-stream {preset, op}: the message-window ops of the pet's lines while the unified chat window shows; busy, name and attached Threads always; commands and Command replies for this window","kind":"bridge"},
+      {"id":"speech-stream-pet-bound-unified","from":"pet-<id>","to":"unified","carries":"yui://speech-stream {preset, op}: the message-window ops of the pet's lines while the unified chat window shows; busy and name always; commands and Command replies for this window","kind":"bridge"},
+      {"id":"user-turn-routed-unified-pet","from":"unified","to":"pet","carries":"yui://user-turn-routed {sendId, to, text, mention?, via?, threads?}; unscoped: every pet window receives it and keeps the one naming its preset; main drops the Threads it carried","kind":"bridge"},
+      {"id":"user-turn-routed-unified-pet-bound","from":"unified","to":"pet-<id>","carries":"yui://user-turn-routed {sendId, to, text, mention?, via?}; unscoped: every pet window receives it and keeps the one naming its preset","kind":"bridge"},
+      {"id":"user-turn-done-pet-unified","from":"pet","to":"unified","carries":"yui://user-turn-done {sendId, preset}","kind":"bridge"},
+      {"id":"user-turn-done-pet-bound-unified","from":"pet-<id>","to":"unified","carries":"yui://user-turn-done {sendId, preset}","kind":"bridge"},
+      {"id":"settings-changed-pet-unified","from":"pet","to":"unified","carries":"yui://settings-changed, preset-changed and pet-windows-changed: the unified chat window re-reads the open presets' transcripts","kind":"bridge"},
+      {"id":"speech-stream-ask-unified-pet","from":"unified","to":"pet","carries":"yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply","kind":"bridge"},
+      {"id":"speech-stream-ask-unified-pet-bound","from":"unified","to":"pet-<id>","carries":"yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply","kind":"bridge"},
+      {"id":"speech-stream-control-unified-pet","from":"unified","to":"pet","carries":"yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control","kind":"bridge"},
+      {"id":"speech-stream-control-unified-pet-bound","from":"unified","to":"pet-<id>","carries":"yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control","kind":"bridge"},
+      {"id":"stop-turns-unified-pet","from":"unified","to":"pet","carries":"yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech","kind":"bridge"},
+      {"id":"stop-turns-unified-pet-bound","from":"unified","to":"pet-<id>","carries":"yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech","kind":"bridge"},
+      {"id":"voice-segment-pet-unified","from":"pet","to":"unified","carries":"yui://voice-segment {text}: main's recognized speech while the unified chat window shows","kind":"bridge"},
+      {"id":"speech-onset-pet-unified","from":"pet","to":"unified","carries":"yui://speech-onset when the user starts speaking with barge-in on: the unified chat window answers like its stop button while a character runs","kind":"bridge"},
+      {"id":"unified-open-pet","from":"pet","to":"unified","carries":"WebviewWindow unified: created at its stored position or shown and focused while the unified chat window shows, destroyed otherwise","kind":"tauri-command"},
+      {"id":"character-addressed-bound-pet","from":"pet-<id>","to":"pet","carries":"yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset","kind":"bridge"}
     ]
   }
 }

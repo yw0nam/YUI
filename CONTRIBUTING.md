@@ -91,12 +91,17 @@ the plugin follows the steps below against the plugin map; step 3's
   kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
   stdio message, localStorage, cross-window bridge, user action), the
   transport it belongs to (shared, request, push), and the wiring file that
-  connects the two ends.
+  connects the two ends. Its `carries` is capped at 200 characters.
 - A link is a main path between two modules, drawn as a labelled line. The
   viewer lists every exchange of a module when the module is selected.
 - A flow is a numbered sequence of steps between modules, each step naming
   the exchanges behind it.
 - The window graph lists the windows and the channels each sends to another.
+  A channel's `carries` is capped at 200 characters.
+
+Both map files are written one record per line, each record's fields compact on
+its own line. `pnpm map:check` fails a file in another form, and `pnpm map:fmt`
+writes it.
 
 Every change is presented on the map before its code is written. A change
 inside one part is presented as that, in one line, and skips steps 2 to 4. A
@@ -109,8 +114,9 @@ crosses an exchange, follows all four.
    of those modules and exchanges before and after, and agree it in the
    issue's **Architecture map** section. The form is free: a table, a list, a
    before and after sketch, or the viewer.
-3. Edit `map.js` in the worktree, run `pnpm map:base`, and open the viewer's
-   **Compare with main** view to confirm the difference is the agreed one.
+3. Edit `map.js` in the worktree, run `pnpm map:fmt`, then `pnpm map:base`, and
+   open the viewer's **Compare with main** view to confirm the difference is the
+   agreed one.
 4. Ship the `map.js` change in the same PR as the code. A PR whose code
    changes a module, a part, or an exchange is complete only when `map.js`
    states the shipped result.
@@ -127,7 +133,8 @@ crosses an exchange, follows all four.
 - a part, a link, an exchange, or a flow step names a missing id, or an id is
   used twice;
 - a link has no exchange in its direction, or a flow step cites an exchange
-  outside its two modules or of the other transport.
+  outside its two modules or of the other transport;
+- a map file is not written one record per line, which `pnpm map:fmt` writes.
 
 CI runs it in the `web` job.
 

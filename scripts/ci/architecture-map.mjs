@@ -76,6 +76,28 @@ export function parseMap(text) {
   }
 }
 
+export function formatMap(map) {
+  return `globalThis.YUI_MAP =\n${write(map, 0)}\n`;
+}
+
+const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+// A container is expanded when it holds an array of records at any depth; everything else stays compact.
+const holdsRecords = (value) =>
+  Array.isArray(value)
+    ? value.some(isRecord) || value.some(holdsRecords)
+    : isRecord(value) && Object.values(value).some(holdsRecords);
+
+function write(value, depth) {
+  if (!holdsRecords(value)) return JSON.stringify(value);
+  const inner = "  ".repeat(depth + 1);
+  if (Array.isArray(value))
+    return `[\n${value.map((item) => `${inner}${write(item, depth + 1)}`).join(",\n")}\n${"  ".repeat(depth)}]`;
+  const entries = Object.entries(value).map(
+    ([key, item]) => `${inner}${JSON.stringify(key)}: ${write(item, depth + 1)}`,
+  );
+  return `{\n${entries.join(",\n")}\n${"  ".repeat(depth)}}`;
+}
+
 function shapeProblems(map, scope) {
   if (typeOf(map) !== "object" || map === null) return ["shape: the map is not an object"];
   const problems = [];
@@ -198,6 +220,8 @@ export function checkMap(map, files, scope = MAPS[0]) {
       }
       if (!KINDS.includes(edge.kind))
         problems.push(`enums: ${edge.id} kind ${edge.kind} is invalid`);
+      if (edge.carries.length > 200)
+        problems.push(`carries: ${edge.id} is longer than 200 characters`);
     }
   }
   for (const edge of map.edges) {
@@ -276,11 +300,16 @@ export function listFiles(map, scope = MAPS[0], root = ROOT) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // An optional root checks a copy of the maps; the repo root is the default.
+  const root = resolve(process.argv[2] ?? ROOT);
   for (const scope of MAPS) {
-    const parsed = parseMap(readFileSync(resolve(ROOT, scope.file), "utf8"));
+    const text = readFileSync(resolve(root, scope.file), "utf8");
+    const parsed = parseMap(text);
     const problems = parsed.problems.length
       ? parsed.problems
-      : checkMap(parsed.map, listFiles(parsed.map, scope), scope);
+      : checkMap(parsed.map, listFiles(parsed.map, scope, root), scope);
+    if (!parsed.problems.length && text !== formatMap(parsed.map))
+      problems.push("format: not in canonical form, run pnpm map:fmt");
     for (const problem of problems) console.error(`${scope.file}: ${problem}`);
     if (problems.length) process.exitCode = 1;
   }

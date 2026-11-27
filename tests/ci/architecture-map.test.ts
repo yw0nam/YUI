@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { checkMap, parseMap } from "../../scripts/ci/architecture-map.mjs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { checkMap, formatMap, MAPS, parseMap } from "../../scripts/ci/architecture-map.mjs";
 
 function fixture() {
   return {
@@ -277,5 +281,97 @@ describe("architecture map", () => {
         { path: "src/newthing/file.ts", directory: false },
       ]),
     ).toContain("coverage: src/newthing has no part");
+  });
+  it("caps an exchange's carries at 200 characters", () => {
+    const map = fixture();
+    map.edges[0].carries = "x".repeat(200);
+    expect(checkMap(map, files)).toEqual([]);
+    map.edges[0].carries = "x".repeat(201);
+    expect(checkMap(map, files)).toContain("carries: edge is longer than 200 characters");
+  });
+  it("caps a window channel's carries at 200 characters", () => {
+    const map = fixture();
+    map.windows.edges[0].carries = "x".repeat(200);
+    expect(checkMap(map, files)).toEqual([]);
+    map.windows.edges[0].carries = "x".repeat(201);
+    expect(checkMap(map, files)).toContain("carries: channel is longer than 200 characters");
+  });
+  it("writes a map one record per line", () => {
+    const text = [
+      "globalThis.YUI_MAP =",
+      "{",
+      '  "title": "fixture",',
+      '  "edges": [',
+      '    {"id":"a","carries":"x"},',
+      '    {"id":"b","carries":"y"}',
+      "  ],",
+      '  "flows": [',
+      "    {",
+      '      "id": "f",',
+      '      "steps": [',
+      '        {"from":"a","edges":["a"]},',
+      '        {"from":"b","edges":["b"]}',
+      "      ]",
+      "    }",
+      "  ],",
+      '  "windows": {',
+      '    "edges": [',
+      '      {"id":"c","carries":"z"}',
+      "    ]",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    const map = {
+      title: "fixture",
+      edges: [
+        { id: "a", carries: "x" },
+        { id: "b", carries: "y" },
+      ],
+      flows: [
+        {
+          id: "f",
+          steps: [
+            { from: "a", edges: ["a"] },
+            { from: "b", edges: ["b"] },
+          ],
+        },
+      ],
+      windows: { edges: [{ id: "c", carries: "z" }] },
+    };
+    expect(formatMap(map)).toBe(text);
+    expect(formatMap(parseMap(text).map)).toBe(text);
+  });
+});
+
+describe("architecture map check on a copy of the maps", () => {
+  const check = resolve("scripts/ci/architecture-map.mjs");
+  const fmt = resolve("scripts/architecture-map-fmt.mjs");
+  let root = "";
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+  it("reports a map file that is not in canonical form, and the formatter writes it", () => {
+    const map = {
+      title: "copy",
+      zones: [],
+      modules: [],
+      links: [],
+      nodes: [],
+      edges: [],
+      flows: [],
+      windows: { nodes: [], edges: [] },
+    };
+    root = mkdtempSync(join(tmpdir(), "map-copy-"));
+    for (const scope of MAPS) {
+      mkdirSync(dirname(join(root, scope.file)), { recursive: true });
+      writeFileSync(
+        join(root, scope.file),
+        `globalThis.YUI_MAP =\n${JSON.stringify(map, null, 2)}\n`,
+      );
+    }
+    const before = spawnSync("node", [check, root], { encoding: "utf8" });
+    expect(before.status).toBe(1);
+    expect(before.stderr).toContain("format: not in canonical form, run pnpm map:fmt");
+    expect(spawnSync("node", [fmt, root], { encoding: "utf8" }).status).toBe(0);
+    expect(spawnSync("node", [check, root], { encoding: "utf8" }).status).toBe(0);
   });
 });
