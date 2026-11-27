@@ -498,21 +498,31 @@ The unified chat window adds a suffix to the headline. The idle clause follows t
 
 ### A turn that waited
 
-A self-started turn can wait for a free slot and go out with the other candidates that waited with it. Its trigger headline is the top-ranked member's own, followed by its age. The other members follow as `waited:` lines:
+A self-started turn can wait for a free slot and go out with the other candidates that waited with it. Its trigger headline is the top-ranked member's own, followed by its age when the top member waited. One intro line and one `waited:` line per other member follow:
 
 ```text
 trigger: schedule cue "Lunch" (40min ago)
-waited: 12:10 local, 30min ago: milestone first_activity
-waited: 12:20 local, 20min ago: addressed by alice: "bob, you took my chair"
+cue note (the user's own intent for this cue): remind the user to eat
+waited: 3 candidates are still open; the character has not spoken to any of them yet and may take up any of them or none
+waited: milestone first_activity came up 4h ago, at 09:05 local
+waited: proactive cue "It's been quiet" came up 15min ago, at 12:25 local; the user has been idle for 47min
 ```
 
-The headline's age is the top member's own wait. An `addressed` headline already carries the age of the reply it names, so it adds none.
+The intro line says the candidates are still open and that the character has not spoken to them yet. The turn carries a set the backend picks from: the character takes up any of them or none, and the reply decides which.
 
-Each `waited:` line names the member's local fire time, its age, and what it was. The description uses the same wording as that member's trigger headline, without the time the line already carries. It repeats no `cue note`, idle clause, or `last together` line.
+#### The item lines
+
+Each item is a past event that came up at its local clock time, with its age. A cue keeps the `cue note` under it. A `first_activity` milestone keeps the `last together` line. The item drops only the time its own line already carries.
+
+The headline's age appears once the top member has waited a minute or more. An `addressed` headline already carries the age of the reply it names, so it adds none.
+
+A waited screen reaction is a past event too. The frontmost dwell it measured at fire time does not hold after the wait, so it reads `the user switched to Slack 15min ago` instead of the present-tense dwell line.
+
+An idle cue ages with its wait. Its idle duration is the gap it measured at fire time plus the time it waited.
 
 The lines come after the trigger lines and before the `signal` lines.
 
-When the user speaks first, the candidates that were waiting and did not expire ride on the user's turn. They add the same `waited:` lines under `trigger: user message`. Those lines describe what the user's turn superseded, not what the user did.
+When the user speaks first, the candidates that were waiting and did not expire ride on the user's turn. They add the same intro and `waited:` lines under `trigger: user message`, and the intro counts only the riders. Those lines describe what the user's turn superseded, not what the user did.
 
 ### Guide (in-app help button)
 
@@ -611,7 +621,7 @@ On Chat Completions and Responses, the receiver's request carries the background
 ```text
 trigger: milestone first_activity (fired at 08:12)
 last together: 2026-09-10 22:03 (10h ago)
-signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":"standup","at":"09:30"}
+signal [calendar/reminder @21:30 local, 10min ago, id reminder-118]: {"title":"standup","at":"09:30"}
 ```
 
 `time_milestone.first_activity` fires once per local day. It fires on the first `os_idle_tick` that finds the user present, with the schedule setting enabled. The headline names the milestone and the local clock time it fired at.
