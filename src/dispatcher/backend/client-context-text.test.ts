@@ -1240,7 +1240,10 @@ describe("renderClientContext — exhaustiveness", () => {
     );
 
     const without = renderClientContext(
-      baseContext({ kind: "addressed", addressed: { from: "perlica", text: "natsume, you took my chair", ts: NOW } }),
+      baseContext({
+        kind: "addressed",
+        addressed: { from: "perlica", text: "natsume, you took my chair", ts: NOW },
+      }),
       NOW,
     );
     expect(without).not.toContain("exchange:");

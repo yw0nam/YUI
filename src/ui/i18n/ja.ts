@@ -845,7 +845,8 @@ const ja: Record<string, string> = {
   "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
   "reactions.rate_urgent_sub": "緊急と指定されたシグナル。上の回数とは別に数えます",
   "reactions.rate_addressed_label": "キャラクター同士のやりとりの回数",
-  "reactions.rate_addressed_sub": "あなたが次に話すまでに、各キャラクターが他のキャラクターに続けて答える回数",
+  "reactions.rate_addressed_sub":
+    "あなたが次に話すまでに、各キャラクターが他のキャラクターに続けて答える回数",
 
   // screen watch (proactive tab)
   "screen.label": "画面の変化",

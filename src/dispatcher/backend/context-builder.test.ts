@@ -321,7 +321,11 @@ describe("buildClientContext — addressed forwarding", () => {
       addressedEnv({ from: "perlica", name: "Perlica", line: "hi", exchange: { used: 1, max: 0 } }),
     );
 
-    expect(capped.trigger.addressed).toEqual({ from: "Perlica", text: "hi", ts: 1_717_000_000_000 });
+    expect(capped.trigger.addressed).toEqual({
+      from: "Perlica",
+      text: "hi",
+      ts: 1_717_000_000_000,
+    });
   });
 });
 
