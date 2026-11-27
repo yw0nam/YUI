@@ -41,7 +41,6 @@ const CAN = [
   ["terminal", "terminals"],
   ["plugins", "plugins"],
   ["guide", "guides"],
-  ["waiting", "waiting"],
 ] as const;
 
 /** help() prints the namespace blocks in this order. */
