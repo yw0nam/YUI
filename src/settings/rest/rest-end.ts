@@ -4,7 +4,7 @@ import { REST_CHOICES, type RestChoice } from "./rest-choices";
 
 /** The hour Until tomorrow morning ends at; before it, Until tonight is not offered. */
 const MORNING_HOUR = 8;
-const MIN_MS = 60_000;
+export const MIN_MS = 60_000;
 
 /** The end of `choice` started at `now`; Until I turn it off has none. */
 export function restEndsAt(choice: RestChoice, now: number): number | undefined {

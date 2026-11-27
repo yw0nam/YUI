@@ -4,11 +4,11 @@ import "./character-menu.css";
 import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
-import type { RestChoice, RestState } from "../../settings/rest/rest-choices";
+import type { RestChoice } from "../../settings/rest/rest-choices";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
 import { CHEVRON, GLYPHS } from "./glyphs";
-import { capped, type ListId, listItems, type MenuItem, topItems } from "./items";
+import { capped, type ListId, listItems, type MenuItem, restSamples, topItems } from "./items";
 import { menuKey } from "./keys";
 import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
 import { createMenuMotion, LIVE } from "./motion";
@@ -185,21 +185,6 @@ export function createCharacterMenu(deps: {
       all: [...top.right, ...top.left],
       ...lists,
     } as Record<ColumnKey, MenuItem[]>;
-  }
-
-  /** The columns of every Rest state at a daytime instant, where every choice is offered: what the open measures. */
-  function restVariants(state: MenuState): Record<ColumnKey, MenuItem[]>[] {
-    const noon = new Date();
-    noon.setHours(12, 0, 0, 0);
-    const at = noon.getTime();
-    const states: (RestState | null)[] = [
-      null,
-      { kind: "rest", choice: "hour", startedAt: at, endsAt: at + 3_600_000 },
-      { kind: "rest", choice: "until_off", startedAt: at },
-      { kind: "focus", choice: "focus_50", startedAt: at, endsAt: at + 3_000_000 },
-      { kind: "quiet", endsAt: at },
-    ];
-    return states.map((rest) => columnItems({ ...state, rest }, at));
   }
 
   /** The state drawn now: the lists as they were at open, every other field as it is. */
@@ -469,12 +454,17 @@ export function createCharacterMenu(deps: {
     list = null;
     confirm = null;
     const state = deps.read();
-    opened = {
+    const atOpen: MenuState = {
       ...state,
       bodies: capped(state.bodies, state.body),
       voices: capped(state.voices, state.voice),
     };
-    const sets = [columnItems(opened), ...restVariants(opened)];
+    opened = atOpen;
+    const samples = restSamples();
+    const sets = [
+      columnItems(atOpen),
+      ...samples.states.map((rest) => columnItems({ ...atOpen, rest }, samples.now)),
+    ];
     const measures = sets.map(measure);
     const measured = Object.fromEntries(
       (Object.keys(measures[0]!) as ColumnKey[]).map((key) => [

@@ -3,7 +3,7 @@
 import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import type { RestChoice, RestState } from "../../settings/rest/rest-choices";
-import { clockOf, minutesLeft, restChoicesAt } from "../../settings/rest/rest-end";
+import { clockOf, MIN_MS, minutesLeft, restChoicesAt } from "../../settings/rest/rest-end";
 import { t } from "../i18n";
 
 export type ListId = "body" | "voice" | "pace" | "more" | "rest";
@@ -148,6 +148,29 @@ function restItems(rest: RestState | null, now: number): MenuItem[] {
     { id: "rest-divider", label: "", glyph: "", role: "divider" },
     ...offered.filter((c) => c.startsWith("focus")).map(restChoice),
   ];
+}
+
+/**
+ * Every Rest state the open measures, at an evening instant where every choice is offered:
+ * ends at 08:00 and 00:00, whose digits are the widest, and a Focus at its longest.
+ */
+export function restSamples(): { now: number; states: (RestState | null)[] } {
+  const evening = new Date();
+  evening.setHours(20, 0, 0, 0);
+  const now = evening.getTime();
+  const at = (day: number, hour: number) =>
+    new Date(evening.getFullYear(), evening.getMonth(), evening.getDate() + day, hour).getTime();
+  return {
+    now,
+    states: [
+      null,
+      { kind: "rest", choice: "morning", startedAt: now, endsAt: at(1, 8) },
+      { kind: "rest", choice: "tonight", startedAt: now, endsAt: at(1, 0) },
+      { kind: "rest", choice: "until_off", startedAt: now },
+      { kind: "focus", choice: "focus_50", startedAt: now, endsAt: now + 50 * MIN_MS },
+      { kind: "quiet", endsAt: at(1, 8) },
+    ],
+  };
 }
 
 export function topItems(
