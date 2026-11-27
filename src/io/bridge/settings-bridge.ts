@@ -12,6 +12,7 @@ import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { PACES } from "../../settings/active-hours/spans";
 import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsFocus, isSettingsPage } from "../../settings/panels/settings-pages";
+import { isRestChoice, type RestChoice, type RestState } from "../../settings/rest/rest-choices";
 import type { DelegationItem } from "../chat/push/push-frames";
 import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
@@ -139,7 +140,8 @@ export type MenuKind = "main" | "bound";
 /** What the Character menu shows of her pet window's stores. */
 export interface MenuState {
   talk: boolean;
-  rest: boolean;
+  /** What holds her own turns now; null while nothing does. */
+  rest: RestState | null;
   listen: boolean;
   bubble: boolean;
   unified: boolean;
@@ -154,7 +156,8 @@ export interface MenuState {
 
 /** A pick in the Character menu window, run by the pet window that opened it. */
 export type CharacterMenuAction =
-  | { action: "talk" | "rest" | "listen" | "bubble" | "unified"; value: boolean }
+  | { action: "talk" | "listen" | "bubble" | "unified"; value: boolean }
+  | { action: "rest"; value: RestChoice | "end" }
   | { action: "body" | "voice"; value: string }
   | { action: "pace"; value: BasePace }
   | { action: "settings"; value?: "body" | "voice" }
@@ -219,12 +222,29 @@ function menuOptions(v: unknown): { id: string; label: string }[] | undefined {
   return options.every((o) => o !== undefined) ? options : undefined;
 }
 
+/** The Rest state rebuilt from its fields; null while nothing holds her, undefined when malformed. */
+function restState(v: unknown): RestState | null | undefined {
+  if (v === null) return null;
+  const { kind, choice, startedAt, endsAt } = (v ?? {}) as Record<string, unknown>;
+  if (kind !== "rest" && kind !== "focus" && kind !== "quiet") return undefined;
+  if (!isOptional(choice, isRestChoice)) return undefined;
+  if (!isOptional(startedAt, isFiniteNumber) || !isOptional(endsAt, isFiniteNumber))
+    return undefined;
+  return {
+    kind,
+    ...(choice === undefined ? {} : { choice: choice as RestChoice }),
+    ...(startedAt === undefined ? {} : { startedAt: startedAt as number }),
+    ...(endsAt === undefined ? {} : { endsAt: endsAt as number }),
+  };
+}
+
 function menuState(v: unknown): MenuState | undefined {
   const s = (v ?? {}) as Record<string, unknown>;
   const bodies = menuOptions(s.bodies);
   const voices = menuOptions(s.voices);
-  const { talk, rest, listen, bubble, unified, body, voice, pace, waiting } = s;
-  if (![talk, rest, listen, bubble, unified].every(isBool)) return undefined;
+  const rest = restState(s.rest);
+  const { talk, listen, bubble, unified, body, voice, pace, waiting } = s;
+  if (rest === undefined || ![talk, listen, bubble, unified].every(isBool)) return undefined;
   if (!bodies || !voices || !isString(body) || !isString(voice)) return undefined;
   if (!isBasePace(pace) || !isFiniteNumber(waiting)) return undefined;
   return {
@@ -257,10 +277,10 @@ function hitTestKnobs(v: unknown): HitTestKnobs | undefined {
     : undefined;
 }
 
-/** Each pick's value test: a boolean toggle, an option id, a pace, a page, a tab, or none. */
+/** Each pick's value test: a boolean toggle, a Rest choice or end, an option id, a pace, a page, a tab, or none. */
 const MENU_ACTION_VALUES: Record<CharacterMenuAction["action"], (v: unknown) => boolean> = {
   talk: isBool,
-  rest: isBool,
+  rest: (v) => v === "end" || isRestChoice(v),
   listen: isBool,
   bubble: isBool,
   unified: isBool,

@@ -13,6 +13,10 @@ export const GLYPHS: Record<string, string> = {
   rest: icon(
     '<path d="M18.5 14.2A7 7 0 0 1 9.8 5.5a7 7 0 1 0 8.7 8.7z"/><path d="M15 4.5h3.5L15 8h3.5"/>',
   ),
+  focus: icon('<circle cx="12" cy="13" r="7"/><path d="M12 13V9.5M10 3.5h4"/>'),
+  end: icon(
+    '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M6 18l1.4-1.4M16.6 7.4 18 6"/>',
+  ),
   listen: icon(
     '<path d="M12 3.8a2.6 2.6 0 0 1 2.6 2.6v4.8a2.6 2.6 0 0 1-5.2 0V6.4A2.6 2.6 0 0 1 12 3.8z"/><path d="M6.5 11a5.5 5.5 0 0 0 11 0"/><path d="M12 16.5v3.7"/>',
   ),

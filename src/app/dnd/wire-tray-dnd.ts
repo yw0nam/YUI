@@ -1,17 +1,19 @@
-/** Main only: keeps the tray's Do Not Disturb check and the do-not-disturb store in step; a no-op off Tauri. */
+/** Main only: keeps the tray's Do Not Disturb check on a running Rest or Focus, and turns a click into End now or Until I turn it off; a no-op off Tauri. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setTrayDnd } from "../../io/window/tray-dnd";
 import type { Logger } from "../../logger";
-import type { FlagSettingsStore } from "../../settings/persisted-store";
+import type { RestSettingsStore } from "../../settings/rest/rest-settings";
 import { isTauri } from "../../tauri-env";
+import type { WindowActiveHours } from "../active-hours/window-active-hours";
 
 interface TrayWindow {
   listen(event: "tray-dnd", handler: (event: { payload: boolean }) => void): Promise<() => void>;
 }
 
 export function wireTrayDnd(deps: {
-  dnd: Pick<FlagSettingsStore, "get" | "setEnabled" | "subscribe">;
+  rest: Pick<WindowActiveHours, "rest" | "subscribeRest">;
+  restSettings: Pick<RestSettingsStore, "start" | "end">;
   log: Logger;
   /** Injectable; defaults to this Tauri window. */
   win?: TrayWindow;
@@ -19,24 +21,32 @@ export function wireTrayDnd(deps: {
   setTray?: (on: boolean) => Promise<void>;
 }): () => void {
   if (!deps.win && !isTauri()) return () => {};
-  if (!deps.dnd) return () => {};
-  const { dnd, log } = deps;
+  const { rest, restSettings, log } = deps;
   const win = deps.win ?? getCurrentWindow();
   const setTray = deps.setTray ?? setTrayDnd;
+  // A quiet span holds her too, but the tray item is the Rest switch.
+  const running = (): boolean => {
+    const kind = rest.rest()?.kind;
+    return kind === "rest" || kind === "focus";
+  };
   const sync = (): void => {
-    const on = dnd.get().enabled;
+    const on = running();
     setTray(on).catch((error: unknown) =>
       log.warn("tray_dnd_set_failed", { on, error: String(error) }),
     );
   };
   sync();
-  const unsubscribe = dnd.subscribe(sync);
+  const unsubscribe = rest.subscribeRest(sync);
   let disposed = false;
   let unlisten: (() => void) | undefined;
+  // The click's own check state is stale once a Rest has ended unseen, so the click reads the state now.
   win
-    .listen("tray-dnd", ({ payload }) => {
-      dnd.setEnabled(payload);
-      log.info("dnd_toggle", { enabled: payload, via: "tray" });
+    .listen("tray-dnd", () => {
+      const end = running();
+      if (end) restSettings.end();
+      else restSettings.start("until_off");
+      log.info("rest_set", { choice: end ? "end" : "until_off", via: "tray" });
+      sync();
     })
     .then((off) => {
       if (disposed) off();

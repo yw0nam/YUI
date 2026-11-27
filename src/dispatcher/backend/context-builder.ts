@@ -10,6 +10,8 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
+import type { RestState } from "../../settings/rest/rest-choices";
+import { clockOf } from "../../settings/rest/rest-end";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
@@ -31,6 +33,17 @@ export interface ContextProviders {
   getOpenCharacters?: () => string[];
   /** The waiting Threads, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
+  /** What holds the character's own turns, read once per turn. */
+  getRest?: () => RestState | null;
+}
+
+/** The context's own projection of what holds her turns. */
+function doNotDisturbOf(rest: RestState): NonNullable<ClientContext["do_not_disturb"]> {
+  return {
+    kind: rest.kind,
+    ...(rest.startedAt === undefined || rest.kind === "quiet" ? {} : { since: rest.startedAt }),
+    ...(rest.endsAt === undefined ? {} : { ends_local: clockOf(rest.endsAt) }),
+  };
 }
 
 interface BuiltContext {
@@ -277,6 +290,7 @@ export async function buildContext(
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
   const threadsWaiting = providers.getThreadsWaiting?.();
+  const rest = providers.getRest?.();
   const userTurn = triggerKind(env.event_name) === "user";
   const attached = userTurn ? threadsAttachedOf(env) : undefined;
   const clientContext = {
@@ -287,6 +301,7 @@ export async function buildContext(
       providers.getFrontmost?.(),
       providers.getPrevious?.(),
     ),
+    ...(rest ? { do_not_disturb: doNotDisturbOf(rest) } : {}),
     ...(switches?.length ? { tool_switches: switches } : {}),
     ...(overheard.length
       ? { overheard: overheard.map(({ preset, name, entries }) => ({ preset, name, entries })) }

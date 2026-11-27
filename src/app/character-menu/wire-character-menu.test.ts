@@ -121,6 +121,7 @@ function wired() {
         onCharacterMenu: () => () => {},
       } as unknown as Deps["bridge"],
       ports: { read: () => state, actions },
+      subscribeRest: () => () => {},
       isTauri: () => true,
     }),
   );

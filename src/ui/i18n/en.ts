@@ -113,7 +113,11 @@ const en: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "Watching your screen",
-  "status.dnd": "Do not disturb",
+  "status.resting_until": "Resting · until {time}",
+  "status.resting": "Resting",
+  "status.focus_left": "Focus · {n} min left",
+  "status.quiet_until": "Quiet · until {time}",
+  "status.quiet": "Quiet",
 
   // cue-list internal labels
   "cue.time_aria": "Time",
@@ -140,7 +144,18 @@ const en: Record<string, string> = {
   // character menu
   "character_menu.talk": "Talk",
   "character_menu.rest": "Rest",
-  "character_menu.rest_aria": "Do-not-disturb",
+  "character_menu.rest_hour": "For 1 hour",
+  "character_menu.rest_tonight": "Until tonight",
+  "character_menu.rest_morning": "Until tomorrow morning",
+  "character_menu.rest_until_off": "Until I turn it off",
+  "character_menu.rest_focus_25": "Focus 25 min",
+  "character_menu.rest_focus_50": "Focus 50 min",
+  "character_menu.rest_end": "End now",
+  "character_menu.rest_at": "Rest · {time}",
+  "character_menu.focus_left": "Focus · {n} min",
+  "character_menu.quiet_at": "Quiet · {time}",
+  "character_menu.quiet": "Quiet",
+  "character_menu.resting_until": "Resting until {time}",
   "character_menu.listen": "Listen",
   "character_menu.settings": "Settings",
   "character_menu.body": "Body",

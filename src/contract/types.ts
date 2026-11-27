@@ -432,6 +432,14 @@ export interface ClientContext {
   };
   /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
+  /** Present while a Rest, a Focus or an active-hours quiet span holds the character's own turns. */
+  do_not_disturb?: {
+    kind: "rest" | "focus" | "quiet";
+    /** When the user started it; absent for a quiet span and a Rest with no recorded start. */
+    since?: number;
+    /** The local wall-clock end, HH:MM; absent when it has none. */
+    ends_local?: string;
+  };
   /** The switchable in-app tools the window declares, in declaration order, switch state read this turn. */
   tool_switches?: { id: string; on: boolean }[];
   /** Present only when the last turn that tried to speak ended `interrupted` or `failed`. */

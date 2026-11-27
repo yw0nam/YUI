@@ -112,7 +112,11 @@ const ko: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "화면 보는 중",
-  "status.dnd": "방해금지",
+  "status.resting_until": "쉬는 중 · {time}까지",
+  "status.resting": "쉬는 중",
+  "status.focus_left": "집중 · {n}분 남음",
+  "status.quiet_until": "조용히 · {time}까지",
+  "status.quiet": "조용히",
 
   // cue-list internal labels
   "cue.time_aria": "시각",
@@ -139,7 +143,18 @@ const ko: Record<string, string> = {
   // character menu
   "character_menu.talk": "말하기",
   "character_menu.rest": "쉬기",
-  "character_menu.rest_aria": "방해금지",
+  "character_menu.rest_hour": "1시간",
+  "character_menu.rest_tonight": "오늘 밤까지",
+  "character_menu.rest_morning": "내일 아침까지",
+  "character_menu.rest_until_off": "끌 때까지",
+  "character_menu.rest_focus_25": "집중 25분",
+  "character_menu.rest_focus_50": "집중 50분",
+  "character_menu.rest_end": "지금 끝내기",
+  "character_menu.rest_at": "쉬기 · {time}",
+  "character_menu.focus_left": "집중 · {n}분",
+  "character_menu.quiet_at": "조용히 · {time}",
+  "character_menu.quiet": "조용히",
+  "character_menu.resting_until": "{time}까지 쉬는 중",
   "character_menu.listen": "듣기",
   "character_menu.settings": "설정",
   "character_menu.body": "몸",

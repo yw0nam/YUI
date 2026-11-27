@@ -22,7 +22,7 @@ const STATE = {
 };
 
 // Her 100x200 window: the columns, unmeasured in jsdom, reach 104px each side of her centre and,
-// six rows tall, need the window grown 72px above hers.
+// nine rows tall (the Rest list while she rests), need the window grown 204px above hers.
 const open = (n: number) => ({
   type: "open",
   id: `main#${n}`,
@@ -41,7 +41,7 @@ const open = (n: number) => ({
     alpha_threshold: 0.1,
   },
 });
-const RECT = { x: 616, y: 228, width: 208, height: 272 };
+const RECT = { x: 616, y: 96, width: 208, height: 404 };
 
 let app: HTMLElement;
 const sessions: ReturnType<typeof createMenuWindowSession>[] = [];
@@ -115,7 +115,7 @@ it("places its window beside her while hidden, then shows it, takes focus, start
   ]);
   expect([app.style.left, app.style.top, app.style.width, app.style.height]).toEqual([
     "54px",
-    "72px",
+    "204px",
     "100px",
     "200px",
   ]);

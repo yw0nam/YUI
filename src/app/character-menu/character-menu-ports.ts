@@ -11,6 +11,7 @@ import { createLogger } from "../../logger";
 import { effectiveChatApi } from "../../settings/backend/endpoints-settings";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { PetWindows } from "../../settings/preset/pet-windows";
+import type { RestState } from "../../settings/rest/rest-choices";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { MenuActions } from "../../ui/character-menu/character-menu";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -60,12 +61,14 @@ export function createCharacterMenuPorts(deps: {
   host: CharacterMenuHost;
   stores: Pick<
     SettingsStores,
-    | "dndSettings"
+    | "restSettings"
     | "basePaceSettings"
     | "bubblePersistSettings"
     | "unifiedChatSwitch"
     | "endpointsSettings"
   >;
+  /** What holds her own turns now, read fresh. */
+  rest: () => RestState | null;
   surfaces: Pick<Surfaces, "isInputOpen" | "summonInput" | "dismissInput">;
   voiceInputStatus: Pick<VoiceInputStatus, "get" | "set">;
   openSettings: (page?: SettingsPage) => void;
@@ -87,7 +90,7 @@ export function createCharacterMenuPorts(deps: {
   return {
     read: () => ({
       talk: surfaces.isInputOpen(),
-      rest: stores.dndSettings.get().enabled,
+      rest: deps.rest(),
       listen: deps.voiceInputStatus.get().state !== "idle",
       bubble: stores.bubblePersistSettings.get().enabled,
       unified: stores.unifiedChatSwitch.get().enabled,
@@ -100,9 +103,10 @@ export function createCharacterMenuPorts(deps: {
     }),
     actions: {
       talk: (open) => (open ? surfaces.summonInput() : surfaces.dismissInput()),
-      rest: (on) => {
-        stores.dndSettings.setEnabled(on);
-        log.info("dnd_toggle", { enabled: on, via: "character_menu" });
+      rest: (choice) => {
+        if (choice === "end") stores.restSettings.end();
+        else stores.restSettings.start(choice);
+        log.info("rest_set", { choice, via: "character_menu" });
       },
       listen: (on) => deps.voiceInputStatus.set(on ? "listening" : "idle"),
       settings: (page) => deps.openSettings(page),
