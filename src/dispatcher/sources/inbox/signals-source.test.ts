@@ -1011,6 +1011,18 @@ describe("signals_source — a reacting Thread's group", () => {
     expect(s.src.drain()).toEqual([group("thread:t1"), group("thread:t2")]);
   });
 
+  it("a fired Thread group the dispatcher restores leaves on the next drain, while a newer group of that Thread stays held", async () => {
+    const s = await started();
+    s.src.hold("thread:t1");
+    s.src.offer(group("thread:t1"));
+    expect(s.src.fireHeld(["thread:t1"])).toBe(true);
+    s.src.restore(s.pushed[0]!);
+    expect(s.src.drain()).toEqual([group("thread:t1")]);
+
+    s.src.offer(group("thread:t1"));
+    expect(s.src.drain()).toEqual([]);
+  });
+
   it("a group buffered while fireHeld pushes stays buffered after the push", async () => {
     const late = group("run-late");
     let src: ReturnType<typeof createSignalsSource> | undefined;

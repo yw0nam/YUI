@@ -103,7 +103,8 @@ function make(guardrails: GuardrailsConfig = permissiveGuardrailsConfig()): Disp
     isDndOn: () => dndOn,
     isPresent: () => present,
     drainSignals,
-    restoreSignals: vi.fn(),
+    // The buffer takes restored groups back.
+    restoreSignals: (env) => buffered.push(...((env.payload?.signals as SignalGroup[]) ?? [])),
     onTurnSpoken,
   } as DispatcherDeps);
   dispatcher.start();
@@ -236,6 +237,36 @@ describe("dispatcher — waiting list", () => {
       }),
     ]);
     expect(onTurnSpoken).not.toHaveBeenCalled();
+  });
+
+  it("returns the drained groups of a failed turn to the buffer", async () => {
+    make();
+    await vi.advanceTimersByTimeAsync(20);
+    const second: SignalGroup = { envelope: { ...SIGNAL_ENVELOPE, event_id: "run-2" }, items: [] };
+    buffered = [group, second];
+    bus.push(scheduleCue());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(triggerOf(0).payload?.signals).toEqual([group, second]);
+    expect(buffered).toEqual([]);
+
+    // Do-not-disturb keeps the restored groups from leaving again at once.
+    dndOn = true;
+    callDeferred[0]!.resolve("network_drop");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(buffered).toEqual([group, second]);
+  });
+
+  it("returns the groups of a turn the stop button aborts to the buffer", async () => {
+    const d = make();
+    await vi.advanceTimersByTimeAsync(20);
+    buffered = [group];
+    bus.push(scheduleCue());
+    await vi.advanceTimersByTimeAsync(20);
+    expect(triggerOf(0).payload?.signals).toEqual([group]);
+
+    d.cancel();
+    expect(buffered).toEqual([group]);
+    expect(d.queue()).toEqual([]);
   });
 
   it("starts the waiting bundle in the call's finally, so busy stays true across back-to-back turns", async () => {
