@@ -26,8 +26,6 @@ const isTime = (v: unknown): v is number => typeof v === "number" && Number.isFi
 function parse(v: unknown): RestRecord | null {
   if (!isPlainObject(v)) return null;
   const r = v as Record<string, unknown>;
-  // The on/off flag this record replaced.
-  if (typeof r.enabled === "boolean") return r.enabled ? { choice: "until_off" } : {};
   if (r.choice === undefined) return {};
   const { choice, startedAt, endsAt } = r;
   if (!isRestChoice(choice)) return null;

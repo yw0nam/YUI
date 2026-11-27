@@ -31,16 +31,6 @@ describe("createRestSettings", () => {
     expect([running?.choice, b.get(T0)]).toEqual(["morning", null]);
   });
 
-  it("reads a stored on/off flag as Rest until the user turns it off, or off", () => {
-    const read = (stored: unknown) =>
-      createRestSettings({ storage: sharedStorage(stored) }).get(T0);
-
-    expect([read({ enabled: true }), read({ enabled: false })]).toEqual([
-      { choice: "until_off" },
-      null,
-    ]);
-  });
-
   it("reads an expired record as null and leaves it stored", () => {
     const storage = sharedStorage();
     const store = createRestSettings({ storage });
