@@ -210,6 +210,24 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
   return "user";
 }
 
+/** One candidate envelope, projected like a trigger with its own fire time. */
+export function waitedItemOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]>[number] {
+  const cue = cueOf(env);
+  const milestone = milestoneOf(env);
+  const screen = screenOf(env);
+  const addressed = addressedOf(env);
+  const idleElapsedMin = idleElapsedOf(env);
+  return {
+    kind: triggerKind(env.event_name),
+    at: env.ts,
+    ...(cue ? { cue } : {}),
+    ...(milestone ? { milestone } : {}),
+    ...(screen ? { screen } : {}),
+    ...(addressed ? { addressed } : {}),
+    ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
+  };
+}
+
 function waitedOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]> | undefined {
   const raw = env.payload?.waited;
   if (!Array.isArray(raw)) return undefined;
@@ -218,22 +236,7 @@ function waitedOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]> | undefi
     if (typeof (m as BusEnvelope | null)?.event_name !== "string" || typeof m.ts !== "number") {
       return [];
     }
-    const cue = cueOf(m);
-    const milestone = milestoneOf(m);
-    const screen = screenOf(m);
-    const addressed = addressedOf(m);
-    const idleElapsedMin = idleElapsedOf(m);
-    return [
-      {
-        kind: triggerKind(m.event_name),
-        at: m.ts,
-        ...(cue ? { cue } : {}),
-        ...(milestone ? { milestone } : {}),
-        ...(screen ? { screen } : {}),
-        ...(addressed ? { addressed } : {}),
-        ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
-      },
-    ];
+    return [waitedItemOf(m)];
   });
 }
 

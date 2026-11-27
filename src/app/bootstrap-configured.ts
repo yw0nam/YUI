@@ -68,6 +68,7 @@ import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 import { wireThreadTurns } from "./turn/wire-thread-turns";
+import { waitingItemsOf } from "./turn/wire-waiting";
 import { wireYuiRun } from "./turn/wire-yui-run";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
@@ -214,6 +215,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(mcpHost.subscribe(() => phase1.pushSocket?.sendTools()));
     const asks = createAskQueue({ surfaces });
     register(asks.dispose);
+    // The dispatcher and the signal buffers exist after the tools, so the waiting rows reach them late-bound.
+    let waitingRows: (() => ReturnType<typeof waitingItemsOf>) | null = null;
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -230,6 +233,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       recordAddressed: addressed.record,
       mcpHost,
       threads: phase1.threads,
+      waiting: () => waitingRows?.() ?? [],
       run: wireYuiRun({
         stores: settings,
         asks,
@@ -335,6 +339,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     signals = signalsSource;
     schedule = scheduleSource;
+    waitingRows = () => waitingItemsOf({ dispatcher, signals: signalsSource });
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);

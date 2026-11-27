@@ -255,6 +255,10 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     return groups;
   }
 
+  function peek(): SignalGroup[] {
+    return [...urgentBuffer, ...batchBuffer].map(({ group }) => group);
+  }
+
   function withdraw(eventId: string, eventType: string): void {
     const at = batchBuffer.findIndex(
       ({ group }) =>
@@ -364,7 +368,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     start,
     stop,
     drain,
-    peek: () => [],
+    peek,
     restore,
     offer,
     withdraw,

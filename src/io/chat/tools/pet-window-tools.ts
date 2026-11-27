@@ -13,6 +13,7 @@ import { createAvatarTools, createLookApi } from "./avatar";
 import type { ClientTool } from "./client-tools";
 import { createPluginsApi } from "./plugins/plugins-api";
 import { createRateRelationTool } from "./relation";
+import { createWaitingApi, type WaitingItem } from "./run/waiting-api";
 import { createYuiRunTool, type YuiRunWindowPorts } from "./run/yui-run-tool";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 import { createTerminalApi } from "./terminal/terminal-api";
@@ -33,6 +34,8 @@ export function createPetWindowTools(deps: {
   mcpHost: McpHost;
   /** The window's Thread store reader; null outside main's window. */
   threads: Pick<ThreadsClient, "threads"> | null;
+  /** The waiting rows this window's dispatcher and signal buffers hold, read when a call runs. */
+  waiting?: () => WaitingItem[];
   /** What a yui_run script reaches. */
   run: YuiRunWindowPorts;
 }): ClientTool[] {
@@ -52,6 +55,7 @@ export function createPetWindowTools(deps: {
     plugins: createPluginsApi({ host: deps.mcpHost, presetId: presetIdForWindow }),
     ...(deps.bound ? {} : { look: createLookApi(deps.getExecutor, deps.screen) }),
     ...(deps.threads ? { threads: createThreadsApi(deps.threads) } : {}),
+    ...(deps.waiting ? { waiting: createWaitingApi({ waiting: deps.waiting }) } : {}),
   };
   return [
     rate,
