@@ -4498,7 +4498,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import… → importCardFromFile; Export preset → inspectPresetVrm, exportPresetFile; Export card (PNG) → exportCardPng; exports add extensions.yui.filler; photo → loadPhotoSize; drop → importCardFromDrop",
+      "carries": "Import… → importPreset → importCardFromFile; Export preset → inspectPresetVrm, exportPresetFile; Export card (PNG) → exportCardPng; exports add extensions.yui.filler; drop → importCardFromDrop",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -4516,7 +4516,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import… → createPresetFromCard: yui.vrm and yui.speaker from VRM and voice ids, filler from extensions.yui.filler, thumbnail → loadPhotoSize → defaultCrop; failure removes both",
+      "carries": "Import… → settings/preset/import-card-preset.ts createPresetFromCard: yui.vrm and yui.speaker from VRM and voice ids, filler from extensions.yui.filler, thumbnail → loadPhotoSize → defaultCrop",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
