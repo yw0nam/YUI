@@ -8,6 +8,7 @@
 import type { ClientContext, TriggerMeta, TurnEnded } from "../../contract";
 import { oneLine } from "../../io/chat/one-line";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
+import { clockOf } from "../../settings/rest/rest-end";
 
 /** `max(0, round((nowMs - sinceMs) / 60000))` — never negative, rendered as a bare integer. */
 function minutesSince(sinceMs: number, nowMs: number): number {
@@ -160,17 +161,39 @@ function renderOverheard(overheard: ClientContext["overheard"], nowMs: number): 
   });
 }
 
-function renderRecentSwitches(recent: NonNullable<TriggerMeta["screen"]>["recent"]): string[] {
-  if (!recent || recent.length === 0) return [];
-  const steps: string[] = [];
-  recent.forEach((entry, index) => {
-    const from = oneLine(entry.from_app);
-    const previousTo = index > 0 ? oneLine(recent[index - 1]!.to_app) : undefined;
-    if (previousTo !== undefined && previousTo !== from) steps.push(previousTo);
-    steps.push(`${from} (${entry.dwell_min}min)`);
-  });
-  steps.push(oneLine(recent[recent.length - 1]!.to_app));
-  return [`recent switches: ${steps.join(" then ")}`];
+function screenBody(s: NonNullable<TriggerMeta["screen"]>): string {
+  const left =
+    s.from_app && s.from_dwell_min != null
+      ? `left ${oneLine(s.from_app)} after ${s.from_dwell_min}min and `
+      : "";
+  return `screen ${s.transition}; the user ${left}has been in the frontmost app for ${s.dwell_min}min`;
+}
+
+function cueBody(kind: TriggerMeta["kind"], cue: NonNullable<TriggerMeta["cue"]>): string {
+  return `${kind} cue "${oneLine(cue.label)}"`;
+}
+
+function milestoneBody(m: NonNullable<TriggerMeta["milestone"]>): string {
+  return `milestone ${oneLine(m.name)}`;
+}
+
+function addressedBody(a: NonNullable<TriggerMeta["addressed"]>): string {
+  return a.user_message !== undefined
+    ? `handed over by ${oneLine(a.from)}: the user said "${oneLine(a.user_message)}"; ${oneLine(a.from)} said "${oneLine(a.text)}"`
+    : `addressed by ${oneLine(a.from)}: "${oneLine(a.text)}"`;
+}
+
+function waitedLine(item: NonNullable<TriggerMeta["waited"]>[number], nowMs: number): string {
+  const body = item.screen
+    ? screenBody(item.screen)
+    : item.cue
+      ? cueBody(item.kind, item.cue)
+      : item.milestone
+        ? milestoneBody(item.milestone)
+        : item.addressed
+          ? addressedBody(item.addressed)
+          : item.kind;
+  return `waited: ${clockOf(item.at)} local, ${ageOf(item.at, nowMs)}: ${body}`;
 }
 
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
@@ -179,33 +202,28 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     trigger.idle_elapsed_min != null
       ? ` (the user has been idle for ${trigger.idle_elapsed_min}min)`
       : "";
+  // A bundle's top member carries its own wait; an addressed headline already carries an age.
+  const waitedAge =
+    trigger.at != null && trigger.kind !== "user" && trigger.kind !== "addressed"
+      ? ` (${ageOf(trigger.at, nowMs)})`
+      : "";
 
   if (trigger.screen) {
-    const s = trigger.screen;
-    const left =
-      s.from_app && s.from_dwell_min != null
-        ? `left ${oneLine(s.from_app)} after ${s.from_dwell_min}min and `
-        : "";
-    lines.push(
-      `trigger: screen ${s.transition}; the user ${left}has been in the frontmost app for ${s.dwell_min}min`,
-    );
-    lines.push(...renderRecentSwitches(s.recent));
+    lines.push(`trigger: ${screenBody(trigger.screen)}${waitedAge}`);
   } else if (trigger.cue) {
-    lines.push(`trigger: ${trigger.kind} cue "${oneLine(trigger.cue.label)}"${idleClause}`);
+    lines.push(`trigger: ${cueBody(trigger.kind, trigger.cue)}${idleClause}${waitedAge}`);
     if (trigger.cue.context) {
       lines.push(`cue note (the user's own intent for this cue): ${oneLine(trigger.cue.context)}`);
     }
   } else if (trigger.milestone) {
-    const m = trigger.milestone;
-    lines.push(`trigger: milestone ${oneLine(m.name)} (fired at ${oneLine(m.local_time)})`);
-    const lastTogether = lastTogetherOf(m, nowMs);
+    lines.push(
+      `trigger: ${milestoneBody(trigger.milestone)} (fired at ${oneLine(trigger.milestone.local_time)})${waitedAge}`,
+    );
+    const lastTogether = lastTogetherOf(trigger.milestone, nowMs);
     if (lastTogether) lines.push(lastTogether);
   } else if (trigger.addressed) {
-    const a = trigger.addressed;
     lines.push(
-      a.user_message !== undefined
-        ? `trigger: handed over by ${oneLine(a.from)}: the user said "${oneLine(a.user_message)}"; ${oneLine(a.from)} said "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`
-        : `trigger: addressed by ${oneLine(a.from)}: "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`,
+      `trigger: ${addressedBody(trigger.addressed)} (${minutesSince(trigger.addressed.ts, nowMs)}min ago)`,
     );
   } else if (trigger.kind === "user") {
     const addressed =
@@ -221,13 +239,15 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else {
     // Fallback: kind without a matching structured field (e.g. a bare idle proactive turn
     // without a configured cue).
-    lines.push(`trigger: ${trigger.kind}${idleClause}`);
+    lines.push(`trigger: ${trigger.kind}${idleClause}${waitedAge}`);
   }
+
+  for (const item of trigger.waited ?? []) lines.push(waitedLine(item, nowMs));
 
   if (trigger.signals) {
     for (const group of trigger.signals) {
       const envelope = group.envelope;
-      const prefix = `signal [${oneLine(envelope.source)}/${oneLine(envelope.event_type)} @${new Date(envelope.occurred_at).toISOString()}, id ${oneLine(envelope.event_id)}]:`;
+      const prefix = `signal [${oneLine(envelope.source)}/${oneLine(envelope.event_type)} @${clockOf(envelope.occurred_at)} local, ${ageOf(envelope.occurred_at, nowMs)}, id ${oneLine(envelope.event_id)}]:`;
       if (group.items.length === 0) {
         lines.push(`${prefix} (no payload)`);
       } else {

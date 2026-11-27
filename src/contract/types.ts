@@ -385,10 +385,21 @@ export interface TriggerMeta {
     from_app?: string; // app left behind; app_switched only
     from_dwell_min?: number; // minutes it held the foreground
     dwell_min: number; // current app's foreground minutes at fire time
-    /** app_switched transitions held back by the global pacer, oldest first. Present only when non-empty. */
-    recent?: Array<{ from_app: string; to_app: string; dwell_min: number }>;
   };
+  /** Bundle only: the top member's own fire time, epoch ms. */
+  at?: number;
+  /** Bundle only: the other members that waited with it, in rank order. */
+  waited?: WaitedItem[];
 }
+
+/** One member a bundle carried, projected like a trigger with its own fire time. */
+export type WaitedItem = Pick<
+  TriggerMeta,
+  "kind" | "cue" | "milestone" | "addressed" | "screen"
+> & {
+  /** Epoch ms of the member's own fire. */
+  at: number;
+};
 
 /** How the last turn that tried to speak ended. */
 export type TurnEnded = "complete" | "interrupted" | "failed";

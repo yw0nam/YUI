@@ -10,7 +10,7 @@ function payloadText(env: BusEnvelope, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export function triggerLineOf(env: BusEnvelope, translate: Translate): string | null {
+function ownLineOf(env: BusEnvelope, translate: Translate): string | null {
   const event = env.event_name;
   if (env.source === "timer_scheduler" && event.startsWith("schedule.")) {
     const time = payloadText(env, "time");
@@ -32,4 +32,21 @@ export function triggerLineOf(env: BusEnvelope, translate: Translate): string | 
     return from !== null ? translate("bubble.trigger_addressed", { name: from }) : null;
   }
   return null;
+}
+
+export function triggerLineOf(env: BusEnvelope, translate: Translate): string | null {
+  if (env.event_name.startsWith("user.")) return null;
+  const line = ownLineOf(env, translate);
+  const raw = env.payload?.waited;
+  if (!Array.isArray(raw)) return line;
+  const members = raw.filter(
+    (member): member is BusEnvelope =>
+      typeof (member as BusEnvelope | null)?.event_name === "string",
+  );
+  const first =
+    line ?? members.map((member) => ownLineOf(member, translate)).find((text) => text !== null);
+  if (first === null || first === undefined) return null;
+  const groups = Array.isArray(env.payload?.signals) ? env.payload.signals.length : 0;
+  const rest = members.length + groups;
+  return rest > 0 ? `${first} +${rest}` : first;
 }
