@@ -75,8 +75,6 @@ The level comes from the reason:
 | `waiting_evicted` | `info` | A keep rule pushed the entry out of the waiting list: a newer idle cue with the same cue id, a fourth screen reaction, or the eleventh entry (the lowest class, then the oldest, leaves). |
 | `waiting_expired` | `info` | The entry's wait ended: an idle cue, gesture reaction or screen reaction at the next user activity, the first meeting or an addressed line at the end of its local day, a schedule cue at the end of its grace window. |
 
-The proactive gap, do-not-disturb, a live turn, playback, absence and the hourly cap no longer drop a self-started candidate: it waits in the list. The reasons `stale_pending`, `global_gap` and `dnd` are gone.
-
 `recentDrops(n)` returns the last n records.
 
 ### Hook failure

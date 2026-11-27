@@ -531,6 +531,27 @@ describe("schedule_source — payload shape", () => {
 
     expect(pushed[0].payload?.time).toBe("09:00");
   });
+
+  it.each([
+    ["12:00", at(2026, 5, 15, 12, 30), at(2026, 5, 15, 14, 0)],
+    ["23:00", at(2026, 5, 15, 23, 10), at(2026, 5, 16, 0, 0)],
+  ])("stamps a %s cue's expires_at at the end of its grace window, clamped to its local day", async (time, t, expires) => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue({ time })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(pushed[0]!.payload?.expires_at).toBe(expires);
+  });
 });
 
 describe("schedule_source — live getCues edits", () => {

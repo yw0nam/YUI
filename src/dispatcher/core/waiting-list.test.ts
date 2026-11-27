@@ -23,11 +23,11 @@ const gesture = (ts: number): BusEnvelope => ({
   ts,
   payload: { cue_id: "touch_face", label: "poked" },
 });
-const schedule = (time: string, ts: number): BusEnvelope => ({
+const schedule = (ts: number, expires_at = at(14)): BusEnvelope => ({
   source: "timer_scheduler",
   event_name: "schedule.cue",
   ts,
-  payload: { cue_id: "cue", label: "cue", time },
+  payload: { cue_id: "cue", label: "cue", time: "12:00", expires_at },
 });
 const milestone = (ts: number): BusEnvelope => ({
   source: "os_event_watcher",
@@ -67,7 +67,7 @@ describe("waiting list — keep rules", () => {
     const list = createWaitingList();
     list.add(idle("a", 5));
     list.add(idle("b", 1));
-    list.add(schedule("12:00", at(12)));
+    list.add(schedule(at(12)));
     for (let i = 0; i < 7; i++) list.add(gesture(10 + i));
     const { evicted } = list.add(gesture(20));
     expect(namesOf(evicted)).toEqual(["proactive.b@1"]);
@@ -81,7 +81,7 @@ describe("waiting list — rank order and putBack", () => {
   it("takes in class order, then oldest first, and putBack keeps ids and times", () => {
     const list = createWaitingList();
     list.add(idle("stretch", 1));
-    list.add(schedule("12:00", at(12)));
+    list.add(schedule(at(12)));
     list.add(gesture(3));
     list.add(milestone(2));
     const taken = list.take(() => true);
@@ -119,14 +119,11 @@ describe("waiting list — expiry", () => {
     ]);
   });
 
-  it.each([
-    ["12:00", at(12, 30), at(13, 59), at(14, 0)],
-    ["23:00", at(23, 10), at(23, 59), at(0, 0, 28)],
-  ])("expires a %s schedule cue at the end of its grace window, clamped to its day", (time, ts, alive, gone) => {
+  it("expires a schedule cue at the expires_at its source stamped", () => {
     const list = createWaitingList();
-    list.add(schedule(time, ts));
-    expect(list.expire(alive)).toEqual([]);
-    expect(list.expire(gone)).toHaveLength(1);
+    list.add(schedule(at(12, 30), at(14)));
+    expect(list.expire(at(13, 59))).toEqual([]);
+    expect(list.expire(at(14))).toHaveLength(1);
   });
 
   it("expires idle cues, gesture reactions and screen reactions on user activity, and keeps the rest", () => {
@@ -134,7 +131,7 @@ describe("waiting list — expiry", () => {
     list.add(idle("stretch", 1));
     list.add(gesture(2));
     list.add(screen(3));
-    list.add(schedule("12:00", at(12)));
+    list.add(schedule(at(12)));
     list.add(milestone(at(9)));
     expect(namesOf(list.expireOnActivity())).toEqual([
       "proactive.touch_face@2",

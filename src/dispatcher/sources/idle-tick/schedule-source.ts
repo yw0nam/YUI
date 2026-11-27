@@ -27,6 +27,15 @@ const log = createLogger("schedule-source");
 
 export const GRACE_MINUTES = 120;
 
+/** Epoch ms the cue's wait ends: its time plus the grace window, clamped to the end of `ts`'s local day. */
+function expiresAtOf(ts: number, hour: number, minute: number): number {
+  const due = new Date(ts);
+  due.setHours(hour, minute + GRACE_MINUTES, 0, 0);
+  const end = new Date(ts);
+  end.setHours(24, 0, 0, 0);
+  return Math.min(due.getTime(), end.getTime());
+}
+
 function dayKeyOf(ts: number): string {
   const d = new Date(ts);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -121,6 +130,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
           label: cue.label,
           context: cue.context,
           time: cue.time,
+          expires_at: expiresAtOf(ts, cueHour, cueMinute),
         },
       };
       bus.push(env);

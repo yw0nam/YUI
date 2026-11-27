@@ -6,8 +6,7 @@
  * Signal groups never enter; they stay in their own buffers.
  */
 
-import { GRACE_MINUTES } from "../sources/idle-tick/schedule-source";
-import { type WaitClass, waitClassOf } from "./classify";
+import { isGestureReaction, type WaitClass, waitClassOf } from "./classify";
 import type { BusEnvelope } from "./event-bus";
 
 export interface WaitingEntry {
@@ -49,17 +48,13 @@ function endOfLocalDay(ts: number): number {
   return d.getTime();
 }
 
-/** The first meeting and addressed lines last their local day; a schedule cue its grace window, clamped to that day. */
+/** The first meeting and addressed lines last their local day; a schedule cue until the `expires_at` its source stamps. */
 function expiresAtOf(env: BusEnvelope): number | undefined {
   if (env.source === "addressed_source" || env.event_name.startsWith("time_milestone.")) {
     return endOfLocalDay(env.ts);
   }
-  const time = env.payload?.time;
-  if (!env.event_name.startsWith("schedule.") || typeof time !== "string") return undefined;
-  const [hour, minute] = time.split(":").map(Number);
-  const due = new Date(env.ts);
-  due.setHours(hour!, minute! + GRACE_MINUTES, 0, 0);
-  return Math.min(due.getTime(), endOfLocalDay(env.ts));
+  const at = env.payload?.expires_at;
+  return env.event_name.startsWith("schedule.") && typeof at === "number" ? at : undefined;
 }
 
 export function createWaitingList(): WaitingList {
@@ -81,9 +76,7 @@ export function createWaitingList(): WaitingList {
         env,
         cls,
         expiresAt: expiresAtOf(env),
-        onActivity:
-          cls === "room" ||
-          (env.source === "os_event_watcher" && env.event_name.startsWith("proactive.")),
+        onActivity: cls === "room" || isGestureReaction(env),
       };
       const evicted = isIdleCue(env)
         ? remove((e) => isIdleCue(e.env) && e.env.payload?.cue_id === env.payload?.cue_id)

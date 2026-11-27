@@ -35,7 +35,7 @@ const EMPTY: ScreenOverrides = {
 const KEYS = Object.keys(EMPTY) as (keyof ScreenOverrides)[];
 
 /** A settable value: 0 (clear the override) or an integer up to SCREEN_MS_MAX. */
-function acceptThreshold(_key: keyof ScreenOverrides, v: unknown): number | undefined {
+function acceptThreshold(v: unknown): number | undefined {
   return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= SCREEN_MS_MAX
     ? v
     : undefined;
@@ -58,7 +58,7 @@ export function createScreenKnobSettings(opts?: { storage?: ScreenKnobStorage })
   return createOverrideRecordSettings<ScreenOverrides>({
     storage: opts?.storage,
     empty: EMPTY,
-    accept: acceptThreshold,
+    accept: (_key, v) => acceptThreshold(v),
   });
 }
 

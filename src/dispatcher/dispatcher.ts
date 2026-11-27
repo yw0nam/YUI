@@ -41,12 +41,12 @@ import type {
 } from "./backend/backend-caller";
 import { userTextOf } from "./backend/context-builder";
 import type { AddressedChain } from "./core/addressed-chain";
+import { createAdmission } from "./core/admission";
 import {
   classify,
   isAddressedEvent,
-  isDndHeld,
+  isSignalsEvent,
   isUserActivity,
-  PACED_SOURCES,
   sendIdOf,
   type UserTurnSource,
   userTurnSourceOf,
@@ -57,6 +57,14 @@ import type { Guardrails } from "./core/guardrails";
 import type { ProactivePacer } from "./core/proactive-pacer";
 import type { TurnGate } from "./core/turn-gate";
 import { createWaitingList, type WaitingEntry } from "./core/waiting-list";
+import {
+  addressedIn,
+  catchupOf,
+  groupsOf,
+  planRelease,
+  withoutSignals,
+  withWaited,
+} from "./core/waiting-release";
 import { createTier1Render } from "./tier1/render";
 import type { Turn, TurnLog } from "./turn/turn";
 
@@ -322,57 +330,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     deps.onTurnDropped?.(env, reason);
   }
 
-  /** Whether the global proactive gap holds this fire back. */
-  function heldByPacer(env: BusEnvelope): boolean {
-    return PACED_SOURCES[env.source] && deps.pacer?.isHolding() === true;
-  }
-
-  /** Whether do-not-disturb holds this fire back. */
-  function heldByDnd(env: BusEnvelope): boolean {
-    return deps.isDndOn?.() === true && isDndHeld(env);
-  }
-
-  /** Gesture reactions and addressed lines speak to her directly, so they do not wait for presence. */
-  function heldByAbsence(env: BusEnvelope): boolean {
-    const direct =
-      env.source === "addressed_source" ||
-      (env.source === "os_event_watcher" && env.event_name.startsWith("proactive."));
-    return !direct && deps.isPresent?.() === false;
-  }
-
-  /** Whether a candidate may go out now, once the slot is free. */
-  function admissible(env: BusEnvelope): boolean {
-    return !heldByDnd(env) && !heldByPacer(env) && !heldByAbsence(env) && guardrails.canSpend(env);
-  }
-
-  const groupsOf = (env: BusEnvelope): SignalGroup[] =>
-    Array.isArray(env.payload?.signals) ? (env.payload.signals as SignalGroup[]) : [];
-
-  /** The envelope drained batched groups go out on when no waiting entry carries them. */
-  const catchupOf = (signals: SignalGroup[]): BusEnvelope => ({
-    source: "timer_scheduler",
-    event_name: "signals.catchup",
-    ts: Date.now(),
-    payload: { signals },
+  const admission = createAdmission({
+    guardrails,
+    pacer: deps.pacer,
+    isDndOn: deps.isDndOn,
+    isPresent: deps.isPresent,
   });
 
   function restoreGroups(groups: SignalGroup[]): void {
-    if (groups.length > 0) deps.restoreSignals?.(catchupOf(groups));
+    if (groups.length > 0) deps.restoreSignals?.(catchupOf(groups, Date.now()));
   }
 
   /** A candidate joins the waiting list; its own signal groups go back to their buffers. */
   function enterList(env: BusEnvelope): void {
-    const groups = groupsOf(env);
-    let waiting = env;
-    if (groups.length > 0) {
-      restoreGroups(groups);
-      const { signals: _carried, ...payload } = env.payload ?? {};
-      waiting = { ...env, payload };
-    }
+    const { env: waiting, groups } = withoutSignals(env);
+    restoreGroups(groups);
     const { entry, evicted } = list.add(waiting);
     log.info("waiting_add", { id: entry.id, event_name: env.event_name, cls: entry.cls });
     for (const e of evicted) recordDrop(e.env, "waiting_evicted");
-    if (!heldByPacer(env)) return;
+    if (!admission.heldByPacer(env)) return;
     try {
       deps.appendSkipRecord?.(buildPacerSkipRecord({ ts: env.ts, event_name: env.event_name }));
     } catch (err) {
@@ -419,7 +395,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       if (target === "tier1") tier1Leftover.push(env);
       else if (target !== "backend_caller") continue;
       else if (userTurnSourceOf(env)) recordDrop(env, "superseded_by_user");
-      else if (env.event_name.startsWith("signals.")) deps.restoreSignals?.(env);
+      else if (isSignalsEvent(env)) deps.restoreSignals?.(env);
       else enterList(env);
     }
     for (const t of tier1Leftover) tier1.render(t);
@@ -454,14 +430,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (abort.signal.aborted) return "superseded_by_user";
         gateHeld = true;
         // Do-not-disturb turned on while the turn waited for the lock.
-        const dndHeld =
-          heldByDnd(env) || (env.dnd_override !== true && members.some((m) => heldByDnd(m.env)));
-        if (dndHeld) return "dnd";
+        if (admission.heldByDndAny(env, members)) return "dnd";
         guardrails.spend(env);
-        // A user turn resets the chain, so the addressed lines riding it never count.
-        if (userTurnSourceOf(env) === undefined) {
-          for (const m of members) if (isAddressedEvent(m.env)) deps.addressedChain.count();
-        }
+        deps.addressedChain.count(addressedIn(env, members));
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
@@ -507,72 +478,41 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       });
   }
 
+  /** No call in flight (or the finishing one handing its slot over), running, no speech owed. */
+  const slotFree = (replacing = false): boolean =>
+    (!inFlight || replacing) && state === "running" && !deps.hasOutstandingSpeech();
+
   /**
-   * Sends what may go out now as one turn: the admissible waiting entries (top-ranked envelope
-   * plus `payload.waited`) and, unless do-not-disturb is on, the drained batched groups
-   * (`payload.signals`). Groups alone go out as `signals.catchup` only on the edge into a free
-   * slot (busy → idle, a DnD or gap hold ending, away → present); inside a free stretch they wait
-   * for a bundle or the batch timer. `replacing` is the finishing call's finally, whose slot the
-   * next call takes over.
+   * Sends what may go out now as one turn (see planRelease). Groups alone leave only on the edge
+   * into a free slot: busy → idle, a DnD or gap hold ending, away → present. `replacing` is the
+   * finishing call's finally, whose slot the next call takes over.
    */
   function release(replacing = false): boolean {
-    for (const e of list.expire(Date.now())) recordDrop(e.env, "waiting_expired");
-    const slotFree =
-      (!inFlight || replacing) && state === "running" && !deps.hasOutstandingSpeech();
+    const now = Date.now();
+    for (const e of list.expire(now)) recordDrop(e.env, "waiting_expired");
+    const free = slotFree(replacing);
     const wasFree = catchupFree;
-    catchupFree = slotFree && admissible(catchupOf([]));
-    if (!slotFree) return false;
-    // Addressed entries taken here count toward the chain before the lock grants and counts them.
-    let addressed = 0;
-    const members = list.take((w) => {
-      if (!admissible(w.env)) return false;
-      if (!isAddressedEvent(w.env)) return true;
-      if (!deps.addressedChain.canAdmit(addressed)) return false;
-      addressed += 1;
-      return true;
+    catchupFree = free && admission.admissible(catchupOf([], now));
+    if (!free) return false;
+    const plan = planRelease({
+      list,
+      admissible: admission.admissible,
+      canAdmit: deps.addressedChain.canAdmit,
+      groupsJoin: deps.isDndOn?.() !== true,
+      catchupEdge: catchupFree && !wasFree,
+      drain: () => deps.drainSignals?.() ?? [],
+      now,
     });
-    const overCap = (w: WaitingEntry) =>
-      isAddressedEvent(w.env) && !deps.addressedChain.canAdmit(addressed);
-    for (const e of list.take(overCap)) recordDrop(e.env, "addressed_cap");
-    const free = members.length > 0 ? deps.isDndOn?.() !== true : catchupFree && !wasFree;
-    const groups = free ? (deps.drainSignals?.() ?? []) : [];
-    if (members.length === 0 && groups.length === 0) return false;
-    log.info("waiting_release", { ids: members.map((m) => m.id), signals: groups.length });
-    const [top, ...rest] = members;
-    const trigger = !top
-      ? catchupOf(groups)
-      : rest.length === 0 && groups.length === 0
-        ? top.env
-        : {
-            ...top.env,
-            payload: {
-              ...top.env.payload,
-              waited: rest.map((m) => m.env),
-              ...(groups.length > 0 ? { signals: groups } : {}),
-            },
-          };
+    for (const e of plan.overCap) recordDrop(e.env, "addressed_cap");
+    if (!plan.trigger) return false;
+    log.info("waiting_release", {
+      ids: plan.members.map((m) => m.id),
+      signals: plan.groups.length,
+    });
     // The next call asks for the lock again, behind any window already waiting for it.
     if (replacing) releaseGate();
-    startBackendCall(trigger, members);
+    startBackendCall(plan.trigger, plan.members);
     return true;
-  }
-
-  /** A user turn carries every waiting entry and the buffered batched groups. */
-  function startUserTurn(env: BusEnvelope): void {
-    const riders = list.take(() => true);
-    const groups = deps.drainSignals?.() ?? [];
-    const trigger =
-      riders.length === 0 && groups.length === 0
-        ? env
-        : {
-            ...env,
-            payload: {
-              ...env.payload,
-              ...(riders.length > 0 ? { waited: riders.map((r) => r.env) } : {}),
-              ...(groups.length > 0 ? { signals: groups } : {}),
-            },
-          };
-    startBackendCall(trigger, riders);
   }
 
   function handle(env: BusEnvelope): void {
@@ -605,16 +545,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         recordDrop(env, verdict.reason);
         return;
       }
-      if (userTurnSourceOf(env) !== undefined) startUserTurn(env);
-      else if (!env.event_name.startsWith("signals.")) enterList(env);
-      else if (
-        !inFlight &&
-        state === "running" &&
-        !deps.hasOutstandingSpeech() &&
-        admissible(env)
-      ) {
-        startBackendCall(env, []);
-      } else deps.restoreSignals?.(env);
+      if (userTurnSourceOf(env) !== undefined) {
+        // A user turn carries every waiting entry and the buffered batched groups.
+        const riders = list.take(() => true);
+        startBackendCall(withWaited(env, riders, deps.drainSignals?.() ?? []), riders);
+      } else if (!isSignalsEvent(env)) enterList(env);
+      else if (slotFree() && admission.admissible(env)) startBackendCall(env, []);
+      else deps.restoreSignals?.(env);
       return;
     }
     // target === "drop": unhandled event (no-op — bus already filters unknown event_name).
