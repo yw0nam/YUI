@@ -33,8 +33,8 @@ repositories** and optional — see
   green CI. Work in a worktree, never on `main` directly:
 
   ```bash
-  git worktree add ../YUI-my-topic -b my-topic
-  bash scripts/worktree-setup.sh ../YUI-my-topic
+  git worktree add .worktrees/my-topic -b my-topic
+  bash scripts/worktree-setup.sh .worktrees/my-topic
   ```
 
   The setup script links gitignored runtime assets (VRM, motions), copies

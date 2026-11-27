@@ -57,8 +57,8 @@ export default defineConfig(() => ({
     strictPort: true,
     host: "127.0.0.1",
     watch: {
-      // Rust rebuilds replace locked DLLs under target/ on Windows; Tauri writes schemas under gen/.
-      ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**"],
+      // Rust rebuilds replace locked DLLs under target/ on Windows; Tauri writes schemas under gen/; worktrees live in .worktrees/.
+      ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**", "**/.worktrees/**"],
     },
   },
   plugins: [
