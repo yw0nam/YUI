@@ -134,7 +134,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 9. `tool switches`
 10. `previous turn`
 11. `overheard`
-12. One or more `trigger:`, `cue note`, `last together`, `waited`, or `signal` lines, depending on what fired.
+12. One or more `trigger:`, `exchange`, `cue note`, `last together`, `waited`, or `signal` lines, depending on what fired.
 13. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
@@ -600,7 +600,15 @@ trigger: addressed by alice: "bob, you took my chair" (0min ago)
 
 Another open character's reply called `address_character` and named this character. That reply's playback has ended. The headline names the speaker and quotes what she said, with the minutes since it was spoken.
 
-The `ClientContext` field is `trigger.addressed?: { from, text, ts, user_message? }`. `from` is the speaker's preset name. `text` is the reply's spoken text. `ts` is the epoch-ms moment the reply was spoken.
+The `ClientContext` field is `trigger.addressed?: { from, text, ts, user_message?, exchange? }`. `from` is the speaker's preset name. `text` is the reply's spoken text. `ts` is the epoch-ms moment the reply was spoken.
+
+An admitted addressed turn also carries `exchange?: { used, max }`. `used` is how many addressed replies this character has given since the user last spoke, and `max` is the chain cap the user set. When both numbers are present, the block renders one line right after the headline, a handoff included:
+
+```text
+exchange: the character has answered other characters 3 times since the user last spoke, at most 10; a reply without address_character ends the exchange
+```
+
+Without the field the line is omitted, and a turn that only waited in a bundle carries no exchange line. The line states the fact; whether this character answers again is the backend's judgment.
 
 When the cursor has not passed the exchange yet, the same lines also ride in the [`overheard`](#overheard) block. The client routes the turn. Whether this character answers is the backend's judgment. A `[SILENT]` reply ends the exchange.
 
