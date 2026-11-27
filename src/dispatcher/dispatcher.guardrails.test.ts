@@ -145,6 +145,32 @@ describe("dispatcher — addressed chain cap", () => {
     });
   });
 
+  it("releases only the addressed entries the chain has room for, and drops the excess as addressed_cap", async () => {
+    dispatcher.start();
+    await runAddressed(1);
+    // A gesture reaction holds the slot while two addressed lines arrive behind it.
+    bus.push({
+      seq_id: 9,
+      source: "os_event_watcher",
+      event_name: "proactive.touch_chest",
+      ts: NOW + 9,
+      payload: { cue_id: "touch_chest", label: "chest poked" },
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(addressedEnv(2));
+    bus.push(addressedEnv(3));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred.at(-1)?.resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const trigger = vi.mocked(backendCaller.call).mock.calls.at(-1)![0].trigger;
+    expect(trigger.ts).toBe(NOW + 2);
+    expect(trigger.payload?.waited).toBeUndefined();
+    expect(dispatcher.recentDrops()).toEqual([
+      expect.objectContaining({ ts: NOW + 3, reason: "addressed_cap" }),
+    ]);
+  });
+
   it("a user turn in between resets the chain", async () => {
     dispatcher.start();
     await runAddressed(1);

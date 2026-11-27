@@ -268,6 +268,17 @@ describe("dispatcher — waiting list", () => {
 
     expect(backendCaller.call).not.toHaveBeenCalled();
     expect(buffered).toEqual([group]);
+
+    // The next edge into a free slot: a do-not-disturb hold ends.
+    dndOn = true;
+    await vi.advanceTimersByTimeAsync(20);
+    dndOn = false;
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(triggerOf(0)).toMatchObject({
+      event_name: "signals.catchup",
+      payload: { signals: [group] },
+    });
   });
 
   it("sends the buffered batched groups only through the release at playback end", async () => {
