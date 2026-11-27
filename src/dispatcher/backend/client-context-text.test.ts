@@ -1222,6 +1222,30 @@ describe("renderClientContext — exhaustiveness", () => {
     ],
   ];
 
+  it("renders the exchange line right after an addressed headline, and omits it without the field", () => {
+    const addressed = {
+      kind: "addressed" as const,
+      addressed: {
+        from: "perlica",
+        text: "natsume, you took my chair",
+        ts: NOW,
+        exchange: { used: 3, max: 10 },
+      },
+    };
+    const text = renderClientContext(baseContext(addressed), NOW);
+    expect(text).toContain(
+      'trigger: addressed by perlica: "natsume, you took my chair" (0min ago)\n' +
+        "exchange: the character has answered other characters 3 times since the user last spoke, at most 10; " +
+        "a reply without address_character ends the exchange",
+    );
+
+    const without = renderClientContext(
+      baseContext({ kind: "addressed", addressed: { from: "perlica", text: "natsume, you took my chair", ts: NOW } }),
+      NOW,
+    );
+    expect(without).not.toContain("exchange:");
+  });
+
   it.each(
     CASES,
   )("%s trigger kind renders its distinctive fields, not just any trigger: line", (_name, trigger, expectedSubstrings) => {

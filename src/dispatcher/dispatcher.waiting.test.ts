@@ -69,6 +69,12 @@ const gestureCue = (): BusEnvelope => ({
   ts: NOW,
   payload: { cue_id: "touch_chest", label: "chest poked" },
 });
+const addressedLine = (ts: number): BusEnvelope => ({
+  source: "addressed_source",
+  event_name: "addressed.character",
+  ts,
+  payload: { from: "perlica", name: "Perlica", line: "natsume, you took my chair" },
+});
 const group: SignalGroup = { envelope: SIGNAL_ENVELOPE, items: [{ text: "done" }] };
 
 let bus: EventBus;
@@ -330,5 +336,23 @@ describe("dispatcher — waiting list", () => {
       event_name: "signals.catchup",
       payload: { signals: [group] },
     });
+  });
+
+  it("stamps the exchange a bundle charged on the trigger: two addressed entries read used 2", async () => {
+    make();
+    bus.push(gestureCue());
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(addressedLine(NOW + 1));
+    bus.push(addressedLine(NOW + 2));
+    await vi.advanceTimersByTimeAsync(20);
+
+    callDeferred[0]!.resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(backendCaller.call).toHaveBeenCalledTimes(2);
+    const trigger = triggerOf(1);
+    expect(trigger.event_name).toBe("addressed.character");
+    expect(waitedOf(trigger)).toEqual(["addressed.character"]);
+    expect(trigger.payload?.exchange).toEqual({ used: 2, max: 2 });
   });
 });

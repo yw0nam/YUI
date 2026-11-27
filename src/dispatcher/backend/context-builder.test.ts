@@ -297,6 +297,32 @@ describe("buildClientContext — addressed forwarding", () => {
     expect(client.trigger.kind).toBe("addressed");
     expect("addressed" in client.trigger).toBe(false);
   });
+
+  it("projects the stamped exchange when both numbers are present and the max is positive, and omits it at max 0", () => {
+    const client = buildClientContext(
+      CTX,
+      addressedEnv({
+        from: "perlica",
+        name: "Perlica",
+        line: "natsume, you took my chair",
+        exchange: { used: 3, max: 10 },
+      }),
+    );
+
+    expect(client.trigger.addressed).toEqual({
+      from: "Perlica",
+      text: "natsume, you took my chair",
+      ts: 1_717_000_000_000,
+      exchange: { used: 3, max: 10 },
+    });
+
+    const capped = buildClientContext(
+      CTX,
+      addressedEnv({ from: "perlica", name: "Perlica", line: "hi", exchange: { used: 1, max: 0 } }),
+    );
+
+    expect(capped.trigger.addressed).toEqual({ from: "Perlica", text: "hi", ts: 1_717_000_000_000 });
+  });
 });
 
 describe("buildClientContext — mention forwarding", () => {
