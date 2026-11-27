@@ -3,6 +3,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setTrayDnd } from "../../io/window/tray-dnd";
 import type { Logger } from "../../logger";
+import { isRunning } from "../../settings/rest/rest-choices";
 import type { RestSettingsStore } from "../../settings/rest/rest-settings";
 import { isTauri } from "../../tauri-env";
 import type { WindowActiveHours } from "../active-hours/window-active-hours";
@@ -24,11 +25,8 @@ export function wireTrayDnd(deps: {
   const { rest, restSettings, log } = deps;
   const win = deps.win ?? getCurrentWindow();
   const setTray = deps.setTray ?? setTrayDnd;
-  // A quiet span holds her too, but the tray item is the Rest switch.
-  const running = (): boolean => {
-    const kind = rest.rest()?.kind;
-    return kind === "rest" || kind === "focus";
-  };
+  // An off span holds her too, but the tray item is the Rest switch.
+  const running = (): boolean => isRunning(rest.rest());
   let sent: boolean | undefined;
   /** Sends the check when it changed; a click sends it anyway, since the native item flipped itself. */
   const sync = (force = false): void => {

@@ -4,17 +4,11 @@ import type { PersonaConfig } from "../../config/validators/persona/types";
 import type { ActiveHoursSettingsStore } from "../../settings/active-hours/active-hours-settings";
 import type { BasePaceSettingsStore } from "../../settings/active-hours/base-pace-settings";
 import { spansInUse } from "../../settings/active-hours/card-active-hours";
-import {
-  minutesOffFrom,
-  PACE_FACTOR,
-  type Pace,
-  paceAt,
-  type Span,
-} from "../../settings/active-hours/spans";
+import { PACE_FACTOR, type Pace, paceAt, type Span } from "../../settings/active-hours/spans";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import type { RestState } from "../../settings/rest/rest-choices";
-import { minutesLeft, restChoicesAt } from "../../settings/rest/rest-end";
 import type { RestSettingsStore } from "../../settings/rest/rest-settings";
+import { restAt, restDrawnKey, restWakeAt } from "../../settings/rest/rest-state";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { getLocale } from "../../ui/i18n";
 
@@ -25,7 +19,7 @@ export interface WindowActiveHours {
   paceFactor(): number;
   /** Called whenever gapMs() changes value: a gap edit, a spans or card change, a span boundary crossed. */
   subscribeGap(cb: () => void): () => void;
-  /** Do-not-disturb for this pet window: rest() is set; subscribe fires only when enabled changes. */
+  /** Do-not-disturb for this pet window: rest() is set, read fresh; subscribe fires only when enabled changes. */
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
   /** What holds her own turns at `now`, read fresh: a running Rest or Focus, else an off span, else null. */
   rest(now?: number): RestState | null;
@@ -35,8 +29,6 @@ export interface WindowActiveHours {
   setPersona(persona: PersonaConfig): void;
   dispose(): void;
 }
-
-const MIN_MS = 60_000;
 
 const minuteOf = (d: Date): number => d.getHours() * 60 + d.getMinutes();
 
@@ -57,23 +49,8 @@ export function createWindowActiveHours(deps: {
     return spansInUse(deps.activeHoursSettings.get().spans, card);
   };
 
-  function rest(now = Date.now()): RestState | null {
-    const running = deps.restSettings.get(now);
-    if (running) return { kind: running.choice.startsWith("focus") ? "focus" : "rest", ...running };
-    const at = new Date(now);
-    const ahead = minutesOffFrom(spansNow(), minuteOf(at));
-    if (ahead === 0) return null;
-    if (ahead === null) return { kind: "quiet" };
-    const end = new Date(at.getFullYear(), at.getMonth(), at.getDate(), at.getHours());
-    end.setMinutes(at.getMinutes() + ahead);
-    return { kind: "quiet", endsAt: end.getTime() };
-  }
-
-  /** What the Rest surfaces draw at `now`: a change of it is a subscribeRest notification. */
-  function restKey(state: RestState | null, now: number): string {
-    const left = state?.kind === "focus" && state.endsAt ? minutesLeft(state.endsAt, now) : "";
-    return [state?.kind, state?.choice, state?.endsAt, left, restChoicesAt(now).length].join("|");
-  }
+  const rest = (now = Date.now()): RestState | null =>
+    restAt(deps.restSettings.get(now), spansNow(), now);
 
   let pace: Pace;
   let factor: number;
@@ -97,7 +74,7 @@ export function createWindowActiveHours(deps: {
       enabled = nextEnabled;
       for (const cb of dndListeners) cb({ enabled });
     }
-    const key = restKey(state, now);
+    const key = restDrawnKey(state, now);
     if (key !== shownKey) {
       const first = shownKey === undefined;
       shownKey = key;
@@ -106,27 +83,17 @@ export function createWindowActiveHours(deps: {
   };
   recompute();
 
-  /** The next instant anything drawn can change: the minute boundary, a Rest's end, or a Focus minute. */
-  function nextWake(now: number): number {
-    const d = new Date(now);
-    let next = now + MIN_MS - (d.getSeconds() * 1000 + d.getMilliseconds());
-    const running = deps.restSettings.get(now);
-    if (running?.endsAt !== undefined) next = Math.min(next, running.endsAt);
-    if (running?.choice.startsWith("focus") && running.startedAt !== undefined) {
-      const elapsed = Math.floor((now - running.startedAt) / MIN_MS) + 1;
-      next = Math.min(next, running.startedAt + elapsed * MIN_MS);
-    }
-    return next;
-  }
-
   // One chain aimed at the next wake; each fire reads the local clock fresh, so DST and sleep need no special case.
   let timer: ReturnType<typeof setTimeout>;
   const arm = (): void => {
     const now = Date.now();
-    timer = setTimeout(() => {
-      recompute();
-      arm();
-    }, nextWake(now) - now);
+    timer = setTimeout(
+      () => {
+        recompute();
+        arm();
+      },
+      restWakeAt(deps.restSettings.get(now), now) - now,
+    );
   };
   arm();
 

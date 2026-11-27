@@ -20,3 +20,9 @@ export interface RestState {
   startedAt?: number;
   endsAt?: number;
 }
+
+export const isFocusChoice = (choice: RestChoice): boolean => choice.startsWith("focus");
+
+/** A Rest or Focus the user started is running; an off span holds her too but is not one. */
+export const isRunning = (state: RestState | null | undefined): state is RestState =>
+  state?.kind === "rest" || state?.kind === "focus";

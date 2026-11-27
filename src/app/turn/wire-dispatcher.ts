@@ -92,7 +92,7 @@ export function wireDispatcher(deps: {
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   /** This pet window's active hours: the scaled pacer gap and what holds her own turns. */
-  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "rest">;
+  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd" | "rest">;
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
@@ -272,7 +272,7 @@ export function wireDispatcher(deps: {
     turnGate: createTurnGate({ enabled: () => oneVoiceSettings.get().enabled }),
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
-    isDndOn: () => activeHours.rest() !== null,
+    isDndOn: () => activeHours.dnd.get().enabled,
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
     onTurnDropped: deps.onTurnDropped,

@@ -2,7 +2,12 @@
 
 import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
-import type { RestChoice, RestState } from "../../settings/rest/rest-choices";
+import {
+  isFocusChoice,
+  isRunning,
+  type RestChoice,
+  type RestState,
+} from "../../settings/rest/rest-choices";
 import { clockOf, MIN_MS, minutesLeft, restChoicesAt } from "../../settings/rest/rest-end";
 import { t } from "../i18n";
 
@@ -103,7 +108,7 @@ function restLabel(rest: RestState | null, now: number): string {
 
 /** The Rest pill opens its list; a quiet span keeps the off look. */
 function restItem(rest: RestState | null, now: number): MenuItem {
-  const on = rest?.kind === "rest" || rest?.kind === "focus";
+  const on = isRunning(rest);
   const label = restLabel(rest, now);
   return { id: "rest", label, glyph: "rest", role: "list", on, onText: on && !rest?.endsAt };
 }
@@ -118,13 +123,13 @@ function restStatus(rest: RestState, now: number): string {
 const restChoice = (choice: RestChoice): MenuItem => ({
   id: `rest:${choice}`,
   label: t(`character_menu.rest_${choice}`),
-  glyph: choice.startsWith("focus") ? "focus" : "rest",
+  glyph: isFocusChoice(choice) ? "focus" : "rest",
   role: "action",
 });
 
 /** Back, the status and End now while a Rest or Focus runs, then the choices but the running one, Focus after a divider. */
 function restItems(rest: RestState | null, now: number): MenuItem[] {
-  const running = rest?.kind === "quiet" ? null : rest;
+  const running = isRunning(rest) ? rest : null;
   const offered = restChoicesAt(now).filter((c) => c !== running?.choice);
   return [
     BACK(),
@@ -144,9 +149,9 @@ function restItems(rest: RestState | null, now: number): MenuItem[] {
           } as const,
         ]
       : []),
-    ...offered.filter((c) => !c.startsWith("focus")).map(restChoice),
+    ...offered.filter((c) => !isFocusChoice(c)).map(restChoice),
     { id: "rest-divider", label: "", glyph: "", role: "divider" },
-    ...offered.filter((c) => c.startsWith("focus")).map(restChoice),
+    ...offered.filter(isFocusChoice).map(restChoice),
   ];
 }
 
