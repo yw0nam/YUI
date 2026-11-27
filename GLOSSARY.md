@@ -206,8 +206,12 @@ The unified chat window's chip for one open preset in its head row, the recipien
 _Avoid_: avatar pill, presence badge, recipient chip
 
 **Character menu**:
-The pill menu around her, opened by a right-click on her in the pet window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
+The pill menu around her, opened by a right-click on her in the pet window and drawn in the Character menu window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
 _Avoid_: context menu, radial menu, pie menu, ring menu
+
+**Character menu window**:
+The app's one window `character-menu`, created hidden at main's boot. When the Character menu opens, it is shown with keyboard focus beside the right-clicked character, lets clicks outside its pills through, and is hidden on close.
+_Avoid_: menu overlay, popup window
 
 **Settings stage**:
 The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing.

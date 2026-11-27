@@ -82,7 +82,7 @@ export function wireComeAlong(deps: {
     register(
       await onSettingsStageEnded(settingsLabel, () => void comeAlong.goHome().catch(failed)),
     );
-    // The Character menu lets go after its parked frame ends: the newest slot applies then.
+    // A holder that lets go may have kept her from a slot: the newest one applies then.
     register(locomotion.onHoldReleased(() => void comeAlong.place().catch(failed)));
     register(locomotion.onMoverTakesOver(() => comeAlong.restoreSize()));
     // Both listeners are in place before the answer can arrive.

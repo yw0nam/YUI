@@ -184,7 +184,7 @@ it("in a 190x284 window over an Ask card keeps the urgent rows and hides the res
   }).toEqual({ rows: [true, true], threadsSlot: 32 });
 });
 
-it("fades out while the Character menu is open, taking no hits, and returns when it closes", async () => {
+it("fades out while the overlay marks the Character menu open, taking no hits, and returns when it closes", async () => {
   const { surfaces, column } = build();
   await settle();
   const pill = column.querySelector(".yui-sigchip")!.getBoundingClientRect();
@@ -198,12 +198,10 @@ it("fades out while the Character menu is open, taking no hits, and returns when
   });
   const before = state();
 
-  const menu = document.createElement("div");
-  menu.className = "yui-cmenu";
-  surfaces.el.append(menu);
+  surfaces.el.setAttribute("data-menu-open", "");
   await settle();
   const open = state();
-  menu.hidden = true;
+  surfaces.el.removeAttribute("data-menu-open");
   await settle();
 
   expect({ before, open, closed: state() }).toEqual({

@@ -22,6 +22,7 @@ YUI/
   message.html                       # Message-window Vite entry
   unified.html                       # Unified-chat-window Vite entry
   threads.html                       # Threads-window Vite entry
+  character-menu.html                # Character-menu-window Vite entry
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
   scripts/                           # Summarised: dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, rust-lines.sh (code and test line counts of a Rust file), architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), and ci/ (test-guard.sh, gates.sh, architecture-map.mjs, command-paths.mjs, css-selectors.mjs, logger-namespace.mjs)
@@ -130,10 +131,13 @@ YUI/
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
-      character-menu/               # The Character menu in the pet window
-        wire-character-menu.ts       # Opens the menu on her right-click, focuses the window, and closes it when focus leaves or her travel aborts
-        character-menu-frame.ts      # Widens the pet window to the menu's reach and restores it, holding her still meanwhile
+      character-menu/               # The Character menu: its pet-window side and the Character menu window's side
+        wire-character-menu.ts       # The pet window's right-click on her, and the menu window's picks and closes received back
+        pet-menu-opener.ts           # Asks the menu window to open with her placement and state, holds her while it shows, marks the chip column, and lets her go on close
+        read-menu-placement.ts       # Her window's frame, its monitor's work area, and her head, name and chest points for the menu
         character-menu-ports.ts      # The menu's actions over the stores and openers the pet window has: Rest, Listen, Body, Voice, Pace, Keep bubble, Unified chat, Reset chat, Threads, Turn off
+        wire-character-menu-window.ts # The menu window's wiring: its theme and language, and the session fed by the bridge's open, state and close requests
+        menu-window-session.ts       # The menu window's open sessions: places and shows the menu beside each open's pet window, reports shown and closed, and hides it
       threads-window/                # The Threads window's wiring
         wire-threads-window.ts       # Snapshots into the view, read marks to the store, main's attached Threads into the pane and its Attach to chat back, the frame store into placement and resize, the list choice, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
@@ -153,6 +157,7 @@ YUI/
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
       unified-main.ts                # Unified chat window: the frameless 340 px column, the speech stream into its box, and the composer that routes a message
       threads-main.ts                # Threads window: boots the Threads window wiring
+      character-menu-main.ts         # Character menu window: boots its wiring with the frame, the hit-test and the bridge
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -555,9 +560,11 @@ YUI/
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
+          character-menu-window.ts     # Creates the one Character menu window hidden at main's boot, replacing a leftover one
           companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           cursor-source.ts             # One OS-cursor poll shared by gaze and the hit-test, in window-local CSS px
+          over-selectors.ts            # The hit check over DOM targets the pet window and the Character menu window share: a point within a margin of a matching element
           hit-test.ts                  # Click-through hit-test controller for the transparent window
           peek-state.ts                # Holds the current peek side and its lifecycle
           gesture/                     # The three pointer-gesture detectors the stage wires
@@ -721,9 +728,9 @@ YUI/
       settings-request/              # The Settings request card
         settings-request-card.ts     # Deny or Allow on one click, a checkbox per change when there are several, and the optional note
         change-lines.ts              # The card's change and why lines, each agent-written value as one line of plain text
-      character-menu/               # The pill menu a right-click on her opens in the pet window, built without React
+      character-menu/               # The pill menu a right-click on her opens, drawn in the Character menu window, built without React
         items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
-        layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the widened window reaches
+        layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the menu window reaches past her window
         keys.ts                      # The keyboard order and moves, back and close
         glyphs.ts                    # The menu's line glyphs
         character-menu.ts            # The menu factory: pills, in-place lists, the inline confirm, her name, focus and close rules

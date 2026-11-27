@@ -1,7 +1,7 @@
 /** The Character menu's ports over the pet window's stores: what each pill reads and what its pick writes. */
 
 import type { ConfigStore } from "../../config/store";
-import type { ThreadsTab } from "../../io/bridge/settings-bridge";
+import type { MenuState, ThreadsTab } from "../../io/bridge/settings-bridge";
 import { resetConversation } from "../../io/chat/conversation/reset-conversation";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { ThreadsClient } from "../../io/threads/threads-client";
@@ -13,7 +13,6 @@ import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { MenuActions } from "../../ui/character-menu/character-menu";
-import type { MenuState } from "../../ui/character-menu/items";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { quickControlsConfigDefaults } from "../settings/config-defaults";
@@ -46,9 +45,10 @@ function select<T extends { id: string }>(
   selection: Selection<T>,
   swap: (option: T) => Promise<void>,
   id: string,
-): void {
+): Promise<void> {
   const option = selection.list().find((o) => o.id === id);
-  if (option) void swap(option).catch((err) => log.warn("select_failed", { error: String(err) }));
+  if (!option) return Promise.resolve();
+  return swap(option).catch((err) => log.warn("select_failed", { error: String(err) }));
 }
 
 function flip(store: { setEnabled(on: boolean): void }, logKey: string, on: boolean): void {

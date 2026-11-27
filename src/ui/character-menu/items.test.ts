@@ -1,6 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
+import type { MenuState } from "../../io/bridge/settings-bridge";
 import { setLocale } from "../i18n";
-import { listItems, type MenuState, topItems } from "./items";
+import { listItems, topItems } from "./items";
 
 beforeEach(() => setLocale("en"));
 

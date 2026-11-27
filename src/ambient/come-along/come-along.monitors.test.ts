@@ -80,11 +80,9 @@ function cycle(at = { x: -48, y: 860 }) {
     locomotion: {
       hold: () => {},
       abortTravel: () => travel.abort(),
-      widen: async (via, end) => {
+      widen: async (end) => {
         events.push("widen");
-        const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-        const start = { x: pos.x / scale, y: pos.y / scale };
-        return travel.begin(end ?? start, via, end && { width: end.width, height: end.height });
+        return travel.begin(end, [], { width: end.width, height: end.height });
       },
       release: () => {},
       drop: async () => {

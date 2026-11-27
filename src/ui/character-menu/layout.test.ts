@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { planMenu, planTop } from "./layout";
+import { planMenu, planMenuWindow, planTop } from "./layout";
 
 const workArea = { x: 0, y: 25, width: 1440, height: 875 };
 // Widest pills as measured: the right top column, the left top column, all top items, and each list.
@@ -63,4 +63,42 @@ it.each([
   ],
 ] as const)("puts the columns' top %s", (_name, bottoms, height, plan) => {
   expect(planTop({ head: 120, height, ...bottoms })).toEqual(plan);
+});
+
+it.each([
+  [
+    "two columns around her with room on both sides",
+    { x: 520, y: 300, width: 400, height: 600 },
+    240,
+    {
+      fold: "none",
+      top: 240,
+      rect: { x: 440, y: 300, width: 488, height: 600 },
+      box: { left: 80, top: 0, width: 400, height: 600 },
+    },
+  ],
+  [
+    "one column on her left near the work area's right edge",
+    { x: 1100, y: 300, width: 400, height: 600 },
+    240,
+    {
+      fold: "left",
+      top: 240,
+      rect: { x: 1020, y: 300, width: 480, height: 600 },
+      box: { left: 80, top: 0, width: 400, height: 600 },
+    },
+  ],
+  [
+    "a window grown 12px above hers for a column taller than her window",
+    { x: 520, y: 100, width: 400, height: 260 },
+    120,
+    {
+      fold: "none",
+      top: -4,
+      rect: { x: 440, y: 88, width: 488, height: 272 },
+      box: { left: 80, top: 12, width: 400, height: 260 },
+    },
+  ],
+] as const)("plans the menu window for %s", (_name, frame, head, plan) => {
+  expect(planMenuWindow({ frame, workArea, widths, head })).toEqual(plan);
 });

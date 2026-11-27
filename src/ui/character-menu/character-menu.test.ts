@@ -3,10 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./character-menu.css", () => ({}));
 
+import type { MenuState } from "../../io/bridge/settings-bridge";
 import { setLocale } from "../i18n";
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
-import { createCharacterMenu } from "./character-menu";
-import type { MenuState } from "./items";
+import { createCharacterMenu, MENU_PILLS } from "./character-menu";
 
 let mount: HTMLElement;
 const menus: ReturnType<typeof createCharacterMenu>[] = [];
@@ -57,9 +56,10 @@ function build(over: Partial<MenuState> = {}) {
     turnOff: vi.fn(),
   };
   const restore = vi.fn(async () => void order.push("restore"));
+  let kind: "main" | "bound" = "main";
   const menu = createCharacterMenu({
     mount,
-    kind: "main",
+    kind: () => kind,
     name: () => "Yui",
     read: () => state,
     place: vi.fn(async () => ({
@@ -76,7 +76,10 @@ function build(over: Partial<MenuState> = {}) {
     },
   });
   menus.push(menu);
-  return { menu, actions, restore, order, state, blur: () => blur() };
+  const setKind = (next: "main" | "bound") => {
+    kind = next;
+  };
+  return { menu, actions, restore, order, state, blur: () => blur(), setKind };
 }
 
 const labels = (side: "left" | "right") =>
@@ -110,6 +113,33 @@ it("opens with focus on Talk and her name above her", async () => {
   expect(labels("right")).toEqual(["Talk", "Rest", "Listen", "Settings"]);
   expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
   expect(mount.querySelector(".yui-cmenu__name")?.textContent).toBe("Yui");
+});
+
+it("reads her kind on each open, so one menu serves every character", async () => {
+  const { menu, setKind } = build();
+  await menu.open();
+  const main = labels("right");
+  press("Escape");
+  await menu.close();
+  setKind("bound");
+
+  await menu.open();
+
+  expect([main, labels("right")]).toEqual([
+    ["Talk", "Rest", "Listen", "Settings"],
+    ["Talk", "Rest", "Settings"],
+  ]);
+});
+
+it("redraws from the state it reads on refresh, focus staying on its row", async () => {
+  const { menu, state } = build();
+  await menu.open();
+  pill("rest")?.focus();
+  state.rest = true;
+
+  menu.refresh();
+
+  expect([pill("rest")?.getAttribute("aria-checked"), focused()]).toEqual(["true", "rest"]);
 });
 
 it("replaces the left column in place with a list and Back, and Back returns to Body", async () => {
@@ -260,7 +290,7 @@ it("keeps the old column inert and out of reach while a list swap crossfades, un
     "pace",
     "more",
   ]);
-  const targets = INTERACTIVE_OVERLAY_SELECTORS.flatMap((s) => [...mount.querySelectorAll(s)]);
+  const targets = [...mount.querySelectorAll(MENU_PILLS)];
   expect(targets.filter((el) => old!.contains(el))).toEqual([]);
   expect(focused()).toBe("threads");
 

@@ -51,6 +51,37 @@ interface Row {
 
 const none = { args: [], wire: undefined, delivered: [] };
 const THREAD = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
+const MENU_STATE = {
+  talk: false,
+  rest: true,
+  listen: false,
+  bubble: false,
+  unified: false,
+  bodies: [{ id: "yui", label: "Yui" }],
+  body: "yui",
+  voices: [{ id: "", label: "" }],
+  voice: "",
+  pace: "normal",
+  waiting: 2,
+};
+const MENU_OPEN = {
+  type: "open",
+  id: "main#1",
+  kind: "main",
+  name: "Yui",
+  state: MENU_STATE,
+  frame: { x: 300, y: 517, width: 400, height: 600 },
+  workArea: { x: 0, y: 25, width: 1440, height: 875 },
+  head: 150,
+  nameTop: 90,
+  chest: { x: 200, y: 260 },
+  hitTest: {
+    hysteresis_margin_px: 12,
+    poll_interval_ms: 50,
+    debounce_samples: 2,
+    alpha_threshold: 0.1,
+  },
+};
 const same = (value: unknown) => ({ args: [value], wire: value, delivered: [value] });
 
 const rows: Record<keyof typeof channels, Row> = {
@@ -165,6 +196,7 @@ const rows: Record<keyof typeof channels, Row> = {
     scope: "shared",
     ...same({ sendId: "s1", preset: "p2" }),
   },
+  CharacterMenu: { name: "yui://character-menu", scope: "shared", ...same(MENU_OPEN) },
 };
 
 type Method = (...args: unknown[]) => unknown;
@@ -772,4 +804,60 @@ it.each([
   expect(control.mock.calls).toEqual([[{ preset: "yui", op }]]);
   pet.dispose();
   unified.dispose();
+});
+
+describe("Character menu channel", () => {
+  function pair() {
+    const t = createFakeTransport();
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const menu = createSettingsBridge(t, { windowKind: "character-menu" });
+    const received = vi.fn();
+    menu.onCharacterMenu(received);
+    return { pet, received };
+  }
+
+  it.each([
+    MENU_OPEN,
+    { type: "state", id: "main#1", state: MENU_STATE },
+    { type: "close", id: "main#1" },
+    { type: "shown", id: "main#1" },
+    { type: "action", id: "main#1", action: "rest", value: true },
+    { type: "action", id: "pet-mio#2", action: "body", value: "natsume" },
+    { type: "action", id: "main#1", action: "pace", value: "high" },
+    { type: "action", id: "main#1", action: "settings", value: "voice" },
+    { type: "action", id: "main#1", action: "settings" },
+    { type: "action", id: "main#1", action: "threads", value: "terminal" },
+    { type: "action", id: "main#1", action: "turnOff" },
+    { type: "closed", id: "main#1", refocus: true },
+  ])("delivers the message %j", (message) => {
+    const { pet, received } = pair();
+
+    pet.emitCharacterMenu(message as never);
+
+    expect(received.mock.calls).toEqual([[message]]);
+  });
+
+  it.each([
+    { ...MENU_OPEN, frame: { ...MENU_OPEN.frame, x: Number.NaN } },
+    { ...MENU_OPEN, chest: { x: 200 } },
+    { ...MENU_OPEN, state: { ...MENU_STATE, bodies: [{ id: 1, label: "Yui" }] } },
+    { ...MENU_OPEN, state: { ...MENU_STATE, pace: "off" } },
+    { ...MENU_OPEN, kind: "guest" },
+    { type: "state", id: "main#1", state: { ...MENU_STATE, rest: "yes" } },
+    { type: "action", id: "main#1", action: "pace", value: "turbo" },
+    { type: "action", id: "main#1", action: "settings", value: "memory" },
+    { type: "action", id: "main#1", action: "threads", value: "shell" },
+    { type: "action", id: "main#1", action: "rest", value: "on" },
+    { type: "action", id: "main#1", action: "dance" },
+    { type: "closed", id: "main#1", refocus: "yes" },
+    { type: "shown", id: "" },
+    { type: "hello", id: "main#1" },
+  ])("drops the malformed message %j", (message) => {
+    const { pet, received } = pair();
+
+    pet.emitCharacterMenu({ type: "shown", id: "main#1" });
+    pet.emitCharacterMenu(message as never);
+
+    expect(received.mock.calls).toEqual([[{ type: "shown", id: "main#1" }]]);
+  });
 });

@@ -1,5 +1,6 @@
-/** Where the Character menu's columns go beside her, and how far the widened window reaches. */
+/** Where the Character menu's columns go beside her, and the menu window around her that holds them. */
 
+import type { ScreenRect } from "../../contract";
 import { roomierSide } from "../../io/window/geometry/roomier-side";
 
 /** A column's inner edge from her centre: her 64px half-width plus 24px clear. */
@@ -27,7 +28,7 @@ export interface MenuWidths {
 
 export interface MenuPlan {
   fold: Fold;
-  /** How far the widened window reaches left and right of her centre (px). */
+  /** How far the menu window reaches left and right of her centre (px). */
   reachLeft: number;
   reachRight: number;
 }
@@ -66,7 +67,7 @@ export function planMenu(input: {
 /** A column of `rows` pills, top of the first to bottom of the last (px). */
 export const columnHeight = (rows: number): number => rows * ROW_PX - GRID_PX;
 
-/** The columns' shared top in her box's px, and how far her window grows upward to keep it 8px below its top. */
+/** The columns' shared top in her box's px, and how far the menu window grows upward past hers to keep it 8px below its top. */
 export function planTop(input: {
   head: number;
   height: number;
@@ -76,4 +77,40 @@ export function planTop(input: {
   const { head, height, windowBottom, workBottom } = input;
   const top = Math.min(head, Math.min(windowBottom, workBottom) - EDGE_PX - height);
   return { top, growUp: Math.max(0, EDGE_PX - top) };
+}
+
+/** The menu window over her window (global logical px), and her box inside it. */
+export function planMenuWindow(input: {
+  frame: ScreenRect;
+  workArea: ScreenRect;
+  widths: MenuWidths;
+  head: number;
+}): {
+  fold: Fold;
+  /** The columns' shared top in her box's px. */
+  top: number;
+  rect: ScreenRect;
+  box: { left: number; top: number; width: number; height: number };
+} {
+  const { frame, workArea, widths, head } = input;
+  const centre = frame.x + frame.width / 2;
+  const plan = planMenu({ centre, half: frame.width / 2, workArea, widths });
+  const { top, growUp } = planTop({
+    head,
+    height: columnHeight(plan.fold === "none" ? widths.rows.none : widths.rows.folded),
+    windowBottom: frame.height,
+    workBottom: workArea.y + workArea.height - frame.y,
+  });
+  const rect = {
+    x: centre - plan.reachLeft,
+    y: frame.y - growUp,
+    width: plan.reachLeft + plan.reachRight,
+    height: frame.height + growUp,
+  };
+  return {
+    fold: plan.fold,
+    top,
+    rect,
+    box: { left: frame.x - rect.x, top: growUp, width: frame.width, height: frame.height },
+  };
 }

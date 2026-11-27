@@ -55,6 +55,7 @@ import { onTerminalOpen } from "../io/terminal/terminal-open-event";
 import { createThreadsClient } from "../io/threads/threads-client";
 import { micSettingsOpener } from "../io/voice/open-mic-settings";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
+import { createCharacterMenuWindow } from "../io/window/openers/character-menu-window";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { createThreadsWindowController } from "../io/window/openers/threads-window";
@@ -287,6 +288,11 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // The chip, the tray's Terminal item and every bound window's Character menu open one Threads window.
   const threadsWindow = bound ? null : createThreadsWindowController({ bridge: windowBridge });
   if (threadsWindow) register(() => threadsWindow.dispose());
+  // Every pet window's Character menu draws in the one menu window main creates.
+  if (!bound)
+    void createCharacterMenuWindow().catch((error) =>
+      log.error("character_menu_window_failed", { error: String(error) }),
+    );
   register(
     wireThreadsOpenRequests({
       onTerminalOpen,
@@ -335,6 +341,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       onSettingsStage: windowBridge.onSettingsStage,
       emitSettingsStageAsk: windowBridge.emitSettingsStageAsk,
       bridgeListening: windowBridge.listening,
+      characterMenu: windowBridge,
       menuHost: {
         boundId,
         name: characterName.get,

@@ -81,11 +81,8 @@ export function wireLocomotion(deps: {
    * perch walk from starting; `opts` declares what else the hold does.
    */
   hold(holder: string, on: boolean, opts?: HoldOptions): void;
-  /** Parks the real window over her position, the `via` origins and `end`'s frame, where she then ends. */
-  widen(
-    via: Array<{ x: number; y: number }>,
-    end?: { x: number; y: number; width: number; height: number },
-  ): Promise<Travel>;
+  /** Parks the real window over her position and `end`'s frame, where she then ends. */
+  widen(end: { x: number; y: number; width: number; height: number }): Promise<Travel>;
   /** Leaves her seat on a window, as an agent move does. */
   release(): void;
   drop(opts: { landOnSeam: true }): Promise<void>;
@@ -312,17 +309,11 @@ export function wireLocomotion(deps: {
       cancel();
       holds.take(holder, opts);
     },
-    async widen(via, end) {
-      const win = travelFrame.getWindow();
-      const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-      // Without an end she ends where she starts: the travel only parks the window over the via origins.
-      const start = { x: pos.x / scale, y: pos.y / scale };
-      if (!end) return travelFrame.travel.begin(start, via);
-      return travelFrame.travel.begin({ x: end.x, y: end.y }, via, {
+    widen: (end) =>
+      travelFrame.travel.begin({ x: end.x, y: end.y }, [], {
         width: end.width,
         height: end.height,
-      });
-    },
+      }),
     frame: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,

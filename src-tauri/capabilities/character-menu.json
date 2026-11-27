@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "character-menu",
+  "description": "Character menu window — a frameless always-on-top window that places itself beside the right-clicked character, shows, focuses and hides itself, passes clicks outside its pills through, and follows the stored theme",
+  "windows": [
+    "character-menu"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-theme",
+    "allow-set-frame-logical",
+    "allow-set-click-through",
+    "log:default"
+  ]
+}

@@ -5,8 +5,11 @@
  * so each channel here rides the cross-window bridge core.
  */
 
+import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import type { AttachedThread, GuideKey, ScreenRect } from "../../contract";
 import { createLogger } from "../../logger";
+import type { BasePace } from "../../settings/active-hours/base-pace-settings";
+import { PACES } from "../../settings/active-hours/spans";
 import type { SettingsFocus, SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsFocus, isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
@@ -130,6 +133,60 @@ export interface ThreadsPresented {
   present: string;
 }
 
+/** Which pet window a Character menu serves: main's, or a bound character's. */
+export type MenuKind = "main" | "bound";
+
+/** What the Character menu shows of her pet window's stores. */
+export interface MenuState {
+  talk: boolean;
+  rest: boolean;
+  listen: boolean;
+  bubble: boolean;
+  unified: boolean;
+  bodies: readonly { id: string; label: string }[];
+  body: string;
+  voices: readonly { id: string; label: string }[];
+  voice: string;
+  pace: BasePace;
+  /** The waiting Threads. */
+  waiting: number;
+}
+
+/** A pick in the Character menu window, run by the pet window that opened it. */
+export type CharacterMenuAction =
+  | { action: "talk" | "rest" | "listen" | "bubble" | "unified"; value: boolean }
+  | { action: "body" | "voice"; value: string }
+  | { action: "pace"; value: BasePace }
+  | { action: "settings"; value?: "body" | "voice" }
+  | { action: "threads"; value: ThreadsTab }
+  | { action: "reset" | "turnOff"; value?: undefined };
+
+/** One exchange between a pet window and the Character menu window; `id` (`<pet label>#<n>`) names the open. */
+export type CharacterMenu =
+  | {
+      type: "open";
+      id: string;
+      kind: MenuKind;
+      name: string;
+      state: MenuState;
+      /** Her window, in global logical px. */
+      frame: ScreenRect;
+      /** The work area of her monitor, in global logical px. */
+      workArea: ScreenRect;
+      /** Where the columns start, in her window's px. */
+      head: number;
+      /** Her head's top, where her name sits, in her window's px. */
+      nameTop: number;
+      /** Where the columns enter from and leave toward, in her window's px. */
+      chest: { x: number; y: number };
+      hitTest: HitTestKnobs;
+    }
+  | { type: "state"; id: string; state: MenuState }
+  | { type: "close"; id: string }
+  | { type: "shown"; id: string }
+  | ({ type: "action"; id: string } & CharacterMenuAction)
+  | { type: "closed"; id: string; refocus: boolean };
+
 /** The unified chat window's error action, Backend command or Command reply close for one preset. */
 export interface SpeechStreamControl {
   preset: string;
@@ -142,6 +199,136 @@ const isOptional = (v: unknown, test: (v: unknown) => boolean): boolean =>
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
 const isNonEmptyString = (v: unknown): v is string => isString(v) && v !== "";
 const isThreadsTab = (v: unknown): v is ThreadsTab => v === "threads" || v === "terminal";
+const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isBasePace = (v: unknown): v is BasePace =>
+  v !== "off" && (PACES as readonly unknown[]).includes(v);
+
+function screenRect(v: unknown): ScreenRect | undefined {
+  const { x, y, width, height } = (v ?? {}) as Record<string, unknown>;
+  return [x, y, width, height].every(isFiniteNumber)
+    ? ({ x, y, width, height } as ScreenRect)
+    : undefined;
+}
+
+function menuOptions(v: unknown): { id: string; label: string }[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const options = v.map((o) => {
+    const { id, label } = (o ?? {}) as Record<string, unknown>;
+    return isString(id) && isString(label) ? { id, label } : undefined;
+  });
+  return options.every((o) => o !== undefined) ? options : undefined;
+}
+
+function menuState(v: unknown): MenuState | undefined {
+  const s = (v ?? {}) as Record<string, unknown>;
+  const bodies = menuOptions(s.bodies);
+  const voices = menuOptions(s.voices);
+  const { talk, rest, listen, bubble, unified, body, voice, pace, waiting } = s;
+  if (![talk, rest, listen, bubble, unified].every(isBool)) return undefined;
+  if (!bodies || !voices || !isString(body) || !isString(voice)) return undefined;
+  if (!isBasePace(pace) || !isFiniteNumber(waiting)) return undefined;
+  return {
+    talk,
+    rest,
+    listen,
+    bubble,
+    unified,
+    bodies,
+    body,
+    voices,
+    voice,
+    pace,
+    waiting,
+  } as MenuState;
+}
+
+function hitTestKnobs(v: unknown): HitTestKnobs | undefined {
+  const k = (v ?? {}) as Record<string, unknown>;
+  const { hysteresis_margin_px, poll_interval_ms, debounce_samples, alpha_threshold } = k;
+  return [hysteresis_margin_px, poll_interval_ms, debounce_samples, alpha_threshold].every(
+    isFiniteNumber,
+  )
+    ? ({
+        hysteresis_margin_px,
+        poll_interval_ms,
+        debounce_samples,
+        alpha_threshold,
+      } as HitTestKnobs)
+    : undefined;
+}
+
+/** Each pick's value test: a boolean toggle, an option id, a pace, a page, a tab, or none. */
+const MENU_ACTION_VALUES: Record<CharacterMenuAction["action"], (v: unknown) => boolean> = {
+  talk: isBool,
+  rest: isBool,
+  listen: isBool,
+  bubble: isBool,
+  unified: isBool,
+  body: isString,
+  voice: isString,
+  pace: isBasePace,
+  settings: (v) => v === undefined || v === "body" || v === "voice",
+  threads: isThreadsTab,
+  reset: (v) => v === undefined,
+  turnOff: (v) => v === undefined,
+};
+
+/** The message rebuilt from its fields, or undefined when one is outside the contract. */
+function characterMenu(v: unknown): CharacterMenu | undefined {
+  const m = (v ?? {}) as Record<string, unknown>;
+  const { id } = m;
+  if (!isNonEmptyString(id)) return undefined;
+  switch (m.type) {
+    case "open": {
+      const { kind, name, head, nameTop } = m;
+      const state = menuState(m.state);
+      const frame = screenRect(m.frame);
+      const workArea = screenRect(m.workArea);
+      const hitTest = hitTestKnobs(m.hitTest);
+      const { x, y } = (m.chest ?? {}) as Record<string, unknown>;
+      if ((kind !== "main" && kind !== "bound") || !isString(name)) return undefined;
+      if (!state || !frame || !workArea || !hitTest) return undefined;
+      if (![head, nameTop, x, y].every(isFiniteNumber)) return undefined;
+      return {
+        type: "open",
+        id,
+        kind,
+        name,
+        state,
+        frame,
+        workArea,
+        head: head as number,
+        nameTop: nameTop as number,
+        chest: { x: x as number, y: y as number },
+        hitTest,
+      };
+    }
+    case "state": {
+      const state = menuState(m.state);
+      return state ? { type: "state", id, state } : undefined;
+    }
+    case "close":
+    case "shown":
+      return { type: m.type, id };
+    case "action": {
+      const { action, value } = m;
+      const valid = Object.hasOwn(MENU_ACTION_VALUES, action as string)
+        ? MENU_ACTION_VALUES[action as CharacterMenuAction["action"]](value)
+        : false;
+      if (!valid) return undefined;
+      return {
+        type: "action",
+        id,
+        action,
+        ...(value === undefined ? {} : { value }),
+      } as CharacterMenu;
+    }
+    case "closed":
+      return isBool(m.refocus) ? { type: "closed", id, refocus: m.refocus } : undefined;
+    default:
+      return undefined;
+  }
+}
 
 /** The Thread rebuilt from its three fields, or undefined when one is not a string or the id is empty. */
 function attachedThread(v: unknown): AttachedThread | undefined {
@@ -540,6 +727,15 @@ export const channels = {
       if (typeof e.sendId === "string" && typeof e.preset === "string") {
         deliver({ sendId: e.sendId, preset: e.preset });
       }
+    },
+  },
+  /** The Character menu window's opens, closes and picks; delivered to every window, receivers filter on `id`. */
+  CharacterMenu: {
+    name: "yui://character-menu",
+    scope: "shared",
+    read(message, deliver: (message: CharacterMenu) => void) {
+      const valid = characterMenu(message);
+      if (valid) deliver(valid);
     },
   },
 } satisfies Record<string, Channel>;
