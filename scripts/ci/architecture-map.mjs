@@ -76,6 +76,8 @@ export function parseMap(text) {
   }
 }
 
+export function formatMap(map) {}
+
 function shapeProblems(map, scope) {
   if (typeOf(map) !== "object" || map === null) return ["shape: the map is not an object"];
   const problems = [];
