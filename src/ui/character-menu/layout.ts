@@ -1,5 +1,6 @@
 /** Where the Character menu's columns go beside her, and how far the widened window reaches. */
 
+import type { ScreenRect } from "../../contract";
 import { roomierSide } from "../../io/window/geometry/roomier-side";
 
 /** A column's inner edge from her centre: her 64px half-width plus 24px clear. */
@@ -76,4 +77,23 @@ export function planTop(input: {
   const { head, height, windowBottom, workBottom } = input;
   const top = Math.min(head, Math.min(windowBottom, workBottom) - EDGE_PX - height);
   return { top, growUp: Math.max(0, EDGE_PX - top) };
+}
+
+export function planMenuWindow(_input: {
+  frame: ScreenRect;
+  workArea: ScreenRect;
+  widths: MenuWidths;
+  head: number;
+}): {
+  fold: Fold;
+  top: number;
+  rect: ScreenRect;
+  box: { left: number; top: number; width: number; height: number };
+} {
+  return {
+    fold: "none",
+    top: 0,
+    rect: { x: 0, y: 0, width: 0, height: 0 },
+    box: { left: 0, top: 0, width: 0, height: 0 },
+  };
 }

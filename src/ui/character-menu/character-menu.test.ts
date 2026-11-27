@@ -57,9 +57,10 @@ function build(over: Partial<MenuState> = {}) {
     turnOff: vi.fn(),
   };
   const restore = vi.fn(async () => void order.push("restore"));
+  let kind: "main" | "bound" = "main";
   const menu = createCharacterMenu({
     mount,
-    kind: "main",
+    kind: () => kind,
     name: () => "Yui",
     read: () => state,
     place: vi.fn(async () => ({
@@ -76,7 +77,10 @@ function build(over: Partial<MenuState> = {}) {
     },
   });
   menus.push(menu);
-  return { menu, actions, restore, order, state, blur: () => blur() };
+  const setKind = (next: "main" | "bound") => {
+    kind = next;
+  };
+  return { menu, actions, restore, order, state, blur: () => blur(), setKind };
 }
 
 const labels = (side: "left" | "right") =>
@@ -110,6 +114,33 @@ it("opens with focus on Talk and her name above her", async () => {
   expect(labels("right")).toEqual(["Talk", "Rest", "Listen", "Settings"]);
   expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
   expect(mount.querySelector(".yui-cmenu__name")?.textContent).toBe("Yui");
+});
+
+it("reads her kind on each open, so one menu serves every character", async () => {
+  const { menu, setKind } = build();
+  await menu.open();
+  const main = labels("right");
+  press("Escape");
+  await vi.waitFor(() => expect(menu.isOpen()).toBe(false));
+  setKind("bound");
+
+  await menu.open();
+
+  expect([main, labels("right")]).toEqual([
+    ["Talk", "Rest", "Listen", "Settings"],
+    ["Talk", "Rest", "Settings"],
+  ]);
+});
+
+it("redraws from the state it reads on refresh, focus staying on its row", async () => {
+  const { menu, state } = build();
+  await menu.open();
+  pill("rest")?.focus();
+  state.rest = true;
+
+  menu.refresh();
+
+  expect([pill("rest")?.getAttribute("aria-checked"), focused()]).toEqual(["true", "rest"]);
 });
 
 it("replaces the left column in place with a list and Back, and Back returns to Body", async () => {

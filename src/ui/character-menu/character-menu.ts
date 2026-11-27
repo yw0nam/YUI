@@ -63,7 +63,13 @@ export function createCharacterMenu(deps: {
   restore(): Promise<void>;
   actions: MenuActions;
   onBlur(cb: () => void): () => void;
-}): { open(): Promise<void>; close(): Promise<void>; dispose(): void; isOpen(): boolean } {
+}): {
+  open(): Promise<void>;
+  close(): Promise<void>;
+  refresh(): void;
+  dispose(): void;
+  isOpen(): boolean;
+} {
   const { mount, kind, actions } = deps;
   const root = document.createElement("div");
   root.className = "yui-cmenu";
@@ -484,6 +490,7 @@ export function createCharacterMenu(deps: {
     open,
     close,
     isOpen: () => phase === "open",
+    refresh() {},
     dispose() {
       void close();
       offBlur();

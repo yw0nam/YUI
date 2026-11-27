@@ -542,6 +542,11 @@ export const channels = {
       }
     },
   },
+  CharacterMenu: {
+    name: "yui://character-menu",
+    scope: "shared",
+    read(_message, _deliver: (message: unknown) => void) {},
+  },
 } satisfies Record<string, Channel>;
 
 export type SettingsBridge = ChannelMethods<typeof channels> & {
