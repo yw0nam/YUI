@@ -193,6 +193,7 @@ The Character menu window runs `app/character-menu/wire-character-menu-window.ts
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `character-menu-ports` | `select_failed` | `error` | Applying a Body or Voice choice threw (`warn` level). |
+| `character-menu-ports` | `session_reset` | none | Reset chat started a new session. |
 
 The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_toggle` and `unified_chat_toggle` under `character-menu-ports`; "Switches and characters" lists them.
 
