@@ -904,7 +904,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, Threads and pet windows, and holds a Threads request until the window reports ready.",
+      "role": "Opens and places the message, settings, devtools, unified chat, Threads, Character menu and pet windows, and holds a Threads request until the window reports ready.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -1256,7 +1256,7 @@ globalThis.YUI_MAP =
       "id": "ui/character-menu",
       "module": "display",
       "label": "character menu",
-      "role": "The pill menu a right-click on her opens in the pet window: its columns, Back, Reset chat and Turn off, and how it closes.",
+      "role": "The pill menu a right-click on her opens, drawn in the Character menu window beside her: its columns, Back, Reset chat and Turn off, and how it closes.",
       "paths": [
         "src/ui/character-menu"
       ]
@@ -1457,9 +1457,19 @@ globalThis.YUI_MAP =
       "id": "app/character-menu",
       "module": "wiring",
       "label": "character menu wiring",
-      "role": "Wires the pet window's right-click Character menu: its ports, the hold while it is open, and the window widen over her.",
+      "role": "The pet side of the Character menu: the right-click, its ports for the picks, the hold while it is open, and the data-menu-open mark.",
       "paths": [
         "src/app/character-menu"
+      ]
+    },
+    {
+      "id": "app/character-menu-window",
+      "module": "wiring",
+      "label": "character menu window wiring",
+      "role": "Wires the Character menu window: its open sessions fed by the pet windows' requests, its theme and language, and its shown, pick and closed reports.",
+      "paths": [
+        "src/app/character-menu/wire-character-menu-window.ts",
+        "src/app/character-menu/menu-window-session.ts"
       ]
     },
     {
@@ -2399,12 +2409,12 @@ globalThis.YUI_MAP =
     },
     {
       "id": "chip-column-menu",
-      "from": "ui/character-menu",
+      "from": "app/character-menu",
       "to": "ui/surfaces",
-      "carries": "the menu root, mounted in the surfaces overlay, shown → surfaces.css's :has rule fades the chip column out over 140 ms and the overlay hit targets drop its chips, until the root hides",
+      "carries": "data-menu-open on the UI layer, set while the menu shows and removed when it ends → surfaces.css fades the chip column out over 140 ms and the overlay hit targets drop its chips",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/character-menu/pet-menu-opener.ts"
     },
     {
       "id": "feed-tool",
@@ -3563,8 +3573,26 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "character-menu-channel-open",
+      "from": "app/character-menu",
+      "to": "app/character-menu-window",
+      "carries": "yui://character-menu open {id, kind, name, state, frame, workArea, head, nameTop, chest, hitTest}: the pet window asks the menu window to place and show the menu beside her; state {id, state} refreshes it; close {id} hides it",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/wire-character-menu-window.ts"
+    },
+    {
+      "id": "character-menu-channel-picks",
+      "from": "app/character-menu-window",
+      "to": "app/character-menu",
+      "carries": "yui://character-menu shown {id} once the menu is up; action {id, action, value} for each pick, which the pet window runs on her ports; closed {id, refocus} once the window is hidden",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/character-menu/wire-character-menu.ts"
+    },
+    {
       "id": "character-menu-stores",
-      "from": "ui/character-menu",
+      "from": "app/character-menu",
       "to": "settings",
       "carries": "Rest flips yui.dnd, Pace sets the base pace (Less, Normal, More as low, normal, high), Keep bubble and Unified chat flip their switch rows' stores, a confirmed Turn off → petWindows.close(id), Settings and a trailing More… → openSettings(page)",
       "kind": "call",
@@ -3574,7 +3602,7 @@ globalThis.YUI_MAP =
     {
       "id": "character-menu-vrm",
       "from": "io/assets",
-      "to": "ui/character-menu",
+      "to": "app/character-menu",
       "carries": "vrmSelection list and active id → the Body list; a pick → swapVrm(option)",
       "kind": "call",
       "transport": "shared",
@@ -3583,7 +3611,7 @@ globalThis.YUI_MAP =
     {
       "id": "character-menu-voice",
       "from": "io/voice/voices",
-      "to": "ui/character-menu",
+      "to": "app/character-menu",
       "carries": "speakerSelection list and active id → the Voice list; a pick → swapSpeaker(option)",
       "kind": "call",
       "transport": "shared",
@@ -3592,7 +3620,7 @@ globalThis.YUI_MAP =
     {
       "id": "character-menu-listen",
       "from": "ui/chips",
-      "to": "ui/character-menu",
+      "to": "app/character-menu",
       "carries": "main only: voiceInputStatus get and set(listening or idle) → Listen",
       "kind": "call",
       "transport": "shared",
@@ -3600,7 +3628,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "character-menu-talk",
-      "from": "ui/character-menu",
+      "from": "app/character-menu",
       "to": "ui/surfaces",
       "carries": "Talk → summonInput once the menu has closed, or dismissInput while the input is open; isInputOpen marks Talk ON",
       "kind": "call",
@@ -3609,7 +3637,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "character-menu-reset",
-      "from": "ui/character-menu",
+      "from": "app/character-menu",
       "to": "io/chat/conversation",
       "carries": "Reset chat, once confirmed → resetConversation: the turn stopped, the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset",
       "kind": "call",
@@ -3618,7 +3646,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "character-menu-threads",
-      "from": "ui/character-menu",
+      "from": "app/character-menu",
       "to": "io/window/openers",
       "carries": "main: Threads or Terminal → threadsWindow.open(undefined, tab) once the window is restored; the Threads pill's count is main's waiting Threads",
       "kind": "call",
@@ -3635,10 +3663,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
     },
     {
-      "id": "character-menu-widen",
+      "id": "character-menu-hold",
       "from": "app/character-menu",
       "to": "app/stage",
-      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; widen(via) parks the travel frame over her position and the via origins, which sit above her window when the menu grows it upward; travel.end() then hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort when an agent move ends the widen",
+      "carries": "hold(\"menu\", true, onAbort) cancels the loops and keeps a stroll, climb or perch walk from starting; abortTravel() waits for a cancelled travel to unpark; hold(\"menu\", false) on close, which leaves another holder's hold in place; onAbort closes an open menu",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -6506,6 +6534,11 @@ globalThis.YUI_MAP =
         "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip or ordered front without focus for a Thread reaction, and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
       },
       {
+        "id": "character-menu",
+        "label": "character-menu",
+        "role": "The Character menu window, character-menu.html: one app-wide frameless window, created hidden at main's boot; it draws the menu beside the right-clicked character, takes keyboard focus, lets clicks outside its pills through, and hides on close."
+      },
+      {
         "id": "devtools",
         "label": "devtools",
         "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
@@ -6522,6 +6555,34 @@ globalThis.YUI_MAP =
       }
     ],
     "edges": [
+      {
+        "id": "character-menu-open-pet",
+        "from": "pet",
+        "to": "character-menu",
+        "carries": "yui://character-menu open, state and close: a right-click's open of the menu beside her, its refresh and its close",
+        "kind": "bridge"
+      },
+      {
+        "id": "character-menu-shown-pet",
+        "from": "character-menu",
+        "to": "pet",
+        "carries": "yui://character-menu shown, action and closed: the menu is up, a pick to run on her, and the menu is hidden",
+        "kind": "bridge"
+      },
+      {
+        "id": "character-menu-open-pet-companion",
+        "from": "pet-<id>",
+        "to": "character-menu",
+        "carries": "yui://character-menu open, state and close: a bound pet window's right-click, its refresh and its close",
+        "kind": "bridge"
+      },
+      {
+        "id": "character-menu-shown-pet-companion",
+        "from": "character-menu",
+        "to": "pet-<id>",
+        "carries": "yui://character-menu shown, action and closed: the menu is up, a pick to run on that pet window, and the menu is hidden",
+        "kind": "bridge"
+      },
       {
         "id": "settings-changed-settings",
         "from": "settings",

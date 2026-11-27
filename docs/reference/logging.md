@@ -184,26 +184,37 @@ A `character_desktop_toggle` turn-on that the open-preset cap refused logs nothi
 
 ## Character menu
 
-`app/character-menu/character-menu-ports.ts` (namespace `character-menu-ports`) writes the stores the menu's items act on, and `app/character-menu/character-menu-frame.ts` (namespace `character-menu-frame`) widens and restores the pet window around it. `app/character-menu/wire-character-menu.ts` (namespace `wire-character-menu`) opens the menu on a right-click, and `ui/character-menu/character-menu.ts` (namespace `character-menu`) closes it. All four run in the pet window and log at `info` unless a row says otherwise.
+The pet window runs `app/character-menu/character-menu-ports.ts` (namespace `character-menu-ports`), which writes the stores the menu's items act on, `app/character-menu/pet-menu-opener.ts` (namespace `pet-menu-opener`), which asks the menu window to open and holds her meanwhile, and `app/character-menu/wire-character-menu.ts` (namespace `wire-character-menu`), which opens the menu on a right-click.
+
+The Character menu window runs `app/character-menu/wire-character-menu-window.ts` (namespace `wire-character-menu-window`), `app/character-menu/menu-window-session.ts` (namespace `menu-window-session`), `ui/character-menu/character-menu.ts` (namespace `character-menu`) and its entry `windows/character-menu-main.ts` (namespace `character-menu-main`). `io/window/openers/character-menu-window.ts` (namespace `character-menu-window`) creates that window from main. All of them log at `info` unless a row says otherwise.
 
 ### Menu actions
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `character-menu-ports` | `select_failed` | `error` | Applying a Body or Voice choice threw (`warn` level). |
-| `character-menu-ports` | `session_reset` | none | Reset chat started a new session. |
 
 The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_toggle` and `unified_chat_toggle` under `character-menu-ports`; "Switches and characters" lists them.
 
-### Widening
+### Opening and closing
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `character-menu-frame` | `widen_skipped` | `error` | The widen threw (outside the app there is no frame to set), so the menu opens in the window as it is. |
-| `character-menu-frame` | `focus_failed` | `error` | Taking OS focus threw (`warn` level). |
-| `character-menu-frame` | `abort_travel_failed` | `error` | Waiting for a cancelled travel to unpark threw (`warn` level). |
-| `wire-character-menu` | `open_failed` | `error` | Opening the menu threw; she is released, the window is restored and the menu stays closed (`warn` level). |
-| `character-menu` | `restore_failed` | `error` | Restoring the window on close threw; the menu still closes and a closing pick still runs (`warn` level). |
+| `wire-character-menu` | `open_failed` | `error` | Opening the menu threw, she is released and the menu stays closed (`warn` level). |
+| `pet-menu-opener` | `menu_open_timeout` | `id` | No shown report came within 2 s of an open; she is released (`warn` level). |
+| `pet-menu-opener` | `abort_travel_failed` | `error` | Waiting for a cancelled travel to unpark threw (`warn` level). |
+| `pet-menu-opener` | `action_failed` | `action`, `error` | A pick threw on her ports (`warn` level). |
+| `pet-menu-opener` | `focus_failed` | `error` | Taking OS focus back after a close the user made threw (`warn` level). |
+| `menu-window-session` | `open_failed` | `error` | Placing and showing the menu in its window threw; the window is hidden and reports the menu closed (`warn` level). |
+| `character-menu` | `restore_failed` | `error` | Hiding the menu window on close threw; the menu still closes and a closing pick still runs (`warn` level). |
+
+### Window
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `character-menu-window` | `character_menu_window_create_error` | `error` | The window reported a creation error event. |
+| `character-menu-main` | `boot_failed` | `error` | The Character menu window's entry failed to boot. |
+| `wire-character-menu-window` | `boot_hide_failed` | `error` | Hiding the window at its boot threw (`warn` level). |
 
 ## Threads window
 

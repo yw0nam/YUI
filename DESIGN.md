@@ -281,13 +281,13 @@ While the backend runs a tool, the tool's label takes the segment and the dot pu
 A dismissible floating notice (`boot-error.css`) shown when config or VRM loading fails and the transparent window would otherwise stay blank. Plate, Text guidance, and a single Float shadow preserve the legible-on-anything doctrine; a Danger uppercase title names the failure, and a quiet dismiss button removes the notice.
 
 ### Character menu
-A right-click on the character opens the Character menu around her. The menu draws in the pet window and is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
+A right-click on the character opens the Character menu around her. The menu draws in its own window, the Character menu window, beside her, and the pet window never changes size for it. It is built without React, as the pet window is. Left click stays the tap gesture, and there is no long-press. Esc, a click outside the menu, a click in another app, or a closing action closes it. It never times out.
 
 Two pill columns flank her, 88px from her centre, under one shared top. Talk, Rest, Listen and Settings sit on the right. Body, Voice, Pace and More sit on the left. Pills in a column share one width, and the gap between pills is 8px. Near a screen edge, the menu folds to one column on the open side.
 
 The columns' top is set once when the menu opens, from the tallest list it can show, so swapping lists never moves the columns. It sits at her head, unless that would bring a column within 8px of the window bottom or the work-area bottom, whichever is higher. Then both columns shift up together.
 
-The pet window widens only while the menu is open, to about 500px. When the shifted columns would start less than 8px below the window top, the window also grows upward for the menu. It returns to its size when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
+When the shifted columns would start less than 8px below her window's top, the menu window also reaches above hers. The menu window is hidden when the menu closes. Body ›, Voice ›, Pace › and More › replace their column in place with their list and a "‹ Back" row. A second level never opens as a column outward.
 
 Each pill is a line glyph and a label of one or two words. Pills follow an 8px grid: 36px tall, with an 18px icon and a 13px label at weight 600. The accessible name is the glossary term, so Rest is named "Do-not-disturb".
 
@@ -438,5 +438,4 @@ When the window's preset changes a relation, the glyph's new segments grow from 
 - **Don't** import decorative asset packs (3D icons, hand-drawn illustrations) or spring/bounce motion presets; icons are inline line glyphs (the Two-Stroke Rule). Motion is ease-out, except the looping pulses and the character's own spring and bounce named above, which are hand-written keyframes.
 - **Don't** open the settings window for a frequent pick. Among the Character menu's items, only "Settings" and a trailing "More…" open it.
 - **Don't** block input while she travels or reacts.
-- **Don't** widen the pet window except while the Character menu is open.
 - **Don't** open the Character menu on a long-press, or let it time out.
