@@ -89,6 +89,12 @@ function cueOf(env: BusEnvelope): TriggerMeta["cue"] | undefined {
     : undefined;
 }
 
+/** The idle gap the envelope measured at fire, rounded to minutes. */
+function idleElapsedOf(env: BusEnvelope): number | undefined {
+  const gap = env.payload?.gap_ms;
+  return typeof gap === "number" ? Math.round(gap / 60_000) : undefined;
+}
+
 function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
   if (!env.event_name.startsWith("time_milestone.")) {
     return undefined;
@@ -152,6 +158,7 @@ function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
   }
   return {
     transition: payload.transition,
+    ...(typeof payload.app === "string" ? { app: payload.app } : {}),
     ...(typeof payload.from_app === "string" ? { from_app: payload.from_app } : {}),
     ...(typeof payload.from_dwell_min === "number"
       ? { from_dwell_min: payload.from_dwell_min }
@@ -215,6 +222,7 @@ function waitedOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]> | undefi
     const milestone = milestoneOf(m);
     const screen = screenOf(m);
     const addressed = addressedOf(m);
+    const idleElapsedMin = idleElapsedOf(m);
     return [
       {
         kind: triggerKind(m.event_name),
@@ -223,6 +231,7 @@ function waitedOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]> | undefi
         ...(milestone ? { milestone } : {}),
         ...(screen ? { screen } : {}),
         ...(addressed ? { addressed } : {}),
+        ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
       },
     ];
   });
@@ -235,9 +244,8 @@ export function buildClientContext(
   frontmost?: FrontmostState,
   previous?: PreviousTurn,
 ): ClientContext {
-  const payload = env.payload;
   const cue = cueOf(env);
-  const gapMs = typeof payload?.gap_ms === "number" ? payload.gap_ms : undefined;
+  const idleElapsedMin = idleElapsedOf(env);
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
@@ -265,7 +273,7 @@ export function buildClientContext(
       ...(guide ? { guide } : {}),
       ...(mention ? { mention } : {}),
       ...(cue ? { cue } : {}),
-      ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
+      ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
       ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),

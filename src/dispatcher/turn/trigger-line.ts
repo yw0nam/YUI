@@ -41,7 +41,8 @@ export function triggerLineOf(env: BusEnvelope, translate: Translate): string | 
   if (!Array.isArray(raw)) return line;
   const members = raw.filter(
     (member): member is BusEnvelope =>
-      typeof (member as BusEnvelope | null)?.event_name === "string",
+      typeof (member as BusEnvelope | null)?.event_name === "string" &&
+      typeof (member as BusEnvelope).ts === "number",
   );
   const first =
     line ?? members.map((member) => ownLineOf(member, translate)).find((text) => text !== null);

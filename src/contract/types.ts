@@ -382,6 +382,8 @@ export interface TriggerMeta {
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
   screen?: {
     transition: "app_switched" | "long_session";
+    /** The app switched to, or the app a long session measured; absent when the platform did not resolve it. */
+    app?: string;
     from_app?: string; // app left behind; app_switched only
     from_dwell_min?: number; // minutes it held the foreground
     dwell_min: number; // current app's foreground minutes at fire time
@@ -395,7 +397,7 @@ export interface TriggerMeta {
 /** One member a bundle carried, projected like a trigger with its own fire time. */
 export type WaitedItem = Pick<
   TriggerMeta,
-  "kind" | "cue" | "milestone" | "addressed" | "screen"
+  "kind" | "cue" | "milestone" | "addressed" | "screen" | "idle_elapsed_min"
 > & {
   /** Epoch ms of the member's own fire. */
   at: number;
