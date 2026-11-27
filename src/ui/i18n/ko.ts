@@ -66,6 +66,9 @@ const ko: Record<string, string> = {
   "bubble.quote_attached": "첨부 {count}장",
   "bubble.quote_thread": "스레드 · {title}",
   "bubble.sources_more": "+{n}개",
+  "bubble.trigger_first_meeting": "오늘 처음 만남",
+  "bubble.trigger_screen": "화면 전환 · {app}",
+  "bubble.trigger_addressed": "{name}에게서 온 말",
   "signals.delivery_urgent": "긴급 신호",
   "signals.delivery_batched": "모아서 전달한 신호",
   "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
@@ -112,7 +115,11 @@ const ko: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "화면 보는 중",
-  "status.dnd": "방해금지",
+  "status.resting_until": "쉬는 중 · {time}까지",
+  "status.resting": "쉬는 중",
+  "status.focus_left": "집중 · {n}분 남음",
+  "status.quiet_until": "조용히 · {time}까지",
+  "status.quiet": "조용히",
 
   // cue-list internal labels
   "cue.time_aria": "시각",
@@ -139,7 +146,18 @@ const ko: Record<string, string> = {
   // character menu
   "character_menu.talk": "말하기",
   "character_menu.rest": "쉬기",
-  "character_menu.rest_aria": "방해금지",
+  "character_menu.rest_hour": "1시간",
+  "character_menu.rest_tonight": "오늘 밤까지",
+  "character_menu.rest_morning": "내일 아침까지",
+  "character_menu.rest_until_off": "끌 때까지",
+  "character_menu.rest_focus_25": "집중 25분",
+  "character_menu.rest_focus_50": "집중 50분",
+  "character_menu.rest_end": "지금 끝내기",
+  "character_menu.rest_at": "쉬기 · {time}",
+  "character_menu.focus_left": "집중 · {n}분",
+  "character_menu.quiet_at": "조용히 · {time}",
+  "character_menu.quiet": "조용히",
+  "character_menu.resting_until": "{time}까지 쉬는 중",
   "character_menu.listen": "듣기",
   "character_menu.settings": "설정",
   "character_menu.body": "몸",
@@ -831,9 +849,6 @@ const ko: Record<string, string> = {
   "screen.settle_sub": "잠깐 들여다본 건 무시해요",
   "screen.long_session_label": "긴 세션 알아채는 간격",
   "screen.long_session_sub": "한 앱을 이만큼 붙잡고 있으면 알아채요",
-  "screen.recent_cap_label": "최대 기억 개수",
-  "screen.recent_cap_sub": "쉬는 동안 쌓인 앱 전환을 다음 화면 턴에 몇 개까지 담을지",
-  "screen.count_suffix": "개",
   "screen.foot":
     "화면 픽셀 전송 여부는 권한 페이지의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
@@ -947,7 +962,6 @@ const ko: Record<string, string> = {
   "settings_request.default": "기본값",
   "settings_request.none": "없음",
   "settings_request.not_display": "창 또는 탭",
-  "settings_request.entry": "개",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "허용",
   "run.body_label": "몸 (VRM)",

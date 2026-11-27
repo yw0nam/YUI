@@ -6,7 +6,7 @@
  *  - away / null idle → ignore.
  *  - not-yet-due cue → no fire.
  *  - persisted day latch survives source restarts.
- *  - a restore for a hold reopens a latched day, so the cue comes due again.
+ *  - the day latch persists only once a cue is marked spoken.
  *  - isEnabled()/per-cue enabled gate firing only.
  *  - off-Tauri degrade + start idempotency.
  */
@@ -16,8 +16,7 @@ import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-lis
 import type { ScheduledCue } from "../../../settings/cues/schedule-settings";
 import type { PersistedStorage } from "../../../settings/persisted-store";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
-import type { DropRecord } from "../../dispatcher";
-import { createScheduleSource, GRACE_MINUTES, type ScheduleSource } from "./schedule-source";
+import { createScheduleSource, GRACE_MINUTES } from "./schedule-source";
 
 function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
   const pushed: BusEnvelope[] = [];
@@ -62,12 +61,6 @@ function fakeFiredStorage(
       fired = { ...next };
     },
   };
-}
-
-/** The dispatcher's drop callback: pins the source's restore entry, then calls it. */
-function dropRestore(source: ScheduleSource, env: BusEnvelope, reason: DropRecord["reason"]): void {
-  expect(source.restore).toBeTypeOf("function");
-  source.restore(env, reason);
 }
 
 const PRESENT_MAX = 10_000;
@@ -289,109 +282,6 @@ describe("schedule_source — once-per-day latch", () => {
     expect(pushed).toHaveLength(2);
   });
 
-  it("a cue dropped at the gap fires again after a restart once its mark is cleared", async () => {
-    const { bus, pushed } = fakeBus();
-    const sourceAListen = fakeListen();
-    const sourceBListen = fakeListen();
-    const firedStorage = fakeFiredStorage();
-    const t = at(2026, 5, 15, 9, 30);
-    const deps = {
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      getCues: () => [cue({ time: "09:00" })],
-      isEnabled: () => true,
-      now: () => t,
-      firedStorage,
-    };
-    const sourceA = createScheduleSource({ ...deps, listen: sourceAListen.listen });
-    await sourceA.start();
-    sourceAListen.emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-
-    dropRestore(sourceA, pushed[0]!, "global_gap");
-    sourceA.stop();
-
-    const sourceB = createScheduleSource({ ...deps, listen: sourceBListen.listen });
-    await sourceB.start();
-    sourceBListen.emit(idleTick(500));
-    expect(pushed).toHaveLength(2);
-  });
-
-  it("restoring a greeting dropped after midnight keeps today's other marks", async () => {
-    const { bus, pushed } = fakeBus();
-    const sourceAListen = fakeListen();
-    const sourceBListen = fakeListen();
-    const firedStorage = fakeFiredStorage();
-    let t = at(2026, 5, 15, 23, 59);
-    const deps = {
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      getCues: () => [cue({ id: "late", time: "23:00" }), cue({ id: "morning", time: "00:00" })],
-      isEnabled: () => true,
-      now: () => t,
-      firedStorage,
-    };
-    const sourceA = createScheduleSource({ ...deps, listen: sourceAListen.listen });
-    await sourceA.start();
-    sourceAListen.emit(idleTick(500));
-    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late"]);
-
-    t = at(2026, 5, 16, 0, 30);
-    sourceAListen.emit(idleTick(500));
-    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late", "schedule.morning"]);
-
-    // The 23:59 greeting's drop lands after midnight, with the morning cue marked today.
-    dropRestore(sourceA, pushed[0]!, "global_gap");
-    sourceA.stop();
-
-    const sourceB = createScheduleSource({ ...deps, listen: sourceBListen.listen });
-    await sourceB.start();
-    sourceBListen.emit(idleTick(500));
-    expect(pushed.map((e) => e.event_name)).toEqual(["schedule.late", "schedule.morning"]);
-  });
-
-  it("restore keeps a mark whose day is not the envelope's", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit } = fakeListen();
-    const src = createScheduleSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      firedStorage: fakeFiredStorage(),
-      getCues: () => [cue()],
-      isEnabled: () => true,
-      listen,
-      now: () => at(2026, 5, 15, 9, 30),
-    });
-    await src.start();
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-
-    dropRestore(src, { ...pushed[0]!, ts: at(2026, 5, 14, 9, 30) }, "global_gap");
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-  });
-
-  it("restore clears a do-not-disturb drop's mark", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit } = fakeListen();
-    const src = createScheduleSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      firedStorage: fakeFiredStorage(),
-      getCues: () => [cue()],
-      isEnabled: () => true,
-      listen,
-      now: () => at(2026, 5, 15, 9, 30),
-    });
-    await src.start();
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-
-    dropRestore(src, pushed[0]!, "dnd");
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(2);
-  });
-
   it("latch survives a restart — two source lifetimes on the same day fire once total", async () => {
     const { bus, pushed } = fakeBus();
     const sourceAListen = fakeListen();
@@ -410,6 +300,7 @@ describe("schedule_source — once-per-day latch", () => {
     await sourceA.start();
     sourceAListen.emit(idleTick(500));
     expect(pushed).toHaveLength(1);
+    sourceA.markSpoken(pushed[0]!);
     sourceA.stop();
 
     const sourceB = createScheduleSource({ ...deps, listen: sourceBListen.listen });
@@ -441,7 +332,7 @@ describe("schedule_source — once-per-day latch", () => {
   });
 
   it("prunes stale latch entries when a cue fires", async () => {
-    const { bus } = fakeBus();
+    const { bus, pushed } = fakeBus();
     const { listen, emit } = fakeListen();
     const firedStorage = fakeFiredStorage({ stale: "2026-4-1" });
     const src = createScheduleSource({
@@ -455,29 +346,49 @@ describe("schedule_source — once-per-day latch", () => {
     });
     await src.start();
     emit(idleTick(500));
+    src.markSpoken(pushed[0]!);
 
     expect(firedStorage.load()).toEqual({ morning: "2026-5-15" });
   });
 
-  it("persists only on the tick that fires", async () => {
-    const { bus } = fakeBus();
-    const { listen, emit } = fakeListen();
+  it("persists a cue as fired only once markSpoken gets it, alone or waited in a bundle, so a restart before that brings it back", async () => {
+    const { bus, pushed } = fakeBus();
     const firedStorage = fakeFiredStorage();
-    const save = vi.fn(firedStorage.save);
-    const src = createScheduleSource({
+    const deps = {
       bus,
       present_max_idle_ms: PRESENT_MAX,
-      firedStorage: { load: firedStorage.load, save },
       getCues: () => [cue()],
       isEnabled: () => true,
-      listen,
       now: () => at(2026, 5, 15, 9, 30),
-    });
-    await src.start();
-    emit(idleTick(500));
-    emit(idleTick(500));
+      firedStorage,
+    };
+    const run = async () => {
+      const l = fakeListen();
+      const src = createScheduleSource({ ...deps, listen: l.listen });
+      await src.start();
+      l.emit(idleTick(500));
+      l.emit(idleTick(500));
+      return src;
+    };
 
-    expect(save).toHaveBeenCalledTimes(1);
+    const first = await run();
+    expect(pushed).toHaveLength(1);
+    expect(firedStorage.load()).toEqual({});
+    first.stop();
+
+    const second = await run();
+    expect(pushed).toHaveLength(2);
+    second.markSpoken({
+      source: "os_event_watcher",
+      event_name: "time_milestone.first_activity",
+      ts: at(2026, 5, 15, 9, 31),
+      payload: { waited: [pushed[1]!] },
+    });
+    expect(firedStorage.load()).toEqual({ morning: "2026-5-15" });
+    second.stop();
+
+    await run();
+    expect(pushed).toHaveLength(2);
   });
 
   it("does not let yesterday's persisted latch suppress a fresh source today", async () => {
@@ -601,6 +512,46 @@ describe("schedule_source — payload shape", () => {
     expect(e.payload?.label).toBe("점심");
     expect(e.payload?.context).toBe("밥");
   });
+
+  it("carries the cue's time, so the bubble can name when she spoke", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const t = at(2026, 5, 15, 9, 30);
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue({ id: "lunch", label: "점심", context: "밥", time: "09:00" })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(pushed[0].payload?.time).toBe("09:00");
+  });
+
+  it.each([
+    ["12:00", at(2026, 5, 15, 12, 30), at(2026, 5, 15, 14, 0)],
+    ["23:00", at(2026, 5, 15, 23, 10), at(2026, 5, 16, 0, 0)],
+  ])("stamps a %s cue's expires_at at the end of its grace window, clamped to its local day", async (time, t, expires) => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const src = createScheduleSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      firedStorage: fakeFiredStorage(),
+      getCues: () => [cue({ time })],
+      isEnabled: () => true,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+    emit(idleTick(500));
+
+    expect(pushed[0]!.payload?.expires_at).toBe(expires);
+  });
 });
 
 describe("schedule_source — live getCues edits", () => {
@@ -661,65 +612,6 @@ describe("schedule_source — off-Tauri degrade", () => {
     });
     await expect(src.start()).resolves.toBeUndefined();
     expect(() => src.stop()).not.toThrow();
-    expect(pushed).toHaveLength(0);
-  });
-});
-
-describe("schedule_source — do-not-disturb hold", () => {
-  it("does not latch a cue due during DND, and fires it once on the first tick after DND ends within the window", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit } = fakeListen();
-    let held = true;
-    const t = at(2026, 5, 15, 9, 30);
-    const src = createScheduleSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      firedStorage: fakeFiredStorage(),
-      getCues: () => [cue()],
-      isEnabled: () => true,
-      isHeld: () => held,
-      listen,
-      now: () => t,
-    });
-    await src.start();
-
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(0);
-
-    held = false;
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-    expect(pushed[0].event_name).toBe("schedule.morning");
-
-    // The fired latch now holds for the rest of the day.
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(1);
-  });
-
-  it("does not fire a cue whose window passed while DND stayed on", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit } = fakeListen();
-    let held = true;
-    let t = at(2026, 5, 15, 9, 30);
-    const src = createScheduleSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      firedStorage: fakeFiredStorage(),
-      getCues: () => [cue()],
-      isEnabled: () => true,
-      isHeld: () => held,
-      listen,
-      now: () => t,
-    });
-    await src.start();
-
-    emit(idleTick(500));
-    expect(pushed).toHaveLength(0);
-
-    // 09:00 + GRACE_MINUTES (120) = 11:00; 11:01 is past the window.
-    t = at(2026, 5, 15, 11, 1);
-    held = false;
-    emit(idleTick(500));
     expect(pushed).toHaveLength(0);
   });
 });

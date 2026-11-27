@@ -51,7 +51,7 @@ describe("turn-record-log — buildTurnRecord", () => {
 });
 
 describe("turn-record-log — buildSkipRecord", () => {
-  const REASONS: SkipReason[] = ["disabled", "not_present", "global_gap"];
+  const REASONS: SkipReason[] = ["disabled", "not_present"];
 
   it.each(REASONS)("shapes a screen skip record for reason=%s", (reason) => {
     const record = buildSkipRecord({ ts: 3_000, reason, transition: "app_switched" });

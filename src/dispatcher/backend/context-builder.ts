@@ -10,6 +10,8 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
+import type { RestState } from "../../settings/rest/rest-choices";
+import { clockOf } from "../../settings/rest/rest-end";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
@@ -31,6 +33,17 @@ export interface ContextProviders {
   getOpenCharacters?: () => string[];
   /** The waiting Threads, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
+  /** What holds the character's own turns, read once per turn. */
+  getRest?: () => RestState | null;
+}
+
+/** The context's own projection of what holds her turns. */
+function doNotDisturbOf(rest: RestState): NonNullable<ClientContext["do_not_disturb"]> {
+  return {
+    kind: rest.kind === "quiet" ? "off_span" : rest.kind,
+    ...(rest.startedAt === undefined || rest.kind === "quiet" ? {} : { since: rest.startedAt }),
+    ...(rest.endsAt === undefined ? {} : { ends_local: clockOf(rest.endsAt) }),
+  };
 }
 
 interface BuiltContext {
@@ -66,6 +79,22 @@ export function guideKeyOf(env: BusEnvelope): GuideKey | undefined {
   return isGuideKey(guide) ? guide : undefined;
 }
 
+function cueOf(env: BusEnvelope): TriggerMeta["cue"] | undefined {
+  const payload = env.payload;
+  return typeof payload?.cue_id === "string" && typeof payload?.label === "string"
+    ? {
+        label: payload.label,
+        ...(typeof payload.context === "string" ? { context: payload.context } : {}),
+      }
+    : undefined;
+}
+
+/** The idle gap the envelope measured at fire, rounded to minutes. */
+function idleElapsedOf(env: BusEnvelope): number | undefined {
+  const gap = env.payload?.gap_ms;
+  return typeof gap === "number" ? Math.round(gap / 60_000) : undefined;
+}
+
 function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
   if (!env.event_name.startsWith("time_milestone.")) {
     return undefined;
@@ -88,7 +117,9 @@ export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined 
   if (
     !env.event_name.startsWith("signals.") &&
     !env.event_name.startsWith("time_milestone.") &&
-    env.event_name !== "proactive.tap_bored"
+    !env.event_name.startsWith("user.") &&
+    env.event_name !== "proactive.tap_bored" &&
+    !Array.isArray(env.payload?.waited)
   ) {
     return undefined;
   }
@@ -116,22 +147,6 @@ function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
     : undefined;
 }
 
-type RecentTransition = { from_app: string; to_app: string; dwell_min: number };
-
-function recentOf(payload: BusEnvelope["payload"]): RecentTransition[] | undefined {
-  const raw = payload?.recent;
-  if (!Array.isArray(raw)) return undefined;
-  const items = (raw as unknown[])
-    .map((item) => item as Record<string, unknown>)
-    .filter(
-      (item): item is RecentTransition =>
-        typeof item?.from_app === "string" &&
-        typeof item?.to_app === "string" &&
-        typeof item?.dwell_min === "number",
-    );
-  return items.length > 0 ? items : undefined;
-}
-
 function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
   if (!env.event_name.startsWith("proactive.screen_")) return undefined;
   const payload = env.payload;
@@ -141,15 +156,14 @@ function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {
   ) {
     return undefined;
   }
-  const recent = recentOf(payload);
   return {
     transition: payload.transition,
+    ...(typeof payload.app === "string" ? { app: payload.app } : {}),
     ...(typeof payload.from_app === "string" ? { from_app: payload.from_app } : {}),
     ...(typeof payload.from_dwell_min === "number"
       ? { from_dwell_min: payload.from_dwell_min }
       : {}),
     dwell_min: payload.dwell_min,
-    ...(recent ? { recent } : {}),
   };
 }
 
@@ -196,6 +210,36 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
   return "user";
 }
 
+/** One candidate envelope, projected like a trigger with its own fire time. */
+export function waitedItemOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]>[number] {
+  const cue = cueOf(env);
+  const milestone = milestoneOf(env);
+  const screen = screenOf(env);
+  const addressed = addressedOf(env);
+  const idleElapsedMin = idleElapsedOf(env);
+  return {
+    kind: triggerKind(env.event_name),
+    at: env.ts,
+    ...(cue ? { cue } : {}),
+    ...(milestone ? { milestone } : {}),
+    ...(screen ? { screen } : {}),
+    ...(addressed ? { addressed } : {}),
+    ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
+  };
+}
+
+function waitedOf(env: BusEnvelope): NonNullable<TriggerMeta["waited"]> | undefined {
+  const raw = env.payload?.waited;
+  if (!Array.isArray(raw)) return undefined;
+  return raw.flatMap((member) => {
+    const m = member as BusEnvelope;
+    if (typeof (m as BusEnvelope | null)?.event_name !== "string" || typeof m.ts !== "number") {
+      return [];
+    }
+    return [waitedItemOf(m)];
+  });
+}
+
 export function buildClientContext(
   ctx: InputContext,
   env: BusEnvelope,
@@ -203,19 +247,13 @@ export function buildClientContext(
   frontmost?: FrontmostState,
   previous?: PreviousTurn,
 ): ClientContext {
-  const payload = env.payload;
-  const cue =
-    typeof payload?.cue_id === "string" && typeof payload?.label === "string"
-      ? {
-          label: payload.label,
-          ...(typeof payload.context === "string" ? { context: payload.context } : {}),
-        }
-      : undefined;
-  const gapMs = typeof payload?.gap_ms === "number" ? payload.gap_ms : undefined;
+  const cue = cueOf(env);
+  const idleElapsedMin = idleElapsedOf(env);
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
   const addressed = addressedOf(env);
+  const waited = waitedOf(env);
   const guide = guideKeyOf(env);
   const mention = env.event_name === "user.text_submitted" ? mentionOf(env) : undefined;
   const screenshot = ctx.screenshot
@@ -238,11 +276,12 @@ export function buildClientContext(
       ...(guide ? { guide } : {}),
       ...(mention ? { mention } : {}),
       ...(cue ? { cue } : {}),
-      ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
+      ...(idleElapsedMin != null ? { idle_elapsed_min: idleElapsedMin } : {}),
       ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),
       ...(addressed ? { addressed } : {}),
+      ...(waited ? { at: env.ts, waited } : {}),
     },
   };
 }
@@ -277,6 +316,7 @@ export async function buildContext(
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
   const threadsWaiting = providers.getThreadsWaiting?.();
+  const rest = providers.getRest?.();
   const userTurn = triggerKind(env.event_name) === "user";
   const attached = userTurn ? threadsAttachedOf(env) : undefined;
   const clientContext = {
@@ -287,6 +327,7 @@ export async function buildContext(
       providers.getFrontmost?.(),
       providers.getPrevious?.(),
     ),
+    ...(rest ? { do_not_disturb: doNotDisturbOf(rest) } : {}),
     ...(switches?.length ? { tool_switches: switches } : {}),
     ...(overheard.length
       ? { overheard: overheard.map(({ preset, name, entries }) => ({ preset, name, entries })) }

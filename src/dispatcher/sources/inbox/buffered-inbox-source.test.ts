@@ -116,9 +116,11 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      nothingLeaves: buf.nothingLeaves,
-      removeCarried: buf.removeCarried,
-      buildCatchup: buf.buildCatchup,
+      catchup: {
+        nothingLeaves: buf.nothingLeaves,
+        removeCarried: buf.removeCarried,
+        build: buf.buildCatchup,
+      },
       // subscribePipelineBusy intentionally omitted — pins the edge path when no
       // busy->idle flush is wired at all (isPipelineBusy absent = never busy).
     });
@@ -160,9 +162,11 @@ describe("buffered_inbox_source — idle->present edge without subscribePipeline
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      nothingLeaves: buf.nothingLeaves,
-      removeCarried: buf.removeCarried,
-      buildCatchup: buf.buildCatchup,
+      catchup: {
+        nothingLeaves: buf.nothingLeaves,
+        removeCarried: buf.removeCarried,
+        build: buf.buildCatchup,
+      },
     });
     await src.start();
 
@@ -196,9 +200,11 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      nothingLeaves: buf.nothingLeaves,
-      removeCarried: buf.removeCarried,
-      buildCatchup: buf.buildCatchup,
+      catchup: {
+        nothingLeaves: buf.nothingLeaves,
+        removeCarried: buf.removeCarried,
+        build: buf.buildCatchup,
+      },
     });
     await src.start();
 
@@ -236,9 +242,11 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
       parse: (p) => p,
       buildLive,
       bufferAdd: buf.bufferAdd,
-      nothingLeaves: buf.nothingLeaves,
-      removeCarried: buf.removeCarried,
-      buildCatchup: buf.buildCatchup,
+      catchup: {
+        nothingLeaves: buf.nothingLeaves,
+        removeCarried: buf.removeCarried,
+        build: buf.buildCatchup,
+      },
     });
     await src.start();
 
@@ -276,9 +284,11 @@ it("retains a refused catch-up and flushes on the next edge", async () => {
     parse: (p) => p,
     buildLive,
     bufferAdd: buf.bufferAdd,
-    nothingLeaves: buf.nothingLeaves,
-    removeCarried: buf.removeCarried,
-    buildCatchup: buf.buildCatchup,
+    catchup: {
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
+      build: buf.buildCatchup,
+    },
   });
   await src.start();
   emitIdle(idleTick(HIGH_IDLE));
@@ -308,9 +318,11 @@ it("retains a catch-up that evicts itself at capacity and flushes on the next ed
     parse: (p) => p,
     buildLive,
     bufferAdd: buf.bufferAdd,
-    nothingLeaves: buf.nothingLeaves,
-    removeCarried: buf.removeCarried,
-    buildCatchup: () => ({ ...buf.buildCatchup(), event_name: "signals.catchup" }),
+    catchup: {
+      nothingLeaves: buf.nothingLeaves,
+      removeCarried: buf.removeCarried,
+      build: () => ({ ...buf.buildCatchup(), event_name: "signals.catchup" }),
+    },
   });
   await src.start();
   emitIdle(idleTick(HIGH_IDLE));

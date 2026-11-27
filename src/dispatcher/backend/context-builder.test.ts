@@ -233,6 +233,28 @@ describe("context builder — open characters", () => {
   });
 });
 
+describe("context builder — do not disturb", () => {
+  const local = (h: number, m: number) => new Date(2026, 10, 27, h, m).getTime();
+
+  it.each([
+    [
+      "a Rest",
+      { kind: "rest", choice: "morning", startedAt: local(21, 10), endsAt: local(8, 0) },
+      { kind: "rest", since: local(21, 10), ends_local: "08:00" },
+    ],
+    ["a Rest with no recorded start", { kind: "rest", choice: "until_off" }, { kind: "rest" }],
+    [
+      "an off span",
+      { kind: "quiet", endsAt: local(12, 0) },
+      { kind: "off_span", ends_local: "12:00" },
+    ],
+  ] as const)("projects %s from the provider, read every turn", async (_name, rest, projected) => {
+    const built = await buildContext(ENV, { getRest: () => rest });
+
+    expect(built.clientContext.do_not_disturb).toEqual(projected);
+  });
+});
+
 describe("buildClientContext — addressed forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 
@@ -426,68 +448,139 @@ describe("buildClientContext — screen forwarding", () => {
         ).trigger,
     ).toBe(false);
   });
+});
 
-  it("forwards a non-empty recent buffer", () => {
+describe("buildClientContext — waited members", () => {
+  const CTX: InputContext = {
+    env: { timestamp: "2026-11-27T12:00:00+09:00", timezone: "Asia/Seoul" },
+  };
+  const TOP_AT = 1_717_000_000_000;
+
+  function bundleEnv(waited: BusEnvelope[]): BusEnvelope {
+    return {
+      seq_id: 9,
+      source: "timer_scheduler",
+      event_name: "schedule.lunch",
+      ts: TOP_AT,
+      payload: { cue_id: "lunch", label: "Lunch", time: "12:00", waited },
+    };
+  }
+
+  it("projects each member through the single-trigger projections with its own at", () => {
+    const milestone: BusEnvelope = {
+      source: "timer_scheduler",
+      event_name: "time_milestone.first_activity",
+      ts: 2,
+      payload: { name: "first_activity", local_time: "08:12" },
+    };
+    const screen: BusEnvelope = {
+      source: "screen_watcher",
+      event_name: "proactive.screen_app_switched",
+      ts: 3,
+      payload: {
+        transition: "app_switched",
+        app: "Slack",
+        from_app: "Cursor",
+        from_dwell_min: 34,
+        dwell_min: 2,
+      },
+    };
+    const addressed: BusEnvelope = {
+      source: "addressed_source",
+      event_name: "addressed.character",
+      ts: 4,
+      payload: { name: "alice", line: "hi" },
+    };
+    const gesture: BusEnvelope = {
+      source: "os_event_watcher",
+      event_name: "proactive.touch_face",
+      ts: 5,
+      payload: { cue_id: "touch_face", label: "face poked", gap_ms: 900_000 },
+    };
+    const noTs = {
+      source: "timer_scheduler",
+      event_name: "schedule.tea",
+      ts: "6",
+    } as unknown as BusEnvelope;
+
     const client = buildClientContext(
       CTX,
-      screenEnv("proactive.screen_long_session", {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [
-          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
-          { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
-        ],
-      }),
+      bundleEnv([milestone, screen, addressed, gesture, noTs]),
     );
 
-    expect(client.trigger.screen).toEqual({
-      transition: "long_session",
-      dwell_min: 45,
-      recent: [
-        { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
-        { from_app: "Slack", to_app: "VS Code", dwell_min: 3 },
-      ],
-    });
+    expect(client.trigger.at).toBe(TOP_AT);
+    expect(client.trigger.waited).toEqual([
+      { kind: "milestone", at: 2, milestone: { name: "first_activity", local_time: "08:12" } },
+      {
+        kind: "proactive",
+        at: 3,
+        screen: {
+          transition: "app_switched",
+          app: "Slack",
+          from_app: "Cursor",
+          from_dwell_min: 34,
+          dwell_min: 2,
+        },
+      },
+      { kind: "addressed", at: 4, addressed: { from: "alice", text: "hi", ts: 4 } },
+      { kind: "proactive", at: 5, cue: { label: "face poked" }, idle_elapsed_min: 15 },
+    ]);
   });
 
-  it("filters out malformed items and omits recent when nothing survives", () => {
-    const client = buildClientContext(
-      CTX,
-      screenEnv("proactive.screen_long_session", {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [
-          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
-          { from_app: "Slack", dwell_min: 3 }, // missing to_app
-          { from_app: 1, to_app: "Slack", dwell_min: 3 }, // non-string from_app
-          { from_app: "Slack", to_app: "VS Code", dwell_min: "3" }, // non-number dwell_min
-        ],
-      }),
-    );
+  it("keeps an empty waited list, and omits both fields without one", () => {
+    expect(buildClientContext(CTX, bundleEnv([])).trigger.waited).toEqual([]);
 
-    expect(client.trigger.screen).toEqual({
-      transition: "long_session",
-      dwell_min: 45,
-      recent: [{ from_app: "Cursor", to_app: "Slack", dwell_min: 10 }],
+    const plain = buildClientContext(CTX, {
+      seq_id: 10,
+      source: "timer_scheduler",
+      event_name: "schedule.lunch",
+      ts: TOP_AT,
+      payload: { cue_id: "lunch", label: "Lunch", time: "12:00" },
+    });
+    expect("waited" in plain.trigger).toBe(false);
+    expect("at" in plain.trigger).toBe(false);
+  });
+});
+
+describe("buildClientContext — signals on a user turn and a waited bundle", () => {
+  const CTX: InputContext = {
+    env: { timestamp: "2026-11-27T12:00:00+09:00", timezone: "Asia/Seoul" },
+  };
+  const GROUPS = [
+    {
+      envelope: {
+        source: "n8n",
+        event_type: "workflow_done",
+        delivery: "batched",
+        event_id: "run-1",
+        occurred_at: 1,
+      },
+      items: [{ a: 1 }],
+    },
+  ];
+
+  it("projects groups that ride on a user turn", () => {
+    const client = buildClientContext(CTX, {
+      seq_id: 11,
+      source: "user_input_source",
+      event_name: "user.text_submitted",
+      ts: 1,
+      payload: { text: "hi", signals: GROUPS },
     });
 
-    const empty = buildClientContext(
-      CTX,
-      screenEnv("proactive.screen_long_session", {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [{ from_app: "Slack", dwell_min: 3 }],
-      }),
-    );
-    expect("recent" in empty.trigger.screen!).toBe(false);
+    expect(client.trigger.signals).toEqual(GROUPS);
   });
 
-  it("omits recent when the payload carries none", () => {
-    const client = buildClientContext(
-      CTX,
-      screenEnv("proactive.screen_long_session", { transition: "long_session", dwell_min: 45 }),
-    );
-    expect("recent" in client.trigger.screen!).toBe(false);
+  it("projects groups on any envelope that carries waited members", () => {
+    const client = buildClientContext(CTX, {
+      seq_id: 12,
+      source: "timer_scheduler",
+      event_name: "schedule.lunch",
+      ts: 1,
+      payload: { cue_id: "lunch", label: "Lunch", waited: [], signals: GROUPS },
+    });
+
+    expect(client.trigger.signals).toEqual(GROUPS);
   });
 });
 

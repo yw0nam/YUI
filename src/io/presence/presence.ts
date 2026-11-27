@@ -1,4 +1,4 @@
-/** presence — the last OS idle tick read against the away threshold, for main's pet window. */
+/** presence — the last OS idle tick read against the away threshold, for one pet window. */
 
 import { createLogger } from "../../logger";
 import { type OsEventListen, type OsEventPayload, subscribeOsEvent } from "../window/tauri-listen";

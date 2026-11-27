@@ -58,7 +58,10 @@ export interface TurnCorePhase1 {
   surfaces: Surfaces;
   settings: SettingsStores;
   /** This pet window's active hours: the pacer gap, its pace factor and the do-not-disturb hold. */
-  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "paceFactor" | "dnd">;
+  activeHours: Pick<
+    WindowActiveHours,
+    "gapMs" | "subscribeGap" | "paceFactor" | "dnd" | "rest" | "subscribeRest"
+  >;
   conversation: ConversationStores;
   bus: EventBus;
   userInput: UserInputSource;
@@ -118,7 +121,10 @@ export async function wireTurnCore(
   phase1: TurnCorePhase1,
   deps: {
     contextProviders: DispatcherDeps["contextProviders"];
-    restoreSignals?: DispatcherDeps["onTurnDropped"];
+    onTurnDropped?: DispatcherDeps["onTurnDropped"];
+    drainSignals?: DispatcherDeps["drainSignals"];
+    restoreSignals?: DispatcherDeps["restoreSignals"];
+    onTurnSpoken?: DispatcherDeps["onTurnSpoken"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openSettings?: DispatcherDeps["openSettings"];
     turnNotice: DispatcherDeps["turnNotice"];
@@ -227,7 +233,11 @@ export async function wireTurnCore(
     );
 
   const turnWiring = wireDispatcher({
-    onTurnDropped: deps.restoreSignals,
+    onTurnDropped: deps.onTurnDropped,
+    drainSignals: deps.drainSignals,
+    restoreSignals: deps.restoreSignals,
+    onTurnSpoken: deps.onTurnSpoken,
+    presenceSettings: settings.presenceSettings,
     bus,
     renderer,
     surfaces,

@@ -25,6 +25,7 @@ import {
 import { createRateRelationTool } from "../../io/chat/tools/relation";
 import type { Logger } from "../../logger";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { clockOf } from "../../settings/rest/rest-end";
 import { getToolLabel } from "../../ui/chips/tool-labels";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -44,6 +45,10 @@ import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, isChatConfigured } from "./backend-caller";
 
 const script = createScriptedStream();
+// The rendered turn reads Date.now() once; pin it so the signal line's age is stable.
+const NOW_MS = 1_717_000_600_000;
+// The signal fixtures fire after NOW_MS, so the age clamps to zero; the clock is the host's local time.
+const SIGNAL_STAMP = `@${clockOf(SIGNAL_ENVELOPE.occurred_at)} local, 0min ago`;
 let applyDirective: ReturnType<typeof vi.fn>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
@@ -52,6 +57,7 @@ let caller: BackendCaller;
 let logger: Logger;
 
 beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(NOW_MS);
   script.reset();
   applyDirective = vi.fn();
   turnOutput = makeTurnOutput();
@@ -444,7 +450,7 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     );
     for (const item of signals[0].items) {
       expect(text).toContain(
-        `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify(item)}`,
+        `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: ${JSON.stringify(item)}`,
       );
     }
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
@@ -501,7 +507,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     expect(text.split("\n")).toEqual(
       expect.arrayContaining([
         "trigger: signals (1 signal)",
-        'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"kind":"reminder"}',
+        `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"kind":"reminder"}`,
       ]),
     );
   });
@@ -526,12 +532,8 @@ describe("backend_caller — signals trigger forwarding", () => {
     const text = clientContextOf(request.input);
     const lines = text.split("\n");
     expect(lines).toContain("trigger: signals (2 signals)");
-    expect(lines).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"id":1}',
-    );
-    expect(lines).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"id":2}',
-    );
+    expect(lines).toContain(`signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"id":1}`);
+    expect(lines).toContain(`signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: {"id":2}`);
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
@@ -558,7 +560,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const text = clientContextOf(request.input);
     for (const item of weird) {
       expect(text).toContain(
-        `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify(item)}`,
+        `signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-8812]: ${JSON.stringify(item)}`,
       );
     }
   });
@@ -588,9 +590,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const content = (request.input as Array<{ content: string }>)[0].content;
-    expect(content).toContain(
-      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-1]: {"ok":true}',
-    );
+    expect(content).toContain(`signal [n8n/workflow_done ${SIGNAL_STAMP}, id run-1]: {"ok":true}`);
     expect(content).toContain("(a few signals batched up for you)");
   });
 

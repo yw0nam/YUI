@@ -145,6 +145,32 @@ describe("dispatcher — addressed chain cap", () => {
     });
   });
 
+  it("releases only the addressed entries the chain has room for, and drops the excess as addressed_cap", async () => {
+    dispatcher.start();
+    await runAddressed(1);
+    // A gesture reaction holds the slot while two addressed lines arrive behind it.
+    bus.push({
+      seq_id: 9,
+      source: "os_event_watcher",
+      event_name: "proactive.touch_chest",
+      ts: NOW + 9,
+      payload: { cue_id: "touch_chest", label: "chest poked" },
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(addressedEnv(2));
+    bus.push(addressedEnv(3));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred.at(-1)?.resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    const trigger = vi.mocked(backendCaller.call).mock.calls.at(-1)![0].trigger;
+    expect(trigger.ts).toBe(NOW + 2);
+    expect(trigger.payload?.waited).toBeUndefined();
+    expect(dispatcher.recentDrops()).toEqual([
+      expect.objectContaining({ ts: NOW + 3, reason: "addressed_cap" }),
+    ]);
+  });
+
   it("a user turn in between resets the chain", async () => {
     dispatcher.start();
     await runAddressed(1);
@@ -164,9 +190,9 @@ describe("dispatcher — addressed chain cap", () => {
     dispatcher.start();
     await runAddressed(1);
     await runAddressed(2);
-    const evaluate = vi.spyOn(guardrails, "evaluate");
+    const arrive = vi.spyOn(guardrails, "arrive");
     await runAddressed(3);
-    expect(evaluate).not.toHaveBeenCalled();
+    expect(arrive).not.toHaveBeenCalled();
 
     bus.push({
       seq_id: 9,
@@ -176,11 +202,11 @@ describe("dispatcher — addressed chain cap", () => {
       payload: { cue_id: "touch_chest", label: "chest poked" },
     });
     await vi.advanceTimersByTimeAsync(20);
-    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(arrive).toHaveBeenCalledTimes(1);
     expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(3);
   });
 
-  it("an addressed envelope superseded before it began does not count", async () => {
+  it("an addressed envelope that rides a user turn does not count", async () => {
     dispatcher.start();
     bus.push({
       seq_id: 1,
@@ -190,16 +216,17 @@ describe("dispatcher — addressed chain cap", () => {
       payload: { cue_id: "touch_chest", label: "chest poked" },
     });
     await vi.advanceTimersByTimeAsync(20);
-    // In flight — the addressed envelope defers into pending, un-begun.
+    // In flight — the addressed envelope waits, un-begun, and rides the user turn.
     bus.push(addressedEnv(2));
     await vi.advanceTimersByTimeAsync(20);
     bus.push(userEnv("hello"));
     await vi.advanceTimersByTimeAsync(20);
     callDeferred.at(-1)?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
-    expect(dispatcher.recentDrops()).toContainEqual(
-      expect.objectContaining({ reason: "superseded_by_user" }),
-    );
+    const userTrigger = vi.mocked(backendCaller.call).mock.calls.at(-1)![0].trigger;
+    expect((userTrigger.payload?.waited as BusEnvelope[]).map((e) => e.event_name)).toEqual([
+      "addressed.character",
+    ]);
 
     await runAddressed(3);
     await runAddressed(4);
@@ -475,7 +502,7 @@ describe("dispatcher — global proactive pacer gate", () => {
     });
   }
 
-  it("drops a proactive turn that reaches the gate while the pacer holds", async () => {
+  it("keeps a proactive candidate waiting while the pacer holds, writes its skip record, and sends it once the window opens", async () => {
     const pacer = fakePacer(true);
     const appendSkipRecord = vi.fn();
     const onTurnDropped = vi.fn();
@@ -488,11 +515,8 @@ describe("dispatcher — global proactive pacer gate", () => {
 
     expect(backendCaller.call).not.toHaveBeenCalled();
     expect(d.inFlight()).toBeNull();
-    expect(d.recentDrops().at(-1)).toMatchObject({
-      event_name: "proactive.screen_app_switched",
-      reason: "global_gap",
-    });
-    expect(onTurnDropped).toHaveBeenCalledWith(trigger, "global_gap");
+    expect(d.recentDrops()).toEqual([]);
+    expect(onTurnDropped).not.toHaveBeenCalled();
     expect(appendSkipRecord).toHaveBeenCalledWith({
       type: "skip",
       source: "dispatcher",
@@ -500,10 +524,15 @@ describe("dispatcher — global proactive pacer gate", () => {
       reason: "global_gap",
       event_name: "proactive.screen_app_switched",
     });
+
+    pacer.open();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(vi.mocked(backendCaller.call).mock.calls[0]![0].trigger).toMatchObject(trigger);
     d.stop();
   });
 
-  it("drops a loop cue from the timer scheduler while the pacer holds", async () => {
+  it("keeps a loop cue from the timer scheduler waiting while the pacer holds", async () => {
     const pacer = fakePacer(true);
     const d = build(pacer, vi.fn());
     d.start();
@@ -512,13 +541,10 @@ describe("dispatcher — global proactive pacer gate", () => {
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call).not.toHaveBeenCalled();
-    expect(d.recentDrops().at(-1)).toMatchObject({
-      event_name: "proactive.cowork",
-      reason: "global_gap",
-    });
-    // Held before the routing log — a candidate that never went out is not a fire.
+    expect(d.recentDrops()).toEqual([]);
+    // A candidate that never went out is not a fire.
     expect(logger.info).not.toHaveBeenCalledWith("fire", expect.anything());
-    expect(d.queue()).toEqual([]);
+    expect(d.queue()).toEqual([expect.objectContaining({ event_name: "proactive.cowork" })]);
     d.stop();
   });
 
@@ -540,8 +566,7 @@ describe("dispatcher — global proactive pacer gate", () => {
     d.stop();
   });
 
-  // evaluate() consumes a rate-limit slot at fire time and never refunds it, so a held fire
-  // that reaches the guardrail spends a cap it never used.
+  // A slot is spent only once a turn is admitted, so held fires never use the cap.
   it("spends no guardrail slot on a held fire, so a later turn still passes the cap", async () => {
     const cfg = permissiveGuardrailsConfig();
     cfg.rate_limit.tier2_max = 3;
@@ -591,9 +616,8 @@ describe("dispatcher — global proactive pacer gate", () => {
     d.stop();
   });
 
-  // A candidate arriving mid-turn is held at the routing gate, so it never reaches the deferral
-  // queue — the live turn finishes and frees its slot with nothing waiting behind it.
-  it("holds a paced candidate that arrives during a live turn instead of deferring it", async () => {
+  // The live turn anchors the gap, so a candidate arriving mid-turn keeps waiting after it ends.
+  it("keeps a paced candidate that arrives during a live turn waiting once the turn ends", async () => {
     const pacer = fakePacer(false);
     const appendSkipRecord = vi.fn();
     const d = build(pacer, appendSkipRecord);
@@ -605,7 +629,7 @@ describe("dispatcher — global proactive pacer gate", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(d.inFlight()).not.toBeNull();
 
-    // The user turn anchored the window, so this candidate is dropped where it is routed.
+    // The user turn anchored the window, so this candidate waits.
     bus.push(proactiveEnv({ ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("ok");
@@ -613,14 +637,14 @@ describe("dispatcher — global proactive pacer gate", () => {
 
     expect(backendCaller.call).toHaveBeenCalledOnce();
     expect(d.inFlight()).toBeNull();
-    expect(d.queue()).toEqual([]);
+    expect(d.queue()).toEqual([expect.objectContaining({ ts: NOW + 1 })]);
     expect(busyEdges).toEqual([true, false]);
-    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(d.recentDrops()).toEqual([]);
     expect(appendSkipRecord).toHaveBeenCalledOnce();
     d.stop();
   });
 
-  it("swallows a throwing appendSkipRecord — the drop path still records the drop", async () => {
+  it("swallows a throwing appendSkipRecord — the candidate still waits", async () => {
     const pacer = fakePacer(true);
     const d = build(
       pacer,
@@ -633,7 +657,7 @@ describe("dispatcher — global proactive pacer gate", () => {
     bus.push(proactiveEnv());
     await vi.advanceTimersByTimeAsync(20);
 
-    expect(d.recentDrops().at(-1)).toMatchObject({ reason: "global_gap" });
+    expect(d.queue()).toHaveLength(1);
     expect(backendCaller.call).not.toHaveBeenCalled();
     d.stop();
   });
@@ -687,16 +711,15 @@ describe("dispatcher — do-not-disturb gate", () => {
     ["urgent_signal_source", "signals.urgent"],
     ["os_event_watcher", "time_milestone.first_activity"],
     ["os_event_watcher", "signals.batch"],
-  ] as const)("holds %s %s as dnd, reporting the drop and never calling the backend", async (source, event_name) => {
+  ] as const)("holds %s %s while DND is on, recording no drop and never calling the backend", async (source, event_name) => {
     const d = make();
     const trigger: BusEnvelope = { source, event_name, ts: NOW, payload: {} };
     bus.push(trigger);
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call).not.toHaveBeenCalled();
-    expect(d.recentDrops()).toContainEqual(expect.objectContaining({ event_name, reason: "dnd" }));
-    expect(onTurnDropped).toHaveBeenCalledWith(expect.objectContaining({ event_name }), "dnd");
-    // Held at the routing gate: the fire never becomes a turn.
+    expect(d.recentDrops()).toEqual([]);
+    expect(onTurnDropped).not.toHaveBeenCalled();
     expect(onTurnAdmitted).not.toHaveBeenCalled();
     d.stop();
   });
@@ -710,8 +733,8 @@ describe("dispatcher — do-not-disturb gate", () => {
     // A held control cue proves the gate is active before the candidate is judged.
     bus.push(timerCue());
     await vi.advanceTimersByTimeAsync(20);
-    expect(d.recentDrops()).toContainEqual(
-      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
+    expect(d.queue()).toContainEqual(
+      expect.objectContaining({ event_name: "proactive.short_break" }),
     );
 
     bus.push({
@@ -729,77 +752,23 @@ describe("dispatcher — do-not-disturb gate", () => {
     d.stop();
   });
 
-  it("holds a timer cue while DND is on, and lets the next timer cue reach the backend once DND is off", async () => {
+  it("holds a timer cue while DND is on, and sends it once DND is off", async () => {
     const d = make();
     bus.push(timerCue());
     await vi.advanceTimersByTimeAsync(20);
-    expect(d.recentDrops()).toContainEqual(
-      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
-    );
     expect(backendCaller.call).not.toHaveBeenCalled();
 
     dndOn = false;
-    bus.push(timerCue(NOW + 1));
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call).toHaveBeenCalledOnce();
+    expect(vi.mocked(backendCaller.call).mock.calls[0]![0].trigger.event_name).toBe(
+      "proactive.short_break",
+    );
+    expect(d.recentDrops()).toEqual([]);
     d.stop();
   });
 
-  it("drops a deferred self-fired cue as dnd when DND turns on during playback, and still starts the user turn after it", async () => {
-    dndOn = false;
-    let speaking = true;
-    const d = make({ hasOutstandingSpeech: () => speaking });
-    bus.push(userEnv("first"));
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred[0]!.resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-
-    // Playback holds the slot, so the timer cue defers into pending.
-    bus.push(timerCue(NOW + 1));
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.queue().some((e) => e.event_name === "proactive.short_break")).toBe(true);
-
-    dndOn = true;
-    speaking = false;
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.recentDrops()).toContainEqual(
-      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
-    );
-    expect(backendCaller.call).toHaveBeenCalledOnce();
-    // Purged from the queue: only the first user turn was ever admitted.
-    expect(onTurnAdmitted).toHaveBeenCalledOnce();
-
-    bus.push({ ...userEnv("second"), ts: NOW + 2 });
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(backendCaller.call).mock.calls[1]![0].trigger.event_name).toBe(
-      "user.text_submitted",
-    );
-    d.stop();
-  });
-
-  it("drops a self-fired cue queued behind an in-flight call as dnd when DND turns on before the call ends", async () => {
-    dndOn = false;
-    const d = make();
-    bus.push(userEnv("first"));
-    await vi.advanceTimersByTimeAsync(20);
-    bus.push(timerCue(NOW + 1));
-    await vi.advanceTimersByTimeAsync(20);
-    expect(d.queue().some((e) => e.event_name === "proactive.short_break")).toBe(true);
-
-    dndOn = true;
-    callDeferred[0]!.resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-
-    expect(d.recentDrops()).toContainEqual(
-      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
-    );
-    expect(onTurnAdmitted).toHaveBeenCalledOnce();
-    expect(backendCaller.call).toHaveBeenCalledOnce();
-    d.stop();
-  });
-
-  it("ends a lock-waiting self-fired turn as dnd without a failure when DND turns on before the grant", async () => {
+  it("returns a lock-waiting self-fired turn to the waiting list when DND turns on before the grant, and sends it once DND is off", async () => {
     dndOn = false;
     const waiting: Array<{ signal: AbortSignal; grant: () => void }> = [];
     const release = vi.fn();
@@ -815,19 +784,22 @@ describe("dispatcher — do-not-disturb gate", () => {
     bus.push(timerCue());
     await vi.advanceTimersByTimeAsync(20);
     expect(waiting).toHaveLength(1);
-    expect(backendCaller.call).not.toHaveBeenCalled();
 
     dndOn = true;
     waiting[0]!.grant();
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call).not.toHaveBeenCalled();
-    expect(d.recentDrops()).toContainEqual(
-      expect.objectContaining({ event_name: "proactive.short_break", reason: "dnd" }),
-    );
+    expect(d.recentDrops()).toEqual([]);
     expect(onTurnFailed).not.toHaveBeenCalled();
     expect(d.state()).toBe("running");
     expect(release).toHaveBeenCalledOnce();
+
+    dndOn = false;
+    await vi.advanceTimersByTimeAsync(20);
+    waiting[1]!.grant();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(backendCaller.call).toHaveBeenCalledOnce();
     d.stop();
   });
 });

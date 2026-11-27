@@ -119,7 +119,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     basePaceSettings: settingsStores.basePaceSettings,
     agentSettings: settingsStores.agentSettings,
     pacerGapSettings: settingsStores.pacerGapSettings,
-    dndSettings: settingsStores.dndSettings,
+    restSettings: settingsStores.restSettings,
   });
   register(activeHours.dispose);
   register(
@@ -149,10 +149,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     mount: root,
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
-    dnd: {
-      get: () => activeHours.dnd.get().enabled,
-      subscribe: (cb) => activeHours.dnd.subscribe(() => cb()),
-    },
+    rest: activeHours,
     onOpenSettings: () => openSettings(),
     onOpenMicSettings: micSettingsOpener({ tauri: isTauri(), mac: isMacOS() }),
     notice: turnNotice,

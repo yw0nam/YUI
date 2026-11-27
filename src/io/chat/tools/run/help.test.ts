@@ -12,6 +12,7 @@ import type { InfoDoc } from "./info-api";
 import { type SelectionPort, selectionRows } from "./selection-rows";
 import type { WriteResults } from "./settings-api";
 import type { StateDoc } from "./state-api";
+import { createWaitingApi } from "./waiting-api";
 
 const label = (key: string) => `L(${key})`;
 const pick = (id: string): SelectionPort => ({
@@ -28,6 +29,7 @@ const declarations = [
   createPluginsApi({ host: {} as McpHost, presetId: () => "" }).declaration,
   createLookApi(() => null).declaration,
   createThreadsApi({ threads: () => [] }).declaration,
+  createWaitingApi({ waiting: () => [] }).declaration,
 ];
 /** The main window's help() text, whose size the budget pins. */
 const main = helpText(label, rows, declarations);
@@ -141,7 +143,11 @@ describe("helpText", () => {
         type: '"high" | "normal" | "low"',
         comment: "L(base_pace.title) [global, direct]",
       },
-      { path: "pace.rest", type: "boolean", comment: "L(character_menu.rest) [global, allow]" },
+      {
+        path: "pace.rest",
+        type: '"hour" | "tonight" | "morning" | "until_off" | "focus_25" | "focus_50" | "off"',
+        comment: "L(character_menu.rest) [global, allow]",
+      },
       {
         path: "threads.reactions",
         type: "boolean",
@@ -210,11 +216,6 @@ describe("helpText", () => {
         type: "number",
         comment:
           "L(screen.long_session_label) [global, allow]; 0 means YUI's default; 0..86400000 integer",
-      },
-      {
-        path: "privacy.screen_watch.recent_cap",
-        type: "number",
-        comment: "L(screen.recent_cap_label) [global, allow]; 0 means YUI's default; 0..20 integer",
       },
       {
         path: "privacy.external_signals",
@@ -302,9 +303,10 @@ describe("helpText", () => {
     );
   });
 
-  it("declares the yui API and nine rules, and stays under 9,472 bytes", () => {
+  it("declares the yui API and nine rules, and stays under 9,664 bytes", () => {
     expect(main).toContain("declare const yui:");
     expect(main).not.toContain("declare function help(): string;");
+    expect(main).toContain("  waiting: {");
     expect(main).toContain(
       "3. Put every setting that needs Allow into one write, with a why the user reads on the card; a second such write while one waits answers an error.",
     );
@@ -322,6 +324,6 @@ describe("helpText", () => {
       `9. Before you call a plugin's tools, read its skill with help("plugin:<name>") when the description lists one.`,
     );
     expect(main.match(/^\d\. /gm)).toHaveLength(9);
-    expect(new TextEncoder().encode(main).length).toBeLessThan(9472);
+    expect(new TextEncoder().encode(main).length).toBeLessThan(9664);
   });
 });

@@ -30,6 +30,7 @@ import {
   createClientTools,
 } from "../../io/chat/tools/client-tools";
 import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
+import { createPresence } from "../../io/presence/presence";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
@@ -52,11 +53,19 @@ import type { ConversationStores } from "../settings/conversation-stores";
 import { createTurnFailureReporter } from "./report-turn-failure";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
+type CreateDeps = Parameters<typeof createDispatcher>[0];
+
 export function wireDispatcher(deps: {
   bus: EventBus;
-  onTurnDropped?: Parameters<typeof createDispatcher>[0]["onTurnDropped"];
+  onTurnDropped?: CreateDeps["onTurnDropped"];
+  /** The batched signals buffer's drain and restore, and the schedule source's spoken mark. */
+  drainSignals?: CreateDeps["drainSignals"];
+  restoreSignals?: CreateDeps["restoreSignals"];
+  onTurnSpoken?: CreateDeps["onTurnSpoken"];
+  /** The away threshold this window's presence reads. */
+  presenceSettings: SettingsStores["presenceSettings"];
   /** A turn is over — the over edge, or the next begin displacing it. */
-  onTurnClosed?: Parameters<typeof createDispatcher>[0]["onTurnClosed"];
+  onTurnClosed?: CreateDeps["onTurnClosed"];
   /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
   addressedTo?: (turnId: string) => string | undefined;
   renderer: Renderer;
@@ -91,8 +100,8 @@ export function wireDispatcher(deps: {
   /** The assembled card for each turn; absent in a window that sends no card. */
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
-  /** This pet window's active hours: the scaled pacer gap and the do-not-disturb hold. */
-  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd">;
+  /** This pet window's active hours: the scaled pacer gap and what holds her own turns. */
+  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd" | "rest">;
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
@@ -223,6 +232,7 @@ export function wireDispatcher(deps: {
           relationsSwitch.get().enabled,
         ),
       getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
+      getRest: () => activeHours.rest(),
     },
     commitOverheard: overheard.commit,
     contextHistory,
@@ -249,6 +259,9 @@ export function wireDispatcher(deps: {
   register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
   // Dispatcher creation precedes peek wiring, so peek callbacks stay late-bound across that cycle.
   let peekRef: { enter(): Promise<void>; exit(): Promise<void> } | null = null;
+  // One per pet window: release() holds every self-started class but the direct ones while she is away.
+  const presence = createPresence({ threshold: () => deps.presenceSettings.get().value });
+  register(presence.dispose);
   const reportFailure = createTurnFailureReporter({
     surfaces,
     openSettings,
@@ -272,6 +285,10 @@ export function wireDispatcher(deps: {
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
     isDndOn: () => activeHours.dnd.get().enabled,
+    isPresent: presence.isPresent,
+    drainSignals: deps.drainSignals,
+    restoreSignals: deps.restoreSignals,
+    onTurnSpoken: deps.onTurnSpoken,
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
     onTurnDropped: deps.onTurnDropped,

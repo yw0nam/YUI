@@ -20,7 +20,7 @@ function value(row: SettingRow | undefined, v: unknown): string {
   if (row.ordinalKey) return t(row.ordinalKey, { n: v + 1 });
   if (!row.unit) return String(v);
   const n = Math.round(v / row.unit.per);
-  const unit = t(n === 1 && row.unit.oneKey ? row.unit.oneKey : row.unit.suffixKey);
+  const unit = t(row.unit.suffixKey);
   return t("settings_request.amount", { n, unit });
 }
 

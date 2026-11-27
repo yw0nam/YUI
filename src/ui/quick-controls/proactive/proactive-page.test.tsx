@@ -544,7 +544,6 @@ describe("createProactivePage — the source groups", () => {
     prev_dwell_ms: 600_000,
     settle_ms: 90_000,
     long_session_ms: 2_700_000,
-    recent_cap: 5,
   };
 
   function sourceRows(stores: {
@@ -688,17 +687,13 @@ describe("createProactivePage — the source groups", () => {
     const { page } = buildSources();
     const fold = foldOf(page, ".yui-screen-switch");
 
-    expect(fold?.querySelector(".yui-fold__aside")?.textContent).toBe(
-      "10 min · 90 s · 45 min · 5 entries",
-    );
+    expect(fold?.querySelector(".yui-fold__aside")?.textContent).toBe("10 min · 90 s · 45 min");
     const input = page.el.querySelector<HTMLInputElement>("#yui-screen-settle");
     expect(input).not.toBeNull();
     if (!input) return;
     typeAndBlur(input, "30");
 
-    expect(fold?.querySelector(".yui-fold__aside")?.textContent).toBe(
-      "10 min · 30 s · 45 min · 5 entries",
-    );
+    expect(fold?.querySelector(".yui-fold__aside")?.textContent).toBe("10 min · 30 s · 45 min");
   });
 
   describe("screen changes", () => {
@@ -779,13 +774,6 @@ describe("createProactivePage — the source groups", () => {
       committed: number;
     }[] = [
       {
-        name: "recent_cap, a bare count",
-        id: "#yui-screen-recent-cap",
-        typed: "3",
-        read: (store) => store.get().recent_cap,
-        committed: 3,
-      },
-      {
         name: "a knob in minutes",
         id: "#yui-screen-long-session",
         typed: "30",
@@ -811,12 +799,6 @@ describe("createProactivePage — the source groups", () => {
       over: { typed: string; committed: number; shown: string };
       under?: { typed: string; committed: number; shown: string };
     }[] = [
-      {
-        name: "recent_cap",
-        id: "#yui-screen-recent-cap",
-        read: (store) => store.get().recent_cap,
-        over: { typed: "50", committed: 20, shown: "20" },
-      },
       {
         name: "a knob in seconds",
         id: "#yui-screen-settle",
@@ -866,20 +848,20 @@ describe("createProactivePage — the source groups", () => {
 
     it("keeps an ArrowUp on a knob at its max from stepping past it", () => {
       const screenKnobSettings = createScreenKnobSettings();
-      screenKnobSettings.set({ recent_cap: 20 });
+      screenKnobSettings.set({ settle_ms: 600_000 });
       const { page } = buildScreens({ screenKnobSettings });
       const setSpy = vi.spyOn(screenKnobSettings, "set");
-      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-recent-cap");
+      const input = page.el.querySelector<HTMLInputElement>("#yui-screen-settle");
       expect(input).not.toBeNull();
       if (!input) return;
 
-      expect(input.value).toBe("20");
+      expect(input.value).toBe("600");
       act(() => input.focus());
       fireEvent.keyDown(input, { key: "ArrowUp" });
 
-      expect(input.value).toBe("20");
+      expect(input.value).toBe("600");
       expect(setSpy).not.toHaveBeenCalled();
-      expect(screenKnobSettings.get().recent_cap).toBe(20);
+      expect(screenKnobSettings.get().settle_ms).toBe(600_000);
     });
 
     it("does not commit a numeric knob on every keystroke", () => {

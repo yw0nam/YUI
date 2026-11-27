@@ -64,7 +64,6 @@ const SCREEN_DEFAULTS = {
   prev_dwell_ms: 600_000,
   settle_ms: 90_000,
   long_session_ms: 2_700_000,
-  recent_cap: 5,
 };
 
 const IDLE_POOL = {
@@ -475,7 +474,7 @@ describe("createQuickControls — Reactions tab layout", () => {
     ).toEqual([
       ["Quiet for a while", "Check-ins", "5 · 10 · 30 min", false],
       ["Scheduled greetings", "Greeting times", "09:00 · 12:00 · 18:00 · 23:00", false],
-      ["Screen changes", "Timing", "10 min · 90 s · 45 min · 5 entries", false],
+      ["Screen changes", "Timing", "10 min · 90 s · 45 min", false],
       ["Thread reactions", "When she steps in", "3 waiting · 10 min", false],
       ["External signals", "Thread turns, port and address", "8770", false],
     ]);
@@ -511,7 +510,7 @@ describe("createQuickControls — Reactions tab layout", () => {
     expect(fold.querySelector(".yui-fold__off")).toBeNull();
 
     act(() => toggle.click());
-    expect(shown("summary .yui-fold__aside")).toEqual(["10 min · 90 s · 45 min · 5 entries"]);
+    expect(shown("summary .yui-fold__aside")).toEqual(["10 min · 90 s · 45 min"]);
     qc.dispose();
   });
 

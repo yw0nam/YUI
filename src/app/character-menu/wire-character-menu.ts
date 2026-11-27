@@ -26,6 +26,7 @@ export function wireCharacterMenu(deps: {
   hitTest: () => HitTestKnobs;
   bridge: Pick<SettingsBridge, "emitCharacterMenu" | "onCharacterMenu">;
   ports: { read(): MenuState; actions: MenuActions };
+  subscribeRest(cb: () => void): () => void;
   /** Whether the Character menu window exists: without Tauri a right-click opens nothing. */
   isTauri: () => boolean;
 }): () => void {
@@ -38,6 +39,7 @@ export function wireCharacterMenu(deps: {
     locomotion: deps.locomotion,
     readPlacement: () => readMenuPlacement(deps),
     ports: deps.ports,
+    subscribeRest: deps.subscribeRest,
     emit: deps.bridge.emitCharacterMenu,
     focusWindow: focusCurrentWindow,
   });

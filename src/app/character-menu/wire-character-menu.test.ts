@@ -22,7 +22,7 @@ afterEach(() => {
 
 const STATE = {
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -121,6 +121,7 @@ function wired() {
         onCharacterMenu: () => () => {},
       } as unknown as Deps["bridge"],
       ports: { read: () => state, actions },
+      subscribeRest: () => () => {},
       isTauri: () => true,
     }),
   );

@@ -51,6 +51,8 @@ export interface RemoteSurfaces {
   quoteUser(quote: UserQuote): void;
   /** Shows the turn's signal groups as source lines on the message window's bubble. */
   quoteSignals(lines: SourceLine[]): void;
+  /** Shows why she spoke on the message window's bubble: a self-started turn's trigger line. */
+  quoteTrigger(text: string): void;
   /** Hands the quoted turn's bubble to its dwell. */
   settleQuote(): void;
   /** Drops the quoted line from the message window's bubble. */

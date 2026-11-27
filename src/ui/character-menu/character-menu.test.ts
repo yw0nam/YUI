@@ -24,7 +24,7 @@ afterEach(() => {
 function build(over: Partial<MenuState> = {}) {
   const state: MenuState = {
     talk: false,
-    rest: false,
+    rest: null,
     listen: false,
     bubble: false,
     unified: false,
@@ -134,12 +134,12 @@ it("reads her kind on each open, so one menu serves every character", async () =
 it("redraws from the state it reads on refresh, focus staying on its row", async () => {
   const { menu, state } = build();
   await menu.open();
-  pill("rest")?.focus();
-  state.rest = true;
+  pill("listen")?.focus();
+  state.listen = true;
 
   menu.refresh();
 
-  expect([pill("rest")?.getAttribute("aria-checked"), focused()]).toEqual(["true", "rest"]);
+  expect([pill("listen")?.getAttribute("aria-checked"), focused()]).toEqual(["true", "listen"]);
 });
 
 it("replaces the left column in place with a list and Back, and Back returns to Body", async () => {
@@ -320,17 +320,17 @@ it("acts on the incoming column when Enter picks during a swap, with no crossfad
 });
 
 it("marks an ON toggle with the On text, and its pick keeps the menu open", async () => {
-  const { menu, actions } = build({ rest: true });
+  const { menu, actions } = build({ listen: true });
   await menu.open();
 
-  expect(pill("rest")?.getAttribute("aria-checked")).toBe("true");
-  expect(pill("rest")?.querySelector(".yui-cmenu__on")?.textContent).toBe("On");
-  expect(pill("listen")?.querySelector(".yui-cmenu__on")).toBeNull();
+  expect(pill("listen")?.getAttribute("aria-checked")).toBe("true");
+  expect(pill("listen")?.querySelector(".yui-cmenu__on")?.textContent).toBe("On");
+  expect(pill("rest")?.querySelector(".yui-cmenu__on")).toBeNull();
 
-  click("rest");
-  expect(actions.rest).toHaveBeenCalledExactlyOnceWith(false);
+  click("listen");
+  expect(actions.listen).toHaveBeenCalledExactlyOnceWith(false);
   expect(menu.isOpen()).toBe(true);
-  expect(focused()).toBe("rest");
+  expect(focused()).toBe("listen");
 });
 
 it("runs a closing pick once the window is restored", async () => {
@@ -369,4 +369,117 @@ it("names the inline confirm by the pick it confirms", async () => {
   );
   expect(sure?.getAttribute("aria-label")).toBe("Sure? Reset chat");
   expect(sure?.querySelector("svg")).not.toBeNull();
+});
+
+const clock = (h: number, m: number, day = 27) => new Date(2026, 10, day, h, m).getTime();
+const RESTING = {
+  kind: "rest",
+  choice: "morning",
+  startedAt: clock(21, 10, 26),
+  endsAt: clock(8, 0),
+} as const;
+const rows = (side: "left" | "right") =>
+  [...mount.querySelectorAll(`.yui-cmenu__col--${side}:not(.is-leaving) > *`)].map(
+    (e) => e.getAttribute("role") ?? "",
+  );
+
+it("opens Rest in the right column with a divider before Focus, the left column staying", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(21, 10, 26));
+  const { menu } = build();
+  await menu.open();
+
+  click("rest");
+
+  expect(labels("right")).toEqual([
+    "Back",
+    "For 1 hour",
+    "Until tonight",
+    "Until tomorrow morning",
+    "Until I turn it off",
+    "Focus 25 min",
+    "Focus 50 min",
+  ]);
+  expect(rows("right")[5]).toBe("separator");
+  expect(labels("left")).toEqual(["Body", "Voice", "Pace", "More"]);
+  expect(focused()).toBe("rest:hour");
+});
+
+it("draws Rest in the On look with its end while she rests", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(21, 10, 26));
+  const { menu } = build({ rest: RESTING });
+  await menu.open();
+
+  expect([pill("rest")?.classList.contains("is-on"), labels("right")[1]]).toEqual([
+    true,
+    "Rest · 08:00",
+  ]);
+});
+
+it("moves the keyboard past the status row and the divider", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(21, 10, 26));
+  const { menu } = build({ rest: RESTING });
+  await menu.open();
+  click("rest");
+  const first = focused();
+
+  press("ArrowUp");
+  const up = focused();
+  press("ArrowDown");
+  const down = focused();
+  pill("rest:until_off")?.focus();
+  press("ArrowDown");
+
+  expect([first, up, down, focused()]).toEqual(["rest:end", "back", "rest:end", "rest:focus_25"]);
+  expect(mount.querySelector(".yui-cmenu__status")?.textContent).toBe("Resting until 08:00");
+});
+
+it("starts or ends Rest on a pick and returns to the top level on Rest", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(21, 10, 26));
+  const { menu, actions, state } = build({ rest: RESTING });
+  await menu.open();
+
+  click("rest");
+  click("rest:end");
+  const after = [labels("right"), focused()];
+  state.rest = null;
+  click("rest");
+  click("rest:hour");
+
+  expect(actions.rest.mock.calls).toEqual([["end"], ["hour"]]);
+  expect(after).toEqual([["Talk", "Rest · 08:00", "Listen", "Settings"], "rest"]);
+});
+
+it("moves focus to End now when its row leaves on refresh, else to Back", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(21, 10, 26));
+  const { menu, state } = build({ rest: RESTING });
+  await menu.open();
+  click("rest");
+  pill("rest:tonight")?.focus();
+
+  state.rest = { ...RESTING, choice: "tonight", endsAt: clock(0, 0) };
+  menu.refresh();
+  const toEnd = focused();
+  state.rest = null;
+  menu.refresh();
+
+  expect([toEnd, focused()]).toEqual(["rest:end", "back"]);
+});
+
+it("redraws an open Rest list at 08:00 without a click, offering Until tonight again", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock(7, 59));
+  const { menu } = build();
+  await menu.open();
+  click("rest");
+  const before = labels("right").includes("Until tonight");
+
+  vi.setSystemTime(clock(8, 0));
+  menu.refresh();
+
+  expect([before, labels("right").includes("Until tonight")]).toEqual([false, true]);
 });

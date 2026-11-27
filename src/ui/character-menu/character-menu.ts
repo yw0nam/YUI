@@ -4,10 +4,11 @@ import "./character-menu.css";
 import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
+import type { RestChoice } from "../../settings/rest/rest-choices";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
 import { CHEVRON, GLYPHS } from "./glyphs";
-import { capped, type ListId, listItems, type MenuItem, topItems } from "./items";
+import { capped, type ListId, listItems, type MenuItem, restSamples, topItems } from "./items";
 import { menuKey } from "./keys";
 import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
 import { createMenuMotion, LIVE } from "./motion";
@@ -27,7 +28,7 @@ type Done = void | Promise<void>;
 
 export interface MenuActions {
   talk(open: boolean): Done;
-  rest(on: boolean): Done;
+  rest(choice: RestChoice | "end"): Done;
   listen(on: boolean): Done;
   settings(page?: "body" | "voice"): Done;
   body(id: string): Done;
@@ -46,7 +47,11 @@ export const MENU_PILLS =
 
 const log = createLogger("character-menu");
 
-const LISTS: readonly ListId[] = ["body", "voice", "pace", "more"];
+/** The lists that swap into the left column; Rest swaps into the right one. */
+const LEFT_LISTS: readonly ListId[] = ["body", "voice", "pace", "more"];
+const LISTS: readonly ListId[] = [...LEFT_LISTS, "rest"];
+/** The rows the keyboard moves between: a divider and a status row are passed by. */
+const KEY_ROWS = ":scope > button, :scope > .yui-cmenu__confirm";
 
 type ColumnKey = "right" | "left" | "all" | ListId;
 type Side = "left" | "right";
@@ -88,12 +93,29 @@ export function createCharacterMenu(deps: {
   let opened: MenuState | null = null;
   const motion = createMenuMotion(root);
 
-  function pill(item: MenuItem, measuring = false): HTMLButtonElement {
+  function pill(item: MenuItem, measuring = false): HTMLElement {
+    if (item.role === "divider") {
+      const d = document.createElement("div");
+      d.className = "yui-cmenu__sep";
+      d.setAttribute("role", "separator");
+      return d;
+    }
+    if (item.role === "status") {
+      const row = document.createElement("div");
+      row.className = "yui-cmenu__status";
+      row.setAttribute("role", "menuitem");
+      row.setAttribute("aria-disabled", "true");
+      row.textContent = item.label;
+      return row;
+    }
     const b = document.createElement("button");
     b.type = "button";
     b.className = "yui-cmenu__pill";
     b.dataset.id = item.id;
-    b.classList.toggle("is-on", item.role === "toggle" && item.on === true);
+    b.classList.toggle(
+      "is-on",
+      (item.role === "toggle" || item.role === "list") && item.on === true,
+    );
     b.classList.toggle("is-back", item.role === "back");
     b.classList.toggle("is-danger", item.role === "danger");
     if (item.role === "toggle" || item.role === "choice") {
@@ -117,7 +139,9 @@ export function createCharacterMenu(deps: {
       b.appendChild(badge);
     }
     // Talk's ON state is the open input itself; every other ON toggle names it in text.
-    if (item.role === "toggle" && item.id !== "talk" && (item.on || measuring)) {
+    const onText =
+      item.role === "toggle" ? item.id !== "talk" && (item.on || measuring) : item.onText === true;
+    if (onText) {
       const on = document.createElement("span");
       on.className = "yui-cmenu__on";
       on.textContent = t("character_menu.on");
@@ -151,18 +175,16 @@ export function createCharacterMenu(deps: {
     return row;
   }
 
-  function columnItems(state: MenuState): Record<ColumnKey, MenuItem[]> {
+  function columnItems(state: MenuState, now = Date.now()): Record<ColumnKey, MenuItem[]> {
     const kind = deps.kind();
-    const top = topItems(kind, state);
+    const top = topItems(kind, state, now);
+    const lists = Object.fromEntries(LISTS.map((id) => [id, listItems(id, kind, state, now)]));
     return {
       right: top.right,
       left: top.left,
       all: [...top.right, ...top.left],
-      body: listItems("body", kind, state),
-      voice: listItems("voice", kind, state),
-      pace: listItems("pace", kind, state),
-      more: listItems("more", kind, state),
-    };
+      ...lists,
+    } as Record<ColumnKey, MenuItem[]>;
   }
 
   /** The state drawn now: the lists as they were at open, every other field as it is. */
@@ -194,8 +216,8 @@ export function createCharacterMenu(deps: {
     const fold = placement?.fold ?? "none";
     if (fold !== "none") return [{ side: fold, key: list ?? "all" }];
     return [
-      { side: "right", key: "right" },
-      { side: "left", key: list ?? "left" },
+      { side: "right", key: list === "rest" ? "rest" : "right" },
+      { side: "left", key: list && list !== "rest" ? list : "left" },
     ];
   }
 
@@ -248,7 +270,8 @@ export function createCharacterMenu(deps: {
   /** Swaps the list column; a mouse swap crossfades the old column out and the new one in. */
   function show(next: ListId | null, focus: string, animate: boolean): void {
     const fold = placement?.fold ?? "none";
-    motion.swap(fold === "none" ? "left" : fold, animate ? { back: next === null } : null, () => {
+    const side = fold !== "none" ? fold : (next ?? list) === "rest" ? "right" : "left";
+    motion.swap(side, animate ? { back: next === null } : null, () => {
       list = next;
       confirm = null;
       render();
@@ -282,17 +305,19 @@ export function createCharacterMenu(deps: {
     if (after) closeThen(after);
     else if (id === "back") back(animate);
     else if ((LISTS as readonly string[]).includes(id)) {
-      const items = listItems(id as ListId, deps.kind(), state);
+      const items = listItems(id as ListId, deps.kind(), state).filter(
+        (i) => i.role !== "divider" && i.role !== "status",
+      );
       show(id as ListId, (items.find((i) => i.on) ?? items[1] ?? items[0]!).id, animate);
     } else if (value !== undefined) {
       if (chosen === "body") actions.body(value);
       if (chosen === "voice") actions.voice(value);
       if (chosen === "pace") actions.pace(value as BasePace);
+      if (chosen === "rest") actions.rest(value as RestChoice | "end");
       show(null, chosen, animate);
     } else {
       if (id === "talk") actions.talk(false);
-      if (id === "rest" || id === "listen" || id === "bubble" || id === "unified")
-        actions[id](!state[id]);
+      if (id === "listen" || id === "bubble" || id === "unified") actions[id](!state[id]);
       if (id === "reset" || id === "turn-off") confirm = id;
       render();
       focusId(id);
@@ -333,10 +358,12 @@ export function createCharacterMenu(deps: {
     // Away from the pills, only Esc reaches the menu.
     if (column < 0 && e.key !== "Escape") return;
     const listCol = cols.findIndex((c) => c.dataset.list);
+    const rowsOf = (col: Element | null | undefined): Element[] =>
+      col ? [...col.querySelectorAll(KEY_ROWS)] : [];
     const move = menuKey(e.key, e.shiftKey, {
-      rows: cols.map((c) => c.children.length),
+      rows: cols.map((c) => rowsOf(c).length),
       column,
-      row: colEl && rowEl ? [...colEl.children].indexOf(rowEl) : -1,
+      row: rowEl ? rowsOf(colEl).indexOf(rowEl) : -1,
       listColumn: listCol < 0 ? null : listCol,
       confirming: confirm !== null,
       inConfirm: rowEl?.classList.contains("yui-cmenu__confirm") ?? false,
@@ -345,7 +372,7 @@ export function createCharacterMenu(deps: {
     e.preventDefault();
     switch (move.kind) {
       case "focus":
-        focusRow(cols[move.column]?.children[move.row]);
+        focusRow(rowsOf(cols[move.column])[move.row]);
         return;
       case "cancel": {
         const was = confirm!;
@@ -355,7 +382,7 @@ export function createCharacterMenu(deps: {
           focusId(was);
           return;
         }
-        focusRow(columnsByX()[move.to.column]?.children[move.to.row]);
+        focusRow(rowsOf(columnsByX()[move.to.column])[move.to.row]);
         return;
       }
       case "swap":
@@ -427,23 +454,35 @@ export function createCharacterMenu(deps: {
     list = null;
     confirm = null;
     const state = deps.read();
-    opened = {
+    const atOpen: MenuState = {
       ...state,
       bodies: capped(state.bodies, state.body),
       voices: capped(state.voices, state.voice),
     };
-    const items = columnItems(opened);
-    const measured = measure(items);
+    opened = atOpen;
+    const samples = restSamples();
+    const sets = [
+      columnItems(atOpen),
+      ...samples.states.map((rest) => columnItems({ ...atOpen, rest }, samples.now)),
+    ];
+    const measures = sets.map(measure);
+    const measured = Object.fromEntries(
+      (Object.keys(measures[0]!) as ColumnKey[]).map((key) => [
+        key,
+        Math.max(...measures.map((w) => w[key])),
+      ]),
+    ) as Record<ColumnKey, number>;
     const most = (keys: readonly ColumnKey[]): number =>
-      Math.max(...keys.map((key) => items[key].length));
+      Math.max(...sets.flatMap((items) => keys.map((key) => items[key].length)));
     const opening = (async () => {
       let placed: MenuPlacement;
       try {
         placed = await deps.place({
-          right: measured.right,
+          // Rest's list swaps into the right column, and into the one folded column.
+          right: Math.max(measured.right, measured.rest),
           left: measured.left,
-          all: measured.all,
-          lists: LISTS.map((key) => measured[key]),
+          all: Math.max(measured.all, measured.rest),
+          lists: LEFT_LISTS.map((key) => measured[key]),
           rows: { none: most(["right", "left", ...LISTS]), folded: most(["all", ...LISTS]) },
         });
       } catch (err) {
@@ -495,7 +534,10 @@ export function createCharacterMenu(deps: {
       if (phase !== "open") return;
       const focused = document.activeElement?.closest<HTMLElement>(`${LIVE} [data-id]`)?.dataset.id;
       render();
-      if (focused) focusId(focused);
+      if (!focused) return;
+      // A row that left with the state hands focus to End now, else Back.
+      const has = (id: string) => root.querySelector(`${LIVE} [data-id="${id}"]`) !== null;
+      focusId(has(focused) ? focused : has("rest:end") ? "rest:end" : "back");
     },
     dispose() {
       void close();

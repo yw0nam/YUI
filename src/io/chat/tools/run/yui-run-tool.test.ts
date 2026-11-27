@@ -416,12 +416,15 @@ describe("createYuiRunTool", () => {
         plugins: plugins(),
         terminal: ns({}, "TERMINAL"),
         guide: ns({}, "GUIDE"),
+        waiting: ns({}, "WAITING"),
       },
       { help },
     );
     const bare = toolWith({}, { help });
 
-    expect((await parsed(full.execute(code))).result).toBe("GUIDE|TERMINAL|PLUGINS|LOOK|THREADS");
+    expect((await parsed(full.execute(code))).result).toBe(
+      "GUIDE|TERMINAL|PLUGINS|LOOK|THREADS|WAITING",
+    );
     expect((await parsed(bare.execute(code))).result).toBe("");
   });
 

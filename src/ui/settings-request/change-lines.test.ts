@@ -10,6 +10,8 @@ import { changeLine, whyLine } from "./change-lines";
 beforeEach(() => setLocale("en"));
 
 it.each([
+  ["pace.rest", "character_menu.rest", "off", "morning", "Rest (off → Until tomorrow morning)"],
+  ["pace.rest", "character_menu.rest", "focus_25", "off", "Rest (Focus 25 min → off)"],
   [
     "privacy.thread_turns",
     "threadTurns.label",
@@ -31,13 +33,6 @@ it.each([
     0,
     30_000,
     "New app settles after (Default → 30 s)",
-  ],
-  [
-    "privacy.screen_watch.recent_cap",
-    "screen.recent_cap_label",
-    1,
-    30,
-    "Remembers up to (1 entry → 30 entries)",
   ],
   [
     "limits.tier2_max",

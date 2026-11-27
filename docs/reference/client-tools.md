@@ -47,7 +47,9 @@ Each row gives one tool's purpose, its arguments and result, the transports that
 | A bound pet window | `rate_relation`, `address_character`, and under Tauri `yui_run` |
 | The browser build | `rate_relation` and `address_character` |
 
-`main` alone creates the avatar executor and the Threads client, so only that window runs `body_action` and has the `yui.look` and `yui.threads` namespaces. Under Tauri every pet window has `yui.guide`, `yui.terminal` and `yui.plugins`: the terminals are the Rust shell's, which holds every Terminal, and the plugins are the MCP host's.
+`main` alone creates the avatar executor and the Threads client, so only that window runs `body_action` and has the `yui.look` and `yui.threads` namespaces.
+
+Under Tauri every pet window has `yui.guide`, `yui.terminal`, `yui.plugins` and `yui.waiting`: the terminals are the Rust shell's, which holds every Terminal, and the plugins are the MCP host's. `yui.waiting` reads that window's own waiting list and buffered signal groups.
 
 `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (an added emotion, an added motion, a different voice engine, a different motion selection) reaches the schema on the next turn.
 
@@ -331,12 +333,13 @@ The JSON of its logs and its result together may total 64 Ki (65 536) characters
 
 ### The yui API
 
-Each window has these namespaces. `help()` prints the blocks of the namespaces the window has, in the order settings, state, info, guide, terminal, plugins, look, threads (`src/io/chat/tools/run/help.ts`; `src/io/chat/tools/run/yui-run-tool.ts`).
+Each window has these namespaces. `help()` prints the blocks of the namespaces the window has, in the order settings, state, info, guide, terminal, plugins, look, threads, waiting (`src/io/chat/tools/run/help.ts`; `src/io/chat/tools/run/yui-run-tool.ts`).
 
 | Namespace | Window |
 |---|---|
 | `settings`, `state`, `info` | every pet window under Tauri |
 | `guide`, `terminal`, `plugins` | every pet window under Tauri |
+| `waiting` | every pet window under Tauri |
 | `look`, `threads` | `main` only |
 
 The browser build has no `yui_run`, so it has none of these.
@@ -402,6 +405,10 @@ A note rides every allow path of its request that answers `ok` or `denied`. An a
 
 `help()` lists each row's access, and the settings table itself is in `src/settings/agent-access/rows.ts`.
 
+`pace.rest` is an allow row that holds a Rest choice: `hour`, `tonight`, `morning`, `until_off`, `focus_25`, `focus_50`, or `off`. It reads the running choice, or `off` while no Rest or Focus runs. An active-hours off span belongs to one character and reads `off`.
+
+Writing `off` ends the running Rest or Focus, and writing a choice starts it from now. From 00:00 to 07:59 local, `tonight` answers `error: invalid pace.rest`, as the menu does not offer it then. Writing the value the row already reads changes nothing, so it answers `ok` and raises no Settings request.
+
 ### Settings request
 
 An allow write raises one Settings request for all of its allow paths. The window's Ask slot shows it on its own card, whose title names the character.
@@ -448,6 +455,17 @@ After Allow, each allowed path answers `ok`, `ok: <note>` when the user wrote a 
 A `state` other than `"waiting"` or `"all"`, a `source` or `id` that is not a non-empty string, an `opts` that is not an object, and a `search` query that is not a non-empty string all throw.
 
 A turn's [`threads attached:`](client-context.md#threads-attached) block names the ids of the Threads the user attached to the message.
+
+### yui.waiting
+
+`yui.waiting` reads what the character has not spoken to yet, in every pet window under Tauri: the self-started candidates in that window's waiting list, and the signal groups its buffers hold. Whether the character takes any of them up is the backend's judgment.
+
+- `list()` returns one short line per waiting entry and per buffered signal group: its id, kind, label, the local clock it came up, and the minutes it has waited. For example `w3 schedule "Lunch" 12:00 local, 40min` and `sig:d-42 signal github/pr_review 12:31 local, 9min`.
+- `read(id)` returns one entry in full: the projected waiting item, or the buffered signal group. An unknown id answers `error: unknown waiting item: <id>`.
+
+An entry's id is its waiting-list id, such as `w1`. A group's id is `sig:` and its `event_id`. The list reads both signal buffers and removes nothing, so every group still leaves on its own turn.
+
+An `id` that is not a non-empty string throws.
 
 ### yui.plugins
 

@@ -68,6 +68,7 @@ import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 import { wireThreadTurns } from "./turn/wire-thread-turns";
+import { waitingItemsOf } from "./turn/wire-waiting";
 import { wireYuiRun } from "./turn/wire-yui-run";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
@@ -214,6 +215,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(mcpHost.subscribe(() => phase1.pushSocket?.sendTools()));
     const asks = createAskQueue({ surfaces });
     register(asks.dispose);
+    // The dispatcher and the signal buffers exist after the tools, so the waiting rows reach them late-bound.
+    let waitingRows: (() => ReturnType<typeof waitingItemsOf>) | null = null;
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -230,6 +233,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       recordAddressed: addressed.record,
       mcpHost,
       threads: phase1.threads,
+      waiting: () => waitingRows?.() ?? [],
       run: wireYuiRun({
         stores: settings,
         asks,
@@ -244,20 +248,21 @@ const realFactories: ConfiguredBootstrapFactories = {
       getEndpoints: phase1.getEndpoints,
       getConfig: () => config.get(),
     });
-    let signals: Pick<SignalsSource, "restore"> | null = null;
-    let schedule: Pick<ScheduleSource, "restore"> | null = null;
+    // The sources start after the turn core, so the dispatcher reaches them late-bound.
+    let signals: Pick<SignalsSource, "restore" | "drain"> | null = null;
+    let schedule: Pick<ScheduleSource, "markSpoken"> | null = null;
     const restoreSignals = (env: BusEnvelope): void => signals?.restore(env);
     const userTurnDone = createUserTurnDone({
       presetId: presetIdForWindow,
       emit: phase1.emitUserTurnDone,
       onTurnClosed: addressed.onTurnClosed,
-      onTurnDropped: (env, reason) => {
-        restoreSignals(env);
-        schedule?.restore(env, reason);
-      },
+      onTurnDropped: restoreSignals,
     });
     const core = await wireTurnCore(cfg, phase1, {
-      restoreSignals: userTurnDone.onTurnDropped,
+      onTurnDropped: userTurnDone.onTurnDropped,
+      drainSignals: () => signals?.drain() ?? [],
+      restoreSignals,
+      onTurnSpoken: (env) => schedule?.markSpoken(env),
       getCardText: card.getCardText,
       contextProviders: {
         getFrontmost: () => frontmostTracker.get(),
@@ -334,6 +339,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     signals = signalsSource;
     schedule = scheduleSource;
+    waitingRows = () => waitingItemsOf({ dispatcher, signals: signalsSource });
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);
@@ -443,7 +449,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
-      register(wireTrayDnd({ dnd: settings.dndSettings, log }));
+      register(wireTrayDnd({ rest: phase1.activeHours, restSettings: settings.restSettings, log }));
     }
     // Every pet window marks its root: do-not-disturb stills the urgent chip pulse.
     register(wireDndRoot({ dnd: phase1.activeHours.dnd, root: document.documentElement }));
@@ -479,9 +485,11 @@ const realFactories: ConfiguredBootstrapFactories = {
         hitTest: () => config.get().avatar.hit_test,
         bridge: phase1.characterMenu,
         isTauri,
+        subscribeRest: phase1.activeHours.subscribeRest,
         ports: createCharacterMenuPorts({
           host: phase1.menuHost,
           stores: settings,
+          rest: phase1.activeHours.rest,
           surfaces,
           voiceInputStatus: phase1.voiceInputStatus,
           openSettings: phase1.openSettings,

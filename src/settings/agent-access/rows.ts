@@ -21,15 +21,14 @@ import {
   type ReasoningEffort,
 } from "../backend/agent-settings";
 import { createGuardrailsSettings, RATE_LIMIT_MAX } from "../backend/guardrails-settings";
-import {
-  createScreenKnobSettings,
-  SCREEN_MS_MAX,
-  SCREEN_RECENT_CAP_MAX,
-} from "../capture/screen-settings";
+import { createScreenKnobSettings, SCREEN_MS_MAX } from "../capture/screen-settings";
 import { createScreenshotSettings } from "../capture/screenshot-settings";
 import { createUserNameSettings, MAX_LEN } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
 import { createRelationsSwitch } from "../relations/relations-switch";
+import { REST_CHOICES, type RestChoice } from "../rest/rest-choices";
+import { restChoicesAt } from "../rest/rest-end";
+import { createRestSettings } from "../rest/rest-settings";
 import { createPacerGapStore, PACER_GAP_MAX, type SettingsStores } from "../settings-stores";
 import {
   createThreadReactionThresholdsSettings,
@@ -74,8 +73,8 @@ export interface SettingRow {
   factory(storage: PersistedStorage<any>): StoreGetter;
   /** Label key of each enum value, as the settings window names it. */
   valueLabels?: Readonly<Record<string, string>>;
-  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text (`oneKey` for exactly 1). */
-  unit?: { per: number; suffixKey: string; oneKey?: string };
+  /** The settings window's display unit: the stored value divided by `per`, then the `suffixKey` text. */
+  unit?: { per: number; suffixKey: string };
   /** True when a stored 0 means YUI's default rather than zero. */
   zeroIsDefault?: boolean;
   /** What a written 0 means, when it is neither zero nor YUI's default. */
@@ -99,7 +98,7 @@ export interface SettingRow {
   note?: string;
 }
 
-type RowSpec = Omit<SettingRow, "read" | "valid"> & Partial<Pick<SettingRow, "read">>;
+type RowSpec = Omit<SettingRow, "read" | "valid"> & Partial<Pick<SettingRow, "read" | "valid">>;
 
 const row = (spec: RowSpec): SettingRow => ({
   read: (stores) => getIn(stores[spec.store].get(), spec.field),
@@ -375,13 +374,24 @@ export const ROWS: readonly SettingRow[] = [
   }),
   row({
     path: "pace.rest",
-    store: "dndSettings",
-    field: ["enabled"],
+    store: "restSettings",
+    field: ["choice"],
     scope: "global",
     access: "allow",
     labelKey: "character_menu.rest",
-    write: (stores, value) => stores.dndSettings.setEnabled(value as boolean),
-    factory: (storage) => createFlagSettings(false, { storage }),
+    // One vocabulary for read and write: the running choice, or off.
+    values: [...REST_CHOICES, "off"],
+    valueLabels: {
+      ...Object.fromEntries(REST_CHOICES.map((c) => [c, `character_menu.rest_${c}`])),
+      off: "settings_request.off",
+    },
+    read: (stores) => stores.restSettings.get()?.choice ?? "off",
+    // The choices the menu offers now: after midnight Until tonight is not one.
+    valid: (_stores, value) =>
+      value === "off" || restChoicesAt(Date.now()).includes(value as RestChoice),
+    write: (stores, value) =>
+      value === "off" ? stores.restSettings.end() : stores.restSettings.start(value as RestChoice),
+    factory: (storage) => createRestSettings({ storage }),
   }),
   row({
     path: "privacy.screenshot",
@@ -476,21 +486,6 @@ export const ROWS: readonly SettingRow[] = [
     integer: true,
     write: (stores, value) => stores.screenKnobSettings.set({ long_session_ms: value as number }),
     unit: { per: 60_000, suffixKey: "screen.minutes_suffix" },
-    zeroIsDefault: true,
-    factory: (storage) => createScreenKnobSettings({ storage }),
-  }),
-  row({
-    path: "privacy.screen_watch.recent_cap",
-    store: "screenKnobSettings",
-    field: ["recent_cap"],
-    scope: "global",
-    access: "allow",
-    labelKey: "screen.recent_cap_label",
-    min: 0,
-    max: SCREEN_RECENT_CAP_MAX,
-    integer: true,
-    write: (stores, value) => stores.screenKnobSettings.set({ recent_cap: value as number }),
-    unit: { per: 1, suffixKey: "screen.count_suffix", oneKey: "settings_request.entry" },
     zeroIsDefault: true,
     factory: (storage) => createScreenKnobSettings({ storage }),
   }),

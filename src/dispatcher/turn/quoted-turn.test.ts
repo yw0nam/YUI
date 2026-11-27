@@ -5,6 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { setLocale, t } from "../../ui/i18n";
 import type { BusEnvelope } from "../core/event-bus";
 import { userEnv } from "../test-helpers";
 import { createQuotedTurn, type QuotedTurn, type QuoteSurfaces } from "./quoted-turn";
@@ -24,6 +25,15 @@ function voiceEnv(text: string): BusEnvelope {
 
 function proactiveEnv(): BusEnvelope {
   return { source: "timer_scheduler", event_name: "proactive.idle", ts: 0 };
+}
+
+function scheduleEnv(): BusEnvelope {
+  return {
+    source: "timer_scheduler",
+    event_name: "schedule.morning",
+    ts: 0,
+    payload: { cue_id: "morning", label: "Morning greeting", context: "", time: "09:00" },
+  };
 }
 
 function signalsEnv(delivery: "urgent" | "batched"): BusEnvelope {
@@ -54,15 +64,17 @@ describe("createQuotedTurn", () => {
   let quoted: QuotedTurn;
 
   beforeEach(() => {
+    setLocale("en");
     turnLog = createTurnLog();
     surfaces = {
       quoteUser: vi.fn(),
       quoteSignals: vi.fn(),
+      quoteTrigger: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),
     };
-    quoted = createQuotedTurn({ surfaces, turnLog });
+    quoted = createQuotedTurn({ surfaces, turnLog, translate: t });
   });
 
   function admit(env: BusEnvelope) {
@@ -125,7 +137,7 @@ describe("createQuotedTurn", () => {
 
   it("names a turn's attached Threads on its quote, and a failure before any utterance puts them back", () => {
     const restoreThreads = vi.fn();
-    quoted = createQuotedTurn({ surfaces, turnLog, restoreThreads });
+    quoted = createQuotedTurn({ surfaces, turnLog, translate: t, restoreThreads });
     const threads = [
       { id: "gmail:18c2", source: "gmail", title: "Quote reply" },
       { id: "codex:7", source: "codex", title: "Fix the flaky test" },
@@ -267,5 +279,52 @@ describe("createQuotedTurn", () => {
 
     expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
     expect(surfaces.quoteSignals).not.toHaveBeenCalled();
+  });
+
+  it("holds a self-started turn's trigger line and shows it only when the utterance opens", () => {
+    admit(scheduleEnv());
+
+    expect(surfaces.quoteTrigger).not.toHaveBeenCalled();
+
+    quoted.utteranceStart();
+    quoted.utteranceStart();
+
+    expect(surfaces.quoteTrigger).toHaveBeenCalledExactlyOnceWith("09:00 Morning greeting");
+    expect(surfaces.quoteUser).not.toHaveBeenCalled();
+  });
+
+  it("settling a trigger turn releases its quote", () => {
+    const turn = admit(scheduleEnv());
+    quoted.utteranceStart();
+
+    turnLog.settle(turn.id);
+
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+  });
+
+  it("a first meeting shows its trigger line, and its signal groups win when it carries them", () => {
+    admit({
+      source: "os_event_watcher",
+      event_name: "time_milestone.first_activity",
+      ts: 0,
+      payload: { name: "first_activity", local_time: "09:00", last_together: null },
+    });
+    quoted.utteranceStart();
+    expect(surfaces.quoteTrigger).toHaveBeenCalledExactlyOnceWith("First time today");
+
+    admit({
+      source: "os_event_watcher",
+      event_name: "time_milestone.first_activity",
+      ts: 0,
+      payload: {
+        name: "first_activity",
+        local_time: "09:00",
+        last_together: null,
+        signals: signalsEnv("batched").payload!.signals,
+      },
+    });
+    quoted.utteranceStart();
+    expect(surfaces.quoteSignals).toHaveBeenCalledTimes(1);
+    expect(surfaces.quoteTrigger).toHaveBeenCalledTimes(1);
   });
 });

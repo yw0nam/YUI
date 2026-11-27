@@ -31,21 +31,53 @@ _Avoid_: request, exchange, interaction
 The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick, another open character's reply naming this character through `address_character`. Carried as one of `user`, `schedule`, `proactive`, `signals`, `milestone`, `addressed`. Firing a trigger is not a decision to speak.
 _Avoid_: intent, command, prompt
 
+**Trigger headline**:
+The one `trigger:` line of the client context that names what fired a turn. The backend reads it, so it is the words the backend sees.
+_Avoid_: trigger line (for the bubble's line), headline
+
+**Trigger line**:
+The line in the bubble's quote slot that says why she spoke on a turn she started: a schedule cue's time and label, an idle cue's label, the first meeting, a screen switch, or another character's name. A waited turn adds `+N` for its other members and signal groups. The bubble draws it, and the reply after it is the backend's. A user turn quotes the user's message instead.
+_Avoid_: reason, why line, trigger headline
+
 **Handoff**:
 An addressed turn whose sender passed the user's message on with `address_character` `handoff`; the receiver's trigger carries that message verbatim, and her reply answers the user.
 _Avoid_: transfer, delegation, forward
 
 **Guardrails**:
-The gate a trigger passes before it becomes a turn: do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
+The gate a trigger passes on arrival and before it takes a turn's slot: a debounce, then the rate limit. It answers whether to _bother_ the brain, never what the brain should say. A candidate that do-not-disturb or the proactive gap holds waits in the waiting list instead.
 _Avoid_: filter, policy, throttle
 
 **Do-not-disturb**:
-The device-wide switch, set from the Character menu's Rest item or from the tray's Do Not Disturb item, that holds every self-fired trigger in every pet window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, the dropped cue of a fall she started herself, and signals, urgent ones included. Idle cues, screen watch and the once-a-day milestone are dropped, not delivered later, and the milestone's day is used up. A schedule cue fires late if it is still within 120 minutes of its time that day. A count or wait reaction waits until it is off. Held signals go out as catch-up turns, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held. An `off` span of a character's active hours holds the same triggers in that character's pet window only.
+The device-wide hold a running Rest or Focus sets, started from the Character menu's Rest list or the tray's Do Not Disturb item, that holds every self-fired trigger in every pet window: idle and schedule cues, screen watch, the once-a-day milestone, Thread reactions a count or a wait starts, the dropped cue of a fall she started herself, and signals, urgent ones included. Held idle cues, screen watch, the once-a-day milestone and schedule cues wait in the dispatcher's waiting list and go out together once it is off, unless they expired first; a user message carries the ones that do not expire on user activity. A count or wait reaction waits until it is off. Held signals stay in their buffers, at most the 5 newest groups per buffer. User input, gestures and addressed turns still pass. A Threads-chip tap still starts its reaction, and the chips stay on screen without wiggle or pulse. A backend-started push turn is never held. An Active hours `off` span holds the same triggers in that character's pet window only, and is shown as Quiet.
 _Avoid_: quiet mode, mute
+
+**Rest**:
+The hold on her own turns that a user starts from the Character menu's Rest list or the tray's Do Not Disturb item. It runs one Rest choice until that choice ends, until End now stops it, or until the user turns it off. While it runs, do-not-disturb holds her, and the status pill and the Rest pill show its end. Stored under `yui.dnd`.
+_Avoid_: snooze, pause, break
+
+**Rest choice**:
+One of six choices a Rest starts: For 1 hour, Until tonight (00:00), Until tomorrow morning (08:00), Until I turn it off, and the two Focus choices. Until tonight is not offered from 00:00 to 07:59. The end of a choice is set when it starts.
+_Avoid_: mode, option, setting
+
+**Focus**:
+A Rest choice of 25 or 50 minutes. It holds her own turns for that long, and the Rest pill and the status pill count its minutes left. Focus is not keyboard focus, which is the window or control that takes typed input.
+_Avoid_: focus mode, pomodoro, session
+
+**Waiting list**:
+The dispatcher's one ranked list of self-started candidates that cannot speak now, because do-not-disturb, the proactive gap, absence, a running turn or the rate limit holds them. Entries rank by class (now, scheduled, room), then by age, and at most 10 wait. Each expires by its own rule: a first meeting or addressed line at the end of its day, a schedule cue after its grace window, an idle or screen reaction on the user's next activity. At a free slot the admissible entries go out together. Signal groups wait in their own buffers, not in this list.
+_Avoid_: queue, backlog, pending list
+
+**Waited turn**:
+The turn a free slot sends for several waiting entries (the bundle): its trigger is the top-ranked entry, and the others ride with it as waited items, with the buffered signal groups. When the user speaks first, the entries that do not expire on activity ride on the user's turn. A waited turn counts once against the rate limit.
+_Avoid_: batch, catch-up turn
 
 **Active hours**:
 A character's list of spans. Each span has a start time, an end time and a pace: More, Normal, Less or Off (stored `high`, `normal`, `low` or `off`). In a pet window, a span's pace multiplies the base pace, and the product scales both the proactive gap and the idle cue minutes: More halves it and Less triples it, while Normal and Off leave the span out of it. Off holds the same triggers as do-not-disturb, in that pet window only. An hour no span covers is Normal. A span whose end is before its start runs past midnight, and equal start and end cover the whole day. Where spans overlap, the span that started most recently before the minute wins; on a tie, the later span in the list wins. The card's `extensions.yui.active_hours` is the default, and the Persona page edits the spans per character.
 _Avoid_: band, level, schedule, quiet hours
+
+**Quiet**:
+The label the status pill and the Rest pill show while an Active hours `off` span covers the current time, with its end: "Quiet · until 12:00" in the pill, "Quiet · 12:00" on the Rest pill. The span holds her own turns as a Rest does, but it is not a Rest: the Rest list does not end it, and it ends with the span. "Quiet hours" and "quiet mode" are not terms; name the span by its Active hours entry.
+_Avoid_: quiet hours, quiet mode, Rest (for a span)
 
 **Base pace**:
 The device-wide pace (Less, Normal or More; stored `low`, `normal` or `high`, default Normal) set by "How often she speaks up" at the top of the Proactive page. Every pet window multiplies it by its character's span pace, so it scales the proactive gap and the idle cue minutes the same way a span does.
@@ -193,6 +225,10 @@ _Avoid_: prompt, approval dialog
 A floating piece of chrome the character speaks or listens through (speech bubble, status pill, text input) that appears only when it has something to show, then recedes.
 _Avoid_: widget, overlay, panel
 
+**Status pill**:
+The pill at the top of the character window that shows the capture, voice input, backend tool and Rest tells. Its Rest segment reads "Resting · until 08:00", "Resting" with no end, "Focus · 18 min left" or "Quiet · until 12:00".
+_Avoid_: status bar, tell bar
+
 **Unified chat window**:
 The window `unified` that shows every open preset's lines one at a time in one dialogue box and routes the user's typed and spoken messages to the open presets. It shows while the Unified chat switch is on, two or more presets are open and a window can exist; while it shows it is the only chat path: no pet window shows its own bubble or input for chat, and every separate message window is hidden. Its own × turns the switch off.
 _Avoid_: group chat, merged chat, lobby, multi chat
@@ -206,12 +242,16 @@ The unified chat window's chip for one open preset in its head row, the recipien
 _Avoid_: avatar pill, presence badge, recipient chip
 
 **Character menu**:
-The pill menu around her, opened by a right-click on her in the pet window and drawn in the Character menu window: two columns of pills beside her, where a Body, Voice, Pace or More pill replaces its column in place with its own list.
+The pill menu around her, opened by a right-click on her in the pet window and drawn in the Character menu window: two columns of pills beside her, where a Rest, Body, Voice, Pace or More pill replaces its column in place with its own list; Rest's list takes the right column, and while a Rest or Focus runs it opens with a status row.
 _Avoid_: context menu, radial menu, pie menu, ring menu
 
 **Character menu window**:
 The app's one window `character-menu`, created hidden at main's boot. When the Character menu opens, it is shown with keyboard focus beside the right-clicked character, lets clicks outside its pills through, and is hidden on close.
 _Avoid_: menu overlay, popup window
+
+**Status row**:
+The first row of the Rest list while a Rest or Focus runs, before End now: it names the running choice and its end, as "Resting until 08:00", "Resting", or "Focus · 18 min left". It is not a button, and the keyboard passes it by. Distinct from the Status pill, which sits at the top of the character window.
+_Avoid_: status pill (for the list row), header
 
 **Settings stage**:
 The stage area on the left of the settings window. The character comes along onto it and is attached to the window as a native child. It holds her name, her state and a caption of what she is doing.

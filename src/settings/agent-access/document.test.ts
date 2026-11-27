@@ -5,9 +5,10 @@
  * rows that wait for the user, and the merge of a partial nested patch.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSettingsStores } from "../settings-stores";
-import { applyPatch, readDocument } from "./document";
+import { applyPatch, readDocument, writeRow } from "./document";
+import { ROWS } from "./rows";
 
 const EXPOSED_PATHS = [
   "appearance.text_size",
@@ -32,7 +33,6 @@ const EXPOSED_PATHS = [
   "privacy.screen_watch.enabled",
   "privacy.screen_watch.long_session_ms",
   "privacy.screen_watch.prev_dwell_ms",
-  "privacy.screen_watch.recent_cap",
   "privacy.screen_watch.settle_ms",
   "privacy.screenshot",
   "privacy.thread_turns",
@@ -134,15 +134,17 @@ describe("applyPatch", () => {
   it("keeps the sibling field on a nested patch", async () => {
     const stores = createSettingsStores();
 
-    const result = await applyPatch(stores, { privacy: { screen_watch: { recent_cap: 10 } } });
+    const result = await applyPatch(stores, {
+      privacy: { screen_watch: { settle_ms: 30_000 } },
+    });
 
     expect(result.direct).toEqual({});
     expect(result.allow).toEqual([
       {
-        path: "privacy.screen_watch.recent_cap",
-        labelKey: "screen.recent_cap_label",
+        path: "privacy.screen_watch.settle_ms",
+        labelKey: "screen.settle_label",
         from: 0,
-        to: 10,
+        to: 30_000,
       },
     ]);
     expect(stores.screenSettings.get()).toEqual({ enabled: false });
@@ -226,5 +228,97 @@ describe("applyPatch", () => {
 
     expect(result.direct).toEqual({ "bubble.keep": "error: invalid bubble.keep" });
     expect(stores.bubblePersistSettings.get()).toEqual({ enabled: false });
+  });
+});
+
+describe("pace.rest", () => {
+  const row = ROWS.find((r) => r.path === "pace.rest")!;
+  const restOf = (stores: ReturnType<typeof createSettingsStores>) =>
+    (readDocument(stores).pace as { rest: unknown }).rest;
+  const T0 = new Date(2026, 10, 26, 21, 10).getTime();
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    "hour",
+    "tonight",
+    "morning",
+    "until_off",
+    "focus_25",
+    "focus_50",
+  ])("asks to start %s, and the allowed write reads it back", async (choice) => {
+    const stores = createSettingsStores();
+
+    const result = await applyPatch(stores, { pace: { rest: choice } });
+    const written = await writeRow(row, stores, choice);
+
+    expect(result).toEqual({
+      direct: {},
+      allow: [{ path: "pace.rest", labelKey: "character_menu.rest", from: "off", to: choice }],
+    });
+    expect([written, restOf(stores)]).toEqual(["ok", choice]);
+  });
+
+  it("asks to end a running Rest with off, and the allowed write reads off", async () => {
+    const stores = createSettingsStores();
+    await writeRow(row, stores, "hour");
+
+    const result = await applyPatch(stores, { pace: { rest: "off" } });
+    await writeRow(row, stores, "off");
+
+    expect(result.allow).toEqual([
+      { path: "pace.rest", labelKey: "character_menu.rest", from: "hour", to: "off" },
+    ]);
+    expect(restOf(stores)).toBe("off");
+  });
+
+  it("rejects a value outside the Rest choices", async () => {
+    const result = await applyPatch(createSettingsStores(), { pace: { rest: true } });
+
+    expect(result.direct).toEqual({ "pace.rest": "error: invalid pace.rest" });
+  });
+
+  it("answers the value it already reads with ok, asking nothing and keeping the running end", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(T0);
+    const stores = createSettingsStores();
+    const off = await applyPatch(stores, { pace: { rest: "off" } });
+    await writeRow(row, stores, "hour");
+    vi.setSystemTime(T0 + 600_000);
+
+    const same = await applyPatch(stores, { pace: { rest: "hour" } });
+    vi.setSystemTime(T0 + 3_600_000);
+
+    expect([off, same]).toEqual([
+      { direct: { "pace.rest": "ok" }, allow: [] },
+      { direct: { "pace.rest": "ok" }, allow: [] },
+    ]);
+    expect(restOf(stores)).toBe("off");
+  });
+
+  it("takes tonight before midnight and refuses it after, as the menu offers it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 26, 23, 30).getTime());
+    const evening = await applyPatch(createSettingsStores(), { pace: { rest: "tonight" } });
+    vi.setSystemTime(new Date(2026, 10, 27, 0, 30).getTime());
+    const night = await applyPatch(createSettingsStores(), { pace: { rest: "tonight" } });
+
+    expect([evening.allow.map((c) => c.to), night.direct]).toEqual([
+      ["tonight"],
+      { "pace.rest": "error: invalid pace.rest" },
+    ]);
+  });
+
+  it("reads off once the Rest has ended", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(T0);
+    const stores = createSettingsStores();
+    await writeRow(row, stores, "focus_25");
+
+    vi.setSystemTime(T0 + 1_500_000);
+
+    expect(restOf(stores)).toBe("off");
   });
 });

@@ -53,7 +53,7 @@ const none = { args: [], wire: undefined, delivered: [] };
 const THREAD = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
 const MENU_STATE = {
   talk: false,
-  rest: true,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -770,6 +770,20 @@ describe("speech stream", () => {
     expect(received).not.toHaveBeenCalled();
   });
 
+  it("carries a trigger line and drops one whose text is not a string", () => {
+    const { pet, received } = pair();
+
+    pet.emitSpeechStream({ preset: "yui", op: { op: "quote-trigger", text: "09:00 Morning" } });
+    pet.emitSpeechStream({
+      preset: "yui",
+      op: { op: "quote-trigger", text: 7 },
+    } as never);
+
+    expect(received.mock.calls).toEqual([
+      [{ preset: "yui", op: { op: "quote-trigger", text: "09:00 Morning" } }],
+    ]);
+  });
+
   it("carries the unified window's click on an error's fix back, stamped with the preset", () => {
     const { pet, unified } = pair();
     const control = vi.fn();
@@ -821,7 +835,17 @@ describe("Character menu channel", () => {
     { type: "state", id: "main#1", state: MENU_STATE },
     { type: "close", id: "main#1" },
     { type: "shown", id: "main#1" },
-    { type: "action", id: "main#1", action: "rest", value: true },
+    {
+      type: "state",
+      id: "main#1",
+      state: {
+        ...MENU_STATE,
+        rest: { kind: "focus", choice: "focus_25", startedAt: 1, endsAt: 1_500_001 },
+      },
+    },
+    { type: "state", id: "main#1", state: { ...MENU_STATE, rest: { kind: "quiet" } } },
+    { type: "action", id: "main#1", action: "rest", value: "morning" },
+    { type: "action", id: "main#1", action: "rest", value: "end" },
     { type: "action", id: "pet-mio#2", action: "body", value: "natsume" },
     { type: "action", id: "main#1", action: "pace", value: "high" },
     { type: "action", id: "main#1", action: "settings", value: "voice" },
@@ -844,6 +868,8 @@ describe("Character menu channel", () => {
     { ...MENU_OPEN, state: { ...MENU_STATE, pace: "off" } },
     { ...MENU_OPEN, kind: "guest" },
     { type: "state", id: "main#1", state: { ...MENU_STATE, rest: "yes" } },
+    { type: "state", id: "main#1", state: { ...MENU_STATE, rest: true } },
+    { type: "action", id: "main#1", action: "rest", value: true },
     { type: "action", id: "main#1", action: "pace", value: "turbo" },
     { type: "action", id: "main#1", action: "settings", value: "memory" },
     { type: "action", id: "main#1", action: "threads", value: "shell" },

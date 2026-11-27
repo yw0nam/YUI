@@ -74,7 +74,10 @@ export function createMessageBridge(
       return core.on<MessageSurfaceOp>(
         CH_MESSAGE_SURFACE,
         (op) => {
-          if (op && typeof op.op === "string") cb(op);
+          if (!op || typeof op.op !== "string") return;
+          // The trigger line is text only; a malformed one would draw an empty quote.
+          if (op.op === "quote-trigger" && typeof op.text !== "string") return;
+          cb(op);
         },
         { scoped: true },
       );

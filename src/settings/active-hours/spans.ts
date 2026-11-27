@@ -67,3 +67,11 @@ export function paceAt(spans: readonly Span[], minute: number): Pace {
   }
   return pace ?? "normal";
 }
+
+/** Minutes from `minute` to the first minute whose pace is not off: 0 when it is not off now, null when every minute is. */
+export function minutesOffFrom(spans: readonly Span[], minute: number): number | null {
+  for (let ahead = 0; ahead < 1440; ahead++) {
+    if (paceAt(spans, (minute + ahead) % 1440) !== "off") return ahead;
+  }
+  return null;
+}

@@ -66,6 +66,9 @@ const ja: Record<string, string> = {
   "bubble.quote_attached": "添付 {count}件",
   "bubble.quote_thread": "スレッド · {title}",
   "bubble.sources_more": "+{n}件",
+  "bubble.trigger_first_meeting": "今日はじめて",
+  "bubble.trigger_screen": "{app} に切り替え",
+  "bubble.trigger_addressed": "{name}から",
   "signals.delivery_urgent": "緊急シグナル",
   "signals.delivery_batched": "まとめて届いたシグナル",
   "aria.dock_message": "吹き出しをキャラクターに戻す",
@@ -113,7 +116,11 @@ const ja: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "画面を見ています",
-  "status.dnd": "おやすみモード",
+  "status.resting_until": "休憩中 · {time}まで",
+  "status.resting": "休憩中",
+  "status.focus_left": "集中 · 残り{n}分",
+  "status.quiet_until": "静か · {time}まで",
+  "status.quiet": "静か",
 
   // cue-list internal labels
   "cue.time_aria": "時刻",
@@ -140,7 +147,18 @@ const ja: Record<string, string> = {
   // character menu
   "character_menu.talk": "話す",
   "character_menu.rest": "休む",
-  "character_menu.rest_aria": "おやすみモード",
+  "character_menu.rest_hour": "1時間",
+  "character_menu.rest_tonight": "今夜まで",
+  "character_menu.rest_morning": "明日の朝まで",
+  "character_menu.rest_until_off": "オフにするまで",
+  "character_menu.rest_focus_25": "集中 25分",
+  "character_menu.rest_focus_50": "集中 50分",
+  "character_menu.rest_end": "今すぐ終了",
+  "character_menu.rest_at": "休む · {time}",
+  "character_menu.focus_left": "集中 · {n}分",
+  "character_menu.quiet_at": "静か · {time}",
+  "character_menu.quiet": "静か",
+  "character_menu.resting_until": "{time}まで休憩中",
   "character_menu.listen": "聞き取り",
   "character_menu.settings": "設定",
   "character_menu.body": "体",
@@ -843,9 +861,6 @@ const ja: Record<string, string> = {
   "screen.settle_sub": "ちょっと覗いただけなら無視します",
   "screen.long_session_label": "長時間作業に気づく間隔",
   "screen.long_session_sub": "ひとつのアプリをこれだけ続けたら気づきます",
-  "screen.recent_cap_label": "記憶する上限",
-  "screen.recent_cap_sub": "保留中に溜まったアプリ切り替えを次の画面ターンに何件まで含めるか",
-  "screen.count_suffix": "件",
   "screen.foot":
     "画面のピクセルを送るかどうかは権限ページのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 
@@ -960,7 +975,6 @@ const ja: Record<string, string> = {
   "settings_request.default": "既定値",
   "settings_request.none": "なし",
   "settings_request.not_display": "ウィンドウかタブ",
-  "settings_request.entry": "件",
   "settings_request.why": "「{why}」",
   "settings_request.allow": "許可",
   "run.body_label": "体（VRM）",

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import { fakeLocks } from "../io/locks/fake-lock-manager";
 import type { Logger } from "../logger";
+import { t } from "../ui/i18n";
 import type { BackendCaller, TurnFailure } from "./backend/backend-caller";
 import { createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
@@ -474,12 +475,12 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.inFlight()).toBeNull();
   });
 
-  it("cancel() drops pending tier2 with superseded_by_user", async () => {
+  it("cancel() drops a waiting gesture reaction as waiting_expired", async () => {
     dispatcher.start();
     // occupy in-flight
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a tier2 behind it
+    // a gesture reaction waits behind it
     bus.push(
       env({
         source: "os_event_watcher",
@@ -492,8 +493,10 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.queue().length).toBeGreaterThan(0);
 
     dispatcher.cancel();
-    expect(dispatcher.queue()).toHaveLength(0);
-    expect(dispatcher.recentDrops(10).some((d) => d.reason === "superseded_by_user")).toBe(true);
+    expect(dispatcher.queue()).toEqual([]);
+    expect(dispatcher.recentDrops(10)).toEqual([
+      expect.objectContaining({ event_name: "proactive.tap_bored", reason: "waiting_expired" }),
+    ]);
   });
 
   it("cancel() with nothing in flight is a no-op (no throw)", () => {
@@ -673,7 +676,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     const seen: boolean[] = [];
     dispatcher.subscribePipelineBusy((b) => seen.push(b));
     dispatcher.start();
-    // both non-user, so neither pop triggers a supersede sweep — the second is genuinely deferred.
+    // both non-user, so neither pop triggers a supersede sweep; the second waits behind the first.
     bus.push(
       env({
         source: "os_event_watcher",
@@ -682,6 +685,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
         dnd_override: false,
       }),
     );
+    await vi.advanceTimersByTimeAsync(20);
     bus.push(
       env({
         source: "os_event_watcher",
@@ -693,7 +697,7 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     await vi.advanceTimersByTimeAsync(20);
     expect(seen).toEqual([true]);
 
-    // first call settles owing no audio, with the second item still pending — immediate drain.
+    // first call settles owing no audio, with the second item still waiting — released at once.
     callDeferred[0]!.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
@@ -706,11 +710,12 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
     const surfaces = {
       quoteUser: vi.fn(),
       quoteSignals: vi.fn(),
+      quoteTrigger: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),
     };
-    const quoted = createQuotedTurn({ surfaces, turnLog });
+    const quoted = createQuotedTurn({ surfaces, turnLog, translate: t });
     onAdmitted = quoted.admitted;
     onFailed = (turn) => quoted.failed(turn);
     return surfaces;

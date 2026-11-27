@@ -31,6 +31,7 @@ type SpeechSide = Pick<
   | "hideSpeech"
   | "quoteUser"
   | "quoteSignals"
+  | "quoteTrigger"
   | "settleQuote"
   | "clearQuote"
 >;
@@ -120,6 +121,7 @@ export function createSurfacesRouter({
     showSpeechActions: (actions) => speech().showSpeechActions(actions),
     quoteUser: (q) => quote().quoteUser(q),
     quoteSignals: (lines) => quote().quoteSignals(lines),
+    quoteTrigger: (text) => quote().quoteTrigger(text),
     settleQuote: () => quote().settleQuote(),
     clearQuote: () => quote().clearQuote(),
 

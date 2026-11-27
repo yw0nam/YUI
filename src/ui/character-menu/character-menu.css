@@ -118,6 +118,30 @@
   font-size: var(--yui-fs-caption);
 }
 
+/* A divider between the Rest choices and Focus, on the pills' edge colour. */
+.yui-cmenu__sep {
+  height: 1px;
+  margin: 0 14px;
+  background: var(--yui-edge-strong);
+}
+
+/* The running Rest or Focus: a pill-shaped text row that takes no pointer or focus. */
+.yui-cmenu__status {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 14px 0 12px;
+  border-radius: var(--yui-radius-pill);
+  border: 1px solid var(--yui-edge);
+  background: var(--yui-panel-bg);
+  color: var(--yui-text-dim);
+  box-shadow: var(--yui-float);
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .yui-cmenu__confirm {
   display: flex;
   gap: 8px;

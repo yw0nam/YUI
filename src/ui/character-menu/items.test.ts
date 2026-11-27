@@ -1,5 +1,6 @@
 import { beforeEach, expect, it } from "vitest";
 import type { MenuState } from "../../io/bridge/settings-bridge";
+import type { RestState } from "../../settings/rest/rest-choices";
 import { setLocale } from "../i18n";
 import { listItems, topItems } from "./items";
 
@@ -7,7 +8,7 @@ beforeEach(() => setLocale("en"));
 
 const state = (over: Partial<MenuState> = {}): MenuState => ({
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -38,16 +39,124 @@ it.each([
   expect(ids(top.left)).toEqual(["body", "voice", "pace", "more"]);
 });
 
-it("marks each top-level toggle with its state and names Rest by its glossary term", () => {
-  const top = topItems("main", state({ talk: true, rest: true, listen: false }));
+it("marks each top-level toggle with its state", () => {
+  const top = topItems("main", state({ talk: true, listen: false }));
 
   expect(top.right.map((i) => [i.label, i.on])).toEqual([
     ["Talk", true],
-    ["Rest", true],
+    ["Rest", false],
     ["Listen", false],
     ["Settings", undefined],
   ]);
-  expect(top.right[1]!.aria).toBe("Do-not-disturb");
+});
+
+const clock = (h: number, m: number, day = 26) => new Date(2026, 10, day, h, m).getTime();
+
+it.each([
+  ["off", null, clock(21, 10), ["Rest", false, false]],
+  [
+    "resting until morning",
+    { kind: "rest", choice: "morning", startedAt: clock(21, 10), endsAt: clock(8, 0, 27) },
+    clock(21, 10),
+    ["Rest · 08:00", true, false],
+  ],
+  [
+    "seven minutes into Focus 50",
+    { kind: "focus", choice: "focus_50", startedAt: clock(14, 0), endsAt: clock(14, 50) },
+    clock(14, 7),
+    ["Focus · 43 min", true, false],
+  ],
+  [
+    "resting until the user turns it off",
+    { kind: "rest", choice: "until_off", startedAt: clock(21, 10) },
+    clock(21, 12),
+    ["Rest", true, true],
+  ],
+  [
+    "in a quiet span",
+    { kind: "quiet", endsAt: clock(12, 0) },
+    clock(10, 20),
+    ["Quiet · 12:00", false, false],
+  ],
+  ["in an all-day quiet span", { kind: "quiet" }, clock(10, 20), ["Quiet", false, false]],
+] as const)("labels Rest %s and opens its list", (_name, rest, now, [label, on, onText]) => {
+  const item = topItems("main", state({ rest: rest as RestState | null }), now).right[1]!;
+
+  expect([item.role, item.label, item.on === true, item.onText === true]).toEqual([
+    "list",
+    label,
+    on,
+    onText,
+  ]);
+});
+
+const OFF_ROWS = [
+  ["back", "Back"],
+  ["action", "For 1 hour"],
+  ["action", "Until tonight"],
+  ["action", "Until tomorrow morning"],
+  ["action", "Until I turn it off"],
+  ["divider", ""],
+  ["action", "Focus 25 min"],
+  ["action", "Focus 50 min"],
+];
+
+it.each([
+  ["off at 21:10", null, clock(21, 10), OFF_ROWS],
+  ["off at 00:30", null, clock(0, 30), OFF_ROWS.filter(([, label]) => label !== "Until tonight")],
+  ["in a quiet span", { kind: "quiet", endsAt: clock(12, 0) }, clock(10, 20), OFF_ROWS],
+  [
+    "resting until morning",
+    { kind: "rest", choice: "morning", startedAt: clock(21, 10), endsAt: clock(8, 0, 27) },
+    clock(21, 10),
+    [
+      ["back", "Back"],
+      ["status", "Resting until 08:00"],
+      ["action", "End now"],
+      ["action", "For 1 hour"],
+      ["action", "Until tonight"],
+      ["action", "Until I turn it off"],
+      ["divider", ""],
+      ["action", "Focus 25 min"],
+      ["action", "Focus 50 min"],
+    ],
+  ],
+  [
+    "in Focus 25",
+    { kind: "focus", choice: "focus_25", startedAt: clock(21, 10), endsAt: clock(21, 35) },
+    clock(21, 17),
+    [
+      ["back", "Back"],
+      ["status", "Focus · 18 min left"],
+      ["action", "End now"],
+      ["action", "For 1 hour"],
+      ["action", "Until tonight"],
+      ["action", "Until tomorrow morning"],
+      ["action", "Until I turn it off"],
+      ["divider", ""],
+      ["action", "Focus 50 min"],
+    ],
+  ],
+  [
+    "resting until the user turns it off",
+    { kind: "rest", choice: "until_off", startedAt: clock(21, 10) },
+    clock(21, 12),
+    [
+      ["back", "Back"],
+      ["status", "Resting"],
+      ["action", "End now"],
+      ["action", "For 1 hour"],
+      ["action", "Until tonight"],
+      ["action", "Until tomorrow morning"],
+      ["divider", ""],
+      ["action", "Focus 25 min"],
+      ["action", "Focus 50 min"],
+    ],
+  ],
+] as const)("the Rest list %s holds its rows", (_name, rest, now, rows) => {
+  const items = listItems("rest", "main", state({ rest: rest as RestState | null }), now);
+
+  expect(items.map((i) => [i.role, i.label])).toEqual(rows);
 });
 
 it.each([

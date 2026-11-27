@@ -67,6 +67,9 @@ const en: Record<string, string> = {
   "bubble.quote_attached": "{count} attached",
   "bubble.quote_thread": "Thread · {title}",
   "bubble.sources_more": "+{n} more",
+  "bubble.trigger_first_meeting": "First time today",
+  "bubble.trigger_screen": "Switched to {app}",
+  "bubble.trigger_addressed": "{name} spoke to her",
   "signals.delivery_urgent": "Urgent signal",
   "signals.delivery_batched": "Batched signal",
   "aria.dock_message": "Move speech back to the character",
@@ -113,7 +116,11 @@ const en: Record<string, string> = {
 
   // status pill (capture)
   "capture.watching": "Watching your screen",
-  "status.dnd": "Do not disturb",
+  "status.resting_until": "Resting · until {time}",
+  "status.resting": "Resting",
+  "status.focus_left": "Focus · {n} min left",
+  "status.quiet_until": "Quiet · until {time}",
+  "status.quiet": "Quiet",
 
   // cue-list internal labels
   "cue.time_aria": "Time",
@@ -140,7 +147,18 @@ const en: Record<string, string> = {
   // character menu
   "character_menu.talk": "Talk",
   "character_menu.rest": "Rest",
-  "character_menu.rest_aria": "Do-not-disturb",
+  "character_menu.rest_hour": "For 1 hour",
+  "character_menu.rest_tonight": "Until tonight",
+  "character_menu.rest_morning": "Until tomorrow morning",
+  "character_menu.rest_until_off": "Until I turn it off",
+  "character_menu.rest_focus_25": "Focus 25 min",
+  "character_menu.rest_focus_50": "Focus 50 min",
+  "character_menu.rest_end": "End now",
+  "character_menu.rest_at": "Rest · {time}",
+  "character_menu.focus_left": "Focus · {n} min",
+  "character_menu.quiet_at": "Quiet · {time}",
+  "character_menu.quiet": "Quiet",
+  "character_menu.resting_until": "Resting until {time}",
   "character_menu.listen": "Listen",
   "character_menu.settings": "Settings",
   "character_menu.body": "Body",
@@ -837,10 +855,6 @@ const en: Record<string, string> = {
   "screen.settle_sub": "A quick glance is ignored",
   "screen.long_session_label": "Notices a long stretch every",
   "screen.long_session_sub": "One app held this long counts as a long session",
-  "screen.recent_cap_label": "Remembers up to",
-  "screen.recent_cap_sub":
-    "How many app switches held during a pause carry into the next screen turn",
-  "screen.count_suffix": "entries",
   "screen.foot":
     "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
 
@@ -955,7 +969,6 @@ const en: Record<string, string> = {
   "settings_request.default": "Default",
   "settings_request.none": "None",
   "settings_request.not_display": "A window or tab",
-  "settings_request.entry": "entry",
   "settings_request.why": "“{why}”",
   "settings_request.allow": "Allow",
   "run.body_label": "Body (VRM)",
