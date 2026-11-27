@@ -134,7 +134,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 9. `tool switches`
 10. `previous turn`
 11. `overheard`
-12. One or more `trigger:`, `last together`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
+12. One or more `trigger:`, `cue note`, `last together`, `waited`, or `signal` lines, depending on what fired.
 13. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
@@ -496,6 +496,24 @@ The unified chat window adds a suffix to the headline. The idle clause follows t
 - `trigger: user message (addressed to the character)`: the user picked this character in the unified chat window.
 - `trigger: user message (addressed to everyone)`: the user wrote to every open character. The characters answer one after another. Each later one overhears the earlier replies through the [`overheard`](#overheard) block.
 
+### A turn that waited
+
+A self-started turn can wait for a free slot and go out with the other candidates that waited with it. Its trigger headline is the top-ranked member's own, followed by its age. The other members follow as `waited:` lines:
+
+```text
+trigger: schedule cue "Lunch" (40min ago)
+waited: 12:10 local, 30min ago: milestone first_activity
+waited: 12:20 local, 20min ago: addressed by alice: "bob, you took my chair"
+```
+
+The headline's age is the top member's own wait. An `addressed` headline already carries the age of the reply it names, so it adds none.
+
+Each `waited:` line names the member's local fire time, its age, and what it was. The description uses the same wording as that member's trigger headline, without the time the line already carries. It repeats no `cue note`, idle clause, or `last together` line.
+
+The lines come after the trigger lines and before the `signal` lines.
+
+When the user speaks first, the candidates that were waiting and did not expire ride on the user's turn. They add the same `waited:` lines under `trigger: user message`. Those lines describe what the user's turn superseded, not what the user did.
+
 ### Guide (in-app help button)
 
 The Help section of the settings panel submits a short request as an ordinary user turn (`trigger.kind` `user`). It names the bundled guide that answers the request in `trigger.guide` (`controls` or `capabilities`). The user's message is only the short request. The `guide:` block follows the headline and names the guide. The text stays out of the context:
@@ -548,48 +566,19 @@ An `app_switched` turn that lacks `from_dwell_min` drops the whole clause. It do
 
 The departed window's title is not carried. A title the user has already left is history, not present state.
 
-### `recent switches` (held transitions)
-
-While the global proactive pacer holds screen fires back for its gap window, it still accumulates each suppressed `app_switched` transition. The next screen turn that actually fires (either transition kind) carries the held path as an extra line.
-
-The transition that fires is a separate, later switch, not the last held one:
-
-```text
-trigger: screen app_switched; the user left VS Code after 12min and has been in the frontmost app for 2min
-recent switches: Cursor (10min) then Slack (3min) then VS Code
-```
-
-#### What the line lists
-
-`recent switches` lists the held `app_switched` transitions in the order they happened, oldest first. It shows them as one chain of `<from_app> (<dwell_min>min) then <to_app>`.
-
-An entry that starts at the app the previous entry ended at names that app once, with its own dwell. An entry that starts at another app adds that app after the previous `to_app`.
-
-A suppressed `long_session` mark is not a transition. It is never added to the buffer.
-
-The list is capped at `recent_cap`, default 5. Past the cap, the oldest entry drops. So the line may show only a suffix of the full held path.
-
-#### When the buffer ships
-
-The line appears only when the buffer is non-empty at fire time. The buffer clears the instant it ships. It also clears when the feature is turned off mid-hold, and on a presence lapse.
-
-A presence lapse is the user stepping away. It resets the buffer along with the dwell and session clocks. So an overnight-stale path never ships on the first morning fire.
-
-A later screen turn with nothing held during its own gap carries no `recent switches` line at all.
-
 ### Signals
 
 ```text
 trigger: signals (1 signal)
-signal [github/push @2026-08-23T01:36:40.000Z, id delivery-42]: {"repo":"acme/yui","branch":"main"}
-signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
+signal [github/push @09:36 local, 12min ago, id delivery-42]: {"repo":"acme/yui","branch":"main"}
+signal [calendar/sync @09:36 local, 12min ago, id delivery-43]: (no payload)
 ```
 
-Signals are grouped by ingress batch. The headline counts items across all groups. Each item in an enveloped group renders with its normalized `source/event_type`, its UTC occurrence time, and its normalized event id.
+Signals are grouped by ingress batch. The headline counts items across all groups. Each item in an enveloped group renders with its normalized `source/event_type`, its local occurrence clock as `HH:MM local`, its age, and its normalized event id.
 
 An enveloped group with no items renders one `(no payload)` line. It contributes zero to the headline count. Envelope `delivery` and `label` are not rendered.
 
-Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline: `proactive.tap_bored` turns carry both their configured cue and drained signal groups. Every group carries an envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
+Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline, under a [`waited:`](#a-turn-that-waited) bundle, and under a `trigger: user message` turn whose input carried buffered groups. Every group carries an envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
 
 A group can also be Thread-derived: the client builds it from a Thread update while [Thread turns](./threads.md#thread-turns) is on. Its `event_type` is `thread.input_required`, `thread.failed`, or `thread.entry`, and its `event_id` is `thread:<id>`. Its one item carries `thread_id`, `title`, `state`, and, when present, `label` and `last` (`{role, text}`).
 
