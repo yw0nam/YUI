@@ -8,16 +8,11 @@
    Only the input restores pointer-events. (No data-tauri-drag-region on this layer → input doesn't get dragged) */
 .yui-ui {
   position: absolute;
-  /* Her own box: the pet window, or her part of it while the Character menu widens or grows it. */
-  top: var(--yui-box-top, 0px);
+  top: 0;
   bottom: 0;
-  left: var(--yui-box-left, 0px);
-  width: var(--yui-box-width, 100%);
-  /* The bubble's cap reads her own height, not the window the Character menu grows upward. */
-  --yui-bubble-max-h: max(
-    calc((100vh - var(--yui-box-top, 0px)) * 0.34),
-    var(--yui-bubble-three-lines)
-  );
+  left: 0;
+  width: 100%;
+  --yui-bubble-max-h: max(calc(100vh * 0.34), var(--yui-bubble-three-lines));
   pointer-events: none;
   /* Own stacking context: above the canvas, guarantees z-order among surfaces */
   isolation: isolate;
@@ -66,14 +61,14 @@
   font-weight: 500;
 }
 /* While the Character menu is open, the column fades out of its way and takes no hits. */
-.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column {
+.yui-ui[data-menu-open] .yui-chip-column {
   opacity: 0;
   visibility: hidden;
   transition:
     opacity var(--yui-dur-fast) var(--yui-ease),
     visibility 0s linear var(--yui-dur-fast);
 }
-.yui-ui:has(> .yui-cmenu:not([hidden])) .yui-chip-column * {
+.yui-ui[data-menu-open] .yui-chip-column * {
   pointer-events: none;
 }
 .yui-chip-column > .yui-deleg,

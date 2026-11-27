@@ -77,6 +77,7 @@ export default defineConfig(() => ({
         unified: resolve(__dirname, "unified.html"),
         devtools: resolve(__dirname, "devtools.html"),
         threads: resolve(__dirname, "threads.html"),
+        "character-menu": resolve(__dirname, "character-menu.html"),
       },
     },
   },

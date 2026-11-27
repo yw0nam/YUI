@@ -811,7 +811,7 @@ describe("Character menu channel", () => {
   function pair() {
     const t = createFakeTransport();
     const pet = createSettingsBridge(t, { windowKind: "pet" });
-    const menu = createSettingsBridge(t, { windowKind: "character-menu" as never });
+    const menu = createSettingsBridge(t, { windowKind: "character-menu" });
     const received = vi.fn();
     menu.onCharacterMenu(received);
     return { pet, received };

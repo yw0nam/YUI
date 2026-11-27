@@ -34,6 +34,7 @@ import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import type { SettingsFocus, SettingsPage } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
+import { windowLabel } from "../settings/preset/pet-windows";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { isMacOS, isWindows } from "../tauri-env";
@@ -103,6 +104,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   emitUserTurnDone(event: UserTurnDone): void;
   /** What the Character menu reaches outside this window's stores. */
   menuHost: CharacterMenuHost;
+  /** This window's side of the Character menu window's channel. */
+  characterMenu: Pick<SettingsBridge, "emitCharacterMenu" | "onCharacterMenu">;
   /** Subscribes to the unified chat window's messages routed to a preset. */
   onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
   /** Subscribes to every settings window's stage slot. */
@@ -463,12 +466,15 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(
       wireCharacterMenu({
         stage,
-        root,
         overlay: surfaces.el,
+        label:
+          phase1.menuHost.boundId === null ? "main" : windowLabel("pet", phase1.menuHost.boundId),
         kind: phase1.menuHost.boundId === null ? "main" : "bound",
         name: phase1.menuHost.name,
         renderer,
         locomotion,
+        hitTest: () => config.get().avatar.hit_test,
+        bridge: phase1.characterMenu,
         ports: createCharacterMenuPorts({
           host: phase1.menuHost,
           stores: settings,

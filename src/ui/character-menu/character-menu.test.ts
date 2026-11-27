@@ -3,10 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./character-menu.css", () => ({}));
 
+import type { MenuState } from "../../io/bridge/settings-bridge";
 import { setLocale } from "../i18n";
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
-import { createCharacterMenu } from "./character-menu";
-import type { MenuState } from "./items";
+import { createCharacterMenu, MENU_PILLS } from "./character-menu";
 
 let mount: HTMLElement;
 const menus: ReturnType<typeof createCharacterMenu>[] = [];
@@ -121,7 +120,7 @@ it("reads her kind on each open, so one menu serves every character", async () =
   await menu.open();
   const main = labels("right");
   press("Escape");
-  await vi.waitFor(() => expect(menu.isOpen()).toBe(false));
+  await menu.close();
   setKind("bound");
 
   await menu.open();
@@ -291,7 +290,7 @@ it("keeps the old column inert and out of reach while a list swap crossfades, un
     "pace",
     "more",
   ]);
-  const targets = INTERACTIVE_OVERLAY_SELECTORS.flatMap((s) => [...mount.querySelectorAll(s)]);
+  const targets = [...mount.querySelectorAll(MENU_PILLS)];
   expect(targets.filter((el) => old!.contains(el))).toEqual([]);
   expect(focused()).toBe("threads");
 

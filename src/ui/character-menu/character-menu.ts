@@ -1,20 +1,13 @@
-/** The Character menu: two pill columns beside her in the pet window, their lists swapped in place. */
+/** The Character menu: two pill columns beside her in the Character menu window, their lists swapped in place. */
 
 import "./character-menu.css";
+import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { t } from "../i18n";
 import { CHECK_SVG } from "../threads/glyphs";
 import { CHEVRON, GLYPHS } from "./glyphs";
-import {
-  capped,
-  type ListId,
-  listItems,
-  type MenuItem,
-  type MenuKind,
-  type MenuState,
-  topItems,
-} from "./items";
+import { capped, type ListId, listItems, type MenuItem, topItems } from "./items";
 import { menuKey } from "./keys";
 import { columnLeft, type Fold, gridWidth, type MenuWidths } from "./layout";
 import { createMenuMotion, LIVE } from "./motion";
@@ -30,20 +23,26 @@ export interface MenuPlacement {
   head: number;
 }
 
+type Done = void | Promise<void>;
+
 export interface MenuActions {
-  talk(open: boolean): void;
-  rest(on: boolean): void;
-  listen(on: boolean): void;
-  settings(page?: "body" | "voice"): void;
-  body(id: string): void;
-  voice(id: string): void;
-  pace(pace: BasePace): void;
-  threads(tab: "threads" | "terminal"): void;
-  bubble(on: boolean): void;
-  unified(on: boolean): void;
-  reset(): void;
-  turnOff(): void;
+  talk(open: boolean): Done;
+  rest(on: boolean): Done;
+  listen(on: boolean): Done;
+  settings(page?: "body" | "voice"): Done;
+  body(id: string): Done;
+  voice(id: string): Done;
+  pace(pace: BasePace): Done;
+  threads(tab: "threads" | "terminal"): Done;
+  bubble(on: boolean): Done;
+  unified(on: boolean): Done;
+  reset(): Done;
+  turnOff(): Done;
 }
+
+/** The pills that take the pointer, but for a column or a menu leaving. */
+export const MENU_PILLS =
+  ".yui-cmenu:not([hidden]):not(.is-closing) .yui-cmenu__col:not(.is-leaving) .yui-cmenu__pill";
 
 const log = createLogger("character-menu");
 
@@ -54,12 +53,13 @@ type Side = "left" | "right";
 
 export function createCharacterMenu(deps: {
   mount: HTMLElement;
-  kind: MenuKind;
+  /** Read on each open: whose menu it is. */
+  kind(): MenuKind;
   name(): string;
   read(): MenuState;
-  /** Widens the window for the measured columns and says where the menu draws. */
+  /** Places and shows the window for the measured columns and says where the menu draws. */
   place(widths: MenuWidths): Promise<MenuPlacement>;
-  /** Puts the window back once the menu has left the screen. */
+  /** Hides the window once the menu has left the screen. */
   restore(): Promise<void>;
   actions: MenuActions;
   onBlur(cb: () => void): () => void;
@@ -70,7 +70,7 @@ export function createCharacterMenu(deps: {
   dispose(): void;
   isOpen(): boolean;
 } {
-  const { mount, kind, actions } = deps;
+  const { mount, actions } = deps;
   const root = document.createElement("div");
   root.className = "yui-cmenu";
   root.setAttribute("role", "menu");
@@ -152,6 +152,7 @@ export function createCharacterMenu(deps: {
   }
 
   function columnItems(state: MenuState): Record<ColumnKey, MenuItem[]> {
+    const kind = deps.kind();
     const top = topItems(kind, state);
     return {
       right: top.right,
@@ -260,12 +261,12 @@ export function createCharacterMenu(deps: {
     if (parent) show(null, parent, animate);
   }
 
-  /** Closes, then runs `after` once the window is restored, or failed to. */
+  /** Closes, then runs `after` once the window is hidden, or failed to hide. */
   function closeThen(after: () => void): void {
     void close().then(after);
   }
 
-  /** The picks that close the menu, each run once the window is restored. */
+  /** The picks that close the menu, each run once the window is hidden. */
   const closing: Partial<Record<string, () => void>> = {
     settings: () => actions.settings(),
     "body-more": () => actions.settings("body"),
@@ -281,7 +282,7 @@ export function createCharacterMenu(deps: {
     if (after) closeThen(after);
     else if (id === "back") back(animate);
     else if ((LISTS as readonly string[]).includes(id)) {
-      const items = listItems(id as ListId, kind, state);
+      const items = listItems(id as ListId, deps.kind(), state);
       show(id as ListId, (items.find((i) => i.on) ?? items[1] ?? items[0]!).id, animate);
     } else if (value !== undefined) {
       if (chosen === "body") actions.body(value);
@@ -396,7 +397,7 @@ export function createCharacterMenu(deps: {
     leave();
   }
 
-  /** Restores the window; a failed restore still leaves the menu closed, and close() never rejects. */
+  /** Hides the window; a failed hide still leaves the menu closed, and close() never rejects. */
   function settle(): Promise<void> {
     return deps
       .restore()
@@ -449,7 +450,7 @@ export function createCharacterMenu(deps: {
         phase = "closed";
         throw err;
       }
-      // Closed while the window widened: put it back at once.
+      // Closed while the window was placed: hide it at once.
       if (phase !== "opening") {
         await settle();
         return;
@@ -468,7 +469,7 @@ export function createCharacterMenu(deps: {
     await opening;
   }
 
-  /** Closes at once, ending any exit still running, and restores the window. */
+  /** Closes at once, ending any exit still running, and hides the window. */
   async function close(): Promise<void> {
     if (phase === "opening") phase = "closing";
     if (phase !== "open" && phase !== "leaving") return pending;
@@ -490,7 +491,12 @@ export function createCharacterMenu(deps: {
     open,
     close,
     isOpen: () => phase === "open",
-    refresh() {},
+    refresh() {
+      if (phase !== "open") return;
+      const focused = document.activeElement?.closest<HTMLElement>(`${LIVE} [data-id]`)?.dataset.id;
+      render();
+      if (focused) focusId(focused);
+    },
     dispose() {
       void close();
       offBlur();

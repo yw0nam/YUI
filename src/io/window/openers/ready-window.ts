@@ -14,7 +14,7 @@ type LeftoverWindow = {
 };
 
 /** Destroys the window and waits for its label to free, or for the timeout. */
-async function destroyAndWait(win: LeftoverWindow, label: string): Promise<void> {
+export async function destroyAndWait(win: LeftoverWindow, label: string): Promise<void> {
   let done: () => void = () => {};
   const gone = new Promise<void>((resolve) => {
     done = resolve;

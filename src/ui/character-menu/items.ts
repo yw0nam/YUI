@@ -1,9 +1,9 @@
 /** The Character menu's items for a pet window: the top level in two columns, and each list. */
 
+import type { MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import type { BasePace } from "../../settings/active-hours/base-pace-settings";
 import { t } from "../i18n";
 
-export type MenuKind = "main" | "bound";
 export type ListId = "body" | "voice" | "pace" | "more";
 
 export interface MenuItem {
@@ -18,21 +18,6 @@ export interface MenuItem {
   /** A choice's value in its store. */
   value?: string;
   badge?: number;
-}
-
-export interface MenuState {
-  talk: boolean;
-  rest: boolean;
-  listen: boolean;
-  bubble: boolean;
-  unified: boolean;
-  bodies: readonly { id: string; label: string }[];
-  body: string;
-  voices: readonly { id: string; label: string }[];
-  voice: string;
-  pace: BasePace;
-  /** The waiting Threads. */
-  waiting: number;
 }
 
 const PACES: readonly [BasePace, string][] = [
