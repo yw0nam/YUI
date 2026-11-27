@@ -158,7 +158,7 @@ Field notes for `route`:
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `quick-controls`, `character-menu-ports` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or menu item. |
-| `character-menu-ports`, `bootstrap` | `dnd_toggle` | `enabled`, `via` | The user flipped the Do not disturb switch on the Character menu's Rest item (`via` is `character_menu`) or the tray's Do Not Disturb item (`via` is `tray`). |
+| `character-menu-ports`, `bootstrap` | `rest_set` | `choice`, `via` | The user started a Rest choice or ended Rest (`choice` is `end`) from the Character menu's Rest list (`via` is `character_menu`) or the tray's Do Not Disturb item (`via` is `tray`). |
 | `character-menu-ports` | `bubble_persist_toggle` | `enabled` | The user flipped the Keep bubble item. |
 | `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
 | `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. |
@@ -195,7 +195,7 @@ The Character menu window runs `app/character-menu/wire-character-menu-window.ts
 | `character-menu-ports` | `select_failed` | `error` | Applying a Body or Voice choice threw (`warn` level). |
 | `character-menu-ports` | `session_reset` | none | Reset chat started a new session. |
 
-The Rest, Keep bubble and Unified chat items log `dnd_toggle`, `bubble_persist_toggle` and `unified_chat_toggle` under `character-menu-ports`; "Switches and characters" lists them.
+The Rest list, Keep bubble and Unified chat items log `rest_set`, `bubble_persist_toggle` and `unified_chat_toggle` under `character-menu-ports`; "Switches and characters" lists them.
 
 ### Opening and closing
 
