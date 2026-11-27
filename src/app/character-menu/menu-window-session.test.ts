@@ -3,11 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("../../ui/character-menu/character-menu.css", () => ({}));
 
+import type { CharacterMenu } from "../../io/bridge/settings-bridge";
 import { setLocale } from "../../ui/i18n";
-import { createDisposers } from "../disposers";
-import { wireCharacterMenuWindow } from "./wire-character-menu-window";
-
-type Deps = Parameters<typeof wireCharacterMenuWindow>[0];
+import { createMenuWindowSession } from "./menu-window-session";
 
 const STATE = {
   talk: false,
@@ -47,23 +45,21 @@ const open = (n: number) => ({
 const RECT = { x: 616, y: 228, width: 208, height: 272 };
 
 let app: HTMLElement;
-let lifecycle: ReturnType<typeof createDisposers>;
+const sessions: ReturnType<typeof createMenuWindowSession>[] = [];
 
 beforeEach(() => {
   setLocale("en");
   document.body.innerHTML = "";
   app = document.createElement("div");
   document.body.append(app);
-  lifecycle = createDisposers();
 });
 afterEach(() => {
-  lifecycle.dispose();
+  for (const session of sessions.splice(0)) session.dispose();
   vi.useRealTimers();
 });
 
-async function wired() {
+function wired() {
   const calls: unknown[] = [];
-  let deliver: (message: unknown) => void = () => {};
   let blur: () => void = () => {};
   const win = {
     setFrame: vi.fn(async (rect: unknown) => void calls.push(["frame", rect])),
@@ -74,32 +70,18 @@ async function wired() {
       calls.push("hide");
       blur();
     }),
-    onBlur: async (cb: () => void) => {
-      blur = cb;
-      return () => {};
-    },
     clickThrough: () => ({
       start: () => void calls.push("start"),
       stop: () => void calls.push("stop"),
     }),
   };
-  const bridge = {
-    emitCharacterMenu: (message: unknown) => void calls.push(["emit", message]),
-    onCharacterMenu: (cb: (message: never) => void) => {
-      deliver = cb as (message: unknown) => void;
-      return () => {};
-    },
-    onSettingsChanged: () => () => {},
-    listening: async () => {},
-    dispose: () => {},
-  };
-  await wireCharacterMenuWindow({
-    app,
-    lifecycle,
-    bridge: bridge as unknown as Deps["bridge"],
-    win: win as unknown as Deps["win"],
+  const session = createMenuWindowSession({
+    mount: app,
+    win,
+    emit: (message) => void calls.push(["emit", message]),
   });
-  calls.length = 0;
+  sessions.push(session);
+  blur = session.blur;
   const emits = () =>
     calls
       .filter((c): c is [string, unknown] => Array.isArray(c) && c[0] === "emit")
@@ -108,7 +90,7 @@ async function wired() {
     calls,
     win,
     emits,
-    deliver: (message: unknown) => deliver(message),
+    deliver: (message: unknown) => session.receive(message as CharacterMenu),
     blur: () => blur(),
     shown: (n: number) =>
       vi.waitFor(() => expect(emits()).toContainEqual({ type: "shown", id: `main#${n}` })),
@@ -125,7 +107,6 @@ it("places its window beside her while hidden, then shows it, takes focus, start
   deliver(open(1));
 
   await shown(1);
-  const box = app.querySelector<HTMLElement>(".yui-cmenu-box")!;
   expect(calls).toEqual([
     ["frame", RECT],
     "show",
@@ -133,7 +114,7 @@ it("places its window beside her while hidden, then shows it, takes focus, start
     "start",
     ["emit", { type: "shown", id: "main#1" }],
   ]);
-  expect([box.style.left, box.style.top, box.style.width, box.style.height]).toEqual([
+  expect([app.style.left, app.style.top, app.style.width, app.style.height]).toEqual([
     "54px",
     "72px",
     "100px",

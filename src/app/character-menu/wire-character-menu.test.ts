@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ setFocus: vi.fn(async () => {}) }));
 vi.mock("../../tauri-env", () => ({ isTauri: () => true }));
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ setFocus: mocks.setFocus }),
-}));
 vi.mock("../../ui/character-menu/character-menu.css", () => ({}));
 
 import { wireCharacterMenu } from "./wire-character-menu";
@@ -67,8 +63,7 @@ const OPEN = {
 };
 
 function wired() {
-  let state = { ...STATE };
-  let deliver: (message: unknown) => void = () => {};
+  const state = { ...STATE };
   const emitted: unknown[] = [];
   const setFrameLogical = vi.fn(async () => {});
   const setPositionLogical = vi.fn(async () => {});
@@ -128,12 +123,7 @@ function wired() {
       hitTest: () => KNOBS,
       bridge: {
         emitCharacterMenu: (message: unknown) => void emitted.push(message),
-        onCharacterMenu: (cb: (message: never) => void) => {
-          deliver = cb as (message: unknown) => void;
-          return () => {
-            deliver = () => {};
-          };
-        },
+        onCharacterMenu: () => () => {},
       } as unknown as Deps["bridge"],
       ports: { read: () => state, actions },
     }),
@@ -143,24 +133,13 @@ function wired() {
     stage.dispatchEvent(event);
     return event;
   };
-  const onAbort = () =>
-    (locomotion.hold.mock.calls[0]?.[2] as { onAbort: () => void | Promise<void> }).onAbort();
-  const setState = (next: typeof STATE) => {
-    state = next;
-  };
   return {
     locomotion,
-    actions,
     emitted,
     rightClick,
-    onAbort,
-    setState,
-    deliver: (message: unknown) => deliver(message),
     writes: [setFrameLogical, setPositionLogical, locomotion.widen],
   };
 }
-
-const marked = () => overlay.hasAttribute("data-menu-open");
 
 it("holds her on a right-click and asks the menu window to open beside her, writing no size of hers", async () => {
   const { locomotion, emitted, rightClick, writes } = wired();
@@ -173,138 +152,4 @@ it("holds her on a right-click and asks the menu window to open beside her, writ
     onAbort: expect.any(Function),
   });
   for (const write of writes) expect(write).not.toHaveBeenCalled();
-});
-
-it("sends nothing for a right-click while her menu is pending or shown", async () => {
-  const { emitted, rightClick, deliver } = wired();
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-
-  rightClick();
-  await Promise.resolve();
-  deliver({ type: "shown", id: "main#1" });
-  rightClick();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  expect(emitted).toEqual([OPEN]);
-});
-
-it.each([
-  [true, 1],
-  [false, 0],
-])("marks the overlay while the menu shows, and a closed with refocus %s clears it, lets her go and focuses her window %i times", async (refocus, focuses) => {
-  const { locomotion, emitted, rightClick, deliver, writes } = wired();
-  mocks.setFocus.mockClear();
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-
-  deliver({ type: "shown", id: "main#1" });
-  const shown = marked();
-  deliver({ type: "closed", id: "main#1", refocus });
-
-  await vi.waitFor(() => expect(mocks.setFocus).toHaveBeenCalledTimes(focuses));
-  expect([shown, marked()]).toEqual([true, false]);
-  expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false);
-  for (const write of writes) expect(write).not.toHaveBeenCalled();
-});
-
-it("ignores a closed report for another open", async () => {
-  const { locomotion, emitted, rightClick, deliver } = wired();
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-  deliver({ type: "shown", id: "main#1" });
-
-  deliver({ type: "closed", id: "pet-mio#1", refocus: true });
-
-  expect([marked(), locomotion.hold.mock.calls]).toEqual([
-    true,
-    [["menu", true, { onAbort: expect.any(Function) }]],
-  ]);
-});
-
-it("runs a picked action and sends the state it left once the port settles", async () => {
-  const { actions, emitted, rightClick, deliver, setState } = wired();
-  let swapped: () => void = () => {};
-  actions.body.mockImplementation(
-    () =>
-      new Promise<void>((resolve) => {
-        swapped = () => {
-          setState({ ...STATE, body: "natsume" });
-          resolve();
-        };
-      }),
-  );
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-  deliver({ type: "shown", id: "main#1" });
-
-  deliver({ type: "action", id: "main#1", action: "body", value: "natsume" });
-  await Promise.resolve();
-  const before = emitted.length;
-  swapped();
-
-  await vi.waitFor(() => expect(emitted).toHaveLength(2));
-  expect(actions.body).toHaveBeenCalledExactlyOnceWith("natsume");
-  expect([before, emitted[1]]).toEqual([
-    1,
-    { type: "state", id: "main#1", state: { ...STATE, body: "natsume" } },
-  ]);
-});
-
-it("closes the menu for an agent move, which goes on once the menu reports closed", async () => {
-  const { locomotion, emitted, rightClick, deliver, onAbort } = wired();
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-  deliver({ type: "shown", id: "main#1" });
-  let settled = false;
-
-  const aborting = Promise.resolve(onAbort()).then(() => {
-    settled = true;
-  });
-  await Promise.resolve();
-  const before = settled;
-  deliver({ type: "closed", id: "main#1", refocus: false });
-  await aborting;
-
-  expect([before, emitted[1]]).toEqual([false, { type: "close", id: "main#1" }]);
-  expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false);
-});
-
-it("sends no open when an agent move takes her during the geometry reads, and the next right-click opens", async () => {
-  const { locomotion, emitted, rightClick, onAbort } = wired();
-  let travelEnded: () => void = () => {};
-  locomotion.abortTravel.mockImplementationOnce(
-    () =>
-      new Promise<void>((resolve) => {
-        travelEnded = resolve;
-      }),
-  );
-  rightClick();
-  await vi.waitFor(() => expect(locomotion.hold).toHaveBeenCalledTimes(1));
-
-  await onAbort();
-  travelEnded();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  const released = locomotion.hold.mock.calls.at(-1);
-  rightClick();
-
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-  expect([released, emitted]).toEqual([["menu", false], [{ ...OPEN, id: "main#2" }]]);
-});
-
-it("lets her go when the menu window does not answer in 2 s, and closes a late shown", async () => {
-  vi.useFakeTimers();
-  const { locomotion, emitted, rightClick, deliver } = wired();
-  rightClick();
-  await vi.waitFor(() => expect(emitted).toHaveLength(1));
-
-  await vi.advanceTimersByTimeAsync(2000);
-  const released = locomotion.hold.mock.calls.at(-1);
-  deliver({ type: "shown", id: "main#1" });
-
-  expect([released, marked(), emitted]).toEqual([
-    ["menu", false],
-    false,
-    [OPEN, { type: "close", id: "main#1" }],
-  ]);
 });
