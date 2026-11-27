@@ -134,7 +134,7 @@ Everything between the header line and the closing tag is a sequence of `key: va
 9. `tool switches`
 10. `previous turn`
 11. `overheard`
-12. One or more `trigger:`, `last together`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
+12. One or more `trigger:`, `cue note`, `last together`, `waited`, or `signal` lines, depending on what fired.
 13. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
@@ -496,6 +496,34 @@ The unified chat window adds a suffix to the headline. The idle clause follows t
 - `trigger: user message (addressed to the character)`: the user picked this character in the unified chat window.
 - `trigger: user message (addressed to everyone)`: the user wrote to every open character. The characters answer one after another. Each later one overhears the earlier replies through the [`overheard`](#overheard) block.
 
+### A turn that waited
+
+A self-started turn can wait for a free slot and go out with the other candidates that waited with it. Its trigger headline is the top-ranked member's own, followed by its age when the top member waited. One intro line and one `waited:` line per other member follow:
+
+```text
+trigger: schedule cue "Lunch" (40min ago)
+cue note (the user's own intent for this cue): remind the user to eat
+waited: 3 candidates are still open; the character has not spoken to any of them yet and may take up any of them or none
+waited: milestone first_activity came up 4h ago, at 09:05 local
+waited: proactive cue "It's been quiet" came up 15min ago, at 12:25 local; the user has been idle for 47min
+```
+
+The intro line says the candidates are still open and that the character has not spoken to them yet. The turn carries a set the backend picks from: the character takes up any of them or none, and the reply decides which.
+
+#### The item lines
+
+Each item is a past event that came up at its local clock time, with its age. A cue keeps the `cue note` under it. A `first_activity` milestone keeps the `last together` line. The item drops only the time its own line already carries.
+
+The headline's age appears once the top member has waited a minute or more. An `addressed` headline already carries the age of the reply it names, so it adds none.
+
+A waited screen reaction is a past event too. The frontmost dwell it measured at fire time does not hold after the wait, so it reads `the user switched to Slack 15min ago` instead of the present-tense dwell line.
+
+An idle cue ages with its wait. Its idle duration is the gap it measured at fire time plus the time it waited.
+
+The lines come after the trigger lines and before the `signal` lines.
+
+When the user speaks first, the candidates that were waiting and did not expire ride on the user's turn. They add the same intro and `waited:` lines under `trigger: user message`, and the intro counts only the riders. Those lines describe what the user's turn superseded, not what the user did.
+
 ### Guide (in-app help button)
 
 The Help section of the settings panel submits a short request as an ordinary user turn (`trigger.kind` `user`). It names the bundled guide that answers the request in `trigger.guide` (`controls` or `capabilities`). The user's message is only the short request. The `guide:` block follows the headline and names the guide. The text stays out of the context:
@@ -548,48 +576,19 @@ An `app_switched` turn that lacks `from_dwell_min` drops the whole clause. It do
 
 The departed window's title is not carried. A title the user has already left is history, not present state.
 
-### `recent switches` (held transitions)
-
-While the global proactive pacer holds screen fires back for its gap window, it still accumulates each suppressed `app_switched` transition. The next screen turn that actually fires (either transition kind) carries the held path as an extra line.
-
-The transition that fires is a separate, later switch, not the last held one:
-
-```text
-trigger: screen app_switched; the user left VS Code after 12min and has been in the frontmost app for 2min
-recent switches: Cursor (10min) then Slack (3min) then VS Code
-```
-
-#### What the line lists
-
-`recent switches` lists the held `app_switched` transitions in the order they happened, oldest first. It shows them as one chain of `<from_app> (<dwell_min>min) then <to_app>`.
-
-An entry that starts at the app the previous entry ended at names that app once, with its own dwell. An entry that starts at another app adds that app after the previous `to_app`.
-
-A suppressed `long_session` mark is not a transition. It is never added to the buffer.
-
-The list is capped at `recent_cap`, default 5. Past the cap, the oldest entry drops. So the line may show only a suffix of the full held path.
-
-#### When the buffer ships
-
-The line appears only when the buffer is non-empty at fire time. The buffer clears the instant it ships. It also clears when the feature is turned off mid-hold, and on a presence lapse.
-
-A presence lapse is the user stepping away. It resets the buffer along with the dwell and session clocks. So an overnight-stale path never ships on the first morning fire.
-
-A later screen turn with nothing held during its own gap carries no `recent switches` line at all.
-
 ### Signals
 
 ```text
 trigger: signals (1 signal)
-signal [github/push @2026-08-23T01:36:40.000Z, id delivery-42]: {"repo":"acme/yui","branch":"main"}
-signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
+signal [github/push @09:36 local, 12min ago, id delivery-42]: {"repo":"acme/yui","branch":"main"}
+signal [calendar/sync @09:36 local, 12min ago, id delivery-43]: (no payload)
 ```
 
-Signals are grouped by ingress batch. The headline counts items across all groups. Each item in an enveloped group renders with its normalized `source/event_type`, its UTC occurrence time, and its normalized event id.
+Signals are grouped by ingress batch. The headline counts items across all groups. Each item in an enveloped group renders with its normalized `source/event_type`, its local occurrence clock as `HH:MM local`, its age, and its normalized event id.
 
 An enveloped group with no items renders one `(no payload)` line. It contributes zero to the headline count. Envelope `delivery` and `label` are not rendered.
 
-Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline: `proactive.tap_bored` turns carry both their configured cue and drained signal groups. Every group carries an envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
+Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON preserves their structure. Signal lines are independent of the headline. They also appear alongside a cue headline, under a [`waited:`](#a-turn-that-waited) bundle, and under a `trigger: user message` turn whose input carried buffered groups. Every group carries an envelope. The required request contract lives in [Signals ingress](./signals-ingress.md).
 
 A group can also be Thread-derived: the client builds it from a Thread update while [Thread turns](./threads.md#thread-turns) is on. Its `event_type` is `thread.input_required`, `thread.failed`, or `thread.entry`, and its `event_id` is `thread:<id>`. Its one item carries `thread_id`, `title`, `state`, and, when present, `label` and `last` (`{role, text}`).
 
@@ -622,7 +621,7 @@ On Chat Completions and Responses, the receiver's request carries the background
 ```text
 trigger: milestone first_activity (fired at 08:12)
 last together: 2026-09-10 22:03 (10h ago)
-signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":"standup","at":"09:30"}
+signal [calendar/reminder @21:30 local, 10min ago, id reminder-118]: {"title":"standup","at":"09:30"}
 ```
 
 `time_milestone.first_activity` fires once per local day. It fires on the first `os_idle_tick` that finds the user present, with the schedule setting enabled. The headline names the milestone and the local clock time it fired at.

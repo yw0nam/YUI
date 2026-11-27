@@ -718,6 +718,7 @@ describe("screen_source — envelope reaches the backend contract", () => {
     expect(client.trigger.kind).toBe("proactive");
     expect(client.trigger.screen).toEqual({
       transition: "app_switched",
+      app: "Slack",
       from_app: "Cursor",
       from_dwell_min: 10,
       dwell_min: 2,
@@ -733,6 +734,10 @@ describe("screen_source — envelope reaches the backend contract", () => {
     s.at(45 * MIN, tick("Cursor"));
 
     const client = buildClientContext(CTX, s.pushed[0]!);
-    expect(client.trigger.screen).toEqual({ transition: "long_session", dwell_min: 45 });
+    expect(client.trigger.screen).toEqual({
+      transition: "long_session",
+      app: "Cursor",
+      dwell_min: 45,
+    });
   });
 });
