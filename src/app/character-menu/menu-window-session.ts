@@ -3,6 +3,7 @@
 import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import type { ScreenRect } from "../../contract";
 import type { CharacterMenu, CharacterMenuAction } from "../../io/bridge/settings-bridge";
+import { overSelectors } from "../../io/window/pet/over-selectors";
 import { createLogger } from "../../logger";
 import {
   createCharacterMenu,
@@ -90,16 +91,7 @@ export function createMenuWindowSession(deps: {
   };
 
   const clickThrough = win.clickThrough({
-    isOverInteractive: (x, y, margin) =>
-      [...mount.querySelectorAll(MENU_PILLS)].some((el) => {
-        const r = el.getBoundingClientRect();
-        return (
-          x >= r.left - margin &&
-          x <= r.right + margin &&
-          y >= r.top - margin &&
-          y <= r.bottom + margin
-        );
-      }),
+    isOverInteractive: (x, y, margin) => overSelectors(mount, [MENU_PILLS], x, y, margin),
     getConfig: () => picksTo!.hitTest,
   });
 

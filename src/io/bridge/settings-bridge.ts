@@ -166,8 +166,6 @@ export type CharacterMenu =
   | {
       type: "open";
       id: string;
-      /** The pet window's label. */
-      from: string;
       kind: MenuKind;
       name: string;
       state: MenuState;
@@ -282,20 +280,18 @@ function characterMenu(v: unknown): CharacterMenu | undefined {
   if (!isNonEmptyString(id)) return undefined;
   switch (m.type) {
     case "open": {
-      const { from, kind, name, head, nameTop } = m;
+      const { kind, name, head, nameTop } = m;
       const state = menuState(m.state);
       const frame = screenRect(m.frame);
       const workArea = screenRect(m.workArea);
       const hitTest = hitTestKnobs(m.hitTest);
       const { x, y } = (m.chest ?? {}) as Record<string, unknown>;
-      if (!isNonEmptyString(from) || (kind !== "main" && kind !== "bound") || !isString(name))
-        return undefined;
+      if ((kind !== "main" && kind !== "bound") || !isString(name)) return undefined;
       if (!state || !frame || !workArea || !hitTest) return undefined;
       if (![head, nameTop, x, y].every(isFiniteNumber)) return undefined;
       return {
         type: "open",
         id,
-        from,
         kind,
         name,
         state,

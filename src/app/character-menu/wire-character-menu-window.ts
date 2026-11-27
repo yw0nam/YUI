@@ -35,7 +35,6 @@ export async function wireCharacterMenuWindow(deps: {
   const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   const box = document.createElement("div");
   box.className = "yui-cmenu-box";
-  box.style.position = "absolute";
   deps.app.appendChild(box);
   const session = createMenuWindowSession({ mount: box, win, emit: bridge.emitCharacterMenu });
 

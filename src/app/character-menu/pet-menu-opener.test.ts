@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-vi.mock("../../ui/character-menu/character-menu.css", () => ({}));
-
 import type { CharacterMenu } from "../../io/bridge/settings-bridge";
 import { createPetMenuOpener } from "./pet-menu-opener";
 
@@ -45,7 +43,6 @@ const KNOBS = {
 const OPEN = {
   type: "open",
   id: "main#1",
-  from: "main",
   kind: "main",
   name: "Yui",
   state: STATE,

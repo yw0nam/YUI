@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-vi.mock("../../tauri-env", () => ({ isTauri: () => true }));
-vi.mock("../../ui/character-menu/character-menu.css", () => ({}));
-
 import { wireCharacterMenu } from "./wire-character-menu";
 
 type Deps = Parameters<typeof wireCharacterMenu>[0];
@@ -50,7 +47,6 @@ const KNOBS = {
 const OPEN = {
   type: "open",
   id: "main#1",
-  from: "main",
   kind: "main",
   name: "Yui",
   state: STATE,
@@ -70,7 +66,6 @@ function wired() {
   const locomotion = {
     hold: vi.fn(),
     abortTravel: vi.fn(async () => {}),
-    widen: vi.fn(),
     frame: {
       frameWindow: () => ({
         outerPosition: async () => ({ x: 600, y: 1034 }),
@@ -126,6 +121,7 @@ function wired() {
         onCharacterMenu: () => () => {},
       } as unknown as Deps["bridge"],
       ports: { read: () => state, actions },
+      isTauri: () => true,
     }),
   );
   const rightClick = () => {
@@ -137,7 +133,7 @@ function wired() {
     locomotion,
     emitted,
     rightClick,
-    writes: [setFrameLogical, setPositionLogical, locomotion.widen],
+    writes: [setFrameLogical, setPositionLogical],
   };
 }
 

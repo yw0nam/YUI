@@ -67,7 +67,6 @@ const MENU_STATE = {
 const MENU_OPEN = {
   type: "open",
   id: "main#1",
-  from: "main",
   kind: "main",
   name: "Yui",
   state: MENU_STATE,

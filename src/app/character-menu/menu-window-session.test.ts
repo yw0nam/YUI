@@ -26,7 +26,6 @@ const STATE = {
 const open = (n: number) => ({
   type: "open",
   id: `main#${n}`,
-  from: "main",
   kind: "main",
   name: "Yui",
   state: STATE,
@@ -102,7 +101,7 @@ const press = (key: string) =>
   document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 
 it("places its window beside her while hidden, then shows it, takes focus, starts click-through and reports shown", async () => {
-  const { calls, deliver, shown } = await wired();
+  const { calls, deliver, shown } = wired();
 
   deliver(open(1));
 
@@ -123,7 +122,7 @@ it("places its window beside her while hidden, then shows it, takes focus, start
 });
 
 it("sends a pick to the pet that opened it, and redraws from the state the pet sends back", async () => {
-  const { emits, deliver, shown } = await wired();
+  const { emits, deliver, shown } = wired();
   deliver(open(1));
   await shown(1);
 
@@ -140,12 +139,12 @@ it.each([
   [
     "a close request",
     false,
-    (h: Awaited<ReturnType<typeof wired>>) => h.deliver({ type: "close", id: "main#1" }),
+    (h: ReturnType<typeof wired>) => h.deliver({ type: "close", id: "main#1" }),
   ],
   ["Esc", true, () => press("Escape")],
-  ["its window losing focus", false, (h: Awaited<ReturnType<typeof wired>>) => h.blur()],
+  ["its window losing focus", false, (h: ReturnType<typeof wired>) => h.blur()],
 ])("on %s stops click-through, hides and reports closed with refocus %s", async (_name, refocus, act) => {
-  const handle = await wired();
+  const handle = wired();
   handle.deliver(open(1));
   await handle.shown(1);
   handle.calls.length = 0;
@@ -161,7 +160,7 @@ it.each([
 });
 
 it("flips a toggle at once on each press, before the pet sends its state", async () => {
-  const { emits, deliver, shown } = await wired();
+  const { emits, deliver, shown } = wired();
   deliver(open(1));
   await shown(1);
 
@@ -179,7 +178,7 @@ it("flips a toggle at once on each press, before the pet sends its state", async
 });
 
 it("sends a closing pick to the first pet after another open took the window", async () => {
-  const { emits, deliver, shown } = await wired();
+  const { emits, deliver, shown } = wired();
   deliver(open(1));
   await shown(1);
 
@@ -196,7 +195,7 @@ it("sends a closing pick to the first pet after another open took the window", a
 });
 
 it("hands its window to the latest of several opens, reporting each one it closed or skipped", async () => {
-  const { emits, deliver, shown, win } = await wired();
+  const { emits, deliver, shown, win } = wired();
   deliver(open(1));
   await shown(1);
 
@@ -214,7 +213,7 @@ it("hands its window to the latest of several opens, reporting each one it close
 });
 
 it("reports closed without refocus when its window cannot show", async () => {
-  const { calls, emits, deliver, win } = await wired();
+  const { calls, emits, deliver, win } = wired();
   win.show.mockRejectedValueOnce(new Error("no window"));
 
   deliver(open(1));

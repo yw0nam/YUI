@@ -70,10 +70,10 @@ export interface ComeAlongDeps {
   locomotion: {
     hold(holder: "come-along", on: boolean, opts?: HoldOptions): void;
     abortTravel(): Promise<void>;
-    widen(via: Point[], end?: Frame): Promise<Travel>;
+    widen(end: Frame): Promise<Travel>;
     release(): void;
     drop(opts: { landOnSeam: true }): Promise<void>;
-    /** Whether a travel parks her real window, as the open Character menu does. */
+    /** Whether a travel parks her real window, as a stroll or climb does. */
     isTravelling(): boolean;
     frame: { frameWindow(): FrameWindow; listMonitors(): Promise<ScreenMonitor[]> };
   };
@@ -311,7 +311,7 @@ export function createComeAlong(deps: ComeAlongDeps): {
     k: number,
     durationMs: number,
   ): Promise<void> {
-    const parked = await locomotion.widen([], to);
+    const parked = await locomotion.widen(to);
     if (id !== move) {
       await parked.end();
       return;

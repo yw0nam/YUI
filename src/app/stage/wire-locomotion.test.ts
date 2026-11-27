@@ -322,30 +322,10 @@ describe("wireLocomotion", () => {
     expect(released).toHaveBeenCalledTimes(2);
   });
 
-  it("widens by parking the travel frame from her position over both via points", async () => {
-    const s = setup();
-    s.travelFrame.getWindow.mockReturnValue({
-      outerPosition: async () => ({ x: 600, y: 1034 }),
-      scaleFactor: async () => 2,
-    });
-    const via = [
-      { x: 256, y: 517 },
-      { x: 344, y: 517 },
-    ];
-
-    await s.locomotion.widen(via);
-
-    expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 300, y: 517 }, via);
-  });
-
   it("widens to an end frame by parking the travel frame over it at its size", async () => {
     const s = setup();
-    s.travelFrame.getWindow.mockReturnValue({
-      outerPosition: async () => ({ x: 600, y: 1034 }),
-      scaleFactor: async () => 2,
-    });
 
-    await s.locomotion.widen([], { x: 100, y: 80, width: 400, height: 600 });
+    await s.locomotion.widen({ x: 100, y: 80, width: 400, height: 600 });
 
     expect(s.travelFrame.travel.begin).toHaveBeenCalledExactlyOnceWith({ x: 100, y: 80 }, [], {
       width: 400,

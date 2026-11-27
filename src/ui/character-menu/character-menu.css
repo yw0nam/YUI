@@ -1,5 +1,10 @@
 /* The Character menu: opaque pills in two columns beside her; only the pills take the pointer. */
 
+/* Her box in the Character menu window; each open sets its place and size. */
+.yui-cmenu-box {
+  position: absolute;
+}
+
 .yui-cmenu {
   position: absolute;
   inset: 0;

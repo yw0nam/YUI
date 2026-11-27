@@ -107,35 +107,30 @@ function harness(
   const locomotion = {
     hold: vi.fn<(holder: "come-along", on: boolean, opts?: HoldOptions) => void>(),
     abortTravel: vi.fn(async () => {}),
-    widen: vi.fn(
-      async (
-        _via: Array<{ x: number; y: number }>,
-        _end?: { x: number; y: number; width: number; height: number },
-      ) => {
-        virtual = { ...real };
-        drawn = virtual;
-        const end = vi.fn(async () => {
-          Object.assign(real, virtual);
-          drawn = { width: real.width, height: real.height };
-        });
-        travels.push({ end });
-        return {
-          win: {
-            ...frameWindow,
-            setPositionLogical: async (x: number, y: number) => {
-              Object.assign(virtual, { x, y });
-              walked.push([x, y]);
-            },
-            setFrameLogical: async (x: number, y: number, width: number, height: number) => {
-              Object.assign(virtual, { x, y, width, height });
-              walked.push([x, y]);
-              sized.push([width, height]);
-            },
+    widen: vi.fn(async (_end: { x: number; y: number; width: number; height: number }) => {
+      virtual = { ...real };
+      drawn = virtual;
+      const end = vi.fn(async () => {
+        Object.assign(real, virtual);
+        drawn = { width: real.width, height: real.height };
+      });
+      travels.push({ end });
+      return {
+        win: {
+          ...frameWindow,
+          setPositionLogical: async (x: number, y: number) => {
+            Object.assign(virtual, { x, y });
+            walked.push([x, y]);
           },
-          end,
-        };
-      },
-    ),
+          setFrameLogical: async (x: number, y: number, width: number, height: number) => {
+            Object.assign(virtual, { x, y, width, height });
+            walked.push([x, y]);
+            sized.push([width, height]);
+          },
+        },
+        end,
+      };
+    }),
     release: vi.fn(),
     drop: vi.fn(async (_opts: { landOnSeam: true }) => {}),
     isTravelling: () => travelling,
@@ -336,7 +331,7 @@ describe("createComeAlong", () => {
     await done;
 
     expect(h.setBodyYaw).not.toHaveBeenCalled();
-    expect(h.locomotion.widen).toHaveBeenCalledExactlyOnceWith([], {
+    expect(h.locomotion.widen).toHaveBeenCalledExactlyOnceWith({
       x: 100,
       y: 80,
       width: 400,
@@ -533,7 +528,7 @@ describe("createComeAlong", () => {
       h.locomotion.drop.mock.invocationCallOrder[0]!,
     );
     expect(h.dock.detach).toHaveBeenCalledOnce();
-    expect(h.locomotion.widen).toHaveBeenLastCalledWith([], {
+    expect(h.locomotion.widen).toHaveBeenLastCalledWith({
       x: 1300,
       y: 80,
       width: 400,
@@ -673,8 +668,8 @@ describe("createComeAlong", () => {
     const h = harness();
     const parked = deferred<Awaited<ReturnType<typeof h.locomotion.widen>>>();
     const widen = h.locomotion.widen.getMockImplementation()!;
-    h.locomotion.widen.mockImplementationOnce(async (via, end) => {
-      const travel = await widen(via, end);
+    h.locomotion.widen.mockImplementationOnce(async (end) => {
+      const travel = await widen(end);
       return parked.promise.then(() => travel);
     });
     const done = h.comeAlong.onStage(slot);

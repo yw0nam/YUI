@@ -2,8 +2,11 @@
 export const BUBBLE =
   ".yui-ui:not(:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]), .yui-cmd-list:not([hidden]))) .yui-bubble.is-visible";
 
+/** The UI layer's attribute while the Character menu shows over her; the stylesheet fades the chip column on it. */
+export const MENU_OPEN_ATTR = "data-menu-open";
+
 /** The chip column, which takes no hits while the Character menu is open. */
-const CHIP_COLUMN = ".yui-ui:not([data-menu-open]) .yui-chip-column";
+const CHIP_COLUMN = `.yui-ui:not([${MENU_OPEN_ATTR}]) .yui-chip-column`;
 
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay

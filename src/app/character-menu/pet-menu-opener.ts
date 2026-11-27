@@ -4,6 +4,7 @@ import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import type { CharacterMenu, MenuKind, MenuState } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { MenuActions } from "../../ui/character-menu/character-menu";
+import { MENU_OPEN_ATTR } from "../../ui/surfaces/interactive-overlay";
 import type { wireLocomotion } from "../stage/wire-locomotion";
 import type { MenuPlacementRead } from "./read-menu-placement";
 
@@ -45,7 +46,7 @@ export function createPetMenuOpener(deps: {
 
   function end(): void {
     clearTimeout(timer);
-    overlay.removeAttribute("data-menu-open");
+    overlay.removeAttribute(MENU_OPEN_ATTR);
     locomotion.hold("menu", false);
     current = null;
     shown = false;
@@ -101,7 +102,6 @@ export function createPetMenuOpener(deps: {
     emit({
       type: "open",
       id,
-      from: deps.label,
       kind: deps.kind,
       name: deps.name(),
       state: ports.read(),
@@ -139,7 +139,7 @@ export function createPetMenuOpener(deps: {
         }
         shown = true;
         clearTimeout(timer);
-        overlay.setAttribute("data-menu-open", "");
+        overlay.setAttribute(MENU_OPEN_ATTR, "");
       } else if (message.type === "action") void run(message);
       else if (message.type === "closed" && message.id === current) {
         end();

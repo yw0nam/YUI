@@ -37,7 +37,7 @@ import { presetIdForWindow, readPresetName } from "../settings/preset/active-pre
 import { windowLabel } from "../settings/preset/pet-windows";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
-import { isMacOS, isWindows } from "../tauri-env";
+import { isMacOS, isTauri, isWindows } from "../tauri-env";
 import type { TurnNoticeStore } from "../ui/chips/turn-notice";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -463,18 +463,22 @@ const realFactories: ConfiguredBootstrapFactories = {
       speak: voice.turnOutput.speak,
     });
     register(greeting.dispose);
+    const { boundId } = phase1.menuHost;
+    const menuWindow =
+      boundId === null
+        ? ({ label: "main", kind: "main" } as const)
+        : ({ label: windowLabel("pet", boundId), kind: "bound" } as const);
     register(
       wireCharacterMenu({
         stage,
         overlay: surfaces.el,
-        label:
-          phase1.menuHost.boundId === null ? "main" : windowLabel("pet", phase1.menuHost.boundId),
-        kind: phase1.menuHost.boundId === null ? "main" : "bound",
+        ...menuWindow,
         name: phase1.menuHost.name,
         renderer,
         locomotion,
         hitTest: () => config.get().avatar.hit_test,
         bridge: phase1.characterMenu,
+        isTauri,
         ports: createCharacterMenuPorts({
           host: phase1.menuHost,
           stores: settings,

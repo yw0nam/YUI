@@ -5,7 +5,6 @@ import type { MenuKind, MenuState, SettingsBridge } from "../../io/bridge/settin
 import { focusCurrentWindow } from "../../io/window/current-window";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
-import { isTauri } from "../../tauri-env";
 import type { MenuActions } from "../../ui/character-menu/character-menu";
 import type { wireLocomotion } from "../stage/wire-locomotion";
 import { createPetMenuOpener } from "./pet-menu-opener";
@@ -27,6 +26,8 @@ export function wireCharacterMenu(deps: {
   hitTest: () => HitTestKnobs;
   bridge: Pick<SettingsBridge, "emitCharacterMenu" | "onCharacterMenu">;
   ports: { read(): MenuState; actions: MenuActions };
+  /** Whether the Character menu window exists: without Tauri a right-click opens nothing. */
+  isTauri: () => boolean;
 }): () => void {
   const opener = createPetMenuOpener({
     label: deps.label,
@@ -42,7 +43,7 @@ export function wireCharacterMenu(deps: {
   });
   function onContextMenu(e: MouseEvent): void {
     e.preventDefault();
-    if (!isTauri()) return;
+    if (!deps.isTauri()) return;
     opener.open().catch((err) => log.warn("open_failed", { error: String(err) }));
   }
   const offMenu = deps.bridge.onCharacterMenu(opener.receive);
