@@ -632,3 +632,55 @@ describe("backend_caller — overheard lines", () => {
     expect(commitOverheard.mock.calls).toEqual(committed);
   });
 });
+
+describe("backend_caller — do not disturb line on the request transports", () => {
+  const LINE =
+    "do not disturb: the character is resting at the user's request (for 12min); the rest ends at 08:00 local";
+
+  it.each([
+    [
+      "responses",
+      (request: any) =>
+        clientContextTextOf(
+          (request.input as Array<{ role: string; content: string }>).find(
+            (m) => m.role === "user",
+          )!.content,
+        ),
+    ],
+    [
+      "chat_completions",
+      (request: any) =>
+        clientContextTextOf(
+          (request.messages as Array<{ role: string; content: string }>).find(
+            (m) => m.role === "system" && m.content.startsWith("<client_context>"),
+          )!.content,
+        ),
+    ],
+  ] as const)("%s carries the line in its serialized request", async (chatApi, contextOf) => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env = userEnv("hi");
+    const endsAt = new Date();
+    endsAt.setHours(8, 0, 0, 0);
+    caller = createBackendCaller({
+      config: { ...CONFIG, chat_api: chatApi },
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      contextProviders: {
+        getRest: () => ({
+          kind: "rest",
+          choice: "morning",
+          startedAt: Date.now() - 720_000,
+          endsAt: endsAt.getTime() + 86_400_000,
+        }),
+      },
+    });
+
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+
+    expect(contextOf(JSON.parse(JSON.stringify(request))).split("\n")).toContain(LINE);
+  });
+});

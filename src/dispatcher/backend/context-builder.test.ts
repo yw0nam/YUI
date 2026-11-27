@@ -233,6 +233,28 @@ describe("context builder — open characters", () => {
   });
 });
 
+describe("context builder — do not disturb", () => {
+  const local = (h: number, m: number) => new Date(2026, 10, 27, h, m).getTime();
+
+  it.each([
+    [
+      "a Rest",
+      { kind: "rest", choice: "morning", startedAt: local(21, 10), endsAt: local(8, 0) },
+      { kind: "rest", since: local(21, 10), ends_local: "08:00" },
+    ],
+    ["a Rest with no recorded start", { kind: "rest", choice: "until_off" }, { kind: "rest" }],
+    [
+      "an off span",
+      { kind: "quiet", endsAt: local(12, 0) },
+      { kind: "off_span", ends_local: "12:00" },
+    ],
+  ] as const)("projects %s from the provider, read every turn", async (_name, rest, projected) => {
+    const built = await buildContext(ENV, { getRest: () => rest });
+
+    expect(built.clientContext.do_not_disturb).toEqual(projected);
+  });
+});
+
 describe("buildClientContext — addressed forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 

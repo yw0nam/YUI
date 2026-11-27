@@ -58,7 +58,10 @@ export interface TurnCorePhase1 {
   surfaces: Surfaces;
   settings: SettingsStores;
   /** This pet window's active hours: the pacer gap, its pace factor and the do-not-disturb hold. */
-  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "paceFactor" | "dnd">;
+  activeHours: Pick<
+    WindowActiveHours,
+    "gapMs" | "subscribeGap" | "paceFactor" | "dnd" | "rest" | "subscribeRest"
+  >;
   conversation: ConversationStores;
   bus: EventBus;
   userInput: UserInputSource;

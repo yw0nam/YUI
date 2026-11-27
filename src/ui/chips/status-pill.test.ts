@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./status-pill.css", () => ({}));
 
 import { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
-import { createFlagSettings } from "../../settings/persisted-store";
+import type { RestState } from "../../settings/rest/rest-choices";
 import { setLocale, t } from "../i18n";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createStatusPill } from "./status-pill";
@@ -47,16 +47,32 @@ function fakeNotice() {
   };
 }
 
+function fakeRest(initial: RestState | null) {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    rest: () => current,
+    subscribeRest: (cb: () => void) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    set(next: RestState | null) {
+      current = next;
+      for (const cb of listeners) cb();
+    },
+  };
+}
+
 function setup(
   opts: {
     capture?: boolean;
     withCaptureSetting?: boolean;
     withToggle?: boolean;
     withMicSettings?: boolean;
-    dnd?: ReturnType<typeof createFlagSettings>;
+    rest?: ReturnType<typeof fakeRest>;
   } = {},
 ) {
-  const dnd = opts.dnd;
+  const rest = opts.rest;
   const notice = fakeNotice();
   const mount = document.createElement("div");
   document.body.appendChild(mount);
@@ -74,14 +90,7 @@ function setup(
     notice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
     ...(opts.withMicSettings ? { onOpenMicSettings } : {}),
-    ...(dnd
-      ? {
-          dnd: {
-            get: () => dnd.get().enabled,
-            subscribe: (cb: () => void) => dnd.subscribe(() => cb()),
-          },
-        }
-      : {}),
+    ...(rest ? { rest } : {}),
   });
   flushFrames();
   const q = <T extends Element>(sel: string): T => mount.querySelector<T>(sel)!;
@@ -146,16 +155,42 @@ describe("status pill — nothing to report", () => {
   });
 });
 
-describe("status pill — do-not-disturb", () => {
-  it("shows a still Do not disturb segment while DND is on, and hides with nothing else once it is off", () => {
-    const dnd = createFlagSettings(true);
-    const p = setup({ dnd });
+describe("status pill — Rest", () => {
+  const at = (h: number, m: number) => new Date(2026, 10, 27, h, m).getTime();
+  const now = Date.now();
+
+  it.each([
+    [
+      "a Rest until morning",
+      { kind: "rest", choice: "morning", startedAt: now, endsAt: at(8, 0) },
+      "Resting · until 08:00",
+    ],
+    [
+      "a Rest until the user turns it off",
+      { kind: "rest", choice: "until_off", startedAt: now },
+      "Resting",
+    ],
+    [
+      "Focus 25 at its start",
+      { kind: "focus", choice: "focus_25", startedAt: now, endsAt: now + 1_500_000 },
+      "Focus · 25 min left",
+    ],
+    [
+      "Focus 25 a minute in",
+      { kind: "focus", choice: "focus_25", startedAt: now - 60_000, endsAt: now + 1_440_000 },
+      "Focus · 24 min left",
+    ],
+    ["a quiet span", { kind: "quiet", endsAt: at(12, 0) }, "Quiet · until 12:00"],
+    ["an all-day quiet span", { kind: "quiet" }, "Quiet"],
+  ] as const)("reads %s as a still segment, and hides with nothing else once it ends", (_name, state, text) => {
+    const rest = fakeRest(state);
+    const p = setup({ rest });
 
     expect(p.root().hidden).toBe(false);
-    expect(p.mount.querySelector(".yui-status__dnd")!.textContent).toBe("Do not disturb");
+    expect(p.mount.querySelector(".yui-status__dnd")!.textContent).toBe(text);
     expectSegmentHidden(p);
 
-    dnd.setEnabled(false);
+    rest.set(null);
     opacityTransitionEnd(p.root());
     expect(p.root().hidden).toBe(true);
   });

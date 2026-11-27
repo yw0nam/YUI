@@ -1,5 +1,5 @@
 /**
- * Status pill — the capture, voice, tool and do-not-disturb tells in one pill at the top of the character window.
+ * Status pill — the capture, voice, tool and Rest tells in one pill at the top of the character window.
  *
  * Pure renderer — firing ≠ judgment: it draws what the screenshot setting, the voice status, a
  * failed turn's notice and the backend's tool calls report. No brain, persona, or mode branching lives here.
@@ -8,6 +8,8 @@
 import "./status-pill.css";
 import { isMicErrorCode } from "../../io/voice/mic-error";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
+import type { RestState } from "../../settings/rest/rest-choices";
+import { clockOf, minutesLeft } from "../../settings/rest/rest-end";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { getToolLabel } from "./tool-labels";
@@ -40,11 +42,20 @@ interface StatusPillOptions {
   notice?: Pick<TurnNoticeStore, "get" | "subscribe" | "clear">;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
   onToggleVoice?: () => void;
-  /** The do-not-disturb switch behind the still moon segment; without it the segment is absent. */
-  dnd?: { get(): boolean; subscribe(cb: () => void): () => void };
+  /** What holds her own turns, behind the still moon segment; without it the segment is absent. */
+  rest?: { rest(): RestState | null; subscribeRest(cb: () => void): () => void };
 }
 
 const TOOL_DONE_HOLD_MS = 1500;
+
+/** The moon segment's text: the Rest, Focus or quiet span and its end. */
+function restTextOf(state: RestState): string {
+  if (state.kind === "focus" && state.endsAt !== undefined)
+    return t("status.focus_left", { n: minutesLeft(state.endsAt, Date.now()) });
+  const time = state.endsAt === undefined ? undefined : clockOf(state.endsAt);
+  if (state.kind === "quiet") return time ? t("status.quiet_until", { time }) : t("status.quiet");
+  return time ? t("status.resting_until", { time }) : t("status.resting");
+}
 
 function voiceLabelOf(snapshot: VoiceInputStatusSnapshot): string {
   if (snapshot.state === "error" && snapshot.message) return snapshot.message;
@@ -62,7 +73,7 @@ export function createStatusPill({
   onOpenMicSettings,
   notice,
   onToggleVoice,
-  dnd,
+  rest,
 }: StatusPillOptions): StatusPill {
   const el = document.createElement("div");
   el.className = "yui-status";
@@ -130,7 +141,8 @@ export function createStatusPill({
   function render(): void {
     const captureOn = settings ? settings.get().enabled : false;
     const snapshot = voice.get();
-    const dndOn = dnd?.get() === true;
+    const restState = rest?.rest() ?? null;
+    const dndOn = restState !== null;
     const turnNotice = notice?.get() ?? null;
     const shown = captureOn || snapshot.visible || tool !== null || dndOn || turnNotice !== null;
     // A leaving pill keeps its last content through the fade, but no longer offers its action.
@@ -175,7 +187,7 @@ export function createStatusPill({
     sepEl.hidden = !segment || !(captureOn || snapshot.visible || turnMark);
     // A still segment: no dot, no pulse; it follows the other tells after its own separator.
     dndEl.hidden = !dndOn;
-    dndLabelEl.textContent = t("status.dnd");
+    if (restState) dndLabelEl.textContent = restTextOf(restState);
     dndSepEl.hidden = !dndOn || !(captureOn || snapshot.visible || segment);
 
     // The notice's action, or beside a blocked mic the privacy pane, whichever owns the label.
@@ -293,7 +305,7 @@ export function createStatusPill({
   render();
   const unsubscribeSettings = settings?.subscribe(render) ?? ((): void => {});
   const unsubscribeVoice = voice.subscribe(render);
-  const unsubscribeDnd = dnd?.subscribe(render) ?? ((): void => {});
+  const unsubscribeDnd = rest?.subscribeRest(render) ?? ((): void => {});
   const unsubscribeNotice = notice?.subscribe(render) ?? ((): void => {});
   const unsubscribeLocale = subscribeLocale(render);
   el.addEventListener("click", handleClick);

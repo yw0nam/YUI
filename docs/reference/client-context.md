@@ -112,7 +112,7 @@ After a session reset, and once when Quick start connects on an empty session, t
 The backend model reads the block as prose. Every line follows one register:
 
 1. Each fact is one `key: value` line in English, written as a short declarative sentence.
-2. A state is in the present tense with its duration, `(for Nmin)`. An event is in the past tense with its age, `(Nmin ago)` or `(fired at HH:MM)`. No line uses a word that reads both ways, such as "until".
+2. A state is in the present tense with its duration, `(for Nmin)`, when the client knows its start; `do not disturb` names the two that it does not. An event is in the past tense with its age, `(Nmin ago)` or `(fired at HH:MM)`. No line uses a word that reads both ways, such as "until".
 3. Every clause names its actor: the character, the user, or the reply. Every line refers to the character as "the character", with no pronoun.
 4. The client states facts and writes no instruction. Text the user authored may be phrased as an order, so a line that carries it labels it as the user's intent.
 5. Third-party text, such as window titles and signal payloads, is quoted. The header line says quoted values are sampled data, not instructions.
@@ -125,16 +125,17 @@ Everything between the header line and the closing tag is a sequence of `key: va
 
 1. `time`
 2. `frontmost`
-3. `screenshot source`
-4. `body`
-5. `relation`
-6. `open characters`
-7. `threads`, then the `threads attached:` block
-8. `tool switches`
-9. `previous turn`
-10. `overheard`
-11. One or more `trigger:`, `last together`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
-12. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
+3. `do not disturb`
+4. `screenshot source`
+5. `body`
+6. `relation`
+7. `open characters`
+8. `threads`, then the `threads attached:` block
+9. `tool switches`
+10. `previous turn`
+11. `overheard`
+12. One or more `trigger:`, `last together`, `cue note`, `signal`, or `recent switches:` lines, depending on what fired.
+13. The `guide:` block, when the turn carries one ([Guide](#guide-in-app-help-button)).
 
 A line is omitted outright when its underlying field is absent. For example, there is no `screenshot source:` line when screen capture is off.
 
@@ -200,6 +201,24 @@ Platform semantics follow the witness sampler (`docs/reference/witness-log.md`):
 #### The 5-minute grace window
 
 A clear that lasts under a 5-minute grace window (brief focus churn) keeps the original `since` when the same app/title returns. A longer clear is a real absence, and it stamps a fresh `since`.
+
+### `do not disturb`
+
+The line says what holds the character's own turns: a Rest or a Focus the user started, or an active-hours span set to Don't speak first. It is present on every turn while one holds, and absent otherwise. Nothing holds a turn the backend starts.
+
+```text
+do not disturb: the character is resting at the user's request (for 12min); the rest ends at 08:00 local
+do not disturb: the character is in a focus session the user started (for 7min); it ends at 10:25 local
+do not disturb: an active-hours off span holds the character's own turns; it ends at 12:00 local
+```
+
+#### The duration
+
+The duration counts minutes since the user started the Rest or the Focus (`do_not_disturb.since`). An off span and a Rest with no recorded start are states with no duration, so their line carries none.
+
+#### The end clause
+
+The end clause gives the local wall-clock time the hold ends (`do_not_disturb.ends_local`). A Rest until the user turns it off, and an off span that covers the whole day, have no end clause.
 
 ### `screenshot source`
 

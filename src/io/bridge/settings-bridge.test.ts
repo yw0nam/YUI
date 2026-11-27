@@ -53,7 +53,7 @@ const none = { args: [], wire: undefined, delivered: [] };
 const THREAD = { id: "gmail:18c2", source: "gmail", title: "Quote reply" };
 const MENU_STATE = {
   talk: false,
-  rest: true,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -835,7 +835,17 @@ describe("Character menu channel", () => {
     { type: "state", id: "main#1", state: MENU_STATE },
     { type: "close", id: "main#1" },
     { type: "shown", id: "main#1" },
-    { type: "action", id: "main#1", action: "rest", value: true },
+    {
+      type: "state",
+      id: "main#1",
+      state: {
+        ...MENU_STATE,
+        rest: { kind: "focus", choice: "focus_25", startedAt: 1, endsAt: 1_500_001 },
+      },
+    },
+    { type: "state", id: "main#1", state: { ...MENU_STATE, rest: { kind: "quiet" } } },
+    { type: "action", id: "main#1", action: "rest", value: "morning" },
+    { type: "action", id: "main#1", action: "rest", value: "end" },
     { type: "action", id: "pet-mio#2", action: "body", value: "natsume" },
     { type: "action", id: "main#1", action: "pace", value: "high" },
     { type: "action", id: "main#1", action: "settings", value: "voice" },
@@ -858,6 +868,8 @@ describe("Character menu channel", () => {
     { ...MENU_OPEN, state: { ...MENU_STATE, pace: "off" } },
     { ...MENU_OPEN, kind: "guest" },
     { type: "state", id: "main#1", state: { ...MENU_STATE, rest: "yes" } },
+    { type: "state", id: "main#1", state: { ...MENU_STATE, rest: true } },
+    { type: "action", id: "main#1", action: "rest", value: true },
     { type: "action", id: "main#1", action: "pace", value: "turbo" },
     { type: "action", id: "main#1", action: "settings", value: "memory" },
     { type: "action", id: "main#1", action: "threads", value: "shell" },

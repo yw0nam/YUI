@@ -10,6 +10,8 @@ import { changeLine, whyLine } from "./change-lines";
 beforeEach(() => setLocale("en"));
 
 it.each([
+  ["pace.rest", "character_menu.rest", "off", "morning", "Rest (off → Until tomorrow morning)"],
+  ["pace.rest", "character_menu.rest", "focus_25", "off", "Rest (Focus 25 min → off)"],
   [
     "privacy.thread_turns",
     "threadTurns.label",

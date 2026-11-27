@@ -16,6 +16,7 @@ import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-s
 import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
+import type { RestState } from "../../settings/rest/rest-choices";
 import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
@@ -95,6 +96,7 @@ function callerWith(
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>,
   pushImageRoom?: (frame: PushTurnFrame) => number | undefined,
   getToolSwitches?: () => Array<{ id: string; on: boolean }>,
+  getRest?: () => RestState | null,
 ) {
   sent = [];
   records = [];
@@ -133,6 +135,7 @@ function callerWith(
     contextProviders: {
       ...(getScreenshot ? { getScreenshot } : {}),
       ...(getToolSwitches ? { getToolSwitches } : {}),
+      ...(getRest ? { getRest } : {}),
       getPrevious: () => {
         order.push("context");
         onContextBuilt?.();
@@ -206,6 +209,20 @@ describe("backend_caller — push transport", () => {
     await caller.call(turnOf(userEnv("look"), 7));
 
     expect(sent[0]!.client_context).toContain("tool switches: look.screen=off");
+  });
+
+  it("carries the do not disturb line in the frame's client_context", async () => {
+    const caller = callerWith(true, PUSH_CONFIG, undefined, undefined, undefined, () => ({
+      kind: "focus",
+      choice: "focus_25",
+      startedAt: Date.now() - 420_000,
+    }));
+
+    await caller.call(turnOf(userEnv("hi"), 7));
+
+    expect(sent[0]!.client_context.split("\n")).toContain(
+      "do not disturb: the character is in a focus session the user started (for 7min)",
+    );
   });
 
   it("speaks nothing now — the reply arrives later as its own render frame", async () => {

@@ -443,7 +443,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
-      register(wireTrayDnd({ dnd: settings.dndSettings, log }));
+      register(wireTrayDnd({ rest: phase1.activeHours, restSettings: settings.restSettings, log }));
     }
     // Every pet window marks its root: do-not-disturb stills the urgent chip pulse.
     register(wireDndRoot({ dnd: phase1.activeHours.dnd, root: document.documentElement }));
@@ -479,9 +479,11 @@ const realFactories: ConfiguredBootstrapFactories = {
         hitTest: () => config.get().avatar.hit_test,
         bridge: phase1.characterMenu,
         isTauri,
+        subscribeRest: phase1.activeHours.subscribeRest,
         ports: createCharacterMenuPorts({
           host: phase1.menuHost,
           stores: settings,
+          rest: phase1.activeHours.rest,
           surfaces,
           voiceInputStatus: phase1.voiceInputStatus,
           openSettings: phase1.openSettings,

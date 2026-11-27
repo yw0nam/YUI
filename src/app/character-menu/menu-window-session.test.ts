@@ -9,7 +9,7 @@ import { createMenuWindowSession } from "./menu-window-session";
 
 const STATE = {
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -22,7 +22,7 @@ const STATE = {
 };
 
 // Her 100x200 window: the columns, unmeasured in jsdom, reach 104px each side of her centre and,
-// six rows tall, need the window grown 72px above hers.
+// nine rows tall (the Rest list while she rests), need the window grown 204px above hers.
 const open = (n: number) => ({
   type: "open",
   id: `main#${n}`,
@@ -41,7 +41,7 @@ const open = (n: number) => ({
     alpha_threshold: 0.1,
   },
 });
-const RECT = { x: 616, y: 228, width: 208, height: 272 };
+const RECT = { x: 616, y: 96, width: 208, height: 404 };
 
 let app: HTMLElement;
 const sessions: ReturnType<typeof createMenuWindowSession>[] = [];
@@ -115,7 +115,7 @@ it("places its window beside her while hidden, then shows it, takes focus, start
   ]);
   expect([app.style.left, app.style.top, app.style.width, app.style.height]).toEqual([
     "54px",
-    "72px",
+    "204px",
     "100px",
     "200px",
   ]);
@@ -126,11 +126,11 @@ it("sends a pick to the pet that opened it, and redraws from the state the pet s
   deliver(open(1));
   await shown(1);
 
-  pill("rest")?.click();
-  deliver({ type: "state", id: "main#1", state: { ...STATE, rest: true } });
+  pill("listen")?.click();
+  deliver({ type: "state", id: "main#1", state: { ...STATE, listen: true } });
 
-  expect([emits().at(-1), pill("rest")?.getAttribute("aria-checked")]).toEqual([
-    { type: "action", id: "main#1", action: "rest", value: true },
+  expect([emits().at(-1), pill("listen")?.getAttribute("aria-checked")]).toEqual([
+    { type: "action", id: "main#1", action: "listen", value: true },
     "true",
   ]);
 });
@@ -164,15 +164,15 @@ it("flips a toggle at once on each press, before the pet sends its state", async
   deliver(open(1));
   await shown(1);
 
-  pill("rest")?.click();
-  const first = pill("rest")?.getAttribute("aria-checked");
-  pill("rest")?.click();
+  pill("listen")?.click();
+  const first = pill("listen")?.getAttribute("aria-checked");
+  pill("listen")?.click();
 
   expect([first, emits().slice(1)]).toEqual([
     "true",
     [
-      { type: "action", id: "main#1", action: "rest", value: true },
-      { type: "action", id: "main#1", action: "rest", value: false },
+      { type: "action", id: "main#1", action: "listen", value: true },
+      { type: "action", id: "main#1", action: "listen", value: false },
     ],
   ]);
 });

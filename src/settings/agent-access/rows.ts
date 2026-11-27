@@ -30,6 +30,9 @@ import { createScreenshotSettings } from "../capture/screenshot-settings";
 import { createUserNameSettings, MAX_LEN } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
 import { createRelationsSwitch } from "../relations/relations-switch";
+import { REST_CHOICES, type RestChoice } from "../rest/rest-choices";
+import { restChoicesAt } from "../rest/rest-end";
+import { createRestSettings } from "../rest/rest-settings";
 import { createPacerGapStore, PACER_GAP_MAX, type SettingsStores } from "../settings-stores";
 import {
   createThreadReactionThresholdsSettings,
@@ -99,7 +102,7 @@ export interface SettingRow {
   note?: string;
 }
 
-type RowSpec = Omit<SettingRow, "read" | "valid"> & Partial<Pick<SettingRow, "read">>;
+type RowSpec = Omit<SettingRow, "read" | "valid"> & Partial<Pick<SettingRow, "read" | "valid">>;
 
 const row = (spec: RowSpec): SettingRow => ({
   read: (stores) => getIn(stores[spec.store].get(), spec.field),
@@ -375,13 +378,24 @@ export const ROWS: readonly SettingRow[] = [
   }),
   row({
     path: "pace.rest",
-    store: "dndSettings",
-    field: ["enabled"],
+    store: "restSettings",
+    field: ["choice"],
     scope: "global",
     access: "allow",
     labelKey: "character_menu.rest",
-    write: (stores, value) => stores.dndSettings.setEnabled(value as boolean),
-    factory: (storage) => createFlagSettings(false, { storage }),
+    // One vocabulary for read and write: the running choice, or off.
+    values: [...REST_CHOICES, "off"],
+    valueLabels: {
+      ...Object.fromEntries(REST_CHOICES.map((c) => [c, `character_menu.rest_${c}`])),
+      off: "settings_request.off",
+    },
+    read: (stores) => stores.restSettings.get()?.choice ?? "off",
+    // The choices the menu offers now: after midnight Until tonight is not one.
+    valid: (_stores, value) =>
+      value === "off" || restChoicesAt(Date.now()).includes(value as RestChoice),
+    write: (stores, value) =>
+      value === "off" ? stores.restSettings.end() : stores.restSettings.start(value as RestChoice),
+    factory: (storage) => createRestSettings({ storage }),
   }),
   row({
     path: "privacy.screenshot",

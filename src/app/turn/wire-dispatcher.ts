@@ -91,8 +91,8 @@ export function wireDispatcher(deps: {
   /** The assembled card for each turn; absent in a window that sends no card. */
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
-  /** This pet window's active hours: the scaled pacer gap and the do-not-disturb hold. */
-  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd">;
+  /** This pet window's active hours: the scaled pacer gap and what holds her own turns. */
+  activeHours: Pick<WindowActiveHours, "gapMs" | "subscribeGap" | "dnd" | "rest">;
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
@@ -223,6 +223,7 @@ export function wireDispatcher(deps: {
           relationsSwitch.get().enabled,
         ),
       getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
+      getRest: () => activeHours.rest(),
     },
     commitOverheard: overheard.commit,
     contextHistory,

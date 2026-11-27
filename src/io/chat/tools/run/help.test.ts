@@ -141,7 +141,11 @@ describe("helpText", () => {
         type: '"high" | "normal" | "low"',
         comment: "L(base_pace.title) [global, direct]",
       },
-      { path: "pace.rest", type: "boolean", comment: "L(character_menu.rest) [global, allow]" },
+      {
+        path: "pace.rest",
+        type: '"hour" | "tonight" | "morning" | "until_off" | "focus_25" | "focus_50" | "off"',
+        comment: "L(character_menu.rest) [global, allow]",
+      },
       {
         path: "threads.reactions",
         type: "boolean",

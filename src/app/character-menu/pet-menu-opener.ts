@@ -24,6 +24,8 @@ export function createPetMenuOpener(deps: {
   locomotion: Pick<ReturnType<typeof wireLocomotion>, "hold" | "abortTravel">;
   readPlacement: () => Promise<MenuPlacementRead>;
   ports: { read(): MenuState; actions: MenuActions };
+  /** Rest's changes, which redraw a shown menu without a click. */
+  subscribeRest(cb: () => void): () => void;
   emit(message: CharacterMenu): void;
   focusWindow(): Promise<void>;
 }): {
@@ -43,6 +45,10 @@ export function createPetMenuOpener(deps: {
   let onEnd: (() => void) | null = null;
 
   const ours = (id: string): boolean => id.startsWith(`${deps.label}#`);
+  const sendState = (): void => {
+    if (current && shown) emit({ type: "state", id: current, state: ports.read() });
+  };
+  const offRest = deps.subscribeRest(sendState);
 
   function end(): void {
     clearTimeout(timer);
@@ -125,7 +131,7 @@ export function createPetMenuOpener(deps: {
     } catch (err) {
       log.warn("action_failed", { action: message.action, error: String(err) });
     }
-    if (current && shown) emit({ type: "state", id: current, state: ports.read() });
+    sendState();
   }
 
   return {
@@ -140,6 +146,8 @@ export function createPetMenuOpener(deps: {
         shown = true;
         clearTimeout(timer);
         overlay.setAttribute(MENU_OPEN_ATTR, "");
+        // The open's state may be older than the window took to show.
+        sendState();
       } else if (message.type === "action") void run(message);
       else if (message.type === "closed" && message.id === current) {
         end();
@@ -148,6 +156,7 @@ export function createPetMenuOpener(deps: {
       }
     },
     dispose() {
+      offRest();
       if (!current) return;
       emit({ type: "close", id: current });
       end();

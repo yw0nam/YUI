@@ -70,14 +70,14 @@ export function createMenuWindowSession(deps: {
     } as CharacterMenu);
   };
   /** Sends a toggle's pick and draws it at once; the pet's state reply overwrites the guess. */
-  const flip = (action: "rest" | "listen" | "bubble" | "unified", on: boolean): void => {
+  const flip = (action: "listen" | "bubble" | "unified", on: boolean): void => {
     if (opening && opening.id === picksTo?.id)
       opening = { ...opening, state: { ...opening.state, [action]: on } };
     send(action, on);
   };
   const actions: MenuActions = {
     talk: (open) => send("talk", open),
-    rest: (on) => flip("rest", on),
+    rest: (choice) => send("rest", choice),
     listen: (on) => flip("listen", on),
     settings: (page) => send("settings", page),
     body: (id) => send("body", id),
