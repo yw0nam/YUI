@@ -15,12 +15,14 @@ import {
 } from "../backend/context-builder";
 import { mentionOf, routedViaOf, userTurnSourceOf } from "../core/classify";
 import { sourceLinesOf } from "./signal-lines";
+import type { Translate } from "./trigger-line";
 import type { Turn, TurnLog } from "./turn";
 
 /** The surface calls the quote drives; the real Surfaces satisfies it. */
 export interface QuoteSurfaces {
   quoteUser(quote: UserQuote): void;
   quoteSignals(lines: SourceLine[]): void;
+  quoteTrigger(text: string): void;
   settleQuote(): void;
   clearQuote(): void;
   restoreInput(text: string, images: string[]): void;
@@ -39,6 +41,8 @@ export interface QuotedTurn {
 export function createQuotedTurn(deps: {
   surfaces: QuoteSurfaces;
   turnLog: Pick<TurnLog, "subscribe">;
+  /** Catalogs the fixed trigger-line phrases. */
+  translate: Translate;
   /** Puts a failed turn's attached Threads back on the chat input. */
   restoreThreads?: (threads: AttachedThread[]) => void;
 }): QuotedTurn {

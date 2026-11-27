@@ -162,6 +162,16 @@ describe("screen_source — app_switched", () => {
     expect(s.pushed[0]?.payload).not.toHaveProperty("cue_id");
     expect(s.pushed[0]?.payload).not.toHaveProperty("label");
   });
+
+  it("carries the destination app, so the bubble can name where the user went", async () => {
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Cursor"));
+    s.at(10 * MIN, tick("Slack"));
+    s.at(10 * MIN + 90_000, tick("Slack"));
+    expect(s.pushed[0]?.payload).toMatchObject({ transition: "app_switched", app: "Slack" });
+  });
 });
 
 describe("screen_source — app identity is the only clock", () => {

@@ -39,6 +39,7 @@ function makeLocal(): Surfaces {
     showSpeechActions: vi.fn(),
     quoteUser: vi.fn(),
     quoteSignals: vi.fn(),
+    quoteTrigger: vi.fn(),
     settleQuote: vi.fn(),
     clearQuote: vi.fn(),
     showTool: vi.fn(),
@@ -76,6 +77,7 @@ function makeRemote(): RemoteSurfaces {
     showSpeechActions: vi.fn(),
     quoteUser: vi.fn(),
     quoteSignals: vi.fn(),
+    quoteTrigger: vi.fn(),
     settleQuote: vi.fn(),
     clearQuote: vi.fn(),
     summonInput: vi.fn(),
@@ -348,6 +350,20 @@ describe("createSurfacesRouter", () => {
     router.quoteSignals(lines);
     expect(remote.quoteSignals).toHaveBeenCalledWith(lines);
     expect(local.quoteSignals).toHaveBeenCalledTimes(1);
+  });
+
+  it("quoteTrigger reaches the side the mode names and the unified window", () => {
+    router.quoteTrigger("09:00 Morning greeting");
+    expect(local.quoteTrigger).toHaveBeenCalledWith("09:00 Morning greeting");
+
+    setMode("popped");
+    router.quoteTrigger("Switched to Slack");
+    expect(remote.quoteTrigger).toHaveBeenCalledWith("Switched to Slack");
+    expect(local.quoteTrigger).toHaveBeenCalledTimes(1);
+
+    setShown(true);
+    router.quoteTrigger("First time today");
+    expect(stream.quoteTrigger).toHaveBeenCalledWith("First time today");
   });
 
   it("restoreInput reaches the input side the mode names", () => {

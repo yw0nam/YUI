@@ -112,6 +112,12 @@ export const surfaceOps = {
     (p, s) => s.quoteSignals(p.lines),
     { bubble: true },
   ),
+  "quote-trigger": entry(
+    "quoteTrigger",
+    (text) => ({ text }),
+    () => {},
+    { bubble: true },
+  ),
   "settle-quote": entry(
     "settleQuote",
     () => ({}),

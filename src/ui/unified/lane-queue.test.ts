@@ -15,6 +15,7 @@ function setup(cast = ["perlica", "natsume"]) {
     hideSpeech: vi.fn(draw("hide")),
     quoteUser: vi.fn(draw("quote")),
     quoteSignals: vi.fn(draw("quote-signals")),
+    quoteTrigger: vi.fn(draw("quote-trigger")),
     settleQuote: vi.fn(draw("settle-quote")),
     clearQuote: vi.fn(draw("clear-quote")),
   };

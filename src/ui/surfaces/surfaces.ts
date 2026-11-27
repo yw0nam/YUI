@@ -76,6 +76,8 @@ export interface Surfaces extends Omit<TextInput, "interceptSubmit"> {
   quoteUser(quote: UserQuote): void;
   /** A turn ran with signal groups and its first utterance opened: the groups show as source lines on the bubble's first lines. */
   quoteSignals(lines: SourceLine[]): void;
+  /** A turn she started opened its first utterance: why she spoke shows on the bubble's first line. */
+  quoteTrigger(text: string): void;
   /** The quoted turn is over: the line stays and the bubble takes its dwell, or hides when it shows nothing else. */
   settleQuote(): void;
   /** The quoted turn ended before any reply: the line goes and the bubble hides when it shows nothing else. */
@@ -298,6 +300,7 @@ export function createSurfaces({
     showSpeechActions: bubble.showSpeechActions,
     quoteUser: quote.show,
     quoteSignals: sources.show,
+    quoteTrigger: () => {},
     settleQuote: quote.settle,
     clearQuote: quote.clear,
     showTool: tool.showTool,
