@@ -123,6 +123,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
           cue_id: cue.id,
           label: cue.label,
           context: cue.context,
+          time: cue.time,
         },
       };
       bus.push(env);

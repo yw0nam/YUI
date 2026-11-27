@@ -34,6 +34,7 @@ import { withPlateState } from "../message/plate-state";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
+import { createTriggerLine } from "../message/trigger-line";
 import { createUserQuote } from "../message/user-quote";
 import { anchorWithInputSlots, liftWithInputSlots } from "./input-slots";
 
@@ -244,6 +245,7 @@ export function createSurfaces({
     : null;
   const quote = createUserQuote({ el: bubbleQuote, bubble, lead: quoteLead });
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
+  const trigger = createTriggerLine({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     liftWithInputSlots([askSlot, commandSlot], bubble),
@@ -300,7 +302,7 @@ export function createSurfaces({
     showSpeechActions: bubble.showSpeechActions,
     quoteUser: quote.show,
     quoteSignals: sources.show,
-    quoteTrigger: () => {},
+    quoteTrigger: trigger.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,
     showTool: tool.showTool,

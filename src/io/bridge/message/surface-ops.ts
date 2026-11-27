@@ -115,7 +115,7 @@ export const surfaceOps = {
   "quote-trigger": entry(
     "quoteTrigger",
     (text) => ({ text }),
-    () => {},
+    (p, s) => s.quoteTrigger(p.text),
     { bubble: true },
   ),
   "settle-quote": entry(
