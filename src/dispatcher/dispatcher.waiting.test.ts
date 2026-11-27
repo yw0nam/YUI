@@ -260,6 +260,16 @@ describe("dispatcher — waiting list", () => {
     expect(pipelineBusy).not.toHaveBeenCalledWith(false);
   });
 
+  it("keeps a batched group that arrives while the slot is free buffered past the next tick", async () => {
+    make();
+    await vi.advanceTimersByTimeAsync(20);
+    buffered = [group];
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(backendCaller.call).not.toHaveBeenCalled();
+    expect(buffered).toEqual([group]);
+  });
+
   it("sends the buffered batched groups only through the release at playback end", async () => {
     make();
     bus.push(userEnv("hi"));

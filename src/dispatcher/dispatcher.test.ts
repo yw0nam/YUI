@@ -475,7 +475,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.inFlight()).toBeNull();
   });
 
-  it("cancel() drops a waiting gesture reaction as waiting_expired", async () => {
+  it("cancel() leaves the waiting list as it is", async () => {
     dispatcher.start();
     // occupy in-flight
     bus.push(env({ ts: NOW }));
@@ -493,10 +493,10 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.queue().length).toBeGreaterThan(0);
 
     dispatcher.cancel();
-    expect(dispatcher.queue()).toHaveLength(0);
-    expect(dispatcher.recentDrops(10)).toEqual([
-      expect.objectContaining({ event_name: "proactive.tap_bored", reason: "waiting_expired" }),
+    expect(dispatcher.queue()).toEqual([
+      expect.objectContaining({ event_name: "proactive.tap_bored" }),
     ]);
+    expect(dispatcher.recentDrops(10)).toEqual([]);
   });
 
   it("cancel() with nothing in flight is a no-op (no throw)", () => {
