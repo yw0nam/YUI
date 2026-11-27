@@ -404,7 +404,7 @@ A note rides every allow path of its request that answers `ok` or `denied`. An a
 
 `pace.rest` is an allow row that holds a Rest choice: `hour`, `tonight`, `morning`, `until_off`, `focus_25`, `focus_50`, or `off`. It reads the running choice, or `off` while no Rest or Focus runs. An active-hours off span belongs to one character and reads `off`.
 
-Writing `off` ends the running Rest or Focus, and writing a choice starts it from now. Writing the value the row already reads changes nothing, so it answers `ok` and raises no Settings request.
+Writing `off` ends the running Rest or Focus, and writing a choice starts it from now. From 00:00 to 07:59 local, `tonight` answers `error: invalid pace.rest`, as the menu does not offer it then. Writing the value the row already reads changes nothing, so it answers `ok` and raises no Settings request.
 
 ### Settings request
 

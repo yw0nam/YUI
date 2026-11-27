@@ -30,7 +30,8 @@ import { createScreenshotSettings } from "../capture/screenshot-settings";
 import { createUserNameSettings, MAX_LEN } from "../identity/user-name-settings";
 import { createFlagSettings, type PersistedStorage } from "../persisted-store";
 import { createRelationsSwitch } from "../relations/relations-switch";
-import { isRestChoice, REST_CHOICES, type RestChoice } from "../rest/rest-choices";
+import { REST_CHOICES, type RestChoice } from "../rest/rest-choices";
+import { restChoicesAt } from "../rest/rest-end";
 import { createRestSettings } from "../rest/rest-settings";
 import { createPacerGapStore, PACER_GAP_MAX, type SettingsStores } from "../settings-stores";
 import {
@@ -389,7 +390,9 @@ export const ROWS: readonly SettingRow[] = [
       off: "settings_request.off",
     },
     read: (stores) => stores.restSettings.get()?.choice ?? "off",
-    valid: (_stores, value) => value === "off" || isRestChoice(value),
+    // The choices the menu offers now: after midnight Until tonight is not one.
+    valid: (_stores, value) =>
+      value === "off" || restChoicesAt(Date.now()).includes(value as RestChoice),
     write: (stores, value) =>
       value === "off" ? stores.restSettings.end() : stores.restSettings.start(value as RestChoice),
     factory: (storage) => createRestSettings({ storage }),
