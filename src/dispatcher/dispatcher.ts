@@ -40,7 +40,7 @@ import type {
   TurnOutcome,
 } from "./backend/backend-caller";
 import { userTextOf } from "./backend/context-builder";
-import type { AddressedChain } from "./core/addressed-chain";
+import { type AddressedChain, stampExchangeUsed } from "./core/addressed-chain";
 import { createAdmission } from "./core/admission";
 import {
   classify,
@@ -433,6 +433,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (admission.heldByDndAny(env, members)) return "dnd";
         guardrails.spend(env);
         deps.addressedChain.count(addressedIn(env, members));
+        stampExchangeUsed(env, deps.addressedChain.taken());
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
@@ -498,6 +499,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       list,
       admissible: admission.admissible,
       canAdmit: deps.addressedChain.canAdmit,
+      exchangeMax: deps.addressedChain.max,
       groupsJoin: deps.isDndOn?.() !== true,
       catchupEdge: catchupFree && !wasFree,
       drain: () => deps.drainSignals?.() ?? [],

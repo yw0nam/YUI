@@ -376,7 +376,14 @@ export interface TriggerMeta {
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
   /** addressed.* — another open character's reply named this character through address_character. */
-  addressed?: { from: string; text: string; ts: number; user_message?: string };
+  addressed?: {
+    from: string;
+    text: string;
+    ts: number;
+    user_message?: string;
+    /** The chain numbers the admission stamped: used since the user last spoke, the max it admitted under. */
+    exchange?: { used: number; max: number };
+  };
   /** signals.batch / signals.catchup / signals.urgent / signals.urgent_catchup — grouped opaque items forwarded from the /signals ingress. */
   signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */

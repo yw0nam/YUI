@@ -137,14 +137,24 @@ export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined 
 function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
   if (env.event_name !== ADDRESSED_EVENT) return undefined;
   const { name, line, user_message } = env.payload ?? {};
+  const exchange = exchangeOf(env);
   return typeof name === "string" && typeof line === "string"
     ? {
         from: name,
         text: line,
         ts: env.ts,
         ...(typeof user_message === "string" ? { user_message } : {}),
+        ...(exchange ? { exchange } : {}),
       }
     : undefined;
+}
+
+/** The exchange numbers release and the gate grant stamped, present only on an admitted addressed turn. */
+function exchangeOf(env: BusEnvelope): NonNullable<TriggerMeta["addressed"]>["exchange"] {
+  const raw = env.payload?.exchange;
+  if (raw === null || typeof raw !== "object") return undefined;
+  const { used, max } = raw as { used?: unknown; max?: unknown };
+  return typeof used === "number" && typeof max === "number" && max > 0 ? { used, max } : undefined;
 }
 
 function screenOf(env: BusEnvelope): TriggerMeta["screen"] | undefined {

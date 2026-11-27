@@ -196,6 +196,11 @@ function addressedBody(a: NonNullable<TriggerMeta["addressed"]>): string {
     : `addressed by ${oneLine(a.from)}: "${oneLine(a.text)}"`;
 }
 
+/** The exchange fact an addressed turn carries: the used budget, the max, and that silence ends it. */
+function exchangeLine(e: { used: number; max: number }): string {
+  return `exchange: the character has answered other characters ${e.used} time${e.used === 1 ? "" : "s"} since the user last spoke, at most ${e.max}; a reply without address_character ends the exchange`;
+}
+
 /** The reply as the subject of a past-event line. */
 function addressedPastBody(a: NonNullable<TriggerMeta["addressed"]>): string {
   return a.user_message !== undefined
@@ -287,6 +292,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(
       `trigger: ${addressedBody(trigger.addressed)} (${minutesSince(trigger.addressed.ts, nowMs)}min ago)`,
     );
+    if (trigger.addressed.exchange) lines.push(exchangeLine(trigger.addressed.exchange));
   } else if (trigger.kind === "user") {
     const addressed =
       trigger.mention === "everyone"

@@ -87,7 +87,7 @@ The device-wide wait after any turn starts, user or proactive, spoken or silent,
 _Avoid_: quiet gap, pacer gap, global gap
 
 **Chain cap**:
-The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable on the Together page. The next one is dropped with reason `addressed_cap`.
+The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable on the Together page. Each admitted addressed turn tells the backend how much of that budget it has used. The next one is dropped with reason `addressed_cap`.
 _Avoid_: ping-pong cap, chain limit, addressed limit
 
 **Tier**:
