@@ -19,6 +19,7 @@ export function wireTrayDnd(deps: {
   setTray?: (on: boolean) => Promise<void>;
 }): () => void {
   if (!deps.win && !isTauri()) return () => {};
+  if (!deps.dnd) return () => {};
   const { dnd, log } = deps;
   const win = deps.win ?? getCurrentWindow();
   const setTray = deps.setTray ?? setTrayDnd;

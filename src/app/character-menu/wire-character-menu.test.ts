@@ -22,7 +22,7 @@ afterEach(() => {
 
 const STATE = {
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,

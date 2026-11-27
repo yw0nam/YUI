@@ -27,6 +27,50 @@ describe("renderClientContext — time line", () => {
   });
 });
 
+describe("renderClientContext — do not disturb line", () => {
+  it.each([
+    [
+      "a Rest with an end",
+      { kind: "rest", since: SINCE, ends_local: "08:00" },
+      "do not disturb: the character is resting at the user's request (for 10min); the rest ends at 08:00 local",
+    ],
+    [
+      "a Rest until the user turns it off",
+      { kind: "rest", since: SINCE },
+      "do not disturb: the character is resting at the user's request (for 10min)",
+    ],
+    [
+      "a Rest with no recorded start",
+      { kind: "rest" },
+      "do not disturb: the character is resting at the user's request",
+    ],
+    [
+      "a Focus",
+      { kind: "focus", since: SINCE, ends_local: "10:25" },
+      "do not disturb: the character is in a focus session the user started (for 10min); it ends at 10:25 local",
+    ],
+    [
+      "a quiet span",
+      { kind: "quiet", ends_local: "12:00" },
+      "do not disturb: an active-hours quiet span holds the character's own turns; it ends at 12:00 local",
+    ],
+    [
+      "an all-day quiet span",
+      { kind: "quiet" },
+      "do not disturb: an active-hours quiet span holds the character's own turns",
+    ],
+  ] as const)("renders %s right after the frontmost line", (_name, dnd, line) => {
+    const cc = baseContext({ kind: "user" });
+    cc.env.frontmost = { app: "Finder", since: SINCE };
+    cc.do_not_disturb = dnd;
+
+    expect(renderClientContext(cc, NOW).split("\n").slice(1, 3)).toEqual([
+      "frontmost: Finder (for 10min)",
+      line,
+    ]);
+  });
+});
+
 describe("renderClientContext — frontmost line", () => {
   it("app + window_title (different) + duration", () => {
     const cc = baseContext({ kind: "user" });

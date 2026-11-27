@@ -26,7 +26,8 @@ import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { createActiveHoursSettings } from "../../settings/active-hours/active-hours-settings";
 import { createBasePaceSettings } from "../../settings/active-hours/base-pace-settings";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
-import { createFlagSettings, type PersistedStorage } from "../../settings/persisted-store";
+import type { PersistedStorage } from "../../settings/persisted-store";
+import { createRestSettings } from "../../settings/rest/rest-settings";
 import { createPacerGapStore } from "../../settings/settings-stores";
 import { setLocale } from "../../ui/i18n";
 import { createWindowActiveHours } from "../active-hours/window-active-hours";
@@ -48,7 +49,7 @@ describe("wireDispatcher", () => {
   const setup = (
     windowTools?: ClientTool[],
     endpoints = {} as EndpointsConfig,
-    dndSettings = createFlagSettings(false),
+    restSettings = createRestSettings(),
     inputOpen = false,
   ) => {
     const registered: Array<() => void> = [];
@@ -99,7 +100,7 @@ describe("wireDispatcher", () => {
       basePaceSettings: createBasePaceSettings({ storage: memoryStorage() }),
       agentSettings: createAgentSettings({ storage: memoryStorage() }),
       pacerGapSettings: activeHoursGapSettings,
-      dndSettings,
+      restSettings,
     });
     // The teardown test asserts the registered gap unsubscribe by identity.
     const subscribeGap = activeHours.subscribeGap.bind(activeHours);
@@ -208,12 +209,25 @@ describe("wireDispatcher", () => {
 
   // The dispatcher's routing gate holds a self-fired cue while this reads true.
   it("hands the dispatcher the pet window's do-not-disturb, read live", () => {
-    const dnd = createFlagSettings(false);
-    const s = setup(undefined, {} as EndpointsConfig, dnd);
+    const rest = createRestSettings();
+    const s = setup(undefined, {} as EndpointsConfig, rest);
 
     expect(s.dispatcherDeps.isDndOn?.()).toBe(false);
-    dnd.setEnabled(true);
+    rest.start("until_off");
     expect(s.dispatcherDeps.isDndOn?.()).toBe(true);
+  });
+
+  it("hands the backend caller the pet window's Rest for the context line", () => {
+    const rest = createRestSettings();
+    setup(undefined, {} as EndpointsConfig, rest);
+    rest.start("until_off", 5);
+    const { contextProviders } = mocks.createBackendCaller.mock.calls.at(-1)![0];
+
+    expect(contextProviders.getRest?.()).toEqual({
+      kind: "rest",
+      choice: "until_off",
+      startedAt: 5,
+    });
   });
 
   it("holds for an off span while the device switch is off", () => {
@@ -314,7 +328,7 @@ describe("wireDispatcher", () => {
     ["network_drop", { status: 503, message: "overloaded" }, "503 overloaded", "retry"],
     ["network_stall", undefined, "The connection stopped responding", "retry"],
   ] as const)("offers the %s next step on the open input: %j", (reason, detail, message, offer) => {
-    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+    const s = setup(undefined, {} as EndpointsConfig, createRestSettings(), true);
 
     s.dispatcherDeps.onUserTurnFailed!(reason, "text", detail);
 
@@ -322,7 +336,7 @@ describe("wireDispatcher", () => {
   });
 
   it("opens Connection from a key action on the open input", () => {
-    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+    const s = setup(undefined, {} as EndpointsConfig, createRestSettings(), true);
     s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
 
     const offer = s.showInputError.mock.calls[0]![1];
@@ -381,7 +395,7 @@ describe("wireDispatcher", () => {
   });
 
   it("keeps a typed failure on the open input and off the pill", () => {
-    const s = setup(undefined, {} as EndpointsConfig, createFlagSettings(false), true);
+    const s = setup(undefined, {} as EndpointsConfig, createRestSettings(), true);
 
     s.dispatcherDeps.onUserTurnFailed!("http_4xx_drop", "text");
 

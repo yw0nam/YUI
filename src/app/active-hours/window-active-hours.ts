@@ -18,6 +18,8 @@ export interface WindowActiveHours {
   subscribeGap(cb: () => void): () => void;
   /** Do-not-disturb for this pet window: the device switch, or an off span now; subscribe fires only when enabled changes. */
   dnd: Pick<FlagSettingsStore, "get" | "subscribe">;
+  rest(now?: number): unknown;
+  subscribeRest(cb: () => void): () => void;
   /** The bundled persona config, once it has loaded; until then the default card is unknown. */
   setPersona(persona: PersonaConfig): void;
   dispose(): void;
@@ -28,7 +30,8 @@ export function createWindowActiveHours(deps: {
   basePaceSettings: Pick<BasePaceSettingsStore, "get" | "subscribe">;
   agentSettings: Pick<SettingsStores["agentSettings"], "get" | "subscribe">;
   pacerGapSettings: Pick<ClampedIntSettingsStore, "get" | "subscribe">;
-  dndSettings: Pick<FlagSettingsStore, "get" | "subscribe">;
+  dndSettings?: Pick<FlagSettingsStore, "get" | "subscribe">;
+  restSettings?: unknown;
 }): WindowActiveHours {
   let persona: PersonaConfig | undefined;
   const gapListeners = new Set<() => void>();
@@ -54,7 +57,7 @@ export function createWindowActiveHours(deps: {
       gap = nextGap;
       for (const cb of gapListeners) cb();
     }
-    const nextEnabled = deps.dndSettings.get().enabled || pace === "off";
+    const nextEnabled = deps.dndSettings?.get().enabled || pace === "off";
     if (nextEnabled !== enabled) {
       enabled = nextEnabled;
       for (const cb of dndListeners) cb({ enabled });
@@ -81,7 +84,7 @@ export function createWindowActiveHours(deps: {
     deps.basePaceSettings.subscribe(recompute),
     deps.agentSettings.subscribe(recompute),
     deps.pacerGapSettings.subscribe(recompute),
-    deps.dndSettings.subscribe(recompute),
+    deps.dndSettings?.subscribe(recompute) ?? (() => {}),
   ];
 
   return {
@@ -98,6 +101,8 @@ export function createWindowActiveHours(deps: {
         return () => dndListeners.delete(cb);
       },
     },
+    rest: () => null,
+    subscribeRest: () => () => {},
     setPersona(next) {
       persona = next;
       recompute();

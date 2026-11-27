@@ -9,7 +9,7 @@ import { createMenuWindowSession } from "./menu-window-session";
 
 const STATE = {
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -126,11 +126,11 @@ it("sends a pick to the pet that opened it, and redraws from the state the pet s
   deliver(open(1));
   await shown(1);
 
-  pill("rest")?.click();
-  deliver({ type: "state", id: "main#1", state: { ...STATE, rest: true } });
+  pill("listen")?.click();
+  deliver({ type: "state", id: "main#1", state: { ...STATE, listen: true } });
 
-  expect([emits().at(-1), pill("rest")?.getAttribute("aria-checked")]).toEqual([
-    { type: "action", id: "main#1", action: "rest", value: true },
+  expect([emits().at(-1), pill("listen")?.getAttribute("aria-checked")]).toEqual([
+    { type: "action", id: "main#1", action: "listen", value: true },
     "true",
   ]);
 });
@@ -164,15 +164,15 @@ it("flips a toggle at once on each press, before the pet sends its state", async
   deliver(open(1));
   await shown(1);
 
-  pill("rest")?.click();
-  const first = pill("rest")?.getAttribute("aria-checked");
-  pill("rest")?.click();
+  pill("listen")?.click();
+  const first = pill("listen")?.getAttribute("aria-checked");
+  pill("listen")?.click();
 
   expect([first, emits().slice(1)]).toEqual([
     "true",
     [
-      { type: "action", id: "main#1", action: "rest", value: true },
-      { type: "action", id: "main#1", action: "rest", value: false },
+      { type: "action", id: "main#1", action: "listen", value: true },
+      { type: "action", id: "main#1", action: "listen", value: false },
     ],
   ]);
 });

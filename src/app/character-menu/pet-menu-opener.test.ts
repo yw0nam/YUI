@@ -19,7 +19,7 @@ afterEach(() => {
 
 const STATE = {
   talk: false,
-  rest: false,
+  rest: null,
   listen: false,
   bubble: false,
   unified: false,
@@ -55,7 +55,8 @@ const OPEN = {
 };
 
 function wired() {
-  let state = { ...STATE };
+  let state: Omit<typeof STATE, "rest"> & { rest: unknown } = { ...STATE };
+  const restListeners = new Set<() => void>();
   const emitted: unknown[] = [];
   const focusWindow = vi.fn(async () => {});
   const locomotion = {
@@ -90,16 +91,23 @@ function wired() {
       nameTop: OPEN.nameTop,
       chest: OPEN.chest,
     }),
-    ports: { read: () => state, actions },
+    ports: { read: () => state as typeof STATE, actions },
+    subscribeRest: (cb: () => void) => {
+      restListeners.add(cb);
+      return () => restListeners.delete(cb);
+    },
     emit: (message) => void emitted.push(message),
     focusWindow,
-  });
+  } as Parameters<typeof createPetMenuOpener>[0]);
   teardowns.push(opener.dispose);
   const rightClick = () => void opener.open();
   const onAbort = () =>
     (locomotion.hold.mock.calls[0]?.[2] as { onAbort: () => void | Promise<void> }).onAbort();
-  const setState = (next: typeof STATE) => {
+  const setState = (next: typeof state) => {
     state = next;
+  };
+  const restChanged = () => {
+    for (const cb of restListeners) cb();
   };
   return {
     locomotion,
@@ -108,6 +116,7 @@ function wired() {
     rightClick,
     onAbort,
     setState,
+    restChanged,
     focusWindow,
     deliver: (message: unknown) => opener.receive(message as CharacterMenu),
   };
@@ -126,7 +135,37 @@ it("asks nothing more while her menu is pending or shown", async () => {
   rightClick();
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  expect(emitted).toEqual([OPEN]);
+  expect(emitted.filter((m) => (m as { type: string }).type === "open")).toEqual([OPEN]);
+});
+
+it("sends a fresh state once the menu reports shown", async () => {
+  const { emitted, rightClick, deliver, setState } = wired();
+  rightClick();
+  await vi.waitFor(() => expect(emitted).toHaveLength(1));
+  const rest = { kind: "rest", choice: "hour", startedAt: 1, endsAt: 3_600_001 };
+  setState({ ...STATE, rest });
+
+  deliver({ type: "shown", id: "main#1" });
+
+  expect(emitted.slice(1)).toEqual([{ type: "state", id: "main#1", state: { ...STATE, rest } }]);
+});
+
+it("sends the state on each Rest change while the menu shows, and none before or after", async () => {
+  const { emitted, rightClick, deliver, restChanged } = wired();
+  rightClick();
+  await vi.waitFor(() => expect(emitted).toHaveLength(1));
+  restChanged();
+  const pending = emitted.length;
+  deliver({ type: "shown", id: "main#1" });
+  const shown = emitted.length;
+
+  restChanged();
+  const changed = emitted.length;
+  deliver({ type: "closed", id: "main#1", refocus: false });
+  restChanged();
+
+  expect([pending, changed - shown, emitted.length - changed]).toEqual([1, 1, 0]);
+  expect(emitted.at(-1)).toEqual({ type: "state", id: "main#1", state: STATE });
 });
 
 it.each([
@@ -181,12 +220,13 @@ it("runs a picked action and sends the state it left once the port settles", asy
   const before = emitted.length;
   swapped();
 
-  await vi.waitFor(() => expect(emitted).toHaveLength(2));
+  await vi.waitFor(() => expect(emitted).toHaveLength(before + 1));
   expect(actions.body).toHaveBeenCalledExactlyOnceWith("natsume");
-  expect([before, emitted[1]]).toEqual([
-    1,
-    { type: "state", id: "main#1", state: { ...STATE, body: "natsume" } },
-  ]);
+  expect(emitted.at(-1)).toEqual({
+    type: "state",
+    id: "main#1",
+    state: { ...STATE, body: "natsume" },
+  });
 });
 
 it("closes the menu for an agent move, which goes on once the menu reports closed", async () => {
@@ -204,7 +244,7 @@ it("closes the menu for an agent move, which goes on once the menu reports close
   deliver({ type: "closed", id: "main#1", refocus: false });
   await aborting;
 
-  expect([before, emitted[1]]).toEqual([false, { type: "close", id: "main#1" }]);
+  expect([before, emitted.at(-1)]).toEqual([false, { type: "close", id: "main#1" }]);
   expect(locomotion.hold).toHaveBeenLastCalledWith("menu", false);
 });
 
