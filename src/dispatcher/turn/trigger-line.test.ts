@@ -185,6 +185,40 @@ describe("triggerLineOf", () => {
     ).toBe("12:10 Walk +2");
   });
 
+  it("counts a waited member only when it carries an event name and a numeric ts", () => {
+    expect(
+      triggerLineOf(
+        envOf({
+          source: "timer_scheduler",
+          event_name: "schedule.lunch",
+          payload: {
+            label: "Lunch",
+            time: "12:00",
+            waited: [
+              {
+                source: "timer_scheduler",
+                event_name: "schedule.walk",
+                ts: 1,
+                payload: { label: "Walk", time: "12:10" },
+              },
+              {
+                source: "timer_scheduler",
+                event_name: "schedule.tea",
+                ts: "2",
+                payload: { label: "Tea", time: "12:20" },
+              },
+              {
+                source: "timer_scheduler",
+                payload: { label: "None", time: "12:30" },
+              },
+            ],
+          },
+        }),
+        t,
+      ),
+    ).toBe("12:00 Lunch +1");
+  });
+
   it.each<[string, BusEnvelope]>([
     [
       "a long session",

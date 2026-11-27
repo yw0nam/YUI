@@ -676,8 +676,10 @@ describe("renderClientContext — a turn that waited", () => {
   const TOP = new Date(2026, 10, 27, 12, 0).getTime();
   const NOW_WAITED = new Date(2026, 10, 27, 12, 40).getTime();
   const MILESTONE_AT = new Date(2026, 10, 27, 12, 10).getTime();
-  const ADDRESSED_AT = new Date(2026, 10, 27, 12, 20).getTime();
+  const CUE_AT = new Date(2026, 10, 27, 12, 20).getTime();
+  const SCREEN_AT = new Date(2026, 10, 27, 12, 25).getTime();
   const SIGNAL_AT = new Date(2026, 10, 27, 12, 25).getTime();
+  const LAST_TOGETHER = new Date(2026, 10, 26, 22, 3).getTime();
 
   const GROUP = {
     envelope: {
@@ -698,21 +700,26 @@ describe("renderClientContext — a turn that waited", () => {
     };
   }
 
-  it("renders the top member's age, then one line per waited member and the signal line", () => {
+  it("renders the open candidates, one past line per rider and the signal line", () => {
     const cc = waitedContext({
       kind: "schedule",
-      cue: { label: "Lunch" },
+      cue: { label: "Lunch", context: "remind the user to eat" },
       at: TOP,
       waited: [
         {
           kind: "milestone",
           at: MILESTONE_AT,
-          milestone: { name: "first_activity", local_time: "12:10" },
+          milestone: {
+            name: "first_activity",
+            local_time: "12:10",
+            last_together: LAST_TOGETHER,
+          },
         },
         {
-          kind: "addressed",
-          at: ADDRESSED_AT,
-          addressed: { from: "alice", text: "bob, you took my chair", ts: ADDRESSED_AT },
+          kind: "proactive",
+          at: CUE_AT,
+          cue: { label: "It's been quiet", context: "ask how it is going" },
+          idle_elapsed_min: 15,
         },
       ],
       signals: [GROUP],
@@ -722,13 +729,17 @@ describe("renderClientContext — a turn that waited", () => {
     const at = lines.findIndex((line) => line.startsWith("trigger:"));
     expect(lines.slice(at)).toEqual([
       'trigger: schedule cue "Lunch" (40min ago)',
-      "waited: 12:10 local, 30min ago: milestone first_activity",
-      'waited: 12:20 local, 20min ago: addressed by alice: "bob, you took my chair"',
+      "cue note (the user's own intent for this cue): remind the user to eat",
+      "waited: 3 candidates are still open; the character has not spoken to any of them yet and may take up any of them or none",
+      "waited: milestone first_activity came up 30min ago, at 12:10 local",
+      "last together: 2026-11-26 22:03 (15h ago)",
+      'waited: proactive cue "It\'s been quiet" came up 20min ago, at 12:20 local; the user has been idle for 35min',
+      "cue note (the user's own intent for this cue): ask how it is going",
       SIGNAL_LINE,
     ]);
   });
 
-  it("renders the same lines as riders on a user turn, without an age on its headline", () => {
+  it("renders the same block as riders on a user turn, counting only the riders", () => {
     const cc = waitedContext({
       kind: "user",
       mention: "character",
@@ -747,10 +758,111 @@ describe("renderClientContext — a turn that waited", () => {
     const at = lines.findIndex((line) => line.startsWith("trigger:"));
     expect(lines.slice(at)).toEqual([
       "trigger: user message (addressed to the character)",
-      'waited: 12:00 local, 40min ago: schedule cue "Lunch"',
-      "waited: 12:10 local, 30min ago: milestone first_activity",
+      "waited: 2 candidates are still open; the character has not spoken to any of them yet and may take up any of them or none",
+      'waited: schedule cue "Lunch" came up 40min ago, at 12:00 local',
+      "waited: milestone first_activity came up 30min ago, at 12:10 local",
       SIGNAL_LINE,
     ]);
+  });
+
+  it("shows the headline age only once the top member has waited a minute", () => {
+    const under = waitedContext({
+      kind: "schedule",
+      cue: { label: "Lunch" },
+      at: NOW_WAITED - 30_000,
+      waited: [{ kind: "schedule", at: TOP, cue: { label: "Walk" } }],
+    });
+    expect(
+      renderClientContext(under, NOW_WAITED)
+        .split("\n")
+        .find((line) => line.startsWith("trigger:")),
+    ).toBe('trigger: schedule cue "Lunch"');
+
+    const over = waitedContext({
+      kind: "schedule",
+      cue: { label: "Lunch" },
+      at: NOW_WAITED - 60_000,
+      waited: [{ kind: "schedule", at: TOP, cue: { label: "Walk" } }],
+    });
+    expect(
+      renderClientContext(over, NOW_WAITED)
+        .split("\n")
+        .find((line) => line.startsWith("trigger:")),
+    ).toBe('trigger: schedule cue "Lunch" (1min ago)');
+  });
+
+  it("ages an idle cue by its wait, on the headline and on a rider", () => {
+    const cc = waitedContext({
+      kind: "proactive",
+      cue: { label: "check in" },
+      idle_elapsed_min: 12,
+      at: NOW_WAITED - 20 * 60_000,
+      waited: [
+        {
+          kind: "proactive",
+          at: CUE_AT,
+          cue: { label: "It's been quiet" },
+          idle_elapsed_min: 15,
+        },
+      ],
+    });
+
+    const lines = renderClientContext(cc, NOW_WAITED).split("\n");
+    expect(lines).toContain(
+      'trigger: proactive cue "check in" (the user has been idle for 32min) (20min ago)',
+    );
+    expect(lines).toContain(
+      'waited: proactive cue "It\'s been quiet" came up 20min ago, at 12:20 local; the user has been idle for 35min',
+    );
+  });
+
+  it("renders a waited screen reaction as a past event, top and rider", () => {
+    const top = waitedContext({
+      kind: "proactive",
+      at: SCREEN_AT,
+      screen: {
+        transition: "app_switched",
+        app: "Slack",
+        from_app: "Cursor",
+        from_dwell_min: 1,
+        dwell_min: 0,
+      },
+      waited: [{ kind: "schedule", at: TOP, cue: { label: "Lunch" } }],
+    });
+    const topText = renderClientContext(top, NOW_WAITED);
+    expect(topText).toContain(
+      "trigger: screen app_switched; the user switched to Slack (15min ago)",
+    );
+    expect(topText).not.toContain("has been in the frontmost app");
+
+    const rider = waitedContext({
+      kind: "user",
+      waited: [
+        {
+          kind: "proactive",
+          at: SCREEN_AT,
+          screen: {
+            transition: "app_switched",
+            app: "Slack",
+            from_app: "Cursor",
+            from_dwell_min: 1,
+            dwell_min: 0,
+          },
+        },
+        {
+          kind: "proactive",
+          at: SCREEN_AT,
+          screen: { transition: "long_session", app: "Slack", dwell_min: 45 },
+        },
+      ],
+    });
+    const riderText = renderClientContext(rider, NOW_WAITED);
+    expect(riderText).toContain("waited: the user switched to Slack 15min ago, at 12:25 local");
+    expect(riderText).toContain(
+      "waited: the user's long session in Slack came up 15min ago, at 12:25 local",
+    );
+    expect(riderText).not.toContain("has been in the frontmost app");
+    expect(riderText).not.toContain("for 45min");
   });
 
   it("stamps a signal line with its local clock and age", () => {

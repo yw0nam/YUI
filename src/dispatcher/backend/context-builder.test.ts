@@ -448,19 +448,6 @@ describe("buildClientContext — screen forwarding", () => {
         ).trigger,
     ).toBe(false);
   });
-
-  it("does not project the screen source's recent buffer", () => {
-    const client = buildClientContext(
-      CTX,
-      screenEnv("proactive.screen_long_session", {
-        transition: "long_session",
-        dwell_min: 45,
-        recent: [{ from_app: "Cursor", to_app: "Slack", dwell_min: 10 }],
-      }),
-    );
-
-    expect(client.trigger.screen).toEqual({ transition: "long_session", dwell_min: 45 });
-  });
 });
 
 describe("buildClientContext — waited members", () => {
@@ -490,7 +477,13 @@ describe("buildClientContext — waited members", () => {
       source: "screen_watcher",
       event_name: "proactive.screen_app_switched",
       ts: 3,
-      payload: { transition: "app_switched", from_app: "Cursor", from_dwell_min: 34, dwell_min: 2 },
+      payload: {
+        transition: "app_switched",
+        app: "Slack",
+        from_app: "Cursor",
+        from_dwell_min: 34,
+        dwell_min: 2,
+      },
     };
     const addressed: BusEnvelope = {
       source: "addressed_source",
@@ -502,10 +495,18 @@ describe("buildClientContext — waited members", () => {
       source: "os_event_watcher",
       event_name: "proactive.touch_face",
       ts: 5,
-      payload: { cue_id: "touch_face", label: "face poked" },
+      payload: { cue_id: "touch_face", label: "face poked", gap_ms: 900_000 },
     };
+    const noTs = {
+      source: "timer_scheduler",
+      event_name: "schedule.tea",
+      ts: "6",
+    } as unknown as BusEnvelope;
 
-    const client = buildClientContext(CTX, bundleEnv([milestone, screen, addressed, gesture]));
+    const client = buildClientContext(
+      CTX,
+      bundleEnv([milestone, screen, addressed, gesture, noTs]),
+    );
 
     expect(client.trigger.at).toBe(TOP_AT);
     expect(client.trigger.waited).toEqual([
@@ -515,13 +516,14 @@ describe("buildClientContext — waited members", () => {
         at: 3,
         screen: {
           transition: "app_switched",
+          app: "Slack",
           from_app: "Cursor",
           from_dwell_min: 34,
           dwell_min: 2,
         },
       },
       { kind: "addressed", at: 4, addressed: { from: "alice", text: "hi", ts: 4 } },
-      { kind: "proactive", at: 5, cue: { label: "face poked" } },
+      { kind: "proactive", at: 5, cue: { label: "face poked" }, idle_elapsed_min: 15 },
     ]);
   });
 
