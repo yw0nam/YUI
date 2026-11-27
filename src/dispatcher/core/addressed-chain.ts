@@ -1,6 +1,7 @@
 /** The chain cap: how many addressed turns a window takes in a row without a user turn. */
 export interface AddressedChain {
-  canAdmit(): boolean;
+  /** Whether one more fits, with `pending` already admitted but not yet counted. */
+  canAdmit(pending?: number): boolean;
   count(): void;
   reset(): void;
 }
@@ -8,7 +9,7 @@ export interface AddressedChain {
 export function createAddressedChain(max: () => number): AddressedChain {
   let taken = 0;
   return {
-    canAdmit: () => taken < max(),
+    canAdmit: (pending = 0) => taken + pending < max(),
     count() {
       taken += 1;
     },

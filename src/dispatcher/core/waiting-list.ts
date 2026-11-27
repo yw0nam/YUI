@@ -25,7 +25,7 @@ export interface WaitingList {
   add(env: BusEnvelope): { entry: WaitingEntry; evicted: WaitingEntry[] };
   expire(now: number): WaitingEntry[];
   expireOnActivity(): WaitingEntry[];
-  /** Removes and returns the entries `pred` accepts, in rank order. */
+  /** Removes and returns the entries `pred` accepts, asked once per entry in rank order. */
   take(pred: (entry: WaitingEntry) => boolean): WaitingEntry[];
   /** Returns taken entries unchanged, ids and times kept. */
   putBack(entries: readonly WaitingEntry[]): void;
@@ -66,11 +66,11 @@ export function createWaitingList(): WaitingList {
   let entries: WaitingEntry[] = [];
   let nextId = 1;
 
-  /** Removes and returns the entries `pred` accepts, in rank order. */
+  /** Removes and returns the entries `pred` accepts, asking it once per entry in rank order. */
   function remove(pred: (entry: WaitingEntry) => boolean): WaitingEntry[] {
-    const gone = entries.filter(pred).sort(byRank);
-    entries = entries.filter((e) => !pred(e));
-    return gone;
+    const gone = new Set(entries.sort(byRank).filter(pred));
+    entries = entries.filter((e) => !gone.has(e));
+    return [...gone];
   }
 
   return {

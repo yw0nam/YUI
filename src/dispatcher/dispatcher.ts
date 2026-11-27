@@ -197,7 +197,7 @@ export interface Dispatcher {
   getBodyState(): BodyState;
   /** The avatar relocated on its own initiative (move_to) — restamps posture to standing/now. */
   noteAvatarMoved(): void;
-  /** Abort the in-progress call (client-only). Leaves the waiting list; does not sweep the bus or touch tier1. */
+  /** Abort the in-progress call (client-only) and end the on-activity waiting entries, as any user activity does. Does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
@@ -519,10 +519,18 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const wasFree = catchupFree;
     catchupFree = slotFree && admissible(catchupOf([]));
     if (!slotFree) return false;
-    for (const e of list.take((w) => isAddressedEvent(w.env) && !deps.addressedChain.canAdmit())) {
-      recordDrop(e.env, "addressed_cap");
-    }
-    const members = list.take((w) => admissible(w.env));
+    // Addressed entries taken here count toward the chain before the lock grants and counts them.
+    let addressed = 0;
+    const members = list.take((w) => {
+      if (!admissible(w.env)) return false;
+      if (!isAddressedEvent(w.env)) return true;
+      if (!deps.addressedChain.canAdmit(addressed)) return false;
+      addressed += 1;
+      return true;
+    });
+    const overCap = (w: WaitingEntry) =>
+      isAddressedEvent(w.env) && !deps.addressedChain.canAdmit(addressed);
+    for (const e of list.take(overCap)) recordDrop(e.env, "addressed_cap");
     const free = members.length > 0 ? deps.isDndOn?.() !== true : catchupFree && !wasFree;
     const groups = free ? (deps.drainSignals?.() ?? []) : [];
     if (members.length === 0 && groups.length === 0) return false;
@@ -689,6 +697,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight.abort.abort();
         setInFlight(null);
       }
+      expireOnActivity();
     },
     subscribeBusy(cb) {
       busySubscribers.add(cb);
