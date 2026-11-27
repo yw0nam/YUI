@@ -297,6 +297,19 @@ describe("pace.rest", () => {
     expect(restOf(stores)).toBe("off");
   });
 
+  it("takes tonight before midnight and refuses it after, as the menu offers it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 26, 23, 30).getTime());
+    const evening = await applyPatch(createSettingsStores(), { pace: { rest: "tonight" } });
+    vi.setSystemTime(new Date(2026, 10, 27, 0, 30).getTime());
+    const night = await applyPatch(createSettingsStores(), { pace: { rest: "tonight" } });
+
+    expect([evening.allow.map((c) => c.to), night.direct]).toEqual([
+      ["tonight"],
+      { "pace.rest": "error: invalid pace.rest" },
+    ]);
+  });
+
   it("reads off once the Rest has ended", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(T0);

@@ -46,14 +46,15 @@ function setup(initial: RestState | null) {
 }
 
 describe("wireTrayDnd", () => {
-  it("checks the tray while a Rest or a Focus runs, not in a quiet span, and unchecks it at the end", () => {
+  it("checks the tray while a Rest or a Focus runs, not in a quiet span, sending only a change of the check", () => {
     const { set, setTray } = setup(RESTING);
 
+    set({ kind: "focus", choice: "focus_25", startedAt: 1, endsAt: 1_500_001 });
     set({ kind: "focus", choice: "focus_25", startedAt: 1, endsAt: 1_500_001 });
     set({ kind: "quiet", endsAt: 5 });
     set(null);
 
-    expect(setTray.mock.calls).toEqual([[true], [true], [false], [false]]);
+    expect(setTray.mock.calls).toEqual([[true], [false]]);
   });
 
   it("ends a running Rest on a click and sends the check again", async () => {

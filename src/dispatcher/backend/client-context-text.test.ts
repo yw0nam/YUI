@@ -50,14 +50,14 @@ describe("renderClientContext — do not disturb line", () => {
       "do not disturb: the character is in a focus session the user started (for 10min); it ends at 10:25 local",
     ],
     [
-      "a quiet span",
-      { kind: "quiet", ends_local: "12:00" },
-      "do not disturb: an active-hours quiet span holds the character's own turns; it ends at 12:00 local",
+      "an off span",
+      { kind: "off_span", ends_local: "12:00" },
+      "do not disturb: an active-hours off span holds the character's own turns; it ends at 12:00 local",
     ],
     [
-      "an all-day quiet span",
-      { kind: "quiet" },
-      "do not disturb: an active-hours quiet span holds the character's own turns",
+      "an all-day off span",
+      { kind: "off_span" },
+      "do not disturb: an active-hours off span holds the character's own turns",
     ],
   ] as const)("renders %s right after the frontmost line", (_name, dnd, line) => {
     const cc = baseContext({ kind: "user" });

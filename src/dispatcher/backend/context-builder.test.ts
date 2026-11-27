@@ -244,9 +244,9 @@ describe("context builder — do not disturb", () => {
     ],
     ["a Rest with no recorded start", { kind: "rest", choice: "until_off" }, { kind: "rest" }],
     [
-      "a quiet span",
+      "an off span",
       { kind: "quiet", endsAt: local(12, 0) },
-      { kind: "quiet", ends_local: "12:00" },
+      { kind: "off_span", ends_local: "12:00" },
     ],
   ] as const)("projects %s from the provider, read every turn", async (_name, rest, projected) => {
     const built = await buildContext(ENV, { getRest: () => rest });
