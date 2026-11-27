@@ -4,6 +4,10 @@ export interface AddressedChain {
   canAdmit(pending?: number): boolean;
   /** Counts `n` admitted addressed turns, one by default. */
   count(n?: number): void;
+  /** The count after the last charge; the exchange line's used. */
+  taken(): number;
+  /** The cap the last admission read; the exchange line's max. */
+  max(): number;
   reset(): void;
 }
 
@@ -14,6 +18,8 @@ export function createAddressedChain(max: () => number): AddressedChain {
     count(n = 1) {
       taken += n;
     },
+    taken: () => taken,
+    max,
     reset() {
       taken = 0;
     },

@@ -11,6 +11,7 @@ const DESCRIPTION =
   "Talk to or hand off to another character: name who this reply is for. They hear this reply and may answer. " +
   "Set handoff only when the user asks you to pass their message to that character; " +
   "that character then answers the user, and your reply only says briefly that you passed it on. " +
+  "Name the character you answer only when you have something new for them; a reply without this tool ends the exchange. " +
   "Once per reply; leave it out when you are talking to the user.";
 
 export function createAddressCharacterTool(deps: {

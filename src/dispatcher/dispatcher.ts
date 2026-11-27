@@ -433,6 +433,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (admission.heldByDndAny(env, members)) return "dnd";
         guardrails.spend(env);
         deps.addressedChain.count(addressedIn(env, members));
+        // Stamp the used count beside the max release stamped, before the context awaits.
+        const exchange = env.payload?.exchange as { max?: unknown } | undefined;
+        if (exchange && typeof exchange.max === "number") {
+          env.payload = {
+            ...env.payload,
+            exchange: { max: exchange.max, used: deps.addressedChain.taken() },
+          };
+        }
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
         });
@@ -498,6 +506,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       list,
       admissible: admission.admissible,
       canAdmit: deps.addressedChain.canAdmit,
+      exchangeMax: deps.addressedChain.max,
       groupsJoin: deps.isDndOn?.() !== true,
       catchupEdge: catchupFree && !wasFree,
       drain: () => deps.drainSignals?.() ?? [],

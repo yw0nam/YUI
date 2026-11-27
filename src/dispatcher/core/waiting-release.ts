@@ -57,6 +57,8 @@ export interface ReleaseInput {
   admissible: (env: BusEnvelope) => boolean;
   /** The addressed chain's room, with `pending` addressed entries already taken. */
   canAdmit: (pending: number) => boolean;
+  /** The cap the admission reads, stamped on each admitted addressed envelope. */
+  exchangeMax: () => number;
   /** Drained groups may join waiting entries: do-not-disturb is off. */
   groupsJoin: boolean;
   /** Drained groups may go out alone: the edge into a free slot. */
@@ -81,6 +83,8 @@ export function planRelease(input: ReleaseInput): {
     if (!isAddressedEvent(w.env)) return true;
     if (!input.canAdmit(addressed)) return false;
     addressed += 1;
+    // Stamp the max the admission used, for the context's exchange line.
+    w.env.payload = { ...w.env.payload, exchange: { max: input.exchangeMax() } };
     return true;
   });
   const overCap = input.list.take((w) => isAddressedEvent(w.env) && !input.canAdmit(addressed));

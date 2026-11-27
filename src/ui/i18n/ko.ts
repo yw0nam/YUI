@@ -832,8 +832,8 @@ const ko: Record<string, string> = {
   "reactions.rate_tier2_sub": "한동안 조용할 때, 인사, 신호, 다른 캐릭터에게 답하기를 합쳐서 세요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
   "reactions.rate_urgent_sub": "긴급으로 표시된 신호예요. 위 상한과 따로 세요",
-  "reactions.rate_addressed_label": "연달아 불려서 답하기",
-  "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 다른 캐릭터에게 불려 답하는 횟수",
+  "reactions.rate_addressed_label": "캐릭터끼리 주고받는 횟수",
+  "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 캐릭터마다 다른 캐릭터에게 이어서 답하는 횟수",
 
   // screen watch (proactive tab)
   "screen.label": "화면 변화",

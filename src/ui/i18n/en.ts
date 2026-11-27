@@ -837,9 +837,9 @@ const en: Record<string, string> = {
     "Quiet-for-a-while, greetings, signals and answers to another character, together",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",
   "reactions.rate_urgent_sub": "Signals marked urgent, counted apart from the limit above",
-  "reactions.rate_addressed_label": "Answers to another character, in a row",
+  "reactions.rate_addressed_label": "Character-to-character exchanges",
   "reactions.rate_addressed_sub":
-    "How many times she answers a character who addressed her before you speak again",
+    "Before you speak again, how many times each character answers another character in a row",
 
   // screen watch (proactive tab)
   "screen.label": "Screen changes",
