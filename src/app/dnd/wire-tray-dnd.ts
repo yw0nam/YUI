@@ -29,14 +29,18 @@ export function wireTrayDnd(deps: {
     const kind = rest.rest()?.kind;
     return kind === "rest" || kind === "focus";
   };
-  const sync = (): void => {
+  let sent: boolean | undefined;
+  /** Sends the check when it changed; a click sends it anyway, since the native item flipped itself. */
+  const sync = (force = false): void => {
     const on = running();
+    if (on === sent && !force) return;
+    sent = on;
     setTray(on).catch((error: unknown) =>
       log.warn("tray_dnd_set_failed", { on, error: String(error) }),
     );
   };
   sync();
-  const unsubscribe = rest.subscribeRest(sync);
+  const unsubscribe = rest.subscribeRest(() => sync());
   let disposed = false;
   let unlisten: (() => void) | undefined;
   // The click's own check state is stale once a Rest has ended unseen, so the click reads the state now.
@@ -46,7 +50,7 @@ export function wireTrayDnd(deps: {
       if (end) restSettings.end();
       else restSettings.start("until_off");
       log.info("rest_set", { choice: end ? "end" : "until_off", via: "tray" });
-      sync();
+      sync(true);
     })
     .then((off) => {
       if (disposed) off();
