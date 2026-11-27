@@ -25,6 +25,9 @@ type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop" };
 export interface Guardrails {
   /** Evaluate one event in order. If pass=false, drop. Mutate debounce/rate state only if pass. */
   evaluate(env: BusEnvelope): GuardResult;
+  arrive(env: BusEnvelope): GuardResult;
+  canSpend(env: BusEnvelope): boolean;
+  spend(env: BusEnvelope): void;
   /** Hot reload: replace only config values (preserve runtime counter state). */
   setConfig(next: GuardrailsConfig): void;
 }
@@ -92,6 +95,10 @@ export function createGuardrails(
 
   return {
     evaluate,
+    // Test-commit stubs, replaced in the implementation commit.
+    arrive: () => ({ pass: true }),
+    canSpend: () => true,
+    spend: () => {},
     setConfig(next) {
       config = next;
     },

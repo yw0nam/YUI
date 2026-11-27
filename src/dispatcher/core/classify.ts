@@ -129,3 +129,7 @@ export function isDndHeld(env: BusEnvelope): boolean {
     (env.event_name.startsWith("time_milestone.") || env.event_name.startsWith("signals."))
   );
 }
+
+// Test-commit stubs, replaced in the implementation commit.
+export const waitClassOf = (_env: BusEnvelope): "now" | "scheduled" | "room" => undefined as never;
+export const isUserActivity = (_env: BusEnvelope): boolean => undefined as never;

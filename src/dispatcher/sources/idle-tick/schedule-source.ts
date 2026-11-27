@@ -146,5 +146,6 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
     unlisten = undefined;
   }
 
-  return { start, stop, restore };
+  // Test-commit stub, replaced in the implementation commit.
+  return { start, stop, restore, markSpoken: (_env: BusEnvelope) => {} };
 }

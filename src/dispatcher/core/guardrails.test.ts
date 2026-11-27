@@ -67,66 +67,81 @@ function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
   };
 }
 
-// ── evaluate: dnd_override short-circuit (§6.4) ─────────────────────────────────
+/** One fire through the three calls: arrive, then spend a slot when one is free. */
+function fire(g: Guardrails, e: BusEnvelope): boolean {
+  if (!g.arrive(e).pass || !g.canSpend(e)) return false;
+  g.spend(e);
+  return true;
+}
 
-describe("guardrails — evaluate dnd_override short-circuit", () => {
+// ── dnd_override short-circuit (§6.4) ─────────────────────────────────
+
+describe("guardrails — dnd_override short-circuit", () => {
   it("dnd_override passes without mutating any counter", () => {
     const g = createGuardrails(config());
     // fire many user-override turns — none increments rate counters.
     for (let i = 0; i < 50; i++) {
-      const r = g.evaluate(
+      const r = fire(
+        g,
         env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
       );
-      expect(r.pass).toBe(true);
+      expect(r).toBe(true);
     }
     // the tier2 budget of 6 is untouched, so a non-override turn still passes.
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(true);
+    expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+      true,
+    );
   });
 });
 
 // ── Debounce (§6.2) ──────────────────────────────────────────────────────────────
 
 describe("guardrails — debounce per source (§6.2)", () => {
-  it("os_event_watcher 5s window", () => {
+  it("arrive drops a second os_event_watcher fire inside the 5s window", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
-    ).toBe(true);
+    expect(g.arrive(env())).toEqual({ pass: true });
     c.advance(4_999);
-    expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
-    ).toBe(false);
+    expect(g.arrive(env())).toEqual({ pass: false, reason: "guardrail_drop" });
     c.advance(1);
-    expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
-    ).toBe(true);
+    expect(g.arrive(env())).toEqual({ pass: true });
   });
 
   it("user_input_source 0 window — never debounce-dropped", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 3; i++) {
-      expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-      ).toBe(true);
+      expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+        true,
+      );
     }
   });
 
   it("debounce state only mutates on a full pass (a dropped event does not move lastFire)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(true); // lastFire = t0
+    expect(fire(g, env({ source: "os_event_watcher" }))).toBe(true); // lastFire = t0
     c.advance(2_000);
-    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(false); // dropped, lastFire stays t0
+    expect(fire(g, env({ source: "os_event_watcher" }))).toBe(false); // dropped, lastFire stays t0
     c.advance(3_000); // t0 + 5_000 → window elapsed relative to t0, not the dropped attempt
-    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(true);
+    expect(fire(g, env({ source: "os_event_watcher" }))).toBe(true);
   });
 });
 
 // ── Rate-limit (§6.3) ────────────────────────────────────────────────────────────
+
+describe("guardrails — canSpend and spend", () => {
+  it("canSpend reads the window without spending, and spend takes one slot", () => {
+    const g = createGuardrails(config());
+    const cue = env({ source: "timer_scheduler", event_name: "proactive.stretch" });
+    for (let i = 0; i < 20; i++) expect(g.canSpend(cue)).toBe(true);
+    for (let i = 0; i < 6; i++) g.spend(cue);
+    expect(g.canSpend(cue)).toBe(false);
+    expect(g.canSpend(env({ source: "urgent_signal_source", event_name: "signals.urgent" }))).toBe(
+      true,
+    );
+  });
+});
 
 describe("guardrails — tier2 rate-limit rolling 60min (§6.3)", () => {
   it("tier2 cap 6: first 6 pass, 7th drops", () => {
@@ -134,49 +149,49 @@ describe("guardrails — tier2 rate-limit rolling 60min (§6.3)", () => {
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
       // distinct sources/time to avoid debounce — drive via user_input (debounce 0).
-      expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-      ).toBe(true);
+      expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+        true,
+      );
     }
-    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
-    expect(r.pass).toBe(false);
+    const r = fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }));
+    expect(r).toBe(false);
   });
 
   it("rolling window prunes: a tier2 slot frees once window_ms passes (no refund, time-based prune)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
-      expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-      ).toBe(true);
+      expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+        true,
+      );
       c.advance(1);
     }
     // immediately full
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(false);
+    expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+      false,
+    );
     // advance past window relative to the first fire → one slot prunes, one more passes
     c.advance(3_600_000);
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(true);
+    expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+      true,
+    );
   });
 
   it("NO refund: a dropped (over-cap) attempt does not free a slot", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
-      expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-      ).toBe(true);
+      expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+        true,
+      );
     }
     // two over-cap attempts in the same instant — both drop, no slot is freed by the drops.
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(false);
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
-    ).toBe(false);
+    expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+      false,
+    );
+    expect(fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }))).toBe(
+      false,
+    );
   });
 });
 
@@ -200,7 +215,7 @@ describe("guardrails — shipped hourly limits", () => {
     let passed = 0;
     for (let i = 0; i < count; i++) {
       c.set(BASE_TS + i * 1_000);
-      if (g.evaluate(env({ source, event_name })).pass) passed++;
+      if (fire(g, env({ source, event_name }))) passed++;
       else if (firstDrop === 0) firstDrop = i + 1;
     }
     return { firstDrop, passed };
@@ -209,7 +224,7 @@ describe("guardrails — shipped hourly limits", () => {
   /** Whether a non-urgent turn passes at `at`. */
   function turnAt(g: Guardrails, c: ReturnType<typeof clock>, at: number): boolean {
     c.set(at);
-    return g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass;
+    return fire(g, env({ source: "user_input_source", event_name: "user.text_submitted" }));
   }
 
   it("drops the 25th non-urgent turn in an hour, and passes one as soon as the first slot frees", () => {

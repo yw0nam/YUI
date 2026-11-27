@@ -111,7 +111,7 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     src.stop();
   });
 
-  it("away: inbox arrivals are buffered (nothing pushed); present tick → ONE signals.catchup; buffer cleared", async () => {
+  it("away arrivals are buffered; the present tick pushes no batched catch-up, and drain returns them in arrival order", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -125,27 +125,16 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     });
     await src.start();
 
-    // Away — two batches.
     emitIdle(idleTick(HIGH_IDLE));
     emitInbox(batch([{ id: 1 }], 1000, envelopeOf(1)));
     emitInbox(batch([{ id: 2 }, { id: 3 }], 2000, envelopeOf(2)));
-    expect(pushed).toHaveLength(0);
-
-    // Present tick → catch-up.
     emitIdle(idleTick(LOW_IDLE));
-    expect(pushed).toHaveLength(1);
-    const e = pushed[0];
-    expect(e.event_name).toBe("signals.catchup");
-    expect(e.source).toBe("timer_scheduler");
-    const p = e.payload as { signals: unknown[] };
-    expect(p.signals).toEqual([
+
+    expect(pushed).toEqual([]);
+    expect(src.drain()).toEqual([
       { envelope: envelopeOf(1), items: [{ id: 1 }] },
       { envelope: envelopeOf(2), items: [{ id: 2 }, { id: 3 }] },
     ]);
-
-    // Buffer cleared — another present tick emits nothing further.
-    emitIdle(idleTick(LOW_IDLE));
-    expect(pushed).toHaveLength(1);
 
     src.stop();
   });
@@ -295,7 +284,7 @@ function fakePipelineBusy(initialBusy: boolean): {
 }
 
 describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
-  it("busy→idle edge (subscribePipelineBusy callback fires false) flushes ONE signals.catchup in arrival order, buffer cleared", async () => {
+  it("a busy→idle edge pushes no batched catch-up, and drain returns the groups in arrival order", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -312,27 +301,16 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
     });
     await src.start();
 
-    emitIdle(idleTick(LOW_IDLE)); // present, but busy
+    emitIdle(idleTick(LOW_IDLE));
     emitInbox(batch([{ id: 1 }], 1000, envelopeOf(1)));
     emitInbox(batch([{ id: 2 }, { id: 3 }], 2000, envelopeOf(2)));
-    expect(pushed).toHaveLength(0);
-
-    // busy → idle edge.
     pipelineBusy.setBusy(false);
 
-    expect(pushed).toHaveLength(1);
-    const e = pushed[0];
-    expect(e.event_name).toBe("signals.catchup");
-    const p = e.payload as { signals: unknown[] };
-    expect(p.signals).toEqual([
+    expect(pushed).toEqual([]);
+    expect(src.drain()).toEqual([
       { envelope: envelopeOf(1), items: [{ id: 1 }] },
       { envelope: envelopeOf(2), items: [{ id: 2 }, { id: 3 }] },
     ]);
-
-    // A second busy→idle edge with an empty buffer fires nothing further.
-    pipelineBusy.setBusy(true);
-    pipelineBusy.setBusy(false);
-    expect(pushed).toHaveLength(1);
 
     src.stop();
   });
@@ -400,26 +378,6 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     await vi.advanceTimersByTimeAsync(300_000);
 
     expect(s.pushed).toHaveLength(0);
-    s.src.stop();
-  });
-
-  it("flushes exactly ONE catchup on the window-open edge", async () => {
-    const s = startPaced();
-    await s.src.start();
-
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1000, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2000, envelopeOf(2)));
-
-    s.pacer.setHolding(false);
-
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0].event_name).toBe("signals.catchup");
-    const p = s.pushed[0].payload as { signals: unknown[] };
-    expect(p.signals).toEqual([
-      { envelope: envelopeOf(1), items: [{ id: 1 }] },
-      { envelope: envelopeOf(2), items: [{ id: 2 }] },
-    ]);
     s.src.stop();
   });
 
