@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Rest and Trigger Mock</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Real tokens and component stylesheets; only mock-only staging lives in the <style> below. -->
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link rel="stylesheet" href="../../src/ui/surfaces/surfaces.css">
+<link rel="stylesheet" href="../../src/ui/message/message-plate.css">
+<link rel="stylesheet" href="../../src/ui/signals/source-line.css">
+<link rel="stylesheet" href="../../src/ui/chips/status-pill.css">
+<link rel="stylesheet" href="../../src/ui/character-menu/character-menu.css">
+<style>
+/* mock:font:start */
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../public/fonts/PretendardJPVariable.woff2") format("woff2-variations"); font-weight: 45 920; font-display: swap; }
+/* mock:font:end */
+
+/* Layout: a storyboard player, one real-size desktop stage above a caption, controls on top. */
+:root {
+  --mock-desk-a: oklch(0.86 0.01 250); --mock-desk-b: oklch(0.42 0.05 240); --mock-sil: oklch(0.45 0.02 60 / 0.35);
+  --mock-win-edge: oklch(0.25 0.01 250 / 0.5); --mock-menu-bg: oklch(0.97 0 0 / 0.94); --mock-menu-text: oklch(0.2 0 0);
+  --mock-menu-sep: oklch(0.2 0 0 / 0.12); --mock-menu-hi: oklch(0.55 0.17 255); --mock-menu-hi-text: oklch(0.99 0 0);
+}
+:root[data-theme="hearth"] {
+  --mock-desk-a: oklch(0.3 0.006 250); --mock-desk-b: oklch(0.6 0.05 230); --mock-sil: oklch(0.7 0.02 70 / 0.45);
+  --mock-win-edge: oklch(0.95 0.01 250 / 0.45); --mock-menu-bg: oklch(0.27 0.004 250 / 0.94); --mock-menu-text: oklch(0.96 0 0);
+  --mock-menu-sep: oklch(0.96 0 0 / 0.12); --mock-menu-hi: oklch(0.55 0.17 255); --mock-menu-hi-text: oklch(0.99 0 0);
+}
+html, body { margin: 0; background: var(--yui-panel-bg); }
+body {
+  color: var(--yui-text); font-family: var(--yui-font); font-size: var(--yui-fs-body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: hidden;
+}
+.mock-page { max-width: 1100px; margin: 0 auto; padding-block: 24px 64px; display: grid; gap: 18px; }
+.mock-page h1 { margin: 0; font-size: var(--yui-fs-title); font-weight: 600; text-wrap: balance; }
+.mock-page h2 { margin: 0; font-size: var(--yui-fs-head); font-weight: 600; }
+.mock-page p { margin: 0; }
+.mock-lede { color: var(--yui-text-dim); max-width: 72ch; }
+.mock-mute { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); }
+.mock-controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.mock-seg { display: inline-flex; border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); overflow: hidden; }
+.mock-seg button, .mock-step {
+  font: inherit; font-size: var(--yui-fs-sub); padding: 5px 11px; border: 0; background: transparent; color: var(--yui-text-dim); cursor: pointer;
+}
+.mock-seg button + button { border-left: 1px solid var(--yui-edge); }
+.mock-seg button[aria-pressed="true"] { background: var(--yui-selected); color: var(--yui-text); font-weight: 600; }
+.mock-step { border: 1px solid var(--yui-edge-strong); border-radius: var(--yui-radius-control); color: var(--yui-text); }
+.mock-step:disabled { color: var(--yui-text-mute); cursor: default; opacity: 0.6; }
+.mock-seg button:focus-visible, .mock-step:focus-visible { outline: 2px solid var(--yui-accent); outline-offset: 2px; }
+.mock-count { font-variant-numeric: tabular-nums; color: var(--yui-text-dim); font-size: var(--yui-fs-sub); }
+
+/* The stage scales down to the page width; the desk inside keeps the real px. */
+.mock-stagewrap { width: 100%; overflow: hidden; }
+.mock-desk { position: relative; transform-origin: 0 0; background: var(--mock-desk-a); border-radius: 8px; overflow: hidden; }
+.mock-desk__b { position: absolute; inset: 0 0 0 56%; background: var(--mock-desk-b); }
+/* The transparent pet window: a dashed box over the desktop stand-in. Her UI lays out in her own box. */
+.mock-win { position: absolute; height: 600px; outline: 1px dashed var(--mock-win-edge); outline-offset: -1px; overflow: hidden; }
+.mock-root { position: relative; width: 100%; height: 100%; font-size: 16px; line-height: normal; }
+/* The page's 100vh is not the window's 600px: the cap reads the pet window's height, as in the app. */
+.mock-root .yui-ui { --yui-bubble-max-h: max(calc((600px - var(--yui-box-top, 0px)) * 0.34), var(--yui-bubble-three-lines)); }
+.mock-sil { position: absolute; bottom: 0; left: calc(var(--yui-box-left, 0px) + 85px); width: 230px; height: 520px; color: var(--mock-sil); }
+.mock-still, .mock-still * { transition: none !important; }
+/* Storyboard hints: where the user acts next. */
+.mock-target { outline: 2px dashed var(--yui-accent) !important; outline-offset: 3px !important; }
+.mock-hit { position: absolute; left: calc(var(--yui-box-left, 0px) + 200px); top: 290px; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 2px dashed var(--yui-accent); }
+.mock-hit::after { content: "right-click"; position: absolute; left: 40px; top: 6px; font: 600 11px/1 var(--yui-font); color: var(--yui-accent-ink); background: var(--yui-scrim-strong); padding: 3px 6px; border-radius: 6px; white-space: nowrap; }
+
+.mock-cmenu__sep { height: 1px; margin: 0 14px; background: var(--yui-edge-strong); }
+
+/* The native macOS menu bar and tray menu, drawn by the OS. */
+.mock-menubar { position: absolute; inset: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 14px; height: 24px; padding: 0 12px; background: oklch(0.5 0.01 250 / 0.18); font: 13px -apple-system, system-ui, sans-serif; color: var(--mock-menu-text); }
+.mock-menubar[hidden] { display: none; }
+.mock-menubar__tray { display: grid; place-items: center; width: 22px; height: 20px; border-radius: 4px; }
+.mock-menubar__tray.is-open { background: oklch(0.5 0.01 250 / 0.3); }
+.mock-menubar__tray svg { width: 14px; height: 14px; }
+.mock-mmenu { position: absolute; top: 26px; right: 40px; width: 236px; padding: 5px; border-radius: 8px; background: var(--mock-menu-bg); box-shadow: 0 0 0 0.5px oklch(0 0 0 / 0.25), 0 10px 30px oklch(0 0 0 / 0.25); font: 13px/1 -apple-system, system-ui, sans-serif; color: var(--mock-menu-text); z-index: 5; }
+.mock-mmenu__item { position: relative; display: flex; align-items: center; height: 22px; padding: 0 10px 0 22px; border-radius: 4px; white-space: nowrap; }
+.mock-mmenu__item.is-hi { background: var(--mock-menu-hi); color: var(--mock-menu-hi-text); }
+.mock-mmenu__check { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); width: 11px; height: 11px; }
+.mock-mmenu__sep { height: 1px; margin: 5px 10px; background: var(--mock-menu-sep); }
+
+/* Caption under the window. */
+.mock-cap { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--yui-edge); border-radius: var(--yui-radius-group); background: var(--yui-group-bg); min-width: 0; }
+.mock-cap__head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.mock-cap__head b { font-size: var(--yui-fs-head); }
+.mock-cap dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; }
+.mock-cap dt { color: var(--yui-text-mute); font-size: var(--yui-fs-sub); font-weight: 600; letter-spacing: 0.02em; padding-top: 1px; }
+.mock-cap dd { margin: 0; color: var(--yui-text); max-width: 72ch; }
+.mock-cap__measure { font-variant-numeric: tabular-nums; padding: 8px 10px; border-radius: var(--yui-radius-control); background: var(--yui-selected); }
+.mock-cap__measure.is-over { color: var(--yui-danger); }
+.mock-notes { display: grid; gap: 8px; }
+.mock-tablewrap { overflow-x: auto; max-width: 100%; }
+.mock-notes table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--yui-fs-sub); }
+.mock-notes th, .mock-notes td { padding: 5px 10px; border-bottom: 1px solid var(--yui-edge); text-align: right; white-space: nowrap; }
+.mock-notes th:first-child, .mock-notes td:first-child { text-align: left; }
+.mock-notes th { color: var(--yui-text-mute); font-weight: 600; }
+.mock-notes td.is-over { color: var(--yui-danger); font-weight: 600; }
+.mock-notes ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--yui-text-dim); max-width: 80ch; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main class="mock-page">
+  <header style="display:grid;gap:8px">
+    <span class="mock-mute">mocks/character-window · #2113 (Part of #2108; #1963, #1964, #1965)</span>
+    <h1>Rest with an end, and why she spoke</h1>
+    <p class="mock-lede">Storyboard J1 to J6 played frame by frame in the real 400 × 600 pet window, which widens while the Character menu is open. Rest becomes Rest › with durations and two Focus rows, the Rest pill and the status pill name the end, and the speech bubble's quote slot names the trigger of a self-started turn. The locale switch changes the menu's strings (captions stay in English); the Rest › list takes the right column, and the Body, Voice, Pace and More lists keep the left.</p>
+  </header>
+
+  <section class="mock-player" aria-label="Storyboard player" style="display:grid;gap:12px">
+    <div class="mock-controls">
+      <div class="mock-seg" id="segJourney" role="group" aria-label="Journey"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="mock-step" id="btnPrev" type="button" aria-label="Previous frame">← Prev</button>
+        <span class="mock-count" id="count" aria-live="polite"></span>
+        <button class="mock-step" id="btnNext" type="button" aria-label="Next frame">Next →</button>
+      </div>
+      <div class="mock-seg" id="segLocale" role="group" aria-label="Menu locale"><button type="button" data-v="en" aria-pressed="true">en</button><button type="button" data-v="ko" aria-pressed="false">ko</button><button type="button" data-v="ja" aria-pressed="false">ja</button></div>
+      <div class="mock-seg" id="segTheme" role="group" aria-label="Theme"><button type="button" data-v="dawn" aria-pressed="true">Dawn</button><button type="button" data-v="hearth" aria-pressed="false">Hearth</button></div>
+    </div>
+
+    <div class="mock-stagewrap" id="stagewrap">
+      <div class="mock-desk" id="desk">
+        <div class="mock-desk__b"></div>
+        <div class="mock-menubar" id="menubar" hidden><span>Wi-Fi</span><span class="mock-menubar__tray" id="trayIcon"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="5.2" r="2.8"/><path d="M3 14c.6-3 2.6-4.6 5-4.6s4.4 1.6 5 4.6Z"/></svg></span><span id="menubarClock"></span></div>
+        <div class="mock-mmenu" id="mmenu" hidden></div>
+        <div class="mock-win" id="win">
+          <div class="mock-root" id="root">
+            <svg class="mock-sil" viewBox="0 0 230 520" fill="currentColor" aria-hidden="true"><ellipse cx="115" cy="92" rx="54" ry="60"/><path d="M70 168c-22 10-34 40-38 92l-6 98h28l12-110 4 262h40l5-170 5 170h40l4-262 12 110h28l-6-98c-4-52-16-82-38-92-14 8-30 12-45 12s-31-4-45-12Z"/></svg>
+            <div class="mock-hit" id="hit" hidden></div>
+            <div class="yui-status" id="pill" role="status" hidden><span class="yui-status__dnd"><svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A7.8 7.8 0 0 1 9.8 4.5a7.8 7.8 0 1 0 9.7 9.7Z"/></svg><span class="yui-status__dnd-label" id="pillLabel"></span></span></div>
+            <div class="yui-ui" id="ui">
+              <div class="yui-bubble" id="bubble" hidden>
+                <div class="yui-bubble__float">
+                  <div class="yui-bubble__tools">
+                    <button class="yui-bubble__pop" type="button" aria-label="Pop out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg></button>
+                    <button class="yui-bubble__close" type="button" aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                  </div>
+                  <div class="yui-bubble__frame">
+                    <div class="yui-bubble__box"><div class="yui-bubble__scroll" id="bubbleScroll"><div class="yui-bubble__quote" id="bubbleQuote" hidden></div><span class="yui-bubble__text" id="bubbleText"></span><span class="yui-bubble__caret" aria-hidden="true">|</span></div><span class="yui-bubble__speech-action" hidden></span></div>
+                    <span class="yui-bubble__next" aria-hidden="true">▼</span>
+                    <div class="yui-plate"><span class="yui-plate__face" aria-hidden="true"></span><span class="yui-plate__name">Yui</span><span class="yui-plate__dot" aria-hidden="true"></span><span class="yui-plate__state"></span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="yui-cmenu" id="cmenu" role="menu" aria-label="Character menu for Yui" hidden></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-cap" id="cap" aria-live="polite">
+      <div class="mock-cap__head"><b id="capTitle"></b><span class="mock-mute" id="capMeta"></span></div>
+      <dl>
+        <dt>Shows</dt><dd id="capShows"></dd>
+        <dt>User</dt><dd id="capDoes"></dd>
+        <dt>Next</dt><dd id="capNext"></dd>
+      </dl>
+      <p class="mock-cap__measure" id="capMeasure" hidden></p>
+      <p class="mock-mute" id="capNote" hidden></p>
+    </div>
+  </section>
+
+  <section class="mock-notes">
+    <h2>Menu window width, measured in this page</h2>
+    <p class="mock-lede">The window widens to her left reach plus her right reach (88px gutter, the column's widest pill on the 8px grid, 16px margin; at least 200px a side), set once when the menu opens from every list it can show. "Today" is the menu as it ships: Rest a plain toggle measured with its On text, the left reach set by More and Reset chat's confirm row. Red marks a width over today's.</p>
+    <div class="mock-tablewrap"><table id="widths"></table></div>
+    <ul id="notes"></ul>
+  </section>
+</main>
+<script>
+// ── Glyphs: copied from src/ui/character-menu/glyphs.ts and src/ui/threads/glyphs.ts; "end" and "focus" are mock-only. ──
+const icon = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const glyph = (p) => `<svg class="yui-threads-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const GAUGE = '<path d="M4.5 16.5a7.5 7.5 0 1 1 15 0"/>';
+const G = {
+  talk: icon('<path d="M5 5.5h14v10.5h-8.5L6.5 19.5V16H5z"/><path d="M9 10.5h6"/>'),
+  rest: icon('<path d="M18.5 14.2A7 7 0 0 1 9.8 5.5a7 7 0 1 0 8.7 8.7z"/><path d="M15 4.5h3.5L15 8h3.5"/>'),
+  listen: icon('<path d="M12 3.8a2.6 2.6 0 0 1 2.6 2.6v4.8a2.6 2.6 0 0 1-5.2 0V6.4A2.6 2.6 0 0 1 12 3.8z"/><path d="M6.5 11a5.5 5.5 0 0 0 11 0"/><path d="M12 16.5v3.7"/>'),
+  settings: icon('<path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4"/>'),
+  body: icon('<path d="M12 7.6a1.9 1.9 0 1 1 1.9-1.9c0 1.1-1.9 1.5-1.9 2.9"/><path d="M12 8.6 3.8 15.4h16.4z"/>'),
+  voice: icon('<path d="M4 9.8h3l4.5-3.6v11.6L7 14.2H4z"/><path d="M15 9.2a4 4 0 0 1 0 5.6"/><path d="M17.6 6.6a7.6 7.6 0 0 1 0 10.8"/>'),
+  pace: icon(`${GAUGE}<path d="m12 16.5 3.6-4.6"/>`),
+  more: icon('<path d="M5 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z"/><path d="M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z"/><path d="M16.6 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z"/>'),
+  back: icon('<path d="M14.5 6.5 9 12l5.5 5.5"/>'),
+  threads: glyph('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+  bubble: icon('<path d="M5 5.5h14v10.5h-8.5L6.5 19.5V16H5z"/><path d="m9 10.8 2 2 4-4"/>'),
+  unified: icon('<path d="M3.8 5h9.7v7H8l-3 2.5V12H3.8z"/><path d="M16.5 9h3.7v7H19v2.5L16 16h-5.5v-1.8"/>'),
+  terminal: glyph('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3"/><path d="M12.5 15H17"/>'),
+  reset: icon('<path d="M5.2 12a6.8 6.8 0 1 0 2-4.8"/><path d="M5 4.5v3.7h3.7"/>'),
+  end: icon('<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M6 18l1.4-1.4M16.6 7.4 18 6"/>'),
+  focus: icon('<circle cx="12" cy="13" r="7"/><path d="M12 13V9.5M10 3.5h4"/>'),
+};
+const CHEVRON = `<svg class="yui-cmenu__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6.5 15 12l-5.5 5.5"/></svg>`;
+
+// ── Menu strings: existing ones verbatim from src/ui/i18n/{en,ko,ja}.ts; the Rest › rows are new. ──
+const T = {
+  en: { talk: "Talk", rest: "Rest", listen: "Listen", settings: "Settings", body: "Body", voice: "Voice", pace: "Pace", more: "More", back: "Back", on: "On",
+    threads: "Threads", bubble: "Keep bubble", unified: "Unified chat", terminal: "Terminal", reset: "Reset chat", sure: "Sure?", cancel: "Cancel", dnd: "Do not disturb",
+    h1: "For 1 hour", tonight: "Until tonight", morning: "Until tomorrow morning", off: "Until I turn it off", f25: "Focus 25 min", f50: "Focus 50 min", end: "End now",
+    restAt: (t) => `Rest · ${t}`, focusLeft: (m) => `Focus · ${m} min`, quiet: (t) => `Quiet · ${t}`, rowResting: (t) => `Resting until ${t}` },
+  ko: { talk: "말하기", rest: "쉬기", listen: "듣기", settings: "설정", body: "몸", voice: "목소리", pace: "빈도", more: "더보기", back: "뒤로", on: "켜짐",
+    threads: "스레드", bubble: "말풍선 유지", unified: "통합 채팅창", terminal: "터미널", reset: "대화 초기화", sure: "정말요?", cancel: "취소", dnd: "방해금지",
+    h1: "1시간", tonight: "오늘 밤까지", morning: "내일 아침까지", off: "끌 때까지", f25: "집중 25분", f50: "집중 50분", end: "지금 끝내기",
+    restAt: (t) => `쉬기 · ${t}`, focusLeft: (m) => `집중 · ${m}분`, quiet: (t) => `조용히 · ${t}`, rowResting: (t) => `${t}까지 쉬는 중` },
+  ja: { talk: "話す", rest: "休む", listen: "聞き取り", settings: "設定", body: "体", voice: "声", pace: "ペース", more: "その他", back: "戻る", on: "オン",
+    threads: "スレッド", bubble: "吹き出し保持", unified: "統合チャット", terminal: "ターミナル", reset: "会話リセット", sure: "よろしいですか？", cancel: "キャンセル", dnd: "おやすみモード",
+    h1: "1時間", tonight: "今夜まで", morning: "明日の朝まで", off: "オフにするまで", f25: "集中 25分", f50: "集中 50分", end: "今すぐ終了",
+    restAt: (t) => `休む · ${t}`, focusLeft: (m) => `集中 · ${m}分`, quiet: (t) => `静か · ${t}`, rowResting: (t) => `${t}まで休憩中` },
+};
+
+// ── Items: the top level as items.ts builds it; Rest is now a list. ──
+const SEP = { sep: true };
+const BACK = (t) => ({ id: "back", label: t.back, glyph: "back", role: "back" });
+/** The top-level Rest pill: off, a timed rest, a focus, a rest with no end, or quiet from an active-hours span. */
+function restItem(t, v) {
+  const base = { id: "rest", glyph: "rest", role: "list", aria: "Do-not-disturb" };
+  if (!v) return { ...base, label: t.rest };
+  if (v.timed) return { ...base, label: t.restAt(v.timed), on: true };
+  if (v.focus) return { ...base, label: t.focusLeft(v.focus), on: true };
+  if (v.manual) return { ...base, label: t.rest, on: true, onText: t.on };
+  return { ...base, label: t.quiet(v.quiet) };
+}
+const topRight = (t, v) => [
+  { id: "talk", label: t.talk, glyph: "talk", role: "toggle" },
+  restItem(t, v),
+  { id: "listen", label: t.listen, glyph: "listen", role: "toggle" },
+  { id: "settings", label: t.settings, glyph: "settings", role: "action" },
+];
+// Today's right column as measure() sees it: Rest and Listen are toggles shown with their On text.
+const todayRight = (t) => [
+  { id: "talk", label: t.talk, glyph: "talk", role: "toggle" },
+  { id: "rest", label: t.rest, glyph: "rest", role: "toggle", onText: t.on },
+  { id: "listen", label: t.listen, glyph: "listen", role: "toggle", onText: t.on },
+  { id: "settings", label: t.settings, glyph: "settings", role: "action" },
+];
+const topLeft = (t) => ["body", "voice", "pace", "more"].map((id) => ({ id, label: t[id], glyph: id, role: "list" }));
+// More, with its On texts and Reset chat's confirm row, as measure() does: it sets the left reach.
+const moreList = (t) => [BACK(t), { id: "threads", label: t.threads, glyph: "threads", role: "action" },
+  { id: "bubble", label: t.bubble, glyph: "bubble", role: "toggle", onText: t.on },
+  { id: "unified", label: t.unified, glyph: "unified", role: "toggle", onText: t.on },
+  { id: "terminal", label: t.terminal, glyph: "terminal", role: "action" },
+  { id: "reset", label: t.reset, glyph: "reset", role: "danger" }, { confirm: { sure: t.sure, cancel: t.cancel } }];
+
+/** The Rest › list: Back, a status row and End now while a rest runs, the durations but the running one, a divider, Focus. Seven pills; the rows carry no end times, the end shows on the Rest pill and the status row. */
+function restList(t, { running, status }) {
+  const rows = [BACK(t)];
+  if (running) rows.push({ id: "rest-status", label: status(t), role: "status" }, { id: "rest-end", label: t.end, glyph: "end", role: "action" });
+  const durations = [["rest-1h", t.h1], ["rest-tonight", t.tonight], ["rest-morning", t.morning], ["rest-off", t.off]];
+  for (const [id, label] of durations) if (id !== running) rows.push({ id, label, glyph: "rest", role: "choice" });
+  rows.push(SEP,
+    { id: "focus-25", label: t.f25, glyph: "focus", role: "choice" },
+    { id: "focus-50", label: t.f50, glyph: "focus", role: "choice" });
+  return rows;
+}
+
+function rowEl(item) {
+  if (item.sep) { const d = document.createElement("div"); d.className = "mock-cmenu__sep"; d.setAttribute("role", "separator"); return d; }
+  if (item.confirm) {
+    const row = document.createElement("div"); row.className = "yui-cmenu__confirm";
+    row.innerHTML = `<button type="button" class="yui-cmenu__pill yui-cmenu__sure">${G.reset}<span class="yui-cmenu__label"></span></button><button type="button" class="yui-cmenu__pill yui-cmenu__cancel"></button>`;
+    row.querySelector(".yui-cmenu__label").textContent = item.confirm.sure;
+    row.querySelector(".yui-cmenu__cancel").textContent = item.confirm.cancel;
+    return row;
+  }
+  if (item.role === "status") {
+    const row = document.createElement("div"); row.className = "yui-cmenu__status"; row.textContent = item.label; return row;
+  }
+  const el = document.createElement("button");
+  el.className = "yui-cmenu__pill"; el.type = "button"; el.dataset.id = item.id;
+  el.classList.toggle("is-on", item.on === true);
+  el.classList.toggle("is-back", item.role === "back");
+  el.setAttribute("role", item.role === "toggle" ? "menuitemcheckbox" : item.role === "choice" ? "menuitemradio" : "menuitem");
+  if (item.role === "toggle" || item.role === "choice") el.setAttribute("aria-checked", "false");
+  if (item.role === "list") el.setAttribute("aria-haspopup", "menu");
+  if (item.aria) el.setAttribute("aria-label", item.aria);
+  el.innerHTML = G[item.glyph] ?? "";
+  const label = document.createElement("span"); label.className = "yui-cmenu__label"; label.textContent = item.label; el.appendChild(label);
+  if (item.onText) { const on = document.createElement("span"); on.className = "yui-cmenu__on"; on.textContent = item.onText; el.appendChild(on); }
+  if (item.role === "list") el.insertAdjacentHTML("beforeend", CHEVRON);
+  return el;
+}
+
+// ── Layout: src/ui/character-menu/layout.ts, in her box's px (centre 200). ──
+const GUTTER = 88, MARGIN = 16, EDGE = 8, BOX_W = 400, BOX_H = 600;
+const gridWidth = (px) => Math.ceil(px / 8) * 8;
+const reach = (w) => Math.max(BOX_W / 2, GUTTER + gridWidth(w) + MARGIN);
+const columnLeft = (side, width) => (side === "right" ? BOX_W / 2 + GUTTER : BOX_W / 2 - GUTTER - width);
+// Her tap points on the stand-in silhouette (head centre, chest) and her silhouette top, for her name.
+const HEAD = 172, CHEST = { x: 200, y: 290 }, SIL_TOP = 80;
+
+// ── Journeys: `tops` lists the Rest pill states the journey shows, all measured at open. ──
+const J = {
+  J1: { tag: "J1", name: "Quiet until tomorrow morning", list: {}, tops: [null, { timed: "08:00" }] },
+  J1alt: { tag: "J1-alt", name: "Rest until I turn it off", list: {}, tops: [null, { manual: true }] },
+  J2: { tag: "J2", name: "End early", list: { running: "rest-morning", status: (t) => t.rowResting("08:00") }, tops: [{ timed: "08:00" }, null] },
+  J3: { tag: "J3", name: "Focus 25 min", list: {}, tops: [null, { focus: 25 }, { focus: 18 }] },
+  J4: { tag: "J4", name: "Why she spoke (#1965)" },
+  J5: { tag: "J5", name: "Quiet from an active-hours span", list: {}, tops: [{ quiet: "12:00" }] },
+  J6: { tag: "J6", name: "From the tray" },
+};
+const REPLY = "Good morning! You're in early today. Did you sleep all right? Your notes from last night are still open, so have a coffee first and we'll go through them.";
+
+const FRAMES = {
+  J1: [
+    { clock: "21:10", target: "her", shows: "She stands on the desktop. No status pill.", does: "Right-clicks her.", next: "The Character menu opens around her chest: 200ms scale-in from 0.92, both columns together." },
+    { clock: "21:10", menu: { list: "top" }, target: "rest", shows: "The Character menu. Right column Talk, Rest ›, Listen, Settings; left column Body ›, Voice ›, Pace ›, More ›. The window has widened for the menu.", does: "Clicks Rest ›.", next: "The column crossfades to the Rest › list: the old column out in 140ms, the new one in over 200ms from the right." },
+    { clock: "21:10", menu: { list: "rest" }, target: "rest-morning", shows: "Rest › list, 7 pills: ‹ Back, For 1 hour, Until tonight, Until tomorrow morning, Until I turn it off, a divider, Focus 25 min, Focus 50 min. The rows carry no end time; the end shows on the Rest pill and the status pill once picked.", does: "Picks Until tomorrow morning.", next: "The column returns to the top level (crossfade from the left) and the menu stays open. The status pill fades in." },
+    { clock: "21:10", menu: { list: "top", rest: { timed: "08:00" } }, pill: "Resting · until 08:00", shows: "Top level again, the menu still open. Rest is ON in Amber, labelled \"Rest · 08:00\". The status pill fades in at the top with the still moon: \"Resting · until 08:00\".", does: "Presses Esc.", next: "The menu closes at once and the window returns to 400 wide." },
+    { clock: "21:12", pill: "Resting · until 08:00", shows: "The menu is closed; the pill stays. Through the evening her own turns wait (D-71). A touch, another character addressing her and the user's own message still get an answer.", does: "Nothing. The evening passes.", next: "At 08:00 rest ends by itself." },
+    { clock: "08:00", shows: "08:00: rest has ended by itself and the pill has faded out. When the user is at the desk, what waited goes out as one turn (D-73).", does: "Nothing.", next: "End of journey.", note: "Failure path: the app closed and reopened at 07:30 shows the pill again until 08:00 (the end is stored). Reopened at 09:00, rest is off at boot and nothing says it ended; what waited was in memory and does not survive the restart." },
+  ],
+  J1alt: [
+    { clock: "21:10", menu: { list: "rest" }, target: "rest-off", shows: "Rest › list, as in J1.", does: "Picks Until I turn it off.", next: "The column returns to the top level from the left; the pill fades in." },
+    { clock: "21:10", menu: { list: "top", rest: { manual: true } }, pill: "Resting", shows: "Rest is ON in Amber with the same \"On\" text other toggles show, and no end. The status pill shows the moon with \"Resting\" (status.resting), as a rest with no end shows.", does: "Presses Esc.", next: "The menu closes at once." },
+    { clock: "21:12", pill: "Resting", shows: "The pill stays until the user ends rest: Rest › End now, or the tray's Do Not Disturb.", does: "Nothing.", next: "End of journey." },
+  ],
+  J2: [
+    { clock: "23:30", menu: { list: "top", rest: { timed: "08:00" } }, pill: "Resting · until 08:00", target: "rest", shows: "While resting, the user has right-clicked her: Rest is ON, \"Rest · 08:00\".", does: "Clicks Rest ›.", next: "The column crossfades to the Rest › list from the right." },
+    { clock: "23:30", menu: { list: "rest" }, pill: "Resting · until 08:00", target: "rest-end", shows: "Rest › while resting: a status row, then 7 pills: ‹ Back, End now, For 1 hour, Until tonight, Until I turn it off (Until tomorrow morning, the one running, is not listed), a divider, Focus 25 min, Focus 50 min.", does: "Clicks End now.", next: "Rest turns off, the pill fades out, the column returns to the top level from the left." },
+    { clock: "23:30", menu: { list: "top" }, shows: "Top level with Rest off. The pill has faded out. The menu stays open.", does: "Presses Esc or clicks away.", next: "End of journey." },
+  ],
+  J3: [
+    { clock: "14:00", menu: { list: "rest" }, target: "focus-25", shows: "Rest › list at 14:00.", does: "Picks Focus 25 min.", next: "The column returns to the top level from the left; the pill fades in." },
+    { clock: "14:00", menu: { list: "top", rest: { focus: 25 } }, pill: "Focus · 25 min left", shows: "Rest is ON in Amber, labelled with the minutes left: \"Focus · 25 min\". The pill shows the still moon and \"Focus · 25 min left\", counting down in minutes.", does: "Presses Esc.", next: "The menu closes at once." },
+    { clock: "14:07", pill: "Focus · 18 min left", target: "her", shows: "Seven minutes later: \"Focus · 18 min left\".", does: "Right-clicks her.", next: "The menu opens." },
+    { clock: "14:07", menu: { list: "top", rest: { focus: 18 } }, pill: "Focus · 18 min left", shows: "The Rest pill reads \"Focus · 18 min\" in the ON look.", does: "Presses Esc.", next: "At 14:25 (or on End now) the pill leaves." },
+    { clock: "14:25", shows: "Focus has ended and the pill has left. What waited goes out as one turn, if it can speak now.", does: "Nothing.", next: "End of journey." },
+  ],
+  J4: [
+    { clock: "09:00", bubble: { quote: { text: "09:00 Morning" } }, shows: "09:00 schedule greeting: one quote line above her four-line reply, in the slot where a signal turn shows its source today.", does: "Reads.", next: "A bundled turn names the first trigger and the count." },
+    { clock: "09:00", bubble: { quote: { text: "09:00 Morning +2" } }, shows: "A bundled turn (D-73) names the first trigger and the count: \"09:00 Morning +2\".", does: "Reads.", next: "For comparison, the same reply with no quote line. A user turn shows the user's quoted text as today; a touch shows nothing." },
+    { clock: "09:00", bubble: { quote: null }, shows: "The same four-line reply with no quote line, as a touch or any self-started turn shows today.", does: "Reads.", next: "End of journey." },
+  ],
+  J5: [
+    { clock: "10:20", pill: "Quiet · until 12:00", target: "her", shows: "During an active-hours span paced Off, the pill shows the moon with \"Quiet · until 12:00\".", does: "Right-clicks her.", next: "The Character menu opens." },
+    { clock: "10:20", menu: { list: "top", rest: { quiet: "12:00" } }, pill: "Quiet · until 12:00", target: "rest", shows: "Rest reads \"Quiet · 12:00\" in the OFF look, not Amber: rest is off, and the active-hours span holds her until 12:00. The menu and the pill agree.", does: "Clicks Rest ›.", next: "The Rest › list, from the right." },
+    { clock: "10:20", menu: { list: "rest" }, pill: "Quiet · until 12:00", shows: "The normal 7-pill Rest › list, with no extra row.", does: "May pick a duration, or close the menu.", next: "End of journey." },
+  ],
+  J6: [
+    { clock: "21:30", menubar: true, tray: { dnd: true }, pill: "Resting · until 08:00", target: "tray-dnd", shows: "The tray menu while a timed rest runs: Do Not Disturb is checked. The pill reads \"Resting · until 08:00\".", does: "Clicks Do Not Disturb.", next: "Rest ends; the pill fades out." },
+    { clock: "21:30", menubar: true, shows: "The tray menu has closed. Rest has ended and the pill has faded out. Do Not Disturb is now unchecked.", does: "Could click Do Not Disturb again.", next: "Clicking it while no rest runs starts Until I turn it off." },
+  ],
+};
+
+// ── DOM ──
+const $ = (id) => document.getElementById(id);
+const desk = $("desk"), stagewrap = $("stagewrap"), win = $("win"), root = $("root"), ui = $("ui"), cmenu = $("cmenu");
+const pill = $("pill"), pillLabel = $("pillLabel"), bubble = $("bubble"), bubbleQuote = $("bubbleQuote"), bubbleText = $("bubbleText"), bubbleScroll = $("bubbleScroll");
+let journey = "J1", index = 0, locale = "en", place = "right", cur = null, scale = 1, timers = [];
+let geo = {}, deskGeo = null;
+
+/** A column's widest row, measured as measure() does. */
+function colWidth(items) {
+  const box = document.createElement("div"); box.className = "yui-cmenu__measure"; ui.appendChild(box);
+  box.replaceChildren(...items.map(rowEl));
+  const w = box.getBoundingClientRect().width;
+  box.remove();
+  return w;
+}
+const colHeight = (items) => items.filter((i) => !i.sep).length * 44 - 8 + (items.some((i) => i.sep) ? 9 : 0);
+
+/** The columns a frame draws, for a locale and the column the list replaces. */
+function frameColumns(j, menu, loc = locale, side = place) {
+  const t = T[loc], list = menu.list === "rest" ? restList(t, J[j].list) : null;
+  return { right: list && side === "right" ? list : topRight(t, menu.rest ?? null), left: list && side === "left" ? list : topLeft(t) };
+}
+/** The window a journey's menu opens with: every column state it can show, measured once at open. */
+function journeyGeo(j, loc = locale, side = place) {
+  const t = T[loc], tops = J[j].tops.map((v) => topRight(t, v)), list = restList(t, J[j].list);
+  const right = side === "right" ? [...tops, list] : tops;
+  const left = side === "left" ? [topLeft(t), moreList(t), list] : [topLeft(t), moreList(t)];
+  const rightW = Math.max(...right.map(colWidth)), leftW = Math.max(...left.map(colWidth));
+  const tallest = Math.max(...[...right, ...left].map(colHeight));
+  return { reachL: reach(leftW), reachR: reach(rightW), leftW: gridWidth(leftW), rightW: gridWidth(rightW), top: Math.min(HEAD, BOX_H - EDGE - tallest) };
+}
+/** What one frame's own columns need, left reach plus right reach. */
+function frameNeed(j, menu, loc = locale, side = place) {
+  const c = frameColumns(j, menu, loc, side);
+  return reach(colWidth(c.left)) + reach(colWidth(c.right));
+}
+/** Today's menu: Rest a plain toggle, More and its confirm row on the left. */
+const todayWidth = (loc = locale) => reach(Math.max(colWidth(topLeft(T[loc])), colWidth(moreList(T[loc])))) + reach(colWidth(todayRight(T[loc])));
+
+function layoutGeo() {
+  geo = {};
+  for (const j of Object.keys(J)) if (J[j].list) geo[j] = journeyGeo(j);
+  const maxL = Math.max(...Object.values(geo).map((g) => g.reachL)), maxR = Math.max(...Object.values(geo).map((g) => g.reachR));
+  deskGeo = { w: maxL + maxR + 48, h: 640, centre: 24 + maxL, top: 40 };
+  desk.style.width = `${deskGeo.w}px`; desk.style.height = `${deskGeo.h}px`;
+  win.style.top = `${deskGeo.top}px`;
+}
+
+/** The width table: every locale and column, today against the frames the storyboard names. */
+function widthTable() {
+  const cols = [["J1 list (J1·3)", "J1", { list: "rest" }], ["J1 picked (J1·4)", "J1", { list: "top", rest: { timed: "08:00" } }], ["J2 list (J2·2)", "J2", { list: "rest" }], ["J1-alt picked", "J1alt", { list: "top", rest: { manual: true } }], ["J3 Focus · 18 min", "J3", { list: "top", rest: { focus: 18 } }], ["J5 Quiet · 12:00", "J5", { list: "top", rest: { quiet: "12:00" } }]];
+  const rows = [];
+  const data = {};
+  for (const side of ["right", "left"]) for (const loc of ["en", "ko", "ja"]) {
+    const today = todayWidth(loc);
+    const cells = cols.map(([, j, menu]) => frameNeed(j, menu, loc, side));
+    const open = ["J1", "J2"].map((j) => { const g = journeyGeo(j, loc, side); return g.reachL + g.reachR; });
+    data[`${side}-${loc}`] = { today, frames: Object.fromEntries(cols.map(([n], i) => [n, cells[i]])), openJ1: open[0], openJ2: open[1] };
+    const td = (w) => `<td class="${w > today ? "is-over" : ""}">${w}</td>`;
+    rows.push(`<tr><td>${loc} · list in ${side} column</td><td>${today}</td>${open.map(td).join("")}${cells.map(td).join("")}</tr>`);
+  }
+  $("widths").innerHTML = `<thead><tr><th>Locale · Rest › list</th><th>Today</th><th>J1 window</th><th>J2 window</th>${cols.map(([n]) => `<th>${n}: columns</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody>`;
+  $("widths").dataset.widths = JSON.stringify(data);
+  const g = journeyGeo("J2");
+  $("notes").innerHTML = `<li>Each Rest › list is 7 pills plus the divider. With the list open the columns' top stays at her head (${Math.round(g.top)}px) and the tallest column ends at ${Math.round(g.top + colHeight(restList(T.en, J.J2.list)))}px of 600.</li><li>J1 and J2 window: the width the window takes at open and keeps for every frame of the journey, from every list and Rest label it can show (layout.ts measures once at open). Columns: what that one frame's own two columns would need alone, without More on the left.</li>`;
+  // Which right-column pill sets the right reach: today's column against each new Rest label and the list.
+  $("notes").innerHTML += ["en", "ko", "ja"].map((loc) => {
+    const t = T[loc], px = (items) => Math.round(colWidth(items)), today = colWidth(todayRight(t));
+    const labels = [{ timed: "08:00" }, { focus: 18 }, { manual: true }, { quiet: "12:00" }].map((v) => { const i = restItem(t, v); return `"${i.label}${i.onText ? " " + i.onText : ""} ›" ${px([i])}px`; });
+    return `<li>${loc}: today's right column ${Math.round(today)}px (grid ${gridWidth(today)}, reach ${reach(today)}). Rest labels: ${labels.join(", ")}. Rest › list ${px(restList(t, J.J1.list))}px in J1, ${px(restList(t, J.J2.list))}px in J2.</li>`;
+  }).join("");
+}
+
+function fit() {
+  scale = Math.min(1, stagewrap.clientWidth / deskGeo.w);
+  desk.style.transform = scale < 1 ? `scale(${scale})` : "";
+  stagewrap.style.height = `${deskGeo.h * scale}px`;
+}
+
+function placeWindow(state) {
+  const g = geo[journey], open = !!state.menu;
+  const reachL = open ? g.reachL : BOX_W / 2, reachR = open ? g.reachR : BOX_W / 2;
+  win.style.left = `${deskGeo.centre - reachL}px`;
+  win.style.width = `${reachL + reachR}px`;
+  root.style.setProperty("--yui-box-left", `${reachL - BOX_W / 2}px`);
+  root.style.setProperty("--yui-box-width", `${BOX_W}px`);
+  return reachL + reachR;
+}
+
+/** Starts `els` from `state` and lets them transition to how they are drawn (motion.ts). */
+function from(els, state) { for (const el of els) el.classList.add(state); void cmenu.offsetWidth; for (const el of els) el.classList.remove(state); }
+
+function column(side, items, width, top) {
+  const col = document.createElement("div");
+  col.className = `yui-cmenu__col yui-cmenu__col--${side}`;
+  col.setAttribute("role", "group");
+  const left = columnLeft(side, width);
+  col.style.left = `${left}px`; col.style.top = `${top}px`; col.style.width = `${width}px`;
+  col.style.transformOrigin = `${CHEST.x - left}px ${CHEST.y - top}px`;
+  col.replaceChildren(...items.map(rowEl));
+  return col;
+}
+
+function renderMenu(state, prev, animate) {
+  for (const el of cmenu.querySelectorAll(".is-leaving")) el.remove();
+  if (!state.menu) { cmenu.hidden = true; cmenu.replaceChildren(); cmenu.classList.remove("is-back"); return; }
+  const g = geo[journey];
+  const prevMenu = prev?.menu ?? null;
+  let old = null;
+  if (animate && prevMenu && prevMenu.list !== state.menu.list) {
+    cmenu.classList.toggle("is-back", state.menu.list === "top");
+    old = cmenu.querySelector(`.yui-cmenu__col--${place}`);
+    old?.classList.add("is-leaving"); old?.setAttribute("inert", "");
+  }
+  for (const el of [...cmenu.children]) if (el !== old) el.remove();
+  cmenu.hidden = false;
+  cmenu.setAttribute("aria-label", "Character menu for Yui");
+  const name = document.createElement("p"); name.className = "yui-cmenu__name"; name.textContent = "Yui"; name.style.top = `${SIL_TOP}px`;
+  const c = frameColumns(journey, state.menu);
+  const right = column("right", c.right, g.rightW, g.top), left = column("left", c.left, g.leftW, g.top);
+  cmenu.append(name, right, left);
+  if (animate && !prevMenu) from([name, right, left], "is-out");
+  if (old) { from([place === "right" ? right : left], "is-entering"); timers.push(setTimeout(() => old.remove(), 260)); }
+}
+
+function renderPill(label, animate) {
+  if (label) {
+    pillLabel.textContent = label;
+    if (pill.hidden) { pill.hidden = false; if (animate) void pill.offsetWidth; }
+    pill.classList.add("is-visible");
+    return;
+  }
+  if (pill.hidden) return;
+  pill.classList.remove("is-visible");
+  if (animate) timers.push(setTimeout(() => { pill.hidden = true; }, 240)); else pill.hidden = true;
+}
+
+function renderBubble(b, animate) {
+  if (!b) { bubble.classList.remove("is-visible", "is-scrollable"); bubble.hidden = true; return; }
+  bubbleText.innerHTML = `<span><p></p></span>`; bubbleText.querySelector("p").textContent = REPLY;
+  if (b.quote) {
+    // The quote slot as ui/message/trigger-line.ts fills it: one signal line holding the whole trigger line.
+    bubbleQuote.className = "yui-bubble__quote is-sources";
+    bubbleQuote.innerHTML = `<span class="yui-signal-line"><span class="yui-signal-line__text"></span></span>`;
+    bubbleQuote.querySelector(".yui-signal-line__text").textContent = b.quote.text;
+    bubbleQuote.hidden = false;
+  } else { bubbleQuote.hidden = true; bubbleQuote.replaceChildren(); }
+  if (bubble.hidden) { bubble.hidden = false; if (animate) void bubble.offsetWidth; }
+  bubble.classList.add("is-visible");
+  // The real bubble marks overflow and pins to its end.
+  const over = bubbleScroll.scrollHeight > bubbleScroll.clientHeight + 1;
+  bubble.classList.toggle("is-scrollable", over);
+  bubbleScroll.scrollTop = bubbleScroll.scrollHeight;
+}
+
+/** J4: the bubble box's rendered height against the cap, both read from the page. */
+function measureBubble() {
+  const box = bubble.querySelector(".yui-bubble__box");
+  const probe = document.createElement("div"); probe.style.cssText = "position:absolute;visibility:hidden;height:var(--yui-bubble-max-h)"; ui.appendChild(probe);
+  const cap = probe.getBoundingClientRect().height / scale; probe.remove();
+  const h = box.getBoundingClientRect().height / scale;
+  const needed = h - bubbleScroll.clientHeight + bubbleScroll.scrollHeight;
+  // Line boxes of the reply: one client rect per line.
+  const range = document.createRange(); range.selectNodeContents(bubbleText);
+  const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+  const q = bubbleQuote.hidden ? 0 : (() => { const cs = getComputedStyle(bubbleQuote); return bubbleQuote.getBoundingClientRect().height / scale + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); })();
+  const isOver = needed > cap + 0.5;
+  const m = $("capMeasure");
+  m.hidden = false;
+  m.classList.toggle("is-over", isOver);
+  m.textContent = `Bubble box ${h.toFixed(1)}px (getBoundingClientRect) · cap ${cap.toFixed(0)}px (--yui-bubble-max-h in a 600px window) · reply ${lines} lines` +
+    (q ? ` · quote line adds ${q.toFixed(1)}px` : " · no quote line") +
+    (isOver ? ` · OVER the cap by ${(needed - cap).toFixed(1)}px: the bubble pins to its end and the top fade hides the first line.` : ` · under the cap, ${(cap - needed).toFixed(1)}px to spare.`);
+  m.dataset.height = h.toFixed(1); m.dataset.cap = cap.toFixed(0); m.dataset.over = String(isOver); m.dataset.lines = String(lines);
+}
+
+/** While the menu is open with the pill showing: her name label against the status pill. */
+function measureOverlap() {
+  const name = cmenu.querySelector(".yui-cmenu__name");
+  if (!name || pill.hidden) return;
+  const w = win.getBoundingClientRect(), a = pill.getBoundingClientRect(), b = name.getBoundingClientRect();
+  const y = (v) => Math.round((v - w.top) / scale);
+  const overlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  const note = $("capNote");
+  note.hidden = false;
+  note.dataset.overlap = String(Math.round(overlap / scale));
+  note.textContent = overlap > 0
+    ? `Measured: her name label (y ${y(b.top)}–${y(b.bottom)}px) overlaps the status pill (y ${y(a.top)}–${y(a.bottom)}px) by ${Math.round(overlap / scale)}px. The name sits 8px above her silhouette top, here the stand-in's 80px; the pill sits at 4.5% of the window. Her real silhouette top decides whether they meet.`
+    : `Measured: her name label (y ${y(b.top)}–${y(b.bottom)}px) clears the status pill (y ${y(a.top)}–${y(a.bottom)}px).`;
+}
+
+function renderTray(state) {
+  $("menubar").hidden = !state.menubar;
+  $("menubarClock").textContent = `Thu Nov 26 ${state.clock}`;
+  $("trayIcon").classList.toggle("is-open", !!state.tray);
+  const mm = $("mmenu");
+  mm.hidden = !state.tray;
+  if (!state.tray) return;
+  const CHECK = `<svg class="mock-mmenu__check" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3"/></svg>`;
+  const item = (text, id, check = false) => `<div class="mock-mmenu__item" data-id="${id}">${check ? CHECK : ""}${text}</div>`;
+  const sep = `<div class="mock-mmenu__sep"></div>`;
+  // The menu tray.rs builds; the tray is English only.
+  mm.innerHTML = item("Show / Hide Character", "toggle") + sep + item("Do Not Disturb", "tray-dnd", state.tray.dnd) + sep + item("Settings…", "settings") + item("Terminal", "terminal") + item("Quit YUI", "quit");
+}
+
+function show(animate) {
+  for (const t of timers) clearTimeout(t);
+  timers = [];
+  const state = FRAMES[journey][index];
+  const prev = cur && cur.journey === journey ? cur.state : null;
+  if (!animate) desk.classList.add("mock-still");
+  const width = placeWindow(state);
+  renderMenu(state, prev, animate);
+  renderPill(state.pill ?? null, animate);
+  renderBubble(state.bubble ?? null, animate);
+  renderTray(state);
+  for (const el of desk.querySelectorAll(".mock-target")) el.classList.remove("mock-target");
+  $("hit").hidden = state.target !== "her";
+  if (state.target && state.target !== "her") desk.querySelector(`.yui-cmenu__col:not(.is-leaving) [data-id="${state.target}"], .mock-mmenu [data-id="${state.target}"]`)?.classList.add("mock-target");
+  if (!animate) { void desk.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => desk.classList.remove("mock-still"))); }
+  cur = { journey, state };
+  // Caption
+  const n = FRAMES[journey].length;
+  $("capTitle").textContent = `${J[journey].tag} · ${J[journey].name}`;
+  const today = state.menu ? todayWidth() : 0;
+  const need = state.menu ? frameNeed(journey, state.menu) : 0;
+  $("capMeta").textContent = `Step ${index + 1} of ${n} · clock ${state.clock} · menu in ${locale} · ` + (state.menu
+    ? `window ${width} × 600, set at open (today's menu ${today}, ${width > today ? `+${width - today}px` : "no wider"}; this frame's two columns alone need ${need})`
+    : "window 400 × 600");
+  $("capMeta").dataset.width = String(width); $("capMeta").dataset.need = String(need); $("capMeta").dataset.today = String(today);
+  $("capShows").textContent = state.shows; $("capDoes").textContent = state.does; $("capNext").textContent = state.next;
+  $("capNote").hidden = !state.note; $("capNote").textContent = state.note ?? ""; delete $("capNote").dataset.overlap;
+  $("capMeasure").hidden = true;
+  if (state.bubble) timers.push(setTimeout(measureBubble, animate ? 320 : 40));
+  if (state.menu && state.pill) timers.push(setTimeout(measureOverlap, animate ? 320 : 40));
+  $("count").textContent = `${index + 1} / ${n}`;
+  $("btnPrev").disabled = index === 0; $("btnNext").disabled = index === n - 1;
+  document.body.dataset.frame = `${journey}-${index + 1}`;
+}
+
+function go(by) {
+  const n = FRAMES[journey].length, next = index + by;
+  if (next < 0 || next >= n) return;
+  index = next;
+  show(by > 0);
+}
+const press = (seg, v) => { for (const b of $(seg).children) b.setAttribute("aria-pressed", String(b.dataset.v === v)); };
+function pickJourney(j) { journey = j; index = 0; press("segJourney", j); show(false); }
+function setTheme(v) {
+  if (v === "hearth") document.documentElement.dataset.theme = "hearth"; else document.documentElement.removeAttribute("data-theme");
+  press("segTheme", v);
+}
+function relayout() { layoutGeo(); fit(); widthTable(); cur = null; show(false); }
+
+$("segJourney").innerHTML = Object.keys(J).map((k) => `<button type="button" data-v="${k}" aria-pressed="${k === journey}" title="${J[k].name}">${J[k].tag}</button>`).join("");
+$("segJourney").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pickJourney(b.dataset.v); });
+$("segTheme").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setTheme(b.dataset.v); });
+$("segLocale").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; locale = b.dataset.v; press("segLocale", locale); document.documentElement.lang = locale; relayout(); });
+$("btnPrev").addEventListener("click", () => go(-1));
+$("btnNext").addEventListener("click", () => go(1));
+document.addEventListener("keydown", (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+});
+// The host's dark theme, or the system's, opens on Hearth.
+{
+  const host = document.documentElement.dataset.theme;
+  setTheme(host === "dark" || (!host && matchMedia("(prefers-color-scheme: dark)").matches) ? "hearth" : "dawn");
+}
+// Hash: #J4-1 or #J1alt-2 opens a frame; #J2-2-ko also sets the menu locale.
+function fromHash() {
+  const m = /^#(J1alt|J[1-6])-(\d+)(?:-(en|ko|ja))?$/.exec(location.hash);
+  if (!m) return false;
+  journey = m[1]; index = Math.min(Math.max(0, Number(m[2]) - 1), FRAMES[journey].length - 1);
+  press("segJourney", journey);
+  if (m[3] && m[3] !== locale) { locale = m[3]; press("segLocale", locale); document.documentElement.lang = locale; layoutGeo(); fit(); widthTable(); }
+  return true;
+}
+const start = () => { layoutGeo(); fit(); widthTable(); fromHash(); show(false); };
+addEventListener("resize", () => { fit(); if (cur?.state.bubble) measureBubble(); });
+addEventListener("hashchange", () => { if (fromHash()) { cur = null; show(false); } });
+(document.fonts?.ready ?? Promise.resolve()).then(start);
+</script>
+</body>
+</html>

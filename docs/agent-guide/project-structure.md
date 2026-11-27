@@ -43,8 +43,8 @@ YUI/
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       csp-violation.ts               # Logs every Content-Security-Policy violation the window reports
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
-      active-hours/                  # One pet window's active hours: the proactive gap and idle cue scale, and the window's do-not-disturb
-        window-active-hours.ts       # Scales the gap and idle cue minutes by the base pace times the current span's pace; holds do-not-disturb during an off span
+      active-hours/                  # One pet window's active hours: the proactive gap and idle cue scale, and what holds her turns: Rest and quiet spans
+        window-active-hours.ts       # Scales the gap and idle cue minutes by the base pace times the current span's pace; rest() is the running Rest, Focus or quiet span
       card-io/                       # The card's file steps bound to a preset registry
         import-preset.ts             # The import a card section runs: native file step, copied voice registration, VRM list entry, preset creation, and rollback
         wire-card-io.ts              # The card's import, export, thumbnail, photo pick, and preset creation ports
@@ -55,6 +55,7 @@ YUI/
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         report-turn-failure.ts       # Where a failed user turn shows: the open input, or a notice on the status pill
         wire-sources.ts              # The dispatcher's utterance sources, built and started
+        wire-waiting.ts              # The rows yui.waiting reads: the dispatcher's waiting list and the signal buffers, peeked without a drain
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
         wire-first-conversation.ts   # After Quick start connects, and on its Replay: the greeting on an empty session, then the input and the controls hint with the two guides
@@ -254,13 +255,16 @@ YUI/
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
       core/
-        classify.ts                  # Pure tier and target classification of a bus envelope, plus the paced-source table
+        classify.ts                  # Pure tier, target and waiting-class classification of a bus envelope, plus the paced-source table
         event-bus.ts                 # Priority queue collecting every speech-candidate event
-        guardrails.ts                # Debounce and rate-limit evaluation
+        guardrails.ts                # Debounce on arrival, then the rate limit's canSpend and spend
         addressed-chain.ts           # The chain cap: how many addressed turns a window takes in a row without a user turn
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
         proactive-pacer.ts           # The proactive gap after a turn that every proactive source shares
         turn-gate.ts                 # The cross-window Web Lock a turn holds from its backend call to the end of its playback
+        waiting-list.ts              # Self-started candidates that cannot speak now, ranked by class then age, with the keep rules
+        waiting-release.ts           # What one free slot sends: the admissible entries and drained signal groups as one envelope
+        admission.ts                 # Which holds keep a candidate from going out now: Rest, the proactive gap, presence and the spend check
       tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
         render.ts                    # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
@@ -268,7 +272,8 @@ YUI/
         turn.ts                      # Turn identity ledger and the single definition of over
         turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
         push-turn.ts                 # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
-        quoted-turn.ts               # The admitted turn the bubble quotes: the user's message, or a signal turn's source lines at its first utterance
+        quoted-turn.ts               # The admitted turn the bubble quotes: the user's message, a signal turn's source lines, or a trigger line, at its first utterance
+        trigger-line.ts              # The line a turn she started shows: its own trigger or a waited member's, with +N for the rest of a bundle
         signal-lines.ts              # A trigger's signal groups as source lines, urgent first
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
         turn-feed.ts                 # Shared tool-status and reasoning consumer for every transport
@@ -282,17 +287,17 @@ YUI/
         turn-outcome.ts              # How a backend call settled
         background-marker.ts         # Placeholder user-content text for a turn with no real user utterance
         idle-watchdog.ts             # Idle-gap watchdog over the backend event stream and its two timeout budgets
-        context-builder.ts           # Builds the per-turn client context and image attachments
+        context-builder.ts           # Builds the per-turn client context, with waited items and the do-not-disturb line, and image attachments
         client-context-text.ts       # Renders a client context into the plain-line prompt block
         previous-turn.ts             # Persisted record of how the last turn that tried to speak ended
       sources/
         user-input-source.ts         # Normalises typed text and STT results into bus envelopes
         inbox/                       # The inbox-push firing sources
           buffered-inbox-source.ts   # Shared presence-gated core for the inbox-push firing sources
-          signals-source.ts          # Grouped signals-ingress firing source
+          signals-source.ts          # Grouped signals-ingress firing source; batched groups leave through drain() at the dispatcher's release
         idle-tick/                   # Idle-gap, clock-time, milestone, and screen firing sources
           proactive-source.ts        # Idle-gap proactive firing source
-          schedule-source.ts         # Clock-time schedule firing source
+          schedule-source.ts         # Clock-time schedule firing source; a cue is marked fired only once its turn ends ok
           milestone-source.ts        # Once-per-day first-activity milestone firing source
           screen-source.ts           # Frontmost-app transition firing source with a dwell state machine
         gesture/                     # Tap, drag-hold, and window-drop firing sources
@@ -365,6 +370,11 @@ YUI/
         card-active-hours.ts         # The card's extensions.yui.active_hours, the spans in use, and the export transform
         active-hours-settings.ts     # The per-character store of edited spans under yui.active-hours
         base-pace-settings.ts        # The device-wide base pace under yui.base-pace, multiplied into each pet window's span pace
+      rest/                          # The Rest record under yui.dnd: a choice and its end, the choices offered at a time, and the state every surface reads
+        rest-settings.ts             # The device-wide Rest store: the running choice, its start and end, and the stored record's parse
+        rest-choices.ts              # The six Rest choices, the Focus predicate, and the running Rest state
+        rest-end.ts                  # When each choice ends, which choices are offered at a time, and the local clock and minutes helpers
+        rest-state.ts                # What holds her turns at an instant: a running Rest or Focus, else an active-hours quiet span
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
@@ -460,6 +470,7 @@ YUI/
             images.ts                  # The images a run made, kept behind handles, and the ones its returned value holds
             help.ts                    # The text help() prints: the yui API, the settings rows, and the usage rules
             help-topic.ts              # help(topic): the API text, or a plugin's skill for plugin:<name>
+            waiting-api.ts            # yui.waiting: list() one row per waiting entry and buffered signal group, read(id) one item in full
             settings-api.ts            # yui.settings: the exposed document, and a patch whose allow paths wait for the user's decision
             settings-request-frame.ts  # The Settings request frame and its decision, beside the push Ask in the Ask slot's types
             state-api.ts               # yui.state: start time, last presence, open characters, screen recording permission
@@ -648,6 +659,7 @@ YUI/
         text-prefix.ts               # A rendered line's text as the typewriter counts it, and cutting a rendering to its first characters
         backlog.ts                   # The current session's earlier lines, opened above the box by a toggle on its bottom edge
         user-quote.ts                # The user's message quoted on the bubble's first line
+        trigger-line.ts              # The trigger line of a turn she started, drawn in the bubble's quote slot and holding the bubble for that turn
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
         reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message window
         message-plate.ts             # Name plate on the box's top-left edge in both modes: face, name, state; the message window's OS drag handle
@@ -674,7 +686,7 @@ YUI/
         source-line.ts               # Renders one source line: delivery-class dot, source, label
         source-line.css              # Source-line styles: filled urgent dot, ring batched dot
       chips/                         # Status, signal, and delegation chips beside the avatar and on the message-window plate
-        status-pill.ts               # Status pill: capture, voice, and backend tool tells in one pill
+        status-pill.ts               # Status pill: capture, voice, backend tool, and Rest tells in one pill
         tool-labels.ts               # Tool id to display label lookup
         delegation-chip.ts           # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
         delegation-rows.ts           # Delegation list's shared row rendering and relative time text
@@ -729,7 +741,7 @@ YUI/
         settings-request-card.ts     # Deny or Allow on one click, a checkbox per change when there are several, and the optional note
         change-lines.ts              # The card's change and why lines, each agent-written value as one line of plain text
       character-menu/               # The pill menu a right-click on her opens, drawn in the Character menu window, built without React
-        items.ts                     # The item tree for the main or a bound pet window: Talk, Rest, Listen, Settings, Body, Voice, Pace, More
+        items.ts                     # The item tree for the main or a bound pet window: Talk, Rest ›, Listen, Settings, Body, Voice, Pace, More, and the Rest list
         layout.ts                    # The two columns beside her, the fold to one near a screen edge, and how far the menu window reaches past her window
         keys.ts                      # The keyboard order and moves, back and close
         glyphs.ts                    # The menu's line glyphs
