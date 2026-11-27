@@ -197,7 +197,7 @@ export interface Dispatcher {
   getBodyState(): BodyState;
   /** The avatar relocated on its own initiative (move_to) — restamps posture to standing/now. */
   noteAvatarMoved(): void;
-  /** Abort the in-progress call (client-only) and end the on-activity waiting entries, as any user activity does. Does not sweep the bus or touch tier1. */
+  /** Abort the in-progress call (client-only). Leaves the waiting list; does not sweep the bus or touch tier1. */
   cancel(): void;
   /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
@@ -227,6 +227,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     abort: AbortController;
   } | null = null;
   const list = createWaitingList();
+  // Whether a lone signals.catchup could go out at the last release; groups alone leave only on its rising edge.
+  let catchupFree = false;
   const drops: DropRecord[] = [];
   /** The turn whose summary line has not been emitted yet. */
   let openTurn: {
@@ -505,18 +507,23 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /**
    * Sends what may go out now as one turn: the admissible waiting entries (top-ranked envelope
    * plus `payload.waited`) and, unless do-not-disturb is on, the drained batched groups
-   * (`payload.signals`). Groups alone go out as `signals.catchup`. `replacing` is the finishing
-   * call's finally, whose slot the next call takes over.
+   * (`payload.signals`). Groups alone go out as `signals.catchup` only on the edge into a free
+   * slot (busy → idle, a DnD or gap hold ending, away → present); inside a free stretch they wait
+   * for a bundle or the batch timer. `replacing` is the finishing call's finally, whose slot the
+   * next call takes over.
    */
   function release(replacing = false): boolean {
     for (const e of list.expire(Date.now())) recordDrop(e.env, "waiting_expired");
-    if ((inFlight && !replacing) || state !== "running" || deps.hasOutstandingSpeech())
-      return false;
+    const slotFree =
+      (!inFlight || replacing) && state === "running" && !deps.hasOutstandingSpeech();
+    const wasFree = catchupFree;
+    catchupFree = slotFree && admissible(catchupOf([]));
+    if (!slotFree) return false;
     for (const e of list.take((w) => isAddressedEvent(w.env) && !deps.addressedChain.canAdmit())) {
       recordDrop(e.env, "addressed_cap");
     }
     const members = list.take((w) => admissible(w.env));
-    const free = members.length > 0 ? deps.isDndOn?.() !== true : admissible(catchupOf([]));
+    const free = members.length > 0 ? deps.isDndOn?.() !== true : catchupFree && !wasFree;
     const groups = free ? (deps.drainSignals?.() ?? []) : [];
     if (members.length === 0 && groups.length === 0) return false;
     log.info("waiting_release", { ids: members.map((m) => m.id), signals: groups.length });
@@ -682,7 +689,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         inFlight.abort.abort();
         setInFlight(null);
       }
-      expireOnActivity();
     },
     subscribeBusy(cb) {
       busySubscribers.add(cb);

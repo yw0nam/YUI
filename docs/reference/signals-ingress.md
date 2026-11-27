@@ -155,9 +155,19 @@ A group a Thread reaction holds survives that removal, and leaves when its react
 
 The batch buffer has no catch-up of its own: the dispatcher drains it, in arrival order. At every free slot (no call in flight, no speech owed, do-not-disturb off), the drained groups ride the turn that slot starts, beside the self-started lines that waited for it.
 
-With no line waiting, they go out alone as one `signals.catchup` turn. That needs the user present, the proactive gap open and room under the hourly cap. A user message drains the buffer too, and the groups ride the user's turn, do-not-disturb included.
+With no line waiting, they go out alone as one `signals.catchup` turn, with room under the hourly cap, and only on the edge into a free slot:
+
+- the pipeline goes from busy to idle
+- a do-not-disturb or proactive-gap hold ends
+- the user returns to present
+
+Inside a free stretch, a batched group waits for a turn to ride or for its batch timer.
+
+A user message drains the buffer too, and the groups ride the user's turn, do-not-disturb included.
 
 Two client-fired candidates also drain the buffer when they arise: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group that no Thread reaction holds; a candidate that has to wait puts them back.
+
+#### Held and gated groups
 
 An urgent catch-up, a timer firing and a drain carry only the groups that may leave: none that a Thread reaction holds, and no gated group while signals are disabled. Each removes only the groups it carried.
 
