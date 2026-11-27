@@ -160,6 +160,24 @@ it.each([
   ]);
 });
 
+it("flips a toggle at once on each press, before the pet sends its state", async () => {
+  const { emits, deliver, shown } = await wired();
+  deliver(open(1));
+  await shown(1);
+
+  pill("rest")?.click();
+  const first = pill("rest")?.getAttribute("aria-checked");
+  pill("rest")?.click();
+
+  expect([first, emits().slice(1)]).toEqual([
+    "true",
+    [
+      { type: "action", id: "main#1", action: "rest", value: true },
+      { type: "action", id: "main#1", action: "rest", value: false },
+    ],
+  ]);
+});
+
 it("sends a closing pick to the first pet after another open took the window", async () => {
   const { emits, deliver, shown } = await wired();
   deliver(open(1));
